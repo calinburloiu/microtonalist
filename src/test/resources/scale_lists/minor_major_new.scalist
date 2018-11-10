@@ -1,0 +1,53 @@
+{
+  "origin": {
+    "basePitchClass": 2
+  },
+  "config": {
+    "mapQuarterTonesLow": false
+  },
+  "globalFill": {
+    "ref": "chromatic.scl"
+  },
+  "globalFillTuningMapper": {
+    "id": "auto"
+  },
+  "tuningListReducer": {
+    "id": "direct"
+  },
+  "modulations": [
+    {
+      "scale": {
+        "ref": "minor.jscl"
+      },
+      "fill": {
+        "name": "Add special diminished 4th",
+        "intervals": ["9/7"]
+      },
+      "fillTuningMapper": {
+        "id": "auto",
+        "config": {
+          "mapQuarterTonesLow": true
+        }
+      }
+    },
+    {
+      "transposition": "6/5",
+      "scale": {
+        "ref": "major.scl"
+      },
+      "fill": {
+        "ref": "chromatic.scl"
+      }
+    },
+    {
+      "transposition": "5/3",
+      "scale": {
+        "name": "Romanian Minor",
+        "intervals": ["9/8", "6/5", "7/5", "3/2", "27/16", "16/9", "2"]
+      },
+      "extension": {
+        "intervals": ["15/8"]
+      }
+    }
+  ]
+}

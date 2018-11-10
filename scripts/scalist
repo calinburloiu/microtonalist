@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+SCRIPT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+BUILD_JAR="${SCRIPT_PATH}/../build/libs/microtuner-fat.jar"
+INSTALL_JAR="${SCRIPT_PATH}/../jars/microtuner-fat.jar"
+if [ -e "$BUILD_JAR" ]; then
+  JAR="$BUILD_JAR"
+elif [ -e "$INSTALL_JAR" ]; then
+  JAR="$INSTALL_JAR"
+fi
+
+java -jar "$JAR" $@
+
