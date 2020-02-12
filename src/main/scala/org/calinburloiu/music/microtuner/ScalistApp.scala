@@ -1,8 +1,9 @@
 package org.calinburloiu.music.microtuner
 
-import java.io.FileInputStream
+import java.io.{File, FileInputStream}
 import java.nio.file.Paths
 
+import com.typesafe.config.{Config, ConfigFactory}
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.io.{LocalScaleLibrary, ScaleReaderRegistry}
@@ -15,11 +16,16 @@ import scala.util.Try
 object ScalistApp extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
+    val hocon: Config = ConfigFactory.parseFile(new File("/Users/calinburloiu/.microtonalist/microtonalist.conf"))
+    val midiOutputConfig = new MidiIOConfig(hocon.getConfig("output.midi"))
+    midiOutputConfig.devices
+
     if (args.length < 1) {
       System.err.println("Usage: scalist <input_scalist>")
       System.exit(1)
     }
     val inputFileName = args(0)
+    // TODO Configurable
     val scaleLibraryPath = Paths.get(System.getenv("SCALE_LIBRARY_PATH"))
     val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
       new TuningMapperRegistry, new TuningListReducerRegistry)
@@ -27,7 +33,7 @@ object ScalistApp extends StrictLogging {
     val tuningList = TuningList.fromScaleList(scaleList)
 
     val midiDeviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
-    val (midiInput, transmitter) = getMidiInput(midiDeviceInfoArray)
+//    val (midiInput, transmitter) = getMidiInput(midiDeviceInfoArray)
     val (midiOutput, receiver) = getMidiOutput(midiDeviceInfoArray)
     val midiOutputInfo = midiOutput.getDeviceInfo
     logger.info(s"Using MIDI output device ${midiOutputInfo.getName}, ${midiOutputInfo.getDescription}, " +
@@ -39,9 +45,9 @@ object ScalistApp extends StrictLogging {
 
     val tuningSwitch = new TuningSwitch(tuner, tuningList)
 
-    midiInput.open()
-    val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver)
-    transmitter.setReceiver(pedalTuningSwitchReceiver)
+//    midiInput.open()
+//    val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver)
+//    transmitter.setReceiver(pedalTuningSwitchReceiver)
 
     logger.info("Initializing the main frame...")
     val tuningListFrame = new TuningListFrame(tuningSwitch)
@@ -73,6 +79,7 @@ object ScalistApp extends StrictLogging {
     val results = for {
       deviceInfo <- midiDeviceInfoArray.toStream if deviceInfo.getVendor.contains("Roland")
       device = MidiSystem.getMidiDevice(deviceInfo)
+      // TODO verify it's a port: `if ( !(device instanceof Sequencer) && !(device instanceof Synthesizer))`
       maybeReceiver = Try(device.getReceiver).toOption
       receiver <- maybeReceiver
     } yield (device, receiver)

@@ -26,6 +26,7 @@ repositories {
 dependencies {
   compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
   compile group: 'com.typesafe.scala-logging', name: scala('scala-logging'), version: '3.7.2'
+  compile group: 'com.iheart', name: scala('ficus'), version: '1.4.7'
   compile group: 'com.google.guava', name: 'guava', version: '23.0'
   compile group: 'com.typesafe.play', name: scala('play-json'), version: '2.6.5'
   compile group: 'com.fasterxml.jackson.module', name: scala('jackson-module-scala'), version: '2.9.1'
