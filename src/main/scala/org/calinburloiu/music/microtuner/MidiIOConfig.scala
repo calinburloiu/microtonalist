@@ -40,6 +40,52 @@ class MidiIOConfig(private[this] val hocon: Config) extends MidiIOConfigurable {
   override def devices: Seq[MidiDeviceId] = hocon.as[Seq[MidiDeviceId]]("devices")
 }
 
+
+trait MidiOutputConfigured extends MidiIOConfigured
+
+trait MidiOutputConfigurable extends MidiIOConfigurable with MidiOutputConfigured
+
+class MidiOutputConfig(private[this] val hocon: Config) extends MidiIOConfig(hocon) with MidiOutputConfigurable {
+
+}
+
+object MidiOutputConfig {
+  val configRootPath = "output.midi"
+}
+
+
+trait MidiInputConfigured extends MidiIOConfigured {
+  def enabled: Boolean
+  def prevTuningCcTrigger: Int
+  def nextTuningCcTrigger: Int
+  def ccTriggerThreshold: Int
+  def isFilteringCcTriggersInOutput: Boolean
+}
+
+trait MidiInputConfigurable extends MidiIOConfigurable with MidiInputConfigured {
+  def enabled_=(enabled: Boolean): Unit
+}
+
+class MidiInputConfig(private[this] val hocon: Config) extends MidiIOConfig(hocon) with MidiInputConfigurable {
+
+  override def enabled: Boolean = hocon.as[Boolean]("enabled")
+
+  override def enabled_=(enabled: Boolean): Unit = ???
+
+  override def prevTuningCcTrigger: Int = hocon.getAs[Int]("prevTuningCcTrigger").getOrElse(67)
+
+  override def nextTuningCcTrigger: Int = hocon.getAs[Int]("nextTuningCcTrigger").getOrElse(66)
+
+  override def ccTriggerThreshold: Int = hocon.getAs[Int]("ccTriggerThreshold").getOrElse(0)
+
+  override def isFilteringCcTriggersInOutput: Boolean = hocon.getAs[Boolean]("isFilteringCcTriggersInOutput").getOrElse(true)
+}
+
+object MidiInputConfig {
+  val configRootPath = "output.midi"
+}
+
+
 case class MidiDeviceId(
   name: String,
   vendor: String,

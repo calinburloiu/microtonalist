@@ -1,7 +1,7 @@
 package org.calinburloiu.music.microtuner
 
 import java.io.{File, FileInputStream}
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import com.typesafe.config.{Config, ConfigFactory}
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
@@ -16,16 +16,20 @@ import scala.util.Try
 object ScalistApp extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
-    val hocon: Config = ConfigFactory.parseFile(new File("/Users/calinburloiu/.microtonalist/microtonalist.conf"))
-    val midiOutputConfig = new MidiIOConfig(hocon.getConfig("output.midi"))
-    midiOutputConfig.devices
-
     if (args.length < 1) {
-      System.err.println("Usage: scalist <input_scalist>")
+      System.err.println("Usage: scalist <input-scalist> [config-file]")
       System.exit(1)
     }
     val inputFileName = args(0)
-    // TODO Configurable
+    val configFileName = if (args.length >= 2) Some(args(1)) else None
+    val configFile = configFileName.map(Paths.get(_)).getOrElse(ConfigManager.defaultConfigFile)
+
+    val configManager = new ConfigManager(configFile)
+
+    val midiInputConfig = new MidiInputConfig(configManager.getConfig(MidiInputConfig.configRootPath))
+    val midiOutputConfig = new MidiOutputConfig(configManager.getConfig(MidiOutputConfig.configRootPath))
+    val midiManager = new MidiManager
+
     val scaleLibraryPath = Paths.get(System.getenv("SCALE_LIBRARY_PATH"))
     val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
       new TuningMapperRegistry, new TuningListReducerRegistry)
@@ -58,7 +62,8 @@ object ScalistApp extends StrictLogging {
         // TODO Check thread safety!
         logger.info("Switching back to equal temperament...")
         tuner.tune(Tuning.equalTemperament)
-        logger.info("Closing MIDI device...")
+        logger.info("Closing MIDI devices...")
+//        midiInput.close()
         midiOutput.close()
       }
     })
