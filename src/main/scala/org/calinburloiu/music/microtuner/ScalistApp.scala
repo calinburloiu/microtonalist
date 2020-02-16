@@ -1,11 +1,10 @@
 package org.calinburloiu.music.microtuner
 
-import java.io.{File, FileInputStream}
-import java.nio.file.{Path, Paths}
+import java.io.FileInputStream
+import java.nio.file.Paths
 
-import com.typesafe.config.{Config, ConfigFactory}
-import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import com.typesafe.scalalogging.StrictLogging
+import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import org.calinburloiu.music.intonation.io.{LocalScaleLibrary, ScaleReaderRegistry}
 import org.calinburloiu.music.microtuner.io.JsonScaleListReader
 import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningListReducerRegistry, TuningMapperRegistry}
@@ -22,13 +21,16 @@ object ScalistApp extends StrictLogging {
     }
     val inputFileName = args(0)
     val configFileName = if (args.length >= 2) Some(args(1)) else None
-    val configFile = configFileName.map(Paths.get(_)).getOrElse(ConfigManager.defaultConfigFile)
+    val configFile = configFileName.map(Paths.get(_)).getOrElse(MainConfigManager.defaultConfigFile)
 
-    val configManager = new ConfigManager(configFile)
+    val mainConfigManager = new MainConfigManager(configFile)
 
-    val midiInputConfig = new MidiInputConfig(configManager.getConfig(MidiInputConfig.configRootPath))
-    val midiOutputConfig = new MidiOutputConfig(configManager.getConfig(MidiOutputConfig.configRootPath))
-    val midiManager = new MidiManager
+    val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
+    val midiInputConfig = midiInputConfigManager.config
+
+    val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
+    val midiOutputConfig = midiOutputConfigManager.config
+//    val midiManager = new MidiManager
 
     val scaleLibraryPath = Paths.get(System.getenv("SCALE_LIBRARY_PATH"))
     val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
