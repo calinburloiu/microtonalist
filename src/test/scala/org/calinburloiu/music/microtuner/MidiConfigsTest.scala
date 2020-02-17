@@ -2,7 +2,7 @@ package org.calinburloiu.music.microtuner
 
 import com.typesafe.config.{Config, ConfigFactory}
 import javax.sound.midi.MidiDevice
-import org.scalatest.{FlatSpec, FunSuite, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
 class MidiConfigsTest extends FlatSpec with Matchers {
 
@@ -44,5 +44,15 @@ class MidiConfigsTest extends FlatSpec with Matchers {
     val midiDeviceId = MidiDeviceId(midiDeviceInfo)
     // Then
     midiDeviceId shouldEqual MidiDeviceId("Seaboard", "ROLI", "3.14")
+  }
+
+  "test serialize" should "work" in {
+    val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
+    val config = MidiOutputConfig(devices = Seq(
+      MidiDeviceId("FP-90", "Roland", "1.0"),
+      MidiDeviceId("P-125", "Yamaha", "9.8.7")
+    ))
+    val hocon = midiOutputConfigManager.serialize(config)
+    println(hocon.root().render())
   }
 }

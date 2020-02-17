@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import javax.sound.midi.MidiDevice
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
+import org.calinburloiu.music.microtuner.ConfigSerDe._
 
 case class MidiOutputConfig(
   devices: Seq[MidiDeviceId]
@@ -11,9 +12,15 @@ case class MidiOutputConfig(
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
-  import MidiConfigSerDe.midiDeviceIdValueReader
+  import MidiConfigSerDe._
 
-  override protected def serialize(configured: MidiOutputConfig): Config = ???
+  override def serialize(config: MidiOutputConfig): Config = {
+    val hoconConfig = this.hoconConfig
+    val devicesValue = config.devices.map { device =>
+      Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
+    }
+    hoconConfig.withAnyRefValue("devices", devicesValue)
+  }
 
   override def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
     devices = hoconConfig.as[Seq[MidiDeviceId]]("devices")
