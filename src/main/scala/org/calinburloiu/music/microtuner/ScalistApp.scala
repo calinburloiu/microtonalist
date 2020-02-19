@@ -46,8 +46,7 @@ object ScalistApp extends StrictLogging {
       s"from ${midiOutputInfo.getVendor}, version ${midiOutputInfo.getVersion}")
 
     midiOutput.open()
-    val tuningMidiMessageGenerator: TuningMidiMessageGenerator = NonRealTime1BOctaveTuningMidiMessageGenerator
-    val tuner: Tuner = new MidiTuner(receiver, tuningMidiMessageGenerator) with LoggerTuner
+    val tuner: Tuner = new MidiTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
 
     val tuningSwitch = new TuningSwitch(tuner, tuningList)
 

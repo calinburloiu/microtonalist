@@ -5,16 +5,14 @@ import javax.sound.midi.{ShortMessage, SysexMessage}
 
 import org.calinburloiu.music.tuning.Tuning
 
-sealed trait TuningMidiMessageGenerator {
-
+/**
+  * @see [[org.calinburloiu.music.microtuner.MidiTuningFormat]]
+  */
+sealed trait MidiTuningMessageGenerator {
   def generate(tuning: Tuning): SysexMessage
 }
 
-object TuningMidiMessageGenerator {
-
-}
-
-case object NonRealTime1BOctaveTuningMidiMessageGenerator extends TuningMidiMessageGenerator {
+case object NonRealTime1BOctaveMidiTuningMessageGenerator extends MidiTuningMessageGenerator {
 
   val headerBytes: Array[Byte] = Array(SysexMessage.SYSTEM_EXCLUSIVE.toByte, 0x7E, 0x7F, 0x08, 0x08).map(_.toByte)
   val allChannelsBytes: Array[Byte] = Array(0x03, 0x7F, 0x7F).map(_.toByte)

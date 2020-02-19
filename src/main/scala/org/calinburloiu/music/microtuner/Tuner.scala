@@ -22,11 +22,13 @@ trait LoggerTuner extends Tuner with StrictLogging {
 
 class MidiTuner(
   val receiver: Receiver,
-  val tuningMidiMessageGenerator: TuningMidiMessageGenerator,
+  val tuningFormat: MidiTuningFormat.Value,
 ) extends Tuner {
 
+  private val tuningMessageGenerator = tuningFormat.messageGenerator
+
   override def tune(tuning: Tuning, baseNote: Int = 0): Unit = {
-    val sysexMessage = tuningMidiMessageGenerator.generate(tuning)
+    val sysexMessage = tuningMessageGenerator.generate(tuning)
     receiver.send(sysexMessage, -1)
   }
 
