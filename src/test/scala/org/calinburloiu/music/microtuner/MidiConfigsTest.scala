@@ -32,6 +32,7 @@ class MidiConfigsTest extends FlatSpec with Matchers {
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
 
     midiOutputConfigManager.config.devices shouldEqual expectedDevices
+    midiOutputConfigManager.config.tuningFormat shouldEqual MidiTuningFormat.NonRealTime1BOctave
   }
 
   "MidiDeviceId.apply" should "convert from MidiDevice.Info to MidiDeviceId" in {
@@ -48,10 +49,12 @@ class MidiConfigsTest extends FlatSpec with Matchers {
 
   "test serialize" should "work" in {
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
-    val config = MidiOutputConfig(devices = Seq(
-      MidiDeviceId("FP-90", "Roland", "1.0"),
-      MidiDeviceId("P-125", "Yamaha", "9.8.7")
-    ))
+    val config = MidiOutputConfig(
+      devices = Seq(
+        MidiDeviceId("FP-90", "Roland", "1.0"),
+        MidiDeviceId("P-125", "Yamaha", "9.8.7")),
+      tuningFormat = MidiTuningFormat.NonRealTime1BOctave
+    )
     val hocon = midiOutputConfigManager.serialize(config)
     println(hocon.root().render())
   }

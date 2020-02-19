@@ -3,11 +3,13 @@ package org.calinburloiu.music.microtuner
 import com.typesafe.config.Config
 import javax.sound.midi.MidiDevice
 import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.EnumerationReader._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtuner.ConfigSerDe._
 
 case class MidiOutputConfig(
-  devices: Seq[MidiDeviceId]
+  devices: Seq[MidiDeviceId],
+  tuningFormat: MidiTuningFormat.Value
 ) extends Configured
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
@@ -19,11 +21,14 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
     val devicesValue = config.devices.map { device =>
       Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
     }
-    hoconConfig.withAnyRefValue("devices", devicesValue)
+    hoconConfig
+      .withAnyRefValue("devices", devicesValue)
+      .withAnyRefValue("tuningFormat", config.tuningFormat.toString)
   }
 
   override def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
-    devices = hoconConfig.as[Seq[MidiDeviceId]]("devices")
+    devices = hoconConfig.as[Seq[MidiDeviceId]]("devices"),
+    tuningFormat = hoconConfig.as[MidiTuningFormat.Value]("tuningFormat")
   )
 }
 
