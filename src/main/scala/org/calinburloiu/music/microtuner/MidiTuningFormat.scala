@@ -1,9 +1,13 @@
 package org.calinburloiu.music.microtuner
 
-object MidiTuningFormat extends Enumeration {
-  protected case class Val(messageGenerator: MidiTuningMessageGenerator) extends super.Val
-  import scala.language.implicitConversions
-  implicit def valueToPlanetVal(x: Value): Val = x.asInstanceOf[Val]
+import enumeratum.{Enum, EnumEntry}
 
-  val NonRealTime1BOctave: Val = Val(NonRealTime1BOctaveMidiTuningMessageGenerator)
+import scala.collection.immutable
+
+sealed abstract class MidiTuningFormat(val messageGenerator: MidiTuningMessageGenerator) extends EnumEntry
+
+object MidiTuningFormat extends Enum[MidiTuningFormat] {
+  override val values: immutable.IndexedSeq[MidiTuningFormat] = findValues
+
+  case object NonRealTime1BOctave extends MidiTuningFormat(MidiTuningMessageGenerator.NonRealTime1BOctave)
 }

@@ -22,7 +22,7 @@ trait LoggerTuner extends Tuner with StrictLogging {
 
 class MidiTuner(
   val receiver: Receiver,
-  val tuningFormat: MidiTuningFormat.Value,
+  val tuningFormat: MidiTuningFormat,
 ) extends Tuner {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
