@@ -1,12 +1,12 @@
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.midi
 
 import java.nio.ByteBuffer
-import javax.sound.midi.{ShortMessage, SysexMessage}
 
+import javax.sound.midi.{ShortMessage, SysexMessage}
 import org.calinburloiu.music.tuning.Tuning
 
 /**
-  * @see [[org.calinburloiu.music.microtuner.MidiTuningFormat]]
+  * @see [[MidiTuningFormat]]
   */
 sealed trait MidiTuningMessageGenerator {
   def generate(tuning: Tuning): SysexMessage

@@ -2,6 +2,7 @@ package org.calinburloiu.music.microtuner
 
 import com.typesafe.config.{Config, ConfigFactory}
 import javax.sound.midi.MidiDevice
+import org.calinburloiu.music.microtuner.midi._
 import org.scalatest.{FlatSpec, Matchers}
 
 class MidiConfigsTest extends FlatSpec with Matchers {

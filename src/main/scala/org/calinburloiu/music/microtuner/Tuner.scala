@@ -1,8 +1,8 @@
 package org.calinburloiu.music.microtuner
 
 import javax.sound.midi.Receiver
-
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtuner.midi.MidiTuningFormat
 import org.calinburloiu.music.tuning.Tuning
 
 trait Tuner {

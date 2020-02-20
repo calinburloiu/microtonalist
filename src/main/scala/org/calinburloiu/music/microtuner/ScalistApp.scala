@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import org.calinburloiu.music.intonation.io.{LocalScaleLibrary, ScaleReaderRegistry}
 import org.calinburloiu.music.microtuner.io.JsonScaleListReader
+import org.calinburloiu.music.microtuner.midi.{MidiInputConfigManager, MidiOutputConfigManager, MidiTuningFormat}
 import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningListReducerRegistry, TuningMapperRegistry}
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 
@@ -51,7 +52,7 @@ object ScalistApp extends StrictLogging {
     val tuningSwitch = new TuningSwitch(tuner, tuningList)
 
 //    midiInput.open()
-//    val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver)
+//    val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver, midiInputConfig)
 //    transmitter.setReceiver(pedalTuningSwitchReceiver)
 
     logger.info("Initializing the main frame...")

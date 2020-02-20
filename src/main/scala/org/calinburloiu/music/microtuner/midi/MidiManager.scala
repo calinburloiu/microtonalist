@@ -1,4 +1,4 @@
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.midi
 
 import javax.sound.midi.{MidiDevice, Receiver, Transmitter}
 

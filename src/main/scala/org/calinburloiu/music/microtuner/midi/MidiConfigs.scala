@@ -1,10 +1,10 @@
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.config.Config
 import javax.sound.midi.MidiDevice
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtuner.ConfigSerDe._
+import org.calinburloiu.music.microtuner.{Configured, MainConfigManager, SubConfigManager}
 
 case class MidiOutputConfig(
   devices: Seq[MidiDeviceId],
@@ -13,6 +13,7 @@ case class MidiOutputConfig(
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
+  import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
 
   override def serialize(config: MidiOutputConfig): Config = {
@@ -78,14 +79,14 @@ object MidiDeviceId {
 }
 
 object MidiConfigSerDe {
-  private[microtuner] implicit val midiDeviceIdValueReader: ValueReader[MidiDeviceId] = ValueReader.relative { hc =>
+  private[midi] implicit val midiDeviceIdValueReader: ValueReader[MidiDeviceId] = ValueReader.relative { hc =>
     MidiDeviceId(
       name = hc.as[String]("name"),
       vendor = hc.as[String]("vendor"),
       version = hc.as[String]("version"))
   }
 
-  private[microtuner] implicit val ccTriggersValueReader: ValueReader[CcTriggers] = ValueReader.relative { hc =>
+  private[midi] implicit val ccTriggersValueReader: ValueReader[CcTriggers] = ValueReader.relative { hc =>
     CcTriggers(
       prevTuningCc = hc.getAs[Int]("prevTuningCcTrigger").getOrElse(67),
       nextTuningCc = hc.getAs[Int]("nextTuningCcTrigger").getOrElse(66),

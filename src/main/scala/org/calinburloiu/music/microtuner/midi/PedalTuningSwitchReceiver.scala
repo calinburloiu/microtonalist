@@ -1,21 +1,22 @@
-package org.calinburloiu.music.microtuner
-
-import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
+package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.scalalogging.StrictLogging
+import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
+import org.calinburloiu.music.microtuner.TuningSwitch
 
 import scala.collection.mutable
 
 class PedalTuningSwitchReceiver(
-  val tuningSwitch: TuningSwitch,
-  val forwardReceiver: Receiver,
-  val ccPrev: Int = 67,
-  val ccNext: Int = 66,
-  val ccTriggerThreshold: Int = 0,
-  val isFilteringCcTriggersInOutput: Boolean = true
+  tuningSwitch: TuningSwitch,
+  forwardReceiver: Receiver,
+  midiInputConfig: MidiInputConfig
 ) extends Receiver with StrictLogging {
 
-  private[this] val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map(ccPrev -> false, ccNext -> false)
+  private val ccPrev = midiInputConfig.ccTriggers.prevTuningCc
+  private val ccNext = midiInputConfig.ccTriggers.nextTuningCc
+  private val ccTriggerThreshold = midiInputConfig.ccTriggers.ccThreshold
+  private val isFilteringCcTriggersInOutput: Boolean = midiInputConfig.ccTriggers.isFilteringInOutput
+  private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map(ccPrev -> false, ccNext -> false)
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = message match {
     case shortMessage: ShortMessage =>
