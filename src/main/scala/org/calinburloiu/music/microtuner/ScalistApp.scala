@@ -24,7 +24,7 @@ object ScalistApp extends StrictLogging {
     val configFileName = if (args.length >= 2) Some(args(1)) else None
     val configFile = configFileName.map(Paths.get(_)).getOrElse(MainConfigManager.defaultConfigFile)
 
-    val mainConfigManager = new MainConfigManager(configFile)
+    val mainConfigManager = MainConfigManager(configFile)
 
     val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
     val midiInputConfig = midiInputConfigManager.config

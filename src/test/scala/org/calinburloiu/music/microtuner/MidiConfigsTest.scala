@@ -8,7 +8,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class MidiConfigsTest extends FlatSpec with Matchers {
 
   val hoconConfig: Config = ConfigFactory.parseResources(getClass, "/microtonalist.conf")
-  val mainConfigManager = new MainConfigManager(hoconConfig)
+  val mainConfigManager: MainConfigManager = MainConfigManager(hoconConfig)
 
   "MidiInputConfigManager" should "deserialize HOCON" in {
     val expectedDevices = Seq(
