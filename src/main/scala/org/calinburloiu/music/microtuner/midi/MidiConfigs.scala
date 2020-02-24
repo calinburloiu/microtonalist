@@ -16,14 +16,14 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
 
-  override def serialize(config: MidiOutputConfig): Config = {
+  override def serialize(configured: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
-    val devicesValue = config.devices.map { device =>
+    val devicesValue = configured.devices.map { device =>
       Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
     }
     hoconConfig
       .withAnyRefValue("devices", devicesValue)
-      .withAnyRefValue("tuningFormat", config.tuningFormat.toString)
+      .withAnyRefValue("tuningFormat", configured.tuningFormat.toString)
   }
 
   override def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
@@ -51,14 +51,30 @@ case class MidiInputConfig(
 
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
+  import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe.{ccTriggersValueReader, midiDeviceIdValueReader}
 
-  override protected def serialize(configured: MidiInputConfig): Config = ???
+  override protected def serialize(configured: MidiInputConfig): Config = {
+    val hoconConfig = this.hoconConfig
+    val devicesValue = configured.devices.map { device =>
+      Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
+    }
+    val ccTriggersValue = Map(
+      "prevTuningCc" -> configured.ccTriggers.prevTuningCc,
+      "nextTuningCc" -> configured.ccTriggers.nextTuningCc,
+      "ccThreshold" -> configured.ccTriggers.ccThreshold,
+      "isFilteringInOutput" -> configured.ccTriggers.isFilteringInOutput
+    )
+    hoconConfig
+      .withAnyRefValue("enabled", configured.enabled)
+      .withAnyRefValue("devices", devicesValue)
+      .withAnyRefValue("ccTriggers", ccTriggersValue)
+  }
 
-  override protected def deserialize(hoconConfig: Config): MidiInputConfig = MidiInputConfig(
-    enabled = hoconConfig.as[Boolean]("enabled"),
-    devices = hoconConfig.as[Seq[MidiDeviceId]]("devices"),
-    ccTriggers = hoconConfig.as[CcTriggers]("ccTriggers")
+  override protected def deserialize(hc: Config): MidiInputConfig = MidiInputConfig(
+    enabled = hc.as[Boolean]("enabled"),
+    devices = hc.as[Seq[MidiDeviceId]]("devices"),
+    ccTriggers = hc.as[CcTriggers]("ccTriggers")
   )
 }
 
@@ -88,10 +104,10 @@ object MidiConfigSerDe {
 
   private[midi] implicit val ccTriggersValueReader: ValueReader[CcTriggers] = ValueReader.relative { hc =>
     CcTriggers(
-      prevTuningCc = hc.getAs[Int]("prevTuningCcTrigger").getOrElse(67),
-      nextTuningCc = hc.getAs[Int]("nextTuningCcTrigger").getOrElse(66),
-      ccThreshold = hc.getAs[Int]("ccTriggerThreshold").getOrElse(0),
-      isFilteringInOutput = hc.getAs[Boolean]("isFilteringCcTriggersInOutput").getOrElse(true)
+      prevTuningCc = hc.getAs[Int]("prevTuningCc").getOrElse(67),
+      nextTuningCc = hc.getAs[Int]("nextTuningCc").getOrElse(66),
+      ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(0),
+      isFilteringInOutput = hc.getAs[Boolean]("isFilteringInOutput").getOrElse(true)
     )
   }
 }

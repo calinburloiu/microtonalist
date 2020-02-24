@@ -1,8 +1,7 @@
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.midi
 
 import com.sun.media.sound.SoftTuning
 import javax.sound.midi.SysexMessage
-import org.calinburloiu.music.microtuner.midi.{MidiTuningFormat, MidiTuningMessageGenerator}
 import org.calinburloiu.music.tuning.Tuning
 import org.scalatest.{FunSuite, Matchers}
 

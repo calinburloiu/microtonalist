@@ -40,7 +40,7 @@ class ConfigSerDeTest extends FlatSpec with Matchers {
     val m1 = Map("a" -> 1, "b" -> 3).asJava
     val hocon = ConfigFactory.parseMap(m1)
 
-    hocon.withAnyRefValue("a", 3) shouldBe theSameInstanceAs (hocon)
+    hocon.withAnyRefValue("b", 3) shouldBe theSameInstanceAs (hocon)
   }
 
   it should "change HOCON object with a new value" in {

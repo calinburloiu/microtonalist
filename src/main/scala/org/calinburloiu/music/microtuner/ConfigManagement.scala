@@ -2,6 +2,8 @@ package org.calinburloiu.music.microtuner
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
+import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
+import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => HoconConfig}
 import com.typesafe.scalalogging.StrictLogging
@@ -9,10 +11,21 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.util.Try
 
 final class MainConfigManager private[microtuner] (configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
-    extends StrictLogging {
+    extends AutoCloseable with StrictLogging {
   import MainConfigManager._
 
+  val metaConfig: MetaConfig = MetaConfig(saveIntervalMillis = 1000, saveOnExit = true)
+
   private[this] var _mainHoconConfig: HoconConfig = load()
+  private[this] val lock: ReadWriteLock = new ReentrantReadWriteLock
+  private[this] var dirty: Boolean = false
+
+  private val scheduledExecutorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+  private val scheduledTask: Runnable = () => save()
+  if (metaConfig.saveIntervalMillis > 0) {
+    scheduledExecutorService.scheduleAtFixedRate(scheduledTask,
+        metaConfig.saveIntervalMillis, metaConfig.saveIntervalMillis, TimeUnit.MILLISECONDS)
+  }
 
   def load(): HoconConfig = configFile
     .map { path =>
@@ -25,24 +38,52 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
       fallbackMainHoconConfig
     }
 
-  def save(): Unit = configFile.foreach { path =>
-    Try(Files.newBufferedWriter(path, StandardCharsets.UTF_8)).fold(
-      exception => logger.error(s"Failed to save config file to '$path'", exception),
-      writer => {
-        writer.write(render())
-        logger.info(s"Saved config file to '$path")
+  def save(): Unit = {
+    if (dirty) {
+      configFile.foreach { path =>
+        Try(Files.newBufferedWriter(path, StandardCharsets.UTF_8)).fold(
+          exception => logger.error(s"Failed to save config file to '$path'", exception),
+          writer => {
+            writer.write(render())
+            dirty = false
+            logger.info(s"Saved config file to '$path")
+          }
+        )
       }
-    )
+    } else {
+      logger.debug("Nothing to save")
+    }
   }
 
-  def render(): String = _mainHoconConfig.root().render(configRenderOptions)
+  def isDirty: Boolean = dirty
 
-  def hoconConfig(configPath: String): HoconConfig = _mainHoconConfig.getConfig(configPath)
+  def render(): String = mainHoconConfig.root().render(configRenderOptions)
 
-  def notifyConfigChanged(configPath: String, hoconConfig: HoconConfig): Unit = ???
+  def hoconConfig(configPath: String): HoconConfig = mainHoconConfig.getConfig(configPath)
 
-  private[this] def mainHoconConfig: HoconConfig = _mainHoconConfig
-  private[this] def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = { _mainHoconConfig = newMainHoconConfig }
+  def notifyConfigChanged(configPath: String, hoconConfig: HoconConfig): Unit = {
+    mainHoconConfig = mainHoconConfig.withValue(configPath, hoconConfig.root)
+  }
+
+  override def close(): Unit = {
+    if (metaConfig.saveOnExit) {
+      save()
+    }
+    scheduledExecutorService.shutdown()
+  }
+
+  private[this] def mainHoconConfig: HoconConfig = {
+    lock.readLock().lock()
+    val result = _mainHoconConfig
+    lock.readLock().unlock()
+    result
+  }
+  private[this] def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = {
+    lock.writeLock().lock()
+    _mainHoconConfig = newMainHoconConfig
+    dirty = true
+    lock.writeLock().unlock()
+  }
 }
 
 object MainConfigManager {
