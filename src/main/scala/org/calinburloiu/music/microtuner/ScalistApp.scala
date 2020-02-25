@@ -33,7 +33,7 @@ object ScalistApp extends StrictLogging {
     val midiOutputConfig = midiOutputConfigManager.config
 //    val midiManager = new MidiManager
 
-    val scaleLibraryPath = Paths.get(System.getenv("SCALE_LIBRARY_PATH"))
+    val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
     val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
       new TuningMapperRegistry, new TuningListReducerRegistry)
     val scaleList = scaleListReader.read(new FileInputStream(inputFileName))

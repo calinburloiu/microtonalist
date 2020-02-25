@@ -16,17 +16,18 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
 
-  override def serialize(configured: MidiOutputConfig): Config = {
+  override protected def serialize(configured: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
-    val devicesValue = configured.devices.map { device =>
+    val devicesMap = configured.devices.map { device =>
       Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
     }
+
     hoconConfig
-      .withAnyRefValue("devices", devicesValue)
+      .withAnyRefValue("devices", devicesMap)
       .withAnyRefValue("tuningFormat", configured.tuningFormat.toString)
   }
 
-  override def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
+  override protected def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
     devices = hoconConfig.as[Seq[MidiDeviceId]]("devices"),
     tuningFormat = MidiTuningFormat.withName(hoconConfig.as[String]("tuningFormat"))
   )
@@ -56,10 +57,10 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
 
   override protected def serialize(configured: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig
-    val devicesValue = configured.devices.map { device =>
+    val devicesMap = configured.devices.map { device =>
       Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
     }
-    val ccTriggersValue = Map(
+    val ccTriggersMap = Map(
       "prevTuningCc" -> configured.ccTriggers.prevTuningCc,
       "nextTuningCc" -> configured.ccTriggers.nextTuningCc,
       "ccThreshold" -> configured.ccTriggers.ccThreshold,
@@ -67,8 +68,8 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
     )
     hoconConfig
       .withAnyRefValue("enabled", configured.enabled)
-      .withAnyRefValue("devices", devicesValue)
-      .withAnyRefValue("ccTriggers", ccTriggersValue)
+      .withAnyRefValue("devices", devicesMap)
+      .withAnyRefValue("ccTriggers", ccTriggersMap)
   }
 
   override protected def deserialize(hc: Config): MidiInputConfig = MidiInputConfig(

@@ -14,7 +14,9 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
     extends AutoCloseable with StrictLogging {
   import MainConfigManager._
 
-  val metaConfig: MetaConfig = MetaConfig(saveIntervalMillis = 1000, saveOnExit = true)
+  val coreConfigManager: CoreConfigManager = new CoreConfigManager(this)
+  def coreConfig: CoreConfig = coreConfigManager.config
+  def metaConfig: MetaConfig = coreConfig.metaConfig
 
   private[this] var _mainHoconConfig: HoconConfig = load()
   private[this] val lock: ReadWriteLock = new ReentrantReadWriteLock
@@ -29,9 +31,9 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
 
   def load(): HoconConfig = configFile
     .map { path =>
-      val result = ConfigFactory.parseFile(path.toFile)
+      val loadedHoconConfig = ConfigFactory.parseFile(path.toFile)
       logger.info(s"Loaded config file from '$path''")
-      result
+      loadedHoconConfig.resolve()
     }
     .getOrElse {
       logger.warn("Config file not loaded from file; using fallback config")

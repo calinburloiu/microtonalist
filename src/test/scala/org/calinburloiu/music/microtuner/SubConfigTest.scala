@@ -7,7 +7,7 @@ abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extend
 
   val configResource: String = "/microtonalist.conf"
 
-  lazy val initialMainHoconConfig: HoconConfig = ConfigFactory.parseResources(getClass, configResource)
+  lazy val initialMainHoconConfig: HoconConfig = ConfigFactory.parseResources(getClass, configResource).resolve()
   lazy val mainConfigManager: MainConfigManager = MainConfigManager(initialMainHoconConfig)
 
   val subConfigManager: SCM
