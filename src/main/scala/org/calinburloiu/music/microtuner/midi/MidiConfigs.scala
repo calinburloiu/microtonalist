@@ -89,7 +89,10 @@ case class MidiDeviceId(
   vendor: String,
   version: String
 ) {
-  override def toString: String = productIterator.filter(_.toString.trim.nonEmpty).mkString(" ")
+  override def toString: String = {
+    Seq(vendor, "\"" + name.replaceFirst("^CoreMIDI4J - ", "") + "\"", version)
+      .filter(_.trim.nonEmpty).mkString(" ")
+  }
 }
 
 object MidiDeviceId {

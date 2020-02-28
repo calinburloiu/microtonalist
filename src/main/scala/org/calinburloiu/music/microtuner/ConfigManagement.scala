@@ -53,7 +53,7 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
         )
       }
     } else {
-      logger.debug("Nothing to save")
+      logger.trace("Nothing to save")
     }
   }
 

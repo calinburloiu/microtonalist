@@ -19,14 +19,14 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   refresh()
 
-  def midiDeviceInfo(deviceId: MidiDeviceId): MidiDevice.Info =
+  def deviceInfo(deviceId: MidiDeviceId): MidiDevice.Info =
     inputDevicesInfo.getOrElse(deviceId, outputDevicesInfo(deviceId))
 
   def refresh(): Unit = {
     // Alternative to `javax.sound.midi.MidiSystem.getMidiDeviceInfo()` to make Java MIDI work on Mac.
     // This should also work on Windows.
-    val midiDeviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
-    val devices = midiDeviceInfoArray.map(MidiSystem.getMidiDevice)
+    val deviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
+    val devices = deviceInfoArray.map(MidiSystem.getMidiDevice)
 
     devices.foreach { device =>
       val deviceInfo = device.getDeviceInfo
@@ -51,7 +51,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
         openedDevices: mutable.Map[MidiDeviceId, D], deviceIds: GenSet[MidiDeviceId]): Unit = {
       val disappearedOpenedDeviceIds = openedDevices.keySet diff deviceIds
       disappearedOpenedDeviceIds.foreach { deviceId =>
-        val device = openedDevices(deviceId).midiDevice
+        val device = openedDevices(deviceId).device
         Try(device.close()).recover {
           case exception => logger.error(s"Failed to close disappeared device $deviceId", exception)
         }
@@ -63,7 +63,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
     removeDisappearedOpenedDevices(openedOutputDevices, outputDevicesInfo.keySet)
   }
 
-  def inputMidiDeviceIds: Seq[MidiDeviceId] = inputDevicesInfo.keys.toSeq
+  def inputDeviceIds: Seq[MidiDeviceId] = inputDevicesInfo.keys.toSeq
 
   def openInput(deviceId: MidiDeviceId): Try[Transmitter] = {
     val deviceInfo = inputDevicesInfo(deviceId)
@@ -89,11 +89,11 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def inputTransmitter(deviceId: MidiDeviceId): Transmitter = openedInputDevices(deviceId).transmitter
 
-  def inputDevice(deviceId: MidiDeviceId): MidiDevice = openedInputDevices(deviceId).midiDevice
+  def inputDevice(deviceId: MidiDeviceId): MidiDevice = openedInputDevices(deviceId).device
 
   def closeInput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedInputDevices, logger)
 
-  def outputMidiDeviceIds: Seq[MidiDeviceId] = outputDevicesInfo.keys.toSeq
+  def outputDeviceIds: Seq[MidiDeviceId] = outputDevicesInfo.keys.toSeq
 
   def openOutput(deviceId: MidiDeviceId): Try[Receiver] = {
     val deviceInfo = outputDevicesInfo(deviceId)
@@ -103,6 +103,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
       device.open()
       openedOutputDevices.update(deviceId, OpenedOutputDevice(device, receiver))
+      logger.info(s"Successfully opened output device $deviceId")
 
       receiver
     }
@@ -118,7 +119,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def outputReceiver(deviceId: MidiDeviceId): Receiver = openedOutputDevices(deviceId).receiver
 
-  def outputDevice(deviceId: MidiDeviceId): MidiDevice = openedOutputDevices(deviceId).midiDevice
+  def outputDevice(deviceId: MidiDeviceId): MidiDevice = openedOutputDevices(deviceId).device
 
   def closeOutput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedOutputDevices, logger)
 
@@ -166,14 +167,14 @@ object MidiManager {
 
   private def isDeviceOpened[D <: OpenedDevice](
       deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D]): Boolean =
-    openedDevices.get(deviceId).exists(_.midiDevice.isOpen)
+    openedDevices.get(deviceId).exists(_.device.isOpen)
 
   private def closeDevice[D <: OpenedDevice](
       deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D], logger: Logger): Try[Unit] = Try {
     val openedDevice = openedDevices(deviceId)
     // TODO #1 Do we need to close the Transmitter as well
     logger.info(s"Closing ${openedDevice.deviceType} device $deviceId...")
-    openedDevice.midiDevice.close()
+    openedDevice.device.close()
     openedDevices.remove(deviceId)
     logger.info(s"Successfully closed ${openedDevice.deviceType} device $deviceId")
   }
@@ -181,14 +182,14 @@ object MidiManager {
 
 
 sealed trait OpenedDevice {
-  val midiDevice: MidiDevice
+  val device: MidiDevice
   def deviceType: String
 }
 
-case class OpenedInputDevice(override val midiDevice: MidiDevice, transmitter: Transmitter) extends OpenedDevice {
+case class OpenedInputDevice(override val device: MidiDevice, transmitter: Transmitter) extends OpenedDevice {
   override def deviceType: String = "input"
 }
 
-case class OpenedOutputDevice(override val midiDevice: MidiDevice, receiver: Receiver) extends OpenedDevice {
+case class OpenedOutputDevice(override val device: MidiDevice, receiver: Receiver) extends OpenedDevice {
   override def deviceType: String = "output"
 }

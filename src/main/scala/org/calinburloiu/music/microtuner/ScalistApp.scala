@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import org.calinburloiu.music.intonation.io.{LocalScaleLibrary, ScaleReaderRegistry}
 import org.calinburloiu.music.microtuner.io.JsonScaleListReader
-import org.calinburloiu.music.microtuner.midi.{MidiInputConfigManager, MidiOutputConfigManager, MidiTuningFormat}
+import org.calinburloiu.music.microtuner.midi.{MidiDeviceId, MidiInputConfigManager, MidiManager, MidiOutputConfigManager, MidiTuningFormat}
 import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningListReducerRegistry, TuningMapperRegistry}
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 
@@ -31,7 +31,7 @@ object ScalistApp extends StrictLogging {
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-//    val midiManager = new MidiManager
+    val midiManager = new MidiManager
 
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
     val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
@@ -64,7 +64,8 @@ object ScalistApp extends StrictLogging {
         // TODO Check thread safety!
         logger.info("Switching back to equal temperament...")
         tuner.tune(Tuning.equalTemperament)
-        logger.info("Closing MIDI devices...")
+//        logger.info("Closing MIDI devices...")
+        midiManager.close()
 //        midiInput.close()
         midiOutput.close()
       }
