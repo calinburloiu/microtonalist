@@ -1,6 +1,6 @@
 package org.calinburloiu.music.microtuner.midi
 
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.{Logger, StrictLogging}
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 
@@ -30,15 +30,18 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
     devices.foreach { device =>
       val deviceInfo = device.getDeviceInfo
+      val deviceId = MidiDeviceId(deviceInfo)
       val maxTransmitters = device.getMaxTransmitters
       val maxReceivers = device.getMaxReceivers
 
       if (maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0) {
-        inputDevicesInfo.update(MidiDeviceId(deviceInfo), deviceInfo)
+        inputDevicesInfo.update(deviceId, deviceInfo)
+        logDebugDetectedDevice(deviceId, "input", "transmitters", maxTransmitters)
       }
 
       if (maxReceivers == -1 /* unlimited */ || maxReceivers > 0) {
-        outputDevicesInfo.update(MidiDeviceId(deviceInfo), deviceInfo)
+        outputDevicesInfo.update(deviceId, deviceInfo)
+        logDebugDetectedDevice(deviceId, "output", "receivers", maxReceivers)
       }
     }
 
@@ -53,6 +56,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
           case exception => logger.error(s"Failed to close disappeared device $deviceId", exception)
         }
         openedDevices.remove(deviceId)
+        logger.info(s"Previously opened device $deviceId disappeared; it was probably disconnected")
       }
     }
     removeDisappearedOpenedDevices(openedInputDevices, inputDevicesInfo.keySet)
@@ -63,15 +67,19 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def openInput(deviceId: MidiDeviceId): Try[Transmitter] = {
     val deviceInfo = inputDevicesInfo(deviceId)
-    Try {
+    val result = Try {
       val device = MidiSystem.getMidiDevice(deviceInfo)
       val transmitter = device.getTransmitter
 
       device.open()
       openedInputDevices.update(deviceId, OpenedInputDevice(device, transmitter))
+      logger.info(s"Successfully opened input device $deviceId")
 
       transmitter
     }
+
+    if (result.isFailure) logErrorOpenDevice(deviceId, "input")
+    result
   }
 
   def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
@@ -83,13 +91,13 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def inputDevice(deviceId: MidiDeviceId): MidiDevice = openedInputDevices(deviceId).midiDevice
 
-  def closeInput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedInputDevices)
+  def closeInput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedInputDevices, logger)
 
   def outputMidiDeviceIds: Seq[MidiDeviceId] = outputDevicesInfo.keys.toSeq
 
   def openOutput(deviceId: MidiDeviceId): Try[Receiver] = {
     val deviceInfo = outputDevicesInfo(deviceId)
-    Try {
+    val result = Try {
       val device = MidiSystem.getMidiDevice(deviceInfo)
       val receiver = device.getReceiver
 
@@ -98,6 +106,9 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
       receiver
     }
+
+    if (result.isFailure) logErrorOpenDevice(deviceId, "output")
+    result
   }
 
   def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
@@ -109,19 +120,21 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def outputDevice(deviceId: MidiDeviceId): MidiDevice = openedOutputDevices(deviceId).midiDevice
 
-  def closeOutput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedOutputDevices)
+  def closeOutput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedOutputDevices, logger)
 
   override def close(): Unit = {
+    logger.info(s"Closing ${getClass.getSimpleName}...")
     openedInputDevices.keys.foreach { deviceId =>
-      closeDevice(deviceId, openedInputDevices).recover {
+      closeDevice(deviceId, openedInputDevices, logger).recover {
         case exception => logger.error(s"Failed to close input device $deviceId", exception)
       }
     }
     openedOutputDevices.keys.foreach { deviceId =>
-      closeDevice(deviceId, openedOutputDevices).recover {
+      closeDevice(deviceId, openedOutputDevices, logger).recover {
         case exception => logger.error(s"Failed to close output device $deviceId", exception)
       }
     }
+    logger.info(s"Finished closing ${getClass.getSimpleName}")
   }
 
   private def openFirstAvailableDevice(
@@ -133,6 +146,20 @@ class MidiManager extends AutoCloseable with StrictLogging {
       .find(_._2.isSuccess)
       .map(_._1)
   }
+
+  @inline
+  private def logDebugDetectedDevice(
+      deviceId: MidiDeviceId, deviceType: String, handlerType: String, maxHandlers: Int): Unit = {
+    logger.debug {
+      val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
+      s"Detected $deviceType device $deviceId with $maxHandlersStr $handlerType"
+    }
+  }
+
+  @inline
+  def logErrorOpenDevice(deviceId: MidiDeviceId, deviceType: String): Unit = {
+    logger.error(s"Failed to open $deviceType device $deviceId")
+  }
 }
 
 object MidiManager {
@@ -142,20 +169,26 @@ object MidiManager {
     openedDevices.get(deviceId).exists(_.midiDevice.isOpen)
 
   private def closeDevice[D <: OpenedDevice](
-      deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D]): Try[Unit] = Try {
+      deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D], logger: Logger): Try[Unit] = Try {
+    val openedDevice = openedDevices(deviceId)
     // TODO #1 Do we need to close the Transmitter as well
-    openedDevices(deviceId).midiDevice.close()
+    logger.info(s"Closing ${openedDevice.deviceType} device $deviceId...")
+    openedDevice.midiDevice.close()
     openedDevices.remove(deviceId)
-  }
-
-  private def closeAllDevices[D <: OpenedDevice](
-      openedDevices: mutable.Map[MidiDeviceId, D], deviceIds: GenSet[MidiDeviceId]): Unit = {
-
+    logger.info(s"Successfully closed ${openedDevice.deviceType} device $deviceId")
   }
 }
+
 
 sealed trait OpenedDevice {
   val midiDevice: MidiDevice
+  def deviceType: String
 }
-case class OpenedInputDevice(override val midiDevice: MidiDevice, transmitter: Transmitter) extends OpenedDevice
-case class OpenedOutputDevice(override val midiDevice: MidiDevice, receiver: Receiver) extends OpenedDevice
+
+case class OpenedInputDevice(override val midiDevice: MidiDevice, transmitter: Transmitter) extends OpenedDevice {
+  override def deviceType: String = "input"
+}
+
+case class OpenedOutputDevice(override val midiDevice: MidiDevice, receiver: Receiver) extends OpenedDevice {
+  override def deviceType: String = "output"
+}

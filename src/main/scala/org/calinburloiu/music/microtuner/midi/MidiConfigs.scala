@@ -88,7 +88,9 @@ case class MidiDeviceId(
   name: String,
   vendor: String,
   version: String
-)
+) {
+  override def toString: String = productIterator.filter(_.toString.trim.nonEmpty).mkString(" ")
+}
 
 object MidiDeviceId {
   def apply(midiDeviceInfo: MidiDevice.Info): MidiDeviceId =
