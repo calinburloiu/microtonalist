@@ -28,6 +28,21 @@ class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfig
   )
 }
 
+class MidiInputConfigDefaultsTest extends MidiInputConfigTest {
+
+  override def configResource: String = SubConfigTest.defaultConfigResourceWithDefaults
+
+  override lazy val expectedSubConfigRead: MidiInputConfig = MidiInputConfig(
+    enabled = false,
+    devices = Seq(
+      MidiDeviceId("FP-90", "Roland", "1.0")
+    ),
+    ccTriggers = CcTriggers(prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+  )
+
+  override lazy val subConfigsToWrite: Seq[MidiInputConfig] = Seq()
+}
+
 class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputConfigManager] {
 
   override lazy val subConfigManager: MidiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)

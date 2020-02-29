@@ -90,11 +90,12 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
 
 object MainConfigManager {
 
-  val defaultConfigFile: Path = Paths.get(System.getProperty("user.home"), ".microtonalist/microtonalist.conf")
-
   private[MainConfigManager] val configRenderOptions: ConfigRenderOptions = ConfigRenderOptions.defaults()
     .setOriginComments(false)
     .setJson(false)
+
+  // TODO #1 Needs to be platform dependent
+  def defaultConfigFile: Path = Paths.get(System.getProperty("user.home"), ".microtonalist/microtonalist.conf")
 
   def apply(configFile: Path): MainConfigManager =
     new MainConfigManager(Some(configFile), ConfigFactory.empty("no fallback"))

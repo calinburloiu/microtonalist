@@ -7,14 +7,19 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 
 case class CoreConfig(
+  // TODO #1 Needs platform dependent default
   scaleLibraryPath: Path,
-  metaConfig: MetaConfig
+  metaConfig: MetaConfig = MetaConfig()
 ) extends Configured
 
 case class MetaConfig(
-  saveIntervalMillis: Int,
-  saveOnExit: Boolean
+  saveIntervalMillis: Int = 5000,
+  saveOnExit: Boolean = true
 )
+
+object MetaConfig {
+  val default: MetaConfig = MetaConfig()
+}
 
 class CoreConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[CoreConfig](CoreConfigManager.configRootPath, mainConfigManager) {
@@ -35,7 +40,7 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
     scaleLibraryPath = Paths.get(hoconConfig.as[String]("scaleLibraryPath")),
-    metaConfig = hoconConfig.as[MetaConfig]("metaConfig")
+    metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
 }
 
@@ -44,8 +49,8 @@ object CoreConfigManager {
 
   implicit private val metaConfigValueReader: ValueReader[MetaConfig] = ValueReader.relative { hc =>
     MetaConfig(
-      saveIntervalMillis = hc.as[Int]("saveIntervalMillis"),
-      saveOnExit = hc.as[Boolean]("saveOnExit")
+      saveIntervalMillis = hc.getAs[Int]("saveIntervalMillis").getOrElse(MetaConfig.default.saveIntervalMillis),
+      saveOnExit = hc.getAs[Boolean]("saveOnExit").getOrElse(MetaConfig.default.saveOnExit)
     )
   }
 }

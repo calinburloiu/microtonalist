@@ -37,17 +37,11 @@ object MidiOutputConfigManager {
   val configRootPath = "output.midi"
 }
 
-case class CcTriggers(
-  prevTuningCc: Int,
-  nextTuningCc: Int,
-  ccThreshold: Int,
-  isFilteringInOutput: Boolean
-)
 
 case class MidiInputConfig(
-  enabled: Boolean,
+  enabled: Boolean = false,
   devices: Seq[MidiDeviceId],
-  ccTriggers: CcTriggers
+  ccTriggers: CcTriggers = CcTriggers()
 ) extends Configured
 
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
@@ -73,14 +67,25 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
   }
 
   override protected def deserialize(hc: Config): MidiInputConfig = MidiInputConfig(
-    enabled = hc.as[Boolean]("enabled"),
+    enabled = hc.getAs[Boolean]("enabled").getOrElse(false),
     devices = hc.as[Seq[MidiDeviceId]]("devices"),
-    ccTriggers = hc.as[CcTriggers]("ccTriggers")
+    ccTriggers = hc.getAs[CcTriggers]("ccTriggers").getOrElse(CcTriggers.default)
   )
 }
 
 object MidiInputConfigManager {
   val configRootPath = "input.midi"
+}
+
+case class CcTriggers(
+  prevTuningCc: Int = 67,
+  nextTuningCc: Int = 66,
+  ccThreshold: Int = 0,
+  isFilteringInOutput: Boolean = true
+)
+
+object CcTriggers {
+  val default: CcTriggers = CcTriggers()
 }
 
 
@@ -110,10 +115,10 @@ object MidiConfigSerDe {
 
   private[midi] implicit val ccTriggersValueReader: ValueReader[CcTriggers] = ValueReader.relative { hc =>
     CcTriggers(
-      prevTuningCc = hc.getAs[Int]("prevTuningCc").getOrElse(67),
-      nextTuningCc = hc.getAs[Int]("nextTuningCc").getOrElse(66),
-      ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(0),
-      isFilteringInOutput = hc.getAs[Boolean]("isFilteringInOutput").getOrElse(true)
+      prevTuningCc = hc.getAs[Int]("prevTuningCc").getOrElse(CcTriggers.default.prevTuningCc),
+      nextTuningCc = hc.getAs[Int]("nextTuningCc").getOrElse(CcTriggers.default.nextTuningCc),
+      ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(CcTriggers.default.ccThreshold),
+      isFilteringInOutput = hc.getAs[Boolean]("isFilteringInOutput").getOrElse(CcTriggers.default.isFilteringInOutput)
     )
   }
 }

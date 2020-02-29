@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends FlatSpec with Matchers {
 
-  val configResource: String = "/microtonalist.conf"
+  def configResource: String = SubConfigTest.defaultConfigResource
 
   lazy val initialMainHoconConfig: HoconConfig = ConfigFactory.parseResources(getClass, configResource).resolve()
   lazy val mainConfigManager: MainConfigManager = MainConfigManager(initialMainHoconConfig)
@@ -31,4 +31,9 @@ abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extend
       subConfig shouldEqual subConfigsToWrite(i)
     }
   }
+}
+
+object SubConfigTest {
+  val defaultConfigResource: String = "/microtonalist.conf"
+  val defaultConfigResourceWithDefaults: String = "/microtonalist-defaults.conf"
 }

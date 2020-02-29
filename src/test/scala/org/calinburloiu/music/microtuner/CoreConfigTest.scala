@@ -26,3 +26,18 @@ class CoreConfigTest extends SubConfigTest[CoreConfig, CoreConfigManager] {
     )
   )
 }
+
+class CoreConfigDefaultsTest extends CoreConfigTest {
+
+  override def configResource: String = SubConfigTest.defaultConfigResourceWithDefaults
+
+  override lazy val expectedSubConfigRead: CoreConfig = CoreConfig(
+    scaleLibraryPath = Paths.get("/Users/johnny/Music/microtonalist/lib/scales/"),
+    metaConfig = MetaConfig(
+      saveIntervalMillis = 5000,
+      saveOnExit = true
+    )
+  )
+
+  override lazy val subConfigsToWrite: Seq[CoreConfig] = Seq()
+}
