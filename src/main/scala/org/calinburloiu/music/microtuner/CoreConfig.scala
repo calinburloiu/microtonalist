@@ -7,10 +7,16 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 
 case class CoreConfig(
-  // TODO #1 Needs platform dependent default
-  scaleLibraryPath: Path,
+  scaleLibraryPath: Path = CoreConfig.defaultScaleLibraryPath,
   metaConfig: MetaConfig = MetaConfig()
 ) extends Configured
+
+object CoreConfig {
+  val defaultScaleLibraryPath: Path = if (PlatformUtil.isMac)
+    Paths.get("~/Music/microtonalist/lib/scales/")
+  else
+    throw new RuntimeException("Only Mac platform is currently supported")
+}
 
 case class MetaConfig(
   saveIntervalMillis: Int = 5000,
@@ -39,7 +45,8 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
   }
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
-    scaleLibraryPath = Paths.get(hoconConfig.as[String]("scaleLibraryPath")),
+    scaleLibraryPath = hoconConfig.getAs[String]("scaleLibraryPath").map(Paths.get(_))
+      .getOrElse(CoreConfig.defaultScaleLibraryPath),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
 }

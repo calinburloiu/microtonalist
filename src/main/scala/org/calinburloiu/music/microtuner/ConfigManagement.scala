@@ -94,8 +94,10 @@ object MainConfigManager {
     .setOriginComments(false)
     .setJson(false)
 
-  // TODO #1 Needs to be platform dependent
-  def defaultConfigFile: Path = Paths.get(System.getProperty("user.home"), ".microtonalist/microtonalist.conf")
+  def defaultConfigFile: Path = if (PlatformUtil.isMac)
+    Paths.get(System.getProperty("user.home"), ".microtonalist/microtonalist.conf")
+  else
+    throw new RuntimeException("Only Mac platform is currently supported")
 
   def apply(configFile: Path): MainConfigManager =
     new MainConfigManager(Some(configFile), ConfigFactory.empty("no fallback"))
