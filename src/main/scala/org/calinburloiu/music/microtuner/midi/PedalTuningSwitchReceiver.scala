@@ -9,13 +9,13 @@ import scala.collection.mutable
 class PedalTuningSwitchReceiver(
   tuningSwitch: TuningSwitch,
   forwardReceiver: Receiver,
-  midiInputConfig: MidiInputConfig
+  ccTriggers: CcTriggers,
 ) extends Receiver with StrictLogging {
 
-  private val ccPrev = midiInputConfig.ccTriggers.prevTuningCc
-  private val ccNext = midiInputConfig.ccTriggers.nextTuningCc
-  private val ccTriggerThreshold = midiInputConfig.ccTriggers.ccThreshold
-  private val isFilteringCcTriggersInOutput: Boolean = midiInputConfig.ccTriggers.isFilteringInOutput
+  private val ccPrev = ccTriggers.prevTuningCc
+  private val ccNext = ccTriggers.nextTuningCc
+  private val ccTriggerThreshold = ccTriggers.ccThreshold
+  private val isFilteringCcTriggersInOutput: Boolean = ccTriggers.isFilteringInOutput
   private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map(ccPrev -> false, ccNext -> false)
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = message match {

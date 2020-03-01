@@ -52,7 +52,7 @@ object ScalistApp extends StrictLogging {
     val tuningSwitch = new TuningSwitch(tuner, tuningList)
 
 //    midiInput.open()
-//    val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver, midiInputConfig)
+//    val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver, midiInputConfig.triggers.cc)
 //    transmitter.setReceiver(pedalTuningSwitchReceiver)
 
     logger.info("Initializing the main frame...")

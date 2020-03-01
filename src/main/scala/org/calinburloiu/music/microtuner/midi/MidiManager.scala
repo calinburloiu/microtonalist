@@ -7,7 +7,6 @@ import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 import scala.collection.{mutable, GenSet}
 import scala.util.Try
 
-// TODO #1 Add logging!
 class MidiManager extends AutoCloseable with StrictLogging {
   import MidiManager._
 
@@ -172,7 +171,6 @@ object MidiManager {
   private def closeDevice[D <: OpenedDevice](
       deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D], logger: Logger): Try[Unit] = Try {
     val openedDevice = openedDevices(deviceId)
-    // TODO #1 Do we need to close the Transmitter as well
     logger.info(s"Closing ${openedDevice.deviceType} device $deviceId...")
     openedDevice.device.close()
     openedDevices.remove(deviceId)

@@ -41,43 +41,57 @@ object MidiOutputConfigManager {
 case class MidiInputConfig(
   enabled: Boolean = false,
   devices: Seq[MidiDeviceId],
-  ccTriggers: CcTriggers = CcTriggers()
+  triggers: Triggers
 ) extends Configured
 
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
   import org.calinburloiu.music.microtuner.ConfigSerDe._
-  import MidiConfigSerDe.{ccTriggersValueReader, midiDeviceIdValueReader}
+  import MidiConfigSerDe._
 
   override protected def serialize(configured: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig
     val devicesMap = configured.devices.map { device =>
       Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
     }
-    val ccTriggersMap = Map(
-      "prevTuningCc" -> configured.ccTriggers.prevTuningCc,
-      "nextTuningCc" -> configured.ccTriggers.nextTuningCc,
-      "ccThreshold" -> configured.ccTriggers.ccThreshold,
-      "isFilteringInOutput" -> configured.ccTriggers.isFilteringInOutput
+    val triggersMap = Map(
+      "cc" -> Map(
+        "enabled" -> configured.triggers.cc.enabled,
+        "prevTuningCc" -> configured.triggers.cc.prevTuningCc,
+        "nextTuningCc" -> configured.triggers.cc.nextTuningCc,
+        "ccThreshold" -> configured.triggers.cc.ccThreshold,
+        "isFilteringInOutput" -> configured.triggers.cc.isFilteringInOutput
+      )
     )
     hoconConfig
       .withAnyRefValue("enabled", configured.enabled)
       .withAnyRefValue("devices", devicesMap)
-      .withAnyRefValue("ccTriggers", ccTriggersMap)
+      .withAnyRefValue("triggers", triggersMap)
   }
 
-  override protected def deserialize(hc: Config): MidiInputConfig = MidiInputConfig(
-    enabled = hc.getAs[Boolean]("enabled").getOrElse(false),
-    devices = hc.as[Seq[MidiDeviceId]]("devices"),
-    ccTriggers = hc.getAs[CcTriggers]("ccTriggers").getOrElse(CcTriggers.default)
-  )
+  override protected def deserialize(hc: Config): MidiInputConfig = {
+    val actualInputConfig = MidiInputConfig(
+      enabled = hc.getAs[Boolean]("enabled").getOrElse(false),
+      devices = hc.as[Seq[MidiDeviceId]]("devices"),
+      triggers = hc.as[Triggers]("triggers")
+    )
+
+    if (!actualInputConfig.triggers.cc.enabled) {
+      actualInputConfig.copy(enabled = false)
+    } else {
+      actualInputConfig
+    }
+  }
 }
 
 object MidiInputConfigManager {
   val configRootPath = "input.midi"
 }
 
+case class Triggers(cc: CcTriggers)
+
 case class CcTriggers(
+  enabled: Boolean = false,
   prevTuningCc: Int = 67,
   nextTuningCc: Int = 66,
   ccThreshold: Int = 0,
@@ -113,8 +127,15 @@ object MidiConfigSerDe {
       version = hc.as[String]("version"))
   }
 
+  private[midi] implicit val triggersValueReader: ValueReader[Triggers] = ValueReader.relative { hc =>
+    Triggers(
+      cc = hc.getAs[CcTriggers]("cc").getOrElse(CcTriggers.default)
+    )
+  }
+
   private[midi] implicit val ccTriggersValueReader: ValueReader[CcTriggers] = ValueReader.relative { hc =>
     CcTriggers(
+      enabled = hc.getAs[Boolean]("enabled").getOrElse(CcTriggers.default.enabled),
       prevTuningCc = hc.getAs[Int]("prevTuningCc").getOrElse(CcTriggers.default.prevTuningCc),
       nextTuningCc = hc.getAs[Int]("nextTuningCc").getOrElse(CcTriggers.default.nextTuningCc),
       ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(CcTriggers.default.ccThreshold),

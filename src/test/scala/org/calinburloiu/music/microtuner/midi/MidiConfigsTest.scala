@@ -13,17 +13,22 @@ class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfig
     devices = Seq(
       MidiDeviceId("FP-90", "Roland", "1.0")
     ),
-    ccTriggers = CcTriggers(prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+    triggers = Triggers(
+      cc = CcTriggers(enabled = true, prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+    )
   )
 
   override lazy val subConfigsToWrite: Seq[MidiInputConfig] = Seq(
     expectedSubConfigRead.copy(enabled = false),
     expectedSubConfigRead.copy(
+      enabled = false,
       devices = Seq(
         MidiDeviceId("P-125", "Yamaha", "9.8.7"),
         MidiDeviceId("blah", "bleh", "1999")
       ),
-      ccTriggers = CcTriggers(prevTuningCc = 1, nextTuningCc = 2, ccThreshold = 10, isFilteringInOutput = false)
+      triggers = Triggers(
+        cc = CcTriggers(enabled = false, prevTuningCc = 1, nextTuningCc = 2, ccThreshold = 10, isFilteringInOutput = false)
+      )
     )
   )
 }
@@ -37,7 +42,9 @@ class MidiInputConfigDefaultsTest extends MidiInputConfigTest {
     devices = Seq(
       MidiDeviceId("FP-90", "Roland", "1.0")
     ),
-    ccTriggers = CcTriggers(prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+    triggers = Triggers(
+      cc = CcTriggers(enabled = false, prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+    )
   )
 
   override lazy val subConfigsToWrite: Seq[MidiInputConfig] = Seq()
