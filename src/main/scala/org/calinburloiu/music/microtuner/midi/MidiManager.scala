@@ -44,7 +44,6 @@ class MidiManager extends AutoCloseable with StrictLogging {
       }
     }
 
-    // TODO #1 Try to manually test this scenarios and see what happens
     // Remove opened devices that were previously opened but now they don't appear anymore
     def removeDisappearedOpenedDevices[D <: OpenedDevice](
         openedDevices: mutable.Map[MidiDeviceId, D], deviceIds: GenSet[MidiDeviceId]): Unit = {
@@ -65,8 +64,8 @@ class MidiManager extends AutoCloseable with StrictLogging {
   def inputDeviceIds: Seq[MidiDeviceId] = inputDevicesInfo.keys.toSeq
 
   def openInput(deviceId: MidiDeviceId): Try[Transmitter] = {
-    val deviceInfo = inputDevicesInfo(deviceId)
     val result = Try {
+      val deviceInfo = inputDevicesInfo(deviceId)
       val device = MidiSystem.getMidiDevice(deviceInfo)
       val transmitter = device.getTransmitter
 
@@ -77,12 +76,15 @@ class MidiManager extends AutoCloseable with StrictLogging {
       transmitter
     }
 
-    if (result.isFailure) logErrorOpenDevice(deviceId, "input")
+    result.recover {
+      case _: NoSuchElementException => logger.info(s"Input device $deviceId is not available")
+      case exception => logErrorOpenDevice(deviceId, "input", exception)
+    }
     result
   }
 
   def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
-    openFirstAvailableDevice(deviceIds, openInput)
+    openFirstAvailableDevice(deviceIds, "input", openInput)
 
   def isInputOpened(deviceId: MidiDeviceId): Boolean = isDeviceOpened(deviceId, openedInputDevices)
 
@@ -95,8 +97,8 @@ class MidiManager extends AutoCloseable with StrictLogging {
   def outputDeviceIds: Seq[MidiDeviceId] = outputDevicesInfo.keys.toSeq
 
   def openOutput(deviceId: MidiDeviceId): Try[Receiver] = {
-    val deviceInfo = outputDevicesInfo(deviceId)
     val result = Try {
+      val deviceInfo = outputDevicesInfo(deviceId)
       val device = MidiSystem.getMidiDevice(deviceInfo)
       val receiver = device.getReceiver
 
@@ -107,12 +109,15 @@ class MidiManager extends AutoCloseable with StrictLogging {
       receiver
     }
 
-    if (result.isFailure) logErrorOpenDevice(deviceId, "output")
+    result.recover {
+      case _: NoSuchElementException => logger.info(s"Output device $deviceId not available")
+      case exception => logErrorOpenDevice(deviceId, "output", exception)
+    }
     result
   }
 
   def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
-    openFirstAvailableDevice(deviceIds, openOutput)
+    openFirstAvailableDevice(deviceIds, "output", openOutput)
 
   def isOutputOpened(deviceId: MidiDeviceId): Boolean = isDeviceOpened(deviceId, openedOutputDevices)
 
@@ -138,9 +143,10 @@ class MidiManager extends AutoCloseable with StrictLogging {
   }
 
   private def openFirstAvailableDevice(
-    deviceIds: Seq[MidiDeviceId], openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
+    deviceIds: Seq[MidiDeviceId], deviceType: String, openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
     deviceIds.toStream
       .map { deviceId =>
+        logger.info(s"Attempting to open ${deviceType} device $deviceId...")
         (deviceId, openFunc(deviceId))
       }
       .find(_._2.isSuccess)
@@ -157,8 +163,8 @@ class MidiManager extends AutoCloseable with StrictLogging {
   }
 
   @inline
-  def logErrorOpenDevice(deviceId: MidiDeviceId, deviceType: String): Unit = {
-    logger.error(s"Failed to open $deviceType device $deviceId")
+  def logErrorOpenDevice(deviceId: MidiDeviceId, deviceType: String, exception: Throwable): Unit = {
+    logger.error(s"Failed to open $deviceType device $deviceId", exception)
   }
 }
 
