@@ -1,3 +1,5 @@
+**WORK IN PROGRESS!**
+
 Microtonalist is a microtuner application that allows tuning musical keyboards and synthesizers in real-time for playing music with microtones. It is build as a stand-alone multi-platform desktop application that runs on JVM.
 
 # Engineering #
