@@ -88,7 +88,9 @@ object MicrotonalistApp extends StrictLogging {
 
     // # Triggers
     maybeTransmitter.foreach { transmitter =>
-      val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver, midiInputConfig.triggers.cc)
+      val thruReceiver = if (midiInputConfig.thru) Some(receiver) else None
+      val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, thruReceiver,
+        midiInputConfig.triggers.cc)
       transmitter.setReceiver(pedalTuningSwitchReceiver)
       logger.info("Using pedal tuning switcher")
     }
@@ -101,8 +103,9 @@ object MicrotonalistApp extends StrictLogging {
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        logger.info("Switching back to equal temperament before exit...")
+        logger.info("Switching back to 12-EDO before exit...")
         tuner.tune(Tuning.equalTemperament)
+        Thread.sleep(1000)
 
         midiManager.close()
       }

@@ -24,14 +24,13 @@ import scala.collection.mutable
 
 class PedalTuningSwitchReceiver(
   tuningSwitch: TuningSwitch,
-  forwardReceiver: Receiver,
-  ccTriggers: CcTriggers,
-) extends Receiver with StrictLogging {
+  outputReceiver: Option[Receiver],
+  ccTriggers: CcTriggers) extends Receiver with StrictLogging {
 
   private val ccPrev = ccTriggers.prevTuningCc
   private val ccNext = ccTriggers.nextTuningCc
   private val ccTriggerThreshold = ccTriggers.ccThreshold
-  private val isFilteringCcTriggersInOutput: Boolean = ccTriggers.isFilteringInOutput
+  private val isFilteringCcTriggersThru: Boolean = ccTriggers.isFilteringThru
   private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map(ccPrev -> false, ccNext -> false)
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = message match {
@@ -53,12 +52,12 @@ class PedalTuningSwitchReceiver(
         }
 
         // Forward if configured so
-        if (!isFilteringCcTriggersInOutput) {
-          forwardReceiver.send(message, timeStamp)
+        if (!isFilteringCcTriggersThru) {
+          outputReceiver.foreach(_.send(message, timeStamp))
         }
       } else {
         // Forward
-        forwardReceiver.send(message, timeStamp)
+        outputReceiver.foreach(_.send(message, timeStamp))
       }
   }
 
