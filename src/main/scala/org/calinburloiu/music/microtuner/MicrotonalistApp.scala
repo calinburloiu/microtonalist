@@ -103,8 +103,9 @@ object MicrotonalistApp extends StrictLogging {
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        logger.info("Switching back to equal temperament before exit...")
+        logger.info("Switching back to 12-EDO before exit...")
         tuner.tune(Tuning.equalTemperament)
+        Thread.sleep(1000)
 
         midiManager.close()
       }
