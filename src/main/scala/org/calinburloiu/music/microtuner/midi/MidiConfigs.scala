@@ -32,16 +32,13 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
 
-  override protected def serialize(configured: MidiOutputConfig): Config = {
+  override protected def serialize(config: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
-    // TODO Factor out mapping from name to value in order to be reused in input config
-    val devicesMap = configured.devices.map { device =>
-      Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
-    }
+    val devices = serializeDevices(config.devices)
 
     hoconConfig
-      .withAnyRefValue("devices", devicesMap)
-      .withAnyRefValue("tuningFormat", configured.tuningFormat.toString)
+      .withAnyRefValue("devices", devices)
+      .withAnyRefValue("tuningFormat", config.tuningFormat.toString)
   }
 
   override protected def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
@@ -66,24 +63,22 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
   import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
 
-  override protected def serialize(configured: MidiInputConfig): Config = {
+  override protected def serialize(config: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig
-    val devicesMap = configured.devices.map { device =>
-      Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
-    }
+    val devices = serializeDevices(config.devices)
     val triggersMap = Map(
       "cc" -> Map(
-        "enabled" -> configured.triggers.cc.enabled,
-        "prevTuningCc" -> configured.triggers.cc.prevTuningCc,
-        "nextTuningCc" -> configured.triggers.cc.nextTuningCc,
-        "ccThreshold" -> configured.triggers.cc.ccThreshold,
-        "isFilteringThru" -> configured.triggers.cc.isFilteringThru
+        "enabled" -> config.triggers.cc.enabled,
+        "prevTuningCc" -> config.triggers.cc.prevTuningCc,
+        "nextTuningCc" -> config.triggers.cc.nextTuningCc,
+        "ccThreshold" -> config.triggers.cc.ccThreshold,
+        "isFilteringThru" -> config.triggers.cc.isFilteringThru
       )
     )
     hoconConfig
-      .withAnyRefValue("enabled", configured.enabled)
-      .withAnyRefValue("devices", devicesMap)
-      .withAnyRefValue("thru", configured.thru)
+      .withAnyRefValue("enabled", config.enabled)
+      .withAnyRefValue("devices", devices)
+      .withAnyRefValue("thru", config.thru)
       .withAnyRefValue("triggers", triggersMap)
   }
 
@@ -160,5 +155,9 @@ object MidiConfigSerDe {
       ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(CcTriggers.default.ccThreshold),
       isFilteringThru = hc.getAs[Boolean]("isFilteringThru").getOrElse(CcTriggers.default.isFilteringThru)
     )
+  }
+
+  def serializeDevices(devices: Seq[MidiDeviceId]): Seq[Map[String, String]] = devices.map { device =>
+    Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
   }
 }
