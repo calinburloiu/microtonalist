@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtuner
 import java.io.FileInputStream
 import java.nio.file.Paths
 
+import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.io.{LocalScaleLibrary, ScaleReaderRegistry}
 import org.calinburloiu.music.microtuner.io.JsonScaleListReader
@@ -51,7 +52,7 @@ object MicrotonalistApp extends StrictLogging {
 
   def run(inputFileName: String, configFileName: Option[String] = None): Unit = {
     val configPath = configFileName.map(Paths.get(_)).getOrElse(MainConfigManager.defaultConfigFile)
-
+    val eventBus: EventBus = new EventBus
     val mainConfigManager = MainConfigManager(configPath)
 
     // # MIDI
@@ -83,7 +84,7 @@ object MicrotonalistApp extends StrictLogging {
     val scaleList = scaleListReader.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
     val tuner: Tuner = new MidiTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
-    val tuningSwitch = new TuningSwitch(tuner, tuningList)
+    val tuningSwitch = new TuningSwitch(tuner, tuningList, eventBus)
 
     // # Triggers
     maybeTransmitter.foreach { transmitter =>
@@ -97,11 +98,11 @@ object MicrotonalistApp extends StrictLogging {
     // # GUI
     logger.info("Initializing the main frame...")
     val tuningListFrame = new TuningListFrame(tuningSwitch)
+    eventBus.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        // TODO Check thread safety!
         logger.info("Switching back to equal temperament before exit...")
         tuner.tune(Tuning.equalTemperament)
 

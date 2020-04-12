@@ -16,47 +16,48 @@
 
 package org.calinburloiu.music.microtuner
 
+import com.google.common.eventbus.EventBus
+import com.google.common.math.IntMath
 import org.calinburloiu.music.tuning.{Tuning, TuningList}
 
 class TuningSwitch(
   val tuner: Tuner,
   val tuningList: TuningList,
+  eventBus: EventBus,
   initialPosition: Int = 0
 ) {
 
-  private[this] var _currentPosition: Int = initialPosition
+  private[this] var _tuningIndex: Int = initialPosition
 
   tuner.tune(currentTuning)
 
   def apply(index: Int): Unit = {
-    if (_currentPosition > tuningList.tunings.size - 1) {
-      // TODO message
-      throw new IllegalArgumentException()
-    } else if (index != _currentPosition) {
-      _currentPosition = index
+    if (_tuningIndex > tuningList.tunings.size - 1) {
+      throw new IllegalArgumentException(s"Expected tuning index to be between 0 and ${tuningList.tunings.size - 1}")
+    } else if (index != _tuningIndex) {
+      val oldTuningIndex = _tuningIndex
+      _tuningIndex = index
 
       tuner.tune(currentTuning)
+      eventBus.post(TuningChangedEvent(tuningIndex, oldTuningIndex))
     }
   }
 
   def prev(): Unit = {
-    // TODO Use Guava for mod with negatives: IntMath.mod
-    if (_currentPosition > 0) {
-      _currentPosition -= 1
-    } else {
-      _currentPosition = tuningList.tunings.size - 1
-    }
-
-    tuner.tune(currentTuning)
+    nextBy(-1)
   }
 
   def next(): Unit = {
-    _currentPosition = (_currentPosition + 1) % tuningList.tunings.size
-
-    tuner.tune(currentTuning)
+    nextBy(1)
   }
 
-  def currentPosition: Int = _currentPosition
+  def nextBy(step: Int): Unit = {
+    apply(IntMath.mod(tuningIndex + step, tuningCount))
+  }
 
-  def currentTuning: Tuning = tuningList(_currentPosition)
+  def tuningIndex: Int = _tuningIndex
+
+  def currentTuning: Tuning = tuningList(_tuningIndex)
+
+  def tuningCount: Int = tuningList.tunings.size
 }
