@@ -29,8 +29,9 @@ class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfig
     devices = Seq(
       MidiDeviceId("FP-90", "Roland", "1.0")
     ),
+    thru = true,
     triggers = Triggers(
-      cc = CcTriggers(enabled = true, prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+      cc = CcTriggers(enabled = true, prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringThru = true)
     )
   )
 
@@ -42,8 +43,9 @@ class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfig
         MidiDeviceId("P-125", "Yamaha", "9.8.7"),
         MidiDeviceId("blah", "bleh", "1999")
       ),
+      thru = false,
       triggers = Triggers(
-        cc = CcTriggers(enabled = false, prevTuningCc = 1, nextTuningCc = 2, ccThreshold = 10, isFilteringInOutput = false)
+        cc = CcTriggers(enabled = false, prevTuningCc = 1, nextTuningCc = 2, ccThreshold = 10, isFilteringThru = false)
       )
     )
   )
@@ -58,8 +60,9 @@ class MidiInputConfigDefaultsTest extends MidiInputConfigTest {
     devices = Seq(
       MidiDeviceId("FP-90", "Roland", "1.0")
     ),
+    thru = true,
     triggers = Triggers(
-      cc = CcTriggers(enabled = false, prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringInOutput = true)
+      cc = CcTriggers(enabled = false, prevTuningCc = 67, nextTuningCc = 66, ccThreshold = 0, isFilteringThru = true)
     )
   )
 

@@ -34,6 +34,7 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
 
   override protected def serialize(configured: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
+    // TODO Factor out mapping from name to value in order to be reused in input config
     val devicesMap = configured.devices.map { device =>
       Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
     }
@@ -57,8 +58,8 @@ object MidiOutputConfigManager {
 case class MidiInputConfig(
   enabled: Boolean = false,
   devices: Seq[MidiDeviceId],
-  triggers: Triggers
-) extends Configured
+  thru: Boolean,
+  triggers: Triggers) extends Configured
 
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
@@ -76,12 +77,13 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
         "prevTuningCc" -> configured.triggers.cc.prevTuningCc,
         "nextTuningCc" -> configured.triggers.cc.nextTuningCc,
         "ccThreshold" -> configured.triggers.cc.ccThreshold,
-        "isFilteringInOutput" -> configured.triggers.cc.isFilteringInOutput
+        "isFilteringThru" -> configured.triggers.cc.isFilteringThru
       )
     )
     hoconConfig
       .withAnyRefValue("enabled", configured.enabled)
       .withAnyRefValue("devices", devicesMap)
+      .withAnyRefValue("thru", configured.thru)
       .withAnyRefValue("triggers", triggersMap)
   }
 
@@ -89,6 +91,7 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
     val actualInputConfig = MidiInputConfig(
       enabled = hc.getAs[Boolean]("enabled").getOrElse(false),
       devices = hc.as[Seq[MidiDeviceId]]("devices"),
+      thru = hc.as[Boolean]("thru"),
       triggers = hc.as[Triggers]("triggers")
     )
 
@@ -111,7 +114,7 @@ case class CcTriggers(
   prevTuningCc: Int = 67,
   nextTuningCc: Int = 66,
   ccThreshold: Int = 0,
-  isFilteringInOutput: Boolean = true
+  isFilteringThru: Boolean = true
 )
 
 object CcTriggers {
@@ -155,7 +158,7 @@ object MidiConfigSerDe {
       prevTuningCc = hc.getAs[Int]("prevTuningCc").getOrElse(CcTriggers.default.prevTuningCc),
       nextTuningCc = hc.getAs[Int]("nextTuningCc").getOrElse(CcTriggers.default.nextTuningCc),
       ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(CcTriggers.default.ccThreshold),
-      isFilteringInOutput = hc.getAs[Boolean]("isFilteringInOutput").getOrElse(CcTriggers.default.isFilteringInOutput)
+      isFilteringThru = hc.getAs[Boolean]("isFilteringThru").getOrElse(CcTriggers.default.isFilteringThru)
     )
   }
 }

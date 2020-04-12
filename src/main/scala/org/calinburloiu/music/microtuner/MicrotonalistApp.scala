@@ -87,7 +87,9 @@ object MicrotonalistApp extends StrictLogging {
 
     // # Triggers
     maybeTransmitter.foreach { transmitter =>
-      val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, receiver, midiInputConfig.triggers.cc)
+      val thruReceiver = if (midiInputConfig.thru) Some(receiver) else None
+      val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, thruReceiver,
+        midiInputConfig.triggers.cc)
       transmitter.setReceiver(pedalTuningSwitchReceiver)
       logger.info("Using pedal tuning switcher")
     }
