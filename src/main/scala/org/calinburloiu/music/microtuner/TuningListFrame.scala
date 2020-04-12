@@ -18,11 +18,11 @@ package org.calinburloiu.music.microtuner
 
 import java.awt.FlowLayout
 import java.awt.event.{KeyEvent, KeyListener}
+
+import com.google.common.eventbus.Subscribe
+import com.typesafe.scalalogging.StrictLogging
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
-
-import com.typesafe.scalalogging.StrictLogging
-
 
 class TuningListFrame(tuningSwitch: TuningSwitch) extends JFrame("Microtuner") with StrictLogging {
 
@@ -78,5 +78,14 @@ class TuningListFrame(tuningSwitch: TuningSwitch) extends JFrame("Microtuner") w
 
   add(panel)
   setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
-  setSize(300, 300)
+  setSize(640, 480)
+
+  @Subscribe
+  def handleTuningChanged(tuningChangedEvent: TuningChangedEvent): Unit = {
+    val TuningChangedEvent(tuningIndex, oldTuningIndex) = tuningChangedEvent
+    logger.debug(this.getClass.getSimpleName +
+      s" received tuning change event from tuning index $oldTuningIndex to $tuningIndex")
+
+    listComponent.setSelectedIndex(tuningIndex)
+  }
 }
