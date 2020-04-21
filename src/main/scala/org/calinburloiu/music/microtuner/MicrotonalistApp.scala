@@ -44,7 +44,7 @@ object MicrotonalistApp extends StrictLogging {
     args match {
       case Array(inputFileName: String) => run(inputFileName)
       case Array(inputFileName: String, configFileName: String) => run(inputFileName, Some(configFileName))
-      case _ => Some(AppUsageException)
+      case _ => throw AppUsageException
     }
   }.recover {
     case appException: AppException => appException.exitWithMessage()
