@@ -14,13 +14,15 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
-import com.google.common.net.MediaType
+import scala.util.Try
 
-case class FormatIdentifier(
-  name: String,
-  extensions: Set[String],
-  // TODO Using a special object for MediaType would provide validation
-  mediaTypes: Set[String] = Set.empty
-)
+trait RefResolver[+A] {
+
+  def get(uri: String, mediaType: Option[String] = None): A
+
+  def getOption(uri: String, mediaType: Option[String] = None): Option[A] = Try {
+    get(uri, mediaType)
+  }.toOption
+}

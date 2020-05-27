@@ -14,9 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
-import java.io.{IOException, InputStream}
+import java.io.{IOException, InputStream, OutputStream}
 import java.nio.charset.StandardCharsets
 
 import com.typesafe.scalalogging.StrictLogging
@@ -26,7 +26,7 @@ import scala.io.Source
 import scala.util.Try
 import scala.util.matching.Regex
 
-trait ScalaTuningFileReader extends ScaleReader {
+trait ScalaTuningFileFormat extends ScaleFormat {
 
   @throws[IOException]
   @throws[InvalidScalaTuningFileException]
@@ -34,9 +34,9 @@ trait ScalaTuningFileReader extends ScaleReader {
 }
 
 // TODO DI
-object ScalaTuningFileReader extends ScalaTuningFileReaderImpl
+object ScalaTuningFileFormat extends ScalaTuningFileFormatImpl
 
-class ScalaTuningFileReaderImpl extends ScalaTuningFileReader with StrictLogging {
+class ScalaTuningFileFormatImpl extends ScalaTuningFileFormat with StrictLogging {
 
   private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]{0,1}[\d]*).*""".r
 
@@ -76,8 +76,10 @@ class ScalaTuningFileReaderImpl extends ScalaTuningFileReader with StrictLogging
           s"Invalid file format: the value of pitch with index ${pitchIndex + 1} is invalid")
     }
 
-    ScaleReader.createScale(description, pitches)
+    ScaleFormat.createScale(description, pitches)
   }
+
+  override def write(scale: Scale[Interval]): OutputStream = ???
 }
 
 class InvalidScalaTuningFileException(message: String, cause: Throwable = null)

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.plugin.{PluginConfig, PluginRegistry, PluginLocatorException}
+import org.calinburloiu.music.plugin.{PluginConfig, PluginLocatorException, PluginRegistry}
 import org.scalatest.{FlatSpec, Matchers}
 
 class PluginRegistryTest extends FlatSpec with Matchers {

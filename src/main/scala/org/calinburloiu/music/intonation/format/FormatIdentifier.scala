@@ -14,14 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
-import java.io.OutputStream
-
-import org.calinburloiu.music.intonation.{Interval, Scale}
-
-
-trait ScaleWriter {
-
-  def write(scale: Scale[Interval]): OutputStream
-}
+case class FormatIdentifier(
+  name: String,
+  extensions: Set[String],
+  // TODO Using a special object for MediaType would provide validation
+  mediaTypes: Set[String] = Set.empty
+)

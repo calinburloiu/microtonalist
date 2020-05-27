@@ -16,10 +16,7 @@
 
 package org.calinburloiu.music.intonation
 
-import java.math.RoundingMode
-
 import com.google.common.base.Preconditions.checkArgument
-import com.google.common.math.{DoubleMath, IntMath}
 
 object Converters {
 

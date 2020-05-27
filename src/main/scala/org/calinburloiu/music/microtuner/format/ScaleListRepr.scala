@@ -14,10 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner.io
+package org.calinburloiu.music.microtuner.format
 
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
-import org.calinburloiu.music.intonation.io.{Ref, ScaleLibrary}
+import org.calinburloiu.music.intonation.format.{Ref, ScaleLibrary}
+import org.calinburloiu.music.intonation.{Interval, Scale}
 import play.api.libs.json.{JsNull, JsValue}
 
 case class ScaleListRepr(
