@@ -45,8 +45,8 @@ object MetaConfig {
 
 class CoreConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[CoreConfig](CoreConfigManager.configRootPath, mainConfigManager) {
-  import CoreConfigManager._
   import ConfigSerDe._
+  import CoreConfigManager._
 
   override protected def serialize(config: CoreConfig): HoconConfig = {
     val hoconConfig = this.hoconConfig

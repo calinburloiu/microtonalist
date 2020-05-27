@@ -17,9 +17,8 @@
 package org.calinburloiu.music.tuning
 
 import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, Interval, Scale}
+import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 import org.scalatest.{FunSuite, Matchers}
-
-import PianoKeyboardTuningUtils._
 
 class PrecisionTest extends FunSuite with Matchers {
 

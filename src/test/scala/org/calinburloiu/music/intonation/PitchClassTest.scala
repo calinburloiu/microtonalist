@@ -17,8 +17,8 @@
 package org.calinburloiu.music.intonation
 
 import org.calinburloiu.music.tuning.PitchClassConfig
-import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.{FunSuite, Matchers}
 
 class PitchClassTest extends FunSuite with Matchers with TableDrivenPropertyChecks {
   import PitchClass._

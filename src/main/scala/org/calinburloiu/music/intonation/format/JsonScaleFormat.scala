@@ -14,15 +14,15 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
-import java.io.InputStream
+import java.io.{InputStream, OutputStream}
 
 import org.calinburloiu.music.intonation.{CentsInterval, Interval, Scale}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
-class JsonScaleReader extends ScaleReader {
+class JsonScaleFormat extends ScaleFormat {
 
   override def read(inputStream: InputStream): Scale[Interval] = {
     val inputJson = Json.parse(inputStream)
@@ -30,14 +30,16 @@ class JsonScaleReader extends ScaleReader {
     read(inputJson)
   }
 
-  def read(inputJson: JsValue): Scale[Interval] = inputJson.validate(JsonScaleReader.jsonScaleReads) match {
+  def read(inputJson: JsValue): Scale[Interval] = inputJson.validate(JsonScaleFormat.jsonScaleReads) match {
     case JsSuccess(scale: Scale[Interval], _) => scale
     case error: JsError => throw new InvalidJsonScaleException(JsError.toJson(error).toString)
   }
+
+  override def write(scale: Scale[Interval]): OutputStream = ???
 }
 
 // TODO DI
-object JsonScaleReader extends JsonScaleReader {
+object JsonScaleFormat extends JsonScaleFormat {
 
   implicit val intervalReads: Reads[Interval] = Reads.StringReads.collect(
     JsonValidationError("error.expecting.ScalaAppScalePitch")
@@ -54,11 +56,11 @@ object JsonScaleReader extends JsonScaleReader {
       (__ \ "intervals").read[Seq[Interval]] and
       (__ \ "name").readNullable[String]
     ) { (pitches: Seq[Interval], name: Option[String]) =>
-      ScaleReader.createScale(name.getOrElse(""), pitches)
+      ScaleFormat.createScale(name.getOrElse(""), pitches)
     }
 
     jsonScaleObjReads orElse __.read[Seq[Interval]].map { pitches =>
-      ScaleReader.createScale("", pitches)
+      ScaleFormat.createScale("", pitches)
     }
   }
 

@@ -14,15 +14,15 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.microtuner.format
 
-import scala.util.Try
+import java.io.InputStream
 
-trait RefResolver[+A] {
+import org.calinburloiu.music.microtuner.ScaleList
 
-  def get(uri: String, mediaType: Option[String] = None): A
+trait ScaleListFormat {
 
-  def getOption(uri: String, mediaType: Option[String] = None): Option[A] = Try {
-    get(uri, mediaType)
-  }.toOption
+  def read(inputStream: InputStream): ScaleList
 }
+
+class InvalidScaleListFileException(message: String, cause: Throwable = null) extends Exception(message, cause)

@@ -14,26 +14,26 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner.io
+package org.calinburloiu.music.microtuner.format
 
 import java.io.InputStream
 
-import org.calinburloiu.music.intonation.io.{JsonScaleReader, Ref, ScaleLibrary}
+import org.calinburloiu.music.intonation.format.{JsonScaleFormat, Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList, ScaleMapping}
 import org.calinburloiu.music.plugin.{Plugin, PluginConfig, PluginConfigIO, PluginRegistry}
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
 
-class JsonScaleListReader(
+class JsonScaleListFormat(
     scaleLibrary: ScaleLibrary,
     tuningMapperRegistry: TuningMapperRegistry,
-    tuningListReducerRegistry: TuningListReducerRegistry) extends ScaleListReader {
+    tuningListReducerRegistry: TuningListReducerRegistry) extends ScaleListFormat {
 
   private[this] implicit val scaleLibraryImpl: ScaleLibrary = scaleLibrary
 
   private lazy val defaultTuningListReducer =
-    JsonScaleListReader.createPlugin(tuningListReducerRegistry, DirectTuningListReducer.pluginId)
+    JsonScaleListFormat.createPlugin(tuningListReducerRegistry, DirectTuningListReducer.pluginId)
 
   override def read(inputStream: InputStream): ScaleList = {
     val repr = readRepr(inputStream).resolve
@@ -42,7 +42,7 @@ class JsonScaleListReader(
   }
 
   def readRepr(inputStream: InputStream): ScaleListRepr = {
-    import JsonScaleListReader._
+    import JsonScaleListFormat._
 
     val json = Json.parse(inputStream)
 
@@ -93,39 +93,39 @@ class JsonScaleListReader(
   }
 
   private[this] def createTuningMapper(spec: PluginSpecRepr): TuningMapper =
-    JsonScaleListReader.createPlugin(tuningMapperRegistry, spec.id, spec.config)
+    JsonScaleListFormat.createPlugin(tuningMapperRegistry, spec.id, spec.config)
 
   private[this] def createTuningListReducer(spec: PluginSpecRepr): TuningListReducer =
-    JsonScaleListReader.createPlugin(tuningListReducerRegistry, spec.id, spec.config)
+    JsonScaleListFormat.createPlugin(tuningListReducerRegistry, spec.id, spec.config)
 }
 
-object JsonScaleListReader {
+object JsonScaleListFormat {
 
-  private[io] implicit val pluginSpecReprReads: Reads[PluginSpecRepr] =
+  private[format] implicit val pluginSpecReprReads: Reads[PluginSpecRepr] =
     Json.using[Json.WithDefaultValues].reads[PluginSpecRepr].orElse {
       Reads.StringReads.map { id =>
         PluginSpecRepr(id)
       }
     }
 
-  private[JsonScaleListReader] implicit val intervalReads: Reads[Interval] = JsonScaleReader.intervalReads
+  private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
 
-  private[JsonScaleListReader] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleReader.jsonScaleReads
+  private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
 
-  private[io] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
+  private[format] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
 
-  private[io] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
+  private[format] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
 
-  private[io] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
+  private[format] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
 
-  private[io] implicit val modulationReprReads: Reads[ModulationRepr] =
+  private[format] implicit val modulationReprReads: Reads[ModulationRepr] =
     Json.using[Json.WithDefaultValues].reads[ModulationRepr]
 
-  private[io] implicit val scaleListReprReads: Reads[ScaleListRepr] =
+  private[format] implicit val scaleListReprReads: Reads[ScaleListRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
-  private[JsonScaleListReader] def createPlugin[P <: Plugin](
+  private[JsonScaleListFormat] def createPlugin[P <: Plugin](
     registry: PluginRegistry[P],
     id: String,
     jsValueConfig: JsValue = JsNull): P = {

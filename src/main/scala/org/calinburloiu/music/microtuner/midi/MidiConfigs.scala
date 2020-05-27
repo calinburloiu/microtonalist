@@ -29,8 +29,8 @@ case class MidiOutputConfig(
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
-  import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
+  import org.calinburloiu.music.microtuner.ConfigSerDe._
 
   override protected def serialize(config: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
@@ -60,8 +60,8 @@ case class MidiInputConfig(
 
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
     extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
-  import org.calinburloiu.music.microtuner.ConfigSerDe._
   import MidiConfigSerDe._
+  import org.calinburloiu.music.microtuner.ConfigSerDe._
 
   override protected def serialize(config: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig

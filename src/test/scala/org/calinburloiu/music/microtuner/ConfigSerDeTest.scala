@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigFactory
 import org.calinburloiu.music.microtuner.ConfigSerDe._
 import org.scalatest.{FlatSpec, Matchers}
 

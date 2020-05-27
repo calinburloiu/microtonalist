@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
-import com.typesafe.config.{Config => HoconConfig, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, Config => HoconConfig}
 import org.scalatest.{FlatSpec, Matchers}
 
 abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends FlatSpec with Matchers {
