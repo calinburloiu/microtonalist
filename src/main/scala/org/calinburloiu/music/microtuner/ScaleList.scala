@@ -17,13 +17,13 @@
 package org.calinburloiu.music.microtuner
 
 import org.calinburloiu.music.intonation._
-import org.calinburloiu.music.tuning.{PartialTuning, TuningListReducer, TuningMapper}
+import org.calinburloiu.music.tuning.{PartialTuning, TuningReducer, TuningMapper}
 
 case class ScaleList(
                       name: String,
                       origin: OriginOld,
                       modulations: Seq[Modulation],
-                      tuningListReducer: TuningListReducer,
+                      tuningListReducer: TuningReducer,
                       globalFill: ScaleMapping
 )
 

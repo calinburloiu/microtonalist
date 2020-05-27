@@ -18,9 +18,9 @@ package org.calinburloiu.music.tuning
 
 import org.calinburloiu.music.plugin.{PluginFactory, PluginRegistry}
 
-class TuningListReducerRegistry extends PluginRegistry[TuningListReducer] {
+class TuningReducerRegistry extends PluginRegistry[TuningReducer] {
 
-  override def registeredPluginFactories: Seq[PluginFactory[TuningListReducer]] = Seq(
+  override def registeredPluginFactories: Seq[PluginFactory[TuningReducer]] = Seq(
     new DirectTuningListReducerFactory,
     new MergeTuningListReducerFactory
   )

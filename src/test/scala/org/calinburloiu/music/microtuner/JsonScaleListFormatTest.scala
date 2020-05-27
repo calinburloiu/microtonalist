@@ -21,7 +21,7 @@ import java.nio.file.{Path, Paths}
 import org.calinburloiu.music.intonation.format.{InvalidScaleFormatException, LocalScaleLibrary, ScaleFormatRegistry, ScaleNotFoundException}
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtuner.format.{InvalidScaleListFileException, JsonScaleListFormat}
-import org.calinburloiu.music.tuning.{TuningListReducerRegistry, TuningMapperRegistry}
+import org.calinburloiu.music.tuning.{TuningReducerRegistry, TuningMapperRegistry}
 import org.scalatest.{FlatSpec, Matchers}
 
 class JsonScaleListFormatTest extends FlatSpec with Matchers {
@@ -90,7 +90,7 @@ object JsonScaleListFormatTest {
   def readScaleListFromResources(path: String): ScaleList = {
     val inputStream = getClass.getClassLoader.getResourceAsStream(path)
     val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath),
-      new TuningMapperRegistry, new TuningListReducerRegistry)
+      new TuningMapperRegistry, new TuningReducerRegistry)
 
     scaleListReader.read(inputStream)
   }
