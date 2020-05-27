@@ -166,8 +166,8 @@ case class RatioInterval(
 
 object RatioInterval {
 
-  val UNISON = RatioInterval(1, 1)
-  val OCTAVE = RatioInterval(2, 1)
+  val UNISON: RatioInterval = RatioInterval(1, 1)
+  val OCTAVE: RatioInterval = RatioInterval(2, 1)
 
   implicit def fromPair(pair: (Int, Int)): RatioInterval = RatioInterval(pair._1, pair._2)
 
@@ -225,8 +225,8 @@ case class CentsInterval(
 
 object CentsInterval {
 
-  val UNISON = CentsInterval(0.0)
-  val OCTAVE = CentsInterval(1200.0)
+  val UNISON: CentsInterval = CentsInterval(0.0)
+  val OCTAVE: CentsInterval = CentsInterval(1200.0)
 
   implicit class PostfixOperator(centsValue: Double) {
 

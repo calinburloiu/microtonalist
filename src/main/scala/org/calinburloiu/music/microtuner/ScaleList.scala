@@ -30,6 +30,7 @@ case class ScaleList(
 case class Modulation(
   transposition: Interval,
   scaleMapping: ScaleMapping,
+  // TODO extension probably needs to be renamed to alterations or something
   extension: Option[ScaleMapping],
   fill: Option[ScaleMapping]
 )

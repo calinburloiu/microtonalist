@@ -21,7 +21,6 @@ import java.nio.file.Path
 
 import org.calinburloiu.music.intonation._
 
-// TODO The first pitch is always unison, even if it is not explicit in the file input
 trait ScaleReader {
 
   def read(inputStream: InputStream): Scale[Interval]

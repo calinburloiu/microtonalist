@@ -55,6 +55,20 @@ case class PartialTuning(
     PartialTuning(resultDeviations)
   }
 
+  /**
+   * Overwrites each pitch class from `this` with with corresponding non-empty deviations from `that`.
+   */
+  def overwrite(that: PartialTuning): PartialTuning = {
+    checkArgument(this.size == that.size,
+      "Expecting equally sized operand, got one with size %s", that.size)
+
+    val resultDeviations = (this.deviations zip that.deviations).map {
+      case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
+    }
+
+    PartialTuning(resultDeviations)
+  }
+
   def merge(that: PartialTuning): Option[PartialTuning] = {
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
