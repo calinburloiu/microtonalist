@@ -25,15 +25,14 @@ import org.calinburloiu.music.plugin.{Plugin, PluginConfig, PluginConfigIO, Plug
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
 
-class JsonScaleListFormat(
-    scaleLibrary: ScaleLibrary,
-    tuningMapperRegistry: TuningMapperRegistry,
-    tuningListReducerRegistry: TuningListReducerRegistry) extends ScaleListFormat {
+class JsonScaleListFormat(scaleLibrary: ScaleLibrary,
+                          tuningMapperRegistry: TuningMapperRegistry,
+                          tuningReducerRegistry: TuningReducerRegistry) extends ScaleListFormat {
 
   private[this] implicit val scaleLibraryImpl: ScaleLibrary = scaleLibrary
 
   private lazy val defaultTuningListReducer =
-    JsonScaleListFormat.createPlugin(tuningListReducerRegistry, DirectTuningListReducer.pluginId)
+    JsonScaleListFormat.createPlugin(tuningReducerRegistry, DirectTuningReducer.pluginId)
 
   override def read(inputStream: InputStream): ScaleList = {
     val repr = readRepr(inputStream).resolve
@@ -95,8 +94,8 @@ class JsonScaleListFormat(
   private[this] def createTuningMapper(spec: PluginSpecRepr): TuningMapper =
     JsonScaleListFormat.createPlugin(tuningMapperRegistry, spec.id, spec.config)
 
-  private[this] def createTuningListReducer(spec: PluginSpecRepr): TuningListReducer =
-    JsonScaleListFormat.createPlugin(tuningListReducerRegistry, spec.id, spec.config)
+  private[this] def createTuningListReducer(spec: PluginSpecRepr): TuningReducer =
+    JsonScaleListFormat.createPlugin(tuningReducerRegistry, spec.id, spec.config)
 }
 
 object JsonScaleListFormat {
@@ -125,10 +124,9 @@ object JsonScaleListFormat {
   private[format] implicit val scaleListReprReads: Reads[ScaleListRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
-  private[JsonScaleListFormat] def createPlugin[P <: Plugin](
-    registry: PluginRegistry[P],
-    id: String,
-    jsValueConfig: JsValue = JsNull): P = {
+  private[JsonScaleListFormat] def createPlugin[P <: Plugin](registry: PluginRegistry[P],
+                                                             id: String,
+                                                             jsValueConfig: JsValue = JsNull): P = {
     val factory = registry.get(id)
     val config: Option[PluginConfig] = PluginConfigIO.fromPlayJsValue(jsValueConfig, factory.configClass)
     factory.create(config)

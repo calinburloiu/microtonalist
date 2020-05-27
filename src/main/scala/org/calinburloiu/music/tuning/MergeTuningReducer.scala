@@ -22,7 +22,7 @@ import org.calinburloiu.music.plugin.{PluginConfig, PluginFactory}
 
 import scala.annotation.tailrec
 
-class MergeTuningListReducer extends TuningListReducer(None) with StrictLogging {
+class MergeTuningReducer extends TuningReducer(None) with StrictLogging {
 
   override def apply(partialTuningList: PartialTuningList): TuningList = {
     checkArgument(partialTuningList.tuningModulations.nonEmpty)
@@ -43,7 +43,7 @@ class MergeTuningListReducer extends TuningListReducer(None) with StrictLogging 
     if (maybeTunings.forall(_.nonEmpty)) {
       TuningList(maybeTunings.map(_.get))
     } else {
-      throw new MergeTuningListReducerException(
+      throw new MergeTuningReducerException(
         s"Some tunings are not complete: $maybeTunings")
     }
   }
@@ -97,24 +97,24 @@ class MergeTuningListReducer extends TuningListReducer(None) with StrictLogging 
   }
 }
 
-object MergeTuningListReducer {
+object MergeTuningReducer {
   val pluginId: String = "merge"
 }
 
-class MergeTuningListReducerFactory extends PluginFactory[MergeTuningListReducer] {
+class MergeTuningListReducerFactory extends PluginFactory[MergeTuningReducer] {
 
-  override val pluginId: String = MergeTuningListReducer.pluginId
+  override val pluginId: String = MergeTuningReducer.pluginId
 
   override val configClass: Option[Class[_ <: PluginConfig]] = None
 
   override val defaultConfig: Option[PluginConfig] = None
 
-  override def create(config: Option[PluginConfig]): MergeTuningListReducer = config match {
-    case None => new MergeTuningListReducer
+  override def create(config: Option[PluginConfig]): MergeTuningReducer = config match {
+    case None => new MergeTuningReducer
     case otherConfig => throw new IllegalArgumentException(
       s"Expecting a specific MergeTuningListReducer, but got ${otherConfig.getClass.getName}")
   }
 }
 
-class MergeTuningListReducerException(message: String, cause: Throwable = null)
-  extends TuningListReducerException(message, cause)
+class MergeTuningReducerException(message: String, cause: Throwable = null)
+  extends TuningReducerException(message, cause)
