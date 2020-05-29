@@ -19,7 +19,6 @@ package org.calinburloiu.music.tuning
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.plugin.{PluginConfig, PluginFactory}
 
-// TODO Can we make this and MergeTuningReducer an object?
 class DirectTuningReducer extends TuningReducer(None) with StrictLogging {
 
   override def apply(partialTuningList: PartialTuningList): TuningList = {
