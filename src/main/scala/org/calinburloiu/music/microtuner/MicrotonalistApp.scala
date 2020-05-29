@@ -21,10 +21,10 @@ import java.nio.file.Paths
 
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.intonation.io.{LocalScaleLibrary, ScaleReaderRegistry}
-import org.calinburloiu.music.microtuner.io.JsonScaleListReader
+import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatRegistry}
+import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningListReducerRegistry, TuningMapperRegistry}
+import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningReducerRegistry, TuningMapperRegistry}
 
 import scala.util.Try
 
@@ -77,8 +77,8 @@ object MicrotonalistApp extends StrictLogging {
 
     // # I/O
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
-      new TuningMapperRegistry, new TuningListReducerRegistry)
+    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath),
+      new TuningMapperRegistry, new TuningReducerRegistry)
 
     // # Microtuner
     val scaleList = scaleListReader.read(new FileInputStream(inputFileName))

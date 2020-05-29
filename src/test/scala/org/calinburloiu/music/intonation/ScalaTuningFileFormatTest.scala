@@ -19,12 +19,12 @@ package org.calinburloiu.music.intonation
 import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets
 
-import org.calinburloiu.music.intonation.io.{InvalidScalaTuningFileException, ScalaTuningFileReader}
+import org.calinburloiu.music.intonation.format.{InvalidScalaTuningFileException, ScalaTuningFileFormat}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.implicitConversions
 
-class ScalaTuningFileReaderTest extends FlatSpec with Matchers {
+class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
 
   "Reading a .scl file with invalid header" should "throw InvalidScalaTuningFileException" in testFailure(
     "description",
@@ -205,7 +205,7 @@ class ScalaTuningFileReaderTest extends FlatSpec with Matchers {
     val input = scalaTuningFileString.stripMargin.toInputStream
 
     val caught = intercept[InvalidScalaTuningFileException] {
-      ScalaTuningFileReader.read(input)
+      ScalaTuningFileFormat.read(input)
     }
 
     maybeMessageContained match {
@@ -218,7 +218,7 @@ class ScalaTuningFileReaderTest extends FlatSpec with Matchers {
   def testSuccess(scalaTuningFileString: String, expectedScale: Scale[Interval]): Unit = {
     val input = scalaTuningFileString.stripMargin.toInputStream
 
-    val actualScale = ScalaTuningFileReader.read(input)
+    val actualScale = ScalaTuningFileFormat.read(input)
 
     actualScale.getClass shouldEqual expectedScale.getClass
     actualScale shouldEqual expectedScale

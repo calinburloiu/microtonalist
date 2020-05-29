@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.intonation.io.{InvalidJsonScaleException, JsonScaleReader}
+import org.calinburloiu.music.intonation.format.{InvalidJsonScaleException, JsonScaleFormat}
 import org.scalatest.{FlatSpec, Matchers}
 import play.api.libs.json.Json
 
-class JsonScaleReaderTest extends FlatSpec with Matchers {
+class JsonScaleFormatTest extends FlatSpec with Matchers {
 
   "A JSON Scale with pitches in cents" should "correctly create a CentsScale object" in {
     val json = Json.obj(
@@ -30,7 +30,7 @@ class JsonScaleReaderTest extends FlatSpec with Matchers {
       )
     )
 
-    val result = JsonScaleReader.read(json)
+    val result = JsonScaleFormat.read(json)
 
     result.getClass shouldEqual classOf[CentsScale]
     result shouldEqual CentsScale("abc", 0.0, 204.3, 315.9, 498.5)
@@ -44,7 +44,7 @@ class JsonScaleReaderTest extends FlatSpec with Matchers {
       )
     )
 
-    val result = JsonScaleReader.read(json)
+    val result = JsonScaleFormat.read(json)
 
     result.getClass shouldEqual classOf[RatiosScale]
     result shouldEqual RatiosScale("abc", (1, 1), (9, 8), (5, 4), (4, 3))
@@ -58,7 +58,7 @@ class JsonScaleReaderTest extends FlatSpec with Matchers {
       )
     )
 
-    val result = JsonScaleReader.read(json)
+    val result = JsonScaleFormat.read(json)
 
     result.getClass shouldEqual classOf[Scale[Interval]]
     result shouldEqual Scale("abc",
@@ -72,7 +72,7 @@ class JsonScaleReaderTest extends FlatSpec with Matchers {
       )
     )
 
-    val result = JsonScaleReader.read(json)
+    val result = JsonScaleFormat.read(json)
 
     result.name should be (empty)
   }
@@ -86,7 +86,7 @@ class JsonScaleReaderTest extends FlatSpec with Matchers {
     )
 
     assertThrows[InvalidJsonScaleException] {
-      JsonScaleReader.read(json)
+      JsonScaleFormat.read(json)
     }
   }
 }

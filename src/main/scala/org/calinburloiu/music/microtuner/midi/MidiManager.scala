@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.{Logger, StrictLogging}
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 
-import scala.collection.{mutable, GenSet}
+import scala.collection.{GenSet, mutable}
 import scala.util.Try
 
 class MidiManager extends AutoCloseable with StrictLogging {

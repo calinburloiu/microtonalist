@@ -18,8 +18,6 @@ package org.calinburloiu.music.tuning
 
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.collection.mutable
-
 class PianoKeyboardTuningUtilsTest extends FlatSpec with Matchers {
   import PianoKeyboardTuningUtils._
 

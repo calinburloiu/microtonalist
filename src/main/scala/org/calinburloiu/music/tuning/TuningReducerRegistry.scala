@@ -14,14 +14,14 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.tuning
 
-import java.io.OutputStream
+import org.calinburloiu.music.plugin.{PluginFactory, PluginRegistry}
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
+class TuningReducerRegistry extends PluginRegistry[TuningReducer] {
 
-
-trait ScaleWriter {
-
-  def write(scale: Scale[Interval]): OutputStream
+  override def registeredPluginFactories: Seq[PluginFactory[TuningReducer]] = Seq(
+    new DirectTuningListReducerFactory,
+    new MergeTuningListReducerFactory
+  )
 }

@@ -16,12 +16,14 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.plugin.{PluginFactory, PluginRegistry}
+import org.calinburloiu.music.plugin.{Plugin, PluginConfig}
 
-class TuningListReducerRegistry extends PluginRegistry[TuningListReducer] {
+abstract class TuningReducer(val config: Option[TuningReducerConfig]) extends Plugin {
 
-  override def registeredPluginFactories: Seq[PluginFactory[TuningListReducer]] = Seq(
-    new DirectTuningListReducerFactory,
-    new MergeTuningListReducerFactory
-  )
+  def apply(partialTuningList: PartialTuningList): TuningList
 }
+
+trait TuningReducerConfig extends PluginConfig
+
+class TuningReducerException(message: String, cause: Throwable = null)
+    extends RuntimeException(message, cause)

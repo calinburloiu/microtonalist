@@ -14,19 +14,20 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
-import java.io.{FileInputStream, InputStream}
-import java.nio.file.Path
+import java.io.{InputStream, OutputStream}
 
 import org.calinburloiu.music.intonation._
 
-trait ScaleReader {
+trait ScaleFormat {
 
   def read(inputStream: InputStream): Scale[Interval]
+
+  def write(scale: Scale[Interval]): OutputStream
 }
 
-object ScaleReader {
+object ScaleFormat {
 
   private[intonation] def createScale(name: String, pitches: Seq[Interval]): Scale[Interval] = {
     val hasUnison = pitches.headOption.contains(Interval(1.0))

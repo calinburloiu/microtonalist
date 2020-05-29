@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.nio.file.Path
@@ -26,7 +26,7 @@ import scala.util.Try
 
 trait ScaleLibrary extends RefResolver[Scale[Interval]] {
 
-  protected val scaleReaderRegistry: ScaleReaderRegistry
+  protected val scaleReaderRegistry: ScaleFormatRegistry
 
   // TODO Make this an actual URI
   def get(uri: String, mediaType: Option[String] = None): Scale[Interval]
@@ -34,8 +34,8 @@ trait ScaleLibrary extends RefResolver[Scale[Interval]] {
 
 // TODO DI
 class LocalScaleLibrary(
-    protected override val scaleReaderRegistry: ScaleReaderRegistry,
-    scaleLibraryPath: Path) extends ScaleLibrary {
+                         protected override val scaleReaderRegistry: ScaleFormatRegistry,
+                         scaleLibraryPath: Path) extends ScaleLibrary {
 
   override def get(uri: String, mediaType: Option[String] = None): Scale[Interval] = {
     val scaleRelativePath = uri

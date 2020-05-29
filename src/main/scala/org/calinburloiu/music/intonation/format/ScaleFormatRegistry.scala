@@ -14,35 +14,35 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
-class ScaleReaderRegistry(val bindings: Seq[(FormatIdentifier, ScaleReader)]) {
+class ScaleFormatRegistry(val bindings: Seq[(FormatIdentifier, ScaleFormat)]) {
 
-  private[this] val byExtension: Map[String, ScaleReader] = (for {
+  private[this] val byExtension: Map[String, ScaleFormat] = (for {
     (FormatIdentifier(_, extensions, _), scaleReader) <- bindings
     extension <- extensions
   } yield extension -> scaleReader).toMap
 
-  private[this] val byMediaType: Map[String, ScaleReader] = (for {
+  private[this] val byMediaType: Map[String, ScaleFormat] = (for {
     (FormatIdentifier(_, _, mediaTypes), scaleReader) <- bindings
     mediaType <- mediaTypes
   } yield mediaType -> scaleReader).toMap
 
   /**
-    * @throws UnsupportedOperationException if no [[ScaleReader]] is registered for the extension
+    * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the extension
     */
-  def getByExtension(extension: String): ScaleReader = byExtension.getOrElse(extension, throw
+  def getByExtension(extension: String): ScaleFormat = byExtension.getOrElse(extension, throw
       new UnsupportedOperationException(s"No ScaleReader registered for extension '$extension'"))
 
   /**
-    * @throws UnsupportedOperationException if no [[ScaleReader]] is registered for the media type
+    * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the media type
     */
-  def getByMediaType(mediaType: String): ScaleReader = byMediaType.getOrElse(mediaType, throw
+  def getByMediaType(mediaType: String): ScaleFormat = byMediaType.getOrElse(mediaType, throw
       new UnsupportedOperationException(s"No ScaleReader registered for media type '$mediaType'"))
 }
 
 // TODO DI
-object ScaleReaderRegistry extends ScaleReaderRegistry(Seq(
-  (FormatIdentifier("Scala Application Scale", Set("scl")), ScalaTuningFileReader),
-  (FormatIdentifier("JSON Scale", Set("jscl", "json")), JsonScaleReader)
+object ScaleFormatRegistry extends ScaleFormatRegistry(Seq(
+  (FormatIdentifier("Scala Application Scale", Set("scl")), ScalaTuningFileFormat),
+  (FormatIdentifier("JSON Scale", Set("jscl", "json")), JsonScaleFormat)
 ))

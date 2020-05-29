@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
+package org.calinburloiu.music.intonation.format
 
 import org.calinburloiu.music.intonation.{Interval, RatioInterval, Scale}
 import org.scalatest.{FlatSpec, Matchers}
@@ -22,7 +22,7 @@ import play.api.libs.json.{Json, Reads}
 
 class RefTest extends FlatSpec with Matchers {
 
-  implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleReader.jsonScaleReads
+  implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
 
   "refReads" should "read a JSON containing only a reference as an UnresolvedRef" in {
     // Arrange

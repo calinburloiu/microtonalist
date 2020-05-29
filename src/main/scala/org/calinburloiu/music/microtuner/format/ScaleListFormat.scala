@@ -14,14 +14,13 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner.io
+package org.calinburloiu.music.microtuner.format
 
 import java.io.InputStream
-import java.nio.file.Path
 
 import org.calinburloiu.music.microtuner.ScaleList
 
-trait ScaleListReader {
+trait ScaleListFormat {
 
   def read(inputStream: InputStream): ScaleList
 }

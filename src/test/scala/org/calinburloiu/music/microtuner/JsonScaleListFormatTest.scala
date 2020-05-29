@@ -18,14 +18,14 @@ package org.calinburloiu.music.microtuner
 
 import java.nio.file.{Path, Paths}
 
-import org.calinburloiu.music.intonation.io.{InvalidScaleFormatException, LocalScaleLibrary, ScaleNotFoundException, ScaleReaderRegistry}
+import org.calinburloiu.music.intonation.format.{InvalidScaleFormatException, LocalScaleLibrary, ScaleFormatRegistry, ScaleNotFoundException}
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
-import org.calinburloiu.music.microtuner.io.{InvalidScaleListFileException, JsonScaleListReader}
-import org.calinburloiu.music.tuning.{TuningListReducerRegistry, TuningMapperRegistry}
+import org.calinburloiu.music.microtuner.format.{InvalidScaleListFileException, JsonScaleListFormat}
+import org.calinburloiu.music.tuning.{TuningReducerRegistry, TuningMapperRegistry}
 import org.scalatest.{FlatSpec, Matchers}
 
-class JsonScaleListReaderTest extends FlatSpec with Matchers {
-  import JsonScaleListReaderTest._
+class JsonScaleListFormatTest extends FlatSpec with Matchers {
+  import JsonScaleListFormatTest._
 
   val majorScale = RatiosScale("Major",
     (1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
@@ -83,14 +83,14 @@ class JsonScaleListReaderTest extends FlatSpec with Matchers {
   }
 }
 
-object JsonScaleListReaderTest {
+object JsonScaleListFormatTest {
 
   val scaleLibraryPath: Path = Paths.get(getClass.getClassLoader.getResource("scales/").getFile)
 
   def readScaleListFromResources(path: String): ScaleList = {
     val inputStream = getClass.getClassLoader.getResourceAsStream(path)
-    val scaleListReader = new JsonScaleListReader(new LocalScaleLibrary(ScaleReaderRegistry, scaleLibraryPath),
-      new TuningMapperRegistry, new TuningListReducerRegistry)
+    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath),
+      new TuningMapperRegistry, new TuningReducerRegistry)
 
     scaleListReader.read(inputStream)
   }

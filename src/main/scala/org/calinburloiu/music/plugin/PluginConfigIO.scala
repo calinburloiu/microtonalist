@@ -18,8 +18,8 @@ package org.calinburloiu.music.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import play.api.libs.json.{JsNull, JsValue}
 import play.api.libs.json.jackson.PlayJsonModule
+import play.api.libs.json.{JsNull, JsValue}
 
 object PluginConfigIO {
 

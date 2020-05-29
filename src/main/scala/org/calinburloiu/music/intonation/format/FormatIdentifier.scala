@@ -14,9 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation.io
-
-import com.google.common.net.MediaType
+package org.calinburloiu.music.intonation.format
 
 case class FormatIdentifier(
   name: String,
