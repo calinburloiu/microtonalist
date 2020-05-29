@@ -81,7 +81,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary,
       Modulation(transposition, scaleMapping, extension, fill)
     }
 
-    val tuningListReducer = scaleListRepr.tuningListReducer.map(createTuningListReducer)
+    val tuningListReducer = scaleListRepr.tuningReducer.map(createTuningListReducer)
       .getOrElse(defaultTuningListReducer)
 
     val globalFillTuningMapper = scaleListRepr.globalFillTuningMapper.map(createTuningMapper)

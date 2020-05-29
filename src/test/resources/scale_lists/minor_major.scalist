@@ -8,7 +8,7 @@
   "globalFill": {
     "ref": "chromatic.scl"
   },
-  "tuningListReducer": {
+  "tuningReducer": {
     "id": "direct"
   },
   "modulations": [

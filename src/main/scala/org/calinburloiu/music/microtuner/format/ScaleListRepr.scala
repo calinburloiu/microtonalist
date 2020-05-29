@@ -20,15 +20,13 @@ import org.calinburloiu.music.intonation.format.{Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import play.api.libs.json.{JsNull, JsValue}
 
-case class ScaleListRepr(
-  name: Option[String],
-  origin: OriginRepr,
-  modulations: Seq[ModulationRepr],
-  tuningListReducer: Option[PluginSpecRepr] = None,
-  globalFill: Ref[Scale[Interval]],
-  globalFillTuningMapper: Option[PluginSpecRepr] = None,
-  config: Option[ScaleListConfigRepr]
-) {
+case class ScaleListRepr(name: Option[String],
+                         origin: OriginRepr,
+                         modulations: Seq[ModulationRepr],
+                         tuningReducer: Option[PluginSpecRepr] = None,
+                         globalFill: Ref[Scale[Interval]],
+                         globalFillTuningMapper: Option[PluginSpecRepr] = None,
+                         config: Option[ScaleListConfigRepr]) {
 
   def resolve(implicit scaleLibrary: ScaleLibrary): ScaleListRepr = {
     copy(
