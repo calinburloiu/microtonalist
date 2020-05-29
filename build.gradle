@@ -55,6 +55,7 @@ dependencies {
   compile group: 'org.scala-lang', name: 'scala-library', version: scalaVersion
 
   testCompile group: 'org.scalatest', name: scala('scalatest'), version: '3.0.4'
+  testCompile group: 'org.scalamock', name: scala('scalamock'), version: '4.4.0'
   testCompile "org.pegdown:pegdown:1.4.2"  // Required by scalatest for generating reports
 }
 

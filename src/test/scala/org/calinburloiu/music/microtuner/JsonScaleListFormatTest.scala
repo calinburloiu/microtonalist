@@ -21,19 +21,22 @@ import java.nio.file.{Path, Paths}
 import org.calinburloiu.music.intonation.format.{InvalidScaleFormatException, LocalScaleLibrary, ScaleFormatRegistry, ScaleNotFoundException}
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtuner.format.{InvalidScaleListFileException, JsonScaleListFormat}
-import org.calinburloiu.music.tuning.{TuningReducerRegistry, TuningMapperRegistry}
-import org.scalatest.{FlatSpec, Matchers}
+import org.calinburloiu.music.tuning._
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.{FlatSpec, Inside, Matchers}
+import play.api.libs.json.{JsError, JsString, JsSuccess, Json}
 
-class JsonScaleListFormatTest extends FlatSpec with Matchers {
+class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with MockFactory {
+  import JsonScaleListFormat._
   import JsonScaleListFormatTest._
 
-  val majorScale = RatiosScale("Major",
+  val majorScale: RatiosScale = RatiosScale("Major",
     (1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
-  val naturalMinorScale = RatiosScale("Natural Minor",
+  val naturalMinorScale: RatiosScale = RatiosScale("Natural Minor",
     (1, 1), (9, 8), (6, 5), (4, 3), (3, 2), (8, 5), (9, 5), (2, 1))
-  val romanianMinorScale = RatiosScale("Romanian Minor",
+  val romanianMinorScale: RatiosScale = RatiosScale("Romanian Minor",
     (1, 1), (9, 8), (6, 5), (7, 5), (3, 2), (27, 16), (16, 9), (2, 1))
-  val chromaticScale = RatiosScale("Just Chromatic",
+  val chromaticScale: RatiosScale = RatiosScale("Just Chromatic",
     (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3),
     (7, 4), (15, 8), (2, 1))
 
@@ -80,6 +83,38 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers {
     assertThrows[InvalidScaleListFileException] {
       readScaleListFromResources("scale_lists/invalid_scale.scalist")
     }
+  }
+
+  "TuningReducerPlayJsonFormat" should "deserialize JSON string containing type" in {
+    inside (TuningReducerPlayJsonFormat.reads(JsString("direct"))) {
+      case JsSuccess(value, _) => value shouldBe a [DirectTuningReducer]
+    }
+    inside (TuningReducerPlayJsonFormat.reads(JsString("merge"))) {
+      case JsSuccess(value, _) => value shouldBe a [MergeTuningReducer]
+    }
+    TuningReducerPlayJsonFormat.reads(JsString("bogus")) shouldBe a [JsError]
+  }
+
+  it should "deserialize JSON object only containing type by using default factory" in {
+    val directTuningReducerJson = Json.obj("type" -> "direct")
+    val mergeTuningReducerJson = Json.obj("type" -> "merge")
+    val bogusTuningReducerJson = Json.obj("type" -> "bogus")
+    val invalidJson = Json.obj("typ" -> "direct")
+
+    inside (TuningReducerPlayJsonFormat.reads(directTuningReducerJson)) {
+      case JsSuccess(value, _) => value shouldBe a [DirectTuningReducer]
+    }
+    inside (TuningReducerPlayJsonFormat.reads(mergeTuningReducerJson)) {
+      case JsSuccess(value, _) => value shouldBe a [MergeTuningReducer]
+    }
+    TuningReducerPlayJsonFormat.reads(bogusTuningReducerJson) shouldBe a [JsError]
+    TuningReducerPlayJsonFormat.reads(invalidJson) shouldBe a [JsError]
+  }
+
+  it should "serialize JSON string containing types of direct and merge" in {
+    TuningReducerPlayJsonFormat.writes(new DirectTuningReducer) shouldEqual JsString("direct")
+    TuningReducerPlayJsonFormat.writes(new MergeTuningReducer) shouldEqual JsString("merge")
+    a [Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
   }
 }
 

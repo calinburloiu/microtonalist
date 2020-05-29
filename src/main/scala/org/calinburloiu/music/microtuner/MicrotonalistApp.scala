@@ -24,7 +24,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatRegistry}
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningReducerRegistry, TuningMapperRegistry}
+import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningMapperRegistry, TuningReducerRegistry}
 
 import scala.util.Try
 
@@ -48,6 +48,9 @@ object MicrotonalistApp extends StrictLogging {
     }
   }.recover {
     case appException: AppException => appException.exitWithMessage()
+    case throwable: Throwable =>
+      logger.error("Unexpected error", throwable)
+      System.exit(1000)
   }
 
   def run(inputFileName: String, configFileName: Option[String] = None): Unit = {
