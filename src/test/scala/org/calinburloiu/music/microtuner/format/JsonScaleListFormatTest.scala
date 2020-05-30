@@ -162,8 +162,20 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
       )
     }
 
-    val subJson = Json.obj("type" -> "foo")
-    stubFormat.reads(subJson) shouldBe a [JsError]
+    val stubJsonStr = JsString("foo")
+    val stubJsonObj = Json.obj("type" -> "foo")
+    for (js <- Seq(stubJsonStr, stubJsonObj)) {
+      inside(stubFormat.reads(js)) {
+        case JsError(Seq((_, Seq(JsonValidationError(Seq(message)))))) =>
+          message shouldEqual "error.component.params.missing"
+      }
+    }
+
+    val invalidJs = JsNumber(3)
+    inside (stubFormat.reads(invalidJs)) {
+      case JsError(Seq((_, Seq(JsonValidationError(Seq(message)))))) =>
+        message shouldEqual "error.component.invalid"
+    }
   }
 }
 

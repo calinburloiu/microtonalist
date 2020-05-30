@@ -19,6 +19,8 @@ package org.calinburloiu.music.microtuner.format
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
+import scala.Option
+
 trait ComponentPlayJsonFormat[A] extends Format[A] {
 
   import ComponentPlayJsonFormat._
@@ -51,11 +53,13 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
   override def reads(json: JsValue): JsResult[A] = {
     val readsStrWithType = Reads.StringReads
       .map { typeName =>
-        subComponentSpecsByType.get(typeName).flatMap { spec =>
-          spec.defaultFactory.map(_ ())
+        subComponentSpecsByType.get(typeName).map { spec =>
+          spec.defaultFactory.map { factory => factory() }
         }
       }
-      .filter(UnrecognizedTypeError) { maybe: Option[A] => maybe.nonEmpty }
+      .filter(UnrecognizedTypeError) { foundByType => foundByType.nonEmpty }
+      .map(_.get)
+      .filter(MissingRequiredParams) { maybeDefaultFactory => maybeDefaultFactory.nonEmpty }
       .map(_.get)
 
     def objWithTypeResult = (json \ SubComponentTypeFieldName).asOpt[String] match {
@@ -65,17 +69,22 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
             val maybeRead = spec.playJsonFormat.map(_.reads(json))
             spec.defaultFactory
               .map { factory => maybeRead.getOrElse(JsSuccess(factory())) }
-              .getOrElse(JsError(Seq(JsPath -> Seq(UnrecognizedTypeError))))
+              .getOrElse(JsError(Seq(JsPath -> Seq(MissingRequiredParams))))
           case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
         }
       case None => JsError(Seq(JsPath -> Seq(MissingTypeError)))
     }
 
-    readsStrWithType.reads(json) orElse objWithTypeResult
+    json match {
+      case jsString: JsString => readsStrWithType.reads(jsString)
+      case _: JsObject => objWithTypeResult
+      case _ => JsError(Seq(JsPath -> Seq(InvalidError)))
+    }
   }
 }
 
 object ComponentPlayJsonFormat {
+  val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
   val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
   val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
   val MissingRequiredParams: JsonValidationError = JsonValidationError("error.component.params.missing")
