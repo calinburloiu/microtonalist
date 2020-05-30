@@ -16,18 +16,10 @@
 
 package org.calinburloiu.music.tuning
 
-import java.util.concurrent.TimeUnit
-
-import com.google.common.cache.{CacheBuilder, CacheLoader, RemovalNotification}
-import com.google.common.util.concurrent.UncheckedExecutionException
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
-import org.calinburloiu.music.plugin.{PluginConfig, PluginFactory}
-
-import scala.util.Try
 
 class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig())
-    extends TuningMapper(None) { // TODO #3 Remove base class config
+    extends TuningMapper { // TODO #3 Remove base class config
 
   private[this] implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
 
@@ -80,51 +72,5 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
-
-object AutoTuningMapper {
-
-  val pluginId: String = "auto"
-}
-
-class AutoTuningMapperFactory extends PluginFactory[AutoTuningMapper] with StrictLogging {
-
-  override val pluginId: String = AutoTuningMapper.pluginId
-
-  override val configClass: Option[Class[AutoTuningMapperConfig]] =
-      Some(classOf[AutoTuningMapperConfig])
-
-  override lazy val defaultConfig: Option[AutoTuningMapperConfig] =
-    Some(AutoTuningMapperConfig(mapQuarterTonesLow = false,
-        halfTolerance = PitchClassConfig.DefaultHalfTolerance))
-
-  private[this] val cache = CacheBuilder.newBuilder()
-    .maximumSize(8)
-    .expireAfterAccess(7, TimeUnit.DAYS)
-    .removalListener { notification: RemovalNotification[PluginConfig, AutoTuningMapper] =>
-      logger.info(s"Plugin with ID ${notification.getKey} ${notification.getValue} was removed " +
-          s"from cache: cause=${notification.getCause} evicted=${notification.wasEvicted()}")
-    }
-    .build(new CacheLoader[PluginConfig, AutoTuningMapper] {
-      override def load(config: PluginConfig): AutoTuningMapper = config match {
-        case autoConfig: AutoTuningMapperConfig => new AutoTuningMapper(PitchClassConfig(autoConfig.mapQuarterTonesLow, autoConfig.halfTolerance))
-        case otherConfig => throw new IllegalArgumentException(
-          s"Expecting a specific AutoTuningMapperConfig, but got ${otherConfig.getClass.getName}")
-      }
-    })
-
-
-  override def create(config: Option[PluginConfig]): AutoTuningMapper = Try {
-    val actualConfig = (config ++ defaultConfig).head
-    cache.getUnchecked(actualConfig)
-  }.recover {
-    case e: UncheckedExecutionException => throw e.getCause
-  }.get
-}
-
-// TODO This config is the same as PitchClassConfig!
-case class AutoTuningMapperConfig(
-  mapQuarterTonesLow: Boolean,
-  halfTolerance: Double = PitchClassConfig.DefaultHalfTolerance
-) extends TuningMapperConfig
 
 class AutoTuningMapperException(message: String) extends TuningMapperException(message, null)

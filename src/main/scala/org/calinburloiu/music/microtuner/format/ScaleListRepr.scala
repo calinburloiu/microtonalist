@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtuner.format
 
 import org.calinburloiu.music.intonation.format.{Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.tuning.TuningReducer
+import org.calinburloiu.music.tuning.{TuningMapper, TuningReducer}
 import play.api.libs.json.{JsNull, JsValue}
 
 case class ScaleListRepr(name: Option[String],
@@ -26,7 +26,7 @@ case class ScaleListRepr(name: Option[String],
                          modulations: Seq[ModulationRepr],
                          tuningReducer: Option[TuningReducer] = None,
                          globalFill: Ref[Scale[Interval]],
-                         globalFillTuningMapper: Option[PluginSpecRepr] = None,
+                         globalFillTuningMapper: Option[TuningMapper] = None,
                          config: Option[ScaleListConfigRepr]) {
 
   def resolve(implicit scaleLibrary: ScaleLibrary): ScaleListRepr = {
@@ -43,27 +43,16 @@ case class ScaleListRepr(name: Option[String],
   }
 }
 
-case class OriginRepr(
-  basePitchClass: Int
-)
+case class OriginRepr(basePitchClass: Int)
 
-case class PluginSpecRepr(
-  id: String,
-  config: JsValue = JsNull
-)
+case class ModulationRepr(transposition: Option[Interval] = None,
+                          scale: Ref[Scale[Interval]],
+                          tuningMapper: Option[TuningMapper],
+                          extension: Option[Ref[Scale[Interval]]],
+                          fill: Option[Ref[Scale[Interval]]],
+                          fillTuningMapper: Option[TuningMapper])
 
-case class ModulationRepr(
-  transposition: Option[Interval] = None,
-  scale: Ref[Scale[Interval]],
-  tuningMapper: Option[PluginSpecRepr],
-  extension: Option[Ref[Scale[Interval]]],
-  fill: Option[Ref[Scale[Interval]]],
-  fillTuningMapper: Option[PluginSpecRepr]
-)
-
-case class ScaleListConfigRepr(
-  mapQuarterTonesLow: Boolean = false
-)
+case class ScaleListConfigRepr(mapQuarterTonesLow: Boolean = false)
 
 object ScaleListConfigRepr {
 

@@ -18,11 +18,10 @@ package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions._
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.plugin.{PluginConfig, PluginFactory}
 
 import scala.annotation.tailrec
 
-class MergeTuningReducer extends TuningReducer(None) with StrictLogging {
+class MergeTuningReducer extends TuningReducer with StrictLogging {
 
   override def apply(partialTuningList: PartialTuningList): TuningList = {
     checkArgument(partialTuningList.tuningModulations.nonEmpty)
@@ -94,25 +93,6 @@ class MergeTuningReducer extends TuningReducer(None) with StrictLogging {
     } else {
       s"$leftName | $rightName"
     }
-  }
-}
-
-object MergeTuningReducer {
-  val pluginId: String = "merge"
-}
-
-class MergeTuningListReducerFactory extends PluginFactory[MergeTuningReducer] {
-
-  override val pluginId: String = MergeTuningReducer.pluginId
-
-  override val configClass: Option[Class[_ <: PluginConfig]] = None
-
-  override val defaultConfig: Option[PluginConfig] = None
-
-  override def create(config: Option[PluginConfig]): MergeTuningReducer = config match {
-    case None => new MergeTuningReducer
-    case otherConfig => throw new IllegalArgumentException(
-      s"Expecting a specific MergeTuningListReducer, but got ${otherConfig.getClass.getName}")
   }
 }
 

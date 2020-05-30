@@ -27,10 +27,8 @@
         "ref": "chromatic.scl"
       },
       "fillTuningMapper": {
-        "id": "auto",
-        "config": {
-          "mapQuarterTonesLow": true
-        }
+        "type": "auto",
+        "mapQuarterTonesLow": true
       }
     },
     {

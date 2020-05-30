@@ -21,11 +21,11 @@ import java.nio.file.{Path, Paths}
 import org.calinburloiu.music.intonation.format.{InvalidScaleFormatException, LocalScaleLibrary, ScaleFormatRegistry, ScaleNotFoundException}
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtuner.ScaleList
-import org.calinburloiu.music.microtuner.format.JsonScaleListFormat.ComponentPlayJsonFormat.SubComponentSpec
+import org.calinburloiu.music.microtuner.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.calinburloiu.music.tuning._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Inside, Matchers}
-import play.api.libs.json.{Format, JsError, JsObject, JsString, JsSuccess, Json, OFormat}
+import play.api.libs.json._
 
 class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with MockFactory {
   import JsonScaleListFormat._
@@ -173,8 +173,7 @@ object JsonScaleListFormatTest {
 
   def readScaleListFromResources(path: String): ScaleList = {
     val inputStream = getClass.getClassLoader.getResourceAsStream(path)
-    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath),
-      new TuningMapperRegistry, new TuningReducerRegistry)
+    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
 
     scaleListReader.read(inputStream)
   }

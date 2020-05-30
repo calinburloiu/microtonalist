@@ -16,14 +16,15 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.plugin.{Plugin, PluginConfig}
-
-abstract class TuningReducer(val config: Option[TuningReducerConfig]) extends Plugin {
+trait TuningReducer {
 
   def apply(partialTuningList: PartialTuningList): TuningList
 }
 
-trait TuningReducerConfig extends PluginConfig
+object TuningReducer {
+
+  val Default: MergeTuningReducer = new MergeTuningReducer
+}
 
 class TuningReducerException(message: String, cause: Throwable = null)
     extends RuntimeException(message, cause)
