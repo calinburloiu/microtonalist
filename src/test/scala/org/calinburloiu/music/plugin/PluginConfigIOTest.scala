@@ -25,12 +25,12 @@ class PluginConfigIOTest extends FlatSpec with Matchers {
   "fromPlayJsValue" should "successfully create a plugin config by parsing a Play JsValue" in {
     val json = Json.obj(
       "mapQuarterTonesLow" -> true,
-      "halfTolerance" -> PitchClassConfig.DEFAULT_HALF_TOLERANCE
+      "halfTolerance" -> PitchClassConfig.DefaultHalfTolerance
     )
     val configClass = Some(classOf[AutoTuningMapperConfig])
     val tuningMapperConfig = PluginConfigIO.fromPlayJsValue(json, configClass)
     val expectedConfig = AutoTuningMapperConfig(
-      mapQuarterTonesLow = true, halfTolerance = PitchClassConfig.DEFAULT_HALF_TOLERANCE)
+      mapQuarterTonesLow = true, halfTolerance = PitchClassConfig.DefaultHalfTolerance)
 
     tuningMapperConfig should contain (expectedConfig)
   }

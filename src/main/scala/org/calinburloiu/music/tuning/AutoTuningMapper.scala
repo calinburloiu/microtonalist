@@ -26,14 +26,13 @@ import org.calinburloiu.music.plugin.{PluginConfig, PluginFactory}
 
 import scala.util.Try
 
-class AutoTuningMapper(protected val autoTuningMapperConfig: AutoTuningMapperConfig)
-    extends TuningMapper(Some(autoTuningMapperConfig)) {
+class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig())
+    extends TuningMapper(None) { // TODO #3 Remove base class config
 
-  implicit val pitchClassConfig: PitchClassConfig =
-    PitchClassConfig(autoTuningMapperConfig.mapQuarterTonesLow, autoTuningMapperConfig.halfTolerance)
+  private[this] implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
 
   def this(mapQuarterTonesLow: Boolean) =
-    this(AutoTuningMapperConfig(mapQuarterTonesLow, PitchClassConfig.DEFAULT_HALF_TOLERANCE))
+    this(PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
 
   override def apply(basePitchClass: PitchClass, scale: Scale[Interval]): PartialTuning = {
     // TODO Refactor (check commented lines or think about a generic solution like KeyboardMapper).
@@ -64,19 +63,20 @@ class AutoTuningMapper(protected val autoTuningMapperConfig: AutoTuningMapperCon
     }
   }
 
-  override def toString: String = s"AutoTuningMapper($autoTuningMapperConfig)"
+  override def toString: String = s"AutoTuningMapper($pitchClassConfig)"
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[AutoTuningMapper]
 
+  // TODO #3 Regenerate equals, hashCode, toString after refactoring
   override def equals(other: Any): Boolean = other match {
     case that: AutoTuningMapper =>
       (that canEqual this) &&
-        autoTuningMapperConfig == that.autoTuningMapperConfig
+        pitchClassConfig == that.pitchClassConfig
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(autoTuningMapperConfig)
+    val state = Seq(pitchClassConfig)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
@@ -95,7 +95,7 @@ class AutoTuningMapperFactory extends PluginFactory[AutoTuningMapper] with Stric
 
   override lazy val defaultConfig: Option[AutoTuningMapperConfig] =
     Some(AutoTuningMapperConfig(mapQuarterTonesLow = false,
-        halfTolerance = PitchClassConfig.DEFAULT_HALF_TOLERANCE))
+        halfTolerance = PitchClassConfig.DefaultHalfTolerance))
 
   private[this] val cache = CacheBuilder.newBuilder()
     .maximumSize(8)
@@ -106,7 +106,7 @@ class AutoTuningMapperFactory extends PluginFactory[AutoTuningMapper] with Stric
     }
     .build(new CacheLoader[PluginConfig, AutoTuningMapper] {
       override def load(config: PluginConfig): AutoTuningMapper = config match {
-        case autoConfig: AutoTuningMapperConfig => new AutoTuningMapper(autoConfig)
+        case autoConfig: AutoTuningMapperConfig => new AutoTuningMapper(PitchClassConfig(autoConfig.mapQuarterTonesLow, autoConfig.halfTolerance))
         case otherConfig => throw new IllegalArgumentException(
           s"Expecting a specific AutoTuningMapperConfig, but got ${otherConfig.getClass.getName}")
       }
@@ -124,7 +124,7 @@ class AutoTuningMapperFactory extends PluginFactory[AutoTuningMapper] with Stric
 // TODO This config is the same as PitchClassConfig!
 case class AutoTuningMapperConfig(
   mapQuarterTonesLow: Boolean,
-  halfTolerance: Double = PitchClassConfig.DEFAULT_HALF_TOLERANCE
+  halfTolerance: Double = PitchClassConfig.DefaultHalfTolerance
 ) extends TuningMapperConfig
 
 class AutoTuningMapperException(message: String) extends TuningMapperException(message, null)

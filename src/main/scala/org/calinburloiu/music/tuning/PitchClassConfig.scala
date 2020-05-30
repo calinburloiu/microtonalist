@@ -17,12 +17,10 @@
 package org.calinburloiu.music.tuning
 
 // TODO We might want to rename this class.
-case class PitchClassConfig(
-  mapQuarterTonesLow: Boolean,
-  halfTolerance: Double = PitchClassConfig.DEFAULT_HALF_TOLERANCE
-)
+case class PitchClassConfig(mapQuarterTonesLow: Boolean = false,
+                            halfTolerance: Double = PitchClassConfig.DefaultHalfTolerance)
 
 object PitchClassConfig {
 
-  val DEFAULT_HALF_TOLERANCE: Double = 0.5e-2
+  val DefaultHalfTolerance: Double = 0.5e-2
 }

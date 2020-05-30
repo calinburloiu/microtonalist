@@ -24,6 +24,7 @@ import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList, Scal
 import org.calinburloiu.music.plugin.{Plugin, PluginConfig, PluginConfigIO, PluginRegistry}
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 class JsonScaleListFormat(scaleLibrary: ScaleLibrary,
                           tuningMapperRegistry: TuningMapperRegistry,
@@ -53,7 +54,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary,
 
   def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
-      .getOrElse(ScaleListConfigRepr.DEFAULT).mapQuarterTonesLow
+      .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
     val defaultTuningMapperConfig = AutoTuningMapperConfig(mapQuarterTonesLow)
     val defaultTuningMapper = tuningMapperRegistry.get(AutoTuningMapper.pluginId)
       .create(Some(defaultTuningMapperConfig))
@@ -133,7 +134,8 @@ object JsonScaleListFormat {
     factory.create(config)
   }
 
-  trait ComponentPlayJsonFormat[A] extends Format[A] {
+  private[format] trait ComponentPlayJsonFormat[A] extends Format[A] {
+
     import ComponentPlayJsonFormat._
 
     val SubComponentTypeFieldName = "type"
@@ -147,7 +149,15 @@ object JsonScaleListFormat {
     override def writes(component: A): JsValue = {
       subComponentSpecsByClass.get(component.getClass) match {
         case Some(spec) =>
-          spec.playJsonFormat.map(_.asInstanceOf[Format[A]].writes(component))
+          spec.playJsonFormat
+            .map { componentFormat =>
+              val writesWithType = (
+                (__ \ SubComponentTypeFieldName).write[String] and
+                  __.write[A](componentFormat.asInstanceOf[Format[A]])
+                ) ({ component: A => (spec.typeName, component) })
+
+              writesWithType.writes(component)
+            }
             .getOrElse(JsString(spec.typeName))
         case None => throw new Error(s"Unregistered scale list sub-component class ${component.getClass.getName}")
       }
@@ -156,17 +166,21 @@ object JsonScaleListFormat {
     override def reads(json: JsValue): JsResult[A] = {
       val readsStrWithType = Reads.StringReads
         .map { typeName =>
-          subComponentSpecsByType.get(typeName).map { spec =>
-            spec.defaultFactory()
+          subComponentSpecsByType.get(typeName).flatMap { spec =>
+            spec.defaultFactory.map(_ ())
           }
         }
         .filter(UnrecognizedTypeError) { maybe: Option[A] => maybe.nonEmpty }
         .map(_.get)
+
       def objWithTypeResult = (json \ SubComponentTypeFieldName).asOpt[String] match {
         case Some(typeName) =>
           subComponentSpecsByType.get(typeName) match {
-            case Some(spec) => spec.playJsonFormat.map(_.reads(json))
-              .getOrElse(JsSuccess(spec.defaultFactory()))
+            case Some(spec) =>
+              val maybeRead = spec.playJsonFormat.map(_.reads(json))
+              spec.defaultFactory
+                .map { factory => maybeRead.getOrElse(JsSuccess(factory())) }
+                .getOrElse(JsError(Seq(JsPath -> Seq(UnrecognizedTypeError))))
             case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
           }
         case None => JsError(Seq(JsPath -> Seq(MissingTypeError)))
@@ -175,19 +189,45 @@ object JsonScaleListFormat {
       readsStrWithType.reads(json) orElse objWithTypeResult
     }
   }
-  object ComponentPlayJsonFormat {
+
+  private[format] object ComponentPlayJsonFormat {
     val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
     val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
+    val MissingRequiredParams: JsonValidationError = JsonValidationError("error.component.params.missing")
+
+    private[format] case class SubComponentSpec[A](typeName: String, javaClass: Class[A],
+                                                   playJsonFormat: Option[Format[A]],
+                                                   defaultFactory: Option[() => A])
+
   }
 
-  case class SubComponentSpec[A](typeName: String, javaClass: Class[A],
-                                 playJsonFormat: Option[Format[A]], defaultFactory: () => A)
+  private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
 
-  object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
+    import ComponentPlayJsonFormat._
 
-    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
-      SubComponentSpec("direct", classOf[DirectTuningReducer], None, () => new DirectTuningReducer),
-      SubComponentSpec("merge", classOf[MergeTuningReducer], None, () => new MergeTuningReducer),
+    // TODO #3 Just do a manual test to check if it works without defaults
+    private implicit val pitchClassConfigPlayJsonFormat: Format[PitchClassConfig] =
+      Json.using[Json.WithDefaultValues].format[PitchClassConfig]
+    private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
+      pitchClassConfigPlayJsonFormat.map(new AutoTuningMapper(_)),
+      Writes { autoTuningMapper: AutoTuningMapper =>
+        Json.writes[PitchClassConfig].writes(autoTuningMapper.pitchClassConfig)
+      }
+    )
+
+    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningMapper]] = Seq(
+      SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat), Some(() => new AutoTuningMapper()))
     )
   }
+
+  private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
+
+    import ComponentPlayJsonFormat._
+
+    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
+      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => new DirectTuningReducer)),
+      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => new MergeTuningReducer)),
+    )
+  }
+
 }

@@ -67,5 +67,5 @@ case class ScaleListConfigRepr(
 
 object ScaleListConfigRepr {
 
-  val DEFAULT = ScaleListConfigRepr()
+  val Default: ScaleListConfigRepr = ScaleListConfigRepr()
 }
