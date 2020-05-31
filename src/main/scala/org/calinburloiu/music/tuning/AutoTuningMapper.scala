@@ -18,10 +18,19 @@ package org.calinburloiu.music.tuning
 
 import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
 
+/**
+ * A [[TuningMapper]] that attempts to automatically map scales to a piano keyboard tuning that specifies a key for
+ * each pitch class, from C to B.
+ *
+ * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
+ * tuning key, resulting in a conflict.
+ *
+ * @param pitchClassConfig configuration object that fine tunes the way a scale pitch is mapped to a tuning key
+ */
 class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig())
-    extends TuningMapper { // TODO #3 Remove base class config
+    extends TuningMapper {
 
-  private[this] implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
+  private implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
 
   def this(mapQuarterTonesLow: Boolean) =
     this(PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
@@ -42,7 +51,7 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
     val pitchClassesWithConflicts = groupsOfPitchClasses
       .filter(_._2.distinct.lengthCompare(1) > 0)
     if (pitchClassesWithConflicts.nonEmpty) {
-      throw new AutoTuningMapperException(
+      throw new TuningMapperConflictException(
           "Cannot tune automatically, some pitch classes have conflicts:" +
               pitchClassesWithConflicts)
     } else {
@@ -59,7 +68,6 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[AutoTuningMapper]
 
-  // TODO #3 Regenerate equals, hashCode, toString after refactoring
   override def equals(other: Any): Boolean = other match {
     case that: AutoTuningMapper =>
       (that canEqual this) &&
@@ -72,5 +80,3 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
-
-class AutoTuningMapperException(message: String) extends TuningMapperException(message, null)

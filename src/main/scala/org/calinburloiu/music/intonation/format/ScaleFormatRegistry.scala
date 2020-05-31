@@ -16,7 +16,13 @@
 
 package org.calinburloiu.music.intonation.format
 
-class ScaleFormatRegistry(val bindings: Seq[(FormatIdentifier, ScaleFormat)]) {
+/**
+ * Registry that provides a mapping between the scale media type or extension and the format class used for
+ * deserializing it.
+ *
+ * @param bindings mapping between the scale media type or extension and the format class
+ */
+class ScaleFormatRegistry private (val bindings: Seq[(FormatIdentifier, ScaleFormat)]) {
 
   private[this] val byExtension: Map[String, ScaleFormat] = (for {
     (FormatIdentifier(_, extensions, _), scaleReader) <- bindings
@@ -29,19 +35,20 @@ class ScaleFormatRegistry(val bindings: Seq[(FormatIdentifier, ScaleFormat)]) {
   } yield mediaType -> scaleReader).toMap
 
   /**
+   * Gets the format by file extension.
     * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the extension
     */
   def getByExtension(extension: String): ScaleFormat = byExtension.getOrElse(extension, throw
       new UnsupportedOperationException(s"No ScaleReader registered for extension '$extension'"))
 
   /**
+   * Gets the format by media type (MIME type).
     * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the media type
     */
   def getByMediaType(mediaType: String): ScaleFormat = byMediaType.getOrElse(mediaType, throw
       new UnsupportedOperationException(s"No ScaleReader registered for media type '$mediaType'"))
 }
 
-// TODO DI
 object ScaleFormatRegistry extends ScaleFormatRegistry(Seq(
   (FormatIdentifier("Scala Application Scale", Set("scl")), ScalaTuningFileFormat),
   (FormatIdentifier("JSON Scale", Set("jscl", "json")), JsonScaleFormat)

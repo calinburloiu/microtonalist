@@ -63,7 +63,7 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
   }
 
   it should "fail when a transposition interval in invalid" in {
-    assertThrows[InvalidScaleListFileException] {
+    assertThrows[InvalidScaleListFormatException] {
       readScaleListFromResources("scale_lists/invalid_transposition_interval.scalist")
     }
   }
@@ -81,7 +81,7 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
   }
 
   it should "fail when a scale defined inside the scale list is invalid" in {
-    assertThrows[InvalidScaleListFileException] {
+    assertThrows[InvalidScaleListFormatException] {
       readScaleListFromResources("scale_lists/invalid_scale.scalist")
     }
   }

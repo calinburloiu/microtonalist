@@ -20,30 +20,51 @@ import com.google.common.base.Preconditions._
 
 import scala.annotation.tailrec
 
-case class PartialTuning(
-  override val deviations: Seq[Option[Double]]
-) extends TuningBase[Option[Double]] {
+/**
+ * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[Tuning]] for more details.
+ *
+ * Partial tunings are typically merged into a final tuning.
+ *
+ * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
+ */
+case class PartialTuning(override val deviations: Seq[Option[Double]]) extends TuningBase[Option[Double]] {
 
+  /**
+   * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
+   */
   def apply(index: Int): Option[Double] = {
     checkElementIndex(index, size)
 
     deviations(index)
   }
 
+  /**
+   * @return the size of the incomplete tuning
+   */
   override def size: Int = deviations.size
 
   override def iterator: Iterator[Option[Double]] = deviations.iterator
 
+  /**
+   * @return `true` if deviations are available for all keys or `false` otherwise
+   */
   def isComplete: Boolean = deviations.forall(_.nonEmpty)
 
+  /**
+   * Attempts to create a [[Tuning]] from this partial tuning if is complete (see [[isComplete]]).
+   * @param name a human-friendly name used for the new [[Tuning]]
+   * @return maybe a new [[Tuning]]
+   * @see [[isComplete]]
+   */
   def resolve(name: String): Option[Tuning] = if (isComplete)
     Some(Tuning(name, deviations.map(_.get)))
   else
     None
 
-  /** Fills each pitch class with empty deviations from `this` with corresponding non-empty
-    * deviations from `that`.
-    * */
+  /**
+   * Fills each key with empty deviations from `this` with corresponding non-empty
+   * deviations from `that`.
+   */
   def enrich(that: PartialTuning): PartialTuning = {
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
@@ -56,7 +77,7 @@ case class PartialTuning(
   }
 
   /**
-   * Overwrites each pitch class from `this` with with corresponding non-empty deviations from `that`.
+   * Overwrites each key from `this` with with corresponding non-empty deviations from `that`.
    */
   def overwrite(that: PartialTuning): PartialTuning = {
     checkArgument(this.size == that.size,
@@ -69,6 +90,15 @@ case class PartialTuning(
     PartialTuning(resultDeviations)
   }
 
+  /**
+   * Merges `this` partial tuning with another into a new partial tuning by completing the corresponding keys.
+   *
+   * If one has a deviation and the other does not for a key, the deviation of the former is used. If none have a
+   * deviation, the resulting key will continue to be empty. If both have a deviation for a key, the deviation of
+   * `this` for that key is kept.
+   * @param that other partial tuning used for merging
+   * @return a new partial tuning
+   */
   def merge(that: PartialTuning): Option[PartialTuning] = {
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
@@ -110,10 +140,18 @@ case class PartialTuning(
 
 object PartialTuning {
 
-  val emptyPianoKeyboard: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
+  /**
+   * A [[PartialTuning]] with 12 keys and no deviations completed.
+   */
+  val Empty12PianoKeys: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
 
   def apply(headDeviation: Option[Double], tailDeviations: Option[Double]*): PartialTuning =
     PartialTuning(headDeviation +: tailDeviations)
 
+  /**
+   * Creates a [[PartialTuning]] which has no deviation in each of its keys.
+   * @param size the number of keys in the partial tuning
+   * @return a new partial tuning
+   */
   def empty(size: Int): PartialTuning = PartialTuning(Seq.fill(size)(None))
 }

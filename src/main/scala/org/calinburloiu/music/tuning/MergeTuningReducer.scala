@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.annotation.tailrec
 
+// TODO #2 Document after improving the algorithm, explaining what it does.
 class MergeTuningReducer extends TuningReducer with StrictLogging {
 
   override def apply(partialTuningList: PartialTuningList): TuningList = {
@@ -42,8 +43,7 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
     if (maybeTunings.forall(_.nonEmpty)) {
       TuningList(maybeTunings.map(_.get))
     } else {
-      throw new MergeTuningReducerException(
-        s"Some tunings are not complete: $maybeTunings")
+      throw new IncompleteTuningsException(s"Some tunings are not complete: $maybeTunings")
     }
   }
 
@@ -95,6 +95,3 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
     }
   }
 }
-
-class MergeTuningReducerException(message: String, cause: Throwable = null)
-  extends TuningReducerException(message, cause)

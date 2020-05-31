@@ -19,8 +19,10 @@ package org.calinburloiu.music.microtuner.format
 import org.calinburloiu.music.intonation.format.{Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.tuning.{TuningMapper, TuningReducer}
-import play.api.libs.json.{JsNull, JsValue}
 
+/**
+ * Class used as a representation for the JSON format of a scale list.
+ */
 case class ScaleListRepr(name: Option[String],
                          origin: OriginRepr,
                          modulations: Seq[ModulationRepr],

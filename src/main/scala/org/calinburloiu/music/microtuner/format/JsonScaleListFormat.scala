@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import java.io.InputStream
+import java.io.{InputStream, OutputStream}
 
 import org.calinburloiu.music.intonation.format.{JsonScaleFormat, Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
@@ -24,28 +24,40 @@ import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList, Scal
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
 
+/**
+ * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
+ * @param scaleLibrary repository for retrieving scales by URI
+ */
 class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
 
-  private[this] implicit val scaleLibraryImpl: ScaleLibrary = scaleLibrary
+  private implicit val scaleLibraryImpl: ScaleLibrary = scaleLibrary
 
+  /**
+   * Reads a [[ScaleList]] from input stream.
+   */
   override def read(inputStream: InputStream): ScaleList = {
     val repr = readRepr(inputStream).resolve
 
     fromReprToDomain(repr)
   }
 
-  def readRepr(inputStream: InputStream): ScaleListRepr = {
+  /**
+   * Writes a [[ScaleList]] to output stream.
+   */
+  override def write(scaleList: ScaleList): OutputStream = ???
+
+  private def readRepr(inputStream: InputStream): ScaleListRepr = {
     import JsonScaleListFormat._
 
     val json = Json.parse(inputStream)
 
     json.validate[ScaleListRepr] match {
       case JsSuccess(scaleList, _) => scaleList
-      case error: JsError => throw new InvalidScaleListFileException(JsError.toJson(error).toString)
+      case error: JsError => throw new InvalidScaleListFormatException(JsError.toJson(error).toString)
     }
   }
 
-  def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
+  private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
     val defaultTuningMapper = new AutoTuningMapper(
@@ -85,21 +97,22 @@ object JsonScaleListFormat {
 
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
   private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
-  private[format] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
-  private[format] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
-  private[format] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
+  private[JsonScaleListFormat] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
+  private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
+  private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
-  private[format] implicit val tuningMapperPlayJsonFormat: Format[TuningMapper] = TuningMapperPlayJsonFormat
-  private[format] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] = TuningReducerPlayJsonFormat
-  private[format] implicit val modulationReprReads: Reads[ModulationRepr] =
+  private[JsonScaleListFormat] implicit val tuningMapperPlayJsonFormat: Format[TuningMapper] =
+    TuningMapperPlayJsonFormat
+  private[JsonScaleListFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
+    TuningReducerPlayJsonFormat
+  private[JsonScaleListFormat] implicit val modulationReprReads: Reads[ModulationRepr] =
     Json.using[Json.WithDefaultValues].reads[ModulationRepr]
-  private[format] implicit val scaleListReprReads: Reads[ScaleListRepr] =
+  private[JsonScaleListFormat] implicit val scaleListReprReads: Reads[ScaleListRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
     import ComponentPlayJsonFormat._
 
-    // TODO #3 Just do a manual test to check if it works without defaults
     private implicit val pitchClassConfigPlayJsonFormat: Format[PitchClassConfig] =
       Json.using[Json.WithDefaultValues].format[PitchClassConfig]
     private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
