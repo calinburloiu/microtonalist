@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtuner
 
 import org.calinburloiu.music.intonation._
-import org.calinburloiu.music.tuning.{PartialTuning, TuningReducer, TuningMapper}
+import org.calinburloiu.music.tuning.{PartialTuning, TuningMapper, TuningReducer}
 
 case class ScaleList(
                       name: String,

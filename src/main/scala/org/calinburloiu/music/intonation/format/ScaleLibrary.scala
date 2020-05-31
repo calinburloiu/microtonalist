@@ -24,18 +24,34 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import scala.util.Try
 
+/**
+ * Repository pattern trait used for retrieving scales by their URI. Implementations are responsible for implementing
+ * the retrieval from a particular data source like file, Web or cloud service.
+ */
 trait ScaleLibrary extends RefResolver[Scale[Interval]] {
 
   protected val scaleReaderRegistry: ScaleFormatRegistry
 
   // TODO Make this an actual URI
+  /**
+   * Retrieves a scale.
+   *
+   * @param uri       universal resource identifier for the scale
+   * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
+   *                  used for identification.
+   * @return the identified scale
+   */
   def get(uri: String, mediaType: Option[String] = None): Scale[Interval]
 }
 
-// TODO DI
-class LocalScaleLibrary(
-                         protected override val scaleReaderRegistry: ScaleFormatRegistry,
-                         scaleLibraryPath: Path) extends ScaleLibrary {
+/**
+ * Repository used for retrieving scales from local library based on files.
+ * @param scaleReaderRegistry provides a mapping between the scale media type or extension and the format class used for
+ *                            deserializing it
+ * @param scaleLibraryPath path on the local machine where the scales are stored
+ */
+class LocalScaleLibrary(protected override val scaleReaderRegistry: ScaleFormatRegistry,
+                        scaleLibraryPath: Path) extends ScaleLibrary {
 
   override def get(uri: String, mediaType: Option[String] = None): Scale[Interval] = {
     val scaleRelativePath = uri
@@ -56,6 +72,9 @@ class LocalScaleLibrary(
   }
 }
 
+/**
+ * Exception thrown is the requested scale could not be found.
+ */
 class ScaleNotFoundException(uri: String, mediaType: Option[String], cause: Throwable = null)
-    extends RuntimeException(s"A scale $uri with ${mediaType.getOrElse("any")} media type was not found",
-        cause)
+  extends RuntimeException(s"A scale $uri with ${mediaType.getOrElse("any")} media type was not found",
+    cause)

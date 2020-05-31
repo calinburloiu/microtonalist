@@ -16,13 +16,27 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import java.io.InputStream
+import java.io.{InputStream, OutputStream}
 
 import org.calinburloiu.music.microtuner.ScaleList
 
+/**
+ * Trait extended for serialization/deserialization of [[ScaleList]]s.
+ */
 trait ScaleListFormat {
 
+  /**
+   * Reads a [[ScaleList]] from an [[InputStream]].
+   */
   def read(inputStream: InputStream): ScaleList
+
+  /**
+   * Writes a [[ScaleList]] to [[OutputStream]].
+   */
+  def write(scaleList: ScaleList): OutputStream
 }
 
-class InvalidScaleListFileException(message: String, cause: Throwable = null) extends Exception(message, cause)
+/**
+ * Exception thrown while reading an invalid scale list from an input stream.
+ */
+class InvalidScaleListFormatException(message: String, cause: Throwable = null) extends Exception(message, cause)

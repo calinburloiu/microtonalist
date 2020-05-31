@@ -17,9 +17,12 @@
 package org.calinburloiu.music.tuning
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.plugin.{PluginConfig, PluginFactory}
 
-class DirectTuningReducer extends TuningReducer(None) with StrictLogging {
+/**
+ * [[TuningReducer]] algorithm that essentially does no reduce and attempts to map each partial tuning to a final
+ * tuning. It should be used if no reduction is wanted.
+ */
+class DirectTuningReducer extends TuningReducer with StrictLogging {
 
   override def apply(partialTuningList: PartialTuningList): TuningList = {
     val maybeTunings = partialTuningList.tuningModulations.map { modulation =>
@@ -34,30 +37,7 @@ class DirectTuningReducer extends TuningReducer(None) with StrictLogging {
     if (maybeTunings.forall(_.nonEmpty)) {
       TuningList(maybeTunings.map(_.get))
     } else {
-      throw new DirectTuningReducerException(
-        s"Some tunings are not complete: $maybeTunings")
+      throw new IncompleteTuningsException(s"Some tunings are not complete: $maybeTunings")
     }
   }
 }
-
-object DirectTuningReducer {
-  val pluginId = "direct"
-}
-
-class DirectTuningListReducerFactory extends PluginFactory[DirectTuningReducer] {
-
-  override val pluginId: String = DirectTuningReducer.pluginId
-
-  override val configClass: Option[Class[_ <: PluginConfig]] = None
-
-  override val defaultConfig: Option[PluginConfig] = None
-
-  override def create(config: Option[PluginConfig] = None): DirectTuningReducer = config match {
-    case None => new DirectTuningReducer
-    case otherConfig => throw new IllegalArgumentException(
-      s"Expecting a specific DirectTuningListReducer, but got ${otherConfig.getClass.getName}")
-  }
-}
-
-class DirectTuningReducerException(message: String, cause: Throwable = null)
-    extends TuningReducerException(message, cause)

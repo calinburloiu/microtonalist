@@ -18,16 +18,27 @@ package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions._
 
-case class Tuning(
-  name: String,
-  override val deviations: Seq[Double]
-) extends TuningBase[Double] {
+/**
+ * Describes the tuning of keyed instrument, typically with a piano keyboard, by specifying a deviation in cents
+ * for each 12-EDO key.
+ *
+ * A typically piano tuning might be specified only for each of the 12 pitch classes: C, C#\Db, ..., B. A tunings
+ * might use a different value for each 88 piano keys.
+ * @param name a human-friendly name for the tuning
+ * @param deviations deviation in cents for each key
+ */
+case class Tuning(name: String,
+                  override val deviations: Seq[Double]) extends TuningBase[Double] {
 
+  /** Returns the deviation in cents for a particular key 0-based index. */
   def apply(index: Int): Double = {
     checkElementIndex(index, size)
     deviations(index)
   }
 
+  /**
+   * @return the size of the tuning
+   */
   override def size: Int = deviations.size
 
   override def iterator: Iterator[Double] = deviations.iterator
@@ -40,7 +51,8 @@ case class Tuning(
 
 object Tuning {
 
-  val equalTemperament = Tuning("Equal Temperament", Array(
+  /** The tuning for a 12-tone equal temperament, which has 0 cents deviation for each of the 12-keys. */
+  val Edo12: Tuning = Tuning("Equal Temperament", Array(
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
   ))
 

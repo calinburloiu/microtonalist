@@ -16,14 +16,26 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.plugin.{Plugin, PluginConfig}
-
-abstract class TuningReducer(val config: Option[TuningReducerConfig]) extends Plugin {
+/**
+ * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
+ * musician must perform while playing.
+ *
+ * The final tuning list must contain [[Tuning]] objects, not [[PartialTuning]], so they must be complete. If some
+ * tunings will be incomplete after the reduce process a [[IncompleteTuningsException]] is thrown.
+ */
+trait TuningReducer {
 
   def apply(partialTuningList: PartialTuningList): TuningList
 }
 
-trait TuningReducerConfig extends PluginConfig
+object TuningReducer {
 
-class TuningReducerException(message: String, cause: Throwable = null)
+  /** A [[MergeTuningReducer]]. */
+  val Default: MergeTuningReducer = new MergeTuningReducer
+}
+
+/**
+ * Exception thrown by [[TuningReducer]] if the final tuning list has some tunings that are incomplete.
+ */
+class IncompleteTuningsException(message: String, cause: Throwable = null)
     extends RuntimeException(message, cause)

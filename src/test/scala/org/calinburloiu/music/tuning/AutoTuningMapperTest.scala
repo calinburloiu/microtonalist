@@ -60,9 +60,9 @@ class AutoTuningMapperTest extends FlatSpec with Matchers {
     // 5/4 and 81/64 are concurrent on E
     val concurrency = RatiosScale((1, 1), (9, 8), (5, 4), (81, 64), (4, 3))
 
-    assertThrows[AutoTuningMapperException](
+    assertThrows[TuningMapperConflictException](
       autoTuningMapperWithLowQuarterTones(cPitchClass, concurrency))
-    assertThrows[AutoTuningMapperException](
+    assertThrows[TuningMapperConflictException](
       autoTuningMapperWithHighQuarterTones(cPitchClass, concurrency))
   }
 

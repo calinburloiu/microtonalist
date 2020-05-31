@@ -32,7 +32,7 @@ class PrecisionTest extends FunSuite with Matchers {
     }
     val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail: _*)
 
-    val autoTuningMapper = new AutoTuningMapper(AutoTuningMapperConfig(
+    val autoTuningMapper = new AutoTuningMapper(PitchClassConfig(
       mapQuarterTonesLow = true,
       halfTolerance = 0.5e-2
     ))

@@ -8,9 +8,7 @@
   "globalFill": {
     "ref": "chromatic.scl"
   },
-  "tuningReducer": {
-    "id": "direct"
-  },
+  "tuningReducer": "direct",
   "modulations": [
     {
       "transposition": "1",
@@ -29,10 +27,8 @@
         "ref": "chromatic.scl"
       },
       "fillTuningMapper": {
-        "id": "auto",
-        "config": {
-          "mapQuarterTonesLow": true
-        }
+        "type": "auto",
+        "mapQuarterTonesLow": true
       }
     },
     {

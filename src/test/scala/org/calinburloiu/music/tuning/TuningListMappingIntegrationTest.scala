@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.microtuner.JsonScaleListFormatTest
+import org.calinburloiu.music.microtuner.format.JsonScaleListFormatTest
 import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.{FlatSpec, Matchers}

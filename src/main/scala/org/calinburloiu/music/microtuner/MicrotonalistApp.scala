@@ -24,7 +24,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatRegistry}
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{Tuning, TuningList, TuningReducerRegistry, TuningMapperRegistry}
+import org.calinburloiu.music.tuning.{Tuning, TuningList}
 
 import scala.util.Try
 
@@ -48,6 +48,9 @@ object MicrotonalistApp extends StrictLogging {
     }
   }.recover {
     case appException: AppException => appException.exitWithMessage()
+    case throwable: Throwable =>
+      logger.error("Unexpected error", throwable)
+      System.exit(1000)
   }
 
   def run(inputFileName: String, configFileName: Option[String] = None): Unit = {
@@ -77,11 +80,10 @@ object MicrotonalistApp extends StrictLogging {
 
     // # I/O
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath),
-      new TuningMapperRegistry, new TuningReducerRegistry)
+    val scaleListFormat = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
 
     // # Microtuner
-    val scaleList = scaleListReader.read(new FileInputStream(inputFileName))
+    val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
     val tuner: Tuner = new MidiTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
     val tuningSwitch = new TuningSwitch(tuner, tuningList, eventBus)
@@ -104,7 +106,7 @@ object MicrotonalistApp extends StrictLogging {
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
         logger.info("Switching back to 12-EDO before exit...")
-        tuner.tune(Tuning.equalTemperament)
+        tuner.tune(Tuning.Edo12)
         Thread.sleep(1000)
 
         midiManager.close()

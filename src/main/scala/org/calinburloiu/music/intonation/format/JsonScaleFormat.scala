@@ -63,14 +63,6 @@ object JsonScaleFormat extends JsonScaleFormat {
       ScaleFormat.createScale("", pitches)
     }
   }
-
-  private[this] def mapIntervalValues(intervalValues: Seq[String]): Seq[Interval] = {
-    intervalValues.map { intervalValue =>
-      Interval.fromScalaTuningInterval(intervalValue).getOrElse(
-        throw new InvalidJsonScaleException(s"Invalid interval value $intervalValue")
-      )
-    }
-  }
 }
 
 class InvalidJsonScaleException(message: String, cause: Throwable = null)

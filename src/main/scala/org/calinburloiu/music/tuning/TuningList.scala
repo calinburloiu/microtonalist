@@ -82,12 +82,12 @@ object TuningList extends StrictLogging {
     val scaleName = modulation.scaleMapping.scale.name
 
     val extensionTuning = modulation.extension.map(_.tuning(origin, cumulativeTransposition))
-      .getOrElse(PartialTuning.emptyPianoKeyboard)
+      .getOrElse(PartialTuning.Empty12PianoKeys)
 
     val tuning = modulation.scaleMapping.tuning(origin, cumulativeTransposition).overwrite(extensionTuning)
 
     val fillTuning = modulation.fill.map(_.tuning(origin, cumulativeTransposition))
-      .getOrElse(PartialTuning.emptyPianoKeyboard)
+      .getOrElse(PartialTuning.Empty12PianoKeys)
 
     TuningModulation(scaleName, tuning, fillTuning)
   }
