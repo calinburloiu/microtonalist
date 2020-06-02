@@ -52,12 +52,14 @@ object JsonScaleFormat extends JsonScaleFormat {
   }
 
   val jsonScaleReads: Reads[Scale[Interval]] = {
+    //@formatter:off
     val jsonScaleObjReads = (
       (__ \ "intervals").read[Seq[Interval]] and
       (__ \ "name").readNullable[String]
     ) { (pitches: Seq[Interval], name: Option[String]) =>
       ScaleFormat.createScale(name.getOrElse(""), pitches)
     }
+    //@formatter:on
 
     jsonScaleObjReads orElse __.read[Seq[Interval]].map { pitches =>
       ScaleFormat.createScale("", pitches)

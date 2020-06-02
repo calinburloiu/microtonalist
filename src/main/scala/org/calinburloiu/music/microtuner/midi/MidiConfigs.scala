@@ -22,13 +22,12 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtuner.{Configured, MainConfigManager, SubConfigManager}
 
-case class MidiOutputConfig(
-  devices: Seq[MidiDeviceId],
-  tuningFormat: MidiTuningFormat
-) extends Configured
+case class MidiOutputConfig(devices: Seq[MidiDeviceId],
+                            tuningFormat: MidiTuningFormat) extends Configured
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
-    extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
+  extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
+
   import MidiConfigSerDe._
   import org.calinburloiu.music.microtuner.ConfigSerDe._
 
@@ -52,14 +51,14 @@ object MidiOutputConfigManager {
 }
 
 
-case class MidiInputConfig(
-  enabled: Boolean = false,
-  devices: Seq[MidiDeviceId],
-  thru: Boolean,
-  triggers: Triggers) extends Configured
+case class MidiInputConfig(enabled: Boolean = false,
+                           devices: Seq[MidiDeviceId],
+                           thru: Boolean,
+                           triggers: Triggers) extends Configured
 
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
-    extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
+  extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
+
   import MidiConfigSerDe._
   import org.calinburloiu.music.microtuner.ConfigSerDe._
 
@@ -104,24 +103,20 @@ object MidiInputConfigManager {
 
 case class Triggers(cc: CcTriggers)
 
-case class CcTriggers(
-  enabled: Boolean = false,
-  prevTuningCc: Int = 67,
-  nextTuningCc: Int = 66,
-  ccThreshold: Int = 0,
-  isFilteringThru: Boolean = true
-)
+case class CcTriggers(enabled: Boolean = false,
+                      prevTuningCc: Int = 67,
+                      nextTuningCc: Int = 66,
+                      ccThreshold: Int = 0,
+                      isFilteringThru: Boolean = true)
 
 object CcTriggers {
   val default: CcTriggers = CcTriggers()
 }
 
 
-case class MidiDeviceId(
-  name: String,
-  vendor: String,
-  version: String
-) {
+case class MidiDeviceId(name: String,
+                        vendor: String,
+                        version: String) {
   override def toString: String = {
     Seq(vendor, "\"" + name.replaceFirst("^CoreMIDI4J - ", "") + "\"", version)
       .filter(_.trim.nonEmpty).mkString(" ")

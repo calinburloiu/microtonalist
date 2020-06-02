@@ -19,29 +19,23 @@ package org.calinburloiu.music.microtuner
 import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.tuning.{PartialTuning, TuningMapper, TuningReducer}
 
-case class ScaleList(
-                      name: String,
-                      origin: OriginOld,
-                      modulations: Seq[Modulation],
-                      tuningListReducer: TuningReducer,
-                      globalFill: ScaleMapping
-)
+case class ScaleList(name: String,
+                     origin: OriginOld,
+                     modulations: Seq[Modulation],
+                     tuningListReducer: TuningReducer,
+                     globalFill: ScaleMapping)
 
-case class Modulation(
-  transposition: Interval,
-  scaleMapping: ScaleMapping,
-  // TODO extension probably needs to be renamed to alterations or something
-  extension: Option[ScaleMapping],
-  fill: Option[ScaleMapping]
-)
+case class Modulation(transposition: Interval,
+                      scaleMapping: ScaleMapping,
+                      // TODO extension probably needs to be renamed to alterations or something
+                      extension: Option[ScaleMapping],
+                      fill: Option[ScaleMapping])
 
-case class ScaleMapping(
-  scale: Scale[Interval],
-  tuningMapper: TuningMapper
-) {
+case class ScaleMapping(scale: Scale[Interval],
+                        tuningMapper: TuningMapper) {
 
   // TODO Pay attention to the evil unison below.
-  def tuning(origin: OriginOld, transposition: Interval = Interval.UNISON): PartialTuning = {
+  def tuning(origin: OriginOld, transposition: Interval = Interval.Unison): PartialTuning = {
     tuningMapper(origin.basePitchClass, scale.transpose(transposition))
   }
 }

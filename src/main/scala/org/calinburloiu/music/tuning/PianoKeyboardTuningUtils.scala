@@ -39,27 +39,44 @@ object PianoKeyboardTuningUtils {
     }
 
     def c: U = pianoKeyboardTuningDeviation(0)
+
     def cSharp: U = pianoKeyboardTuningDeviation(1)
+
     def dFlat: U = cSharp
+
     def d: U = pianoKeyboardTuningDeviation(2)
+
     def dSharp: U = pianoKeyboardTuningDeviation(3)
+
     def eFlat: U = dSharp
+
     def e: U = pianoKeyboardTuningDeviation(4)
+
     def f: U = pianoKeyboardTuningDeviation(5)
+
     def fSharp: U = pianoKeyboardTuningDeviation(6)
+
     def gFlat: U = fSharp
+
     def g: U = pianoKeyboardTuningDeviation(7)
+
     def gSharp: U = pianoKeyboardTuningDeviation(8)
+
     def aFlat: U = gSharp
+
     def a: U = pianoKeyboardTuningDeviation(9)
+
     def aSharp: U = pianoKeyboardTuningDeviation(10)
+
     def bFlat: U = aSharp
+
     def b: U = pianoKeyboardTuningDeviation(11)
 
     def toPianoKeyboardString: String = {
       checkIsPianoKeyboard()
 
       def padDeviation(deviation: U) = fromDeviationToString(deviation).padTo(12, ' ')
+
       val missingKeySpace = " " * 6
 
       val blackKeysString =
@@ -96,11 +113,12 @@ object PianoKeyboardTuningUtils {
   }
 
   implicit class PartialTuningExtension(partialTuning: PartialTuning)
-      extends TuningBaseExtension(partialTuning) {
+    extends TuningBaseExtension(partialTuning) {
 
     override protected def fromDeviationToString(deviation: Option[Double]): String =
       deviation.fold("  --  ") { v =>
         f"$v%+06.2f"
       }
   }
+
 }

@@ -38,4 +38,4 @@ object TuningReducer {
  * Exception thrown by [[TuningReducer]] if the final tuning list has some tunings that are incomplete.
  */
 class IncompleteTuningsException(message: String, cause: Throwable = null)
-    extends RuntimeException(message, cause)
+  extends RuntimeException(message, cause)

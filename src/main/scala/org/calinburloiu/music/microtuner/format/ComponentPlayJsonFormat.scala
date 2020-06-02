@@ -24,13 +24,16 @@ import play.api.libs.json._
  * extend it, on one side, and their JSON representation, on the other side.
  * The JSON representation could either be an object containing a `type` property, which is
  * used to identify the Scala children class or string representing that type if there are no parameters required.
+ *
  * @tparam A base Scala class or trait
  */
 trait ComponentPlayJsonFormat[A] extends Format[A] {
+
   import ComponentPlayJsonFormat._
 
   /**
    * Specification used for serialization/deserialization of the classes that extend `A`.
+   *
    * @see [[ComponentPlayJsonFormat.SubComponentSpec]]
    */
   val subComponentSpecs: Seq[SubComponentSpec[_ <: A]]
@@ -45,10 +48,12 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
       case Some(spec) =>
         spec.playJsonFormat
           .map { componentFormat =>
+            //@formatter:off
             val writesWithType = (
               (__ \ SubComponentTypeFieldName).write[String] and
-                __.write[A](componentFormat.asInstanceOf[Format[A]])
-              ) ({ component: A => (spec.typeName, component) })
+              __.write[A](componentFormat.asInstanceOf[Format[A]])
+            ) ({ component: A => (spec.typeName, component) })
+            //@formatter:on
 
             writesWithType.writes(component)
           }
@@ -103,8 +108,9 @@ object ComponentPlayJsonFormat {
   /**
    * Specification of a class that extend type parameter `A` (from companion class) used for
    * serialization/deserialization.
-   * @param typeName value used for `type` JSON field to identify the class that extends `A`
-   * @param javaClass exact class that extends `A`
+   *
+   * @param typeName       value used for `type` JSON field to identify the class that extends `A`
+   * @param javaClass      exact class that extends `A`
    * @param playJsonFormat play-json library [[Format]] for reading/writing the class that extends `A`
    * @param defaultFactory factory function that creates an instance of the class that extends `A` without parameters.
    *                       If the parameters are required this parameter will be [[None]].
@@ -113,4 +119,5 @@ object ComponentPlayJsonFormat {
   private[format] case class SubComponentSpec[B](typeName: String, javaClass: Class[B],
                                                  playJsonFormat: Option[Format[B]],
                                                  defaultFactory: Option[() => B])
+
 }

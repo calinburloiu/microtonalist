@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtuner
 
 /**
-  * Base interface for events passed via Guava `EventBus`.
-  */
+ * Base interface for events passed via Guava `EventBus`.
+ */
 trait Event {
   def name: String = this.getClass.getSimpleName
 }

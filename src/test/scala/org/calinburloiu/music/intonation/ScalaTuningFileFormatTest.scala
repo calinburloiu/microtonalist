@@ -172,7 +172,7 @@ class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
   )
 
   "Reading a .scl file with less pitches than expected" should
-      "throw InvalidScalaTuningFileException" in testFailure(
+    "throw InvalidScalaTuningFileException" in testFailure(
     """Scale with pitches as both ratios and cents
       |4
       |100.2
@@ -181,7 +181,7 @@ class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
   )
 
   "When reading a .scl file with more pitches than expected, the unexpected pitches" should
-      "be ignored" in
+    "be ignored" in
     testSuccess(
       """Scale with pitches as both ratios and cents
         |2
@@ -190,11 +190,11 @@ class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
         |300.0 3
         |5/4""",
       Scale("Scale with pitches as both ratios and cents", Interval(1.0),
-          CentsInterval(100.2), RatioInterval(9, 8))
+        CentsInterval(100.2), RatioInterval(9, 8))
     )
 
   "Reading a .scl file with zero pitches" should "be acceptable, it implies the base note" +
-      "(1/1, 0 cents)" in
+    "(1/1, 0 cents)" in
     testSuccess(
       """Scale with 0 pitches
         |0""",
@@ -211,7 +211,7 @@ class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
     maybeMessageContained match {
       case None => // succeed
       case Some(messageContained) =>
-        caught.getMessage should include (messageContained)
+        caught.getMessage should include(messageContained)
     }
   }
 
@@ -228,4 +228,5 @@ class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
     implicit def toInputStream: InputStream =
       new ByteArrayInputStream(str.getBytes(StandardCharsets.UTF_8))
   }
+
 }

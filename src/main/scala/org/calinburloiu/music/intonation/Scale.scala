@@ -65,17 +65,14 @@ object Scale {
 }
 
 
-case class RatiosScale(
-  override val name: String,
-  override val intervals: Seq[RatioInterval]
-) extends Scale[RatioInterval](name, intervals)
+case class RatiosScale(override val name: String,
+                       override val intervals: Seq[RatioInterval]) extends Scale[RatioInterval](name, intervals)
 
 object RatiosScale {
 
-  def apply(
-      name: String,
-      headRatioPitch: RatioInterval,
-      tailRatioPitches: RatioInterval*): RatiosScale =
+  def apply(name: String,
+            headRatioPitch: RatioInterval,
+            tailRatioPitches: RatioInterval*): RatiosScale =
     RatiosScale(name, headRatioPitch +: tailRatioPitches)
 
   def apply(headRatioPitch: RatioInterval, tailRatioPitches: RatioInterval*): RatiosScale =
@@ -83,17 +80,14 @@ object RatiosScale {
 }
 
 
-case class CentsScale(
-  override val name: String,
-  override val intervals: Seq[CentsInterval]
-) extends Scale[CentsInterval](name, intervals)
+case class CentsScale(override val name: String,
+                      override val intervals: Seq[CentsInterval]) extends Scale[CentsInterval](name, intervals)
 
 object CentsScale {
 
-  def apply(
-      name: String,
-      headCentsInterval: CentsInterval,
-      tailCentsIntervals: CentsInterval*): CentsScale =
+  def apply(name: String,
+            headCentsInterval: CentsInterval,
+            tailCentsIntervals: CentsInterval*): CentsScale =
     CentsScale(name, headCentsInterval +: tailCentsIntervals)
 
   def apply(headCentsInterval: CentsInterval, tailCentsIntervals: CentsInterval*): CentsScale =

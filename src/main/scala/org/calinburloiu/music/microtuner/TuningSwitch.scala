@@ -20,12 +20,10 @@ import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
 import org.calinburloiu.music.tuning.{Tuning, TuningList}
 
-class TuningSwitch(
-  val tuner: Tuner,
-  val tuningList: TuningList,
-  eventBus: EventBus,
-  initialPosition: Int = 0
-) {
+class TuningSwitch(val tuner: Tuner,
+                   val tuningList: TuningList,
+                   eventBus: EventBus,
+                   initialPosition: Int = 0) {
 
   private[this] var _tuningIndex: Int = initialPosition
 

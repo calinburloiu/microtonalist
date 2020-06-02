@@ -96,7 +96,7 @@ class MidiConfigsTest extends FlatSpec with Matchers {
     //   Extending MidiDevice.Info because its constructor is protected and we need to expose a public constructor
     class MyMidiDeviceInfo(name: String, vendor: String, description: String, version: String)
       extends MidiDevice.Info(name, vendor, description, version)
-    val midiDeviceInfo = new MyMidiDeviceInfo("Seaboard", "ROLI", "Innovative piano", "3.14");
+    val midiDeviceInfo = new MyMidiDeviceInfo("Seaboard", "ROLI", "Innovative piano", "3.14")
     // When
     val midiDeviceId = MidiDeviceId(midiDeviceInfo)
     // Then

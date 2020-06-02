@@ -46,9 +46,10 @@ trait ScaleLibrary extends RefResolver[Scale[Interval]] {
 
 /**
  * Repository used for retrieving scales from local library based on files.
+ *
  * @param scaleReaderRegistry provides a mapping between the scale media type or extension and the format class used for
  *                            deserializing it
- * @param scaleLibraryPath path on the local machine where the scales are stored
+ * @param scaleLibraryPath    path on the local machine where the scales are stored
  */
 class LocalScaleLibrary(protected override val scaleReaderRegistry: ScaleFormatRegistry,
                         scaleLibraryPath: Path) extends ScaleLibrary {

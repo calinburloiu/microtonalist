@@ -19,12 +19,13 @@ package org.calinburloiu.music.tuning
 import org.scalatest.{FlatSpec, Matchers}
 
 class PianoKeyboardTuningUtilsTest extends FlatSpec with Matchers {
+
   import PianoKeyboardTuningUtils._
 
-  val tuning = Tuning("foo",
-    0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, -16.0, 14.0, -35.0, -12.0)
+  private val tuning = Tuning("foo", 0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, -16.0, 14.0, -35.0, -12.0)
 
   "note names implicit methods" should "return the correct deviations" in {
+    //@formatter:off
     // White keys and flats
     tuning.c       shouldEqual 0.0
     tuning.cSharp  shouldEqual 12.0
@@ -38,6 +39,7 @@ class PianoKeyboardTuningUtilsTest extends FlatSpec with Matchers {
     tuning.a       shouldEqual 14.0
     tuning.aSharp  shouldEqual -35.0
     tuning.b       shouldEqual -12.0
+    //@formatter:on
 
     // Enharmonic equivalences for black keys
     tuning.cSharp shouldEqual tuning.dFlat
@@ -48,7 +50,7 @@ class PianoKeyboardTuningUtilsTest extends FlatSpec with Matchers {
   }
 
   it should "throw IllegalArgumentException when a tuning does not have 12 pitches" +
-      "that does not have 12 deviation values" in {
+    "that does not have 12 deviation values" in {
     // < 12
     val tuning1 = Tuning("bar", 1.0, 2.0)
     assertThrows[IllegalArgumentException] {

@@ -31,13 +31,15 @@ import scala.util.Try
 object MicrotonalistApp extends StrictLogging {
 
   sealed abstract class AppException(message: String, val statusCode: Int, cause: Throwable = null)
-      extends RuntimeException(message, cause) {
+    extends RuntimeException(message, cause) {
     def exitWithMessage(): Unit = {
       System.err.println(message)
       System.exit(statusCode)
     }
   }
+
   case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list> [config-file]", 1)
+
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
 
   def main(args: Array[String]): Unit = Try {

@@ -21,9 +21,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 
 class PitchClassTest extends FunSuite with Matchers with TableDrivenPropertyChecks {
+
   import PitchClass._
 
   test("roundToInt") {
+    //@formatter:off
     val table = Table[Double, Boolean, Int](
       ("input", "halfDown", "output"),
       (2.0,     true,       2),
@@ -42,6 +44,7 @@ class PitchClassTest extends FunSuite with Matchers with TableDrivenPropertyChec
       (2.7,     false,      3),
       (3.0,     false,      3)
     )
+    //@formatter:on
     val tolerance = 0.1
 
     forAll(table) { (input, halfDown, output) =>
@@ -54,6 +57,7 @@ class PitchClassTest extends FunSuite with Matchers with TableDrivenPropertyChec
     val downConfig = PitchClassConfig(mapQuarterTonesLow = true, tolerance)
     val upConfig = PitchClassConfig(mapQuarterTonesLow = false, tolerance)
 
+    //@formatter:off
     val table = Table[Double, PitchClassConfig, PitchClass](
       ("Input Cents", "PitchClassConfig", "PitchClass"),
       (145.0,         downConfig,         PitchClass(1, 45.0)),
@@ -66,6 +70,7 @@ class PitchClassTest extends FunSuite with Matchers with TableDrivenPropertyChec
       (161.0,         downConfig,         PitchClass(2, -39.0)),
       (139.0,         upConfig,           PitchClass(1, 39.0))
     )
+    //@formatter:on
 
     forAll(table) { (inputCents, pitchClassConfig, pitchClass) =>
       fromCents(inputCents)(pitchClassConfig) shouldEqual pitchClass

@@ -38,7 +38,7 @@ object ScalaTuningFileFormat extends ScalaTuningFileFormatImpl
 
 class ScalaTuningFileFormatImpl extends ScalaTuningFileFormat with StrictLogging {
 
-  private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]{0,1}[\d]*).*""".r
+  private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
 
   override def read(inputStream: InputStream): Scale[Interval] = {
     val lines = Source.fromInputStream(inputStream, StandardCharsets.ISO_8859_1.toString).getLines()

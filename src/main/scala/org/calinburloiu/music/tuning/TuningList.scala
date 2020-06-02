@@ -23,9 +23,7 @@ import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList}
 
 import scala.annotation.tailrec
 
-case class TuningList(
-  tunings: Seq[Tuning]
-) extends Iterable[Tuning] {
+case class TuningList(tunings: Seq[Tuning]) extends Iterable[Tuning] {
 
   def apply(index: Int): Tuning = {
     Preconditions.checkElementIndex(index, size)
@@ -44,7 +42,7 @@ object TuningList extends StrictLogging {
     val globalFillScale = scaleList.globalFill.scale
     val globalFillTuning = scaleList.globalFill.tuningMapper(scaleList.origin.basePitchClass, globalFillScale)
 
-    val tuningModulations = createTuningModulations(Interval.UNISON, Vector.empty,
+    val tuningModulations = createTuningModulations(Interval.Unison, Vector.empty,
       scaleList.modulations, scaleList.origin)
 
     val partialTuningList = PartialTuningList(globalFillTuning, tuningModulations)
@@ -52,11 +50,10 @@ object TuningList extends StrictLogging {
   }
 
   @tailrec
-  private[this] def createTuningModulations(
-      cumulativeTransposition: Interval,
-      tuningModulationsAcc: Seq[TuningModulation],
-      modulations: Seq[Modulation],
-      origin: OriginOld): Seq[TuningModulation] = {
+  private[this] def createTuningModulations(cumulativeTransposition: Interval,
+                                            tuningModulationsAcc: Seq[TuningModulation],
+                                            modulations: Seq[Modulation],
+                                            origin: OriginOld): Seq[TuningModulation] = {
     if (modulations.isEmpty) {
       tuningModulationsAcc
     } else {
@@ -75,10 +72,9 @@ object TuningList extends StrictLogging {
     }
   }
 
-  private[this] def createTuningModulation(
-      cumulativeTransposition: Interval,
-      modulation: Modulation,
-      origin: OriginOld): TuningModulation = {
+  private[this] def createTuningModulation(cumulativeTransposition: Interval,
+                                           modulation: Modulation,
+                                           origin: OriginOld): TuningModulation = {
     val scaleName = modulation.scaleMapping.scale.name
 
     val extensionTuning = modulation.extension.map(_.tuning(origin, cumulativeTransposition))

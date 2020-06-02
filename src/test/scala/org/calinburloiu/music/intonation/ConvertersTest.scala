@@ -28,7 +28,8 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  val commonTable = Table(
+  //@formatter:off
+  private val commonTable = Table(
     ("real value",  "cents",  "Hz",   "pitch class / deviation"),
     (0.75,          -498.04,  330.0,  PitchClass(7, 1.96)),
     (1.0,           0.0,      440.0,  PitchClass(0)),
@@ -37,6 +38,7 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
     (2.0,           1200.0,   880.0,  PitchClass(0)),
     (4.0,           2400.0,   1760.0, PitchClass(0))
   )
+  //@formatter:on
 
   test("common conversions between real values, cents, Hz and pitch classes") {
     implicit val pitchClassConfig: PitchClassConfig = PitchClassConfig(mapQuarterTonesLow = true, 0.0)
@@ -48,8 +50,8 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
       fromHzToCents(hz, 440) should equal(cents)
 
       val PitchClass(semitone, deviation) = PitchClass.fromCents(cents)
-      semitone should equal (pitchClass.semitone)
-      deviation should equal (pitchClass.deviation)
+      semitone should equal(pitchClass.semitone)
+      deviation should equal(pitchClass.deviation)
     }
   }
 
@@ -61,6 +63,7 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
   }
 
   test("fromRatioToCents succeeds") {
+    //@formatter:off
     val table = Table(
       ("numerator", "denominator",  "cents"),
       (3,           4,              -498.04),
@@ -70,6 +73,7 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
       (2,           1,              1200.0),
       (4,           1,              2400.0)
     )
+    //@formatter:on
 
     forAll(table) { (numerator, denominator, cents) =>
       fromRatioToCents(numerator, denominator) shouldEqual cents
@@ -77,6 +81,7 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
   }
 
   test("fromRatioToCents fails") {
+    //@formatter:off
     val table = Table(
       ("numerator", "denominator"),
       (3,           0),
@@ -84,6 +89,7 @@ class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matche
       (0,           4),
       (-3,           2),
     )
+    //@formatter:on
 
     forAll(table) { (numerator, denominator) =>
       assertThrows[IllegalArgumentException](fromRatioToCents(numerator, denominator))

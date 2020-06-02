@@ -16,9 +16,7 @@
 
 package org.calinburloiu.music.intonation.format
 
-case class FormatIdentifier(
-  name: String,
-  extensions: Set[String],
-  // TODO Using a special object for MediaType would provide validation
-  mediaTypes: Set[String] = Set.empty
-)
+case class FormatIdentifier(name: String,
+                            extensions: Set[String],
+                            // TODO Using a special object for MediaType would provide validation
+                            mediaTypes: Set[String] = Set.empty)

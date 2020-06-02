@@ -24,7 +24,8 @@ import com.google.common.base.Preconditions._
  *
  * A typically piano tuning might be specified only for each of the 12 pitch classes: C, C#\Db, ..., B. A tunings
  * might use a different value for each 88 piano keys.
- * @param name a human-friendly name for the tuning
+ *
+ * @param name       a human-friendly name for the tuning
  * @param deviations deviation in cents for each key
  */
 case class Tuning(name: String,
