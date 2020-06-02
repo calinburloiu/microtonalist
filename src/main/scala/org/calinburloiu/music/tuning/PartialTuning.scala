@@ -52,6 +52,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
 
   /**
    * Attempts to create a [[Tuning]] from this partial tuning if is complete (see [[isComplete]]).
+   *
    * @param name a human-friendly name used for the new [[Tuning]]
    * @return maybe a new [[Tuning]]
    * @see [[isComplete]]
@@ -96,6 +97,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
    * If one has a deviation and the other does not for a key, the deviation of the former is used. If none have a
    * deviation, the resulting key will continue to be empty. If both have a deviation for a key, the deviation of
    * `this` for that key is kept.
+   *
    * @param that other partial tuning used for merging
    * @return a new partial tuning
    */
@@ -150,6 +152,7 @@ object PartialTuning {
 
   /**
    * Creates a [[PartialTuning]] which has no deviation in each of its keys.
+   *
    * @param size the number of keys in the partial tuning
    * @return a new partial tuning
    */

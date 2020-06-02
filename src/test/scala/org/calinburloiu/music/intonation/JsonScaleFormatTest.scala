@@ -74,7 +74,7 @@ class JsonScaleFormatTest extends FlatSpec with Matchers {
 
     val result = JsonScaleFormat.read(json)
 
-    result.name should be (empty)
+    result.name should be(empty)
   }
 
   "A JSON Scale with an invalid pitch" should "throw InvalidJsonScaleException" in {

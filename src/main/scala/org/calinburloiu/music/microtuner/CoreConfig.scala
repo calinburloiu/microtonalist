@@ -22,10 +22,8 @@ import com.typesafe.config.{Config => HoconConfig}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 
-case class CoreConfig(
-  scaleLibraryPath: Path = CoreConfig.defaultScaleLibraryPath,
-  metaConfig: MetaConfig = MetaConfig()
-) extends Configured
+case class CoreConfig(scaleLibraryPath: Path = CoreConfig.defaultScaleLibraryPath,
+                      metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
   val defaultScaleLibraryPath: Path = if (PlatformUtil.isMac)
@@ -34,17 +32,16 @@ object CoreConfig {
     throw new RuntimeException("Only Mac platform is currently supported")
 }
 
-case class MetaConfig(
-  saveIntervalMillis: Int = 5000,
-  saveOnExit: Boolean = true
-)
+case class MetaConfig(saveIntervalMillis: Int = 5000,
+                      saveOnExit: Boolean = true)
 
 object MetaConfig {
   val default: MetaConfig = MetaConfig()
 }
 
 class CoreConfigManager(mainConfigManager: MainConfigManager)
-    extends SubConfigManager[CoreConfig](CoreConfigManager.configRootPath, mainConfigManager) {
+  extends SubConfigManager[CoreConfig](CoreConfigManager.configRootPath, mainConfigManager) {
+
   import ConfigSerDe._
   import CoreConfigManager._
 

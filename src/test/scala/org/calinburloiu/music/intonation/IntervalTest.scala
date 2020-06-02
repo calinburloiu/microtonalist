@@ -26,6 +26,7 @@ class IntervalTest extends FlatSpec with TableDrivenPropertyChecks with Matchers
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
+  //@formatter:off
   private val validIntervals = Table[RatioInterval, Double, RatioInterval, RatioInterval](
     ("RatioInterval",   "cents",  "RatioInterval.normalize",  "RatioInterval.invert"),
     ((3, 4),            -498.04,  (3, 2),                     null),
@@ -55,6 +56,7 @@ class IntervalTest extends FlatSpec with TableDrivenPropertyChecks with Matchers
     ((5, 1),           2786.31,   (5, 4),                     null),
     ((81, 16),         2807.82,   (81, 64),                   null),
   )
+  //@formatter:on
 
   "an Interval" should "have a the real value greater than 0" in {
     assertThrows[IllegalArgumentException] {
@@ -82,7 +84,7 @@ class IntervalTest extends FlatSpec with TableDrivenPropertyChecks with Matchers
   }
 
   "all interval classes" should "correctly compute the cents, normalize and invert values for " +
-      "the most common just intervals" in {
+    "the most common just intervals" in {
     forAll(validIntervals) { (ratioInterval, cents, normalizedRatioInterval, invertedRatioInterval) =>
       val interval = Interval(ratioInterval.numerator.toDouble / ratioInterval.denominator)
       val centsInterval = CentsInterval(cents)
@@ -220,18 +222,18 @@ class IntervalTest extends FlatSpec with TableDrivenPropertyChecks with Matchers
   }
 
   they should "correctly report if they are unison" in {
-    Interval(1.0).isUnison should be (true)
-    Interval(1.5).isUnison should be (false)
+    Interval(1.0).isUnison should be(true)
+    Interval(1.5).isUnison should be(false)
 
-    CentsInterval(0.0).isUnison should be (true)
-    CentsInterval(700.0).isUnison should be (false)
+    CentsInterval(0.0).isUnison should be(true)
+    CentsInterval(700.0).isUnison should be(false)
 
-    RatioInterval(1, 1).isUnison should be (true)
-    RatioInterval(3, 2).isUnison should be (false)
+    RatioInterval(1, 1).isUnison should be(true)
+    RatioInterval(3, 2).isUnison should be(false)
   }
 
   "the result of a binary operation between intervals of the same class" should
-      "keep the same class" in {
+    "keep the same class" in {
     (CentsInterval(700.0) + CentsInterval(500.0)).getClass shouldBe classOf[CentsInterval]
     (CentsInterval(700.0) - CentsInterval(500.0)).getClass shouldBe classOf[CentsInterval]
     (CentsInterval(700.0) + CentsInterval(500.0).asInstanceOf[Interval]).getClass shouldBe classOf[CentsInterval]
@@ -244,7 +246,7 @@ class IntervalTest extends FlatSpec with TableDrivenPropertyChecks with Matchers
   }
 
   "the result of a binary operation between intervals of different classe" should
-      "have the class of the most specific common superclass" in {
+    "have the class of the most specific common superclass" in {
     (CentsInterval(700.0) + Interval(1.33)).getClass shouldBe classOf[Interval]
     (CentsInterval(700.0) - Interval(1.33)).getClass shouldBe classOf[Interval]
 

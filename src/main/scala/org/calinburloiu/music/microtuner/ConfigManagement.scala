@@ -26,12 +26,15 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.Try
 
-final class MainConfigManager private[microtuner] (configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
-    extends AutoCloseable with StrictLogging {
+final class MainConfigManager private[microtuner](configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
+  extends AutoCloseable with StrictLogging {
+
   import MainConfigManager._
 
   val coreConfigManager: CoreConfigManager = new CoreConfigManager(this)
+
   def coreConfig: CoreConfig = coreConfigManager.config
+
   def metaConfig: MetaConfig = coreConfig.metaConfig
 
   private[this] var _mainHoconConfig: HoconConfig = load()
@@ -42,7 +45,7 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
   private val scheduledTask: Runnable = () => save()
   if (metaConfig.saveIntervalMillis > 0) {
     scheduledExecutorService.scheduleAtFixedRate(scheduledTask,
-        metaConfig.saveIntervalMillis, metaConfig.saveIntervalMillis, TimeUnit.MILLISECONDS)
+      metaConfig.saveIntervalMillis, metaConfig.saveIntervalMillis, TimeUnit.MILLISECONDS)
   }
 
   def load(): HoconConfig = configFile
@@ -96,6 +99,7 @@ final class MainConfigManager private[microtuner] (configFile: Option[Path], fal
     lock.readLock().unlock()
     result
   }
+
   private[this] def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = {
     lock.writeLock().lock()
     _mainHoconConfig = newMainHoconConfig
@@ -124,7 +128,8 @@ object MainConfigManager {
 
 trait Configured
 
-abstract class SubConfigManager[C <: Configured](configPath: String, protected val mainConfigManager: MainConfigManager) {
+abstract class SubConfigManager[C <: Configured](configPath: String,
+                                                 protected val mainConfigManager: MainConfigManager) {
 
   def config: C = deserialize(hoconConfig)
 

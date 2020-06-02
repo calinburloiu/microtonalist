@@ -34,11 +34,11 @@ class RefTest extends FlatSpec with Matchers {
     val unresolvedRefResult = Ref.refReads[Scale[Interval]].reads(unresolvedRefJson)
 
     // Assert
-    unresolvedRefResult.asOpt should contain (UnresolvedRef("/path/to/scale.scl"))
+    unresolvedRefResult.asOpt should contain(UnresolvedRef("/path/to/scale.scl"))
   }
 
   it should "read a JSON without a reference as a NoRef " +
-      "and correctly parse the containing value" in {
+    "and correctly parse the containing value" in {
     // Arrange
     val scaleJson = Json.obj(
       "name" -> "minor triad",
@@ -49,7 +49,7 @@ class RefTest extends FlatSpec with Matchers {
     val noRefResult = Ref.refReads[Scale[Interval]].reads(scaleJson)
 
     // Assert
-    noRefResult.asOpt should contain (
+    noRefResult.asOpt should contain(
       NoRef(Scale("minor triad", RatioInterval(1, 1), RatioInterval(6, 5), RatioInterval(3, 2)))
     )
   }
@@ -66,7 +66,7 @@ class RefTest extends FlatSpec with Matchers {
     val resolvedRefResult = Ref.refReads[Scale[Interval]].reads(resolvedRefJson)
 
     // Assert
-    resolvedRefResult.asOpt should contain (
+    resolvedRefResult.asOpt should contain(
       ResolvedRef(
         "/path/to/scale.scl",
         Scale("minor triad", RatioInterval(1, 1), RatioInterval(6, 5), RatioInterval(3, 2))
@@ -75,7 +75,7 @@ class RefTest extends FlatSpec with Matchers {
   }
 
   it should "fail to read a JSON which either does not contain a reference either " +
-      "it does not conform to the expected value" in {
+    "it does not conform to the expected value" in {
     // Arrange
     val badJson = Json.obj("name" -> "John", "age" -> 20)
     val badJsonWithRef = Json.obj("ref" -> "/a/b/c", "name" -> "John", "age" -> 20)
@@ -85,7 +85,7 @@ class RefTest extends FlatSpec with Matchers {
     val badJsonWithRefResult = Ref.refReads[Scale[Interval]].reads(badJsonWithRef)
 
     // Assert
-    badJsonResult.asOpt should be (empty)
-    badJsonWithRefResult.asOpt should be (empty)
+    badJsonResult.asOpt should be(empty)
+    badJsonWithRefResult.asOpt should be(empty)
   }
 }

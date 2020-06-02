@@ -40,7 +40,7 @@ class MidiTuningMessageGeneratorTest extends FunSuite with Matchers {
 
     val tuningValues = getTuning(messageGenerator.generate(tuning))
     for (i <- tuningValues.indices) {
-      assert(tuningValues(i) - 100*i === expectedTuning.deviations(i % 12))
+      assert(tuningValues(i) - 100 * i === expectedTuning.deviations(i % 12))
     }
   }
 }

@@ -18,10 +18,11 @@ package org.calinburloiu.music.tuning
 
 /**
  * Configuration object used to distinguish two adjacent pitch classes.
+ *
  * @param mapQuarterTonesLow 'true' if a quarter tone should be the lower pitch class with +50 cents deviation or
  *                           `false` if it should be the higher pitch class with -50 cents deviation
- * @param halfTolerance tolerance value used for deviations when they are close to +50 or -50 cents in order to
- *                      avoid precision errors while mapping a quarter tone to its pitch class
+ * @param halfTolerance      tolerance value used for deviations when they are close to +50 or -50 cents in order to
+ *                           avoid precision errors while mapping a quarter tone to its pitch class
  */
 case class PitchClassConfig(mapQuarterTonesLow: Boolean = false,
                             halfTolerance: Double = PitchClassConfig.DefaultHalfTolerance)

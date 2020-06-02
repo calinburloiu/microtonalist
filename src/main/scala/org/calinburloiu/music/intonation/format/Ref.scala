@@ -76,10 +76,12 @@ object Ref {
     }
     val unresolvedRefReads: Reads[Ref[A]] = (__ \ "ref").read[String].map(UnresolvedRef.apply[A])
     val noRefReads: Reads[Ref[A]] = valueReads.map(NoRef.apply)
+    //@formatter:off
     val resolvedRefReads: Reads[Ref[A]] = (
       (__ \ "ref").read[String] and
       __.read[A]
     ) { (uri, value) => ResolvedRef(uri, value) }
+    //@formatter:on
 
     (onlyRef andThen unresolvedRefReads) orElse resolvedRefReads orElse noRefReads
   }

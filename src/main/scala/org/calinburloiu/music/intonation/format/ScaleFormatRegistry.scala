@@ -22,7 +22,7 @@ package org.calinburloiu.music.intonation.format
  *
  * @param bindings mapping between the scale media type or extension and the format class
  */
-class ScaleFormatRegistry private (val bindings: Seq[(FormatIdentifier, ScaleFormat)]) {
+class ScaleFormatRegistry private(val bindings: Seq[(FormatIdentifier, ScaleFormat)]) {
 
   private[this] val byExtension: Map[String, ScaleFormat] = (for {
     (FormatIdentifier(_, extensions, _), scaleReader) <- bindings
@@ -36,17 +36,19 @@ class ScaleFormatRegistry private (val bindings: Seq[(FormatIdentifier, ScaleFor
 
   /**
    * Gets the format by file extension.
-    * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the extension
-    */
+   *
+   * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the extension
+   */
   def getByExtension(extension: String): ScaleFormat = byExtension.getOrElse(extension, throw
-      new UnsupportedOperationException(s"No ScaleReader registered for extension '$extension'"))
+    new UnsupportedOperationException(s"No ScaleReader registered for extension '$extension'"))
 
   /**
    * Gets the format by media type (MIME type).
-    * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the media type
-    */
+   *
+   * @throws UnsupportedOperationException if no [[ScaleFormat]] is registered for the media type
+   */
   def getByMediaType(mediaType: String): ScaleFormat = byMediaType.getOrElse(mediaType, throw
-      new UnsupportedOperationException(s"No ScaleReader registered for media type '$mediaType'"))
+    new UnsupportedOperationException(s"No ScaleReader registered for media type '$mediaType'"))
 }
 
 object ScaleFormatRegistry extends ScaleFormatRegistry(Seq(

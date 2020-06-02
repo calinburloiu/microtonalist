@@ -29,7 +29,7 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
 
     val tuningSize = partialTuningList.tuningModulations.head.tuning.size
     val reducedTuningModulations =
-        collect(Vector.empty[TuningModulation], partialTuningList.tuningModulations, tuningSize)
+      collect(Vector.empty[TuningModulation], partialTuningList.tuningModulations, tuningSize)
     val maybeTunings = reducedTuningModulations.map { tuningModulation =>
       val enrichedPartialTuning = Seq(
         tuningModulation.tuning,
@@ -48,15 +48,14 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
   }
 
   @tailrec
-  private[this] def collect(
-      acc: Seq[TuningModulation],
-      tuningModulations: Seq[TuningModulation],
-      tuningSize: Int): Seq[TuningModulation] = {
+  private[this] def collect(acc: Seq[TuningModulation],
+                            tuningModulations: Seq[TuningModulation],
+                            tuningSize: Int): Seq[TuningModulation] = {
     if (tuningModulations.isEmpty) {
       acc
     } else {
       val (mergedTuningModulation, tuningModulationsLeft) =
-          merge(emptyTuningModulation(tuningSize), tuningModulations)
+        merge(emptyTuningModulation(tuningSize), tuningModulations)
 
       collect(acc :+ mergedTuningModulation, tuningModulationsLeft, tuningSize)
     }
@@ -68,9 +67,8 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
   }
 
   @tailrec
-  private[this] def merge(
-      acc: TuningModulation,
-      tuningModulations: Seq[TuningModulation]): (TuningModulation, Seq[TuningModulation]) = {
+  private[this] def merge(acc: TuningModulation,
+                          tuningModulations: Seq[TuningModulation]): (TuningModulation, Seq[TuningModulation]) = {
     tuningModulations.headOption match {
       case Some(nextTuningModulation) =>
         acc.tuning merge nextTuningModulation.tuning match {

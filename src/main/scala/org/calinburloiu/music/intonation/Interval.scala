@@ -41,10 +41,10 @@ class Interval(val realValue: Double) extends Ordered[Interval] {
   def -(operand: Interval): Interval = Interval(this.realValue / operand.realValue)
 
   def invert: Interval = {
-    checkArgument(this >= Interval.UNISON && this <= Interval.OCTAVE,
+    checkArgument(this >= Interval.Unison && this <= Interval.Octave,
       "Expecting this to between an unison and an octave, inclusively, but got %s", this)
 
-    Interval.OCTAVE - this
+    Interval.Octave - this
   }
 
   def toStringLengths: Interval = Interval(1.0 / this.realValue)
@@ -78,8 +78,8 @@ class Interval(val realValue: Double) extends Ordered[Interval] {
 
 object Interval {
 
-  val UNISON = Interval(1.0)
-  val OCTAVE = Interval(2.0)
+  val Unison: Interval = Interval(1.0)
+  val Octave: Interval = Interval(2.0)
 
   def apply(realValue: Double): Interval = new Interval(realValue)
 
@@ -103,9 +103,9 @@ object Interval {
 
 
 case class RatioInterval(
-  numerator: Int,
-  denominator: Int
-) extends Interval(numerator.toDouble / denominator.toDouble) {
+                          numerator: Int,
+                          denominator: Int
+                        ) extends Interval(numerator.toDouble / denominator.toDouble) {
 
   override def normalize: RatioInterval = {
     if (isNormalized) {
@@ -148,10 +148,10 @@ case class RatioInterval(
   }
 
   override def invert: RatioInterval = {
-    checkArgument(this >= RatioInterval.UNISON && this <= RatioInterval.OCTAVE,
+    checkArgument(this >= RatioInterval.Unison && this <= RatioInterval.Octave,
       "Expecting this to between an unison and an octave, inclusively, but got %s", this)
 
-    RatioInterval.OCTAVE - this
+    RatioInterval.Octave - this
   }
 
 
@@ -166,8 +166,8 @@ case class RatioInterval(
 
 object RatioInterval {
 
-  val UNISON: RatioInterval = RatioInterval(1, 1)
-  val OCTAVE: RatioInterval = RatioInterval(2, 1)
+  val Unison: RatioInterval = RatioInterval(1, 1)
+  val Octave: RatioInterval = RatioInterval(2, 1)
 
   implicit def fromPair(pair: (Int, Int)): RatioInterval = RatioInterval(pair._1, pair._2)
 
@@ -177,12 +177,13 @@ object RatioInterval {
     // Using a right-associative infix operator in order to make it precede + and - operators.
     def /:(numerator: Int): RatioInterval = RatioInterval(numerator, denominator)
   }
+
 }
 
 
 case class CentsInterval(
-  override val cents: Double
-) extends Interval(Converters.fromCentsToRealValue(cents)) {
+                          override val cents: Double
+                        ) extends Interval(Converters.fromCentsToRealValue(cents)) {
 
   override def normalize: CentsInterval = {
     if (isNormalized) {
@@ -207,10 +208,10 @@ case class CentsInterval(
   }
 
   override def invert: CentsInterval = {
-    checkArgument(this >= CentsInterval.UNISON && this <= CentsInterval.OCTAVE,
+    checkArgument(this >= CentsInterval.Unison && this <= CentsInterval.Octave,
       "Expecting this to between an unison and an octave, inclusively, but got %s", this)
 
-    CentsInterval.OCTAVE - this
+    CentsInterval.Octave - this
   }
 
 
@@ -225,12 +226,14 @@ case class CentsInterval(
 
 object CentsInterval {
 
-  val UNISON: CentsInterval = CentsInterval(0.0)
-  val OCTAVE: CentsInterval = CentsInterval(1200.0)
+  val Unison: CentsInterval = CentsInterval(0.0)
+  val Octave: CentsInterval = CentsInterval(1200.0)
 
   implicit class PostfixOperator(centsValue: Double) {
 
     def cent: CentsInterval = CentsInterval(centsValue)
+
     def cents: CentsInterval = CentsInterval(centsValue)
   }
+
 }

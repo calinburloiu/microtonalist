@@ -22,10 +22,9 @@ import org.calinburloiu.music.microtuner.TuningSwitch
 
 import scala.collection.mutable
 
-class PedalTuningSwitchReceiver(
-  tuningSwitch: TuningSwitch,
-  outputReceiver: Option[Receiver],
-  ccTriggers: CcTriggers) extends Receiver with StrictLogging {
+class PedalTuningSwitchReceiver(tuningSwitch: TuningSwitch,
+                                outputReceiver: Option[Receiver],
+                                ccTriggers: CcTriggers) extends Receiver with StrictLogging {
 
   private val ccPrev = ccTriggers.prevTuningCc
   private val ccNext = ccTriggers.nextTuningCc

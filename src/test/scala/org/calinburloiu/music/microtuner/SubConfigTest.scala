@@ -41,7 +41,7 @@ abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extend
   }
 
   for (i <- 0 until subConfigsToWriteCount) {
-    it should s"correctly read after writing HOCON sub-config ${i+1} of $subConfigsToWriteCount" in {
+    it should s"correctly read after writing HOCON sub-config ${i + 1} of $subConfigsToWriteCount" in {
       subConfigManager.notifyConfigChanged(subConfigsToWrite(i))
       mainConfigManager.isDirty shouldBe true
       subConfig shouldEqual subConfigsToWrite(i)

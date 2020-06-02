@@ -26,6 +26,7 @@ import play.api.libs.json._
 
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
+ *
  * @param scaleLibrary repository for retrieving scales by URI
  */
 class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
@@ -67,7 +68,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     val origin = OriginOld(scaleListRepr.origin.basePitchClass)
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
-      val transposition = modulationRepr.transposition.getOrElse(Interval.UNISON)
+      val transposition = modulationRepr.transposition.getOrElse(Interval.Unison)
 
       val tuningMapper = modulationRepr.tuningMapper.getOrElse(defaultTuningMapper)
       val scaleMapping = ScaleMapping(modulationRepr.scale.value, tuningMapper)
@@ -111,6 +112,7 @@ object JsonScaleListFormat {
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
+
     import ComponentPlayJsonFormat._
 
     private implicit val pitchClassConfigPlayJsonFormat: Format[PitchClassConfig] =
@@ -128,6 +130,7 @@ object JsonScaleListFormat {
   }
 
   private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
+
     import ComponentPlayJsonFormat._
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
@@ -135,4 +138,5 @@ object JsonScaleListFormat {
       SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => new MergeTuningReducer)),
     )
   }
+
 }

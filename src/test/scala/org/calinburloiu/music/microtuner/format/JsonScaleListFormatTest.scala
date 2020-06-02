@@ -28,6 +28,7 @@ import org.scalatest.{FlatSpec, Inside, Matchers}
 import play.api.libs.json._
 
 class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with MockFactory {
+
   import JsonScaleListFormat._
   import JsonScaleListFormatTest._
 
@@ -49,17 +50,17 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
 
     scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
     scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)
-    scaleList.modulations.head.fill.map(_.scale) should contain (
+    scaleList.modulations.head.fill.map(_.scale) should contain(
       RatiosScale((1, 1), (9, 7))
     )
 
     scaleList.modulations(1).transposition shouldEqual RatioInterval(6, 5)
     scaleList.modulations(1).scaleMapping.scale shouldEqual majorScale
-    scaleList.modulations(1).fill.map(_.scale) should contain (chromaticScale)
+    scaleList.modulations(1).fill.map(_.scale) should contain(chromaticScale)
 
     scaleList.modulations(2).transposition shouldEqual RatioInterval(5, 3)
     scaleList.modulations(2).scaleMapping.scale shouldEqual romanianMinorScale
-    scaleList.modulations(2).fill.map(_.scale) should be (empty)
+    scaleList.modulations(2).fill.map(_.scale) should be(empty)
   }
 
   it should "fail when a transposition interval in invalid" in {
@@ -87,37 +88,37 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
   }
 
   "TuningReducerPlayJsonFormat" should "deserialize JSON string containing type" in {
-    inside (TuningReducerPlayJsonFormat.reads(JsString("direct"))) {
-      case JsSuccess(value, _) => value shouldBe a [DirectTuningReducer]
+    inside(TuningReducerPlayJsonFormat.reads(JsString("direct"))) {
+      case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
     }
-    inside (TuningReducerPlayJsonFormat.reads(JsString("merge"))) {
-      case JsSuccess(value, _) => value shouldBe a [MergeTuningReducer]
+    inside(TuningReducerPlayJsonFormat.reads(JsString("merge"))) {
+      case JsSuccess(value, _) => value shouldBe a[MergeTuningReducer]
     }
-    TuningReducerPlayJsonFormat.reads(JsString("bogus")) shouldBe a [JsError]
+    TuningReducerPlayJsonFormat.reads(JsString("bogus")) shouldBe a[JsError]
   }
 
   it should "deserialize JSON object only containing type by using default factory" in {
     val directTuningReducerJson = Json.obj("type" -> "direct")
-    inside (TuningReducerPlayJsonFormat.reads(directTuningReducerJson)) {
-      case JsSuccess(value, _) => value shouldBe a [DirectTuningReducer]
+    inside(TuningReducerPlayJsonFormat.reads(directTuningReducerJson)) {
+      case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
     }
 
     val mergeTuningReducerJson = Json.obj("type" -> "merge")
-    inside (TuningReducerPlayJsonFormat.reads(mergeTuningReducerJson)) {
-      case JsSuccess(value, _) => value shouldBe a [MergeTuningReducer]
+    inside(TuningReducerPlayJsonFormat.reads(mergeTuningReducerJson)) {
+      case JsSuccess(value, _) => value shouldBe a[MergeTuningReducer]
     }
 
     val bogusTuningReducerJson = Json.obj("type" -> "bogus")
-    TuningReducerPlayJsonFormat.reads(bogusTuningReducerJson) shouldBe a [JsError]
+    TuningReducerPlayJsonFormat.reads(bogusTuningReducerJson) shouldBe a[JsError]
 
     val invalidJson = Json.obj("typ" -> "direct")
-    TuningReducerPlayJsonFormat.reads(invalidJson) shouldBe a [JsError]
+    TuningReducerPlayJsonFormat.reads(invalidJson) shouldBe a[JsError]
   }
 
   it should "serialize JSON string containing types of direct and merge" in {
     TuningReducerPlayJsonFormat.writes(new DirectTuningReducer) shouldEqual JsString("direct")
     TuningReducerPlayJsonFormat.writes(new MergeTuningReducer) shouldEqual JsString("merge")
-    a [Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
+    a[Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
   }
 
   "TuningMapperPlayJsonFormat" should "deserialize JSON object containing type auto and its params" in {
@@ -126,18 +127,18 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
       "mapQuarterTonesLow" -> true,
       "halfTolerance" -> 0.02
     )
-    inside (TuningMapperPlayJsonFormat.reads(autoJsonWithParams)) {
+    inside(TuningMapperPlayJsonFormat.reads(autoJsonWithParams)) {
       case JsSuccess(tuningMapper, _) =>
-        tuningMapper shouldBe a [AutoTuningMapper]
+        tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
         autoTuningMapper.pitchClassConfig shouldEqual
           PitchClassConfig(mapQuarterTonesLow = true, halfTolerance = 0.02)
     }
 
     val autoJsonWithDefaultParams = Json.obj("type" -> "auto")
-    inside (TuningMapperPlayJsonFormat.reads(autoJsonWithDefaultParams)) {
+    inside(TuningMapperPlayJsonFormat.reads(autoJsonWithDefaultParams)) {
       case JsSuccess(tuningMapper, _) =>
-        tuningMapper shouldBe a [AutoTuningMapper]
+        tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
         autoTuningMapper.pitchClassConfig shouldEqual PitchClassConfig()
     }
@@ -172,7 +173,7 @@ class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with Mo
     }
 
     val invalidJs = JsNumber(3)
-    inside (stubFormat.reads(invalidJs)) {
+    inside(stubFormat.reads(invalidJs)) {
       case JsError(Seq((_, Seq(JsonValidationError(Seq(message)))))) =>
         message shouldEqual "error.component.invalid"
     }
@@ -192,4 +193,5 @@ object JsonScaleListFormatTest {
 }
 
 trait Stub
+
 case class SubComponent(bar: Int, baz: Int) extends Stub

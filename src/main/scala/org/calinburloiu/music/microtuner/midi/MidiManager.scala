@@ -24,6 +24,7 @@ import scala.collection.{GenSet, mutable}
 import scala.util.Try
 
 class MidiManager extends AutoCloseable with StrictLogging {
+
   import MidiManager._
 
   private val inputDevicesInfo = mutable.Map[MidiDeviceId, MidiDevice.Info]()
@@ -61,8 +62,8 @@ class MidiManager extends AutoCloseable with StrictLogging {
     }
 
     // Remove opened devices that were previously opened but now they don't appear anymore
-    def removeDisappearedOpenedDevices[D <: OpenedDevice](
-        openedDevices: mutable.Map[MidiDeviceId, D], deviceIds: GenSet[MidiDeviceId]): Unit = {
+    def removeDisappearedOpenedDevices[D <: OpenedDevice](openedDevices: mutable.Map[MidiDeviceId, D],
+                                                          deviceIds: GenSet[MidiDeviceId]): Unit = {
       val disappearedOpenedDeviceIds = openedDevices.keySet diff deviceIds
       disappearedOpenedDeviceIds.foreach { deviceId =>
         val device = openedDevices(deviceId).device
@@ -73,6 +74,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
         logger.info(s"Previously opened device $deviceId disappeared; it was probably disconnected")
       }
     }
+
     removeDisappearedOpenedDevices(openedInputDevices, inputDevicesInfo.keySet)
     removeDisappearedOpenedDevices(openedOutputDevices, outputDevicesInfo.keySet)
   }
@@ -158,11 +160,11 @@ class MidiManager extends AutoCloseable with StrictLogging {
     logger.info(s"Finished closing ${getClass.getSimpleName}")
   }
 
-  private def openFirstAvailableDevice(
-    deviceIds: Seq[MidiDeviceId], deviceType: String, openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
+  private def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId], deviceType: String,
+                                       openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
     deviceIds.toStream
       .map { deviceId =>
-        logger.info(s"Attempting to open ${deviceType} device $deviceId...")
+        logger.info(s"Attempting to open $deviceType device $deviceId...")
         (deviceId, openFunc(deviceId))
       }
       .find(_._2.isSuccess)
@@ -170,8 +172,8 @@ class MidiManager extends AutoCloseable with StrictLogging {
   }
 
   @inline
-  private def logDebugDetectedDevice(
-      deviceId: MidiDeviceId, deviceType: String, handlerType: String, maxHandlers: Int): Unit = {
+  private def logDebugDetectedDevice(deviceId: MidiDeviceId, deviceType: String,
+                                     handlerType: String, maxHandlers: Int): Unit = {
     logger.debug {
       val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
       s"Detected $deviceType device $deviceId with $maxHandlersStr $handlerType"
@@ -186,12 +188,12 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
 object MidiManager {
 
-  private def isDeviceOpened[D <: OpenedDevice](
-      deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D]): Boolean =
+  private def isDeviceOpened[D <: OpenedDevice](deviceId: MidiDeviceId,
+                                                openedDevices: mutable.Map[MidiDeviceId, D]): Boolean =
     openedDevices.get(deviceId).exists(_.device.isOpen)
 
-  private def closeDevice[D <: OpenedDevice](
-      deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D], logger: Logger): Try[Unit] = Try {
+  private def closeDevice[D <: OpenedDevice](deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D],
+                                             logger: Logger): Try[Unit] = Try {
     val openedDevice = openedDevices(deviceId)
     logger.info(s"Closing ${openedDevice.deviceType} device $deviceId...")
     openedDevice.device.close()
@@ -203,6 +205,7 @@ object MidiManager {
 
 sealed trait OpenedDevice {
   val device: MidiDevice
+
   def deviceType: String
 }
 

@@ -23,16 +23,16 @@ import org.calinburloiu.music.tuning.PitchClassConfig
 import scala.language.implicitConversions
 
 /** Class representing the concept of pitch class in the 12-tone equal temperament system,
-  * identified by the semitone number and an option deviation in cents.
-  *
-  * @param semitone Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
-  * @param deviation Deviation from the semitone in cents
-  */
+ * identified by the semitone number and an option deviation in cents.
+ *
+ * @param semitone  Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
+ * @param deviation Deviation from the semitone in cents
+ */
 case class PitchClass(semitone: Int, deviation: Double = 0.0) {
   Preconditions.checkArgument(semitone >= 0 && semitone < 12,
-      "0 <= semitone < 12".asInstanceOf[Any])
+    "0 <= semitone < 12".asInstanceOf[Any])
   Preconditions.checkArgument(deviation >= -100.0 && deviation <= 100.0,
-      "-100 <= deviation <= 100".asInstanceOf[Any])
+    "-100 <= deviation <= 100".asInstanceOf[Any])
 
   def cents: Double = 100.0 * semitone + deviation
 
@@ -47,7 +47,7 @@ object PitchClass {
   /** Creates a [[PitchClass]] from a cents value assumed relative to pitch class 0 (C note). */
   def fromCents(cents: Double)(implicit pitchClassConfig: PitchClassConfig): PitchClass = {
     val totalSemitones = roundToInt(cents / 100,
-        pitchClassConfig.mapQuarterTonesLow, pitchClassConfig.halfTolerance)
+      pitchClassConfig.mapQuarterTonesLow, pitchClassConfig.halfTolerance)
     val deviation = cents - 100 * totalSemitones
     val semitone = IntMath.mod(totalSemitones, 12)
 

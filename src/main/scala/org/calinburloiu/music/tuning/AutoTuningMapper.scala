@@ -28,7 +28,7 @@ import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
  * @param pitchClassConfig configuration object that fine tunes the way a scale pitch is mapped to a tuning key
  */
 class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig())
-    extends TuningMapper {
+  extends TuningMapper {
 
   private implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
 
@@ -37,12 +37,12 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
 
   override def apply(basePitchClass: PitchClass, scale: Scale[Interval]): PartialTuning = {
     // TODO Refactor (check commented lines or think about a generic solution like KeyboardMapper).
-//    val pitchClasses: Seq[PitchClass] = scale.intervals
-//      .map(_.normalize).distinct
-//      .map { interval =>
-//        val cents = interval.cents + basePitchClass.cents
-//        Converters.fromCentsToPitchClass(cents, autoTuningMapperConfig.mapQuarterTonesLow)
-//      }
+    //    val pitchClasses: Seq[PitchClass] = scale.intervals
+    //      .map(_.normalize).distinct
+    //      .map { interval =>
+    //        val cents = interval.cents + basePitchClass.cents
+    //        Converters.fromCentsToPitchClass(cents, autoTuningMapperConfig.mapQuarterTonesLow)
+    //      }
     val pitchClasses: Seq[PitchClass] = scale.intervals.map { interval =>
       basePitchClass + interval
     }.distinct
@@ -51,9 +51,8 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
     val pitchClassesWithConflicts = groupsOfPitchClasses
       .filter(_._2.distinct.lengthCompare(1) > 0)
     if (pitchClassesWithConflicts.nonEmpty) {
-      throw new TuningMapperConflictException(
-          "Cannot tune automatically, some pitch classes have conflicts:" +
-              pitchClassesWithConflicts)
+      throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
+        pitchClassesWithConflicts)
     } else {
       val pitchClassesMap = pitchClasses.map(PitchClass.unapply(_).get).toMap
       val partialTuningValues = (0 until 12).map { index =>
