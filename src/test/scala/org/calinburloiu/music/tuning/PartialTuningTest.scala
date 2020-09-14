@@ -16,9 +16,10 @@
 
 package org.calinburloiu.music.tuning
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PartialTuningTest extends FlatSpec with Matchers {
+class PartialTuningTest extends AnyFlatSpec with Matchers {
 
   private val completePartialTuning = PartialTuning(Some(100.0), Some(200.0), Some(300.0))
   private val incompletePartialTuning = PartialTuning(Some(0.0), None, Some(270.0))

@@ -17,10 +17,11 @@
 package org.calinburloiu.music.intonation.format
 
 import org.calinburloiu.music.intonation.{Interval, RatioInterval, Scale}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{Json, Reads}
 
-class RefTest extends FlatSpec with Matchers {
+class RefTest extends AnyFlatSpec with Matchers {
 
   implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
 

@@ -17,10 +17,11 @@
 package org.calinburloiu.music.intonation
 
 import org.scalactic.{Equality, TolerantNumerics}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
-class IntervalTest extends FlatSpec with TableDrivenPropertyChecks with Matchers {
+class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
 
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =

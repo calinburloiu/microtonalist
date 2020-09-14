@@ -24,10 +24,12 @@ import org.calinburloiu.music.microtuner.ScaleList
 import org.calinburloiu.music.microtuner.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.calinburloiu.music.tuning._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Inside, Matchers}
+import org.scalatest.Inside
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import play.api.libs.json._
 
-class JsonScaleListFormatTest extends FlatSpec with Matchers with Inside with MockFactory {
+class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
 
   import JsonScaleListFormat._
   import JsonScaleListFormatTest._

@@ -19,9 +19,10 @@ package org.calinburloiu.music.tuning
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormatTest
 import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TuningListMappingIntegrationTest extends FlatSpec with Matchers {
+class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =

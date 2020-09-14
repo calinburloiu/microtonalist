@@ -49,7 +49,7 @@ class MidiTuner(val receiver: Receiver,
 
   // TODO Rethink which code component has the transpose responsibility
   def transpose(tuningValues: Array[Double], baseNote: Int): Array[Double] = {
-    Stream.range(0, 12)
+    LazyList.range(0, 12)
       .map { index =>
         val transposedIndex = (index + baseNote) % 12
         tuningValues(transposedIndex)

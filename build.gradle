@@ -14,24 +14,19 @@
  *    limitations under the License.
  */
 
-group 'org.calinburloiu.microtuner'
-version '0.2.0-SNAPSHOT'
-
-buildscript {
-  repositories {
-    maven {
-      url "https://plugins.gradle.org/m2/"
-    }
-  }
-  dependencies {
-    classpath "gradle.plugin.com.github.maiflai:gradle-scalatest:0.16"
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"
-  }
+plugins {
+  id "scala"
+  id "com.github.maiflai.scalatest" version "0.26"
+  id "com.github.johnrengelman.shadow" version "6.0.0"
 }
 
-apply plugin: 'scala'
-apply plugin: 'com.github.maiflai.scalatest'
-apply plugin: 'com.github.johnrengelman.shadow'
+ext {
+  scalaVersion = "2.13.3"
+  scalaMajorVersion = "2.13"
+}
+
+group "org.calinburloiu.microtuner"
+version "0.2.0-SNAPSHOT"
 
 sourceCompatibility = 1.8
 
@@ -39,36 +34,34 @@ repositories {
   mavenCentral()
 }
 
+tasks.withType(ScalaCompile) {
+  scalaCompileOptions.additionalParameters = ["-deprecation", "-feature"]
+}
+
 dependencies {
-  compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-  compile group: 'com.typesafe.scala-logging', name: scala('scala-logging'), version: '3.9.2'
-  compile group: 'com.beachape', name: scala('enumeratum'), version: '1.5.15'
-  compile group: 'com.iheart', name: scala('ficus'), version: '1.4.7'
-  compile group: 'com.google.guava', name: 'guava', version: '28.2-jre'
-  compile group: 'com.typesafe.play', name: scala('play-json'), version: '2.6.5'
+  implementation group: "ch.qos.logback", name: "logback-classic", version: "1.2.3"
+  implementation group: "com.typesafe.scala-logging", name: scala("scala-logging"), version: "3.9.2"
+  implementation group: "com.beachape", name: scala("enumeratum"), version: "1.6.1"
+  implementation group: "com.iheart", name: scala("ficus"), version: "1.5.0"
+  implementation group: "com.google.guava", name: "guava", version: "29.0-jre"
+  implementation group: "com.typesafe.play", name: scala("play-json"), version: "2.9.1"
 
-  // Required to make Java MIDI work on Mac OS X
-  compile group: 'uk.co.xfactory-librarians', name: 'coremidi4j', version: '1.0'
+  // Required to make Java MIDI work on Mac OS
+  implementation group: "uk.co.xfactory-librarians", name: "coremidi4j", version: "1.4"
 
-  compile group: 'org.scala-lang', name: 'scala-library', version: scalaVersion
+  implementation group: "org.scala-lang", name: "scala-library", version: scalaVersion
 
-  testCompile group: 'org.scalatest', name: scala('scalatest'), version: '3.0.4'
-  testCompile group: 'org.scalamock', name: scala('scalamock'), version: '4.4.0'
-  testCompile "org.pegdown:pegdown:1.4.2"  // Required by scalatest for generating reports
+  testImplementation group: "org.scalatest", name: scala("scalatest"), version: "3.2.2"
+  testImplementation group: "org.scalamock", name: scala("scalamock"), version: "5.0.0"
+  // Required by scalatest for some weird reason
+  testRuntimeOnly group: "com.vladsch.flexmark", name: "flexmark-all", version: "0.36.8"
 }
 
 jar {
   manifest {
-    attributes 'Main-Class': 'org.calinburloiu.music.microtuner.ScalistApp'
+    attributes "Main-Class": "org.calinburloiu.music.microtuner.ScalistApp"
   }
 }
-
-shadowJar {
-  classifier = 'fat'
-  version = ''
-}
-
-build.dependsOn(shadowJar)
 
 def scala(String artifactName) {
   return "${artifactName}_${scalaMajorVersion}"

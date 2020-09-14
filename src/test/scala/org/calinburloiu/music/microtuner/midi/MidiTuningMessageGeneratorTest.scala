@@ -19,11 +19,12 @@ package org.calinburloiu.music.microtuner.midi
 import com.sun.media.sound.SoftTuning
 import javax.sound.midi.SysexMessage
 import org.calinburloiu.music.tuning.Tuning
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.language.implicitConversions
 
-class MidiTuningMessageGeneratorTest extends FunSuite with Matchers {
+class MidiTuningMessageGeneratorTest extends AnyFunSuite with Matchers {
 
   def getTuning(sysexMessage: SysexMessage): Array[Double] = {
     val data = sysexMessage.getMessage

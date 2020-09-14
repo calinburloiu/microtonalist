@@ -18,11 +18,12 @@ package org.calinburloiu.music.microtuner
 
 import com.typesafe.config.ConfigFactory
 import org.calinburloiu.music.microtuner.ConfigSerDe._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
-class ConfigSerDeTest extends FlatSpec with Matchers {
+class ConfigSerDeTest extends AnyFlatSpec with Matchers {
 
   "createHoconValue" should "create HOCON singleton values" in {
     createHoconValue(10).unwrapped() shouldEqual 10

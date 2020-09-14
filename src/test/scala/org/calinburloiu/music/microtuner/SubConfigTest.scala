@@ -17,9 +17,10 @@
 package org.calinburloiu.music.microtuner
 
 import com.typesafe.config.{ConfigFactory, Config => HoconConfig}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends FlatSpec with Matchers {
+abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends AnyFlatSpec with Matchers {
 
   def configResource: String = SubConfigTest.defaultConfigResource
 
