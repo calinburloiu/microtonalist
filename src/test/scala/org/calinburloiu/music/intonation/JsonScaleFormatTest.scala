@@ -17,10 +17,11 @@
 package org.calinburloiu.music.intonation
 
 import org.calinburloiu.music.intonation.format.{InvalidJsonScaleException, JsonScaleFormat}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.Json
 
-class JsonScaleFormatTest extends FlatSpec with Matchers {
+class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
 
   "A JSON Scale with pitches in cents" should "correctly create a CentsScale object" in {
     val json = Json.obj(

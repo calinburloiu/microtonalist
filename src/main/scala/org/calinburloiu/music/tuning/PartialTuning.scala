@@ -19,6 +19,7 @@ package org.calinburloiu.music.tuning
 import com.google.common.base.Preconditions._
 
 import scala.annotation.tailrec
+import scala.collection.immutable.ArraySeq
 
 /**
  * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[Tuning]] for more details.
@@ -108,7 +109,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
     @tailrec
     def accMerge(acc: Array[Option[Double]], index: Int): Option[PartialTuning] = {
       if (index == size) {
-        Some(PartialTuning(acc))
+        Some(PartialTuning(ArraySeq.unsafeWrapArray(acc)))
       } else {
         (this.deviations(index), that.deviations(index)) match {
           case (None, None) =>

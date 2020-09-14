@@ -53,7 +53,7 @@ case class Tuning(name: String,
 object Tuning {
 
   /** The tuning for a 12-tone equal temperament, which has 0 cents deviation for each of the 12-keys. */
-  val Edo12: Tuning = Tuning("Equal Temperament", Array(
+  val Edo12: Tuning = Tuning("Equal Temperament", Seq(
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
   ))
 

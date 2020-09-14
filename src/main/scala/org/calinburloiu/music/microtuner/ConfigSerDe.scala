@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtuner
 
 import com.typesafe.config.{Config, ConfigValue, ConfigValueFactory}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ConfigSerDe {
 

@@ -18,9 +18,10 @@ package org.calinburloiu.music.tuning
 
 import org.calinburloiu.music.intonation.{CentsScale, PitchClass, RatiosScale}
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class AutoTuningMapperTest extends FlatSpec with Matchers {
+class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
 
   import PianoKeyboardTuningUtils._
 

@@ -18,9 +18,10 @@ package org.calinburloiu.music.tuning
 
 import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, Interval, Scale}
 import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class PrecisionTest extends FunSuite with Matchers {
+class PrecisionTest extends AnyFunSuite with Matchers {
 
   test("changing interval class does not alter quarter tones mapping when using halfTolerance") {
     val scaleCents = CentsScale(0.0, 150.0, 300.0, 500.0, 700.0, 850.0, 1000.0)

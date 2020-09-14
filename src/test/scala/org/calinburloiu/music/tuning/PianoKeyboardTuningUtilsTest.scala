@@ -16,9 +16,10 @@
 
 package org.calinburloiu.music.tuning
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PianoKeyboardTuningUtilsTest extends FlatSpec with Matchers {
+class PianoKeyboardTuningUtilsTest extends AnyFlatSpec with Matchers {
 
   import PianoKeyboardTuningUtils._
 

@@ -19,10 +19,11 @@ package org.calinburloiu.music.intonation
 import org.calinburloiu.music.intonation.Converters._
 import org.calinburloiu.music.tuning.PitchClassConfig
 import org.scalactic.{Equality, TolerantNumerics}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FunSuite, Matchers}
 
-class ConvertersTest extends FunSuite with TableDrivenPropertyChecks with Matchers {
+class ConvertersTest extends AnyFunSuite with TableDrivenPropertyChecks with Matchers {
 
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =

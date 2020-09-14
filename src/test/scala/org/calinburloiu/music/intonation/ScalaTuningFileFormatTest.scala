@@ -20,11 +20,12 @@ import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets
 
 import org.calinburloiu.music.intonation.format.{InvalidScalaTuningFileException, ScalaTuningFileFormat}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.language.implicitConversions
 
-class ScalaTuningFileFormatTest extends FlatSpec with Matchers {
+class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
 
   "Reading a .scl file with invalid header" should "throw InvalidScalaTuningFileException" in testFailure(
     "description",

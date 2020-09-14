@@ -18,7 +18,8 @@ package org.calinburloiu.music.microtuner.midi
 
 import javax.sound.midi.MidiDevice
 import org.calinburloiu.music.microtuner.SubConfigTest
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfigManager] {
 
@@ -89,7 +90,7 @@ class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputCon
   )
 }
 
-class MidiConfigsTest extends FlatSpec with Matchers {
+class MidiConfigsTest extends AnyFlatSpec with Matchers {
 
   "MidiDeviceId.apply" should "convert from MidiDevice.Info to MidiDeviceId" in {
     // Given

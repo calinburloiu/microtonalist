@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.{Logger, StrictLogging}
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 
-import scala.collection.{GenSet, mutable}
+import scala.collection.mutable
 import scala.util.Try
 
 class MidiManager extends AutoCloseable with StrictLogging {
@@ -63,7 +63,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
     // Remove opened devices that were previously opened but now they don't appear anymore
     def removeDisappearedOpenedDevices[D <: OpenedDevice](openedDevices: mutable.Map[MidiDeviceId, D],
-                                                          deviceIds: GenSet[MidiDeviceId]): Unit = {
+                                                          deviceIds: scala.collection.Set[MidiDeviceId]): Unit = {
       val disappearedOpenedDeviceIds = openedDevices.keySet diff deviceIds
       disappearedOpenedDeviceIds.foreach { deviceId =>
         val device = openedDevices(deviceId).device
@@ -162,7 +162,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   private def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId], deviceType: String,
                                        openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
-    deviceIds.toStream
+    deviceIds.to(LazyList)
       .map { deviceId =>
         logger.info(s"Attempting to open $deviceType device $deviceId...")
         (deviceId, openFunc(deviceId))
