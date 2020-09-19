@@ -63,6 +63,8 @@ jar {
   }
 }
 
+build.dependsOn(shadowJar)
+
 def scala(String artifactName) {
   return "${artifactName}_${scalaMajorVersion}"
 }
