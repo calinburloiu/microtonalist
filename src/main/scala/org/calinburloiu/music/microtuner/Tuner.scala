@@ -42,9 +42,14 @@ class MidiTuner(val receiver: Receiver,
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
 
+  @throws[MidiTunerException]
   override def tune(tuning: Tuning, baseNote: Int = 0): Unit = {
     val sysexMessage = tuningMessageGenerator.generate(tuning)
-    receiver.send(sysexMessage, -1)
+    try {
+      receiver.send(sysexMessage, -1)
+    } catch {
+      case e: IllegalStateException => throw new MidiTunerException(e)
+    }
   }
 
   // TODO Rethink which code component has the transpose responsibility
@@ -57,3 +62,6 @@ class MidiTuner(val receiver: Receiver,
       .toArray
   }
 }
+
+class MidiTunerException(cause: Throwable) extends RuntimeException(
+  "Failed to send tune message to device! Did you disconnect the device?", cause)
