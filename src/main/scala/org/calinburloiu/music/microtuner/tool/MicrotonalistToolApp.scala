@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtuner.tool
 
+import org.calinburloiu.music.microtuner.TuiExperiment
 import org.calinburloiu.music.microtuner.midi.{MidiDeviceId, MidiManager}
 
 object MicrotonalistToolApp {
@@ -23,6 +24,7 @@ object MicrotonalistToolApp {
   def main(args: Array[String]): Unit = {
     args match {
       case Array("midi-devices") => printMidiDevices()
+      case Array("tui-experiment") => new TuiExperiment().run()
       case _ => println(
         """Usage:
           |midi-devices    prints all available MIDI devices
