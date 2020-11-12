@@ -18,16 +18,18 @@ package org.calinburloiu.music.microtuner
 
 import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
+import com.typesafe.scalalogging.LazyLogging
+import org.calinburloiu.music.microtuner.MicrotonalistApp.logger
 import org.calinburloiu.music.tuning.{Tuning, TuningList}
 
 class TuningSwitch(val tuner: Tuner,
                    val tuningList: TuningList,
                    eventBus: EventBus,
-                   initialPosition: Int = 0) {
+                   initialPosition: Int = 0) extends LazyLogging {
 
   private[this] var _tuningIndex: Int = initialPosition
 
-  tuner.tune(currentTuning)
+  tune()
 
   def apply(index: Int): Unit = {
     if (_tuningIndex > tuningList.tunings.size - 1) {
@@ -36,7 +38,7 @@ class TuningSwitch(val tuner: Tuner,
       val oldTuningIndex = _tuningIndex
       _tuningIndex = index
 
-      tuner.tune(currentTuning)
+      tune()
       eventBus.post(TuningChangedEvent(tuningIndex, oldTuningIndex))
     }
   }
@@ -58,4 +60,12 @@ class TuningSwitch(val tuner: Tuner,
   def currentTuning: Tuning = tuningList(_tuningIndex)
 
   def tuningCount: Int = tuningList.tunings.size
+
+  protected def tune(): Unit = {
+    try {
+      tuner.tune(currentTuning)
+    } catch {
+      case e: MidiTunerException => logger.error("Failed to switch tuning: " + e.getMessage)
+    }
+  }
 }
