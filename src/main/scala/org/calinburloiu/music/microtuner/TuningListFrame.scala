@@ -77,7 +77,7 @@ class TuningListFrame(tuningSwitch: TuningSwitch) extends JFrame("Microtuner") w
   panel.add(listComponent)
 
   add(panel)
-  setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
+  setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
   setSize(640, 480)
 
   @Subscribe
