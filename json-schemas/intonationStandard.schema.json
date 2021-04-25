@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "JSON Schema for Intonation Standard, which describes how microtonal intervals are expressed",
+    "description": "Intonation Standard, which describes how microtonal intervals are expressed",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/justIntonation" },

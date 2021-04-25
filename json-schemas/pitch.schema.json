@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Pitch used in a scale",
+    "type": ["string", "number", "object"],
+    "oneOf": [
+        { "$ref": "interval-justIntonation.schema.json" },
+        { "$ref": "interval-number.schema.json" },
+        {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Pitch name"
+                },
+                "interval": {
+                    "oneOf": [
+                        { "$ref": "interval-justIntonation.schema.json" },
+                        { "$ref": "interval-number.schema.json" }
+                    ],
+                    "description": "Interval of the pitch in relation to the tonic (first scale degree)"
+                }
+            }
+        }
+    ]
+}
