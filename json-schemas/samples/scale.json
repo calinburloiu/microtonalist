@@ -1,0 +1,19 @@
+{
+    "$schema": "../scale.schema.json",
+
+    "author": "Calin",
+    "name": "Rast",
+    "intonationStandard": {
+        "type": "edo",
+        "divisionCount": 72
+    },
+    "pitches": [
+        69,
+        383.33,
+        "5/4",
+        {
+            "name": "segah",
+            "interval": "5/4"
+        }
+    ]
+}

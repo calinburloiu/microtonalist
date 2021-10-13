@@ -1,0 +1,5 @@
+{
+    "$schema": "../intonationStandard.schema.json",
+
+    "type": "cents"
+}
