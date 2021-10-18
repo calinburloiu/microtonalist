@@ -17,33 +17,38 @@
 package org.calinburloiu.music.microtuner
 
 import com.typesafe.scalalogging.StrictLogging
-import javax.sound.midi.Receiver
-import org.calinburloiu.music.microtuner.midi.MidiTuningFormat
+
+import javax.sound.midi.{MidiMessage, Receiver}
+import org.calinburloiu.music.microtuner.midi.{MidiProcessor, MidiTuningFormat}
 import org.calinburloiu.music.tuning.Tuning
 
-trait Tuner {
+trait Tuner extends MidiProcessor {
 
-  def tune(tuning: Tuning, baseNote: Int = 0): Unit
+  def tune(tuning: Tuning): Unit
 }
 
 trait LoggerTuner extends Tuner with StrictLogging {
 
   import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 
-  abstract override def tune(tuning: Tuning, baseNote: Int = 0): Unit = {
+  abstract override def tune(tuning: Tuning): Unit = {
     logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
 
     super.tune(tuning)
   }
 }
 
-class MidiTuner(val receiver: Receiver,
-                val tuningFormat: MidiTuningFormat) extends Tuner {
+/**
+ * MIDI Tuning Standard (MTS) `Tuner` implementation.
+ * @param tuningFormat one of the MTS formats supported
+ */
+class MtsTuner(val receiver: Receiver,
+               val tuningFormat: MidiTuningFormat) extends Tuner {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
 
   @throws[MidiTunerException]
-  override def tune(tuning: Tuning, baseNote: Int = 0): Unit = {
+  override def tune(tuning: Tuning): Unit = {
     val sysexMessage = tuningMessageGenerator.generate(tuning)
     try {
       receiver.send(sysexMessage, -1)
@@ -52,15 +57,7 @@ class MidiTuner(val receiver: Receiver,
     }
   }
 
-  // TODO Rethink which code component has the transpose responsibility
-  def transpose(tuningValues: Array[Double], baseNote: Int): Array[Double] = {
-    LazyList.range(0, 12)
-      .map { index =>
-        val transposedIndex = (index + baseNote) % 12
-        tuningValues(transposedIndex)
-      }
-      .toArray
-  }
+  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = Seq(message)
 }
 
 class MidiTunerException(cause: Throwable) extends RuntimeException(

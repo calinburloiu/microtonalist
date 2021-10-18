@@ -87,8 +87,8 @@ object MicrotonalistApp extends StrictLogging {
     // # Microtuner
     val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
-    val tuner: Tuner = new MidiTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
-    val tuningSwitch = new TuningSwitch(tuner, tuningList, eventBus)
+    val tuner: Tuner = new MtsTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
+    val tuningSwitch = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
 
     // # Triggers
     maybeTransmitter.foreach { transmitter =>

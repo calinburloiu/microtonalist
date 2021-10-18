@@ -16,12 +16,11 @@
 
 package org.calinburloiu.music.microtuner.midi
 
-import com.sun.media.sound.SoftTuning
-import javax.sound.midi.SysexMessage
 import org.calinburloiu.music.tuning.Tuning
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
+import javax.sound.midi.SysexMessage
 import scala.language.implicitConversions
 
 class MidiTuningMessageGeneratorTest extends AnyFunSuite with Matchers {

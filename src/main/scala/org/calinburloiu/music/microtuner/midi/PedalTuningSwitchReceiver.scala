@@ -18,11 +18,12 @@ package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
-import org.calinburloiu.music.microtuner.TuningSwitch
+import org.calinburloiu.music.microtuner.TuningSwitcher
 
 import scala.collection.mutable
 
-class PedalTuningSwitchReceiver(tuningSwitch: TuningSwitch,
+@deprecated
+class PedalTuningSwitchReceiver(tuningSwitcher: TuningSwitcher,
                                 outputReceiver: Option[Receiver],
                                 ccTriggers: CcTriggers) extends Receiver with StrictLogging {
 
@@ -43,9 +44,9 @@ class PedalTuningSwitchReceiver(tuningSwitch: TuningSwitch,
         if (!ccDepressed(cc) && ccValue > ccTriggerThreshold) {
           ccDepressed(cc) = true
           if (cc == ccPrev)
-            tuningSwitch.prev()
+            tuningSwitcher.prev()
           else
-            tuningSwitch.next()
+            tuningSwitcher.next()
         } else if (ccDepressed(cc) && ccValue <= ccTriggerThreshold) {
           ccDepressed(cc) = false
         }
@@ -61,4 +62,45 @@ class PedalTuningSwitchReceiver(tuningSwitch: TuningSwitch,
   }
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+}
+
+trait TuningSwitchProcessor extends MidiProcessor {}
+
+class CcTuningSwitchProcessor(tuningSwitcher: TuningSwitcher,
+                              ccTriggers: CcTriggers) extends TuningSwitchProcessor {
+  private val ccPrev = ccTriggers.prevTuningCc
+  private val ccNext = ccTriggers.nextTuningCc
+  private val ccTriggerThreshold = ccTriggers.ccThreshold
+  private val isFilteringCcTriggersThru: Boolean = ccTriggers.isFilteringThru
+  private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map(ccPrev -> false, ccNext -> false)
+
+  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = message match {
+    case shortMessage: ShortMessage =>
+      val command = shortMessage.getCommand
+      val cc = shortMessage.getData1
+      val ccValue = shortMessage.getData2
+
+      // Capture Control Change messages used for switching and forward any other message
+      if (command == ShortMessage.CONTROL_CHANGE && ccDepressed.contains(cc)) {
+        if (!ccDepressed(cc) && ccValue > ccTriggerThreshold) {
+          ccDepressed(cc) = true
+          if (cc == ccPrev)
+            tuningSwitcher.prev()
+          else
+            tuningSwitcher.next()
+        } else if (ccDepressed(cc) && ccValue <= ccTriggerThreshold) {
+          ccDepressed(cc) = false
+        }
+
+        // Forward if configured so
+        if (!isFilteringCcTriggersThru) {
+          Seq(message)
+        } else {
+          Seq.empty
+        }
+      } else {
+        // Forward
+        Seq(message)
+      }
+  }
 }
