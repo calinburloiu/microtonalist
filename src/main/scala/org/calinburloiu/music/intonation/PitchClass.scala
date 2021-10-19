@@ -25,16 +25,16 @@ import scala.language.implicitConversions
 /** Class representing the concept of pitch class in the 12-tone equal temperament system,
  * identified by the semitone number and an option deviation in cents.
  *
- * @param semitone  Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
+ * @param number  Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
  * @param deviation Deviation from the semitone in cents
  */
-case class PitchClass(semitone: Int, deviation: Double = 0.0) {
-  Preconditions.checkArgument(semitone >= 0 && semitone < 12,
+case class PitchClass(number: Int, deviation: Double = 0.0) {
+  Preconditions.checkArgument(number >= 0 && number < 12,
     "0 <= semitone < 12".asInstanceOf[Any])
   Preconditions.checkArgument(deviation >= -100.0 && deviation <= 100.0,
     "-100 <= deviation <= 100".asInstanceOf[Any])
 
-  def cents: Double = 100.0 * semitone + deviation
+  def cents: Double = 100.0 * number + deviation
 
   def +(interval: Interval)(implicit pitchClassConfig: PitchClassConfig): PitchClass = {
     val totalCents = cents + interval.normalize.cents
@@ -43,6 +43,23 @@ case class PitchClass(semitone: Int, deviation: Double = 0.0) {
 }
 
 object PitchClass {
+  val C: Int = PitchClass(0)
+  val CSharp: Int = PitchClass(1)
+  val DFlat: Int = PitchClass(1)
+  val D: Int = PitchClass(2)
+  val DSharp: Int = PitchClass(3)
+  val EFlat: Int = PitchClass(3)
+  val E: Int = PitchClass(4)
+  val F: Int = PitchClass(5)
+  val FSharp: Int = PitchClass(6)
+  val GFlat: Int = PitchClass(6)
+  val G: Int = PitchClass(7)
+  val GSharp: Int = PitchClass(8)
+  val AFlat: Int = PitchClass(8)
+  val A: Int = PitchClass(9)
+  val ASharp: Int = PitchClass(10)
+  val BFlat: Int = PitchClass(10)
+  val B: Int = PitchClass(11)
 
   /** Creates a [[PitchClass]] from a cents value assumed relative to pitch class 0 (C note). */
   def fromCents(cents: Double)(implicit pitchClassConfig: PitchClassConfig): PitchClass = {
@@ -58,9 +75,9 @@ object PitchClass {
   def fromInterval(interval: Interval)(implicit pitchClassConfig: PitchClassConfig): PitchClass =
     fromCents(interval.normalize.cents)
 
-  implicit def fromInt(semitone: Int): PitchClass = PitchClass(semitone)
+  implicit def fromNumber(semitone: Int): PitchClass = PitchClass(semitone)
 
-  implicit def toInt(pitchClass: PitchClass): Int = pitchClass.semitone
+  implicit def toNumber(pitchClass: PitchClass): Int = pitchClass.number
 
   private[intonation] def roundToInt(value: Double, halfDown: Boolean, halfTolerance: Double): Int = {
     val fractional = value - Math.floor(value)

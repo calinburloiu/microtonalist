@@ -1,18 +1,64 @@
 package org.calinburloiu.music.microtuner.midi
 
-import org.calinburloiu.music.microtuner.midi.ScPitchBendMidiMessage.convertValueToDataBytes
+import org.calinburloiu.music.microtuner.midi.ScNoteOnMidiMessage.DefaultVelocity
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
-import scala.Function.unlift
 
 trait ScMidiMessage {
   def javaMidiMessage: MidiMessage
 }
 
+abstract class ScNoteMidiMessage(val channel: Int,
+                                 val midiNote: MidiNote,
+                                 val velocity: Int = DefaultVelocity) extends ScMidiMessage {
+  MidiRequirements.requireChannel(channel)
+  MidiRequirements.requireUnsigned7BitValue("noteNumber", midiNote.number)
+  MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
+
+  override def javaMidiMessage: MidiMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
+
+  protected val midiCommand: Int
+}
+
+case class ScNoteOnMidiMessage(override val channel: Int,
+                               override val midiNote: MidiNote,
+                               override val velocity: Int = DefaultVelocity)
+  extends ScNoteMidiMessage(channel, midiNote, velocity) {
+  override protected val midiCommand: Int = ShortMessage.NOTE_ON
+}
+
+object ScNoteOnMidiMessage {
+  val NoteOffVelocity: Int = 0x00
+  val DefaultVelocity: Int = 0x40
+
+  def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
+    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.NOTE_ON =>
+      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
+    case _ => None
+  }
+}
+
+case class ScNoteOffMidiMessage(override val channel: Int,
+                                override val midiNote: MidiNote,
+                                override val velocity: Int = DefaultVelocity)
+  extends ScNoteMidiMessage(channel, midiNote, velocity) {
+  override protected val midiCommand: Int = ShortMessage.NOTE_OFF
+}
+
+object ScNoteOffMidiMessage {
+  val DefaultVelocity: Int = 0x40
+
+  def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
+    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.NOTE_OFF =>
+      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
+    case _ => None
+  }
+}
+
 case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessage {
   import ScPitchBendMidiMessage._
-  require((channel & 0xFFFFFFF0) == 0, s"channel must be between 0 and 15; got $channel")
-  require(value >= MinValue && value <= MaxValue, s"value must be between $MinValue and $MaxValue; got $value")
+  MidiRequirements.requireChannel(channel)
+  MidiRequirements.requireSigned14BitValue("value", value)
 
   override lazy val javaMidiMessage: ShortMessage = {
     val (data1, data2) = convertValueToDataBytes(value)
@@ -21,8 +67,8 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
 }
 
 object ScPitchBendMidiMessage {
-  val MinValue: Int = -(1 << 13)
-  val MaxValue: Int = (1 << 13) - 1
+  val MinValue: Int = MidiRequirements.MinSigned14BitValue
+  val MaxValue: Int = MidiRequirements.MaxSigned14BitValue
 
   def unapply(message: MidiMessage): Option[(Int,Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PITCH_BEND =>
@@ -45,9 +91,9 @@ object ScPitchBendMidiMessage {
 }
 
 case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidiMessage {
-  require((channel & 0xFFFFFFF0) == 0, s"channel must be between 0 and 15; got $channel")
-  require((number & 0xFFFFFF80) == 0, s"number must be between 0 and 127; got $number")
-  require((value & 0xFFFFFF80) == 0, s"number must be between 0 and 127; got $value")
+  MidiRequirements.requireChannel(channel)
+  MidiRequirements.requireUnsigned7BitValue("number", number)
+  MidiRequirements.requireUnsigned7BitValue("value", value)
 
   override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number, value)
 }
@@ -57,5 +103,23 @@ object ScCcMidiMessage {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CONTROL_CHANGE =>
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
+  }
+}
+
+object MidiRequirements {
+  val MinSigned14BitValue: Int = -(1 << 13)
+  val MaxSigned14BitValue: Int = (1 << 13) - 1
+
+  def requireChannel(channel: Int): Unit =
+    require((channel & 0xFFFFFFF0) == 0, s"channel must be between 0 and 15; got $channel")
+
+  def requireUnsigned7BitValue(name: String, value: Int): Unit =
+    require((value & 0xFFFFFF80) == 0, s"$name must be between 0 and 127; got $value")
+
+  def requireSigned14BitValue(name: String, value: Int): Unit = {
+    require(
+      value >= MinSigned14BitValue && value <= MaxSigned14BitValue,
+      s"$name must be between $MinSigned14BitValue and $MaxSigned14BitValue; got $value"
+    )
   }
 }

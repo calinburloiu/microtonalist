@@ -51,7 +51,7 @@ class ConvertersTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
       fromHzToCents(hz, 440) should equal(cents)
 
       val PitchClass(semitone, deviation) = PitchClass.fromCents(cents)
-      semitone should equal(pitchClass.semitone)
+      semitone should equal(pitchClass.number)
       deviation should equal(pitchClass.deviation)
     }
   }

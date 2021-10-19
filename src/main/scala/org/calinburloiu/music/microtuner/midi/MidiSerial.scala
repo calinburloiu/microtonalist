@@ -5,13 +5,13 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiMessage, Receiver}
 import scala.annotation.tailrec
 
-// TODO Consider renaming to `MidiSerial` to allow a future `MidiParallel`
+// TODO Is it better to make this a MidiProcessor?
 /**
  * MIDI [[Receiver]] that can execute a chain of [[MidiProcessor]]s.
  * @param processors [[MidiProcessor]]s to execute in sequence
  * @param outputReceiver MIDI output where the messages resulted from the chain are sent
  */
-class MidiPipeline(processors: Seq[MidiProcessor], outputReceiver: Receiver) extends Receiver with StrictLogging {
+class MidiSerial(processors: Seq[MidiProcessor], outputReceiver: Receiver) extends Receiver with StrictLogging {
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     @tailrec
     def process(processorsLeft: Seq[MidiProcessor], messages: Seq[MidiMessage]): Seq[MidiMessage] = {
