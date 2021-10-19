@@ -5,10 +5,10 @@ import org.calinburloiu.music.microtuner.midi.{MidiPipeline, TuningSwitchProcess
 
 import javax.sound.midi.{MidiMessage, Receiver}
 
-class Track(tuningSwitchProcessor: TuningSwitchProcessor,
+class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
             tuner: Tuner,
             outputReceiver: Receiver) extends Receiver with StrictLogging {
-  val pipeline: MidiPipeline = new MidiPipeline(Seq(tuningSwitchProcessor, tuner), outputReceiver)
+  val pipeline: MidiPipeline = new MidiPipeline(Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     pipeline.send(message, timeStamp)

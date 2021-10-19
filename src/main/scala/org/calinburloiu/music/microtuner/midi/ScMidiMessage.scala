@@ -33,7 +33,7 @@ object ScPitchBendMidiMessage {
   def convertDataBytesToValue(data1: Int, data2: Int): Int = {
     val lsb = data1
     val msb = data2
-    ((msb << 7) | lsb) - MinValue
+    ((msb << 7) | lsb) + MinValue
   }
 
   def convertValueToDataBytes(value: Int): (Int, Int) = {

@@ -5,6 +5,7 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiMessage, Receiver}
 import scala.annotation.tailrec
 
+// TODO Consider renaming to `MidiSerial` to allow a future `MidiParallel`
 /**
  * MIDI [[Receiver]] that can execute a chain of [[MidiProcessor]]s.
  * @param processors [[MidiProcessor]]s to execute in sequence

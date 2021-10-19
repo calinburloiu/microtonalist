@@ -43,7 +43,8 @@ trait LoggerTuner extends Tuner with StrictLogging {
  * @param tuningFormat one of the MTS formats supported
  */
 class MtsTuner(val receiver: Receiver,
-               val tuningFormat: MidiTuningFormat) extends Tuner {
+               val tuningFormat: MidiTuningFormat,
+               val thru: Boolean) extends Tuner {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
 
@@ -57,7 +58,13 @@ class MtsTuner(val receiver: Receiver,
     }
   }
 
-  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = Seq(message)
+  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+    if (thru) {
+      Seq(message)
+    } else {
+      Seq.empty
+    }
+  }
 }
 
 class MidiTunerException(cause: Throwable) extends RuntimeException(

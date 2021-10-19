@@ -87,21 +87,18 @@ object MicrotonalistApp extends StrictLogging {
     // # Microtuner
     val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
-    val tuner: Tuner = new MtsTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
-    val tuningSwitch = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
-
-    // # Triggers
+    val tuner: Tuner = new MtsTuner(receiver, MidiTuningFormat.NonRealTime1BOctave, midiInputConfig.thru) with LoggerTuner
+    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
+    val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
+    val track = new Track(Some(tuningSwitchProcessor), tuner, receiver)
     maybeTransmitter.foreach { transmitter =>
-      val thruReceiver = if (midiInputConfig.thru) Some(receiver) else None
-      val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, thruReceiver,
-        midiInputConfig.triggers.cc)
-      transmitter.setReceiver(pedalTuningSwitchReceiver)
+      transmitter.setReceiver(track)
       logger.info("Using pedal tuning switcher")
     }
 
     // # GUI
     logger.info("Initializing the main frame...")
-    val tuningListFrame = new TuningListFrame(tuningSwitch)
+    val tuningListFrame = new TuningListFrame(tuningSwitcher)
     eventBus.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
