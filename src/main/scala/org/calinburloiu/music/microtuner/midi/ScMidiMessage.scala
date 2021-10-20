@@ -99,11 +99,38 @@ case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidi
 }
 
 object ScCcMidiMessage {
+  val RpnMsb: Int = 101
+  val RpnLsb: Int = 100
+  val DataEntryMsb: Int = 6
+  val DataEntryLsb: Int = 28
+  val DataIncrement: Int = 96
+  val DataDecrement: Int = 97
+  val AllSoundOff: Int = 120
+  val ResetAllControllers: Int = 121
+  val AllNotesOff: Int = 123
+
   def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CONTROL_CHANGE =>
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
   }
+}
+
+object Rpn {
+  val PitchBendSensitivityMsb: Int = 0x00
+  val PitchBendSensitivityLsb: Int = 0x00
+
+  val CoarseTuningMsb: Int = 0x00
+  val CoarseTuningLsb: Int = 0x02
+
+  val FineTuningMsb: Int = 0x00
+  val FineTuningLsb: Int = 0x01
+
+  val TuningBankSelectMsb: Int = 0x00
+  val TuningBankSelectLsb: Int = 0x04
+
+  val TuningProgramSelectMsb: Int = 0x00
+  val TuningProgramSelectLsb: Int = 0x03
 }
 
 object MidiRequirements {
