@@ -108,7 +108,7 @@ object MicrotonalistApp extends StrictLogging {
         try {
           tuner.tune(Tuning.Edo12)
         } catch {
-          case e: MidiTunerException => logger.error(e.getMessage)
+          case e: TunerException => logger.error(e.getMessage)
         }
         Thread.sleep(1000)
 

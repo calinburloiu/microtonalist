@@ -53,9 +53,7 @@ case class Tuning(name: String,
 object Tuning {
 
   /** The tuning for a 12-tone equal temperament, which has 0 cents deviation for each of the 12-keys. */
-  val Edo12: Tuning = Tuning("Equal Temperament", Seq(
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-  ))
+  val Edo12: Tuning = Tuning("Equal Temperament", Seq.fill(12)(0.0))
 
   def apply(name: String, headDeviation: Double, tailDeviations: Double*): Tuning =
     Tuning(name, headDeviation +: tailDeviations)

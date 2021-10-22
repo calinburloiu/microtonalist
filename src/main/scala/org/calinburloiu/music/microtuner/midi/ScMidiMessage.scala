@@ -31,7 +31,7 @@ object ScNoteOnMidiMessage {
   val NoteOffVelocity: Int = 0x00
   val DefaultVelocity: Int = 0x40
 
-  def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
+  def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.NOTE_ON =>
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
@@ -48,7 +48,7 @@ case class ScNoteOffMidiMessage(override val channel: Int,
 object ScNoteOffMidiMessage {
   val DefaultVelocity: Int = 0x40
 
-  def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
+  def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.NOTE_OFF =>
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
@@ -88,6 +88,19 @@ object ScPitchBendMidiMessage {
     val msb = (unsignedValue >> 7) & 0x7F
     (lsb, msb)
   }
+
+  def convertCentsToValue(cents: Double, pitchBendSensitivity: PitchBendSensitivity): Int = {
+    if (cents == 0) {
+      0
+    } else {
+      val r = Math.abs(cents / pitchBendSensitivity.totalCents)
+      if (cents < 0) {
+        Math.round(r * MinValue).toInt
+      } else {
+        Math.round(r * MaxValue).toInt
+      }
+    }
+  }
 }
 
 case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidiMessage {
@@ -102,7 +115,7 @@ object ScCcMidiMessage {
   val RpnMsb: Int = 101
   val RpnLsb: Int = 100
   val DataEntryMsb: Int = 6
-  val DataEntryLsb: Int = 28
+  val DataEntryLsb: Int = 38
   val DataIncrement: Int = 96
   val DataDecrement: Int = 97
   val AllSoundOff: Int = 120

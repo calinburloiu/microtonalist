@@ -44,22 +44,23 @@ object Pitch {
   implicit def fromFreq(freq: Double): Pitch[Interval] = Pitch(freq)
 }
 
-case class MidiNote(number: Int) {
+// TODO There is another class MidiNote
+case class MidiNote2(number: Int) {
 
   /** Returns the standard 12-tone equal temperament `Pitch`. */
   def standardPitch: Pitch[Interval] = ???
 }
 
-object MidiNote {
+object MidiNote2 {
 
-  implicit def fromMidiNoteNumber(midiNoteNumber: Int): MidiNote = MidiNote(midiNoteNumber)
+  implicit def fromMidiNoteNumber(midiNoteNumber: Int): MidiNote2 = MidiNote2(midiNoteNumber)
 }
 
-case class PitchMapping[+I <: Interval](pitch: Pitch[I], midiNote: MidiNote)
+case class PitchMapping[+I <: Interval](pitch: Pitch[I], midiNote: MidiNote2)
 
 trait Origin {
 
-  val baseMidiNote: MidiNote
+  val baseMidiNote: MidiNote2
 
   val concertPitch: Pitch[Interval]
 

@@ -65,7 +65,7 @@ class TuningSwitcher(val tuners: Seq[Tuner],
     try {
       tuners.foreach(_.tune(currentTuning))
     } catch {
-      case e: MidiTunerException => logger.error("Failed to switch tuning: " + e.getMessage)
+      case e: TunerException => logger.error("Failed to switch tuning: " + e.getMessage)
     }
   }
 }

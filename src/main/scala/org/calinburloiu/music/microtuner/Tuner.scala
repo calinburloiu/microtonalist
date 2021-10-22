@@ -19,13 +19,20 @@ package org.calinburloiu.music.microtuner
 import com.typesafe.scalalogging.StrictLogging
 
 import javax.sound.midi.{MidiMessage, Receiver}
-import org.calinburloiu.music.microtuner.midi.{MidiProcessor, MidiTuningFormat}
+import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MidiTuningFormat, PitchBendSensitivity, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
 import org.calinburloiu.music.tuning.Tuning
+
+import scala.collection.mutable
 
 trait Tuner extends MidiProcessor {
 
+  // TODO Is it better to return a sequence of messages to be consistent with MidiProcessor
   def tune(tuning: Tuning): Unit
 }
+
+class TunerException(cause: Throwable) extends RuntimeException(
+  "Failed to send tune message to device! Did you disconnect the device?", cause)
+
 
 trait LoggerTuner extends Tuner with StrictLogging {
 
@@ -42,19 +49,19 @@ trait LoggerTuner extends Tuner with StrictLogging {
  * MIDI Tuning Standard (MTS) `Tuner` implementation.
  * @param tuningFormat one of the MTS formats supported
  */
-class MtsTuner(val receiver: Receiver,
+class MtsTuner(private val outputReceiver: Receiver,
                val tuningFormat: MidiTuningFormat,
                val thru: Boolean) extends Tuner {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
 
-  @throws[MidiTunerException]
+  @throws[TunerException]
   override def tune(tuning: Tuning): Unit = {
     val sysexMessage = tuningMessageGenerator.generate(tuning)
     try {
-      receiver.send(sysexMessage, -1)
+      outputReceiver.send(sysexMessage, -1)
     } catch {
-      case e: IllegalStateException => throw new MidiTunerException(e)
+      case e: IllegalStateException => throw new TunerException(e)
     }
   }
 
@@ -67,5 +74,79 @@ class MtsTuner(val receiver: Receiver,
   }
 }
 
-class MidiTunerException(cause: Throwable) extends RuntimeException(
-  "Failed to send tune message to device! Did you disconnect the device?", cause)
+class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
+                               private val channel: Int,
+                               val pitchBendSensitivity: PitchBendSensitivity) extends Tuner {
+  private[this] var _currTuning: Tuning = Tuning.Edo12
+  // TODO What happens with the initial value?
+  private[this] var _lastNote: MidiNote = 60
+  private[this] var _isNoteOn: Boolean = false
+  /** Pitch bend applied by the performer to the current note before applying the extra tuning value */
+  private[this] var _currExpressionPitchBend: Int = 0
+  /** Extra pitch bend added to achieve the tuning for the current note */
+  private[this] var _currTuningPitchBend: Int = 0
+
+  override def tune(tuning: Tuning): Unit = {
+    currTuning = tuning
+    // Update pitch bend for the current sounding note
+    if (isNoteOn) {
+      outputReceiver.send(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage, -1)
+    }
+  }
+
+  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = message match {
+    case ScNoteOnMidiMessage(`channel`, note, _) =>
+      val result = mutable.Buffer[MidiMessage]()
+
+      // Only monophonic playing is allowed, if a note is on, turn it off
+      if (isNoteOn) {
+        result += ScNoteOffMidiMessage(channel, note).javaMidiMessage
+      }
+
+      // Internally mark the note on to update currPitchBend; the message will not be send yet
+      markNoteOn(note)
+
+      // Send pitch bend message before the note on message
+      result += ScPitchBendMidiMessage(channel, currPitchBend)
+      result += message
+
+      result.toSeq
+    case ScNoteOffMidiMessage(`channel`, `lastNote`, _) =>
+      markNoteOff()
+      Seq(message)
+    case ScPitchBendMidiMessage(`channel`, newExpressionPitchBend) =>
+      _currExpressionPitchBend = newExpressionPitchBend
+      Seq(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage)
+    case _ => Seq(message)
+  }
+
+  private def currTuning: Tuning = _currTuning
+  private def currTuning_=(newTuning: Tuning): Unit = {
+    // Update _currTuningPitchBend
+    val newDeviation = newTuning(lastNote.number)
+    if (isNoteOn && currTuning(lastNote.number) != newDeviation) {
+      _currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
+    }
+
+    _currTuning = newTuning
+  }
+
+  private def lastNote: MidiNote = _lastNote
+  private def isNoteOn: Boolean = _isNoteOn
+  private def markNoteOn(note: MidiNote): Unit = {
+    // Update _currTuningPitchBend
+    val newDeviation = currTuning(note.number)
+    if (currTuning(lastNote.number) != newDeviation) {
+      _currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
+    }
+
+    _lastNote = note
+    _isNoteOn = true
+  }
+  private def markNoteOff(): Unit = {
+    _isNoteOn = false
+  }
+
+  private def currPitchBend: Int = this._currExpressionPitchBend + this._currTuningPitchBend
+}
+
