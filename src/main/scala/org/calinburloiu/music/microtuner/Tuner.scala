@@ -78,8 +78,7 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
                                private val channel: Int,
                                val pitchBendSensitivity: PitchBendSensitivity) extends Tuner {
   private[this] var _currTuning: Tuning = Tuning.Edo12
-  // TODO What happens with the initial value?
-  private[this] var _lastNote: MidiNote = 60
+  private[this] var _lastNote: MidiNote = 0
   private[this] var _isNoteOn: Boolean = false
   /** Pitch bend applied by the performer to the current note before applying the extra tuning value */
   private[this] var _currExpressionPitchBend: Int = 0
@@ -90,6 +89,7 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
     currTuning = tuning
     // Update pitch bend for the current sounding note
     if (isNoteOn) {
+      // TODO Might redundantly send message if the tuning pitch bend did not change
       outputReceiver.send(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage, -1)
     }
   }
@@ -107,6 +107,7 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
       markNoteOn(note)
 
       // Send pitch bend message before the note on message
+      // TODO Might redundantly send message if the tuning pitch bend did not change
       result += ScPitchBendMidiMessage(channel, currPitchBend)
       result += message
 
@@ -123,8 +124,8 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
   private def currTuning: Tuning = _currTuning
   private def currTuning_=(newTuning: Tuning): Unit = {
     // Update _currTuningPitchBend
-    val newDeviation = newTuning(lastNote.number)
-    if (isNoteOn && currTuning(lastNote.number) != newDeviation) {
+    val newDeviation = newTuning(lastNote.pitchClassNumber)
+    if (currTuning(lastNote.pitchClassNumber) != newDeviation) {
       _currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
     }
 
@@ -135,8 +136,8 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
   private def isNoteOn: Boolean = _isNoteOn
   private def markNoteOn(note: MidiNote): Unit = {
     // Update _currTuningPitchBend
-    val newDeviation = currTuning(note.number)
-    if (currTuning(lastNote.number) != newDeviation) {
+    val newDeviation = currTuning(note.pitchClassNumber)
+    if (currTuning(lastNote.pitchClassNumber) != newDeviation) {
       _currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
     }
 
