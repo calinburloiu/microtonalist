@@ -14,21 +14,37 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtuner.midi.{MidiSerialProcessor, TuningSwitchProcessor}
 
 import javax.sound.midi.{MidiMessage, Receiver}
 
-class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
-            tuner: Tuner,
-            outputReceiver: Receiver) extends Receiver with StrictLogging {
-  val pipeline: MidiSerialProcessor = new MidiSerialProcessor(Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
+/**
+ * A [[MidiProcessor]] that can execute a chain of other [[MidiProcessor]]s.
+ * @param processors [[MidiProcessor]]s to execute in sequence
+ */
+class MidiSerialProcessor(processors: Seq[MidiProcessor])
+  extends MidiProcessor with StrictLogging {
+  require(processors.nonEmpty, "there should be at least 1 processor")
+
+  override def setReceiver(receiver: Receiver): Unit = {
+    super.setReceiver(receiver)
+    init()
+  }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    pipeline.send(message, timeStamp)
+    processors.head.send(message, timeStamp)
   }
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+
+  def size: Int = processors.size
+
+  private def init(): Unit = {
+    for (i <- 1 until size) {
+      processors(i - 1).receiver = processors(i)
+    }
+    processors(size - 1).receiver = receiver
+  }
 }

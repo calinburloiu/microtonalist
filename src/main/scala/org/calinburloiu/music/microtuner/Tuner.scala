@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,18 +17,16 @@
 package org.calinburloiu.music.microtuner
 
 import com.typesafe.scalalogging.StrictLogging
-
-import javax.sound.midi.{MidiMessage, Receiver}
 import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MidiTuningFormat, PitchBendSensitivity, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
 import org.calinburloiu.music.tuning.Tuning
 
-import scala.collection.mutable
+import javax.sound.midi.MidiMessage
 
-trait Tuner extends MidiProcessor {
-
-  // TODO Is it better to return a sequence of messages to be consistent with MidiProcessor
+trait Tuner {
   def tune(tuning: Tuning): Unit
 }
+
+trait TunerProcessor extends Tuner with MidiProcessor
 
 class TunerException(cause: Throwable) extends RuntimeException(
   "Failed to send tune message to device! Did you disconnect the device?", cause)
@@ -49,34 +47,37 @@ trait LoggerTuner extends Tuner with StrictLogging {
  * MIDI Tuning Standard (MTS) `Tuner` implementation.
  * @param tuningFormat one of the MTS formats supported
  */
-class MtsTuner(private val outputReceiver: Receiver,
-               val tuningFormat: MidiTuningFormat,
-               val thru: Boolean) extends Tuner {
+class MtsTuner(val tuningFormat: MidiTuningFormat,
+               val thru: Boolean) extends TunerProcessor with StrictLogging {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
 
   @throws[TunerException]
   override def tune(tuning: Tuning): Unit = {
     val sysexMessage = tuningMessageGenerator.generate(tuning)
+    // TODO Handle the try somewhere else
     try {
-      outputReceiver.send(sysexMessage, -1)
+      receiver.send(sysexMessage, -1)
     } catch {
       case e: IllegalStateException => throw new TunerException(e)
     }
   }
 
-  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+  override def send(message: MidiMessage, timeStamp: Long): Unit = {
     if (thru) {
-      Seq(message)
-    } else {
-      Seq.empty
+      try {
+        receiver.send(message, timeStamp)
+      } catch {
+        case e: IllegalStateException => throw new TunerException(e)
+      }
     }
   }
+
+  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
 }
 
-class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
-                               private val channel: Int,
-                               val pitchBendSensitivity: PitchBendSensitivity) extends Tuner {
+class MonophonicPitchBendTuner(private val channel: Int,
+                               val pitchBendSensitivity: PitchBendSensitivity) extends TunerProcessor {
   private[this] var _currTuning: Tuning = Tuning.Edo12
   private[this] var _lastNote: MidiNote = 0
   private[this] var _isNoteOn: Boolean = false
@@ -90,17 +91,16 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
     // Update pitch bend for the current sounding note
     if (isNoteOn) {
       // TODO Might redundantly send message if the tuning pitch bend did not change
-      outputReceiver.send(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage, -1)
+      receiver.send(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage, -1)
     }
   }
 
-  override def processMessage(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = message match {
+  override def send(message: MidiMessage, timeStamp: Long): Unit = message match {
     case ScNoteOnMidiMessage(`channel`, note, _) =>
-      val result = mutable.Buffer[MidiMessage]()
-
       // Only monophonic playing is allowed, if a note is on, turn it off
       if (isNoteOn) {
-        result += ScNoteOffMidiMessage(channel, note).javaMidiMessage
+        // TODO received timeStamp or -1?
+        receiver.send(ScNoteOffMidiMessage(channel, note).javaMidiMessage, timeStamp)
       }
 
       // Internally mark the note on to update currPitchBend; the message will not be send yet
@@ -108,17 +108,16 @@ class MonophonicPitchBendTuner(private val outputReceiver: Receiver,
 
       // Send pitch bend message before the note on message
       // TODO Might redundantly send message if the tuning pitch bend did not change
-      result += ScPitchBendMidiMessage(channel, currPitchBend)
-      result += message
-
-      result.toSeq
+      receiver.send(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage, timeStamp)
+      receiver.send(message, timeStamp)
     case ScNoteOffMidiMessage(`channel`, `lastNote`, _) =>
       markNoteOff()
-      Seq(message)
+      receiver.send(message, timeStamp)
     case ScPitchBendMidiMessage(`channel`, newExpressionPitchBend) =>
       _currExpressionPitchBend = newExpressionPitchBend
-      Seq(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage)
-    case _ => Seq(message)
+      receiver.send(ScPitchBendMidiMessage(channel, currPitchBend).javaMidiMessage, timeStamp)
+    case _ =>
+      receiver.send(message, timeStamp)
   }
 
   private def currTuning: Tuning = _currTuning
