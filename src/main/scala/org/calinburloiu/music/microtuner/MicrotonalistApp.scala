@@ -75,10 +75,10 @@ object MicrotonalistApp extends StrictLogging {
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-    val maybeOutputDeviceId = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
-    val receiver = maybeOutputDeviceId.map(midiManager.outputReceiver).getOrElse {
+    val outputDeviceId = midiManager.openFirstAvailableOutput(midiOutputConfig.devices).getOrElse {
       throw NoDeviceAvailableException
     }
+    val receiver = midiManager.outputReceiver(outputDeviceId)
 
     // # I/O
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
@@ -87,7 +87,8 @@ object MicrotonalistApp extends StrictLogging {
     // # Microtuner
     val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
-    val tuner: Tuner = new MtsTuner(receiver, MidiTuningFormat.NonRealTime1BOctave, midiInputConfig.thru) with LoggerTuner
+//    val tuner: TunerProcessor = new MtsTuner(MidiTuningFormat.NonRealTime1BOctave, midiInputConfig.thru) with LoggerTuner
+    val tuner: TunerProcessor = new MonophonicPitchBendTuner(0) with LoggerTuner
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
     val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
     val track = new Track(Some(tuningSwitchProcessor), tuner, receiver)
@@ -95,6 +96,7 @@ object MicrotonalistApp extends StrictLogging {
       transmitter.setReceiver(track)
       logger.info("Using pedal tuning switcher")
     }
+    tuningSwitcher.tune()
 
     // # GUI
     logger.info("Initializing the main frame...")

@@ -24,12 +24,10 @@ import org.calinburloiu.music.tuning.{Tuning, TuningList}
 
 class TuningSwitcher(val tuners: Seq[Tuner],
                      val tuningList: TuningList,
-                     eventBus: EventBus,
-                     initialPosition: Int = 0) extends LazyLogging {
+                     eventBus: EventBus) extends LazyLogging {
+  require(tuners.nonEmpty, "there should be at least one tuner")
 
-  private[this] var _tuningIndex: Int = initialPosition
-
-  tune()
+  private[this] var _tuningIndex: Int = 0
 
   def apply(index: Int): Unit = {
     if (_tuningIndex > tuningList.tunings.size - 1) {
@@ -61,11 +59,12 @@ class TuningSwitcher(val tuners: Seq[Tuner],
 
   def tuningCount: Int = tuningList.tunings.size
 
-  protected def tune(): Unit = {
+  def tune(): Unit = {
     try {
       tuners.foreach(_.tune(currentTuning))
     } catch {
       case e: TunerException => logger.error("Failed to switch tuning: " + e.getMessage)
+      case e: IllegalStateException => logger.error("Failed to switch tuning: " + e.getMessage)
     }
   }
 }

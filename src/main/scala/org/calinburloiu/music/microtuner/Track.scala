@@ -22,7 +22,7 @@ import org.calinburloiu.music.microtuner.midi.{MidiSerialProcessor, TuningSwitch
 import javax.sound.midi.{MidiMessage, Receiver}
 
 class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
-            tuner: Tuner,
+            tuner: TunerProcessor,
             outputReceiver: Receiver) extends Receiver with StrictLogging {
   val pipeline: MidiSerialProcessor = new MidiSerialProcessor(Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
 

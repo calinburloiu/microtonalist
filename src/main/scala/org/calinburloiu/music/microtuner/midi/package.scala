@@ -16,12 +16,20 @@
 
 package org.calinburloiu.music.microtuner
 
+import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.language.implicitConversions
 
 package object midi {
   implicit class MidiNote(val number: Int) extends AnyVal {
-    MidiRequirements.requireUnsigned7BitValue("MIDI note number", number)
-
     def pitchClassNumber: Int = number % 12
+  }
+
+  def mapShortMessageChannel(shortMessage: ShortMessage, map: Int => Int): ShortMessage = {
+    new ShortMessage(shortMessage.getCommand, map(shortMessage.getChannel), shortMessage.getData1, shortMessage.getData2)
+  }
+
+  def mapShortMessageChannel(message: MidiMessage, map: Int => Int): MidiMessage = message match {
+    case shortMessage: ShortMessage => mapShortMessageChannel(shortMessage, map)
+    case _ => message
   }
 }

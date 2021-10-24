@@ -28,6 +28,11 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
   extends MidiProcessor with StrictLogging {
   require(processors.nonEmpty, "there should be at least 1 processor")
 
+  def this(processors: Seq[MidiProcessor], initialReceiver: Receiver) {
+    this(processors)
+    setReceiver(initialReceiver)
+  }
+
   override def setReceiver(receiver: Receiver): Unit = {
     super.setReceiver(receiver)
     init()

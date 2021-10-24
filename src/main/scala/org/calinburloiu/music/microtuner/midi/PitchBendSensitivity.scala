@@ -22,3 +22,7 @@ case class PitchBendSensitivity(semitones: Int, cents: Int = 0) {
 
   val totalCents: Int = 100 * semitones + cents
 }
+
+object PitchBendSensitivity {
+  val Default: PitchBendSensitivity = PitchBendSensitivity(2)
+}
