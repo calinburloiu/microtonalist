@@ -84,6 +84,7 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
 
 object ScPitchBendMidiMessage {
   val MinValue: Int = MidiRequirements.MinSigned14BitValue
+  val NoPitchBendValue: Int = 0
   val MaxValue: Int = MidiRequirements.MaxSigned14BitValue
 
   def unapply(message: MidiMessage): Option[(Int,Int)] = message match {
@@ -160,6 +161,9 @@ object Rpn {
 
   val TuningProgramSelectMsb: Int = 0x00
   val TuningProgramSelectLsb: Int = 0x03
+
+  val NullMsb: Int = 0x7F
+  val NullLsb: Int = 0x7F
 }
 
 object MidiRequirements {

@@ -16,13 +16,15 @@
 
 package org.calinburloiu.music.microtuner.midi
 
-import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
+import javax.sound.midi.{Receiver, Transmitter}
 
 trait MidiProcessor extends Transmitter with Receiver {
   private var _receiver: Option[Receiver] = None
 
   override def setReceiver(receiver: Receiver): Unit = {
+    onDisconnect()
     _receiver = Some(receiver)
+    onConnect()
   }
 
   override def getReceiver: Receiver = _receiver.getOrElse(throw new IllegalStateException("No receiver was set!"))
@@ -42,4 +44,24 @@ trait MidiProcessor extends Transmitter with Receiver {
     send(scMessage.javaMidiMessage, timeStamp)
     this
   }
+
+  override def close(): Unit = onDisconnect()
+
+  /**
+   * Callback called after a receiver is set to allow configuring the output device to be used with the processor.
+   *
+   * @see [[MidiProcessor#setReceiver()]]
+   */
+  protected def onConnect(): Unit
+
+  /**
+   * Callback called before a new receiver is set to let the receiver being replaced in a consistent state.
+   *
+   * The processor can't know what was the exact state of the output device before connecting the processor to it.
+   * Leaving it in a consistent state means setting the parameters (CCs, RPNs, NRPNs etc.) that were altered by the
+   * processor to some convenient/default values.
+   *
+   * @see [[MidiProcessor#setReceiver()]]
+   */
+  protected def onDisconnect(): Unit
 }

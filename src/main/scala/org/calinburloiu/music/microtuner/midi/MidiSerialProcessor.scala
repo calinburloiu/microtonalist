@@ -33,11 +33,6 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
     setReceiver(initialReceiver)
   }
 
-  override def setReceiver(receiver: Receiver): Unit = {
-    super.setReceiver(receiver)
-    init()
-  }
-
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     processors.head.send(message, timeStamp)
   }
@@ -46,10 +41,12 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
 
   def size: Int = processors.size
 
-  private def init(): Unit = {
+  override protected def onConnect(): Unit = {
     for (i <- 1 until size) {
       processors(i - 1).receiver = processors(i)
     }
     processors(size - 1).receiver = receiver
   }
+
+  override protected def onDisconnect(): Unit = {}
 }

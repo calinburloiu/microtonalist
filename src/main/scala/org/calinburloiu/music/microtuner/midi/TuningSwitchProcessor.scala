@@ -61,5 +61,16 @@ class CcTuningSwitchProcessor(tuningSwitcher: TuningSwitcher,
       }
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override def close(): Unit = {
+    super.close()
+    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  }
+
+  override protected def onConnect(): Unit = {
+    logger.info(s"Connected the CC tuning switch MIDI processor.")
+  }
+
+  override protected def onDisconnect(): Unit = {
+    logger.info(s"Disconnected the CC tuning switch MIDI processor.")
+  }
 }

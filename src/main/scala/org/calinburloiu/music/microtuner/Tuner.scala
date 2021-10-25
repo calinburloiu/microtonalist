@@ -17,10 +17,10 @@
 package org.calinburloiu.music.microtuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MidiTuningFormat, PitchBendSensitivity, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, mapShortMessageChannel}
+import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MidiTuningFormat, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, mapShortMessageChannel}
 import org.calinburloiu.music.tuning.Tuning
 
-import javax.sound.midi.{MidiMessage, ShortMessage}
+import javax.sound.midi.MidiMessage
 
 trait Tuner {
   def tune(tuning: Tuning): Unit
@@ -45,6 +45,7 @@ trait LoggerTuner extends Tuner with StrictLogging {
 
 /**
  * MIDI Tuning Standard (MTS) `Tuner` implementation.
+ *
  * @param tuningFormat one of the MTS formats supported
  */
 class MtsTuner(val tuningFormat: MidiTuningFormat,
@@ -73,9 +74,22 @@ class MtsTuner(val tuningFormat: MidiTuningFormat,
     }
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override def close(): Unit = {
+    super.close()
+    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  }
+
+  override protected def onConnect(): Unit = {
+    logger.info(s"Connected the MTS tuner.")
+  }
+
+  override protected def onDisconnect(): Unit = {
+    tune(Tuning.Edo12)
+    logger.info("Disconnected the MTS tuner.")
+  }
 }
 
+// TODO Add support for portamento and send its 3 CCs via onConnect()
 class MonophonicPitchBendTuner(private val outputChannel: Int,
                                val pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
   extends TunerProcessor with StrictLogging {
@@ -131,7 +145,39 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     }
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override protected def onConnect(): Unit = {
+    sendPitchSensitivity(pitchBendSensitivity)
+
+    logger.info(s"Connected the monophonic pitch bend tuner.")
+  }
+
+  override protected def onDisconnect(): Unit = {
+    // Unset the pitch bend
+    val noPitchBendMessage = ScPitchBendMidiMessage(outputChannel, ScPitchBendMidiMessage.NoPitchBendValue)
+    receiver.send(noPitchBendMessage.javaMidiMessage, -1)
+
+    // Reset pitch bend sensitivity to the default value
+    sendPitchSensitivity(PitchBendSensitivity.Default)
+
+    logger.info(s"Disconnected the monophonic pitch bend tuner.")
+  }
+
+  override def close(): Unit = {
+    super.close()
+    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  }
+
+  private def sendPitchSensitivity(pitchBendSensitivity: PitchBendSensitivity): Unit = {
+    Seq(
+      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      ScCcMidiMessage(outputChannel, ScCcMidiMessage.DataEntryMsb, pitchBendSensitivity.semitones),
+      ScCcMidiMessage(outputChannel, ScCcMidiMessage.DataEntryLsb, pitchBendSensitivity.cents),
+      // Setting the parameter number to Null to prevent accidental changes of values
+      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
+      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
+    ).foreach { scMessage => receiver.send(scMessage.javaMidiMessage, -1) }
+  }
 
   private def sendPitchBend(): Unit = {
     if (_unsentPitchBend) {
@@ -141,6 +187,7 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
   }
 
   private def currTuning: Tuning = _currTuning
+
   private def currTuning_=(newTuning: Tuning): Unit = {
     // Update currTuningPitchBend
     val newDeviation = newTuning(lastNote.pitchClassNumber)
@@ -152,7 +199,9 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
   }
 
   private def lastNote: MidiNote = _lastNote
+
   private def isNoteOn: Boolean = _isNoteOn
+
   private def markNoteOn(note: MidiNote): Unit = {
     // Update currTuningPitchBend
     val newDeviation = currTuning(note.pitchClassNumber)
@@ -163,22 +212,27 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     _lastNote = note
     _isNoteOn = true
   }
+
   private def markNoteOff(): Unit = {
     _isNoteOn = false
   }
 
   private def currExpressionPitchBend: Int = _currExpressionPitchBend
+
   private def currExpressionPitchBend_=(value: Int): Unit = {
     _currExpressionPitchBend = value
     _unsentPitchBend = true
   }
 
   private def currTuningPitchBend: Int = _currTuningPitchBend
+
   private def currTuningPitchBend_=(value: Int): Unit = {
     _currTuningPitchBend = value
     _unsentPitchBend = true
   }
 
-  private def currPitchBend: Int = this.currExpressionPitchBend + this.currTuningPitchBend
+  // TODO Check why it previously worked without clamping
+  //  private def currPitchBend: Int = this.currExpressionPitchBend + this.currTuningPitchBend
+  private def currPitchBend: Int = Math.max(ScPitchBendMidiMessage.MinValue,
+    Math.min(ScPitchBendMidiMessage.MaxValue, this.currExpressionPitchBend + this.currTuningPitchBend))
 }
-
