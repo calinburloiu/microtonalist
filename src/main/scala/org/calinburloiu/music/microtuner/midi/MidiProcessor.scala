@@ -22,7 +22,7 @@ trait MidiProcessor extends Transmitter with Receiver {
   private var _receiver: Option[Receiver] = None
 
   override def setReceiver(receiver: Receiver): Unit = {
-    onDisconnect()
+    if (_receiver.isDefined) onDisconnect()
     _receiver = Some(receiver)
     onConnect()
   }
