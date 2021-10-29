@@ -38,7 +38,7 @@ trait MidiProcessorFixture[P <: MidiProcessor] {
   }
 
   def output: Seq[MidiMessage] = _output.toSeq
-  def outputAsShortMessages: Seq[ShortMessage] = output.collect { case shortMessage: ShortMessage => shortMessage }
+  def shortMessageOutput: Seq[ShortMessage] = output.collect { case shortMessage: ShortMessage => shortMessage }
 
-  def reset(): Unit = _output.clear()
+  def resetOutput(): Unit = _output.clear()
 }
