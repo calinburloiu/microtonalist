@@ -18,11 +18,12 @@ package org.calinburloiu.music.microtuner
 
 import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessorFixture, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
 import org.calinburloiu.music.tuning.Tuning
+import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import javax.sound.midi.MidiMessage
+import javax.sound.midi.{MidiMessage, ShortMessage}
 
 class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside {
   private val inputChannel = 2
@@ -51,6 +52,10 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
     noteAb4, noteA4, noteBb4, noteB4) = 60 until 72
 
+  private val epsilon: Double = 2e-2
+  private implicit val doubleEquality: Equality[Double] =
+    TolerantNumerics.tolerantDoubleEquality(epsilon)
+
   /** Default fixture that auto connects. Create a custom one for other cases. */
   private trait Fixture extends MidiProcessorFixture[MonophonicPitchBendTuner] {
     override val midiProcessor: MonophonicPitchBendTuner = new MonophonicPitchBendTuner(outputChannel, pitchBendSensitivity)
@@ -71,14 +76,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.send(ScNoteOffMidiMessage(channel, note))
   }
 
-  private def collectNotes(midiMessages: Seq[MidiMessage]): Seq[Either[Int, Int]] = {
-    midiMessages.collect {
-      case ScNoteOnMidiMessage(_, note, _) => Right(note.number)
-      case ScNoteOffMidiMessage(_, note, _) => Left(note.number)
+  private def filterNotes(shortMessages: Seq[ShortMessage]): Seq[ShortMessage] = {
+    shortMessages.filter { m =>
+      m.getCommand == ShortMessage.NOTE_ON || m.getCommand == ShortMessage.NOTE_OFF
     }
   }
 
-  private def collectCcMessage(midiMessages: Seq[MidiMessage]): Seq[(Int, Int)] = {
+  private def collectCcMessages(midiMessages: Seq[MidiMessage]): Seq[(Int, Int)] = {
     midiMessages.collect {
       case ScCcMidiMessage(channel, number, value) =>
         channel should equal (outputChannel)
@@ -98,7 +102,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should not be empty
 
-    val ccMessages: Seq[(Int, Int)] = collectCcMessage(output)
+    val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
     ccMessages should contain inOrderOnly (
       (ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
       (ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
@@ -116,11 +120,9 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
         outputChannel, PitchBendSensitivity(3, 37))
       connect()
       resetOutput()
-      // Reconnecting triggers onDisconnect(). The output will also contain onConnect() messages.
-      connect()
+      midiProcessor.close()
 
-      List(0, 1, 2, 2, 99, 3, 3, 3, 5) should contain inOrder (1, 2, 3)
-      val ccMessages: Seq[(Int, Int)] = collectCcMessage(output)
+      val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
       ccMessages.containsSlice(Seq(
         (ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
         (ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
@@ -161,7 +163,9 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     // Send some Cs
     sendNote(tuner, 60)
     sendNote(tuner, 48)
-    sendNote(tuner, 84)
+    tuner.send(ScNoteOnMidiMessage(inputChannel, 84))
+    // Send on of the "note off" as a note on with velocity 0
+    tuner.send(ScNoteOnMidiMessage(inputChannel, 84, 0))
 
     pitchBendOutput shouldBe empty
   }
@@ -259,43 +263,184 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "play monophonically even if no note off messages are sent" in new Fixture {
     tuner.tune(customTuning)
 
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteC4))
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteDSharp4))
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteE4))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteC4, 48))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteDSharp4, 64))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteE4, 96))
 
-    val outputNotes: Seq[Either[Int, Int]] = collectNotes(shortMessageOutput)
-    outputNotes should equal (Seq(
-      Right(noteC4),
-      Left(noteC4),
-      Right(noteDSharp4),
-      Left(noteDSharp4),
-      Right(noteE4)
-    ))
+    val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
+    outputNotes should have size 5
+    inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, 48) => note.number shouldEqual noteC4 }
+    inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, 64) => note.number shouldEqual noteC4 }
+    inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, 64) => note.number shouldEqual noteDSharp4 }
+    inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, 96) => note.number shouldEqual noteDSharp4 }
+    inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, 96) => note.number shouldEqual noteE4 }
   }
 
-  // TODO Enable
-  ignore should "always revert to the last note played while releasing simultaneous notes one by one" in new Fixture {
+  it should "always revert to the last note played while releasing simultaneous notes one by one" in new Fixture {
     tuner.tune(customTuning)
 
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteC4))
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteE4))
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteG4))
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteBb4))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteC4, 20))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteE4, 40))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteG4, 60))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteBb4, 80))
 
     resetOutput()
-    tuner.send(ScNoteOffMidiMessage(inputChannel, noteBb4))
-    tuner.send(ScNoteOffMidiMessage(inputChannel, noteE4))
-    tuner.send(ScNoteOffMidiMessage(inputChannel, noteG4))
-    tuner.send(ScNoteOffMidiMessage(inputChannel, noteC4))
+    tuner.send(ScNoteOffMidiMessage(inputChannel, noteBb4, 85))
+    tuner.send(ScNoteOffMidiMessage(inputChannel, noteE4, 65))
+    tuner.send(ScNoteOffMidiMessage(inputChannel, noteG4, 45))
+    tuner.send(ScNoteOffMidiMessage(inputChannel, noteC4, 25))
 
-    val outputNotes: Seq[Either[Int, Int]] = collectNotes(shortMessageOutput)
-    outputNotes should equal (Seq(
-      Left(noteBb4),
-      Right(noteG4),  // Playing G
-      Left(noteE4),
-      Left(noteG4),  // Playing C
-      Right(noteC4),  // Playing C
-      Left(noteC4)
+    val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
+    outputNotes should have size 5
+    inside(outputNotes.head) { case ScNoteOffMidiMessage(_, note, 85) => note.number shouldEqual noteBb4 }
+    inside(outputNotes(1)) { case ScNoteOnMidiMessage(_, note, 85) => note.number shouldEqual noteG4 }
+    inside(outputNotes(2)) { case ScNoteOffMidiMessage(_, note, 45) => note.number shouldEqual noteG4 }
+    inside(outputNotes(3)) { case ScNoteOnMidiMessage(_, note, 45) => note.number shouldEqual noteC4 }
+    inside(outputNotes(4)) { case ScNoteOffMidiMessage(_, note, 25) => note.number shouldEqual noteC4 }
+  }
+
+  it should "tune reverted notes when holding a non-microtonal note while playing a microtonal one and lifting it" in
+    new Fixture {
+    tuner.tune(customTuning)
+    resetOutput()
+
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteG4))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteAb4))
+    tuner.send(ScNoteOffMidiMessage(inputChannel, noteAb4))
+
+    output should have size 7
+    inside(output.head) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal (noteG4) }
+    inside(output(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal (noteG4) }
+    inside(output(2)) { case ScPitchBendMidiMessage(_, value) => value should be > 0 }
+    inside(output(3)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal (noteAb4) }
+    inside(output(4)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal (noteAb4) }
+    inside(output(5)) { case ScPitchBendMidiMessage(_, value) => value should be (0) }
+    inside(output(6)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal (noteG4) }
+  }
+
+  behavior of "MonophonicPitchBendTuner when it receives pitch bend messages"
+
+  it should "only add the pitch bend received if the note played is not microtonal" in new Fixture {
+    sendNote(tuner, noteC4)
+    resetOutput()
+
+    tuner.send(ScPitchBendMidiMessage(inputChannel, -2020))
+
+    output should have size 1
+    pitchBendOutput should have size 1
+    pitchBendOutput.head.value should equal (-2020)
+  }
+
+  it should "add the pitch bend received to the one computed for tuning a microtonal note" in new Fixture {
+    tuner.tune(customTuning)
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteE4, 96))
+    resetOutput()
+
+    val expressionPitchBendCents: Double = 50
+    val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
+      expressionPitchBendCents, pitchBendSensitivity)
+    tuner.send(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue))
+
+    output should have size 1
+    pitchBendOutput should have size 1
+    ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal (
+      customTuning(4) + expressionPitchBendCents)
+  }
+
+  it should "add the pitch bend received to the one computed for tuning the last microtonal note (which is off)" in
+    new Fixture {
+      tuner.tune(customTuning)
+      sendNote(tuner, noteE4)
+      resetOutput()
+
+      val expressionPitchBendCents: Double = 50
+      val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
+        expressionPitchBendCents, pitchBendSensitivity)
+      tuner.send(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue))
+
+      output should have size 1
+      pitchBendOutput should have size 1
+      ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal (
+        customTuning(4) + expressionPitchBendCents)
+    }
+
+  it should "continue adding the last pitch bend received to the one for notes of different tunings" in new Fixture {
+    val expressionPitchBendCents: Double = -25
+    val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
+      expressionPitchBendCents, pitchBendSensitivity)
+    tuner.tune(customTuning)
+    tuner.send(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue))
+    resetOutput()
+
+    sendNote(tuner, noteDSharp4)
+    sendNote(tuner, noteC4)
+    sendNote(tuner, noteE4)
+
+    pitchBendOutput should have size 3
+
+    val centResults: Seq[Double] = pitchBendOutput.map { message =>
+      ScPitchBendMidiMessage.convertValueToCents(message.value, pitchBendSensitivity)
+    }
+    val expectedCentsResults: Seq[Double] = Seq(customTuning(3), customTuning(0), customTuning(4))
+      .map(_ + expressionPitchBendCents)
+    // Using a for because tolerance does not work with sequences
+    (0 until 3).foreach { i => centResults(i) should equal (expectedCentsResults(i)) }
+  }
+
+  it should "clamp the pitch bend to min/max value if adding received pitch bend to tuning pitch bend " +
+    "exceeds the bounds" in new Fixture {
+    tuner.tune(customTuning)
+    resetOutput()
+
+    tuner.send(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MaxValue - 1))
+    sendNote(tuner, noteDFlat4)
+    pitchBendOutput should have size 2
+    pitchBendOutput(1).value should equal (ScPitchBendMidiMessage.MaxValue)
+
+    resetOutput()
+
+    tuner.send(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MinValue + 1))
+    sendNote(tuner, noteA4)
+    pitchBendOutput should have size 2
+    pitchBendOutput(1).value should equal (ScPitchBendMidiMessage.MinValue)
+  }
+
+  behavior of "MonophonicPitchBendTuner when non-tuning-related MIDI messages are received"
+
+  it should "forward pedal CC messages on the correct channel" in new Fixture {
+    tuner.tune(customTuning2)
+    resetOutput()
+
+    tuner.send(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SustainPedal, 34))
+    tuner.send(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SostenutoPedal, 53))
+    tuner.send(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SoftPedal, 0))
+
+    collectCcMessages(output) should equal (Seq(
+      (ScCcMidiMessage.SustainPedal, 34),
+      (ScCcMidiMessage.SostenutoPedal, 53),
+      (ScCcMidiMessage.SoftPedal, 0)
     ))
+
+    shortMessageOutput.map(_.getChannel).distinct should equal (Seq(outputChannel))
+  }
+
+  behavior of "MonophonicPitchBendTuner bugs"
+
+  it should "work for note Bb on, note A on, note Bb off, note Bb on in custom tuning" in new Fixture {
+    tuner.tune(customTuning)
+    resetOutput()
+
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteBb4))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteA4))
+    tuner.send(ScNoteOffMidiMessage(inputChannel, noteBb4))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, noteBb4))
+
+    val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
+    outputNotes should have size 5
+    inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4  }
+    inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteBb4  }
+    inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteA4  }
+    inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteA4  }
+    inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4  }
   }
 }

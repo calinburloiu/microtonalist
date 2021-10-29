@@ -16,17 +16,17 @@
 
 package org.calinburloiu.music.microtuner
 
-import java.nio.file.{Path, Paths}
-
 import com.typesafe.config.{Config => HoconConfig}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
+
+import java.nio.file.{Path, Paths}
 
 case class CoreConfig(scaleLibraryPath: Path = CoreConfig.defaultScaleLibraryPath,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
-  val defaultScaleLibraryPath: Path = if (PlatformUtil.isMac)
+  val defaultScaleLibraryPath: Path = if (PlatformUtils.isMac)
     Paths.get("~/Music/microtonalist/lib/scales/")
   else
     throw new RuntimeException("Only Mac platform is currently supported")

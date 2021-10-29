@@ -16,14 +16,13 @@
 
 package org.calinburloiu.music.microtuner
 
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => HoconConfig}
+import com.typesafe.scalalogging.StrictLogging
+
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
-
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => HoconConfig}
-import com.typesafe.scalalogging.StrictLogging
-
 import scala.util.Try
 
 final class MainConfigManager private[microtuner](configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
@@ -114,7 +113,7 @@ object MainConfigManager {
     .setOriginComments(false)
     .setJson(false)
 
-  def defaultConfigFile: Path = if (PlatformUtil.isMac)
+  def defaultConfigFile: Path = if (PlatformUtils.isMac)
     Paths.get(System.getProperty("user.home"), ".microtonalist/microtonalist.conf")
   else
     throw new RuntimeException("Only Mac platform is currently supported")

@@ -21,6 +21,7 @@ import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MidiTuni
 import org.calinburloiu.music.tuning.Tuning
 
 import javax.sound.midi.MidiMessage
+import scala.collection.mutable
 
 trait Tuner {
   def tune(tuning: Tuning): Unit
@@ -89,13 +90,14 @@ class MtsTuner(val tuningFormat: MidiTuningFormat,
   }
 }
 
-// TODO Add support for portamento and send its 3 CCs via onConnect()
 class MonophonicPitchBendTuner(private val outputChannel: Int,
                                val pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
   extends TunerProcessor with StrictLogging {
   private[this] var _currTuning: Tuning = Tuning.Edo12
-  private[this] var _lastNote: MidiNote = 0
-  private[this] var _isNoteOn: Boolean = false
+
+  private[this] val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
+  private[this] var _lastSingleNote: MidiNote = 0
+
   /** Pitch bend applied by the performer to the current note before applying the extra tuning value */
   private[this] var _currExpressionPitchBend: Int = 0
   /** Extra pitch bend added to achieve the tuning for the current note */
@@ -113,33 +115,23 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     val forwardedMessage = mapShortMessageChannel(message, _ => outputChannel)
 
-    def onNoteOff(note: MidiNote): Unit = {
-      if (note == lastNote) {
-        markNoteOff()
-        receiver.send(forwardedMessage, -1)
-      }
-    }
-
     message match {
-      case ScNoteOnMidiMessage(_, note, _) =>
+      case ScNoteOnMidiMessage(_, note, 0) =>
+        turnNoteOff(note, 0)
+      case ScNoteOnMidiMessage(_, note, velocity) =>
         // Only monophonic playing is allowed, if a note is on, turn it off
         if (isNoteOn) {
-          receiver.send(ScNoteOffMidiMessage(outputChannel, lastNote).javaMidiMessage, -1)
+          // Using the velocity from note on
+          sendNoteOff(lastNote, velocity)
         }
 
         // Internally mark the note on to update currPitchBend; the message will not be send yet
-        markNoteOn(note)
-
-        // Send pitch bend message before the note on message
-        sendPitchBend()
-        receiver.send(forwardedMessage, -1)
-      case ScNoteOffMidiMessage(_, note, _) =>
-        onNoteOff(note)
-      case ScNoteOnMidiMessage(_, note, 0) =>
-        onNoteOff(note)
+        turnNoteOn(note, velocity)
+      case ScNoteOffMidiMessage(_, note, velocity) =>
+        turnNoteOff(note, velocity)
       case ScPitchBendMidiMessage(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
-        receiver.send(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMidiMessage, -1)
+        sendPitchBend()
       case _ =>
         receiver.send(forwardedMessage, -1)
     }
@@ -179,13 +171,6 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     ).foreach { scMessage => receiver.send(scMessage.javaMidiMessage, -1) }
   }
 
-  private def sendPitchBend(): Unit = {
-    if (_unsentPitchBend) {
-      receiver.send(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMidiMessage, -1)
-      _unsentPitchBend = false
-    }
-  }
-
   private def currTuning: Tuning = _currTuning
 
   private def currTuning_=(newTuning: Tuning): Unit = {
@@ -198,23 +183,65 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     _currTuning = newTuning
   }
 
-  private def lastNote: MidiNote = _lastNote
+  private def lastNote: MidiNote = noteStack.headOption.getOrElse(_lastSingleNote)
 
-  private def isNoteOn: Boolean = _isNoteOn
+  private def isNoteOn: Boolean = noteStack.nonEmpty
 
-  private def markNoteOn(note: MidiNote): Unit = {
+  private def sendNoteOn(note: MidiNote, velocity: Int): Unit = {
+    receiver.send(ScNoteOnMidiMessage(outputChannel, note, velocity).javaMidiMessage, -1)
+  }
+
+  private def turnNoteOn(note: MidiNote, velocity: Int): Unit = {
     // Update currTuningPitchBend
     val newDeviation = currTuning(note.pitchClassNumber)
     if (currTuning(lastNote.pitchClassNumber) != newDeviation) {
       currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
     }
 
-    _lastNote = note
-    _isNoteOn = true
+    // Send pitch bend message before the note on message
+    sendPitchBend()
+    sendNoteOn(note, velocity)
+
+    noteStack.push(note)
   }
 
-  private def markNoteOff(): Unit = {
-    _isNoteOn = false
+  private def sendNoteOff(note: MidiNote, velocity: Int): Unit = {
+    if (velocity > 0) {
+      receiver.send(ScNoteOffMidiMessage(outputChannel, note, velocity).javaMidiMessage, -1)
+    } else {
+      receiver.send(ScNoteOnMidiMessage(outputChannel, note, 0).javaMidiMessage, -1)
+    }
+  }
+
+  private def turnNoteOff(note: MidiNote, velocity: Int): Unit = {
+    if (!isNoteOn) {
+      return
+    }
+
+    if (note == noteStack.head) {
+      sendNoteOff(note, velocity)
+
+      val oldDeviation = currTuning(lastNote.pitchClassNumber)
+      noteStack.pop()
+      // Play the next note from the top of the stack
+      if (isNoteOn) {
+        val newDeviation = currTuning(lastNote.pitchClassNumber)
+        if (oldDeviation != newDeviation) {
+          currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
+        }
+
+        // Send pitch bend message before the note on message
+        sendPitchBend()
+        // Trying to use the note off velocity for note on if possible, otherwise, use the default one
+        val noteOnVelocity = if (velocity > 0) velocity else ScNoteOnMidiMessage.DefaultVelocity
+        sendNoteOn(lastNote, noteOnVelocity)
+      } else {
+        _lastSingleNote = note
+      }
+    } else {
+      // Removed from the tail of the stack
+      noteStack -= note
+    }
   }
 
   private def currExpressionPitchBend: Int = _currExpressionPitchBend
@@ -231,8 +258,13 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     _unsentPitchBend = true
   }
 
-  // TODO Check why it previously worked without clamping
-  //  private def currPitchBend: Int = this.currExpressionPitchBend + this.currTuningPitchBend
   private def currPitchBend: Int = Math.max(ScPitchBendMidiMessage.MinValue,
     Math.min(ScPitchBendMidiMessage.MaxValue, this.currExpressionPitchBend + this.currTuningPitchBend))
+
+  private def sendPitchBend(): Unit = {
+    if (_unsentPitchBend) {
+      receiver.send(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMidiMessage, -1)
+      _unsentPitchBend = false
+    }
+  }
 }

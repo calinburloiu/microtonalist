@@ -107,6 +107,9 @@ object ScPitchBendMidiMessage {
   }
 
   def convertCentsToValue(cents: Double, pitchBendSensitivity: PitchBendSensitivity): Int = {
+    require(cents >= -pitchBendSensitivity.totalCents && cents <= pitchBendSensitivity.totalCents,
+      "cents should not exceed the limits set by pitchBendSensitivity")
+
     if (cents == 0) {
       0
     } else {
@@ -116,6 +119,18 @@ object ScPitchBendMidiMessage {
       } else {
         Math.round(r * MaxValue).toInt
       }
+    }
+  }
+
+  def convertValueToCents(value: Int, pitchBendSensitivity: PitchBendSensitivity): Double = {
+    MidiRequirements.requireSigned14BitValue("value", value)
+
+    if (value == 0) {
+      0
+    } else if (value < 0) {
+      -Math.abs(value.toDouble / MinValue) * pitchBendSensitivity.totalCents
+    } else {  // if (value > 0)
+      Math.abs(value.toDouble / MaxValue) * pitchBendSensitivity.totalCents
     }
   }
 }
@@ -138,6 +153,10 @@ object ScCcMidiMessage {
   val AllSoundOff: Int = 120
   val ResetAllControllers: Int = 121
   val AllNotesOff: Int = 123
+
+  val SustainPedal: Int = 64
+  val SostenutoPedal: Int = 66
+  val SoftPedal: Int = 67
 
   def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CONTROL_CHANGE =>
