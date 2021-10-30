@@ -57,7 +57,7 @@ class MtsTuner(val tuningFormat: MtsTuningFormat,
   @throws[TunerException]
   override def tune(tuning: Tuning): Unit = {
     val sysexMessage = tuningMessageGenerator.generate(tuning)
-    // TODO Handle the try somewhere else
+    // TODO Handle the try differently
     try {
       receiver.send(sysexMessage, -1)
     } catch {
@@ -104,6 +104,12 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
   private[this] var _currTuningPitchBend: Int = 0
   private[this] var _unsentPitchBend: Boolean = false
 
+  private[this] var _lastNoteOnVelocity = ScNoteOnMidiMessage.DefaultVelocity
+  private[this] var _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
+
+  private[this] var _sustainPedal: Int = 0
+  private[this] var _sostenutoPedal: Int = 0
+
   override def tune(tuning: Tuning): Unit = {
     currTuning = tuning
     // Update pitch bend for the current sounding note
@@ -121,8 +127,7 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
       case ScNoteOnMidiMessage(_, note, velocity) =>
         // Only monophonic playing is allowed, if a note is on, turn it off
         if (isNoteOn) {
-          // Using the velocity from note on
-          sendNoteOff(lastNote, velocity)
+          sendNoteOff(lastNote, _lastNoteOffVelocity)
         }
 
         // Internally mark the note on to update currPitchBend; the message will not be send yet
@@ -132,6 +137,14 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
       case ScPitchBendMidiMessage(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
         sendPitchBend()
+      case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, value) =>
+        println(s"sustain = $value")
+        _sustainPedal = value
+        receiver.send(forwardedMessage, -1)
+      case ScCcMidiMessage(_, ScCcMidiMessage.SostenutoPedal, value) =>
+        println(s"sostenuto = $value")
+        _sostenutoPedal = value
+        receiver.send(forwardedMessage, -1)
       case _ =>
         receiver.send(forwardedMessage, -1)
     }
@@ -189,6 +202,7 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
 
   private def sendNoteOn(note: MidiNote, velocity: Int): Unit = {
     receiver.send(ScNoteOnMidiMessage(outputChannel, note, velocity).javaMidiMessage, -1)
+    _lastNoteOnVelocity = velocity
   }
 
   private def turnNoteOn(note: MidiNote, velocity: Int): Unit = {
@@ -199,6 +213,7 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     }
 
     // Send pitch bend message before the note on message
+    interruptPedals()
     sendPitchBend()
     sendNoteOn(note, velocity)
 
@@ -208,8 +223,10 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
   private def sendNoteOff(note: MidiNote, velocity: Int): Unit = {
     if (velocity > 0) {
       receiver.send(ScNoteOffMidiMessage(outputChannel, note, velocity).javaMidiMessage, -1)
+      _lastNoteOffVelocity = velocity
     } else {
       receiver.send(ScNoteOnMidiMessage(outputChannel, note, 0).javaMidiMessage, -1)
+      _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
     }
   }
 
@@ -231,16 +248,28 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
         }
 
         // Send pitch bend message before the note on message
+        interruptPedals()
         sendPitchBend()
-        // Trying to use the note off velocity for note on if possible, otherwise, use the default one
-        val noteOnVelocity = if (velocity > 0) velocity else ScNoteOnMidiMessage.DefaultVelocity
-        sendNoteOn(lastNote, noteOnVelocity)
+        sendNoteOn(lastNote, _lastNoteOnVelocity)
       } else {
         _lastSingleNote = note
       }
     } else {
       // Removed from the tail of the stack
       noteStack -= note
+    }
+  }
+
+  /** Turns off and then back on the pedals depressed in order to not violate monophony. */
+  private def interruptPedals(): Unit = {
+    if (_sustainPedal > 0) {
+      receiver.send(ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, 0).javaMidiMessage, -1)
+      receiver.send(ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, _sustainPedal).javaMidiMessage, -1)
+    }
+    if (_sostenutoPedal > 0) {
+      // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
+      receiver.send(ScCcMidiMessage(outputChannel, ScCcMidiMessage.SostenutoPedal, 0).javaMidiMessage, -1)
+      _sostenutoPedal = 0
     }
   }
 

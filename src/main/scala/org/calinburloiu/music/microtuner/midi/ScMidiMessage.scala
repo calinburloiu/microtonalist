@@ -154,6 +154,7 @@ object ScCcMidiMessage {
   val ResetAllControllers: Int = 121
   val AllNotesOff: Int = 123
 
+  val Modulation: Int = 1
   val SustainPedal: Int = 64
   val SostenutoPedal: Int = 66
   val SoftPedal: Int = 67

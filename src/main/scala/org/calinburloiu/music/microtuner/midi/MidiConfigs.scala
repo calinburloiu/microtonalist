@@ -27,7 +27,8 @@ import javax.sound.midi.MidiDevice
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
                             tunerType: TunerType,
                             mtsTuningFormat: MtsTuningFormat,
-                            pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
+                            pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default,
+                            ccParams: Map[Int, Int] = Map.empty)
   extends Configured
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
@@ -43,12 +44,14 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
       "semitones" -> config.pitchBendSensitivity.semitones,
       "cents" -> config.pitchBendSensitivity.cents
     )
+    val ccParams = config.ccParams.map { case (number, value) => Map("number" -> number, "value" -> value) }.toSeq
 
     hoconConfig
       .withAnyRefValue(PropDevices, devices)
       .withAnyRefValue(PropTunerType, config.tunerType.toString)
       .withAnyRefValue(PropMtsTuningFormat, config.mtsTuningFormat.toString)
       .withAnyRefValue(PropPitchBendSensitivity, pitchBendSensitivity)
+      .withAnyRefValue(PropCcParams, ccParams)
   }
 
   override protected def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
@@ -56,7 +59,8 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
     tunerType = TunerType.withNameInsensitive(hoconConfig.as[String](PropTunerType)),
     mtsTuningFormat = MtsTuningFormat.withNameInsensitive(hoconConfig.as[String](PropMtsTuningFormat)),
     pitchBendSensitivity = hoconConfig.getAs[PitchBendSensitivity](PropPitchBendSensitivity)
-      .getOrElse(PitchBendSensitivity.Default)
+      .getOrElse(PitchBendSensitivity.Default),
+    ccParams = CcParam.toMap(hoconConfig.getAs[Seq[CcParam]](PropCcParams).getOrElse(Seq.empty))
   )
 }
 
@@ -67,6 +71,7 @@ object MidiOutputConfigManager {
   val PropTunerType = "tunerType"
   val PropMtsTuningFormat = "mtsTuningFormat"
   val PropPitchBendSensitivity = "pitchBendSensitivity"
+  val PropCcParams = "ccParams"
 }
 
 
@@ -147,6 +152,13 @@ object MidiDeviceId {
     MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor, midiDeviceInfo.getVersion)
 }
 
+/** Only used to deserializing CC params in HOCON. */
+private case class CcParam(number: Int, value: Int)
+
+private object CcParam {
+  def toMap(ccParams: Seq[CcParam]): Map[Int, Int] = ccParams.map { p => (p.number, p.value) }.toMap
+}
+
 object MidiConfigSerDe {
   private[midi] implicit val midiDeviceIdValueReader: ValueReader[MidiDeviceId] = ValueReader.relative { hc =>
     MidiDeviceId(
@@ -178,6 +190,13 @@ object MidiConfigSerDe {
         cents = hc.getAs[Int]("cents").getOrElse(PitchBendSensitivity.Default.cents)
       )
     }
+
+  private[midi] implicit val ccParamValueReader: ValueReader[CcParam] = ValueReader.relative { hc =>
+    CcParam(
+      number = hc.as[Int]("number"),
+      value = hc.as[Int]("value")
+    )
+  }
 
   def serializeDevices(devices: Seq[MidiDeviceId]): Seq[Map[String, String]] = devices.map { device =>
     Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)

@@ -29,8 +29,6 @@ import java.nio.file.Paths
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
-  val DefaultOutputChannel: Int = 0
-
   sealed abstract class AppException(message: String, val statusCode: Int, cause: Throwable = null)
     extends RuntimeException(message, cause) {
     def exitWithMessage(): Unit = {
@@ -42,6 +40,8 @@ object MicrotonalistApp extends StrictLogging {
   case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list> [config-file]", 1)
 
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
+
+  case class AppConfigException(message: String) extends AppException(message, 3)
 
   def main(args: Array[String]): Unit = Try {
     args match {
@@ -91,7 +91,7 @@ object MicrotonalistApp extends StrictLogging {
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
     val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
-    val track = new Track(Some(tuningSwitchProcessor), tuner, receiver)
+    val track = new Track(Some(tuningSwitchProcessor), tuner, receiver, midiOutputConfig.ccParams)
     maybeTransmitter.foreach { transmitter =>
       transmitter.setReceiver(track)
       logger.info("Using CC tuning switcher")
@@ -120,10 +120,12 @@ object MicrotonalistApp extends StrictLogging {
   }
 
   private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): TunerProcessor = {
+    logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
     midiOutputConfig.tunerType match {
       case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
-      case TunerType.MonophonicPitchBend =>
-        new MonophonicPitchBendTuner(DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity) with LoggerTuner
+      case TunerType.MonophonicPitchBend => new MonophonicPitchBendTuner(
+        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity) with LoggerTuner
+      case _ => throw AppConfigException(s"Invalid tunerType ${midiOutputConfig.tunerType} in config!")
     }
   }
 }

@@ -17,18 +17,32 @@
 package org.calinburloiu.music.microtuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtuner.midi.{MidiSerialProcessor, TuningSwitchProcessor}
+import org.calinburloiu.music.microtuner.midi.{MidiSerialProcessor, ScCcMidiMessage, TuningSwitchProcessor}
 
 import javax.sound.midi.{MidiMessage, Receiver}
 
 class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
             tuner: TunerProcessor,
-            outputReceiver: Receiver) extends Receiver with StrictLogging {
-  val pipeline: MidiSerialProcessor = new MidiSerialProcessor(Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
+            outputReceiver: Receiver,
+            ccParams: Map[Int, Int] = Map.empty) extends Receiver with StrictLogging {
+  val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
+    Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
+
+  initCcParams()
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     pipeline.send(message, timeStamp)
   }
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+
+  private def initCcParams(): Unit = {
+    for ((number, value) <- ccParams) {
+      outputReceiver.send(ScCcMidiMessage(Track.DefaultOutputChannel, number, value).javaMidiMessage, -1)
+    }
+  }
+}
+
+object Track {
+  val DefaultOutputChannel: Int = 0
 }
