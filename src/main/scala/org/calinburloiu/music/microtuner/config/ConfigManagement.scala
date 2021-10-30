@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.config
 
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => HoconConfig}
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtuner.PlatformUtils
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -38,7 +39,7 @@ final class MainConfigManager private[microtuner](configFile: Option[Path], fall
 
   private[this] var _mainHoconConfig: HoconConfig = load()
   private[this] val lock: ReadWriteLock = new ReentrantReadWriteLock
-  private[this] var dirty: Boolean = false
+  private[this] var _dirty: Boolean = false
 
   private val scheduledExecutorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
   private val scheduledTask: Runnable = () => save()
@@ -59,13 +60,13 @@ final class MainConfigManager private[microtuner](configFile: Option[Path], fall
     }
 
   def save(): Unit = {
-    if (dirty) {
+    if (_dirty) {
       configFile.foreach { path =>
         Try(Files.newBufferedWriter(path, StandardCharsets.UTF_8)).fold(
           exception => logger.error(s"Failed to save config file to '$path'", exception),
           writer => {
             writer.write(render())
-            dirty = false
+            _dirty = false
             logger.info(s"Saved config file to '$path")
           }
         )
@@ -75,7 +76,7 @@ final class MainConfigManager private[microtuner](configFile: Option[Path], fall
     }
   }
 
-  def isDirty: Boolean = dirty
+  def isDirty: Boolean = _dirty
 
   def render(): String = mainHoconConfig.root().render(configRenderOptions)
 
@@ -102,7 +103,7 @@ final class MainConfigManager private[microtuner](configFile: Option[Path], fall
   private[this] def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = {
     lock.writeLock().lock()
     _mainHoconConfig = newMainHoconConfig
-    dirty = true
+    _dirty = true
     lock.writeLock().unlock()
   }
 }

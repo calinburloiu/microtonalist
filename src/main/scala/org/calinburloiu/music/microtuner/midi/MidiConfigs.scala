@@ -17,37 +17,56 @@
 package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.config.Config
-import javax.sound.midi.MidiDevice
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtuner.{Configured, MainConfigManager, SubConfigManager}
+import org.calinburloiu.music.microtuner.config.{Configured, MainConfigManager, SubConfigManager}
+import org.calinburloiu.music.tuning.TunerType
+
+import javax.sound.midi.MidiDevice
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
-                            tuningFormat: MidiTuningFormat) extends Configured
+                            tunerType: TunerType,
+                            mtsTuningFormat: MtsTuningFormat,
+                            pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
+  extends Configured
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
-
   import MidiConfigSerDe._
-  import org.calinburloiu.music.microtuner.ConfigSerDe._
+  import MidiOutputConfigManager._
+  import org.calinburloiu.music.microtuner.config.ConfigSerDe._
 
   override protected def serialize(config: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
     val devices = serializeDevices(config.devices)
+    val pitchBendSensitivity = Map(
+      "semitones" -> config.pitchBendSensitivity.semitones,
+      "cents" -> config.pitchBendSensitivity.cents
+    )
 
     hoconConfig
-      .withAnyRefValue("devices", devices)
-      .withAnyRefValue("tuningFormat", config.tuningFormat.toString)
+      .withAnyRefValue(PropDevices, devices)
+      .withAnyRefValue(PropTunerType, config.tunerType.toString)
+      .withAnyRefValue(PropMtsTuningFormat, config.mtsTuningFormat.toString)
+      .withAnyRefValue(PropPitchBendSensitivity, pitchBendSensitivity)
   }
 
   override protected def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
-    devices = hoconConfig.as[Seq[MidiDeviceId]]("devices"),
-    tuningFormat = MidiTuningFormat.withName(hoconConfig.as[String]("tuningFormat"))
+    devices = hoconConfig.as[Seq[MidiDeviceId]](PropDevices),
+    tunerType = TunerType.withNameInsensitive(hoconConfig.as[String](PropTunerType)),
+    mtsTuningFormat = MtsTuningFormat.withNameInsensitive(hoconConfig.as[String](PropMtsTuningFormat)),
+    pitchBendSensitivity = hoconConfig.getAs[PitchBendSensitivity](PropPitchBendSensitivity)
+      .getOrElse(PitchBendSensitivity.Default)
   )
 }
 
 object MidiOutputConfigManager {
   val configRootPath = "output.midi"
+
+  val PropDevices = "devices"
+  val PropTunerType = "tunerType"
+  val PropMtsTuningFormat = "mtsTuningFormat"
+  val PropPitchBendSensitivity = "pitchBendSensitivity"
 }
 
 
@@ -60,7 +79,7 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
 
   import MidiConfigSerDe._
-  import org.calinburloiu.music.microtuner.ConfigSerDe._
+  import org.calinburloiu.music.microtuner.config.ConfigSerDe._
 
   override protected def serialize(config: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig
@@ -151,6 +170,14 @@ object MidiConfigSerDe {
       isFilteringThru = hc.getAs[Boolean]("isFilteringThru").getOrElse(CcTriggers.default.isFilteringThru)
     )
   }
+
+  private[midi] implicit val pitchBendSensitivityValueReader: ValueReader[PitchBendSensitivity] =
+    ValueReader.relative { hc =>
+      PitchBendSensitivity(
+        semitones = hc.as[Int]("semitones"),
+        cents = hc.getAs[Int]("cents").getOrElse(PitchBendSensitivity.Default.cents)
+      )
+    }
 
   def serializeDevices(devices: Seq[MidiDeviceId]): Seq[Map[String, String]] = devices.map { device =>
     Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)

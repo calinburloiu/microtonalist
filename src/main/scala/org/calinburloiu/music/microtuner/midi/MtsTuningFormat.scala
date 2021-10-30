@@ -20,11 +20,11 @@ import enumeratum.{Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class MidiTuningFormat(val messageGenerator: MidiTuningMessageGenerator) extends EnumEntry
+sealed abstract class MtsTuningFormat(val messageGenerator: MidiTuningMessageGenerator) extends EnumEntry
 
-object MidiTuningFormat extends Enum[MidiTuningFormat] {
-  override val values: immutable.IndexedSeq[MidiTuningFormat] = findValues
+object MtsTuningFormat extends Enum[MtsTuningFormat] {
+  override val values: immutable.IndexedSeq[MtsTuningFormat] = findValues
 
-  case object NonRealTime1BOctave extends MidiTuningFormat(MidiTuningMessageGenerator.NonRealTime1BOctave)
+  case object NonRealTime1BOctave extends MtsTuningFormat(MidiTuningMessageGenerator.NonRealTime1BOctave)
 
 }

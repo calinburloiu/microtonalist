@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MidiTuningFormat, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, mapShortMessageChannel}
+import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessor, MtsTuningFormat, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, mapShortMessageChannel}
 import org.calinburloiu.music.tuning.Tuning
 
 import javax.sound.midi.MidiMessage
@@ -49,7 +49,7 @@ trait LoggerTuner extends Tuner with StrictLogging {
  *
  * @param tuningFormat one of the MTS formats supported
  */
-class MtsTuner(val tuningFormat: MidiTuningFormat,
+class MtsTuner(val tuningFormat: MtsTuningFormat,
                val thru: Boolean) extends TunerProcessor with StrictLogging {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator

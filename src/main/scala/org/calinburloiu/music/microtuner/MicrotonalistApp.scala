@@ -16,19 +16,20 @@
 
 package org.calinburloiu.music.microtuner
 
-import java.io.FileInputStream
-import java.nio.file.Paths
-
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatRegistry}
+import org.calinburloiu.music.microtuner.config.MainConfigManager
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{Tuning, TuningList}
+import org.calinburloiu.music.tuning.{TunerType, Tuning, TuningList}
 
+import java.io.FileInputStream
+import java.nio.file.Paths
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
+  val DefaultOutputChannel: Int = 0
 
   sealed abstract class AppException(message: String, val statusCode: Int, cause: Throwable = null)
     extends RuntimeException(message, cause) {
@@ -87,14 +88,13 @@ object MicrotonalistApp extends StrictLogging {
     // # Microtuner
     val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
-//    val tuner: TunerProcessor = new MtsTuner(MidiTuningFormat.NonRealTime1BOctave, midiInputConfig.thru) with LoggerTuner
-    val tuner: TunerProcessor = new MonophonicPitchBendTuner(0) with LoggerTuner
+    val tuner = createTuner(midiInputConfig, midiOutputConfig)
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
     val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
     val track = new Track(Some(tuningSwitchProcessor), tuner, receiver)
     maybeTransmitter.foreach { transmitter =>
       transmitter.setReceiver(track)
-      logger.info("Using pedal tuning switcher")
+      logger.info("Using CC tuning switcher")
     }
     tuningSwitcher.tune()
 
@@ -117,5 +117,13 @@ object MicrotonalistApp extends StrictLogging {
         midiManager.close()
       }
     })
+  }
+
+  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): TunerProcessor = {
+    midiOutputConfig.tunerType match {
+      case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
+      case TunerType.MonophonicPitchBend =>
+        new MonophonicPitchBendTuner(DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity) with LoggerTuner
+    }
   }
 }
