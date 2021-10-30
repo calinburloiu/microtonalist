@@ -21,19 +21,39 @@ import org.scalatest.matchers.should.Matchers
 
 class PartialTuningTest extends AnyFlatSpec with Matchers {
 
-  private val completePartialTuning = PartialTuning(Some(100.0), Some(200.0), Some(300.0))
-  private val incompletePartialTuning = PartialTuning(Some(0.0), None, Some(270.0))
-  private val incompletePartialTuning2 = PartialTuning(None, None, Some(250.0))
-  private val emptyPartialTuning = PartialTuning(None, None, None)
+  private val completePartialTuning = PartialTuning(
+    Some(100.0), Some(200.0), Some(300.0),
+    Some(400.0), Some(500.0), Some(600.0),
+    Some(700.0), Some(800.0), Some(900.0),
+    Some(1000.0), Some(1100.0), Some(1200.0))
+  private val incompletePartialTuning = PartialTuning(
+    Some(0.0), None, Some(270.0),
+    Some(400.0), Some(500.0), Some(600.0),
+    Some(700.0), Some(800.0), Some(900.0),
+    Some(1000.0), Some(1100.0), Some(1200.0))
+  private val incompletePartialTuning2 = PartialTuning(
+    None, None, Some(250.0),
+    Some(400.0), Some(500.0), Some(600.0),
+    Some(700.0), Some(800.0), Some(900.0),
+    Some(1000.0), Some(1100.0), Some(1200.0))
+  private val emptyPartialTuning = PartialTuning(
+    None, None, None,
+    Some(400.0), Some(500.0), Some(600.0),
+    Some(700.0), Some(800.0), Some(900.0),
+    Some(1000.0), Some(1100.0), Some(1200.0))
   private val smallerPartialTuning = PartialTuning(Some(101.1), None)
 
   "apply, size and iterator" should "work as an indexed sequence" in {
-    incompletePartialTuning.size shouldEqual 3
+    incompletePartialTuning.size shouldEqual 12
     incompletePartialTuning(1) should be(empty)
     incompletePartialTuning(2) should contain(270.0)
-    incompletePartialTuning.iterator.toSeq shouldEqual Seq(Some(0.0), None, Some(270.0))
+    incompletePartialTuning.iterator.toSeq shouldEqual Seq(
+      Some(0.0), None, Some(270.0),
+      Some(400.0), Some(500.0), Some(600.0),
+      Some(700.0), Some(800.0), Some(900.0),
+      Some(1000.0), Some(1100.0), Some(1200.0))
 
-    assertThrows[IndexOutOfBoundsException](incompletePartialTuning(3))
+    assertThrows[IndexOutOfBoundsException](incompletePartialTuning(13))
   }
 
   "isComplete" should "return true if all deviation are non-empty" in {
@@ -44,7 +64,11 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
 
   "resolve" should "return some Tuning if this PartialTuning isComplete and None otherwise" in {
     emptyPartialTuning.resolve("foo") should be(empty)
-    completePartialTuning.resolve("foo") should contain(Tuning("foo", 100.0, 200.0, 300.0))
+    completePartialTuning.resolve("foo") should contain(OctaveTuning("foo",
+      100.0, 200.0, 300.0,
+      400.0, 500.0, 600.0,
+      700.0, 800.0, 900.0,
+      1000.0, 1100.0, 1200.0))
     incompletePartialTuning.resolve("foo") should be(empty)
   }
 
@@ -52,18 +76,37 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
     incompletePartialTuning enrich emptyPartialTuning shouldEqual incompletePartialTuning
 
     incompletePartialTuning enrich completePartialTuning shouldEqual
-      PartialTuning(Some(0.0), Some(200.0), Some(270.0))
+      PartialTuning(
+        Some(0.0), Some(200.0), Some(270.0),
+        Some(400.0), Some(500.0), Some(600.0),
+        Some(700.0), Some(800.0), Some(900.0),
+        Some(1000.0), Some(1100.0), Some(1200.0))
 
-    incompletePartialTuning2 enrich incompletePartialTuning shouldEqual
-      PartialTuning(Some(0.0), None, Some(250.0))
+    incompletePartialTuning2 enrich incompletePartialTuning shouldEqual PartialTuning(
+      Some(0.0), None, Some(250.0),
+      Some(400.0), Some(500.0), Some(600.0),
+      Some(700.0), Some(800.0), Some(900.0),
+      Some(1000.0), Some(1100.0), Some(1200.0))
 
     assertThrows[IllegalArgumentException](incompletePartialTuning enrich smallerPartialTuning)
   }
 
   "merge" should "correctly combine PartialTunings" in {
-    val pt1 = PartialTuning(Some(100.0), Some(200.0), Some(300.0))
-    val pt2 = PartialTuning(Some(100.0), None, Some(300.0))
-    val pt3 = PartialTuning(Some(100.0), Some(200.0), Some(301.1))
+    val pt1 = PartialTuning(
+      Some(100.0), Some(200.0), Some(300.0),
+      Some(400.0), Some(500.0), Some(600.0),
+      Some(700.0), Some(800.0), Some(900.0),
+      Some(1000.0), Some(1100.0), Some(1200.0))
+    val pt2 = PartialTuning(
+      Some(100.0), None, Some(300.0),
+      Some(400.0), Some(500.0), Some(600.0),
+      Some(700.0), Some(800.0), Some(900.0),
+      Some(1000.0), Some(1100.0), Some(1200.0))
+    val pt3 = PartialTuning(
+      Some(100.0), Some(200.0), Some(301.1),
+      Some(400.0), Some(500.0), Some(600.0),
+      Some(700.0), Some(800.0), Some(900.0),
+      Some(1000.0), Some(1100.0), Some(1200.0))
 
     withClue("an empty PartialTuning causes no conflicts:") {
       pt2 merge emptyPartialTuning should contain(pt2)

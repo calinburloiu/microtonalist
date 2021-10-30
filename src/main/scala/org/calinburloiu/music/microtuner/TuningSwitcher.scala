@@ -20,16 +20,20 @@ import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtuner.MicrotonalistApp.logger
-import org.calinburloiu.music.tuning.{Tuning, TuningList}
+import org.calinburloiu.music.tuning.{OctaveTuning, TuningList}
 
-class TuningSwitch(val tuner: Tuner,
-                   val tuningList: TuningList,
-                   eventBus: EventBus,
-                   initialPosition: Int = 0) extends LazyLogging {
+/**
+ * Class responsible to switch between tunings.
+ * @param tuners Tuners for various output instruments called when the tuning is changed.
+ * @param tuningList List of tunings for the current musical composition.
+ * @param eventBus Event bus for sending events.
+ */
+class TuningSwitcher(val tuners: Seq[Tuner],
+                     val tuningList: TuningList,
+                     eventBus: EventBus) extends LazyLogging {
+  require(tuners.nonEmpty, "there should be at least one tuner")
 
-  private[this] var _tuningIndex: Int = initialPosition
-
-  tune()
+  private[this] var _tuningIndex: Int = 0
 
   def apply(index: Int): Unit = {
     if (_tuningIndex > tuningList.tunings.size - 1) {
@@ -57,15 +61,16 @@ class TuningSwitch(val tuner: Tuner,
 
   def tuningIndex: Int = _tuningIndex
 
-  def currentTuning: Tuning = tuningList(_tuningIndex)
+  def currentTuning: OctaveTuning = tuningList(_tuningIndex)
 
   def tuningCount: Int = tuningList.tunings.size
 
-  protected def tune(): Unit = {
+  def tune(): Unit = {
     try {
-      tuner.tune(currentTuning)
+      tuners.foreach(_.tune(currentTuning))
     } catch {
-      case e: MidiTunerException => logger.error("Failed to switch tuning: " + e.getMessage)
+      case e: TunerException => logger.error("Failed to switch tuning: " + e.getMessage)
+      case e: IllegalStateException => logger.error("Failed to switch tuning: " + e.getMessage)
     }
   }
 }

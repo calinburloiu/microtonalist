@@ -47,7 +47,7 @@ class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig
       basePitchClass + interval
     }.distinct
 
-    val groupsOfPitchClasses = pitchClasses.groupBy(_.semitone)
+    val groupsOfPitchClasses = pitchClasses.groupBy(_.number)
     val pitchClassesWithConflicts = groupsOfPitchClasses
       .filter(_._2.distinct.lengthCompare(1) > 0)
     if (pitchClassesWithConflicts.nonEmpty) {

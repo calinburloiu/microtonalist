@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,19 +14,20 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner
-
-import java.nio.file.{Path, Paths}
+package org.calinburloiu.music.microtuner.config
 
 import com.typesafe.config.{Config => HoconConfig}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
+import org.calinburloiu.music.microtuner.PlatformUtils
+
+import java.nio.file.{Path, Paths}
 
 case class CoreConfig(scaleLibraryPath: Path = CoreConfig.defaultScaleLibraryPath,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
-  val defaultScaleLibraryPath: Path = if (PlatformUtil.isMac)
+  val defaultScaleLibraryPath: Path = if (PlatformUtils.isMac)
     Paths.get("~/Music/microtonalist/lib/scales/")
   else
     throw new RuntimeException("Only Mac platform is currently supported")

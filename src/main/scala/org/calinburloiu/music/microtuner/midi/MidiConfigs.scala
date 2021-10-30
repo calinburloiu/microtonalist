@@ -17,37 +17,61 @@
 package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.config.Config
-import javax.sound.midi.MidiDevice
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtuner.{Configured, MainConfigManager, SubConfigManager}
+import org.calinburloiu.music.microtuner.config.{Configured, MainConfigManager, SubConfigManager}
+import org.calinburloiu.music.tuning.TunerType
+
+import javax.sound.midi.MidiDevice
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
-                            tuningFormat: MidiTuningFormat) extends Configured
+                            tunerType: TunerType,
+                            mtsTuningFormat: MtsTuningFormat,
+                            pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default,
+                            ccParams: Map[Int, Int] = Map.empty)
+  extends Configured
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
-
   import MidiConfigSerDe._
-  import org.calinburloiu.music.microtuner.ConfigSerDe._
+  import MidiOutputConfigManager._
+  import org.calinburloiu.music.microtuner.config.ConfigSerDe._
 
   override protected def serialize(config: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
     val devices = serializeDevices(config.devices)
+    val pitchBendSensitivity = Map(
+      "semitones" -> config.pitchBendSensitivity.semitones,
+      "cents" -> config.pitchBendSensitivity.cents
+    )
+    val ccParams = config.ccParams.map { case (number, value) => Map("number" -> number, "value" -> value) }.toSeq
 
     hoconConfig
-      .withAnyRefValue("devices", devices)
-      .withAnyRefValue("tuningFormat", config.tuningFormat.toString)
+      .withAnyRefValue(PropDevices, devices)
+      .withAnyRefValue(PropTunerType, config.tunerType.toString)
+      .withAnyRefValue(PropMtsTuningFormat, config.mtsTuningFormat.toString)
+      .withAnyRefValue(PropPitchBendSensitivity, pitchBendSensitivity)
+      .withAnyRefValue(PropCcParams, ccParams)
   }
 
   override protected def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
-    devices = hoconConfig.as[Seq[MidiDeviceId]]("devices"),
-    tuningFormat = MidiTuningFormat.withName(hoconConfig.as[String]("tuningFormat"))
+    devices = hoconConfig.as[Seq[MidiDeviceId]](PropDevices),
+    tunerType = TunerType.withNameInsensitive(hoconConfig.as[String](PropTunerType)),
+    mtsTuningFormat = MtsTuningFormat.withNameInsensitive(hoconConfig.as[String](PropMtsTuningFormat)),
+    pitchBendSensitivity = hoconConfig.getAs[PitchBendSensitivity](PropPitchBendSensitivity)
+      .getOrElse(PitchBendSensitivity.Default),
+    ccParams = CcParam.toMap(hoconConfig.getAs[Seq[CcParam]](PropCcParams).getOrElse(Seq.empty))
   )
 }
 
 object MidiOutputConfigManager {
   val configRootPath = "output.midi"
+
+  val PropDevices = "devices"
+  val PropTunerType = "tunerType"
+  val PropMtsTuningFormat = "mtsTuningFormat"
+  val PropPitchBendSensitivity = "pitchBendSensitivity"
+  val PropCcParams = "ccParams"
 }
 
 
@@ -60,7 +84,7 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
 
   import MidiConfigSerDe._
-  import org.calinburloiu.music.microtuner.ConfigSerDe._
+  import org.calinburloiu.music.microtuner.config.ConfigSerDe._
 
   override protected def serialize(config: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig
@@ -128,6 +152,13 @@ object MidiDeviceId {
     MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor, midiDeviceInfo.getVersion)
 }
 
+/** Only used to deserializing CC params in HOCON. */
+private case class CcParam(number: Int, value: Int)
+
+private object CcParam {
+  def toMap(ccParams: Seq[CcParam]): Map[Int, Int] = ccParams.map { p => (p.number, p.value) }.toMap
+}
+
 object MidiConfigSerDe {
   private[midi] implicit val midiDeviceIdValueReader: ValueReader[MidiDeviceId] = ValueReader.relative { hc =>
     MidiDeviceId(
@@ -149,6 +180,21 @@ object MidiConfigSerDe {
       nextTuningCc = hc.getAs[Int]("nextTuningCc").getOrElse(CcTriggers.default.nextTuningCc),
       ccThreshold = hc.getAs[Int]("ccThreshold").getOrElse(CcTriggers.default.ccThreshold),
       isFilteringThru = hc.getAs[Boolean]("isFilteringThru").getOrElse(CcTriggers.default.isFilteringThru)
+    )
+  }
+
+  private[midi] implicit val pitchBendSensitivityValueReader: ValueReader[PitchBendSensitivity] =
+    ValueReader.relative { hc =>
+      PitchBendSensitivity(
+        semitones = hc.as[Int]("semitones"),
+        cents = hc.getAs[Int]("cents").getOrElse(PitchBendSensitivity.Default.cents)
+      )
+    }
+
+  private[midi] implicit val ccParamValueReader: ValueReader[CcParam] = ValueReader.relative { hc =>
+    CcParam(
+      number = hc.as[Int]("number"),
+      value = hc.as[Int]("value")
     )
   }
 

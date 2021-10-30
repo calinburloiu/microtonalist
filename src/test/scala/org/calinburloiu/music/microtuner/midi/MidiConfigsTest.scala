@@ -16,10 +16,12 @@
 
 package org.calinburloiu.music.microtuner.midi
 
-import javax.sound.midi.MidiDevice
-import org.calinburloiu.music.microtuner.SubConfigTest
+import org.calinburloiu.music.microtuner.config.SubConfigTest
+import org.calinburloiu.music.tuning.TunerType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import javax.sound.midi.MidiDevice
 
 class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfigManager] {
 
@@ -79,14 +81,15 @@ class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputCon
       MidiDeviceId("FP-90", "Roland", "1.0"),
       MidiDeviceId("P-125", "Yamaha", "9.8.7")
     ),
-    tuningFormat = MidiTuningFormat.NonRealTime1BOctave
+    tunerType = TunerType.Mts,
+    mtsTuningFormat = MtsTuningFormat.NonRealTime1BOctave,
+    pitchBendSensitivity = PitchBendSensitivity.Default
   )
 
   override lazy val subConfigsToWrite: Seq[MidiOutputConfig] = Seq(
     expectedSubConfigRead.copy(
       devices = Seq(MidiDeviceId("blah", "bleh", "1999"))
     )
-    // TODO Test changing tuningFormat after adding more formats
   )
 }
 

@@ -23,7 +23,7 @@ class PianoKeyboardTuningUtilsTest extends AnyFlatSpec with Matchers {
 
   import PianoKeyboardTuningUtils._
 
-  private val tuning = Tuning("foo", 0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, -16.0, 14.0, -35.0, -12.0)
+  private val tuning = OctaveTuning("foo", 0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, -16.0, 14.0, -35.0, -12.0)
 
   "note names implicit methods" should "return the correct deviations" in {
     //@formatter:off
@@ -50,18 +50,17 @@ class PianoKeyboardTuningUtilsTest extends AnyFlatSpec with Matchers {
     tuning.aSharp shouldEqual tuning.bFlat
   }
 
-  it should "throw IllegalArgumentException when a tuning does not have 12 pitches" +
-    "that does not have 12 deviation values" in {
+  it should "throw IllegalArgumentException when a tuning does not have 12 deviation value" in {
     // < 12
-    val tuning1 = Tuning("bar", 1.0, 2.0)
     assertThrows[IllegalArgumentException] {
+      val tuning1 = OctaveTuning("bar", Seq(1.0, 2.0))
       tuning1.cSharp
     }
 
     // > 12
-    val tuning2 = Tuning("bar",
-      1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0)
     assertThrows[IllegalArgumentException] {
+      val tuning2 = OctaveTuning("bar",
+        Seq(1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0))
       tuning2.cSharp
     }
   }

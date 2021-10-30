@@ -34,8 +34,7 @@ case class Modulation(transposition: Interval,
 case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {
 
-  // TODO Pay attention to the evil unison below.
-  def tuning(origin: OriginOld, transposition: Interval = Interval.Unison): PartialTuning = {
+  def tuning(origin: OriginOld, transposition: Interval): PartialTuning = {
     tuningMapper(origin.basePitchClass, scale.transpose(transposition))
   }
 }

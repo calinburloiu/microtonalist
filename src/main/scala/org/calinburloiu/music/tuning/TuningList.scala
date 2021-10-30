@@ -23,9 +23,9 @@ import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList}
 
 import scala.annotation.tailrec
 
-case class TuningList(tunings: Seq[Tuning]) extends Iterable[Tuning] {
+case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning] {
 
-  def apply(index: Int): Tuning = {
+  def apply(index: Int): OctaveTuning = {
     Preconditions.checkElementIndex(index, size)
 
     tunings(index)
@@ -33,7 +33,7 @@ case class TuningList(tunings: Seq[Tuning]) extends Iterable[Tuning] {
 
   override def size: Int = tunings.size
 
-  override def iterator: Iterator[Tuning] = tunings.iterator
+  override def iterator: Iterator[OctaveTuning] = tunings.iterator
 }
 
 object TuningList extends StrictLogging {

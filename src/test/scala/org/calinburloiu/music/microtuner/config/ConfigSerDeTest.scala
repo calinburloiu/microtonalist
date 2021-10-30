@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtuner
+package org.calinburloiu.music.microtuner.config
 
 import com.typesafe.config.ConfigFactory
-import org.calinburloiu.music.microtuner.ConfigSerDe._
+import org.calinburloiu.music.microtuner.config.ConfigSerDe._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

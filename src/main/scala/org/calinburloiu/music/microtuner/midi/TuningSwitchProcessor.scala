@@ -17,14 +17,15 @@
 package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.scalalogging.StrictLogging
-import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
-import org.calinburloiu.music.microtuner.TuningSwitch
+import org.calinburloiu.music.microtuner.TuningSwitcher
 
+import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
 
-class PedalTuningSwitchReceiver(tuningSwitch: TuningSwitch,
-                                outputReceiver: Option[Receiver],
-                                ccTriggers: CcTriggers) extends Receiver with StrictLogging {
+trait TuningSwitchProcessor extends MidiProcessor {}
+
+class CcTuningSwitchProcessor(tuningSwitcher: TuningSwitcher,
+                                ccTriggers: CcTriggers) extends TuningSwitchProcessor with StrictLogging {
 
   private val ccPrev = ccTriggers.prevTuningCc
   private val ccNext = ccTriggers.nextTuningCc
@@ -43,22 +44,33 @@ class PedalTuningSwitchReceiver(tuningSwitch: TuningSwitch,
         if (!ccDepressed(cc) && ccValue > ccTriggerThreshold) {
           ccDepressed(cc) = true
           if (cc == ccPrev)
-            tuningSwitch.prev()
+            tuningSwitcher.prev()
           else
-            tuningSwitch.next()
+            tuningSwitcher.next()
         } else if (ccDepressed(cc) && ccValue <= ccTriggerThreshold) {
           ccDepressed(cc) = false
         }
 
         // Forward if configured so
         if (!isFilteringCcTriggersThru) {
-          outputReceiver.foreach(_.send(message, timeStamp))
+          receiver.send(message, timeStamp)
         }
       } else {
         // Forward
-        outputReceiver.foreach(_.send(message, timeStamp))
+        receiver.send(message, timeStamp)
       }
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override def close(): Unit = {
+    super.close()
+    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  }
+
+  override protected def onConnect(): Unit = {
+    logger.info(s"Connected the CC tuning switch MIDI processor.")
+  }
+
+  override protected def onDisconnect(): Unit = {
+    logger.info(s"Disconnected the CC tuning switch MIDI processor.")
+  }
 }

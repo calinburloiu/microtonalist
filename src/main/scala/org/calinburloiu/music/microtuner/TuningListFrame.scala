@@ -24,7 +24,7 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
 
-class TuningListFrame(tuningSwitch: TuningSwitch) extends JFrame("Microtuner") with StrictLogging {
+class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner") with StrictLogging {
 
   private[this] val tuningList = tuningSwitch.tuningList
 

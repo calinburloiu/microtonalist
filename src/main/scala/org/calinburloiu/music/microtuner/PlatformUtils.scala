@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtuner
 
 // TODO Add support for Windows and maybe Linux
-object PlatformUtil {
+object PlatformUtils {
 
   def isMac: Boolean = true
 

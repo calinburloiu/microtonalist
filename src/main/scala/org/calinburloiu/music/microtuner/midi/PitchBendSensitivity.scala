@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,14 +14,15 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.tuning
+package org.calinburloiu.music.microtuner.midi
 
-import com.google.common.base.Preconditions._
+case class PitchBendSensitivity(semitones: Int, cents: Int = 0) {
+  MidiRequirements.requireUnsigned7BitValue("semitones", semitones)
+  MidiRequirements.requireUnsigned7BitValue("cents", cents)
 
-trait TuningBase[U] extends Iterable[U] {
-  checkArgument(deviations.nonEmpty, "Expecting a non-empty list of deviations".asInstanceOf[Object])
+  val totalCents: Int = 100 * semitones + cents
+}
 
-  def apply(index: Int): U
-
-  def deviations: Seq[U]
+object PitchBendSensitivity {
+  val Default: PitchBendSensitivity = PitchBendSensitivity(2)
 }

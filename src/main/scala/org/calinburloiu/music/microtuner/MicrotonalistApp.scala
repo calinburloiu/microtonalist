@@ -16,20 +16,19 @@
 
 package org.calinburloiu.music.microtuner
 
-import java.io.FileInputStream
-import java.nio.file.Paths
-
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatRegistry}
+import org.calinburloiu.music.microtuner.config.MainConfigManager
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{Tuning, TuningList}
+import org.calinburloiu.music.tuning.{TunerType, OctaveTuning, TuningList}
 
+import java.io.FileInputStream
+import java.nio.file.Paths
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
-
   sealed abstract class AppException(message: String, val statusCode: Int, cause: Throwable = null)
     extends RuntimeException(message, cause) {
     def exitWithMessage(): Unit = {
@@ -41,6 +40,8 @@ object MicrotonalistApp extends StrictLogging {
   case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list> [config-file]", 1)
 
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
+
+  case class AppConfigException(message: String) extends AppException(message, 3)
 
   def main(args: Array[String]): Unit = Try {
     args match {
@@ -75,10 +76,10 @@ object MicrotonalistApp extends StrictLogging {
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-    val maybeOutputDeviceId = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
-    val receiver = maybeOutputDeviceId.map(midiManager.outputReceiver).getOrElse {
+    val outputDeviceId = midiManager.openFirstAvailableOutput(midiOutputConfig.devices).getOrElse {
       throw NoDeviceAvailableException
     }
+    val receiver = midiManager.outputReceiver(outputDeviceId)
 
     // # I/O
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
@@ -87,21 +88,19 @@ object MicrotonalistApp extends StrictLogging {
     // # Microtuner
     val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
-    val tuner: Tuner = new MidiTuner(receiver, MidiTuningFormat.NonRealTime1BOctave) with LoggerTuner
-    val tuningSwitch = new TuningSwitch(tuner, tuningList, eventBus)
-
-    // # Triggers
+    val tuner = createTuner(midiInputConfig, midiOutputConfig)
+    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
+    val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
+    val track = new Track(Some(tuningSwitchProcessor), tuner, receiver, midiOutputConfig.ccParams)
     maybeTransmitter.foreach { transmitter =>
-      val thruReceiver = if (midiInputConfig.thru) Some(receiver) else None
-      val pedalTuningSwitchReceiver = new PedalTuningSwitchReceiver(tuningSwitch, thruReceiver,
-        midiInputConfig.triggers.cc)
-      transmitter.setReceiver(pedalTuningSwitchReceiver)
-      logger.info("Using pedal tuning switcher")
+      transmitter.setReceiver(track)
+      logger.info("Using CC tuning switcher")
     }
+    tuningSwitcher.tune()
 
     // # GUI
     logger.info("Initializing the main frame...")
-    val tuningListFrame = new TuningListFrame(tuningSwitch)
+    val tuningListFrame = new TuningListFrame(tuningSwitcher)
     eventBus.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
@@ -109,14 +108,24 @@ object MicrotonalistApp extends StrictLogging {
       override def run(): Unit = {
         logger.info("Switching back to 12-EDO before exit...")
         try {
-          tuner.tune(Tuning.Edo12)
+          tuner.tune(OctaveTuning.Edo12)
         } catch {
-          case e: MidiTunerException => logger.error(e.getMessage)
+          case e: TunerException => logger.error(e.getMessage)
         }
         Thread.sleep(1000)
 
         midiManager.close()
       }
     })
+  }
+
+  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): TunerProcessor = {
+    logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
+    midiOutputConfig.tunerType match {
+      case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
+      case TunerType.MonophonicPitchBend => new MonophonicPitchBendTuner(
+        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity) with LoggerTuner
+      case _ => throw AppConfigException(s"Invalid tunerType ${midiOutputConfig.tunerType} in config!")
+    }
   }
 }

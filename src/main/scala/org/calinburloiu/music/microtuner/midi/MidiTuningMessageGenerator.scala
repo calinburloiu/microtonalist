@@ -16,16 +16,16 @@
 
 package org.calinburloiu.music.microtuner.midi
 
-import java.nio.ByteBuffer
+import org.calinburloiu.music.tuning.OctaveTuning
 
+import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
-import org.calinburloiu.music.tuning.Tuning
 
 /**
- * @see [[MidiTuningFormat]]
+ * @see [[MtsTuningFormat]]
  */
 sealed trait MidiTuningMessageGenerator {
-  def generate(tuning: Tuning): SysexMessage
+  def generate(tuning: OctaveTuning): SysexMessage
 }
 
 object MidiTuningMessageGenerator {
@@ -35,7 +35,7 @@ object MidiTuningMessageGenerator {
     val headerBytes: Array[Byte] = Array(SysexMessage.SYSTEM_EXCLUSIVE.toByte, 0x7E, 0x7F, 0x08, 0x08).map(_.toByte)
     val allChannelsBytes: Array[Byte] = Array(0x03, 0x7F, 0x7F).map(_.toByte)
 
-    override def generate(tuning: Tuning): SysexMessage = {
+    override def generate(tuning: OctaveTuning): SysexMessage = {
       val tuningValuesBytes: Array[Byte] = tuning.deviations.map { noteTuning =>
         val nNoteTuning = Math.min(Math.max(-64, noteTuning.round.toInt), 63)
 
