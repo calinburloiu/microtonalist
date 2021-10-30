@@ -22,13 +22,15 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 
 /**
- * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[Tuning]] for more details.
+ * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[OctaveTuning]] for more details.
  *
  * Partial tunings are typically merged into a final tuning.
  *
  * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
  */
-case class PartialTuning(override val deviations: Seq[Option[Double]]) extends TuningBase[Option[Double]] {
+case class PartialTuning(override val deviations: Seq[Option[Double]]) extends Tuning[Option[Double]] {
+  // TODO Does it make sense to have a name?
+  override def name: String = ""
 
   /**
    * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
@@ -52,14 +54,14 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
   def isComplete: Boolean = deviations.forall(_.nonEmpty)
 
   /**
-   * Attempts to create a [[Tuning]] from this partial tuning if is complete (see [[isComplete]]).
+   * Attempts to create a [[OctaveTuning]] from this partial tuning if is complete (see [[isComplete]]).
    *
-   * @param name a human-friendly name used for the new [[Tuning]]
-   * @return maybe a new [[Tuning]]
+   * @param name a human-friendly name used for the new [[OctaveTuning]]
+   * @return maybe a new [[OctaveTuning]]
    * @see [[isComplete]]
    */
-  def resolve(name: String): Option[Tuning] = if (isComplete)
-    Some(Tuning(name, deviations.map(_.get)))
+  def resolve(name: String): Option[OctaveTuning] = if (isComplete)
+    Some(OctaveTuning(name, deviations.map(_.get)))
   else
     None
 

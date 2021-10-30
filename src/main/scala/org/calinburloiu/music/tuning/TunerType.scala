@@ -28,13 +28,16 @@ object TunerType extends Enum[TunerType] {
 
   /** Tuner that sends system exclusive MIDI Tuning Standard (MIDI 1.0) messages. */
   case object Mts extends TunerType
+
   /** Tuner that only allows monophonic playing by sending pitch bend values to tune notes. */
   case object MonophonicPitchBend extends TunerType
+
   /**
    * Tuner that uses MIDI Polyphonic Expression (MPE) output to achieve microtonal playing.
    * Only recommended for a non-MPE input, such as a standard MIDI keyboard.
    */
   case object MpeOutput extends TunerType
+
   /** Tuner that fully supports MIDI Polyphonic Expression (MPE), including input from MPE instruments. */
   case object Mpe extends TunerType
 }

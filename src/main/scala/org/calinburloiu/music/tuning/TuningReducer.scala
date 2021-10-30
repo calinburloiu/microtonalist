@@ -20,7 +20,7 @@ package org.calinburloiu.music.tuning
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
  * musician must perform while playing.
  *
- * The final tuning list must contain [[Tuning]] objects, not [[PartialTuning]], so they must be complete. If some
+ * The final tuning list must contain [[OctaveTuning]] objects, not [[PartialTuning]], so they must be complete. If some
  * tunings will be incomplete after the reduce process a [[IncompleteTuningsException]] is thrown.
  */
 trait TuningReducer {

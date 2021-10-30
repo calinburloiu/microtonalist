@@ -28,7 +28,7 @@ abstract class ScNoteMidiMessage(val channel: Int,
                                  val midiNote: MidiNote,
                                  val velocity: Int = DefaultVelocity) extends ScMidiMessage {
   MidiRequirements.requireChannel(channel)
-  MidiRequirements.requireUnsigned7BitValue("noteNumber", midiNote.number)
+  midiNote.assert()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
 
   override def javaMidiMessage: MidiMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
@@ -93,6 +93,13 @@ object ScPitchBendMidiMessage {
     case _ => None
   }
 
+  def fromCents(channel: Int,
+                cents: Int,
+                pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default): ScPitchBendMidiMessage = {
+    val value = convertCentsToValue(cents, pitchBendSensitivity)
+    ScPitchBendMidiMessage(channel, value)
+  }
+
   def convertDataBytesToValue(data1: Int, data2: Int): Int = {
     val lsb = data1
     val msb = data2
@@ -100,7 +107,7 @@ object ScPitchBendMidiMessage {
   }
 
   def convertValueToDataBytes(value: Int): (Int, Int) = {
-    val unsignedValue = value + MinValue
+    val unsignedValue = value - MinValue
     val lsb = unsignedValue & 0x7F
     val msb = (unsignedValue >> 7) & 0x7F
     (lsb, msb)

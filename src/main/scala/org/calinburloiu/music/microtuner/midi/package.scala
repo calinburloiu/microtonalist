@@ -21,6 +21,7 @@ import scala.language.implicitConversions
 
 package object midi {
   implicit class MidiNote(val number: Int) extends AnyVal {
+    def assert(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
     def pitchClassNumber: Int = number % 12
   }
 
@@ -32,4 +33,6 @@ package object midi {
     case shortMessage: ShortMessage => mapShortMessageChannel(shortMessage, map)
     case _ => message
   }
+
+  def clampValue(value: Int, min: Int, max: Int): Int = Math.max(min, Math.min(max, value))
 }

@@ -21,6 +21,14 @@ import org.calinburloiu.music.microtuner.midi.{MidiSerialProcessor, ScCcMidiMess
 
 import javax.sound.midi.{MidiMessage, Receiver}
 
+/**
+ * MIDI route for tuning an output device.
+ *
+ * @param tuningSwitchProcessor Interceptor used for detecting MIDI messages that change the tuning.
+ * @param tuner Class responsible for tuning the output instrument based on specific protocol.
+ * @param outputReceiver MIDI [[Receiver]] of the output instrument.
+ * @param ccParams Map of CC parameters to be set during initialization.
+ */
 class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
             tuner: TunerProcessor,
             outputReceiver: Receiver,

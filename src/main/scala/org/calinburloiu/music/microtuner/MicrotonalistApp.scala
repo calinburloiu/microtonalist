@@ -22,7 +22,7 @@ import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatR
 import org.calinburloiu.music.microtuner.config.MainConfigManager
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{TunerType, Tuning, TuningList}
+import org.calinburloiu.music.tuning.{TunerType, OctaveTuning, TuningList}
 
 import java.io.FileInputStream
 import java.nio.file.Paths
@@ -108,7 +108,7 @@ object MicrotonalistApp extends StrictLogging {
       override def run(): Unit = {
         logger.info("Switching back to 12-EDO before exit...")
         try {
-          tuner.tune(Tuning.Edo12)
+          tuner.tune(OctaveTuning.Edo12)
         } catch {
           case e: TunerException => logger.error(e.getMessage)
         }

@@ -18,6 +18,7 @@ package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions._
 
+// TODO Does this utility still make sense now that we have OctaveTuning?
 object PianoKeyboardTuningUtils {
 
   val tuningSize: Int = 12
@@ -28,7 +29,7 @@ object PianoKeyboardTuningUtils {
   val minDeviation: Int = -64
   val maxDeviation: Int = 63
 
-  private[PianoKeyboardTuningUtils] abstract class TuningBaseExtension[U](tuningBase: TuningBase[U]) {
+  private[PianoKeyboardTuningUtils] abstract class TuningBaseExtension[U](tuningBase: Tuning[U]) {
 
     private[this] def checkIsPianoKeyboard(): Unit = checkArgument(tuningBase.size == 12,
       "Expecting 12 deviation values, but found %s", tuningBase.size)
@@ -102,7 +103,7 @@ object PianoKeyboardTuningUtils {
     protected def fromDeviationToString(deviation: U): String
   }
 
-  implicit class TuningExtension(tuning: Tuning) extends TuningBaseExtension(tuning) {
+  implicit class TuningExtension(tuning: OctaveTuning) extends TuningBaseExtension(tuning) {
 
     override def toPianoKeyboardString: String = {
       val asciiPiano = super.toPianoKeyboardString

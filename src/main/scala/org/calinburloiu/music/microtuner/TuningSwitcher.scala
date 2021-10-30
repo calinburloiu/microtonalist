@@ -20,8 +20,14 @@ import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtuner.MicrotonalistApp.logger
-import org.calinburloiu.music.tuning.{Tuning, TuningList}
+import org.calinburloiu.music.tuning.{OctaveTuning, TuningList}
 
+/**
+ * Class responsible to switch between tunings.
+ * @param tuners Tuners for various output instruments called when the tuning is changed.
+ * @param tuningList List of tunings for the current musical composition.
+ * @param eventBus Event bus for sending events.
+ */
 class TuningSwitcher(val tuners: Seq[Tuner],
                      val tuningList: TuningList,
                      eventBus: EventBus) extends LazyLogging {
@@ -55,7 +61,7 @@ class TuningSwitcher(val tuners: Seq[Tuner],
 
   def tuningIndex: Int = _tuningIndex
 
-  def currentTuning: Tuning = tuningList(_tuningIndex)
+  def currentTuning: OctaveTuning = tuningList(_tuningIndex)
 
   def tuningCount: Int = tuningList.tunings.size
 

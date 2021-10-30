@@ -18,6 +18,13 @@ package org.calinburloiu.music.microtuner.midi
 
 import javax.sound.midi.{Receiver, Transmitter}
 
+/**
+ * MIDI interceptor that can changes MIDI events that pass through it.
+ *
+ * It can only be used after a receiver is set for it via [[MidiProcessor#setReceiver()]] or [[MidiProcessor#receiver]]
+ * setters when it is said that it _connects_. When this happens [[MidiProcessor#onConnect()]] callback is called.
+ * When the receiver is changed, it first _disconnects_, so [[MidiProcessor#onDisconnect()]] is called before.
+ */
 trait MidiProcessor extends Transmitter with Receiver {
   private var _receiver: Option[Receiver] = None
 
