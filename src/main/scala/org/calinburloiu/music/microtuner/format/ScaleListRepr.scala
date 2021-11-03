@@ -36,8 +36,7 @@ case class ScaleListRepr(name: Option[String],
       modulations = modulations.map { modulation =>
         modulation.copy(
           scale = modulation.scale.resolve,
-          extension = modulation.extension.map(_.resolve),
-          fill = modulation.fill.map(_.resolve)
+          extension = modulation.extension.map(_.resolve)
         )
       },
       globalFill = globalFill.resolve
@@ -50,9 +49,7 @@ case class OriginRepr(basePitchClass: Int)
 case class ModulationRepr(transposition: Option[Interval] = None,
                           scale: Ref[Scale[Interval]],
                           tuningMapper: Option[TuningMapper],
-                          extension: Option[Ref[Scale[Interval]]],
-                          fill: Option[Ref[Scale[Interval]]],
-                          fillTuningMapper: Option[TuningMapper])
+                          extension: Option[Ref[Scale[Interval]]])
 
 case class ScaleListConfigRepr(mapQuarterTonesLow: Boolean = false)
 

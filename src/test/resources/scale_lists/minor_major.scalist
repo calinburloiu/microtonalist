@@ -15,20 +15,12 @@
       "scale": {
         "ref": "minor.jscl"
       },
-      "tuningMapper": "auto",
-      "fill": ["9/7"]
+      "tuningMapper": "auto"
     },
     {
       "transposition": "6/5",
       "scale": {
         "ref": "major.scl"
-      },
-      "fill": {
-        "ref": "chromatic.scl"
-      },
-      "fillTuningMapper": {
-        "type": "auto",
-        "mapQuarterTonesLow": true
       }
     },
     {

@@ -28,10 +28,8 @@ import scala.collection.immutable.ArraySeq
  *
  * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
  */
-case class PartialTuning(override val deviations: Seq[Option[Double]]) extends Tuning[Option[Double]] {
-  // TODO Does it make sense to have a name?
-  override def name: String = ""
-
+case class PartialTuning(override val deviations: Seq[Option[Double]],
+                         override val name: String = "") extends Tuning[Option[Double]] {
   /**
    * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
    */
@@ -53,6 +51,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
    */
   def isComplete: Boolean = deviations.forall(_.nonEmpty)
 
+  // TODO #2 Name is no longer required
   /**
    * Attempts to create a [[OctaveTuning]] from this partial tuning if is complete (see [[isComplete]]).
    *
@@ -148,7 +147,7 @@ object PartialTuning {
   /**
    * A [[PartialTuning]] with 12 keys and no deviations completed.
    */
-  val Empty12PianoKeys: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
+  val EmptyOctave: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
 
   def apply(headDeviation: Option[Double], tailDeviations: Option[Double]*): PartialTuning =
     PartialTuning(headDeviation +: tailDeviations)

@@ -16,9 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
+// TODO #2 Remove class and use params instead for the reduce method
 case class PartialTuningList(globalFillTuning: PartialTuning,
-                             tuningModulations: Seq[TuningModulation])
+                             partialTunings: Seq[PartialTuning])
 
-case class TuningModulation(tuningName: String,
-                            tuning: PartialTuning,
-                            fillTuning: PartialTuning)

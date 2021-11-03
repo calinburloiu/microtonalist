@@ -27,6 +27,7 @@ package org.calinburloiu.music.tuning
 trait Tuning[U] extends Iterable[U] {
   require(deviations.nonEmpty, "Expecting a non-empty list of deviations")
 
+  // TODO @deprecated("will not necessary in the future because tunings have lineage to scales which are named")
   def name: String
 
   def deviations: Seq[U]
