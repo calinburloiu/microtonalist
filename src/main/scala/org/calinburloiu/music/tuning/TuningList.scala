@@ -41,12 +41,10 @@ object TuningList extends StrictLogging {
   def fromScaleList(scaleList: ScaleList): TuningList = {
     val globalFillScale = scaleList.globalFill.scale
     val globalFillTuning = scaleList.globalFill.tuningMapper(scaleList.origin.basePitchClass, globalFillScale)
-
-    val tuningModulations = createPartialTunings(Interval.Unison, Vector.empty,
+    val partialTunings = createPartialTunings(Interval.Unison, Vector.empty,
       scaleList.modulations, scaleList.origin)
 
-    val partialTuningList = PartialTuningList(globalFillTuning, tuningModulations)
-    scaleList.tuningListReducer(partialTuningList)
+    scaleList.tuningListReducer(partialTunings, globalFillTuning)
   }
 
   @tailrec

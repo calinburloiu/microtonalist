@@ -107,10 +107,18 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
 
+    def mergeName(leftName: String, rightName: String): String = {
+      if (leftName.isEmpty) {
+        rightName
+      } else {
+        s"$leftName | $rightName"
+      }
+    }
+
     @tailrec
     def accMerge(acc: Array[Option[Double]], index: Int): Option[PartialTuning] = {
       if (index == size) {
-        Some(PartialTuning(ArraySeq.unsafeWrapArray(acc)))
+        Some(PartialTuning(ArraySeq.unsafeWrapArray(acc), mergeName(this.name, that.name)))
       } else {
         (this.deviations(index), that.deviations(index)) match {
           case (None, None) =>

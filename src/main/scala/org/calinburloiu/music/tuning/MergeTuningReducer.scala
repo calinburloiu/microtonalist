@@ -24,16 +24,16 @@ import scala.annotation.tailrec
 // TODO #2 Document after improving the algorithm, explaining what it does.
 class MergeTuningReducer extends TuningReducer with StrictLogging {
 
-  override def apply(partialTuningList: PartialTuningList): TuningList = {
-    checkArgument(partialTuningList.partialTunings.nonEmpty)
+  override def apply(partialTunings: Seq[PartialTuning], globalFillTuning: PartialTuning): TuningList = {
+    checkArgument(partialTunings.nonEmpty)
 
-    val tuningSize = partialTuningList.partialTunings.head.size
+    val tuningSize = partialTunings.head.size
     val reducedPartialTunings =
-      collect(Vector.empty[PartialTuning], partialTuningList.partialTunings, tuningSize)
+      collect(Vector.empty[PartialTuning], partialTunings, tuningSize)
     val maybeTunings = reducedPartialTunings.map { partialTuning =>
       val enrichedPartialTuning = Seq(
         partialTuning,
-        partialTuningList.globalFillTuning
+        globalFillTuning
       ).reduce(_ enrich _)
 
       enrichedPartialTuning.resolve(partialTuning.name)
@@ -53,10 +53,10 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
     if (partialTunings.isEmpty) {
       acc
     } else {
-      val (mergedTuningModulation, tuningModulationsLeft) =
+      val (mergedPartialTuning, partialTuningsLeft) =
         merge(emptyPartialTuning(tuningSize), partialTunings)
 
-      collect(acc :+ mergedTuningModulation, tuningModulationsLeft, tuningSize)
+      collect(acc :+ mergedPartialTuning, partialTuningsLeft, tuningSize)
     }
   }
 
@@ -71,21 +71,12 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
       case Some(nextPartialTuning) =>
         acc merge nextPartialTuning match {
           case Some(mergedTuning) =>
-            val mergedName = mergeName(acc.name, nextPartialTuning.name)
             merge(mergedTuning, partialTunings.tail)
 
           case None => (acc, partialTunings)
         }
 
       case None => (acc, partialTunings)
-    }
-  }
-
-  private[this] def mergeName(leftName: String, rightName: String): String = {
-    if (leftName.isEmpty) {
-      rightName
-    } else {
-      s"$leftName | $rightName"
     }
   }
 }
