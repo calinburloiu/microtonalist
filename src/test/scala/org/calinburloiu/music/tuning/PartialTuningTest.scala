@@ -20,6 +20,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class PartialTuningTest extends AnyFlatSpec with Matchers {
+  private val mergeTolerance: Double = 0.5e-2
 
   private val completePartialTuning = PartialTuning(
     Some(100.0), Some(200.0), Some(300.0),
@@ -109,20 +110,20 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
       Some(1000.0), Some(1100.0), Some(1200.0))
 
     withClue("an empty PartialTuning causes no conflicts:") {
-      pt2 merge emptyPartialTuning should contain(pt2)
-      emptyPartialTuning merge pt2 should contain(pt2)
+      pt2.merge(emptyPartialTuning, mergeTolerance) should contain(pt2)
+      emptyPartialTuning.merge(pt2, mergeTolerance) should contain(pt2)
     }
     withClue("an identical PartialTuning has identical deviations, which cause no conflict") {
-      pt1 merge pt1.copy() should contain(pt1)
+      pt1.merge(pt1.copy(), mergeTolerance) should contain(pt1)
     }
     withClue("identical corresponding deviations cause no conflict") {
-      pt1 merge pt2 should contain(pt1)
+      pt1.merge(pt2, mergeTolerance) should contain(pt1)
     }
     withClue("non-identical corresponding deviation cause a conflict") {
-      pt1 merge pt3 should be(empty)
-      pt2 merge pt3 should be(empty)
+      pt1.merge(pt3, mergeTolerance) should be(empty)
+      pt2.merge(pt3, mergeTolerance) should be(empty)
     }
 
-    assertThrows[IllegalArgumentException](incompletePartialTuning merge smallerPartialTuning)
+    assertThrows[IllegalArgumentException](incompletePartialTuning.merge(smallerPartialTuning, mergeTolerance))
   }
 }
