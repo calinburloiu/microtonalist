@@ -68,7 +68,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    * Fills each key with empty deviations from `this` with corresponding non-empty
    * deviations from `that`.
    */
-  def enrich(that: PartialTuning): PartialTuning = {
+  def fill(that: PartialTuning): PartialTuning = {
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
 

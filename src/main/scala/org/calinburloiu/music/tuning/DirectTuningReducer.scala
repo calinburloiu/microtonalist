@@ -29,7 +29,7 @@ class DirectTuningReducer extends TuningReducer with StrictLogging {
       val mergedPartialTuning = Seq(
         partialTuning,
         globalFillTuning
-      ).reduce(_ enrich _)
+      ).reduce(_ fill _)
       mergedPartialTuning.resolve(partialTuning.name)
     }
 

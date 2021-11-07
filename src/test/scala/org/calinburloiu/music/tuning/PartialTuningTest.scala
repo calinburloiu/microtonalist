@@ -73,22 +73,22 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
   }
 
   "enrich" should "correctly do a best effort combine of PartialTunings" in {
-    incompletePartialTuning enrich emptyPartialTuning shouldEqual incompletePartialTuning
+    incompletePartialTuning fill emptyPartialTuning shouldEqual incompletePartialTuning
 
-    incompletePartialTuning enrich completePartialTuning shouldEqual
+    incompletePartialTuning fill completePartialTuning shouldEqual
       PartialTuning(
         Some(0.0), Some(200.0), Some(270.0),
         Some(400.0), Some(500.0), Some(600.0),
         Some(700.0), Some(800.0), Some(900.0),
         Some(1000.0), Some(1100.0), Some(1200.0))
 
-    incompletePartialTuning2 enrich incompletePartialTuning shouldEqual PartialTuning(
+    incompletePartialTuning2 fill incompletePartialTuning shouldEqual PartialTuning(
       Some(0.0), None, Some(250.0),
       Some(400.0), Some(500.0), Some(600.0),
       Some(700.0), Some(800.0), Some(900.0),
       Some(1000.0), Some(1100.0), Some(1200.0))
 
-    assertThrows[IllegalArgumentException](incompletePartialTuning enrich smallerPartialTuning)
+    assertThrows[IllegalArgumentException](incompletePartialTuning fill smallerPartialTuning)
   }
 
   "merge" should "correctly combine PartialTunings" in {

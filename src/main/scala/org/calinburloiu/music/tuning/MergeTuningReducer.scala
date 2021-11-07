@@ -29,12 +29,12 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
 
     val tuningSize = partialTunings.head.size
     val reducedPartialTunings =
-      collect(Vector.empty[PartialTuning], partialTunings, tuningSize)
+      collect(partialTunings, PartialTuning.empty(tuningSize), tuningSize)
     val maybeTunings = reducedPartialTunings.map { partialTuning =>
       val enrichedPartialTuning = Seq(
         partialTuning,
         globalFillTuning
-      ).reduce(_ enrich _)
+      ).reduce(_ fill _)
 
       enrichedPartialTuning.resolve(partialTuning.name)
     }
@@ -46,22 +46,21 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
     }
   }
 
-  @tailrec
-  private[this] def collect(acc: Seq[PartialTuning],
-                            partialTunings: Seq[PartialTuning],
-                            tuningSize: Int): Seq[PartialTuning] = {
+  private[this] def collect(partialTunings: Seq[PartialTuning],
+                            backFill: PartialTuning,
+                            tuningSize: Int): List[PartialTuning] = {
     if (partialTunings.isEmpty) {
-      acc
+      List.empty
     } else {
-      val (mergedPartialTuning, partialTuningsLeft) =
-        merge(emptyPartialTuning(tuningSize), partialTunings)
-
-      collect(acc :+ mergedPartialTuning, partialTuningsLeft, tuningSize)
+      val (mergedPartialTuning, partialTuningsLeft) = merge(PartialTuning.empty(tuningSize), partialTunings)
+      val mergedPartialTuningWithBackFill = mergedPartialTuning.fill(backFill)
+      val forwardResult = collect(partialTuningsLeft, mergedPartialTuningWithBackFill, tuningSize)
+      val result = forwardResult.headOption match {
+        case Some(forFill) => mergedPartialTuningWithBackFill.fill(forFill)
+        case None => mergedPartialTuningWithBackFill
+      }
+      result :: forwardResult
     }
-  }
-
-  private[this] def emptyPartialTuning(size: Int) = {
-    PartialTuning.empty(size)
   }
 
   @tailrec
