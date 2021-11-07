@@ -17,6 +17,7 @@
 package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions._
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
@@ -29,7 +30,9 @@ import scala.collection.immutable.ArraySeq
  * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
  */
 case class PartialTuning(override val deviations: Seq[Option[Double]],
-                         override val name: String = "") extends Tuning[Option[Double]] {
+                         override val name: String = "") extends Tuning[Option[Double]] with LazyLogging {
+  import PartialTuning._
+
   /**
    * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
    */
@@ -101,9 +104,10 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    * `this` for that key is kept.
    *
    * @param that other partial tuning used for merging
+   * @param tolerance maximum error tolerance in cents when comparing two correspondent deviations for equality
    * @return a new partial tuning
    */
-  def merge(that: PartialTuning): Option[PartialTuning] = {
+  def merge(that: PartialTuning, tolerance: Double): Option[PartialTuning] = {
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
 
@@ -133,12 +137,13 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
             acc(index) = Some(dev1)
             accMerge(acc, index + 1)
 
-          case (Some(dev1), Some(dev2)) if dev1 == dev2 =>
+          case (Some(dev1), Some(dev2)) if equalsWithTolerance(dev1, dev2, tolerance) =>
             acc(index) = Some(dev1)
             accMerge(acc, index + 1)
 
           // Conflict, stop!
           case _ =>
+            logger.debug(s"Conflict for pitch class $index in PartialTunings $this (${this.name}) and $that (${that.name})!")
             None
         }
       }
@@ -151,7 +156,6 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
 }
 
 object PartialTuning {
-
   /**
    * A [[PartialTuning]] with 12 keys and no deviations completed.
    */
@@ -167,4 +171,6 @@ object PartialTuning {
    * @return a new partial tuning
    */
   def empty(size: Int): PartialTuning = PartialTuning(Seq.fill(size)(None))
+
+  private def equalsWithTolerance(a: Double, b: Double, tolerance: Double): Boolean = Math.abs(a - b) <= tolerance
 }

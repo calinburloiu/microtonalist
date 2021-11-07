@@ -22,7 +22,8 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.annotation.tailrec
 
 // TODO #2 Document after improving the algorithm, explaining what it does.
-class MergeTuningReducer extends TuningReducer with StrictLogging {
+// TODO Params such as tolerance should be part of a TuningReducer specific spec
+class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with StrictLogging {
 
   override def apply(partialTunings: Seq[PartialTuning], globalFillTuning: PartialTuning): TuningList = {
     checkArgument(partialTunings.nonEmpty)
@@ -68,7 +69,7 @@ class MergeTuningReducer extends TuningReducer with StrictLogging {
                           partialTunings: Seq[PartialTuning]): (PartialTuning, Seq[PartialTuning]) = {
     partialTunings.headOption match {
       case Some(nextPartialTuning) =>
-        acc merge nextPartialTuning match {
+        acc.merge(nextPartialTuning, tolerance) match {
           case Some(mergedTuning) =>
             merge(mergedTuning, partialTunings.tail)
 
