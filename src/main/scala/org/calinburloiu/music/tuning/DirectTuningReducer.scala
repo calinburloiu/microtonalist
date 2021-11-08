@@ -30,7 +30,7 @@ class DirectTuningReducer extends TuningReducer with StrictLogging {
         partialTuning,
         globalFillTuning
       ).reduce(_ fill _)
-      mergedPartialTuning.resolve(partialTuning.name)
+      mergedPartialTuning.resolve
     }
 
     if (maybeTunings.forall(_.nonEmpty)) {

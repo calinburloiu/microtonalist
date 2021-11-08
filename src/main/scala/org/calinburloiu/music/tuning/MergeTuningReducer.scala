@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.tuning
 
-import com.google.common.base.Preconditions._
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.annotation.tailrec
@@ -25,8 +24,11 @@ import scala.annotation.tailrec
 // TODO Params such as tolerance should be part of a TuningReducer specific spec
 class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with StrictLogging {
 
-  override def apply(partialTunings: Seq[PartialTuning], globalFillTuning: PartialTuning): TuningList = {
-    checkArgument(partialTunings.nonEmpty)
+  override def apply(partialTunings: Seq[PartialTuning],
+                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+    if (partialTunings.isEmpty) {
+      return TuningList(Seq.empty)
+    }
 
     val tuningSize = partialTunings.head.size
     val reducedPartialTunings =
@@ -37,12 +39,13 @@ class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with 
         globalFillTuning
       ).reduce(_ fill _)
 
-      enrichedPartialTuning.resolve(partialTuning.name)
+      enrichedPartialTuning.resolve
     }
 
     if (maybeTunings.forall(_.nonEmpty)) {
       TuningList(maybeTunings.map(_.get))
     } else {
+      // TODO Consider not throwing here, but instead returning a special object
       throw new IncompleteTuningsException(s"Some tunings are not complete: $maybeTunings")
     }
   }

@@ -34,15 +34,15 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
     Some(1000.0), Some(1100.0), Some(1200.0))
   private val incompletePartialTuning2 = PartialTuning(
     None, None, Some(250.0),
-    Some(400.0), Some(500.0), Some(600.0),
-    Some(700.0), Some(800.0), Some(900.0),
-    Some(1000.0), Some(1100.0), Some(1200.0))
+    None, None, None,
+    None, None, None,
+    None, None, None)
   private val emptyPartialTuning = PartialTuning(
     None, None, None,
-    Some(400.0), Some(500.0), Some(600.0),
-    Some(700.0), Some(800.0), Some(900.0),
-    Some(1000.0), Some(1100.0), Some(1200.0))
-  private val smallerPartialTuning = PartialTuning(Some(101.1), None)
+    None, None, None,
+    None, None, None,
+    None, None, None)
+  private val smallerPartialTuning = PartialTuning(Seq(Some(101.1), None))
 
   "apply, size and iterator" should "work as an indexed sequence" in {
     incompletePartialTuning.size shouldEqual 12
@@ -64,13 +64,13 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
   }
 
   "resolve" should "return some Tuning if this PartialTuning isComplete and None otherwise" in {
-    emptyPartialTuning.resolve("foo") should be(empty)
-    completePartialTuning.resolve("foo") should contain(OctaveTuning("foo",
+    emptyPartialTuning.resolve should be(empty)
+    completePartialTuning.resolve should contain(OctaveTuning("foo",
       100.0, 200.0, 300.0,
       400.0, 500.0, 600.0,
       700.0, 800.0, 900.0,
       1000.0, 1100.0, 1200.0))
-    incompletePartialTuning.resolve("foo") should be(empty)
+    incompletePartialTuning.resolve should be(empty)
   }
 
   "enrich" should "correctly do a best effort combine of PartialTunings" in {

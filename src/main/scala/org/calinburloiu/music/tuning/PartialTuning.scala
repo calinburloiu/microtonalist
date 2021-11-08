@@ -54,15 +54,13 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    */
   def isComplete: Boolean = deviations.forall(_.nonEmpty)
 
-  // TODO #2 Name is no longer required
   /**
    * Attempts to create a [[OctaveTuning]] from this partial tuning if is complete (see [[isComplete]]).
    *
-   * @param name a human-friendly name used for the new [[OctaveTuning]]
    * @return maybe a new [[OctaveTuning]]
    * @see [[isComplete]]
    */
-  def resolve(name: String): Option[OctaveTuning] = if (isComplete)
+  def resolve: Option[OctaveTuning] = if (isComplete)
     Some(OctaveTuning(name, deviations.map(_.get)))
   else
     None
@@ -79,7 +77,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).headOption
     }
 
-    PartialTuning(resultDeviations)
+    PartialTuning(resultDeviations, name)
   }
 
   /**
@@ -93,7 +91,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
     }
 
-    PartialTuning(resultDeviations)
+    PartialTuning(resultDeviations, name)
   }
 
   /**
@@ -160,9 +158,49 @@ object PartialTuning {
    * A [[PartialTuning]] with 12 keys and no deviations completed.
    */
   val EmptyOctave: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
+  /**
+   * A [[PartialTuning]] with 12 keys and all 0 deviations for the standard 12-tone equal temperament.
+   */
+  val StandardTuningOctave: PartialTuning = fill(0, PianoKeyboardTuningUtils.tuningSize)
 
-  def apply(headDeviation: Option[Double], tailDeviations: Option[Double]*): PartialTuning =
-    PartialTuning(headDeviation +: tailDeviations)
+  /**
+   * Creates a named `PartialTuning` for the 12 pitch classes in an octave.
+   */
+  def apply(name: String,
+            c: Option[Double],
+            cSharpOrDFlat: Option[Double],
+            d: Option[Double],
+            dSharpOrEFlat: Option[Double],
+            e: Option[Double],
+            f: Option[Double],
+            fSharpOrGFlat: Option[Double],
+            g: Option[Double],
+            gSharpOrAFlat: Option[Double],
+            a: Option[Double],
+            aSharpOrBFlat: Option[Double],
+            b: Option[Double]): PartialTuning = {
+    val deviations = Seq(c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g,
+      gSharpOrAFlat, a, aSharpOrBFlat, b)
+    PartialTuning(deviations, name)
+  }
+
+  /**
+   * Creates a `PartialTuning` for the 12 pitch classes in an octave.
+   */
+  def apply(c: Option[Double],
+            cSharpOrDFlat: Option[Double],
+            d: Option[Double],
+            dSharpOrEFlat: Option[Double],
+            e: Option[Double],
+            f: Option[Double],
+            fSharpOrGFlat: Option[Double],
+            g: Option[Double],
+            gSharpOrAFlat: Option[Double],
+            a: Option[Double],
+            aSharpOrBFlat: Option[Double],
+            b: Option[Double]): PartialTuning = {
+    apply("", c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g, gSharpOrAFlat, a, aSharpOrBFlat, b)
+  }
 
   /**
    * Creates a [[PartialTuning]] which has no deviation in each of its keys.
@@ -171,6 +209,8 @@ object PartialTuning {
    * @return a new partial tuning
    */
   def empty(size: Int): PartialTuning = PartialTuning(Seq.fill(size)(None))
+
+  def fill(deviation: Double, size: Int): PartialTuning = PartialTuning(Seq.fill(size)(Some(deviation)))
 
   private def equalsWithTolerance(a: Double, b: Double, tolerance: Double): Boolean = Math.abs(a - b) <= tolerance
 }
