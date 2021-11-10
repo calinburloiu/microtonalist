@@ -16,81 +16,88 @@
 
 package org.calinburloiu.music.tuning
 
-import com.google.common.base.Preconditions._
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.annotation.tailrec
 
-// TODO #2 Document after improving the algorithm, explaining what it does.
 // TODO Params such as tolerance should be part of a TuningReducer specific spec
+/**
+ * Reducing algorithm for a sequence of [[PartialTuning]]s that attempts to merge consecutive `PartialTuning`s that
+ * don't have conflicts. The merging is performed in the order of the sequence.
+ *
+ * Two `PartialTuning`s are said to have conflicts if they have at least one pair corresponding pitch class deviations
+ * with different values, the rest of them being equal or have close values (see `tolerance`).
+ *
+ * The algorithm also attempt to apply two kinds _local fill_:
+ *
+ *   1. **Back-fill:** deviations that come from preceding merged `PartialTuning`s.
+ *   2. **Fore-fill:** deviations that come from succeeding merged `PartialTuning`s.
+ *
+ * The local fill applied attempts to minimize the number of notes retuned when switching tunings. When one plays a
+ * piano with sustain pedal and the tuning is changed, a large number of nodes retuned could result in an unwanted
+ * effect.
+ *
+ * @param tolerance Error in cents that should be tolerated when comparing corresponding pitch class deviations of
+ *                  `PartialTuning`s.
+ */
 class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with StrictLogging {
 
-  override def apply(partialTuningList: PartialTuningList): TuningList = {
-    checkArgument(partialTuningList.tuningModulations.nonEmpty)
+  override def apply(partialTunings: Seq[PartialTuning],
+                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+    if (partialTunings.isEmpty) {
+      return TuningList(Seq.empty)
+    }
 
-    val tuningSize = partialTuningList.tuningModulations.head.tuning.size
-    val reducedTuningModulations =
-      collect(Vector.empty[TuningModulation], partialTuningList.tuningModulations, tuningSize)
-    val maybeTunings = reducedTuningModulations.map { tuningModulation =>
+    val tuningSize = partialTunings.head.size
+    val reducedPartialTunings =
+      collect(partialTunings, PartialTuning.empty(tuningSize), tuningSize)
+    val maybeTunings = reducedPartialTunings.map { partialTuning =>
       val enrichedPartialTuning = Seq(
-        tuningModulation.tuning,
-        tuningModulation.fillTuning,
-        partialTuningList.globalFillTuning
-      ).reduce(_ enrich _)
+        partialTuning,
+        globalFillTuning
+      ).reduce(_ fill _)
 
-      enrichedPartialTuning.resolve(tuningModulation.tuningName)
+      enrichedPartialTuning.resolve
     }
 
     if (maybeTunings.forall(_.nonEmpty)) {
       TuningList(maybeTunings.map(_.get))
     } else {
+      // TODO Consider not throwing here, but instead returning a special object
       throw new IncompleteTuningsException(s"Some tunings are not complete: $maybeTunings")
     }
   }
 
-  @tailrec
-  private[this] def collect(acc: Seq[TuningModulation],
-                            tuningModulations: Seq[TuningModulation],
-                            tuningSize: Int): Seq[TuningModulation] = {
-    if (tuningModulations.isEmpty) {
-      acc
+  private[this] def collect(partialTunings: Seq[PartialTuning],
+                            backFill: PartialTuning,
+                            tuningSize: Int): List[PartialTuning] = {
+    if (partialTunings.isEmpty) {
+      List.empty
     } else {
-      val (mergedTuningModulation, tuningModulationsLeft) =
-        merge(emptyTuningModulation(tuningSize), tuningModulations)
-
-      collect(acc :+ mergedTuningModulation, tuningModulationsLeft, tuningSize)
+      val (mergedPartialTuning, partialTuningsLeft) = merge(PartialTuning.empty(tuningSize), partialTunings)
+      val mergedPartialTuningWithBackFill = mergedPartialTuning.fill(backFill)
+      val forwardResult = collect(partialTuningsLeft, mergedPartialTuningWithBackFill, tuningSize)
+      val result = forwardResult.headOption match {
+        case Some(foreFill) => mergedPartialTuningWithBackFill.fill(foreFill)
+        case None => mergedPartialTuningWithBackFill
+      }
+      result :: forwardResult
     }
   }
 
-  private[this] def emptyTuningModulation(size: Int) = {
-    val emptyPartialTuning = PartialTuning.empty(size)
-    TuningModulation("", emptyPartialTuning, emptyPartialTuning)
-  }
-
   @tailrec
-  private[this] def merge(acc: TuningModulation,
-                          tuningModulations: Seq[TuningModulation]): (TuningModulation, Seq[TuningModulation]) = {
-    tuningModulations.headOption match {
-      case Some(nextTuningModulation) =>
-        acc.tuning.merge(nextTuningModulation.tuning, tolerance) match {
+  private[this] def merge(acc: PartialTuning,
+                          partialTunings: Seq[PartialTuning]): (PartialTuning, Seq[PartialTuning]) = {
+    partialTunings.headOption match {
+      case Some(nextPartialTuning) =>
+        acc.merge(nextPartialTuning, tolerance) match {
           case Some(mergedTuning) =>
-            val mergedName = mergeName(acc.tuningName, nextTuningModulation.tuningName)
-            val enrichedFillTuning = acc.fillTuning enrich nextTuningModulation.fillTuning
-            val newAcc = TuningModulation(mergedName, mergedTuning, enrichedFillTuning)
-            merge(newAcc, tuningModulations.tail)
+            merge(mergedTuning, partialTunings.tail)
 
-          case None => (acc, tuningModulations)
+          case None => (acc, partialTunings)
         }
 
-      case None => (acc, tuningModulations)
-    }
-  }
-
-  private[this] def mergeName(leftName: String, rightName: String): String = {
-    if (leftName.isEmpty) {
-      rightName
-    } else {
-      s"$leftName | $rightName"
+      case None => (acc, partialTunings)
     }
   }
 }

@@ -16,13 +16,13 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import java.io.{InputStream, OutputStream}
-
 import org.calinburloiu.music.intonation.format.{JsonScaleFormat, Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList, ScaleMapping}
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
+
+import java.io.{InputStream, OutputStream}
 
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
@@ -77,12 +77,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
         ScaleMapping(extensionScaleRef.value, defaultTuningMapper)
       }
 
-      val fill = modulationRepr.fill.map { fillScaleRef =>
-        val fillTuningMapper = modulationRepr.fillTuningMapper.getOrElse(defaultTuningMapper)
-        ScaleMapping(fillScaleRef.value, fillTuningMapper)
-      }
-
-      Modulation(transposition, scaleMapping, extension, fill)
+      Modulation(transposition, scaleMapping, extension)
     }
 
     val tuningReducer = scaleListRepr.tuningReducer.getOrElse(TuningReducer.Default)

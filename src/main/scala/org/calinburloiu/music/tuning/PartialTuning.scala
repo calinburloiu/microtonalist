@@ -18,7 +18,6 @@ package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions._
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.tuning.PartialTuning.equalsWithTolerance
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
@@ -30,9 +29,9 @@ import scala.collection.immutable.ArraySeq
  *
  * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
  */
-case class PartialTuning(override val deviations: Seq[Option[Double]]) extends Tuning[Option[Double]] with LazyLogging {
-  // TODO Does it make sense to have a name?
-  override def name: String = ""
+case class PartialTuning(override val deviations: Seq[Option[Double]],
+                         override val name: String = "") extends Tuning[Option[Double]] with LazyLogging {
+  import PartialTuning._
 
   /**
    * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
@@ -58,11 +57,10 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
   /**
    * Attempts to create a [[OctaveTuning]] from this partial tuning if is complete (see [[isComplete]]).
    *
-   * @param name a human-friendly name used for the new [[OctaveTuning]]
    * @return maybe a new [[OctaveTuning]]
    * @see [[isComplete]]
    */
-  def resolve(name: String): Option[OctaveTuning] = if (isComplete)
+  def resolve: Option[OctaveTuning] = if (isComplete)
     Some(OctaveTuning(name, deviations.map(_.get)))
   else
     None
@@ -71,7 +69,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
    * Fills each key with empty deviations from `this` with corresponding non-empty
    * deviations from `that`.
    */
-  def enrich(that: PartialTuning): PartialTuning = {
+  def fill(that: PartialTuning): PartialTuning = {
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
 
@@ -79,7 +77,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).headOption
     }
 
-    PartialTuning(resultDeviations)
+    PartialTuning(resultDeviations, name)
   }
 
   /**
@@ -93,7 +91,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
     }
 
-    PartialTuning(resultDeviations)
+    PartialTuning(resultDeviations, name)
   }
 
   /**
@@ -111,10 +109,18 @@ case class PartialTuning(override val deviations: Seq[Option[Double]]) extends T
     checkArgument(this.size == that.size,
       "Expecting equally sized operand, got one with size %s", that.size)
 
+    def mergeName(leftName: String, rightName: String): String = {
+      if (leftName.isEmpty) {
+        rightName
+      } else {
+        s"$leftName | $rightName"
+      }
+    }
+
     @tailrec
     def accMerge(acc: Array[Option[Double]], index: Int): Option[PartialTuning] = {
       if (index == size) {
-        Some(PartialTuning(ArraySeq.unsafeWrapArray(acc)))
+        Some(PartialTuning(ArraySeq.unsafeWrapArray(acc), mergeName(this.name, that.name)))
       } else {
         (this.deviations(index), that.deviations(index)) match {
           case (None, None) =>
@@ -151,10 +157,50 @@ object PartialTuning {
   /**
    * A [[PartialTuning]] with 12 keys and no deviations completed.
    */
-  val Empty12PianoKeys: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
+  val EmptyOctave: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
+  /**
+   * A [[PartialTuning]] with 12 keys and all 0 deviations for the standard 12-tone equal temperament.
+   */
+  val StandardTuningOctave: PartialTuning = fill(0, PianoKeyboardTuningUtils.tuningSize)
 
-  def apply(headDeviation: Option[Double], tailDeviations: Option[Double]*): PartialTuning =
-    PartialTuning(headDeviation +: tailDeviations)
+  /**
+   * Creates a named `PartialTuning` for the 12 pitch classes in an octave.
+   */
+  def apply(name: String,
+            c: Option[Double],
+            cSharpOrDFlat: Option[Double],
+            d: Option[Double],
+            dSharpOrEFlat: Option[Double],
+            e: Option[Double],
+            f: Option[Double],
+            fSharpOrGFlat: Option[Double],
+            g: Option[Double],
+            gSharpOrAFlat: Option[Double],
+            a: Option[Double],
+            aSharpOrBFlat: Option[Double],
+            b: Option[Double]): PartialTuning = {
+    val deviations = Seq(c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g,
+      gSharpOrAFlat, a, aSharpOrBFlat, b)
+    PartialTuning(deviations, name)
+  }
+
+  /**
+   * Creates a `PartialTuning` for the 12 pitch classes in an octave.
+   */
+  def apply(c: Option[Double],
+            cSharpOrDFlat: Option[Double],
+            d: Option[Double],
+            dSharpOrEFlat: Option[Double],
+            e: Option[Double],
+            f: Option[Double],
+            fSharpOrGFlat: Option[Double],
+            g: Option[Double],
+            gSharpOrAFlat: Option[Double],
+            a: Option[Double],
+            aSharpOrBFlat: Option[Double],
+            b: Option[Double]): PartialTuning = {
+    apply("", c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g, gSharpOrAFlat, a, aSharpOrBFlat, b)
+  }
 
   /**
    * Creates a [[PartialTuning]] which has no deviation in each of its keys.
@@ -163,6 +209,8 @@ object PartialTuning {
    * @return a new partial tuning
    */
   def empty(size: Int): PartialTuning = PartialTuning(Seq.fill(size)(None))
+
+  def fill(deviation: Double, size: Int): PartialTuning = PartialTuning(Seq.fill(size)(Some(deviation)))
 
   private def equalsWithTolerance(a: Double, b: Double, tolerance: Double): Boolean = Math.abs(a - b) <= tolerance
 }

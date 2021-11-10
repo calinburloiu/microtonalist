@@ -35,6 +35,8 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
 
     val justMinorThirdDeviation = 15.64 // cents
 
+    tuningList.size shouldEqual 3
+
     val minorTuning = tuningList(0)
     withClue("minor tuning scale:") {
       minorTuning.d shouldEqual 0.00
@@ -46,13 +48,11 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
       minorTuning.c shouldEqual 17.60
     }
     withClue("minor tuning fill:") {
-      minorTuning.gFlat shouldEqual 35.08
-    }
-    withClue("minor tuning global fill:") {
       minorTuning.cSharp shouldEqual -11.73
       minorTuning.eFlat shouldEqual 11.73
+      minorTuning.gFlat shouldEqual -13.69
       minorTuning.gSharp shouldEqual -17.49
-      minorTuning.b shouldEqual -15.64
+      minorTuning.b shouldEqual 5.87
     }
 
     val majorTuning = tuningList(1)
@@ -65,12 +65,12 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
       majorTuning.d - justMinorThirdDeviation shouldEqual -15.64
       majorTuning.e - justMinorThirdDeviation shouldEqual -11.73
     }
-    withClue("major tuning fill:") {
-      majorTuning.dFlat - justMinorThirdDeviation shouldEqual 13.69
-      majorTuning.eFlat - justMinorThirdDeviation shouldEqual -31.18
-      majorTuning.gFlat - justMinorThirdDeviation shouldEqual 11.73
-      majorTuning.aFlat - justMinorThirdDeviation shouldEqual 15.64
-      majorTuning.b - justMinorThirdDeviation shouldEqual -17.49
+    withClue("major tuning global fill") {
+      majorTuning.cSharp shouldEqual -11.73
+      majorTuning.eFlat shouldEqual 11.73
+      majorTuning.fSharp shouldEqual -13.69
+      majorTuning.aFlat shouldEqual -17.49
+      majorTuning.b shouldEqual 5.87
     }
 
     val romanianMinorTuning = tuningList(2)
@@ -83,11 +83,11 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
       romanianMinorTuning.b shouldEqual 5.87
       romanianMinorTuning.c shouldEqual -3.91
     }
-    withClue("romanian minor global fill:") {
+    withClue("romanian minor fill:") {
       romanianMinorTuning.cSharp shouldEqual -11.73
       romanianMinorTuning.eFlat shouldEqual 11.73
       romanianMinorTuning.fSharp shouldEqual -13.69
-      romanianMinorTuning.g shouldEqual -1.96
+      romanianMinorTuning.g shouldEqual 19.55
       romanianMinorTuning.bFlat shouldEqual 13.69
     }
   }

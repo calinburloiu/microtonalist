@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import java.nio.file.{Path, Paths}
-
 import org.calinburloiu.music.intonation.format.{InvalidScaleFormatException, LocalScaleLibrary, ScaleFormatRegistry, ScaleNotFoundException}
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtuner.ScaleList
@@ -28,6 +26,8 @@ import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json._
+
+import java.nio.file.{Path, Paths}
 
 class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
 
@@ -52,17 +52,12 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
 
     scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
     scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)
-    scaleList.modulations.head.fill.map(_.scale) should contain(
-      RatiosScale((1, 1), (9, 7))
-    )
 
     scaleList.modulations(1).transposition shouldEqual RatioInterval(6, 5)
     scaleList.modulations(1).scaleMapping.scale shouldEqual majorScale
-    scaleList.modulations(1).fill.map(_.scale) should contain(chromaticScale)
 
     scaleList.modulations(2).transposition shouldEqual RatioInterval(5, 3)
     scaleList.modulations(2).scaleMapping.scale shouldEqual romanianMinorScale
-    scaleList.modulations(2).fill.map(_.scale) should be(empty)
   }
 
   it should "fail when a transposition interval in invalid" in {

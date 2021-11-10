@@ -24,14 +24,14 @@ import com.typesafe.scalalogging.StrictLogging
  */
 class DirectTuningReducer extends TuningReducer with StrictLogging {
 
-  override def apply(partialTuningList: PartialTuningList): TuningList = {
-    val maybeTunings = partialTuningList.tuningModulations.map { modulation =>
-      val partialTuning = Seq(
-        modulation.tuning,
-        modulation.fillTuning,
-        partialTuningList.globalFillTuning
-      ).reduce(_ enrich _)
-      partialTuning.resolve(modulation.tuningName)
+  override def apply(partialTunings: Seq[PartialTuning],
+                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+    val maybeTunings = partialTunings.map { partialTuning =>
+      val mergedPartialTuning = Seq(
+        partialTuning,
+        globalFillTuning
+      ).reduce(_ fill _)
+      mergedPartialTuning.resolve
     }
 
     if (maybeTunings.forall(_.nonEmpty)) {

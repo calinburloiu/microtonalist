@@ -28,8 +28,7 @@ case class ScaleList(name: String,
 case class Modulation(transposition: Interval,
                       scaleMapping: ScaleMapping,
                       // TODO extension probably needs to be renamed to alterations or something
-                      extension: Option[ScaleMapping],
-                      fill: Option[ScaleMapping])
+                      extension: Option[ScaleMapping])
 
 case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {
