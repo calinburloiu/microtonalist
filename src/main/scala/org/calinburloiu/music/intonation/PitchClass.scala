@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.intonation
 
-import com.google.common.base.Preconditions
 import com.google.common.math.IntMath
 import org.calinburloiu.music.tuning.PitchClassConfig
 
@@ -29,10 +28,8 @@ import scala.language.implicitConversions
  * @param deviation Deviation from the semitone in cents
  */
 case class PitchClass(number: Int, deviation: Double = 0.0) {
-  Preconditions.checkArgument(number >= 0 && number < 12,
-    "0 <= semitone < 12".asInstanceOf[Any])
-  Preconditions.checkArgument(deviation >= -100.0 && deviation <= 100.0,
-    "-100 <= deviation <= 100".asInstanceOf[Any])
+  require(number >= 0 && number < 12, "0 <= semitone < 12")
+  require(deviation >= -100.0 && deviation <= 100.0, "-100 <= deviation <= 100")
 
   def cents: Double = 100.0 * number + deviation
 

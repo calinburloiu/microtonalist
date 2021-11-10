@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import com.google.common.base.Preconditions._
+import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
@@ -38,7 +38,6 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    */
   def apply(index: Int): Option[Double] = {
     checkElementIndex(index, size)
-
     deviations(index)
   }
 
@@ -70,8 +69,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    * deviations from `that`.
    */
   def fill(that: PartialTuning): PartialTuning = {
-    checkArgument(this.size == that.size,
-      "Expecting equally sized operand, got one with size %s", that.size)
+    require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
     val resultDeviations = (this.deviations zip that.deviations).map {
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).headOption
@@ -84,8 +82,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    * Overwrites each key from `this` with with corresponding non-empty deviations from `that`.
    */
   def overwrite(that: PartialTuning): PartialTuning = {
-    checkArgument(this.size == that.size,
-      "Expecting equally sized operand, got one with size %s", that.size)
+    require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
     val resultDeviations = (this.deviations zip that.deviations).map {
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
@@ -106,8 +103,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    * @return a new partial tuning
    */
   def merge(that: PartialTuning, tolerance: Double): Option[PartialTuning] = {
-    checkArgument(this.size == that.size,
-      "Expecting equally sized operand, got one with size %s", that.size)
+    require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
     def mergeName(leftName: String, rightName: String): String = {
       if (leftName.isEmpty) {

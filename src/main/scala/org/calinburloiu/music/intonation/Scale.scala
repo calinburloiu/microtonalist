@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.intonation
 
-import com.google.common.base.Preconditions._
+import com.google.common.base.Preconditions.checkElementIndex
 
 class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
-  checkArgument(intervals.nonEmpty, "Expecting a non-empty list of intervals".asInstanceOf[Object])
+  require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
 
   def apply(index: Int): I = {
     checkElementIndex(index, size)

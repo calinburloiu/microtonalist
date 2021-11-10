@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import com.google.common.base.Preconditions
+import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.Interval
 import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList}
@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning] {
 
   def apply(index: Int): OctaveTuning = {
-    Preconditions.checkElementIndex(index, size)
+    checkElementIndex(index, size)
 
     tunings(index)
   }

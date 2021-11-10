@@ -16,18 +16,16 @@
 
 package org.calinburloiu.music.intonation
 
-import java.lang.Math.{floor, pow}
-
-import com.google.common.base.Preconditions._
 import com.google.common.math.{DoubleMath, IntMath}
 
+import java.lang.Math.{floor, pow}
 import scala.language.implicitConversions
 import scala.util.Try
 
 class Interval(val realValue: Double) extends Ordered[Interval] {
-  checkArgument(realValue > 0.0 &&
+  require(realValue > 0.0 &&
     realValue != Double.PositiveInfinity && realValue != Double.NaN,
-    "Expecting a positive finite real value for the interval, but got %s", realValue)
+    s"Expecting a positive finite real value for the interval, but got $realValue")
 
   def cents: Double = Converters.fromRealValueToCents(realValue)
 
@@ -41,8 +39,8 @@ class Interval(val realValue: Double) extends Ordered[Interval] {
   def -(operand: Interval): Interval = Interval(this.realValue / operand.realValue)
 
   def invert: Interval = {
-    checkArgument(this >= Interval.Unison && this <= Interval.Octave,
-      "Expecting this to between an unison and an octave, inclusively, but got %s", this)
+    require(this >= Interval.Unison && this <= Interval.Octave,
+      s"Expecting this to between an unison and an octave, inclusively, but got $this")
 
     Interval.Octave - this
   }
@@ -148,8 +146,8 @@ case class RatioInterval(
   }
 
   override def invert: RatioInterval = {
-    checkArgument(this >= RatioInterval.Unison && this <= RatioInterval.Octave,
-      "Expecting this to between an unison and an octave, inclusively, but got %s", this)
+    require(this >= RatioInterval.Unison && this <= RatioInterval.Octave,
+      s"Expecting this to between an unison and an octave, inclusively, but got $this")
 
     RatioInterval.Octave - this
   }
@@ -208,8 +206,8 @@ case class CentsInterval(
   }
 
   override def invert: CentsInterval = {
-    checkArgument(this >= CentsInterval.Unison && this <= CentsInterval.Octave,
-      "Expecting this to between an unison and an octave, inclusively, but got %s", this)
+    require(this >= CentsInterval.Unison && this <= CentsInterval.Octave,
+      s"Expecting this to between an unison and an octave, inclusively, but got $this")
 
     CentsInterval.Octave - this
   }

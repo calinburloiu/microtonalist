@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.tuning
 
-import com.google.common.base.Preconditions._
-
 // TODO Does this utility still make sense now that we have OctaveTuning?
 object PianoKeyboardTuningUtils {
 
@@ -31,8 +29,8 @@ object PianoKeyboardTuningUtils {
 
   private[PianoKeyboardTuningUtils] abstract class TuningBaseExtension[U](tuningBase: Tuning[U]) {
 
-    private[this] def checkIsPianoKeyboard(): Unit = checkArgument(tuningBase.size == 12,
-      "Expecting 12 deviation values, but found %s", tuningBase.size)
+    private[this] def checkIsPianoKeyboard(): Unit = require(tuningBase.size == 12,
+      s"Expecting 12 deviation values, but found ${tuningBase.size}")
 
     private[this] def pianoKeyboardTuningDeviation(index: Int): U = {
       checkIsPianoKeyboard()

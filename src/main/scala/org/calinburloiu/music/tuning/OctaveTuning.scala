@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import com.google.common.base.Preconditions._
+import com.google.common.base.Preconditions.checkElementIndex
 
 /**
  * Describes the tuning of a keyed instrument, typically with a piano keyboard, by specifying a deviation in cents
