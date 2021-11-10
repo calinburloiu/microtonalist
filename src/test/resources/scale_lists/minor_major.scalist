@@ -8,7 +8,7 @@
   "globalFill": {
     "ref": "chromatic.scl"
   },
-  "tuningReducer": "direct",
+  "tuningReducer": "merge",
   "modulations": [
     {
       "transposition": "1",

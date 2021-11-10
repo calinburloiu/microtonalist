@@ -15,9 +15,6 @@
     {
       "transposition": "6/5",
       "scale": {
-        "ref": "major.scl"
-      },
-      "fill": {
         "ref": "bar.scl"
       }
     }

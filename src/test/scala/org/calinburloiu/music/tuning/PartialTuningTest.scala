@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 class PartialTuningTest extends AnyFlatSpec with Matchers {
   private val mergeTolerance: Double = 0.5e-2
 
-  private val completePartialTuning = PartialTuning(
+  private val completePartialTuning = PartialTuning("foo",
     Some(100.0), Some(200.0), Some(300.0),
     Some(400.0), Some(500.0), Some(600.0),
     Some(700.0), Some(800.0), Some(900.0),

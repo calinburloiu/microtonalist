@@ -19,10 +19,6 @@
       "scale": {
         "ref": "minor.jscl"
       },
-      "fill": {
-        "name": "Add special diminished 4th",
-        "intervals": ["9/7"]
-      },
       "fillTuningMapper": {
         "id": "auto",
         "config": {
@@ -34,9 +30,6 @@
       "transposition": "6/5",
       "scale": {
         "ref": "major.scl"
-      },
-      "fill": {
-        "ref": "chromatic.scl"
       }
     },
     {
