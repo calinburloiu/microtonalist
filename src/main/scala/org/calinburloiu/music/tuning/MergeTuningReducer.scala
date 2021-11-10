@@ -78,7 +78,7 @@ class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with 
       val mergedPartialTuningWithBackFill = mergedPartialTuning.fill(backFill)
       val forwardResult = collect(partialTuningsLeft, mergedPartialTuningWithBackFill, tuningSize)
       val result = forwardResult.headOption match {
-        case Some(forFill) => mergedPartialTuningWithBackFill.fill(forFill)
+        case Some(foreFill) => mergedPartialTuningWithBackFill.fill(foreFill)
         case None => mergedPartialTuningWithBackFill
       }
       result :: forwardResult
