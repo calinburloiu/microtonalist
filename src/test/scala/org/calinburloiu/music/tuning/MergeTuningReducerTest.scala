@@ -20,80 +20,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
+  import TestPartialTunings._
+
   private val reducer = new MergeTuningReducer()
-  private val evic = PartialTuning("Evic",
-    c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = Some(0.0),
-    dSharpOrEFlat = None,
-    e = Some(-16.67),
-    f = Some(0.0),
-    fSharpOrGFlat = None,
-    g = Some(0.0),
-    gSharpOrAFlat = None,
-    a = None,
-    aSharpOrBFlat = Some(-33.33),
-    b = Some(-16.67)
-  )
-  private val gMajor = PartialTuning("G Major",
-    c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = Some(0.0),
-    dSharpOrEFlat = None,
-    e = Some(-16.67),
-    f = None,
-    fSharpOrGFlat = Some(-16.67),
-    g = Some(0.0),
-    gSharpOrAFlat = None,
-    a = Some(0.0),
-    aSharpOrBFlat = None,
-    b = Some(-16.67)
-  )
-  private val segah = PartialTuning("Segah",
-    c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = None,
-    dSharpOrEFlat = Some(-33.33),
-    e = Some(-16.67),
-    f = Some(0.0),
-    fSharpOrGFlat = None,
-    g = Some(0.0),
-    gSharpOrAFlat = None,
-    a = Some(-16.67),
-    aSharpOrBFlat = None,
-    b = Some(-16.67)
-  )
-  private val segahDesc = PartialTuning("Segah Descending",
-    c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = None,
-    dSharpOrEFlat = Some(-33.33),
-    e = Some(-16.67),
-    f = Some(0.0),
-    fSharpOrGFlat = None,
-    g = Some(0.0),
-    gSharpOrAFlat = Some(50.0),
-    a = Some(-16.67),
-    aSharpOrBFlat = Some(0.0),
-    b = None
-  )
-
-  private val justCMajor = PartialTuning("Just C Major",
-    c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = Some(3.91),
-    dSharpOrEFlat = None,
-    e = Some(-13.69),
-    f = Some(-1.96),
-    fSharpOrGFlat = None,
-    g = Some(1.96),
-    gSharpOrAFlat = None,
-    a = Some(15.64),
-    aSharpOrBFlat = None,
-    b = Some(-11.73)
-  )
-
-  private val customGlobalFill = PartialTuning((1 to 12).map(Some(_)))
 
   behavior of "MergeTuningReducer"
 
@@ -198,12 +127,11 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  // TODO #2 Make it like La Cornu
-  ignore should "should merge two partial tunings with conflicts, back-fill and fore-fill" in {
-    val tuningList = reducer(Seq(evic, gMajor, segah, segahDesc))
+  it should "should merge more partial tunings (1)" in {
+    val tuningList = reducer(Seq(evic, gMajor, nihaventPentachord, segah, segahDesc, huzzam))
 
     tuningList.size shouldEqual 2
-    tuningList.tunings.head shouldEqual OctaveTuning("Evic | G Major",
+    tuningList.tunings.head shouldEqual OctaveTuning("Evic | G Major | Nihavent Pentachord",
       c = 0.0,
       cSharpOrDFlat = 0.0,
       d = 0.0,
@@ -217,7 +145,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
       aSharpOrBFlat = -33.33,
       b = -16.67
     )
-    tuningList.tunings(1) shouldEqual OctaveTuning("Segah | Segah Descending",
+    tuningList.tunings(1) shouldEqual OctaveTuning("Segah | Segah Descending | Huzzam",
       c = 0.0,
       cSharpOrDFlat = 0.0,
       d = 0.0,
@@ -233,8 +161,51 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  // TODO #2
-  ignore should "a yet more complicated pattern" in {
+  it should "should merge more partial tunings (2)" in {
+    val tuningList = reducer(Seq(rast, nikriz, zengule, ussak, saba), customGlobalFill)
 
+    tuningList.size shouldEqual 3
+    tuningList.tunings.head shouldEqual OctaveTuning("Rast | Nikriz",
+      c = 0.0,
+      cSharpOrDFlat = -16.67,
+      d = 0.0,
+      dSharpOrEFlat = 16.67,
+      e = -16.67,
+      f = 0.0,
+      fSharpOrGFlat = -16.67,
+      g = 0.0,
+      gSharpOrAFlat = 9.0,
+      a = 0.0,
+      aSharpOrBFlat = 0.0,
+      b = -16.67
+    )
+    tuningList.tunings(1) shouldEqual OctaveTuning("Zengule",
+      c = 0.0,
+      cSharpOrDFlat = -16.67,
+      d = 0.0,
+      dSharpOrEFlat = 16.67,
+      e = -16.67,
+      f = 0.0,
+      fSharpOrGFlat = -16.67,
+      g = 0.0,
+      gSharpOrAFlat = 9.0,
+      a = 0.0,
+      aSharpOrBFlat = 16.67,
+      b = -16.67
+    )
+    tuningList.tunings(2) shouldEqual OctaveTuning("Ussak | Saba",
+      c = 0.0,
+      cSharpOrDFlat = -16.67,
+      d = 0.0,
+      dSharpOrEFlat = 50.0,
+      e = -16.67,
+      f = 0.0,
+      fSharpOrGFlat = 33.33,
+      g = 0.0,
+      gSharpOrAFlat = 9.0,
+      a = 0.0,
+      aSharpOrBFlat = 0.0,
+      b = -16.67
+    )
   }
 }

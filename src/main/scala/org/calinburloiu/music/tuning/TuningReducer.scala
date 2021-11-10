@@ -25,7 +25,8 @@ package org.calinburloiu.music.tuning
  */
 trait TuningReducer {
 
-  def apply(tunings: Seq[PartialTuning], globalFillTuning: PartialTuning): TuningList
+  def apply(tunings: Seq[PartialTuning],
+            globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
 }
 
 object TuningReducer {
