@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtuner.format
 
 import org.calinburloiu.music.intonation.format.{JsonScaleFormat, Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList, ScaleMapping}
+import org.calinburloiu.music.microtuner.{Modulation, ScaleList, ScaleMapping, StandardTuningRef}
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
 
@@ -65,7 +65,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
       PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
 
     val name = scaleListRepr.name.getOrElse("")
-    val origin = OriginOld(scaleListRepr.origin.basePitchClass)
+    val tuningRef = StandardTuningRef(scaleListRepr.origin.basePitchClass)
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
       val transposition = modulationRepr.transposition.getOrElse(Interval.Unison)
@@ -85,7 +85,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     val globalFillTuningMapper = scaleListRepr.globalFillTuningMapper.getOrElse(defaultTuningMapper)
     val globalFill = ScaleMapping(scaleListRepr.globalFill.value, globalFillTuningMapper)
 
-    ScaleList(name, origin, modulations, tuningReducer, globalFill)
+    ScaleList(name, tuningRef, modulations, tuningReducer, globalFill)
   }
 }
 

@@ -17,118 +17,47 @@
 package org.calinburloiu.music.microtuner
 
 import org.calinburloiu.music.intonation.{Interval, PitchClass}
+import org.calinburloiu.music.microtuner.midi.MidiNote
 
-import scala.language.implicitConversions
-
-trait Pitch[+I <: Interval] {
-
-  def absoluteInterval: I
-
-  def freq: Double
-
-  def +[J >: I <: Interval](interval: J): Pitch[J]
-
-  def -(that: Pitch[Interval]): Interval
-
-  def -[J >: I <: Interval](interval: J): Pitch[J]
+/**
+ * Tuning reference that tells what pitch class to be used for the base pitch and what tuning deviation should have
+ * with respect to standard tuning (12-EDO).
+ */
+sealed trait TuningRef{
+  /**
+   * @return `Some` pitch class and tuning deviation for the base pitch if it is valid or `None`, otherwise. Typically,
+   *         it might not be valid if the deviation absolute value exceeds 100 cents.
+   */
+  def basePitchClass: Option[PitchClass]
 }
 
-object Pitch {
+/**
+ * Tuning reference relative to concert pitch.
+ *
+ * @param concertPitchToBaseInterval Interval between the reference frequency and composition's base pitch.
+ * @param baseMidiNote MIDI note number of the composition's base pitch, relative to which scales are tuned.
+ * @param concertPitchFreq Reference frequency in Hz, typically known as concert pitch and set to `440.0` Hz.
+ */
+case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
+                                 baseMidiNote: MidiNote,
+                                 concertPitchFreq: Double = 440.0) extends TuningRef {
+  require(concertPitchFreq > 0, "concertPitchFreq > 0")
+  baseMidiNote.assert()
 
-  def apply(freq: Double): Pitch[Interval] = ???
-
-  def apply[I <: Interval](absoluteInterval: I): Pitch[I] = ???
-
-  def apply[I <: Interval](origin: Origin, relativeInterval: I = Interval.Unison): Pitch[I] = ???
-
-  implicit def fromFreq(freq: Double): Pitch[Interval] = Pitch(freq)
+  override def basePitchClass: Option[PitchClass] = {
+    val refToBaseMidiNoteInterval = Interval(baseMidiNote.freq / concertPitchFreq)
+    val deviation = (concertPitchToBaseInterval - refToBaseMidiNoteInterval).cents
+    if (Math.abs(deviation) <= 100.0) Some(PitchClass(baseMidiNote.pitchClassNumber, deviation)) else None
+  }
 }
 
-// TODO There is another class MidiNote
-case class MidiNote2(number: Int) {
+/**
+ * Tuning reference relative standard tuning (12-EDO).
+ *
+ * @param basePitchClassNumber The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
+ */
+case class StandardTuningRef(basePitchClassNumber: Int) extends TuningRef {
+  require(basePitchClassNumber >= 0 && basePitchClassNumber < 12, "0 <= basePitchClassNumber < 12")
 
-  /** Returns the standard 12-tone equal temperament `Pitch`. */
-  def standardPitch: Pitch[Interval] = ???
-}
-
-object MidiNote2 {
-
-  implicit def fromMidiNoteNumber(midiNoteNumber: Int): MidiNote2 = MidiNote2(midiNoteNumber)
-}
-
-case class PitchMapping[+I <: Interval](pitch: Pitch[I], midiNote: MidiNote2)
-
-trait Origin {
-
-  val baseMidiNote: MidiNote2
-
-  val concertPitch: Pitch[Interval]
-
-  val baseToConcertPitchInterval: Interval
-
-  def basePitch: Pitch[Interval]
-}
-
-
-trait OriginOld {
-
-  val basePitchClass: PitchClass
-
-  val refMidiNote: Int
-
-  val concertPitchFreq: Double
-
-  def refToConcertPitchInterval: Interval
-
-  def baseMidiNote: Int
-
-  def refFreq: Double
-
-  def baseToConcertPitchInterval: Interval
-}
-
-object OriginOld {
-
-  def apply(basePitchClass: PitchClass): OriginOld = BasePitchClassOriginOld(basePitchClass)
-}
-
-// TODO This is a bad implementation done only not to break current functionality
-case class BasePitchClassOriginOld(override val basePitchClass: PitchClass) extends OriginOld {
-
-  override val refMidiNote: Int = 69
-  override val concertPitchFreq: Double = 440.0
-
-  override def refToConcertPitchInterval: Interval = ???
-
-  override def baseMidiNote: Int = ???
-
-  override def refFreq: Double = ???
-
-  override def baseToConcertPitchInterval: Interval = ???
-}
-
-// TODO Name it: concert pitch from ref
-case class ConcertPitchOriginOld(override val basePitchClass: PitchClass,
-                                 override val refMidiNote: Int,
-                                 override val concertPitchFreq: Double,
-                                 override val refToConcertPitchInterval: Interval) extends OriginOld {
-
-  override def baseMidiNote: Int = ???
-
-  override def refFreq: Double = ???
-
-  override def baseToConcertPitchInterval: Interval = ???
-}
-
-// TODO Name it: concert pitch from base
-case class ConcertPitchOrigin02(override val basePitchClass: PitchClass,
-                                override val refMidiNote: Int,
-                                override val concertPitchFreq: Double,
-                                override val baseToConcertPitchInterval: Interval) extends OriginOld {
-
-  override def refToConcertPitchInterval: Interval = ???
-
-  override def baseMidiNote: Int = ???
-
-  override def refFreq: Double = ???
+  override def basePitchClass: Option[PitchClass] = Some(PitchClass(basePitchClassNumber))
 }

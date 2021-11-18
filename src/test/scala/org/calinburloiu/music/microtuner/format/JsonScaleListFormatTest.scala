@@ -48,7 +48,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     val scaleList = readScaleListFromResources("scale_lists/minor_major.scalist")
 
     scaleList.globalFill.scale shouldEqual chromaticScale
-    scaleList.origin.basePitchClass.number shouldEqual 2
+    scaleList.tuningRef.basePitchClass should not be empty
+    scaleList.tuningRef.basePitchClass.get.number shouldEqual 2
 
     scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
     scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)

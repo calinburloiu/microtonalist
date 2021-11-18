@@ -20,7 +20,7 @@ import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.tuning.{PartialTuning, TuningMapper, TuningReducer}
 
 case class ScaleList(name: String,
-                     origin: OriginOld,
+                     tuningRef: TuningRef,
                      modulations: Seq[Modulation],
                      tuningListReducer: TuningReducer,
                      globalFill: ScaleMapping)
@@ -33,7 +33,8 @@ case class Modulation(transposition: Interval,
 case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {
 
-  def tuning(origin: OriginOld, transposition: Interval): PartialTuning = {
-    tuningMapper(origin.basePitchClass, scale.transpose(transposition))
+  def tuning(tuningRef: TuningRef, transposition: Interval): PartialTuning = {
+    // TODO #5 Handle None basePitchClass
+    tuningMapper(tuningRef.basePitchClass.get, scale.transpose(transposition))
   }
 }
