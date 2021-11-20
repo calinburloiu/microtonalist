@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
-import org.calinburloiu.music.intonation.{Interval, PitchClass}
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, PitchClass}
 import org.calinburloiu.music.microtuner.midi.MidiNote
 
 /**
@@ -40,13 +40,13 @@ sealed trait TuningRef{
  */
 case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
                                  baseMidiNote: MidiNote,
-                                 concertPitchFreq: Double = 440.0) extends TuningRef {
+                                 concertPitchFreq: Double = ConcertPitchFreq) extends TuningRef {
   require(concertPitchFreq > 0, "concertPitchFreq > 0")
-  baseMidiNote.assert()
+  baseMidiNote.assertValid()
 
   override def basePitchClass: Option[PitchClass] = {
-    val refToBaseMidiNoteInterval = Interval(baseMidiNote.freq / concertPitchFreq)
-    val deviation = (concertPitchToBaseInterval - refToBaseMidiNoteInterval).cents
+    val concertPitchToBaseMidiNoteInterval = Interval(baseMidiNote.freq / concertPitchFreq)
+    val deviation = (concertPitchToBaseInterval - concertPitchToBaseMidiNoteInterval).cents
     if (Math.abs(deviation) <= 100.0) Some(PitchClass(baseMidiNote.pitchClassNumber, deviation)) else None
   }
 }

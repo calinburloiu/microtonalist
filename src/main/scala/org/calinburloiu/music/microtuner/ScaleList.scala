@@ -22,19 +22,18 @@ import org.calinburloiu.music.tuning.{PartialTuning, TuningMapper, TuningReducer
 case class ScaleList(name: String,
                      tuningRef: TuningRef,
                      modulations: Seq[Modulation],
-                     tuningListReducer: TuningReducer,
+                     tuningReducer: TuningReducer,
                      globalFill: ScaleMapping)
 
 case class Modulation(transposition: Interval,
                       scaleMapping: ScaleMapping,
-                      // TODO extension probably needs to be renamed to alterations or something
-                      extension: Option[ScaleMapping])
+                      // TODO extension probably needs to be renamed to alterations, overrides or something
+                      extension: Option[ScaleMapping] = None)
 
 case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {
 
-  def tuning(tuningRef: TuningRef, transposition: Interval): PartialTuning = {
-    // TODO #5 Handle None basePitchClass
-    tuningMapper(tuningRef.basePitchClass.get, scale.transpose(transposition))
+  def tuning(basePitchClass: PitchClass, transposition: Interval): PartialTuning = {
+    tuningMapper(basePitchClass, scale.transpose(transposition))
   }
 }
