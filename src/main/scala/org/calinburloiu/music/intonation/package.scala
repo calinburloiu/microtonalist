@@ -19,4 +19,34 @@ package org.calinburloiu.music
 package object intonation {
   /** Concert pitch frequency in Hz for central A4. */
   val ConcertPitchFreq: Double = 440.0
+
+  def log2(a: Double): Double = Math.log(a) / Math.log(2)
+
+  def fromRealValueToCents(realValue: Double): Double = {
+    require(realValue > 0.0, s"Expecting positive realValue, but got $realValue")
+
+    1200.0 * log2(realValue)
+  }
+
+  def fromRatioToCents(numerator: Int, denominator: Int): Double = {
+    require(numerator > 0.0, s"Expecting positive numerator, but got $numerator")
+    require(denominator > 0.0, s"Expecting positive denominator, but got $denominator")
+
+    fromRealValueToCents(numerator.toDouble / denominator.toDouble)
+  }
+
+  def fromCentsToRealValue(cents: Double): Double = Math.pow(2, cents / 1200)
+
+  def fromCentsToHz(cents: Double, baseFreqHz: Double): Double = {
+    require(baseFreqHz > 0.0, s"Expecting positive baseFreqHz, but got $baseFreqHz")
+
+    baseFreqHz * fromCentsToRealValue(cents)
+  }
+
+  def fromHzToCents(freqHz: Double, baseFreqHz: Double): Double = {
+    require(freqHz > 0.0, s"Expecting positive freqHz, but got $freqHz")
+    require(baseFreqHz > 0.0, s"Expecting positive baseFreqHz, but got $baseFreqHz")
+
+    fromRealValueToCents(freqHz / baseFreqHz)
+  }
 }

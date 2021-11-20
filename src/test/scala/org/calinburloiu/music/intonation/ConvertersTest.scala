@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.intonation.Converters._
 import org.calinburloiu.music.tuning.PitchClassConfig
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
