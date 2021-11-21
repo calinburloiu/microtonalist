@@ -65,7 +65,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
       PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
 
     val name = scaleListRepr.name.getOrElse("")
-    val tuningRef = StandardTuningRef(scaleListRepr.origin.basePitchClass)
+    val tuningRef = StandardTuningRef(scaleListRepr.tuningReference.basePitchClass)
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
       val transposition = modulationRepr.transposition.getOrElse(Interval.Unison)
@@ -107,7 +107,6 @@ object JsonScaleListFormat {
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
-
     import ComponentPlayJsonFormat._
 
     private implicit val pitchClassConfigPlayJsonFormat: Format[PitchClassConfig] =
@@ -125,7 +124,6 @@ object JsonScaleListFormat {
   }
 
   private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
-
     import ComponentPlayJsonFormat._
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
@@ -133,5 +131,4 @@ object JsonScaleListFormat {
       SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => new MergeTuningReducer)),
     )
   }
-
 }
