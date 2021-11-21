@@ -16,14 +16,14 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.tuning.PitchClassConfig
+import org.calinburloiu.music.tuning.AutoTuningMapperContext
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PitchClassTest extends AnyFunSuite with Matchers with TableDrivenPropertyChecks {
+class PitchClassDeviationTest extends AnyFunSuite with Matchers with TableDrivenPropertyChecks {
 
-  import PitchClass._
+  import PitchClassDeviation._
 
   test("roundToInt") {
     //@formatter:off
@@ -55,26 +55,26 @@ class PitchClassTest extends AnyFunSuite with Matchers with TableDrivenPropertyC
 
   test("fromCents") {
     val tolerance = 0.1
-    val downConfig = PitchClassConfig(mapQuarterTonesLow = true, tolerance)
-    val upConfig = PitchClassConfig(mapQuarterTonesLow = false, tolerance)
+    val downConfig = AutoTuningMapperContext(mapQuarterTonesLow = true, tolerance)
+    val upConfig = AutoTuningMapperContext(mapQuarterTonesLow = false, tolerance)
 
     //@formatter:off
-    val table = Table[Double, PitchClassConfig, PitchClass](
-      ("Input Cents", "PitchClassConfig", "PitchClass"),
-      (145.0,         downConfig,         PitchClass(1, 45.0)),
-      (150.0,         downConfig,         PitchClass(1, 50.0)),
-      (155.0,         downConfig,         PitchClass(1, 55.0)),
-      (145.0,         upConfig,           PitchClass(2, -55.0)),
-      (150.0,         upConfig,           PitchClass(2, -50.0)),
-      (155.0,         upConfig,           PitchClass(2, -45.0)),
+    val table = Table[Double, AutoTuningMapperContext, PitchClassDeviation](
+      ("Input Cents", "autoTuningMapperContext", "PitchClass"),
+      (145.0,          downConfig,                PitchClassDeviation(1, 45.0)),
+      (150.0,          downConfig,                PitchClassDeviation(1, 50.0)),
+      (155.0,          downConfig,                PitchClassDeviation(1, 55.0)),
+      (145.0,          upConfig,                  PitchClassDeviation(2, -55.0)),
+      (150.0,          upConfig,                  PitchClassDeviation(2, -50.0)),
+      (155.0,          upConfig,                  PitchClassDeviation(2, -45.0)),
 
-      (161.0,         downConfig,         PitchClass(2, -39.0)),
-      (139.0,         upConfig,           PitchClass(1, 39.0))
+      (161.0,          downConfig,                PitchClassDeviation(2, -39.0)),
+      (139.0,          upConfig,                  PitchClassDeviation(1, 39.0))
     )
     //@formatter:on
 
-    forAll(table) { (inputCents, pitchClassConfig, pitchClass) =>
-      fromCents(inputCents)(pitchClassConfig) shouldEqual pitchClass
+    forAll(table) { (inputCents, autoTuningMapperContext, pitchClassDeviation) =>
+      fromCents(inputCents)(autoTuningMapperContext) shouldEqual pitchClassDeviation
     }
   }
 }

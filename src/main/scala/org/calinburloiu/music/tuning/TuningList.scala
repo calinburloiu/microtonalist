@@ -18,8 +18,8 @@ package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.intonation.{Interval, PitchClass}
-import org.calinburloiu.music.microtuner.{Modulation, ScaleList}
+import org.calinburloiu.music.intonation.Interval
+import org.calinburloiu.music.microtuner.{Modulation, ScaleList, TuningRef}
 
 import scala.annotation.tailrec
 
@@ -39,12 +39,10 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 object TuningList extends StrictLogging {
 
   def fromScaleList(scaleList: ScaleList): TuningList = {
-    // TODO #5 Handle None basePitchClass
-    val basePitchClass = scaleList.tuningRef.basePitchClass.get
     val globalFillScale = scaleList.globalFill.scale
-    val globalFillTuning = scaleList.globalFill.tuningMapper(basePitchClass, globalFillScale)
+    val globalFillTuning = scaleList.globalFill.tuningMapper.mapScale(globalFillScale, scaleList.tuningRef)
     val partialTunings = createPartialTunings(Interval.Unison, Vector.empty,
-      scaleList.modulations, basePitchClass)
+      scaleList.modulations, scaleList.tuningRef)
 
     scaleList.tuningReducer(partialTunings, globalFillTuning)
   }
@@ -53,7 +51,7 @@ object TuningList extends StrictLogging {
   private[this] def createPartialTunings(cumulativeTransposition: Interval,
                                          partialTuningsAcc: Seq[PartialTuning],
                                          modulations: Seq[Modulation],
-                                         basePitchClass: PitchClass): Seq[PartialTuning] = {
+                                         tuningRef: TuningRef): Seq[PartialTuning] = {
     if (modulations.isEmpty) {
       partialTuningsAcc
     } else {
@@ -65,22 +63,22 @@ object TuningList extends StrictLogging {
         (cumulativeTransposition + crtTransposition).normalize
       }
       val partialTuning = createPartialTuning(
-        newCumulativeTransposition, modulations.head, basePitchClass)
+        newCumulativeTransposition, modulations.head, tuningRef)
 
       createPartialTunings(newCumulativeTransposition, partialTuningsAcc :+ partialTuning,
-        modulations.tail, basePitchClass)
+        modulations.tail, tuningRef)
     }
   }
 
   private[this] def createPartialTuning(cumulativeTransposition: Interval,
                                         modulation: Modulation,
-                                        basePitchClass: PitchClass): PartialTuning = {
+                                        tuningRef: TuningRef): PartialTuning = {
     val scaleName = modulation.scaleMapping.scale.name
 
-    val extensionTuning = modulation.extension.map(_.tuning(basePitchClass, cumulativeTransposition))
+    val extensionTuning = modulation.extension.map(_.tuningFor(cumulativeTransposition, tuningRef))
       .getOrElse(PartialTuning.EmptyOctave)
 
-    val tuning = modulation.scaleMapping.tuning(basePitchClass, cumulativeTransposition).overwrite(extensionTuning)
+    val tuning = modulation.scaleMapping.tuningFor(cumulativeTransposition, tuningRef).overwrite(extensionTuning)
     tuning.copy(name = scaleName)
   }
 }

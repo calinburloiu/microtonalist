@@ -16,8 +16,10 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
+import org.calinburloiu.music.intonation.{Interval, PitchClassDeviation, Scale}
+import org.calinburloiu.music.microtuner.TuningRef
 
+// TODO #5 Consider merging AutoTuningMapper with AutoTuningMapperContext/Config
 /**
  * A [[TuningMapper]] that attempts to automatically map scales to a piano keyboard tuning that specifies a key for
  * each pitch class, from C to B.
@@ -25,57 +27,51 @@ import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param pitchClassConfig configuration object that fine tunes the way a scale pitch is mapped to a tuning key
+ * @param context configuration object that fine tunes the way a scale pitch is mapped to a tuning key
  */
-class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig())
+class AutoTuningMapper(val context: AutoTuningMapperContext = AutoTuningMapperContext())
   extends TuningMapper {
 
-  private implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
+  private implicit val implicitPitchClassConfig: AutoTuningMapperContext = context
 
   def this(mapQuarterTonesLow: Boolean) =
-    this(PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
+    this(AutoTuningMapperContext(mapQuarterTonesLow, AutoTuningMapperContext.DefaultHalfTolerance))
 
-  override def apply(basePitchClass: PitchClass, scale: Scale[Interval]): PartialTuning = {
-    // TODO Refactor (check commented lines or think about a generic solution like KeyboardMapper).
-    //    val pitchClasses: Seq[PitchClass] = scale.intervals
-    //      .map(_.normalize).distinct
-    //      .map { interval =>
-    //        val cents = interval.cents + basePitchClass.cents
-    //        Converters.fromCentsToPitchClass(cents, autoTuningMapperConfig.mapQuarterTonesLow)
-    //      }
-    val pitchClasses: Seq[PitchClass] = scale.intervals.map { interval =>
-      basePitchClass + interval
+  override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+    val pitchClassDeviations: Seq[PitchClassDeviation] = scale.intervals.map { interval =>
+      ref.basePitchClassDeviation + interval
     }.distinct
 
-    val groupsOfPitchClasses = pitchClasses.groupBy(_.number)
-    val pitchClassesWithConflicts = groupsOfPitchClasses
-      .filter(_._2.distinct.lengthCompare(1) > 0)
-    if (pitchClassesWithConflicts.nonEmpty) {
+    val groupsOfPitchClasses = pitchClassDeviations.groupBy(_.pitchClass)
+    val conflictsFound = groupsOfPitchClasses.exists(_._2.lengthCompare(1) > 0)
+    if (conflictsFound) {
       throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
-        pitchClassesWithConflicts)
+        conflictsFound)
     } else {
-      val pitchClassesMap = pitchClasses.map(PitchClass.unapply(_).get).toMap
+      val pitchClassesMap = pitchClassDeviations.map(PitchClassDeviation.unapply(_).get).toMap
       val partialTuningValues = (0 until 12).map { index =>
         pitchClassesMap.get(index)
       }
 
-      PartialTuning(partialTuningValues)
+      PartialTuning(partialTuningValues, scale.name)
     }
   }
 
-  override def toString: String = s"AutoTuningMapper($pitchClassConfig)"
+  override def mapInterval(interval: Interval): PitchClassDeviation = ???
+
+  override def toString: String = s"AutoTuningMapper($context)"
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[AutoTuningMapper]
 
   override def equals(other: Any): Boolean = other match {
     case that: AutoTuningMapper =>
       (that canEqual this) &&
-        pitchClassConfig == that.pitchClassConfig
+        context == that.context
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(pitchClassConfig)
+    val state = Seq(context)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

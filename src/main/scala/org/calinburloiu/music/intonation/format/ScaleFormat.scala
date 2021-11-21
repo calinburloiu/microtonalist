@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.intonation.format
 
-import java.io.{InputStream, OutputStream}
-
 import org.calinburloiu.music.intonation._
+
+import java.io.{InputStream, OutputStream}
 
 trait ScaleFormat {
 

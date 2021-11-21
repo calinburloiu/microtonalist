@@ -48,8 +48,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     val scaleList = readScaleListFromResources("scale_lists/minor_major.scalist")
 
     scaleList.globalFill.scale shouldEqual chromaticScale
-    scaleList.tuningRef.basePitchClass should not be empty
-    scaleList.tuningRef.basePitchClass.get.number shouldEqual 2
+    scaleList.tuningRef.basePitchClass.number shouldEqual 2
 
     scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
     scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)
@@ -129,8 +128,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper.pitchClassConfig shouldEqual
-          PitchClassConfig(mapQuarterTonesLow = true, halfTolerance = 0.02)
+        autoTuningMapper.context shouldEqual
+          AutoTuningMapperContext(mapQuarterTonesLow = true, halfTolerance = 0.02)
     }
 
     val autoJsonWithDefaultParams = Json.obj("type" -> "auto")
@@ -138,13 +137,13 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper.pitchClassConfig shouldEqual PitchClassConfig()
+        autoTuningMapper.context shouldEqual AutoTuningMapperContext()
     }
   }
 
   it should "serialize JSON object for type auto" in {
     val actual = TuningMapperPlayJsonFormat.writes(new AutoTuningMapper(
-      PitchClassConfig(mapQuarterTonesLow = true, halfTolerance = 0.1)))
+      AutoTuningMapperContext(mapQuarterTonesLow = true, halfTolerance = 0.1)))
     val expected = Json.obj(
       "type" -> "auto",
       "mapQuarterTonesLow" -> true,

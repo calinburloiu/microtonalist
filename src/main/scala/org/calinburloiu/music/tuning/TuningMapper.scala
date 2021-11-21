@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
+import org.calinburloiu.music.intonation.{Interval, PitchClassDeviation, Scale}
+import org.calinburloiu.music.microtuner.TuningRef
 
 /**
  * Maps a [[Scale]] to a [[PartialTuning]], by choosing the right keys to be used. Keys not used in the partial tuning
@@ -26,12 +27,12 @@ import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
  * This results in throwing a [[TuningMapperConflictException]].
  */
 trait TuningMapper {
+  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
 
-  def apply(basePitchClass: PitchClass, scale: Scale[Interval]): PartialTuning
+  def mapInterval(interval: Interval): PitchClassDeviation
 }
 
 object TuningMapper {
-
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */

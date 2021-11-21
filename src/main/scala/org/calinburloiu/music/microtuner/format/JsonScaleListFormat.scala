@@ -62,7 +62,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
     val defaultTuningMapper = new AutoTuningMapper(
-      PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
+      AutoTuningMapperContext(mapQuarterTonesLow, AutoTuningMapperContext.DefaultHalfTolerance))
 
     val name = scaleListRepr.name.getOrElse("")
     val tuningRef = StandardTuningRef(scaleListRepr.tuningReference.basePitchClass)
@@ -109,12 +109,12 @@ object JsonScaleListFormat {
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
     import ComponentPlayJsonFormat._
 
-    private implicit val pitchClassConfigPlayJsonFormat: Format[PitchClassConfig] =
-      Json.using[Json.WithDefaultValues].format[PitchClassConfig]
+    private implicit val pitchClassConfigPlayJsonFormat: Format[AutoTuningMapperContext] =
+      Json.using[Json.WithDefaultValues].format[AutoTuningMapperContext]
     private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
       pitchClassConfigPlayJsonFormat.map(new AutoTuningMapper(_)),
       Writes { autoTuningMapper: AutoTuningMapper =>
-        Json.writes[PitchClassConfig].writes(autoTuningMapper.pitchClassConfig)
+        Json.writes[AutoTuningMapperContext].writes(autoTuningMapper.context)
       }
     )
 

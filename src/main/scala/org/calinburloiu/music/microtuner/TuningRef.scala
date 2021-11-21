@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
-import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, PitchClass}
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, PitchClass, PitchClassDeviation}
 import org.calinburloiu.music.microtuner.midi.MidiNote
 
 /**
@@ -24,11 +24,15 @@ import org.calinburloiu.music.microtuner.midi.MidiNote
  * with respect to standard tuning (12-EDO).
  */
 sealed trait TuningRef{
+  def basePitchClass: PitchClass
+
+  def baseDeviation: Double
+
   /**
    * @return `Some` pitch class and tuning deviation for the base pitch if it is valid or `None`, otherwise. Typically,
    *         it might not be valid if the deviation absolute value exceeds 100 cents.
    */
-  def basePitchClass: Option[PitchClass]
+  def basePitchClassDeviation: PitchClassDeviation
 }
 
 /**
@@ -44,20 +48,25 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
   require(concertPitchFreq > 0, "concertPitchFreq > 0")
   baseMidiNote.assertValid()
 
-  override def basePitchClass: Option[PitchClass] = {
+  override def basePitchClass: PitchClass = baseMidiNote.pitchClass
+
+  override val baseDeviation: Double = {
     val concertPitchToBaseMidiNoteInterval = Interval(baseMidiNote.freq / concertPitchFreq)
-    val deviation = (concertPitchToBaseInterval - concertPitchToBaseMidiNoteInterval).cents
-    if (Math.abs(deviation) <= 100.0) Some(PitchClass(baseMidiNote.pitchClassNumber, deviation)) else None
+    (concertPitchToBaseInterval - concertPitchToBaseMidiNoteInterval).cents
   }
+
+  override val basePitchClassDeviation: PitchClassDeviation = PitchClassDeviation(basePitchClass, baseDeviation)
 }
 
 /**
  * Tuning reference relative standard tuning (12-EDO).
  *
- * @param basePitchClassNumber The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
+ * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
  */
-case class StandardTuningRef(basePitchClassNumber: Int) extends TuningRef {
-  require(basePitchClassNumber >= 0 && basePitchClassNumber < 12, "0 <= basePitchClassNumber < 12")
+case class StandardTuningRef(override val basePitchClass: PitchClass) extends TuningRef {
+  basePitchClass.assertValid()
 
-  override def basePitchClass: Option[PitchClass] = Some(PitchClass(basePitchClassNumber))
+  override def baseDeviation: Double = 0.0
+
+  override def basePitchClassDeviation: PitchClassDeviation = PitchClassDeviation(basePitchClass, 0.0)
 }

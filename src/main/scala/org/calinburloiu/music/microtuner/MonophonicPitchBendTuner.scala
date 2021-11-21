@@ -124,8 +124,8 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
 
   private def currTuning_=(newTuning: OctaveTuning): Unit = {
     // Update currTuningPitchBend
-    val newDeviation = newTuning(lastNote.pitchClassNumber)
-    if (currTuning(lastNote.pitchClassNumber) != newDeviation) {
+    val newDeviation = newTuning(lastNote.pitchClass)
+    if (currTuning(lastNote.pitchClass) != newDeviation) {
       currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
     }
 
@@ -143,8 +143,8 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
 
   private def turnNoteOn(note: MidiNote, velocity: Int): Unit = {
     // Update currTuningPitchBend
-    val newDeviation = currTuning(note.pitchClassNumber)
-    if (currTuning(lastNote.pitchClassNumber) != newDeviation) {
+    val newDeviation = currTuning(note.pitchClass)
+    if (currTuning(lastNote.pitchClass) != newDeviation) {
       currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
     }
 
@@ -174,11 +174,11 @@ class MonophonicPitchBendTuner(private val outputChannel: Int,
     if (note == noteStack.head) {
       sendNoteOff(note, velocity)
 
-      val oldDeviation = currTuning(lastNote.pitchClassNumber)
+      val oldDeviation = currTuning(lastNote.pitchClass)
       noteStack.pop()
       // Play the next note from the top of the stack if available
       if (isNoteOn) {
-        val newDeviation = currTuning(lastNote.pitchClassNumber)
+        val newDeviation = currTuning(lastNote.pitchClass)
         if (oldDeviation != newDeviation) {
           currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
         }

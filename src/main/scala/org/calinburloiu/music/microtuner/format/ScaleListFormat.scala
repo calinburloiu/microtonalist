@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import java.io.{InputStream, OutputStream}
-
 import org.calinburloiu.music.microtuner.ScaleList
+
+import java.io.{InputStream, OutputStream}
 
 /**
  * Trait extended for serialization/deserialization of [[ScaleList]]s.

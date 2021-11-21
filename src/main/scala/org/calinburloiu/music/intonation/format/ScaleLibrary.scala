@@ -16,12 +16,11 @@
 
 package org.calinburloiu.music.intonation.format
 
-import java.io.{FileInputStream, FileNotFoundException}
-import java.nio.file.Path
-
 import com.google.common.io.Files
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
+import java.io.{FileInputStream, FileNotFoundException}
+import java.nio.file.Path
 import scala.util.Try
 
 /**

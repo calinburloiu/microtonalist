@@ -16,9 +16,42 @@
 
 package org.calinburloiu.music
 
+import scala.language.implicitConversions
+
 package object intonation {
   /** Concert pitch frequency in Hz for central A4. */
   val ConcertPitchFreq: Double = 440.0
+
+  implicit class PitchClass(val number: Int) extends AnyVal {
+    /**
+     * Call this method after creating an instance.
+     *
+     * Context: Scala value classes do not allow constructor validation.
+     */
+    def assertValid(): Unit = require(number >= 0 && number < 12, "0 <= pitchClass < 12")
+  }
+
+  object PitchClass {
+    val C: PitchClass = 0
+    val CSharp: PitchClass = 1
+    val DFlat: PitchClass = 1
+    val D: PitchClass = 2
+    val DSharp: PitchClass = 3
+    val EFlat: PitchClass = 3
+    val E: PitchClass = 4
+    val F: PitchClass = 5
+    val FSharp: PitchClass = 6
+    val GFlat: PitchClass = 6
+    val G: PitchClass = 7
+    val GSharp: PitchClass = 8
+    val AFlat: PitchClass = 8
+    val A: PitchClass = 9
+    val ASharp: PitchClass = 10
+    val BFlat: PitchClass = 10
+    val B: PitchClass = 11
+
+    implicit def toInt(pitchClass: PitchClass): Int = pitchClass.number
+  }
 
   def log2(a: Double): Double = Math.log(a) / Math.log(2)
 

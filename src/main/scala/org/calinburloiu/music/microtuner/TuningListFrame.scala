@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.microtuner
 
-import java.awt.FlowLayout
-import java.awt.event.{KeyEvent, KeyListener}
-
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.StrictLogging
+
+import java.awt.FlowLayout
+import java.awt.event.{KeyEvent, KeyListener}
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
 

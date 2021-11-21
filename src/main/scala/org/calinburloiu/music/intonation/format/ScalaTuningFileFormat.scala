@@ -16,12 +16,11 @@
 
 package org.calinburloiu.music.intonation.format
 
-import java.io.{IOException, InputStream, OutputStream}
-import java.nio.charset.StandardCharsets
-
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation._
 
+import java.io.{IOException, InputStream, OutputStream}
+import java.nio.charset.StandardCharsets
 import scala.io.Source
 import scala.util.Try
 import scala.util.matching.Regex

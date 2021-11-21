@@ -22,7 +22,7 @@ import org.calinburloiu.music.intonation.format.{LocalScaleLibrary, ScaleFormatR
 import org.calinburloiu.music.microtuner.config.MainConfigManager
 import org.calinburloiu.music.microtuner.format.JsonScaleListFormat
 import org.calinburloiu.music.microtuner.midi._
-import org.calinburloiu.music.tuning.{TunerType, OctaveTuning, TuningList}
+import org.calinburloiu.music.tuning.{OctaveTuning, TunerType, TuningList}
 
 import java.io.FileInputStream
 import java.nio.file.Paths

@@ -24,7 +24,7 @@ package org.calinburloiu.music.tuning
  * tunings will be incomplete after the reduce process a [[IncompleteTuningsException]] is thrown.
  */
 trait TuningReducer {
-
+  // TODO #5 Rename
   def apply(tunings: Seq[PartialTuning],
             globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
 }

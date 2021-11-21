@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtuner.midi
 
 import com.typesafe.scalalogging.{Logger, StrictLogging}
-import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
 
+import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import scala.collection.mutable
 import scala.util.Try
 

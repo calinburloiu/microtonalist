@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
-import org.calinburloiu.music.intonation.ConcertPitchFreq
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, PitchClass}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.language.implicitConversions
@@ -30,9 +30,9 @@ package object midi {
      */
     def assertValid(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
 
-    def pitchClassNumber: Int = number % 12
+    def pitchClass: PitchClass = number % 12
 
-    def freq: Double = ConcertPitchFreq * Math.pow(2, (pitchClassNumber - MidiNote.ConcertPitch) / 12.0)
+    def freq: Double = ConcertPitchFreq * Math.pow(2, (number - MidiNote.ConcertPitch) / 12.0)
   }
 
   object MidiNote {
@@ -41,6 +41,8 @@ package object midi {
 
     val MiddleC: Int = 60
     val ConcertPitch: Int = 69
+
+    implicit def toInt(midiNote: MidiNote): Int = midiNote.number
   }
 
   def mapShortMessageChannel(shortMessage: ShortMessage, map: Int => Int): ShortMessage = {

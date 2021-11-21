@@ -33,7 +33,7 @@ case class Modulation(transposition: Interval,
 case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {
 
-  def tuning(basePitchClass: PitchClass, transposition: Interval): PartialTuning = {
-    tuningMapper(basePitchClass, scale.transpose(transposition))
+  def tuningFor(transposition: Interval, ref: TuningRef): PartialTuning = {
+    tuningMapper.mapScale(scale.transpose(transposition), ref)
   }
 }

@@ -16,16 +16,16 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{CentsScale, PitchClass, RatiosScale}
+import org.calinburloiu.music.intonation.{CentsScale, RatiosScale}
+import org.calinburloiu.music.microtuner.{StandardTuningRef, TuningRef}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
-
   import PianoKeyboardTuningUtils._
 
-  val cPitchClass: PitchClass = 0
+  val cTuningRef: TuningRef = StandardTuningRef(0)
 
   val autoTuningMapperWithLowQuarterTones = new AutoTuningMapper(mapQuarterTonesLow = true)
   val autoTuningMapperWithHighQuarterTones = new AutoTuningMapper(mapQuarterTonesLow = false)
@@ -37,7 +37,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
   it should "map a just major scale to a PartialTuning" in {
     val major = RatiosScale((1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
 
-    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones(cPitchClass, major)
+    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major, cTuningRef)
 
     resultWithLowQuarterTones.c should contain(0.0)
     resultWithLowQuarterTones.d should contain(3.91)
@@ -53,7 +53,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
     resultWithLowQuarterTones.gSharp should be(empty)
     resultWithLowQuarterTones.aSharp should be(empty)
 
-    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones(cPitchClass, major)
+    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(major, cTuningRef)
     resultWithLowQuarterTones should equal(resultWithHighQuarterTones)
   }
 
@@ -63,17 +63,17 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
     val concurrency = RatiosScale((1, 1), (9, 8), (5, 4), (81, 64), (4, 3))
 
     assertThrows[TuningMapperConflictException](
-      autoTuningMapperWithLowQuarterTones(cPitchClass, concurrency))
+      autoTuningMapperWithLowQuarterTones.mapScale(concurrency, cTuningRef))
     assertThrows[TuningMapperConflictException](
-      autoTuningMapperWithHighQuarterTones(cPitchClass, concurrency))
+      autoTuningMapperWithHighQuarterTones.mapScale(concurrency, cTuningRef))
   }
 
   it should "map a scale with concurrent pitches on the same tuning pitch class, iff " +
     "those concurrent pitches are equivalent (have the same normalized interval)" in {
     val octaveRedundancy = RatiosScale((1, 1), (5, 4), (3, 2), (7, 4), (2, 1), (5, 2), (3, 1))
 
-    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones(cPitchClass, octaveRedundancy)
-    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones(cPitchClass, octaveRedundancy)
+    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(octaveRedundancy, cTuningRef)
+    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(octaveRedundancy, cTuningRef)
 
     resultWithHighQuarterTones shouldEqual resultWithLowQuarterTones
 
@@ -88,22 +88,21 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
 
   it should "map a scale without unison or octave to a tuning without the base pitch class" in {
     val tetrachord = RatiosScale((9, 8), (5, 4), (4, 3))
-    val basePitchClass = 3
 
-    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones(cPitchClass, tetrachord)
+    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(tetrachord, cTuningRef)
     val resultWithHighQuarterTones =
-      autoTuningMapperWithHighQuarterTones(cPitchClass, tetrachord)
+      autoTuningMapperWithHighQuarterTones.mapScale(tetrachord, cTuningRef)
     resultWithLowQuarterTones shouldEqual resultWithHighQuarterTones
 
-    resultWithLowQuarterTones(basePitchClass) should be(empty)
+    resultWithLowQuarterTones(3) should be(empty)
   }
 
   it should "map a tetrachord with quarter tones differently based on the " +
     "mapQuarterTonesLow parameter" in {
-    val dPitchClass: PitchClass = 2
+    val dTuningRef: TuningRef = StandardTuningRef(2)
     val bayatiTetrachord = CentsScale(0.0, 150.0, 300.0, 500.0)
 
-    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones(dPitchClass, bayatiTetrachord)
+    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(bayatiTetrachord, dTuningRef)
 
     resultWithLowQuarterTones.d should contain(0.0)
     resultWithLowQuarterTones.eFlat should contain(50.0)
@@ -112,7 +111,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
     resultWithLowQuarterTones.g should contain(0.0)
     resultWithLowQuarterTones.a should be(empty)
 
-    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones(dPitchClass, bayatiTetrachord)
+    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(bayatiTetrachord, dTuningRef)
 
     resultWithHighQuarterTones.d should contain(0.0)
     resultWithHighQuarterTones.eFlat should be(empty)
@@ -136,17 +135,17 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers {
       }
     }
 
-    for (semitone <- 0 until 12) {
-      val pitchClass: PitchClass = semitone
-      val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones(pitchClass, tetrachord)
+    for (basePitchClass <- 0 until 12) {
+      val tuningRef: TuningRef = StandardTuningRef(basePitchClass)
+      val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(tetrachord, tuningRef)
 
-      testScale(semitone, resultWithLowQuarterTones,
+      testScale(basePitchClass, resultWithLowQuarterTones,
         Map(0 -> 0.0, 1 -> 50.0, 3 -> 1.0, 5 -> -1.96)
       )
 
-      val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones(pitchClass, tetrachord)
+      val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(tetrachord, tuningRef)
 
-      testScale(semitone, resultWithHighQuarterTones,
+      testScale(basePitchClass, resultWithHighQuarterTones,
         Map(0 -> 0.0, 2 -> -50.0, 3 -> 1.0, 5 -> -1.96)
       )
     }
