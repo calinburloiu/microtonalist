@@ -44,7 +44,7 @@ object TuningList extends StrictLogging {
     val partialTunings = createPartialTunings(Interval.Unison, Vector.empty,
       scaleList.modulations, scaleList.tuningRef)
 
-    scaleList.tuningReducer(partialTunings, globalFillTuning)
+    scaleList.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
   }
 
   @tailrec
