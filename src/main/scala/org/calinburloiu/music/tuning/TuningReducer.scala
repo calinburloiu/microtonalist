@@ -30,9 +30,8 @@ trait TuningReducer {
 }
 
 object TuningReducer {
-
   /** A [[MergeTuningReducer]]. */
-  val Default: MergeTuningReducer = new MergeTuningReducer
+  val Default: MergeTuningReducer = MergeTuningReducer()
 }
 
 /**

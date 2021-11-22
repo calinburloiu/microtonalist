@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   import TestPartialTunings._
 
-  private val reducer = new MergeTuningReducer()
+  private val reducer = MergeTuningReducer()
 
   behavior of "MergeTuningReducer"
 

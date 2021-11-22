@@ -120,8 +120,8 @@ object JsonScaleListFormat {
     import ComponentPlayJsonFormat._
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
-      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => new DirectTuningReducer)),
-      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => new MergeTuningReducer)),
+      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
+      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
     )
   }
 }

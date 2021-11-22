@@ -113,8 +113,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   }
 
   it should "serialize JSON string containing types of direct and merge" in {
-    TuningReducerPlayJsonFormat.writes(new DirectTuningReducer) shouldEqual JsString("direct")
-    TuningReducerPlayJsonFormat.writes(new MergeTuningReducer) shouldEqual JsString("merge")
+    TuningReducerPlayJsonFormat.writes(DirectTuningReducer()) shouldEqual JsString("direct")
+    TuningReducerPlayJsonFormat.writes(MergeTuningReducer()) shouldEqual JsString("merge")
     a[Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
   }
 
