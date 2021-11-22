@@ -16,9 +16,6 @@
 
 package org.calinburloiu.music.intonation
 
-import com.google.common.math.IntMath
-import org.calinburloiu.music.tuning.AutoTuningMapperContext
-
 import scala.language.implicitConversions
 
 /** Class representing the concept of pitch class in the 12-tone equal temperament system,
@@ -32,10 +29,7 @@ case class PitchClassDeviation(pitchClass: PitchClass, deviation: Double) {
 
   def cents: Double = 100.0 * pitchClass + deviation
 
-  def +(interval: Interval)(implicit context: AutoTuningMapperContext): PitchClassDeviation = {
-    val totalCents = cents + interval.normalize.cents
-    PitchClassDeviation.fromCents(totalCents)
-  }
+  def interval: CentsInterval = CentsInterval(cents)
 
   /**
    * Tells if the instance is overflowing. A `PitchClassDeviation` is said to overflow if its `deviation` absolute
@@ -46,35 +40,9 @@ case class PitchClassDeviation(pitchClass: PitchClass, deviation: Double) {
 }
 
 object PitchClassDeviation {
-  /** Creates a [[PitchClassDeviation]] from a cents value assumed relative to pitch class 0 (C note). */
-  def fromCents(cents: Double)(implicit context: AutoTuningMapperContext): PitchClassDeviation = {
-    val totalSemitones = roundToInt(cents / 100,
-      context.mapQuarterTonesLow, context.halfTolerance)
-    val deviation = cents - 100 * totalSemitones
-    val semitone = IntMath.mod(totalSemitones, 12)
-
-    PitchClassDeviation(semitone, deviation)
-  }
-
-  /** Creates a [[PitchClassDeviation]] from an interval assumed relative to pitch class 0 (C note). */
-  def fromInterval(interval: Interval)(implicit context: AutoTuningMapperContext): PitchClassDeviation =
-    fromCents(interval.normalize.cents)
-
   implicit def fromPitchClass(pitchClass: PitchClass): PitchClassDeviation = PitchClassDeviation(pitchClass, 0.0)
 
   implicit def toPitchClass(pitchClassDeviation: PitchClassDeviation): PitchClass = pitchClassDeviation.pitchClass
 
   implicit def toInt(pitchClassDeviation: PitchClassDeviation): Int = pitchClassDeviation.pitchClass.number
-
-  private[intonation] def roundToInt(value: Double, halfDown: Boolean, halfTolerance: Double): Int = {
-    val fractional = value - Math.floor(value)
-    val lowThreshold = 0.5 - halfTolerance
-    val highThreshold = 0.5 + halfTolerance
-
-    if (fractional >= lowThreshold && fractional <= highThreshold) {
-      if (halfDown) Math.floor(value).toInt else Math.ceil(value).toInt
-    } else {
-      Math.round(value).toInt
-    }
-  }
 }

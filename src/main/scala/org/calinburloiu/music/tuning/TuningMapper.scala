@@ -29,14 +29,14 @@ import org.calinburloiu.music.microtuner.TuningRef
 trait TuningMapper {
   def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
 
-  def mapInterval(interval: Interval): PitchClassDeviation
+  def mapInterval(interval: Interval, ref: TuningRef): PitchClassDeviation
 }
 
 object TuningMapper {
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */
-  val Default: AutoTuningMapper = new AutoTuningMapper
+  val Default: AutoTuningMapper = AutoTuningMapper()
 }
 
 // TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?

@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.tuning.AutoTuningMapperContext
+import org.calinburloiu.music.microtuner.StandardTuningRef
+import org.calinburloiu.music.tuning.AutoTuningMapper
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -41,7 +42,8 @@ class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
   //@formatter:on
 
   test("common conversions between real values, cents, Hz and pitch classes") {
-    implicit val autoTuningMapperContext: AutoTuningMapperContext = AutoTuningMapperContext(mapQuarterTonesLow = true, 0.0)
+    val autoTuningMapper: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, 0.0)
+    val tuningRef = StandardTuningRef(PitchClass.C)
 
     forAll(commonTable) { (realValue, cents, hz, pitchClassDeviation) =>
       fromRealValueToCents(realValue) should equal(cents)
@@ -49,7 +51,7 @@ class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
       fromCentsToHz(cents, 440) should equal(hz)
       fromHzToCents(hz, 440) should equal(cents)
 
-      val PitchClassDeviation(semitone, deviation) = PitchClassDeviation.fromCents(cents)
+      val PitchClassDeviation(semitone, deviation) = autoTuningMapper.mapInterval(CentsInterval(cents), tuningRef)
       semitone should equal(pitchClassDeviation.pitchClass)
       deviation should equal(pitchClassDeviation.deviation)
     }

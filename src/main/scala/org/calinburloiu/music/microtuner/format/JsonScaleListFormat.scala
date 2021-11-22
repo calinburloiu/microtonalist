@@ -61,8 +61,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
   private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
-    val defaultTuningMapper = new AutoTuningMapper(
-      AutoTuningMapperContext(mapQuarterTonesLow, AutoTuningMapperContext.DefaultHalfTolerance))
+    val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow, AutoTuningMapper.DefaultHalfTolerance)
 
     val name = scaleListRepr.name.getOrElse("")
     val tuningRef = StandardTuningRef(scaleListRepr.tuningReference.basePitchClass)
@@ -109,17 +108,11 @@ object JsonScaleListFormat {
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
     import ComponentPlayJsonFormat._
 
-    private implicit val pitchClassConfigPlayJsonFormat: Format[AutoTuningMapperContext] =
-      Json.using[Json.WithDefaultValues].format[AutoTuningMapperContext]
-    private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
-      pitchClassConfigPlayJsonFormat.map(new AutoTuningMapper(_)),
-      Writes { autoTuningMapper: AutoTuningMapper =>
-        Json.writes[AutoTuningMapperContext].writes(autoTuningMapper.context)
-      }
-    )
+    private implicit val autoPlayJsonFormat: Format[AutoTuningMapper] =
+      Json.using[Json.WithDefaultValues].format[AutoTuningMapper]
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningMapper]] = Seq(
-      SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat), Some(() => new AutoTuningMapper()))
+      SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat), Some(() => AutoTuningMapper()))
     )
   }
 

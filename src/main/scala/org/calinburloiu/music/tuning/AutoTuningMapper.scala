@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.tuning
 
+import com.google.common.math.IntMath
 import org.calinburloiu.music.intonation.{Interval, PitchClassDeviation, Scale}
 import org.calinburloiu.music.microtuner.TuningRef
 
-// TODO #5 Consider merging AutoTuningMapper with AutoTuningMapperContext/Config
 /**
  * A [[TuningMapper]] that attempts to automatically map scales to a piano keyboard tuning that specifies a key for
  * each pitch class, from C to B.
@@ -27,26 +27,29 @@ import org.calinburloiu.music.microtuner.TuningRef
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param context configuration object that fine tunes the way a scale pitch is mapped to a tuning key
+ * @param mapQuarterTonesLow 'true' if a quarter tone should be the lower pitch class with +50 cents deviation or
+ *                           `false` if it should be the higher pitch class with -50 cents deviation
+ * @param halfTolerance      tolerance value used for deviations when they are close to +50 or -50 cents in order to
+ *                           avoid precision errors while mapping a quarter tone to its pitch class
  */
-class AutoTuningMapper(val context: AutoTuningMapperContext = AutoTuningMapperContext())
-  extends TuningMapper {
-
-  private implicit val implicitPitchClassConfig: AutoTuningMapperContext = context
-
-  def this(mapQuarterTonesLow: Boolean) =
-    this(AutoTuningMapperContext(mapQuarterTonesLow, AutoTuningMapperContext.DefaultHalfTolerance))
+case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
+                            halfTolerance: Double = AutoTuningMapper.DefaultHalfTolerance) extends TuningMapper {
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    val pitchClassDeviations: Seq[PitchClassDeviation] = scale.intervals.map { interval =>
-      ref.basePitchClassDeviation + interval
-    }.distinct
+    val pitchClassDeviations: Seq[PitchClassDeviation] = scale.intervals
+      // Intervals duplicated in different octaves can cause false conflicts due to precision errors.
+      // Ideally, we should have a distinct with tolerance.
+      .map(_.normalize).distinct
+      .map(mapInterval(_, ref))
 
+    // TODO #5 Consider Transforming Seq[PitchClassDeviation] into PartialTuning in a reusable manner:
+    //     1) In PartialTuning
+    //     2) Via KeyboardTuningMapper
     val groupsOfPitchClasses = pitchClassDeviations.groupBy(_.pitchClass)
-    val conflictsFound = groupsOfPitchClasses.exists(_._2.lengthCompare(1) > 0)
-    if (conflictsFound) {
+    val conflicts = groupsOfPitchClasses.filter(_._2.lengthCompare(1) > 0)
+    if (conflicts.nonEmpty) {
       throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
-        conflictsFound)
+        conflicts)
     } else {
       val pitchClassesMap = pitchClassDeviations.map(PitchClassDeviation.unapply(_).get).toMap
       val partialTuningValues = (0 until 12).map { index =>
@@ -57,21 +60,16 @@ class AutoTuningMapper(val context: AutoTuningMapperContext = AutoTuningMapperCo
     }
   }
 
-  override def mapInterval(interval: Interval): PitchClassDeviation = ???
+  override def mapInterval(interval: Interval, ref: TuningRef): PitchClassDeviation = {
+    val totalCents = ref.basePitchClassDeviation.cents + interval.cents
+    val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
+    val deviation = totalCents - 100 * totalSemitones
+    val pitchClass = IntMath.mod(totalSemitones, 12)
 
-  override def toString: String = s"AutoTuningMapper($context)"
-
-  def canEqual(other: Any): Boolean = other.isInstanceOf[AutoTuningMapper]
-
-  override def equals(other: Any): Boolean = other match {
-    case that: AutoTuningMapper =>
-      (that canEqual this) &&
-        context == that.context
-    case _ => false
+    PitchClassDeviation(pitchClass, deviation)
   }
+}
 
-  override def hashCode(): Int = {
-    val state = Seq(context)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-  }
+object AutoTuningMapper {
+  val DefaultHalfTolerance: Double = 0.5e-2
 }
