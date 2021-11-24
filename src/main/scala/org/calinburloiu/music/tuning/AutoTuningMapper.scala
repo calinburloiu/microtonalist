@@ -39,18 +39,18 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    val tuningPitchs: Seq[TuningPitch] = scale.intervals.map(mapInterval(_, ref))
+    val tuningPitches: Seq[TuningPitch] = scale.intervals.map(mapInterval(_, ref))
 
     // TODO #5 Consider Transforming Seq[TuningPitch] into PartialTuning in a reusable manner:
     //     1) In PartialTuning
     //     2) Via KeyboardTuningMapper
-    val groupedTuningPitches = tuningPitchs.groupBy(_.pitchClass)
+    val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
     if (conflicts.nonEmpty) {
       throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
         conflicts)
     } else {
-      val deviationsByPitchClass = tuningPitchs.map(TuningPitch.unapply(_).get).toMap
+      val deviationsByPitchClass = tuningPitches.map(TuningPitch.unapply(_).get).toMap
       val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { index =>
         deviationsByPitchClass.get(index)
       }
@@ -59,13 +59,13 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
     }
   }
 
-  private def filterConflicts(tuningPitchs: Seq[TuningPitch]): Boolean = {
-    if (tuningPitchs.lengthCompare(1) == 0) {
+  private def filterConflicts(tuningPitches: Seq[TuningPitch]): Boolean = {
+    if (tuningPitches.lengthCompare(1) == 0) {
       // Can't have a conflict when there is a single candidate on a pitch class
       false
     } else {
-      val first = tuningPitchs.head
-      tuningPitchs.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
+      val first = tuningPitches.head
+      tuningPitches.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
     }
   }
 

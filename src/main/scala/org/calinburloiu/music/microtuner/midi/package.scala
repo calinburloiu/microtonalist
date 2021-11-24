@@ -39,7 +39,25 @@ package object midi {
     val Lowest: Int = 0
     val Highest: Int = 127
 
-    val MiddleC: Int = 60
+    val C4: Int = 60
+    val CSharp4: Int = 61
+    val DFlat4: Int = 61
+    val D4: Int = 62
+    val DSharp4: Int = 63
+    val EFlat4: Int = 63
+    val E4: Int = 64
+    val F4: Int = 65
+    val FSharp4: Int = 66
+    val GFlat4: Int = 66
+    val G4: Int = 67
+    val GSharp4: Int = 68
+    val AFlat4: Int = 68
+    val A4: Int = 69
+    val ASharp4: Int = 70
+    val BFlat4: Int = 70
+    val B4: Int = 71
+    val C5: Int = 72
+
     val ConcertPitch: Int = 69
 
     implicit def toInt(midiNote: MidiNote): Int = midiNote.number

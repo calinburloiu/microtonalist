@@ -16,8 +16,10 @@
 
 package org.calinburloiu.music.tuning
 
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, PitchClass, RatiosScale, TuningPitch}
-import org.calinburloiu.music.microtuner.{StandardTuningRef, TuningRef}
+import org.calinburloiu.music.microtuner.midi.MidiNote
+import org.calinburloiu.music.microtuner.{ConcertPitchTuningRef, StandardTuningRef, TuningRef}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -28,36 +30,51 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   val cTuningRef: TuningRef = StandardTuningRef(0)
 
-  val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true)
-  val autoTuningMapperWithHighQuarterTones: AutoTuningMapper = AutoTuningMapper()
+  val halfTolerance: Int = 5
+  val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance)
+  val autoTuningMapperWithHighQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance)
 
-  private val epsilon: Double = 1e-2
+  private val testAssertionsNumericTolerance: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =
-    TolerantNumerics.tolerantDoubleEquality(epsilon)
+    TolerantNumerics.tolerantDoubleEquality(testAssertionsNumericTolerance)
 
   behavior of "mapScale"
 
-  it should "map a just major scale to a PartialTuning" in {
+  it should "map a just major scale with a custom tuning reference to a PartialTuning" in {
     val major = RatiosScale((1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
+    val major2 = RatiosScale((1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (27, 16), (15, 8), (2, 1))
+    // The "major" scale will be tuned starting from C on the piano. A4 is kept at 440 Hz, but the 5/3 note mapped to
+    // A is considered an A flattened by a synthonic comma, so the A on the piano will not have 440 Hz, but less.
+    // The 27/16 note from "major2", also mapped to A is considered natural and have the 440 Hz concert pitch.
+    val tuningRef = ConcertPitchTuningRef(32/:27, MidiNote.C5)
+    val majorTuningWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major, tuningRef)
+    val major2TuningWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major2, tuningRef)
 
-    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major, cTuningRef)
+    majorTuningWithLowQuarterTones.c should contain(-5.87)
+    majorTuningWithLowQuarterTones.d should contain(-1.96)
+    majorTuningWithLowQuarterTones.e should contain(-19.56)
+    majorTuningWithLowQuarterTones.f should contain(-7.83)
+    majorTuningWithLowQuarterTones.g should contain(-3.91)
+    majorTuningWithLowQuarterTones.a should contain(-21.51)
+    majorTuningWithLowQuarterTones.b should contain(-17.60)
 
-    resultWithLowQuarterTones.c should contain(0.0)
-    resultWithLowQuarterTones.d should contain(3.91)
-    resultWithLowQuarterTones.e should contain(-13.69)
-    resultWithLowQuarterTones.f should contain(-1.96)
-    resultWithLowQuarterTones.g should contain(1.96)
-    resultWithLowQuarterTones.a should contain(-15.64)
-    resultWithLowQuarterTones.b should contain(-11.73)
+    major2TuningWithLowQuarterTones.a should contain(0.0)
 
-    resultWithLowQuarterTones.cSharp should be(empty)
-    resultWithLowQuarterTones.dSharp should be(empty)
-    resultWithLowQuarterTones.fSharp should be(empty)
-    resultWithLowQuarterTones.gSharp should be(empty)
-    resultWithLowQuarterTones.aSharp should be(empty)
+    // major and major2 only differ in A by a synthonic comma
+    (0 until 12).filterNot(_ == 9).foreach { i =>
+      majorTuningWithLowQuarterTones(i) == major2TuningWithLowQuarterTones(i)
+    }
 
-    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(major, cTuningRef)
-    resultWithLowQuarterTones should equal(resultWithHighQuarterTones)
+    majorTuningWithLowQuarterTones.cSharp should be(empty)
+    majorTuningWithLowQuarterTones.dSharp should be(empty)
+    majorTuningWithLowQuarterTones.fSharp should be(empty)
+    majorTuningWithLowQuarterTones.gSharp should be(empty)
+    majorTuningWithLowQuarterTones.aSharp should be(empty)
+
+    val majorTuningWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(major, tuningRef)
+    val major2TuningWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(major2, tuningRef)
+    majorTuningWithLowQuarterTones should equal(majorTuningWithHighQuarterTones)
+    major2TuningWithLowQuarterTones should equal(major2TuningWithHighQuarterTones)
   }
 
   it should "fail to map a scale with conflicting pitches " +
@@ -94,11 +111,10 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val tetrachord = RatiosScale((9, 8), (5, 4), (4, 3))
 
     val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(tetrachord, cTuningRef)
-    val resultWithHighQuarterTones =
-      autoTuningMapperWithHighQuarterTones.mapScale(tetrachord, cTuningRef)
+    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(tetrachord, cTuningRef)
     resultWithLowQuarterTones shouldEqual resultWithHighQuarterTones
 
-    resultWithLowQuarterTones(3) should be(empty)
+    resultWithLowQuarterTones.head should be(empty)
   }
 
   it should "map a tetrachord with quarter tones differently based on the " +
@@ -123,6 +139,22 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     resultWithHighQuarterTones.f should contain(0.0)
     resultWithHighQuarterTones.g should contain(0.0)
     resultWithHighQuarterTones.a should be(empty)
+  }
+
+  it should "map quarter tones by taking half tolerance into account" in {
+    val scale = CentsScale(145.1, 347.3, 453.4, 854.9)
+
+    val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(scale, cTuningRef)
+    resultWithLowQuarterTones.dFlat should contain(45.1)
+    resultWithLowQuarterTones.eFlat should contain(47.3)
+    resultWithLowQuarterTones.e should contain(53.4)
+    resultWithLowQuarterTones.aFlat should contain(54.9)
+
+    val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(scale, cTuningRef)
+    resultWithHighQuarterTones.d should contain(-54.9)
+    resultWithHighQuarterTones.e should contain(-52.7)
+    resultWithHighQuarterTones.f should contain(-46.6)
+    resultWithHighQuarterTones.a should contain(-45.1)
   }
 
   it should "map a scale on different pitch classes based on basePitchClass parameter" in {
