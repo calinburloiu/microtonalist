@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.tuning
 
-// TODO Does this utility still make sense now that we have OctaveTuning?
 object PianoKeyboardTuningUtils {
 
   val tuningSize: Int = 12
@@ -29,11 +28,11 @@ object PianoKeyboardTuningUtils {
 
   private[PianoKeyboardTuningUtils] abstract class TuningBaseExtension[U](tuningBase: Tuning[U]) {
 
-    private[this] def checkIsPianoKeyboard(): Unit = require(tuningBase.size == 12,
+    private[this] def assertPianoKeyboard(): Unit = require(tuningBase.size == 12,
       s"Expecting 12 deviation values, but found ${tuningBase.size}")
 
     private[this] def pianoKeyboardTuningDeviation(index: Int): U = {
-      checkIsPianoKeyboard()
+      assertPianoKeyboard()
       tuningBase.deviations(index)
     }
 
@@ -72,7 +71,7 @@ object PianoKeyboardTuningUtils {
     def b: U = pianoKeyboardTuningDeviation(11)
 
     def toPianoKeyboardString: String = {
-      checkIsPianoKeyboard()
+      assertPianoKeyboard()
 
       def padDeviation(deviation: U) = fromDeviationToString(deviation).padTo(12, ' ')
 
@@ -89,7 +88,7 @@ object PianoKeyboardTuningUtils {
     }
 
     def toNoteNamesString: String = {
-      checkIsPianoKeyboard()
+      assertPianoKeyboard()
 
       val deviationsAsString = tuningBase.deviations.map(fromDeviationToString)
 

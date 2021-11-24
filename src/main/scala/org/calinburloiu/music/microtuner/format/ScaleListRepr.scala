@@ -57,3 +57,6 @@ object ScaleListConfigRepr {
 
   val Default: ScaleListConfigRepr = ScaleListConfigRepr()
 }
+
+case class AutoTuningMapperRepr(mapQuarterTonesLow: Boolean = false,
+                                halfTolerance: Option[Double] = None)

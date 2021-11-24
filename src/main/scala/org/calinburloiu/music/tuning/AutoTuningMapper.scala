@@ -31,22 +31,21 @@ import org.calinburloiu.music.microtuner.TuningRef
  *                           `false` if it should be the higher pitch class with -50 cents deviation
  * @param halfTolerance      tolerance value used for deviations when they are close to +50 or -50 cents in order to
  *                           avoid precision errors while mapping a quarter tone to its pitch class
+ * @param tolerance          Error in cents that should be tolerated when comparing corresponding pitch class deviations of
+ *                           `PartialTuning`s to avoid double precision errors.
  */
 case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
-                            halfTolerance: Double = AutoTuningMapper.DefaultHalfTolerance) extends TuningMapper {
+                            halfTolerance: Double = DefaultCentsTolerance,
+                            tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    val pitchClassDeviations: Seq[PitchClassDeviation] = scale.intervals
-      // Intervals duplicated in different octaves can cause false conflicts due to precision errors.
-      // Ideally, we should have a distinct with tolerance.
-      .map(_.normalize).distinct
-      .map(mapInterval(_, ref))
+    val pitchClassDeviations: Seq[PitchClassDeviation] = scale.intervals.map(mapInterval(_, ref))
 
     // TODO #5 Consider Transforming Seq[PitchClassDeviation] into PartialTuning in a reusable manner:
     //     1) In PartialTuning
     //     2) Via KeyboardTuningMapper
     val groupsOfPitchClasses = pitchClassDeviations.groupBy(_.pitchClass)
-    val conflicts = groupsOfPitchClasses.filter(_._2.lengthCompare(1) > 0)
+    val conflicts = groupsOfPitchClasses.filter(item => filterConflicts(item._2))
     if (conflicts.nonEmpty) {
       throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
         conflicts)
@@ -60,6 +59,16 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
     }
   }
 
+  private def filterConflicts(pitchClassDeviations: Seq[PitchClassDeviation]): Boolean = {
+    if (pitchClassDeviations.lengthCompare(1) == 0) {
+      // Can't have a conflict when there is a single candidate on a pitch class
+      false
+    } else {
+      val first = pitchClassDeviations.head
+      pitchClassDeviations.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
+    }
+  }
+
   override def mapInterval(interval: Interval, ref: TuningRef): PitchClassDeviation = {
     val totalCents = ref.basePitchClassDeviation.cents + interval.cents
     val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
@@ -68,8 +77,4 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
 
     PitchClassDeviation(pitchClass, deviation)
   }
-}
-
-object AutoTuningMapper {
-  val DefaultHalfTolerance: Double = 0.5e-2
 }

@@ -37,9 +37,9 @@ import scala.annotation.tailrec
  * effect.
  *
  * @param tolerance Error in cents that should be tolerated when comparing corresponding pitch class deviations of
- *                  `PartialTuning`s.
+ *                  `PartialTuning`s to avoid double precision errors.
  */
-case class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with StrictLogging {
+case class MergeTuningReducer(tolerance: Double = DefaultCentsTolerance) extends TuningReducer with StrictLogging {
 
   override def reduceTunings(partialTunings: Seq[PartialTuning],
                              globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {

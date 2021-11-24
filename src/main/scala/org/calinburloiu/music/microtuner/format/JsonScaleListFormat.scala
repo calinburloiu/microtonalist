@@ -61,7 +61,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
   private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
-    val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow, AutoTuningMapper.DefaultHalfTolerance)
+    val defaultTuningMapper = AutoTuningMapper()
 
     val name = scaleListRepr.name.getOrElse("")
     val tuningRef = StandardTuningRef(scaleListRepr.tuningReference.basePitchClass)
@@ -90,6 +90,9 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
 
 object JsonScaleListFormat {
 
+  // TODO #31 Read this from JSON
+  private val tolerance: Double = DefaultCentsTolerance
+
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
   private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
   private[JsonScaleListFormat] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
@@ -108,8 +111,17 @@ object JsonScaleListFormat {
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
     import ComponentPlayJsonFormat._
 
-    private implicit val autoPlayJsonFormat: Format[AutoTuningMapper] =
-      Json.using[Json.WithDefaultValues].format[AutoTuningMapper]
+    private implicit val autoReprPlayJsonFormat: Format[AutoTuningMapperRepr] =
+      Json.using[Json.WithDefaultValues].format[AutoTuningMapperRepr]
+    private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
+      autoReprPlayJsonFormat.map { repr =>
+        AutoTuningMapper(repr.mapQuarterTonesLow, repr.halfTolerance.getOrElse(tolerance), tolerance)
+      },
+      Writes { mapper: AutoTuningMapper =>
+        val repr = AutoTuningMapperRepr(mapper.mapQuarterTonesLow, halfTolerance = Some(mapper.halfTolerance))
+        Json.writes[AutoTuningMapperRepr].writes(repr)
+      }
+    )
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningMapper]] = Seq(
       SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat), Some(() => AutoTuningMapper()))

@@ -16,8 +16,11 @@
 
 package org.calinburloiu.music.intonation
 
+import com.google.common.math.DoubleMath
+
 import scala.language.implicitConversions
 
+// TODO #5 Rename it to TuningPitch
 /** Class representing the concept of pitch class in the 12-tone equal temperament system,
  * identified by the semitone number, along with a deviation in cents.
  *
@@ -36,7 +39,11 @@ case class PitchClassDeviation(pitchClass: PitchClass, deviation: Double) {
    * value exceeds 100 cents causing it to overlap with an another pitch class.
    * @return true if it's overflowing, false otherwise
    */
-  def isOverflowing: Boolean = Math.abs(deviation) > 100.0
+  def isOverflowing: Boolean = Math.abs(deviation) >= 100.0
+
+  def equalsWithTolerance(that: PitchClassDeviation, tolerance: Double): Boolean = {
+    this.pitchClass == that.pitchClass && DoubleMath.fuzzyEquals(this.deviation, that.deviation, tolerance)
+  }
 }
 
 object PitchClassDeviation {

@@ -17,6 +17,7 @@
 package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions.checkElementIndex
+import com.google.common.math.DoubleMath
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
@@ -31,8 +32,6 @@ import scala.collection.immutable.ArraySeq
  */
 case class PartialTuning(override val deviations: Seq[Option[Double]],
                          override val name: String = "") extends Tuning[Option[Double]] with LazyLogging {
-  import PartialTuning._
-
   /**
    * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
    */
@@ -131,7 +130,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
             acc(index) = Some(dev1)
             accMerge(acc, index + 1)
 
-          case (Some(dev1), Some(dev2)) if equalsWithTolerance(dev1, dev2, tolerance) =>
+          case (Some(dev1), Some(dev2)) if DoubleMath.fuzzyEquals(dev1, dev2, tolerance) =>
             acc(index) = Some(dev1)
             accMerge(acc, index + 1)
 
@@ -147,6 +146,9 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
 
     accMerge(emptyAcc, 0)
   }
+
+  // TODO #31
+  def equalsWithTolerance(that: PartialTuning): Boolean = ???
 }
 
 object PartialTuning {
@@ -207,6 +209,4 @@ object PartialTuning {
   def empty(size: Int): PartialTuning = PartialTuning(Seq.fill(size)(None))
 
   def fill(deviation: Double, size: Int): PartialTuning = PartialTuning(Seq.fill(size)(Some(deviation)))
-
-  private def equalsWithTolerance(a: Double, b: Double, tolerance: Double): Boolean = Math.abs(a - b) <= tolerance
 }

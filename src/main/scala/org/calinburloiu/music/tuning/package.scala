@@ -17,13 +17,15 @@
 package org.calinburloiu.music
 
 package object tuning {
-  def roundWithTolerance(value: Double, floorHalf: Boolean, halfTolerance: Double): Int = {
-    val fractional = value - Math.floor(value)
-    val lowThreshold = 0.5 - halfTolerance
-    val highThreshold = 0.5 + halfTolerance
+  /** Default difference allowed when comparing cents values to avoid double precision errors. */
+  val DefaultCentsTolerance: Double = 0.005
 
-    if (fractional >= lowThreshold && fractional <= highThreshold) {
-      if (floorHalf) Math.floor(value).toInt else Math.ceil(value).toInt
+  def roundWithTolerance(value: Double, halfDown: Boolean, halfTolerance: Double): Int = {
+    val floorValue = Math.floor(value)
+    val fractional = value - floorValue
+
+    if (fractional == 0.5 || fractional >= 0.5 - halfTolerance && fractional <= 0.5 + halfTolerance) {
+      if (halfDown) floorValue.toInt else Math.ceil(value).toInt
     } else {
       Math.round(value).toInt
     }
