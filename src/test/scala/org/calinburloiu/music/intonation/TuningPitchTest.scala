@@ -19,34 +19,34 @@ package org.calinburloiu.music.intonation
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class PitchClassDeviationTest extends AnyFlatSpec with Matchers {
-  "PitchClassDeviation" should "should provide implicit conversions" in {
+class TuningPitchTest extends AnyFlatSpec with Matchers {
+  "TuningPitch" should "should provide implicit conversions" in {
     withClue("fromPitchClass") {
-      val pitchClassDeviation: PitchClassDeviation = PitchClass.B
-      pitchClassDeviation shouldEqual PitchClassDeviation(PitchClass.B, 0)
+      val tuningPitch: TuningPitch = PitchClass.B
+      tuningPitch shouldEqual TuningPitch(PitchClass.B, 0)
     }
     withClue("toPitchClass") {
-      val pitchClass: PitchClass = PitchClassDeviation(PitchClass.F, -33.33)
+      val pitchClass: PitchClass = TuningPitch(PitchClass.F, -33.33)
       pitchClass shouldEqual PitchClass.F
     }
     withClue("toInt") {
-      val n: Int = PitchClassDeviation(PitchClass.A, 50.0)
+      val n: Int = TuningPitch(PitchClass.A, 50.0)
       n shouldEqual 9
     }
   }
 
   "isOverflowing" should "return false if deviation absolute value is less than 100" in {
-    PitchClassDeviation(PitchClass.EFlat, 0).isOverflowing shouldBe false
-    PitchClassDeviation(PitchClass.EFlat, 34.2).isOverflowing shouldBe false
-    PitchClassDeviation(PitchClass.EFlat, 99.99).isOverflowing shouldBe false
-    PitchClassDeviation(PitchClass.EFlat, -73.8).isOverflowing shouldBe false
-    PitchClassDeviation(PitchClass.EFlat, -99.99).isOverflowing shouldBe false
+    TuningPitch(PitchClass.EFlat, 0).isOverflowing shouldBe false
+    TuningPitch(PitchClass.EFlat, 34.2).isOverflowing shouldBe false
+    TuningPitch(PitchClass.EFlat, 99.99).isOverflowing shouldBe false
+    TuningPitch(PitchClass.EFlat, -73.8).isOverflowing shouldBe false
+    TuningPitch(PitchClass.EFlat, -99.99).isOverflowing shouldBe false
   }
 
   it should "return true if deviation absolute value is 100 or more" in {
-    PitchClassDeviation(PitchClass.EFlat, 100.0).isOverflowing shouldBe true
-    PitchClassDeviation(PitchClass.EFlat, -100.0).isOverflowing shouldBe true
-    PitchClassDeviation(PitchClass.EFlat, 103.2).isOverflowing shouldBe true
-    PitchClassDeviation(PitchClass.EFlat, -157.9).isOverflowing shouldBe true
+    TuningPitch(PitchClass.EFlat, 100.0).isOverflowing shouldBe true
+    TuningPitch(PitchClass.EFlat, -100.0).isOverflowing shouldBe true
+    TuningPitch(PitchClass.EFlat, 103.2).isOverflowing shouldBe true
+    TuningPitch(PitchClass.EFlat, -157.9).isOverflowing shouldBe true
   }
 }

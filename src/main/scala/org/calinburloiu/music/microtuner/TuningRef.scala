@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
-import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, PitchClass, PitchClassDeviation}
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, PitchClass, TuningPitch}
 import org.calinburloiu.music.microtuner.midi.MidiNote
 
 /**
@@ -32,7 +32,7 @@ sealed trait TuningRef{
    * @return `Some` pitch class and tuning deviation for the base pitch if it is valid or `None`, otherwise. Typically,
    *         it might not be valid if the deviation absolute value exceeds 100 cents.
    */
-  def basePitchClassDeviation: PitchClassDeviation
+  def baseTuningPitch: TuningPitch
 }
 
 /**
@@ -55,7 +55,7 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
     (concertPitchToBaseInterval - concertPitchToBaseMidiNoteInterval).cents
   }
 
-  override val basePitchClassDeviation: PitchClassDeviation = PitchClassDeviation(basePitchClass, baseDeviation)
+  override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
 }
 
 /**
@@ -68,5 +68,5 @@ case class StandardTuningRef(override val basePitchClass: PitchClass) extends Tu
 
   override def baseDeviation: Double = 0.0
 
-  override def basePitchClassDeviation: PitchClassDeviation = PitchClassDeviation(basePitchClass, 0.0)
+  override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, 0.0)
 }

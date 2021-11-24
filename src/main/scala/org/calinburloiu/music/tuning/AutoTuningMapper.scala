@@ -17,7 +17,7 @@
 package org.calinburloiu.music.tuning
 
 import com.google.common.math.IntMath
-import org.calinburloiu.music.intonation.{Interval, PitchClassDeviation, Scale}
+import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale, TuningPitch}
 import org.calinburloiu.music.microtuner.TuningRef
 
 /**
@@ -39,42 +39,42 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    val pitchClassDeviations: Seq[PitchClassDeviation] = scale.intervals.map(mapInterval(_, ref))
+    val tuningPitchs: Seq[TuningPitch] = scale.intervals.map(mapInterval(_, ref))
 
-    // TODO #5 Consider Transforming Seq[PitchClassDeviation] into PartialTuning in a reusable manner:
+    // TODO #5 Consider Transforming Seq[TuningPitch] into PartialTuning in a reusable manner:
     //     1) In PartialTuning
     //     2) Via KeyboardTuningMapper
-    val groupsOfPitchClasses = pitchClassDeviations.groupBy(_.pitchClass)
-    val conflicts = groupsOfPitchClasses.filter(item => filterConflicts(item._2))
+    val groupedTuningPitches = tuningPitchs.groupBy(_.pitchClass)
+    val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
     if (conflicts.nonEmpty) {
       throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
         conflicts)
     } else {
-      val pitchClassesMap = pitchClassDeviations.map(PitchClassDeviation.unapply(_).get).toMap
-      val partialTuningValues = (0 until 12).map { index =>
-        pitchClassesMap.get(index)
+      val deviationsByPitchClass = tuningPitchs.map(TuningPitch.unapply(_).get).toMap
+      val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { index =>
+        deviationsByPitchClass.get(index)
       }
 
       PartialTuning(partialTuningValues, scale.name)
     }
   }
 
-  private def filterConflicts(pitchClassDeviations: Seq[PitchClassDeviation]): Boolean = {
-    if (pitchClassDeviations.lengthCompare(1) == 0) {
+  private def filterConflicts(tuningPitchs: Seq[TuningPitch]): Boolean = {
+    if (tuningPitchs.lengthCompare(1) == 0) {
       // Can't have a conflict when there is a single candidate on a pitch class
       false
     } else {
-      val first = pitchClassDeviations.head
-      pitchClassDeviations.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
+      val first = tuningPitchs.head
+      tuningPitchs.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
     }
   }
 
-  override def mapInterval(interval: Interval, ref: TuningRef): PitchClassDeviation = {
-    val totalCents = ref.basePitchClassDeviation.cents + interval.cents
+  override def mapInterval(interval: Interval, ref: TuningRef): TuningPitch = {
+    val totalCents = ref.baseTuningPitch.cents + interval.cents
     val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
     val deviation = totalCents - 100 * totalSemitones
     val pitchClass = IntMath.mod(totalSemitones, 12)
 
-    PitchClassDeviation(pitchClass, deviation)
+    TuningPitch(pitchClass, deviation)
   }
 }

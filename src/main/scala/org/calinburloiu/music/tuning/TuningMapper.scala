@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{Interval, PitchClassDeviation, Scale}
+import org.calinburloiu.music.intonation.{Interval, Scale, TuningPitch}
 import org.calinburloiu.music.microtuner.TuningRef
 
 /**
@@ -29,7 +29,7 @@ import org.calinburloiu.music.microtuner.TuningRef
 trait TuningMapper {
   def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
 
-  def mapInterval(interval: Interval, ref: TuningRef): PitchClassDeviation
+  def mapInterval(interval: Interval, ref: TuningRef): TuningPitch
 }
 
 object TuningMapper {

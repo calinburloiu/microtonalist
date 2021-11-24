@@ -32,12 +32,12 @@ class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
   //@formatter:off
   private val commonTable = Table(
     ("real value",  "cents",  "Hz",   "pitch class / deviation"),
-    (0.75,          -498.04,  330.0,  PitchClassDeviation(7, 1.96)),
-    (1.0,           0.0,      440.0,  PitchClassDeviation(0, 0.0)),
-    (1.25,          386.31,   550.0,  PitchClassDeviation(4, -13.69)),
-    (1.5,           701.96,   660.0,  PitchClassDeviation(7, 1.96)),
-    (2.0,           1200.0,   880.0,  PitchClassDeviation(0, 0.0)),
-    (4.0,           2400.0,   1760.0, PitchClassDeviation(0, 0.0))
+    (0.75,          -498.04,  330.0,  TuningPitch(7, 1.96)),
+    (1.0,           0.0,      440.0,  TuningPitch(0, 0.0)),
+    (1.25,          386.31,   550.0,  TuningPitch(4, -13.69)),
+    (1.5,           701.96,   660.0,  TuningPitch(7, 1.96)),
+    (2.0,           1200.0,   880.0,  TuningPitch(0, 0.0)),
+    (4.0,           2400.0,   1760.0, TuningPitch(0, 0.0))
   )
   //@formatter:on
 
@@ -45,15 +45,15 @@ class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
     val autoTuningMapper: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, 0.0)
     val tuningRef = StandardTuningRef(PitchClass.C)
 
-    forAll(commonTable) { (realValue, cents, hz, pitchClassDeviation) =>
+    forAll(commonTable) { (realValue, cents, hz, tuningPitch) =>
       fromRealValueToCents(realValue) should equal(cents)
       fromCentsToRealValue(cents) should equal(realValue)
       fromCentsToHz(cents, 440) should equal(hz)
       fromHzToCents(hz, 440) should equal(cents)
 
-      val PitchClassDeviation(semitone, deviation) = autoTuningMapper.mapInterval(CentsInterval(cents), tuningRef)
-      semitone should equal(pitchClassDeviation.pitchClass)
-      deviation should equal(pitchClassDeviation.deviation)
+      val TuningPitch(semitone, deviation) = autoTuningMapper.mapInterval(CentsInterval(cents), tuningRef)
+      semitone should equal(tuningPitch.pitchClass)
+      deviation should equal(tuningPitch.deviation)
     }
   }
 

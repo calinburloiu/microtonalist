@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, PitchClass, PitchClassDeviation, RatiosScale}
+import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, PitchClass, RatiosScale, TuningPitch}
 import org.calinburloiu.music.microtuner.{StandardTuningRef, TuningRef}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -128,10 +128,10 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
   it should "map a scale on different pitch classes based on basePitchClass parameter" in {
     val tetrachord = CentsScale(0.0, 150.0, 301.0, 498.04)
 
-    def testScale(pitchClassSemitone: Int, result: PartialTuning, map: Map[Int, Double]): Unit = {
+    def testScale(pitchClassNumber: Int, result: PartialTuning, map: Map[Int, Double]): Unit = {
       map.foreach {
         case (relativePitchClass, expectedCents) =>
-          val finalPitchClass = (pitchClassSemitone + relativePitchClass) % 12
+          val finalPitchClass = (pitchClassNumber + relativePitchClass) % 12
 
           withClue(s"Deviation of ${PianoKeyboardTuningUtils.noteNames(finalPitchClass)}") {
             result(finalPitchClass) should contain(expectedCents)
@@ -163,33 +163,33 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val upMapper = AutoTuningMapper(mapQuarterTonesLow = false, tolerance)
 
     //@formatter:off
-    val table = Table[Double, AutoTuningMapper, PitchClassDeviation](
-      ("Input Cents", "AutoTuningMapper", "PitchClassDeviation"),
-      (145.0,          downMapper,         PitchClassDeviation(1, 45.0)),
-      (150.0,          downMapper,         PitchClassDeviation(1, 50.0)),
-      (155.0,          downMapper,         PitchClassDeviation(1, 55.0)),
-      (145.0,          upMapper,           PitchClassDeviation(2, -55.0)),
-      (150.0,          upMapper,           PitchClassDeviation(2, -50.0)),
-      (155.0,          upMapper,           PitchClassDeviation(2, -45.0)),
+    val table = Table[Double, AutoTuningMapper, TuningPitch](
+      ("Input Cents", "AutoTuningMapper", "TuningPitch"),
+      (145.0,          downMapper,         TuningPitch(1, 45.0)),
+      (150.0,          downMapper,         TuningPitch(1, 50.0)),
+      (155.0,          downMapper,         TuningPitch(1, 55.0)),
+      (145.0,          upMapper,           TuningPitch(2, -55.0)),
+      (150.0,          upMapper,           TuningPitch(2, -50.0)),
+      (155.0,          upMapper,           TuningPitch(2, -45.0)),
 
-      (161.0,          downMapper,         PitchClassDeviation(2, -39.0)),
-      (139.0,          upMapper,           PitchClassDeviation(1, 39.0)),
+      (161.0,          downMapper,         TuningPitch(2, -39.0)),
+      (139.0,          upMapper,           TuningPitch(1, 39.0)),
 
-      (-145.0,         downMapper,         PitchClassDeviation(10, 55.0)),
-      (-150.0,         downMapper,         PitchClassDeviation(10, 50.0)),
-      (-155.0,         downMapper,         PitchClassDeviation(10, 45.0)),
-      (-145.0,         upMapper,           PitchClassDeviation(11, -45.0)),
-      (-150.0,         upMapper,           PitchClassDeviation(11, -50.0)),
-      (-155.0,         upMapper,           PitchClassDeviation(11, -55.0)),
+      (-145.0,         downMapper,         TuningPitch(10, 55.0)),
+      (-150.0,         downMapper,         TuningPitch(10, 50.0)),
+      (-155.0,         downMapper,         TuningPitch(10, 45.0)),
+      (-145.0,         upMapper,           TuningPitch(11, -45.0)),
+      (-150.0,         upMapper,           TuningPitch(11, -50.0)),
+      (-155.0,         upMapper,           TuningPitch(11, -55.0)),
 
-      (-161.0,         upMapper,           PitchClassDeviation(10, 39.0)),
-      (-139.0,         downMapper,         PitchClassDeviation(11, -39.0)),
+      (-161.0,         upMapper,           TuningPitch(10, 39.0)),
+      (-139.0,         downMapper,         TuningPitch(11, -39.0)),
     )
     //@formatter:on
 
     val tuningRef = StandardTuningRef(PitchClass.C)
-    forAll(table) { (inputCents, autoTuningMapper, pitchClassDeviation) =>
-      autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningRef) shouldEqual pitchClassDeviation
+    forAll(table) { (inputCents, autoTuningMapper, tuningPitch) =>
+      autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningRef) shouldEqual tuningPitch
     }
   }
 }

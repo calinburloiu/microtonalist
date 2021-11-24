@@ -20,14 +20,13 @@ import com.google.common.math.DoubleMath
 
 import scala.language.implicitConversions
 
-// TODO #5 Rename it to TuningPitch
-/** Class representing the concept of pitch class in the 12-tone equal temperament system,
- * identified by the semitone number, along with a deviation in cents.
+/**
+ * Class representing the tuning of a single 12-EDO pitch class with its deviation in cents.
  *
- * @param pitchClass  Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
- * @param deviation Deviation from the semitone in cents
+ * @param pitchClass Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
+ * @param deviation  Deviation from the semitone in cents
  */
-case class PitchClassDeviation(pitchClass: PitchClass, deviation: Double) {
+case class TuningPitch(pitchClass: PitchClass, deviation: Double) {
   pitchClass.assertValid()
 
   def cents: Double = 100.0 * pitchClass + deviation
@@ -35,21 +34,22 @@ case class PitchClassDeviation(pitchClass: PitchClass, deviation: Double) {
   def interval: CentsInterval = CentsInterval(cents)
 
   /**
-   * Tells if the instance is overflowing. A `PitchClassDeviation` is said to overflow if its `deviation` absolute
+   * Tells if the instance is overflowing. A `TuningPitch` is said to overflow if its `deviation` absolute
    * value exceeds 100 cents causing it to overlap with an another pitch class.
+   *
    * @return true if it's overflowing, false otherwise
    */
   def isOverflowing: Boolean = Math.abs(deviation) >= 100.0
 
-  def equalsWithTolerance(that: PitchClassDeviation, tolerance: Double): Boolean = {
+  def equalsWithTolerance(that: TuningPitch, tolerance: Double): Boolean = {
     this.pitchClass == that.pitchClass && DoubleMath.fuzzyEquals(this.deviation, that.deviation, tolerance)
   }
 }
 
-object PitchClassDeviation {
-  implicit def fromPitchClass(pitchClass: PitchClass): PitchClassDeviation = PitchClassDeviation(pitchClass, 0.0)
+object TuningPitch {
+  implicit def fromPitchClass(pitchClass: PitchClass): TuningPitch = TuningPitch(pitchClass, 0.0)
 
-  implicit def toPitchClass(pitchClassDeviation: PitchClassDeviation): PitchClass = pitchClassDeviation.pitchClass
+  implicit def toPitchClass(tuningPitch: TuningPitch): PitchClass = tuningPitch.pitchClass
 
-  implicit def toInt(pitchClassDeviation: PitchClassDeviation): Int = pitchClassDeviation.pitchClass.number
+  implicit def toInt(tuningPitch: TuningPitch): Int = tuningPitch.pitchClass.number
 }
