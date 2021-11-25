@@ -32,12 +32,12 @@ class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
   //@formatter:off
   private val commonTable = Table(
     ("real value",  "cents",  "Hz",   "pitch class / deviation"),
-    (0.75,          -498.04,  330.0,  TuningPitch(7, 1.96)),
-    (1.0,           0.0,      440.0,  TuningPitch(0, 0.0)),
-    (1.25,          386.31,   550.0,  TuningPitch(4, -13.69)),
-    (1.5,           701.96,   660.0,  TuningPitch(7, 1.96)),
-    (2.0,           1200.0,   880.0,  TuningPitch(0, 0.0)),
-    (4.0,           2400.0,   1760.0, TuningPitch(0, 0.0))
+    (0.75,          -498.04,  330.0,  TuningPitch(PitchClass.G, 1.96)),
+    (1.0,           0.0,      440.0,  TuningPitch(PitchClass.C, 0.0)),
+    (1.25,          386.31,   550.0,  TuningPitch(PitchClass.E, -13.69)),
+    (1.5,           701.96,   660.0,  TuningPitch(PitchClass.G, 1.96)),
+    (2.0,           1200.0,   880.0,  TuningPitch(PitchClass.C, 0.0)),
+    (4.0,           2400.0,   1760.0, TuningPitch(PitchClass.C, 0.0))
   )
   //@formatter:on
 

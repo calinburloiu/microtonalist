@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, Interval, Scale}
+import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtuner.StandardTuningRef
 import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 import org.scalatest.funsuite.AnyFunSuite
@@ -36,7 +36,7 @@ class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyCh
     val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail: _*)
 
     val autoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.5e-2)
-    val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningRef(0))
+    val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningRef(PitchClass.C))
 
     // When setting halfTolerance to 0.0, the quarter tones are mapped to D and A, instead of
     // D flat and A flat, respectively.

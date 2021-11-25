@@ -27,8 +27,6 @@ import scala.language.implicitConversions
  * @param deviation  Deviation from the semitone in cents
  */
 case class TuningPitch(pitchClass: PitchClass, deviation: Double) {
-  pitchClass.assertValid()
-
   def cents: Double = 100.0 * pitchClass + deviation
 
   def interval: CentsInterval = CentsInterval(cents)

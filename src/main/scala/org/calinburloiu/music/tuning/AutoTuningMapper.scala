@@ -52,7 +52,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
     } else {
       val deviationsByPitchClass = tuningPitches.map(TuningPitch.unapply(_).get).toMap
       val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { index =>
-        deviationsByPitchClass.get(index)
+        deviationsByPitchClass.get(PitchClass.fromInt(index))
       }
 
       PartialTuning(partialTuningValues, scale.name)
@@ -73,8 +73,8 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
     val totalCents = ref.baseTuningPitch.cents + interval.cents
     val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
     val deviation = totalCents - 100 * totalSemitones
-    val pitchClass = IntMath.mod(totalSemitones, 12)
+    val pitchClassNumber = IntMath.mod(totalSemitones, 12)
 
-    TuningPitch(pitchClass, deviation)
+    TuningPitch(PitchClass.fromInt(pitchClassNumber), deviation)
   }
 }

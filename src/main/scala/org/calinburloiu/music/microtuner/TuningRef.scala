@@ -64,8 +64,6 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
  * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
  */
 case class StandardTuningRef(override val basePitchClass: PitchClass) extends TuningRef {
-  basePitchClass.assertValid()
-
   override def baseDeviation: Double = 0.0
 
   override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, 0.0)

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.tuning
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, PitchClass, RatiosScale, TuningPitch}
+import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtuner.midi.MidiNote
 import org.calinburloiu.music.microtuner.{ConcertPitchTuningRef, StandardTuningRef, TuningRef}
 import org.scalactic.{Equality, TolerantNumerics}
@@ -28,7 +28,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   import PianoKeyboardTuningUtils._
 
-  val cTuningRef: TuningRef = StandardTuningRef(0)
+  val cTuningRef: TuningRef = StandardTuningRef(PitchClass.C)
 
   val halfTolerance: Int = 5
   val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance)
@@ -46,7 +46,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     // The "major" scale will be tuned starting from C on the piano. A4 is kept at 440 Hz, but the 5/3 note mapped to
     // A is considered an A flattened by a synthonic comma, so the A on the piano will not have 440 Hz, but less.
     // The 27/16 note from "major2", also mapped to A is considered natural and have the 440 Hz concert pitch.
-    val tuningRef = ConcertPitchTuningRef(32/:27, MidiNote.C5)
+    val tuningRef = ConcertPitchTuningRef(32/:27, MidiNote(PitchClass.C, 5))
     val majorTuningWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major, tuningRef)
     val major2TuningWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major2, tuningRef)
 
@@ -119,7 +119,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   it should "map a tetrachord with quarter tones differently based on the " +
     "mapQuarterTonesLow parameter" in {
-    val dTuningRef: TuningRef = StandardTuningRef(2)
+    val dTuningRef: TuningRef = StandardTuningRef(PitchClass.D)
     val bayatiTetrachord = CentsScale(0.0, 150.0, 300.0, 500.0)
 
     val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(bayatiTetrachord, dTuningRef)
@@ -172,7 +172,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     }
 
     for (basePitchClass <- 0 until 12) {
-      val tuningRef: TuningRef = StandardTuningRef(basePitchClass)
+      val tuningRef: TuningRef = StandardTuningRef(PitchClass.fromInt(basePitchClass))
       val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(tetrachord, tuningRef)
 
       testScale(basePitchClass, resultWithLowQuarterTones,
@@ -197,25 +197,25 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     //@formatter:off
     val table = Table[Double, AutoTuningMapper, TuningPitch](
       ("Input Cents", "AutoTuningMapper", "TuningPitch"),
-      (145.0,          downMapper,         TuningPitch(1, 45.0)),
-      (150.0,          downMapper,         TuningPitch(1, 50.0)),
-      (155.0,          downMapper,         TuningPitch(1, 55.0)),
-      (145.0,          upMapper,           TuningPitch(2, -55.0)),
-      (150.0,          upMapper,           TuningPitch(2, -50.0)),
-      (155.0,          upMapper,           TuningPitch(2, -45.0)),
+      (145.0,          downMapper,         TuningPitch(PitchClass.CSharp, 45.0)),
+      (150.0,          downMapper,         TuningPitch(PitchClass.DFlat, 50.0)),
+      (155.0,          downMapper,         TuningPitch(PitchClass.CSharp, 55.0)),
+      (145.0,          upMapper,           TuningPitch(PitchClass.D, -55.0)),
+      (150.0,          upMapper,           TuningPitch(PitchClass.D, -50.0)),
+      (155.0,          upMapper,           TuningPitch(PitchClass.D, -45.0)),
 
-      (161.0,          downMapper,         TuningPitch(2, -39.0)),
-      (139.0,          upMapper,           TuningPitch(1, 39.0)),
+      (161.0,          downMapper,         TuningPitch(PitchClass.D, -39.0)),
+      (139.0,          upMapper,           TuningPitch(PitchClass.CSharp, 39.0)),
 
-      (-145.0,         downMapper,         TuningPitch(10, 55.0)),
-      (-150.0,         downMapper,         TuningPitch(10, 50.0)),
-      (-155.0,         downMapper,         TuningPitch(10, 45.0)),
-      (-145.0,         upMapper,           TuningPitch(11, -45.0)),
-      (-150.0,         upMapper,           TuningPitch(11, -50.0)),
-      (-155.0,         upMapper,           TuningPitch(11, -55.0)),
+      (-145.0,         downMapper,         TuningPitch(PitchClass.BFlat, 55.0)),
+      (-150.0,         downMapper,         TuningPitch(PitchClass.ASharp, 50.0)),
+      (-155.0,         downMapper,         TuningPitch(PitchClass.BFlat, 45.0)),
+      (-145.0,         upMapper,           TuningPitch(PitchClass.B, -45.0)),
+      (-150.0,         upMapper,           TuningPitch(PitchClass.B, -50.0)),
+      (-155.0,         upMapper,           TuningPitch(PitchClass.B, -55.0)),
 
-      (-161.0,         upMapper,           TuningPitch(10, 39.0)),
-      (-139.0,         downMapper,         TuningPitch(11, -39.0)),
+      (-161.0,         upMapper,           TuningPitch(PitchClass.BFlat, 39.0)),
+      (-139.0,         downMapper,         TuningPitch(PitchClass.B, -39.0)),
     )
     //@formatter:on
 

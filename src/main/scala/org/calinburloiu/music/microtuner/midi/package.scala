@@ -30,7 +30,9 @@ package object midi {
      */
     def assertValid(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
 
-    def pitchClass: PitchClass = number % 12
+    def pitchClass: PitchClass = PitchClass.fromInt(number % 12)
+
+    def octave: Int = number / 12 - 1
 
     def freq: Double = ConcertPitchFreq * Math.pow(2, (number - MidiNote.ConcertPitch) / 12.0)
   }
@@ -59,6 +61,13 @@ package object midi {
     val C5: Int = 72
 
     val ConcertPitch: Int = 69
+
+    def apply(pitchClass: PitchClass, octave: Int): MidiNote = {
+      require(octave >= -1 && (octave < 9 || octave == 9 && pitchClass <= 7),
+        "octave must be in range -1 to 10, but octave 10 only goes until G")
+
+      12 * (octave + 1) + pitchClass
+    }
 
     implicit def toInt(midiNote: MidiNote): Int = midiNote.number
   }
