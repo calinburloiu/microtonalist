@@ -34,9 +34,8 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
   val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance)
   val autoTuningMapperWithHighQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance)
 
-  private val testAssertionsNumericTolerance: Double = 1e-2
-  private implicit val doubleEquality: Equality[Double] =
-    TolerantNumerics.tolerantDoubleEquality(testAssertionsNumericTolerance)
+  private val testTolerance: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(testTolerance)
 
   behavior of "mapScale"
 

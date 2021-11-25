@@ -22,9 +22,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class MidiNoteTest extends AnyFlatSpec with Matchers {
-  private val testAssertionsNumericTolerance: Double = 1e-2
-  private implicit val doubleEquality: Equality[Double] =
-    TolerantNumerics.tolerantDoubleEquality(testAssertionsNumericTolerance)
+  private val testTolerance: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(testTolerance)
 
   "MidiNote" can "be constructed from a pitch class and octave number" in {
     MidiNote(PitchClass.C, -1).number shouldEqual 0

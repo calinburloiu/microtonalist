@@ -36,6 +36,17 @@ sealed trait TuningRef{
 }
 
 /**
+ * Tuning reference relative standard tuning (12-EDO).
+ *
+ * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
+ */
+case class StandardTuningRef(override val basePitchClass: PitchClass) extends TuningRef {
+  override def baseDeviation: Double = 0.0
+
+  override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
+}
+
+/**
  * Tuning reference relative to concert pitch.
  *
  * @param concertPitchToBaseInterval Interval between the reference frequency and composition's base pitch.
@@ -56,15 +67,4 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
   }
 
   override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
-}
-
-/**
- * Tuning reference relative standard tuning (12-EDO).
- *
- * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
- */
-case class StandardTuningRef(override val basePitchClass: PitchClass) extends TuningRef {
-  override def baseDeviation: Double = 0.0
-
-  override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, 0.0)
 }
