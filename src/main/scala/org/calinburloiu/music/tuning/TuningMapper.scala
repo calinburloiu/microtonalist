@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{Interval, Scale, TuningPitch}
+import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtuner.TuningRef
 
 /**
@@ -28,8 +28,6 @@ import org.calinburloiu.music.microtuner.TuningRef
  */
 trait TuningMapper {
   def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
-
-  def mapInterval(interval: Interval, ref: TuningRef): TuningPitch
 }
 
 object TuningMapper {
@@ -46,4 +44,11 @@ object TuningMapper {
  * @see [[TuningMapper]]
  */
 class TuningMapperConflictException(message: String, cause: Throwable = null)
+  extends RuntimeException(message, cause)
+
+/**
+ * Exception thrown if the deviation for a pitch class exceeds the allowed values, typically greater or equal than
+ * 100.
+ */
+class TuningMapperOverflowException(message: String, cause: Throwable = null)
   extends RuntimeException(message, cause)

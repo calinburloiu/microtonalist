@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.tuning
 
+// TODO Consider including this into Tuning classes
 object PianoKeyboardTuningUtils {
 
   val tuningSize: Int = 12

@@ -30,6 +30,8 @@ case class PitchClass private (number: Int) extends AnyVal {
    * @return [[TuningPitch]] value in 12-EDO for `this` pitch class
    */
   def standardTuningPitch: TuningPitch = TuningPitch(this, 0.0)
+
+  override def toString: String = PitchClass.noteNames(number)
 }
 
 object PitchClass {
@@ -50,6 +52,8 @@ object PitchClass {
   val ASharp: PitchClass = fromInt(10)
   val BFlat: PitchClass = fromInt(10)
   val B: PitchClass = fromInt(11)
+
+  val noteNames = Seq("C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B")
 
   def fromInt(n: Int): PitchClass = {
     val result = PitchClass(n)

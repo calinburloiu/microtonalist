@@ -69,7 +69,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean = false,
     }
   }
 
-  override def mapInterval(interval: Interval, ref: TuningRef): TuningPitch = {
+  def mapInterval(interval: Interval, ref: TuningRef): TuningPitch = {
     val totalCents = ref.baseTuningPitch.cents + interval.cents
     val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
     val deviation = totalCents - 100 * totalSemitones

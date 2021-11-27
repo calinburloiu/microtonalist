@@ -17,6 +17,7 @@
 package org.calinburloiu.music.tuning
 
 import com.google.common.base.Preconditions.checkElementIndex
+import org.calinburloiu.music.intonation.PitchClass
 
 /**
  * Describes the tuning of a keyed instrument, typically with a piano keyboard, by specifying a deviation in cents
@@ -30,9 +31,13 @@ case class OctaveTuning(override val name: String,
   require(deviations.size == 12, "There should be exactly 12 deviations!")
 
   /** Returns the deviation in cents for a particular key 0-based index. */
-  def apply(index: Int): Double = {
+  override def apply(index: Int): Double = {
     checkElementIndex(index, size)
     deviations(index)
+  }
+
+  def apply(pitchClass: PitchClass): Double = {
+    deviations(pitchClass)
   }
 }
 
