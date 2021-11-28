@@ -53,6 +53,11 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
   def isComplete: Boolean = deviations.forall(_.nonEmpty)
 
   /**
+   * @return the number of completed pitch classes which have a deviation defined
+   */
+  def completedCount: Int = deviations.map(d => if (d.isDefined) 1 else 0).sum
+
+  /**
    * Attempts to create a [[OctaveTuning]] from this partial tuning if is complete (see [[isComplete]]).
    *
    * @return maybe a new [[OctaveTuning]]

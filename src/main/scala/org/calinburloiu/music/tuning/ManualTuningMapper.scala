@@ -15,7 +15,7 @@
  */
 
 package org.calinburloiu.music.tuning
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
+import org.calinburloiu.music.intonation.{CentsInterval, Interval, PitchClass, Scale}
 import org.calinburloiu.music.microtuner.TuningRef
 
 case class ManualTuningMapper(mapping: Seq[Option[Int]], deviationRange: (Int, Int) = (-100, 100)) extends TuningMapper {
@@ -31,11 +31,11 @@ case class ManualTuningMapper(mapping: Seq[Option[Int]], deviationRange: (Int, I
         case Some(scaleDegree) =>
           val pitchClass = PitchClass.fromInt(pair._2)
           val interval = scale(scaleDegree)
-          val totalCents = ref.baseTuningPitch.cents + interval.cents
-          val deviation = totalCents % 1200 - pitchClass * 100
+          val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
+          val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
           if (deviation < deviationRange._1 || deviation > deviationRange._2) {
             throw new TuningMapperOverflowException(
-              s"Deviation $deviation for ${pitchClass} overflowed range [${deviationRange._1}, ${deviationRange._2}!")
+              s"Deviation $deviation for ${pitchClass} overflowed range [${deviationRange._1}, ${deviationRange._2}]!")
           }
 
           Some(deviation)
@@ -46,5 +46,17 @@ case class ManualTuningMapper(mapping: Seq[Option[Int]], deviationRange: (Int, I
     }
 
     PartialTuning(partialTuningValues, scale.name)
+  }
+}
+
+object ManualTuningMapper {
+  private def computeDeviation(totalCentsInterval: CentsInterval, pitchClass: PitchClass): Double = {
+    if (pitchClass == PitchClass.C) {
+      val v1 = totalCentsInterval.cents
+      val v2 = totalCentsInterval.cents - 1200
+      if (Math.abs(v1) < Math.abs(v2)) v1 else v2
+    } else {
+      totalCentsInterval.cents - pitchClass * 100
+    }
   }
 }
