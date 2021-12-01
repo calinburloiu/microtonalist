@@ -34,7 +34,7 @@ object TuningMapper {
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */
-  val Default: AutoTuningMapper = AutoTuningMapper()
+  val Default: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false)
 }
 
 // TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?

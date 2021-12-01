@@ -46,16 +46,10 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "only allow valid deviation ranges" in {
-    assertThrows[IllegalArgumentException] {
-      ManualTuningMapper(keyboardMapping, (63, -64))
-    }
-  }
-
   it should "map a scale with just quarter tones to custom keys" in {
     // Given
     val scale = RatiosScale(1/:1, 13/:12, 32/:27, 4/:3, 3/:2, 13/:8, 16/:9)
-    val mapper = ManualTuningMapper(keyboardMapping, (-64, 63))
+    val mapper = ManualTuningMapper(keyboardMapping)
     val tuningRef = ConcertPitchTuningRef(2/:3, MidiNote.D4)
     // When
     val partialTuning = mapper.mapScale(scale, tuningRef)
@@ -74,7 +68,7 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     // Given
     val scale = CentsScale(0.0, 200.0, 400.0, 500.0)
     val mapping = KeyboardMapping(c = Some(0), cSharpOrDFlat = Some(1), e = Some(3), f = Some(4))
-    val mapper = ManualTuningMapper(mapping, (-64, 63))
+    val mapper = ManualTuningMapper(mapping)
     val tuningRef = StandardTuningRef(PitchClass.C)
     // Then
     assertThrows[TuningMapperOverflowException] {

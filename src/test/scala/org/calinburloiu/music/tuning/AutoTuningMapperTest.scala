@@ -186,6 +186,26 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     }
   }
 
+  it should "manually map some pitches mentioned in overrideKeyboardMapper" in {
+    // Given
+    val scale = RatiosScale(1/:1, 12/:11, 32/:27, 4/:3, 3/:2, 13/:8, 16/:9)
+    val tuningRef = ConcertPitchTuningRef(2/:3, MidiNote.D4)
+    val overrideKeyboardMapping = KeyboardMapping(dSharpOrEFlat = Some(1))
+    val mapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance = 5.0,
+      overrideKeyboardMapping = overrideKeyboardMapping)
+    // When
+    val partialTuning = mapper.mapScale(scale, tuningRef)
+    // Then
+    partialTuning.completedCount shouldEqual 7
+    partialTuning.d should contain (-1.95)
+    partialTuning.eFlat should contain (48.68)
+    partialTuning.f should contain (-7.82)
+    partialTuning.g should contain (-3.91)
+    partialTuning.a should contain (0.0)
+    partialTuning.bFlat should contain (38.57)
+    partialTuning.c should contain (-5.87)
+  }
+
   behavior of "mapInterval"
 
   it should "map an interval to a pitch class with a deviation in cents" in {
@@ -222,5 +242,39 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     forAll(table) { (inputCents, autoTuningMapper, tuningPitch) =>
       autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningRef) shouldEqual tuningPitch
     }
+  }
+
+  behavior of "keyboardMappingOf"
+
+  it should "return the keyboard mapping automatically found" in {
+    // Given
+    val major = RatiosScale((1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
+    val tuningRef = ConcertPitchTuningRef(32/:27, MidiNote(PitchClass.C, 5))
+    // When
+    val keyboardMapping = autoTuningMapperWithLowQuarterTones.keyboardMappingOf(major, tuningRef)
+    // Then
+    keyboardMapping shouldEqual KeyboardMapping(
+      c = Some(0),
+      d = Some(1),
+      e = Some(2),
+      f = Some(3),
+      g = Some(4),
+      a = Some(5),
+      b = Some(6)
+    )
+  }
+
+  it should "return the keyboard mapping with some pitches manually mapped" in {
+    // Given
+    val scale = RatiosScale(1/:1, 12/:11, 32/:27, 4/:3, 3/:2, 13/:8, 16/:9)
+    val tuningRef = ConcertPitchTuningRef(2/:3, MidiNote.D4)
+    val overrideKeyboardMapping = KeyboardMapping(dSharpOrEFlat = Some(1), b = Some(5))
+    val mapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance = 15.0,
+      overrideKeyboardMapping = overrideKeyboardMapping)
+    // When
+    val keyboardMapping = mapper.keyboardMappingOf(scale, tuningRef)
+    // Then
+    keyboardMapping shouldEqual KeyboardMapping(d = Some(0), dSharpOrEFlat = Some(1), f = Some(2), g = Some(3),
+      a = Some(4), b = Some(5), c = Some(6))
   }
 }

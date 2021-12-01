@@ -21,7 +21,7 @@ import com.google.common.math.DoubleMath
 import scala.language.implicitConversions
 
 /**
- * Class representing the tuning of a single 12-EDO pitch class with its deviation in cents.
+ * Class representing the tuning of a single pitch class with its deviation in cents from 12-EDO.
  *
  * @param pitchClass Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
  * @param deviation  Deviation from the semitone in cents

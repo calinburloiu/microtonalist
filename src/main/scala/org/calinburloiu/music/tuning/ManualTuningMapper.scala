@@ -18,12 +18,11 @@ package org.calinburloiu.music.tuning
 import org.calinburloiu.music.intonation.{CentsInterval, Interval, PitchClass, Scale}
 import org.calinburloiu.music.microtuner.TuningRef
 
-case class ManualTuningMapper(mapping: KeyboardMapping, deviationRange: (Int, Int) = (-100, 100)) extends TuningMapper {
-  require(deviationRange._1 < 0 && deviationRange._2 > 0,
-    "deviationRange must be a pair of a negative and a positive number")
+case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
+  import ManualTuningMapper._
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    val partialTuningValues = mapping.values.map { pair =>
+    val partialTuningValues = keyboardMapping.values.map { pair =>
       val maybeScaleDegree = pair._2
       maybeScaleDegree match {
         case Some(scaleDegree) =>
@@ -31,9 +30,9 @@ case class ManualTuningMapper(mapping: KeyboardMapping, deviationRange: (Int, In
           val interval = scale(scaleDegree)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
-          if (deviation < deviationRange._1 || deviation > deviationRange._2) {
+          if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {
             throw new TuningMapperOverflowException(
-              s"Deviation $deviation for ${pitchClass} overflowed range [${deviationRange._1}, ${deviationRange._2}]!")
+              s"Deviation $deviation for ${pitchClass} overflowed range ($MinExclusiveDeviation, $MaxExclusiveDeviation)!")
           }
 
           Some(deviation)
@@ -48,6 +47,9 @@ case class ManualTuningMapper(mapping: KeyboardMapping, deviationRange: (Int, In
 }
 
 object ManualTuningMapper {
+  val MinExclusiveDeviation: Double = -100.0
+  val MaxExclusiveDeviation: Double = 100.0
+
   private def computeDeviation(totalCentsInterval: CentsInterval, pitchClass: PitchClass): Double = {
     if (pitchClass == PitchClass.C) {
       val v1 = totalCentsInterval.cents
