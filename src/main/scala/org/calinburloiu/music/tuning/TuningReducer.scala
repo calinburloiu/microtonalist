@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.tuning
 
-// TODO #5 All TuningReducers should be case classes
 /**
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
  * musician must perform while playing.
