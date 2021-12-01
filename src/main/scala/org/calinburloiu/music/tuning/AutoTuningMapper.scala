@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
+import com.google.common.math.IntMath
+import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale, TuningPitch}
+import org.calinburloiu.music.microtuner.TuningRef
 
 /**
  * A [[TuningMapper]] that attempts to automatically map scales to a piano keyboard tuning that specifies a key for
@@ -25,57 +27,134 @@ import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param pitchClassConfig configuration object that fine tunes the way a scale pitch is mapped to a tuning key
+ * @param mapQuarterTonesLow      'true' if a quarter tone should be the lower pitch class with +50 cents deviation or
+ *                                `false` if it should be the higher pitch class with -50 cents deviation
+ * @param halfTolerance           tolerance value used for deviations when they are close to +50 or -50 cents in
+ *                                order to
+ *                                avoid precision errors while mapping a quarter tone to its pitch class
+ * @param overrideKeyboardMapping a [[KeyboardMapping]] containing scale degree marked as exceptions that are going
+ *                                to be manually mapped to a user specified pitch class
+ * @param tolerance               Error in cents that should be tolerated when comparing corresponding pitch class
+ *                                deviations of
+ *                                `PartialTuning`s to avoid double precision errors.
  */
-class AutoTuningMapper(val pitchClassConfig: PitchClassConfig = PitchClassConfig())
-  extends TuningMapper {
+case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
+                            halfTolerance: Double = DefaultCentsTolerance,
+                            overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
+                            tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
-  private implicit val implicitPitchClassConfig: PitchClassConfig = pitchClassConfig
+  import AutoTuningMapper._
 
-  def this(mapQuarterTonesLow: Boolean) =
-    this(PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
+  private val scaleDegreesMappedManually: Set[Int] = overrideKeyboardMapping.scaleDegrees.flatten.toSet
+  private val manualTuningMapper: Option[ManualTuningMapper] = {
+    if (overrideKeyboardMapping.isEmpty) None
+    else Some(ManualTuningMapper(overrideKeyboardMapping))
+  }
 
-  override def apply(basePitchClass: PitchClass, scale: Scale[Interval]): PartialTuning = {
-    // TODO Refactor (check commented lines or think about a generic solution like KeyboardMapper).
-    //    val pitchClasses: Seq[PitchClass] = scale.intervals
-    //      .map(_.normalize).distinct
-    //      .map { interval =>
-    //        val cents = interval.cents + basePitchClass.cents
-    //        Converters.fromCentsToPitchClass(cents, autoTuningMapperConfig.mapQuarterTonesLow)
-    //      }
-    val pitchClasses: Seq[PitchClass] = scale.intervals.map { interval =>
-      basePitchClass + interval
-    }.distinct
+  override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+    // TODO #4 Consider Transforming Seq[TuningPitch] into PartialTuning in a reusable manner:
+    //     1) In PartialTuning
+    //     2) Via KeyboardTuningMapper
+    val pitchesInfo = mapScaleToPitchesInfo(scale, ref)
+    val deviationsByPitchClass = pitchesInfo
+      .map { case PitchInfo(tuningPitch, _) => TuningPitch.unapply(tuningPitch).get }
+      .toMap
+    val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
+      deviationsByPitchClass.get(PitchClass.fromInt(pitchClass))
+    }
+    val autoPartialTuning = PartialTuning(partialTuningValues, scale.name)
 
-    val groupsOfPitchClasses = pitchClasses.groupBy(_.number)
-    val pitchClassesWithConflicts = groupsOfPitchClasses
-      .filter(_._2.distinct.lengthCompare(1) > 0)
-    if (pitchClassesWithConflicts.nonEmpty) {
-      throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
-        pitchClassesWithConflicts)
-    } else {
-      val pitchClassesMap = pitchClasses.map(PitchClass.unapply(_).get).toMap
-      val partialTuningValues = (0 until 12).map { index =>
-        pitchClassesMap.get(index)
+    val manualPartialTuning = manualTuningMapper match {
+      case Some(manualTuningMapper) => manualTuningMapper.mapScale(scale, ref)
+      case None => PartialTuning.empty(12)
+    }
+
+    val resultPartialTuning = autoPartialTuning.merge(manualPartialTuning, tolerance)
+    assert(resultPartialTuning.isDefined,
+      "Pitch classes from overrideKeyboardMapping shouldn't be automatically mapped!")
+    resultPartialTuning.get
+  }
+
+  /**
+   * Automatically maps an interval to a pitch class on the keyboard.
+   *
+   * @param interval interval to be mapped
+   * @param ref      reference taken when mapping the interval
+   * @return a pitch class with its deviation from 12-EDO
+   */
+  def mapInterval(interval: Interval, ref: TuningRef): TuningPitch = {
+    val totalCents = ref.baseTuningPitch.cents + interval.cents
+    val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
+    val deviation = totalCents - 100 * totalSemitones
+    val pitchClassNumber = IntMath.mod(totalSemitones, 12)
+
+    TuningPitch(PitchClass.fromInt(pitchClassNumber), deviation)
+  }
+
+  /**
+   * @return the [[KeyboardMapping]] found by the mapper for the given scale and reference
+   */
+  def keyboardMappingOf(scale: Scale[Interval], ref: TuningRef): KeyboardMapping = {
+    val pitches = mapScaleToPitchesInfo(scale, ref)
+
+    /**
+     * @param pitches Duplicated non-conflicting pitches that are mapped to the same pitch class. They might differ
+     *                slightly in deviation (due to precision errors) and have different scale degree.
+     * @return The min scale degree to use for all those pitches.
+     */
+    def extractScaleDegree(pitches: Seq[PitchInfo]): Int = {
+      pitches.foldLeft(Int.MaxValue) { (minScaleDegree, pitch) =>
+        val scaleDegree = pitch.scaleDegree
+        if (scaleDegree < minScaleDegree) scaleDegree else minScaleDegree
       }
+    }
 
-      PartialTuning(partialTuningValues)
+    val scaleDegreesByPitchClass = pitches
+      .groupBy(_.tuningPitch.pitchClass)
+      .view.mapValues(extractScaleDegree)
+      .toMap
+    val overriddenScaleDegreesByPitchClass = scaleDegreesByPitchClass ++ overrideKeyboardMapping.toMap
+    val keyboardMappingScaleDegrees = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
+      overriddenScaleDegreesByPitchClass.get(PitchClass.fromInt(pitchClass))
+    }
+
+    KeyboardMapping(keyboardMappingScaleDegrees)
+  }
+
+  /**
+   * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale degree, with the
+   *         pitches mentioned in `overrideKeyboardMapping` excluded.
+   */
+  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Seq[PitchInfo] = {
+    val pitchesInfo = scale.intervals.zipWithIndex.map { case (interval, scaleDegree) =>
+      PitchInfo(mapInterval(interval, ref), scaleDegree)
+    }
+
+    val tuningPitches = pitchesInfo.map(_.tuningPitch)
+    val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
+    val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
+    if (conflicts.nonEmpty) {
+      throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
+        conflicts)
+    } else {
+      pitchesInfo.filter { pitchInfo => !scaleDegreesMappedManually.contains(pitchInfo.scaleDegree) }
     }
   }
 
-  override def toString: String = s"AutoTuningMapper($pitchClassConfig)"
-
-  def canEqual(other: Any): Boolean = other.isInstanceOf[AutoTuningMapper]
-
-  override def equals(other: Any): Boolean = other match {
-    case that: AutoTuningMapper =>
-      (that canEqual this) &&
-        pitchClassConfig == that.pitchClassConfig
-    case _ => false
+  /**
+   * @return true if there are conflicting pitches mapped to the same pitch class, or false otherwise
+   */
+  private def filterConflicts(tuningPitches: Seq[TuningPitch]): Boolean = {
+    if (tuningPitches.lengthCompare(1) == 0) {
+      // Can't have a conflict when there is a single candidate on a pitch class
+      false
+    } else {
+      val first = tuningPitches.head
+      tuningPitches.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
+    }
   }
+}
 
-  override def hashCode(): Int = {
-    val state = Seq(pitchClassConfig)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-  }
+object AutoTuningMapper {
+  private case class PitchInfo(tuningPitch: TuningPitch, scaleDegree: Int)
 }

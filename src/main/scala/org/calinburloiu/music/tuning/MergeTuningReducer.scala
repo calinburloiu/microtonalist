@@ -20,7 +20,6 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.annotation.tailrec
 
-// TODO Params such as tolerance should be part of a TuningReducer specific spec
 /**
  * Reducing algorithm for a sequence of [[PartialTuning]]s that attempts to merge consecutive `PartialTuning`s that
  * don't have conflicts. The merging is performed in the order of the sequence.
@@ -38,12 +37,12 @@ import scala.annotation.tailrec
  * effect.
  *
  * @param tolerance Error in cents that should be tolerated when comparing corresponding pitch class deviations of
- *                  `PartialTuning`s.
+ *                  `PartialTuning`s to avoid double precision errors.
  */
-class MergeTuningReducer(tolerance: Double = 0.5e-2) extends TuningReducer with StrictLogging {
+case class MergeTuningReducer(tolerance: Double = DefaultCentsTolerance) extends TuningReducer with StrictLogging {
 
-  override def apply(partialTunings: Seq[PartialTuning],
-                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+  override def reduceTunings(partialTunings: Seq[PartialTuning],
+                             globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
     if (partialTunings.isEmpty) {
       return TuningList(Seq.empty)
     }

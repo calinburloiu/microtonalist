@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtuner
 
+import org.calinburloiu.music.intonation.PitchClass
 import org.calinburloiu.music.microtuner.midi.{MidiNote, MidiProcessorFixture, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
 import org.calinburloiu.music.tuning.OctaveTuning
 import org.scalactic.{Equality, TolerantNumerics}
@@ -50,7 +51,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   private val customTuning2 = OctaveTuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
-    noteAb4, noteA4, noteBb4, noteB4) = 60 until 72
+    noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4 until MidiNote.C5
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
@@ -139,7 +140,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   behavior of "MonophonicPitchBendTuner after initialization"
 
   it should "tune all notes in 12-EDO by not sending any pitch bend" in new Fixture {
-    for (note <- 60 to 72) {
+    for (note <- MidiNote.C4 to MidiNote.C5) {
       sendNote(tuner, note)
     }
 
@@ -161,11 +162,11 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.tune(customTuning)
 
     // Send some Cs
-    sendNote(tuner, 60)
-    sendNote(tuner, 48)
-    tuner.send(ScNoteOnMidiMessage(inputChannel, 84))
+    sendNote(tuner, MidiNote(PitchClass.C, 4))
+    sendNote(tuner, MidiNote(PitchClass.C, 3))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, MidiNote(PitchClass.C, 6)))
     // Send on of the "note off" as a note on with velocity 0
-    tuner.send(ScNoteOnMidiMessage(inputChannel, 84, 0))
+    tuner.send(ScNoteOnMidiMessage(inputChannel, MidiNote(PitchClass.C, 6), 0))
 
     pitchBendOutput shouldBe empty
   }
@@ -205,7 +206,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     // Use a microtonal tuning such that pitch bend messages are also send
     tuner.tune(customTuning2)
 
-    for (note <- 60 to 72; channel = note % 12) {
+    for (note <- MidiNote.C4 to MidiNote.C5; channel = note % 12) {
       sendNote(tuner, note, channel)
     }
 

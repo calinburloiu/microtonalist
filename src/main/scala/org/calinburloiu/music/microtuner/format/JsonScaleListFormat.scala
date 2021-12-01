@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtuner.format
 
 import org.calinburloiu.music.intonation.format.{JsonScaleFormat, Ref, ScaleLibrary}
-import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.microtuner.{Modulation, OriginOld, ScaleList, ScaleMapping}
+import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
+import org.calinburloiu.music.microtuner.{Modulation, ScaleList, ScaleMapping, StandardTuningRef}
 import org.calinburloiu.music.tuning._
 import play.api.libs.json._
 
@@ -61,11 +61,10 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
   private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
-    val defaultTuningMapper = new AutoTuningMapper(
-      PitchClassConfig(mapQuarterTonesLow, PitchClassConfig.DefaultHalfTolerance))
+    val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false)
 
     val name = scaleListRepr.name.getOrElse("")
-    val origin = OriginOld(scaleListRepr.origin.basePitchClass)
+    val tuningRef = StandardTuningRef(PitchClass.fromInt(scaleListRepr.tuningReference.basePitchClass))
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
       val transposition = modulationRepr.transposition.getOrElse(Interval.Unison)
@@ -85,11 +84,14 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     val globalFillTuningMapper = scaleListRepr.globalFillTuningMapper.getOrElse(defaultTuningMapper)
     val globalFill = ScaleMapping(scaleListRepr.globalFill.value, globalFillTuningMapper)
 
-    ScaleList(name, origin, modulations, tuningReducer, globalFill)
+    ScaleList(name, tuningRef, modulations, tuningReducer, globalFill)
   }
 }
 
 object JsonScaleListFormat {
+
+  // TODO #31 Read this from JSON
+  private val tolerance: Double = DefaultCentsTolerance
 
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
   private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
@@ -107,31 +109,33 @@ object JsonScaleListFormat {
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
-
     import ComponentPlayJsonFormat._
 
-    private implicit val pitchClassConfigPlayJsonFormat: Format[PitchClassConfig] =
-      Json.using[Json.WithDefaultValues].format[PitchClassConfig]
+    private implicit val autoReprPlayJsonFormat: Format[AutoTuningMapperRepr] =
+      Json.using[Json.WithDefaultValues].format[AutoTuningMapperRepr]
     private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
-      pitchClassConfigPlayJsonFormat.map(new AutoTuningMapper(_)),
-      Writes { autoTuningMapper: AutoTuningMapper =>
-        Json.writes[PitchClassConfig].writes(autoTuningMapper.pitchClassConfig)
+      autoReprPlayJsonFormat.map { repr =>
+        AutoTuningMapper(mapQuarterTonesLow = repr.mapQuarterTonesLow,
+          halfTolerance = repr.halfTolerance.getOrElse(tolerance), tolerance = tolerance)
+      },
+      Writes { mapper: AutoTuningMapper =>
+        val repr = AutoTuningMapperRepr(mapper.mapQuarterTonesLow, halfTolerance = Some(mapper.halfTolerance))
+        Json.writes[AutoTuningMapperRepr].writes(repr)
       }
     )
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningMapper]] = Seq(
-      SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat), Some(() => new AutoTuningMapper()))
+      SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat),
+        Some(() => AutoTuningMapper(mapQuarterTonesLow = false)))
     )
   }
 
   private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
-
     import ComponentPlayJsonFormat._
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
-      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => new DirectTuningReducer)),
-      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => new MergeTuningReducer)),
+      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
+      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
     )
   }
-
 }

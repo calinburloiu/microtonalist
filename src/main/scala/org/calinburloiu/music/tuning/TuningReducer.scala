@@ -24,15 +24,13 @@ package org.calinburloiu.music.tuning
  * tunings will be incomplete after the reduce process a [[IncompleteTuningsException]] is thrown.
  */
 trait TuningReducer {
-
-  def apply(tunings: Seq[PartialTuning],
-            globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
+  def reduceTunings(tunings: Seq[PartialTuning],
+                    globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
 }
 
 object TuningReducer {
-
   /** A [[MergeTuningReducer]]. */
-  val Default: MergeTuningReducer = new MergeTuningReducer
+  val Default: MergeTuningReducer = MergeTuningReducer()
 }
 
 /**

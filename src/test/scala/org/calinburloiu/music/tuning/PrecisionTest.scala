@@ -16,12 +16,14 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{CentsInterval, CentsScale, Interval, Scale}
+import org.calinburloiu.music.intonation._
+import org.calinburloiu.music.microtuner.StandardTuningRef
 import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PrecisionTest extends AnyFunSuite with Matchers {
+class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyChecks {
 
   test("changing interval class does not alter quarter tones mapping when using halfTolerance") {
     val scaleCents = CentsScale(0.0, 150.0, 300.0, 500.0, 700.0, 850.0, 1000.0)
@@ -33,11 +35,8 @@ class PrecisionTest extends AnyFunSuite with Matchers {
     }
     val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail: _*)
 
-    val autoTuningMapper = new AutoTuningMapper(PitchClassConfig(
-      mapQuarterTonesLow = true,
-      halfTolerance = 0.5e-2
-    ))
-    val tuning = autoTuningMapper(0, convertedScale)
+    val autoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.5e-2)
+    val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningRef(PitchClass.C))
 
     // When setting halfTolerance to 0.0, the quarter tones are mapped to D and A, instead of
     // D flat and A flat, respectively.
@@ -50,5 +49,49 @@ class PrecisionTest extends AnyFunSuite with Matchers {
     tuning.aFlat should not be empty
     tuning.a shouldBe empty
     tuning.bFlat should not be empty
+  }
+
+  test("roundToInt") {
+    //@formatter:off
+    val table = Table[Double, Boolean, Int](
+      ("input", "halfDown", "output"),
+      (2.0,     true,       2),
+      (2.3,     true,       2),
+      (2.45,    true,       2),
+      (2.5,     true,       2),
+      (2.55,    true,       2),
+      (2.7,     true,       3),
+      (3.0,     true,       3),
+
+      (2.0,     false,      2),
+      (2.3,     false,      2),
+      (2.45,    false,      3),
+      (2.5,     false,      3),
+      (2.55,    false,      3),
+      (2.7,     false,      3),
+      (3.0,     false,      3),
+
+      (-2.0,    true,       -2),
+      (-2.3,    true,       -2),
+      (-2.45,   true,       -3),
+      (-2.5,    true,       -3),
+      (-2.55,   true,       -3),
+      (-2.7,    true,       -3),
+      (-3.0,    true,       -3),
+
+      (-2.0,    false,      -2),
+      (-2.3,    false,      -2),
+      (-2.45,   false,      -2),
+      (-2.5,    false,      -2),
+      (-2.55,   false,      -2),
+      (-2.7,    false,      -3),
+      (-3.0,    false,      -3)
+    )
+    //@formatter:on
+    val tolerance = 0.1
+
+    forAll(table) { (input, halfDown, output) =>
+      roundWithTolerance(input, halfDown, tolerance) shouldEqual output
+    }
   }
 }

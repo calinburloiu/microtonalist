@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,81 +16,52 @@
 
 package org.calinburloiu.music.intonation
 
-import com.google.common.math.IntMath
-import org.calinburloiu.music.tuning.PitchClassConfig
-
 import scala.language.implicitConversions
 
-/** Class representing the concept of pitch class in the 12-tone equal temperament system,
- * identified by the semitone number and an option deviation in cents.
- *
- * @param number  Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
- * @param deviation Deviation from the semitone in cents
- */
-case class PitchClass(number: Int, deviation: Double = 0.0) {
-  require(number >= 0 && number < 12, "0 <= semitone < 12")
-  require(deviation >= -100.0 && deviation <= 100.0, "-100 <= deviation <= 100")
+case class PitchClass private (number: Int) extends AnyVal {
+  /**
+   * Call this method after creating an instance.
+   *
+   * Context: Scala value classes do not allow constructor validation.
+   */
+  def assertValid(): Unit = require(number >= 0 && number < 12, "0 <= pitchClass < 12")
 
-  def cents: Double = 100.0 * number + deviation
+  /**
+   * @return [[TuningPitch]] value in 12-EDO for `this` pitch class
+   */
+  def standardTuningPitch: TuningPitch = TuningPitch(this, 0.0)
 
-  def +(interval: Interval)(implicit pitchClassConfig: PitchClassConfig): PitchClass = {
-    val totalCents = cents + interval.normalize.cents
-    PitchClass.fromCents(totalCents)
-  }
+  override def toString: String = PitchClass.noteNames(number)
 }
 
 object PitchClass {
-  val C: Int = PitchClass(0)
-  val CSharp: Int = PitchClass(1)
-  val DFlat: Int = PitchClass(1)
-  val D: Int = PitchClass(2)
-  val DSharp: Int = PitchClass(3)
-  val EFlat: Int = PitchClass(3)
-  val E: Int = PitchClass(4)
-  val F: Int = PitchClass(5)
-  val FSharp: Int = PitchClass(6)
-  val GFlat: Int = PitchClass(6)
-  val G: Int = PitchClass(7)
-  val GSharp: Int = PitchClass(8)
-  val AFlat: Int = PitchClass(8)
-  val A: Int = PitchClass(9)
-  val ASharp: Int = PitchClass(10)
-  val BFlat: Int = PitchClass(10)
-  val B: Int = PitchClass(11)
+  val C: PitchClass = fromInt(0)
+  val CSharp: PitchClass = fromInt(1)
+  val DFlat: PitchClass = fromInt(1)
+  val D: PitchClass = fromInt(2)
+  val DSharp: PitchClass = fromInt(3)
+  val EFlat: PitchClass = fromInt(3)
+  val E: PitchClass = fromInt(4)
+  val F: PitchClass = fromInt(5)
+  val FSharp: PitchClass = fromInt(6)
+  val GFlat: PitchClass = fromInt(6)
+  val G: PitchClass = fromInt(7)
+  val GSharp: PitchClass = fromInt(8)
+  val AFlat: PitchClass = fromInt(8)
+  val A: PitchClass = fromInt(9)
+  val ASharp: PitchClass = fromInt(10)
+  val BFlat: PitchClass = fromInt(10)
+  val B: PitchClass = fromInt(11)
 
-  /** Creates a [[PitchClass]] from a cents value assumed relative to pitch class 0 (C note). */
-  def fromCents(cents: Double)(implicit pitchClassConfig: PitchClassConfig): PitchClass = {
-    val totalSemitones = roundToInt(cents / 100,
-      pitchClassConfig.mapQuarterTonesLow, pitchClassConfig.halfTolerance)
-    val deviation = cents - 100 * totalSemitones
-    val semitone = IntMath.mod(totalSemitones, 12)
+  val values: Seq[PitchClass] = Seq(C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B)
 
-    PitchClass(semitone, deviation)
+  val noteNames = Seq("C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B")
+
+  def fromInt(n: Int): PitchClass = {
+    val result = PitchClass(n)
+    result.assertValid()
+    result
   }
 
-  /** Creates a [[PitchClass]] from an interval assumed relative to pitch class 0 (C note). */
-  def fromInterval(interval: Interval)(implicit pitchClassConfig: PitchClassConfig): PitchClass =
-    fromCents(interval.normalize.cents)
-
-  implicit def fromNumber(semitone: Int): PitchClass = PitchClass(semitone)
-
-  implicit def toNumber(pitchClass: PitchClass): Int = pitchClass.number
-
-  private[intonation] def roundToInt(value: Double, halfDown: Boolean, halfTolerance: Double): Int = {
-    val fractional = value - Math.floor(value)
-    val lowHalf = 0.5 - halfTolerance
-    val highHalf = 0.5 + halfTolerance
-
-    if (halfDown) {
-      if (fractional <= highHalf)
-        Math.floor(value).toInt
-      else
-        Math.ceil(value).toInt
-    } else {
-      if (fractional >= lowHalf)
-        Math.ceil(value).toInt
-      else
-        Math.floor(value).toInt
-    }
-  }
+  implicit def toInt(pitchClass: PitchClass): Int = pitchClass.number
 }

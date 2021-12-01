@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,14 +14,18 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation
+package org.calinburloiu.music
 
-object Converters {
+import com.google.common.math.DoubleMath
+
+package object intonation {
+  /** Concert pitch frequency in Hz for central A4. */
+  val ConcertPitchFreq: Double = 440.0
 
   def fromRealValueToCents(realValue: Double): Double = {
     require(realValue > 0.0, s"Expecting positive realValue, but got $realValue")
 
-    1200.0 * Math.log(realValue) / Math.log(2)
+    1200.0 * DoubleMath.log2(realValue)
   }
 
   def fromRatioToCents(numerator: Int, denominator: Int): Double = {

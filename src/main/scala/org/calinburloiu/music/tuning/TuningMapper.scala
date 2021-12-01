@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.tuning
 
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
+import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtuner.TuningRef
 
 /**
  * Maps a [[Scale]] to a [[PartialTuning]], by choosing the right keys to be used. Keys not used in the partial tuning
@@ -26,16 +27,14 @@ import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
  * This results in throwing a [[TuningMapperConflictException]].
  */
 trait TuningMapper {
-
-  def apply(basePitchClass: PitchClass, scale: Scale[Interval]): PartialTuning
+  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
 }
 
 object TuningMapper {
-
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */
-  val Default: AutoTuningMapper = new AutoTuningMapper
+  val Default: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false)
 }
 
 // TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?
@@ -45,4 +44,11 @@ object TuningMapper {
  * @see [[TuningMapper]]
  */
 class TuningMapperConflictException(message: String, cause: Throwable = null)
+  extends RuntimeException(message, cause)
+
+/**
+ * Exception thrown if the deviation for a pitch class exceeds the allowed values, typically greater or equal than
+ * 100.
+ */
+class TuningMapperOverflowException(message: String, cause: Throwable = null)
   extends RuntimeException(message, cause)

@@ -30,7 +30,7 @@ case class OctaveTuning(override val name: String,
   require(deviations.size == 12, "There should be exactly 12 deviations!")
 
   /** Returns the deviation in cents for a particular key 0-based index. */
-  def apply(index: Int): Double = {
+  override def apply(index: Int): Double = {
     checkElementIndex(index, size)
     deviations(index)
   }

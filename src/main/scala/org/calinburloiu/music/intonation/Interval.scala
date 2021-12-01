@@ -27,7 +27,7 @@ class Interval(val realValue: Double) extends Ordered[Interval] {
     realValue != Double.PositiveInfinity && realValue != Double.NaN,
     s"Expecting a positive finite real value for the interval, but got $realValue")
 
-  def cents: Double = Converters.fromRealValueToCents(realValue)
+  def cents: Double = fromRealValueToCents(realValue)
 
   def isNormalized: Boolean = realValue >= 1 && realValue < 2
 
@@ -181,7 +181,7 @@ object RatioInterval {
 
 case class CentsInterval(
                           override val cents: Double
-                        ) extends Interval(Converters.fromCentsToRealValue(cents)) {
+                        ) extends Interval(fromCentsToRealValue(cents)) {
 
   override def normalize: CentsInterval = {
     if (isNormalized) {

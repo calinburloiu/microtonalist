@@ -21,17 +21,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
-  private val reducer = new DirectTuningReducer()
+  private val reducer: TuningReducer = DirectTuningReducer()
 
   it should "return an empty tuning list with no partial tunings" in {
-    val tuningList = reducer(Seq.empty)
+    val tuningList = reducer.reduceTunings(Seq.empty)
 
     tuningList.size shouldEqual 0
     tuningList.tunings should have size 0
   }
 
   it should "resolve a single partial tuning into a tuning list with a single tuning" in {
-    val tuningList = reducer(Seq(justCMajor))
+    val tuningList = reducer.reduceTunings(Seq(justCMajor))
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
@@ -51,7 +51,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "resolve a single partial tuning and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer(Seq(justCMajor), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(justCMajor), customGlobalFill)
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
@@ -71,7 +71,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "NOT merge two partial tunings and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer(Seq(segah, evic), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(segah, evic), customGlobalFill)
 
     tuningList.size shouldEqual 2
     tuningList.tunings.head shouldEqual OctaveTuning("Segah",

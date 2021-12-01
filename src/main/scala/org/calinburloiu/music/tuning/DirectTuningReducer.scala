@@ -22,10 +22,10 @@ import com.typesafe.scalalogging.StrictLogging
  * [[TuningReducer]] algorithm that essentially does no reduce and attempts to map each partial tuning to a final
  * tuning. It should be used if no reduction is wanted.
  */
-class DirectTuningReducer extends TuningReducer with StrictLogging {
+case class DirectTuningReducer() extends TuningReducer with StrictLogging {
 
-  override def apply(partialTunings: Seq[PartialTuning],
-                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+  override def reduceTunings(partialTunings: Seq[PartialTuning],
+                             globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
     val maybeTunings = partialTunings.map { partialTuning =>
       val mergedPartialTuning = Seq(
         partialTuning,

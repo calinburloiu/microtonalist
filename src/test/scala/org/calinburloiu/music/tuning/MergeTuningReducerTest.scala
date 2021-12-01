@@ -22,19 +22,19 @@ import org.scalatest.matchers.should.Matchers
 class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   import TestPartialTunings._
 
-  private val reducer = new MergeTuningReducer()
+  private val reducer = MergeTuningReducer()
 
   behavior of "MergeTuningReducer"
 
   it should "return an empty tuning list with no partial tunings" in {
-    val tuningList = reducer(Seq.empty)
+    val tuningList = reducer.reduceTunings(Seq.empty)
 
     tuningList.size shouldEqual 0
     tuningList.tunings should have size 0
   }
 
   it should "resolve a single partial tuning into a tuning list with a single tuning" in {
-    val tuningList = reducer(Seq(justCMajor))
+    val tuningList = reducer.reduceTunings(Seq(justCMajor))
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
@@ -54,7 +54,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "resolve a single partial tuning and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer(Seq(justCMajor), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(justCMajor), customGlobalFill)
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
@@ -74,7 +74,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "merge two partial tunings and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer(Seq(segah, evic), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(segah, evic), customGlobalFill)
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual OctaveTuning("Segah | Evic",
@@ -94,7 +94,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "not merge two partial tunings that have conflicts, but apply fills into a tuning list with two tunings" in {
-    val tuningList = reducer(Seq(segah, gMajor), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(segah, gMajor), customGlobalFill)
 
     tuningList.size shouldEqual 2
     tuningList.tunings.head shouldEqual OctaveTuning("Segah",
@@ -128,7 +128,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "should merge more partial tunings (1)" in {
-    val tuningList = reducer(Seq(evic, gMajor, nihaventPentachord, segah, segahDesc, huzzam))
+    val tuningList = reducer.reduceTunings(Seq(evic, gMajor, nihaventPentachord, segah, segahDesc, huzzam))
 
     tuningList.size shouldEqual 2
     tuningList.tunings.head shouldEqual OctaveTuning("Evic | G Major | Nihavent Pentachord",
@@ -162,7 +162,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "should merge more partial tunings (2)" in {
-    val tuningList = reducer(Seq(rast, nikriz, zengule, ussak, saba), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(rast, nikriz, zengule, ussak, saba), customGlobalFill)
 
     tuningList.size shouldEqual 3
     tuningList.tunings.head shouldEqual OctaveTuning("Rast | Nikriz",

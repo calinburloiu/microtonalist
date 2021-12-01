@@ -16,13 +16,60 @@
 
 package org.calinburloiu.music.microtuner
 
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, PitchClass}
+
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.language.implicitConversions
 
 package object midi {
   implicit class MidiNote(val number: Int) extends AnyVal {
-    def assert(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
-    def pitchClassNumber: Int = number % 12
+    /**
+     * Call this method after creating an instance.
+     *
+     * Context: Scala value classes do not allow constructor validation.
+     */
+    def assertValid(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
+
+    def pitchClass: PitchClass = PitchClass.fromInt(number % 12)
+
+    def octave: Int = number / 12 - 1
+
+    def freq: Double = ConcertPitchFreq * Math.pow(2, (number - MidiNote.ConcertPitch) / 12.0)
+  }
+
+  object MidiNote {
+    val Lowest: Int = 0
+    val Highest: Int = 127
+
+    val C4: Int = 60
+    val CSharp4: Int = 61
+    val DFlat4: Int = 61
+    val D4: Int = 62
+    val DSharp4: Int = 63
+    val EFlat4: Int = 63
+    val E4: Int = 64
+    val F4: Int = 65
+    val FSharp4: Int = 66
+    val GFlat4: Int = 66
+    val G4: Int = 67
+    val GSharp4: Int = 68
+    val AFlat4: Int = 68
+    val A4: Int = 69
+    val ASharp4: Int = 70
+    val BFlat4: Int = 70
+    val B4: Int = 71
+    val C5: Int = 72
+
+    val ConcertPitch: Int = 69
+
+    def apply(pitchClass: PitchClass, octave: Int): MidiNote = {
+      require(octave >= -1 && (octave < 9 || octave == 9 && pitchClass <= 7),
+        "octave must be in range -1 to 10, but octave 10 only goes until G")
+
+      12 * (octave + 1) + pitchClass
+    }
+
+    implicit def toInt(midiNote: MidiNote): Int = midiNote.number
   }
 
   def mapShortMessageChannel(shortMessage: ShortMessage, map: Int => Int): ShortMessage = {

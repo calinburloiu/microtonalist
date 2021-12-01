@@ -16,14 +16,14 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.intonation.Converters._
-import org.calinburloiu.music.tuning.PitchClassConfig
+import org.calinburloiu.music.microtuner.StandardTuningRef
+import org.calinburloiu.music.tuning.AutoTuningMapper
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class ConvertersTest extends AnyFunSuite with TableDrivenPropertyChecks with Matchers {
+class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Matchers {
 
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =
@@ -32,27 +32,28 @@ class ConvertersTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
   //@formatter:off
   private val commonTable = Table(
     ("real value",  "cents",  "Hz",   "pitch class / deviation"),
-    (0.75,          -498.04,  330.0,  PitchClass(7, 1.96)),
-    (1.0,           0.0,      440.0,  PitchClass(0)),
-    (1.25,          386.31,   550.0,  PitchClass(4, -13.69)),
-    (1.5,           701.96,   660.0,  PitchClass(7, 1.96)),
-    (2.0,           1200.0,   880.0,  PitchClass(0)),
-    (4.0,           2400.0,   1760.0, PitchClass(0))
+    (0.75,          -498.04,  330.0,  TuningPitch(PitchClass.G, 1.96)),
+    (1.0,           0.0,      440.0,  TuningPitch(PitchClass.C, 0.0)),
+    (1.25,          386.31,   550.0,  TuningPitch(PitchClass.E, -13.69)),
+    (1.5,           701.96,   660.0,  TuningPitch(PitchClass.G, 1.96)),
+    (2.0,           1200.0,   880.0,  TuningPitch(PitchClass.C, 0.0)),
+    (4.0,           2400.0,   1760.0, TuningPitch(PitchClass.C, 0.0))
   )
   //@formatter:on
 
   test("common conversions between real values, cents, Hz and pitch classes") {
-    implicit val pitchClassConfig: PitchClassConfig = PitchClassConfig(mapQuarterTonesLow = true, 0.0)
+    val autoTuningMapper: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, 0.0)
+    val tuningRef = StandardTuningRef(PitchClass.C)
 
-    forAll(commonTable) { (realValue, cents, hz, pitchClass) =>
+    forAll(commonTable) { (realValue, cents, hz, tuningPitch) =>
       fromRealValueToCents(realValue) should equal(cents)
       fromCentsToRealValue(cents) should equal(realValue)
       fromCentsToHz(cents, 440) should equal(hz)
       fromHzToCents(hz, 440) should equal(cents)
 
-      val PitchClass(semitone, deviation) = PitchClass.fromCents(cents)
-      semitone should equal(pitchClass.number)
-      deviation should equal(pitchClass.deviation)
+      val TuningPitch(semitone, deviation) = autoTuningMapper.mapInterval(CentsInterval(cents), tuningRef)
+      semitone should equal(tuningPitch.pitchClass)
+      deviation should equal(tuningPitch.deviation)
     }
   }
 

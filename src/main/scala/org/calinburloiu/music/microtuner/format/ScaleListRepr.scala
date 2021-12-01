@@ -24,7 +24,7 @@ import org.calinburloiu.music.tuning.{TuningMapper, TuningReducer}
  * Class used as a representation for the JSON format of a scale list.
  */
 case class ScaleListRepr(name: Option[String],
-                         origin: OriginRepr,
+                         tuningReference: OriginRepr,
                          modulations: Seq[ModulationRepr],
                          tuningReducer: Option[TuningReducer] = None,
                          globalFill: Ref[Scale[Interval]],
@@ -57,3 +57,6 @@ object ScaleListConfigRepr {
 
   val Default: ScaleListConfigRepr = ScaleListConfigRepr()
 }
+
+case class AutoTuningMapperRepr(mapQuarterTonesLow: Boolean = false,
+                                halfTolerance: Option[Double] = None)

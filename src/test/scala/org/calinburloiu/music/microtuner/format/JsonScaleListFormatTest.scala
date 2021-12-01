@@ -48,7 +48,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     val scaleList = readScaleListFromResources("scale_lists/minor_major.scalist")
 
     scaleList.globalFill.scale shouldEqual chromaticScale
-    scaleList.origin.basePitchClass.number shouldEqual 2
+    scaleList.tuningRef.basePitchClass.number shouldEqual 2
 
     scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
     scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)
@@ -113,8 +113,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   }
 
   it should "serialize JSON string containing types of direct and merge" in {
-    TuningReducerPlayJsonFormat.writes(new DirectTuningReducer) shouldEqual JsString("direct")
-    TuningReducerPlayJsonFormat.writes(new MergeTuningReducer) shouldEqual JsString("merge")
+    TuningReducerPlayJsonFormat.writes(DirectTuningReducer()) shouldEqual JsString("direct")
+    TuningReducerPlayJsonFormat.writes(MergeTuningReducer()) shouldEqual JsString("merge")
     a[Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
   }
 
@@ -128,8 +128,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper.pitchClassConfig shouldEqual
-          PitchClassConfig(mapQuarterTonesLow = true, halfTolerance = 0.02)
+        autoTuningMapper.mapQuarterTonesLow shouldBe true
+        autoTuningMapper.halfTolerance shouldEqual 0.02
     }
 
     val autoJsonWithDefaultParams = Json.obj("type" -> "auto")
@@ -137,13 +137,12 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper.pitchClassConfig shouldEqual PitchClassConfig()
+        autoTuningMapper shouldEqual TuningMapper.Default
     }
   }
 
   it should "serialize JSON object for type auto" in {
-    val actual = TuningMapperPlayJsonFormat.writes(new AutoTuningMapper(
-      PitchClassConfig(mapQuarterTonesLow = true, halfTolerance = 0.1)))
+    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.1))
     val expected = Json.obj(
       "type" -> "auto",
       "mapQuarterTonesLow" -> true,

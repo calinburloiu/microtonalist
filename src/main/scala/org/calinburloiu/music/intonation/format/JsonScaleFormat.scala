@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.intonation.format
 
-import java.io.{InputStream, OutputStream}
-
 import org.calinburloiu.music.intonation.{CentsInterval, Interval, Scale}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
+
+import java.io.{InputStream, OutputStream}
 
 class JsonScaleFormat extends ScaleFormat {
 
