@@ -15,10 +15,12 @@
  */
 
 package org.calinburloiu.music.tuning
+
 import org.calinburloiu.music.intonation.{CentsInterval, Interval, PitchClass, Scale}
 import org.calinburloiu.music.microtuner.TuningRef
 
 case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
+
   import ManualTuningMapper._
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
@@ -32,7 +34,8 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
           if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {
             throw new TuningMapperOverflowException(
-              s"Deviation $deviation for ${pitchClass} overflowed range ($MinExclusiveDeviation, $MaxExclusiveDeviation)!")
+              s"Deviation $deviation for ${pitchClass} overflowed range ($MinExclusiveDeviation, " +
+                s"$MaxExclusiveDeviation)!")
           }
 
           Some(deviation)
@@ -50,8 +53,18 @@ object ManualTuningMapper {
   val MinExclusiveDeviation: Double = -100.0
   val MaxExclusiveDeviation: Double = 100.0
 
+  /**
+   * Computes the deviation from 12-EDO for the given pitch class.
+   *
+   * @param totalCentsInterval a normalized total number of cents counted from a 12-EDO C which contains absolute
+   *                           scale intervals (with summed modulation transpositions)
+   * @param pitchClass         pitch class from which the deviation is computed
+   * @return a deviation in cents
+   */
   private def computeDeviation(totalCentsInterval: CentsInterval, pitchClass: PitchClass): Double = {
     if (pitchClass == PitchClass.C) {
+      // Because totalCentsInterval is counted from a 12-EDO C, it can either be close to 0 (but above it) or close
+      // to 1200 (but below it). We take the deviation as the one with minimum absolute value.
       val v1 = totalCentsInterval.cents
       val v2 = totalCentsInterval.cents - 1200
       if (Math.abs(v1) < Math.abs(v2)) v1 else v2

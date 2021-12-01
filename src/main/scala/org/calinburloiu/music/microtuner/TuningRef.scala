@@ -23,16 +23,22 @@ import org.calinburloiu.music.microtuner.midi.MidiNote
  * Tuning reference that tells what pitch class to be used for the base pitch and what tuning deviation should have
  * with respect to standard tuning (12-EDO).
  */
-sealed trait TuningRef{
-  def basePitchClass: PitchClass
-
-  def baseDeviation: Double
+trait TuningRef {
 
   /**
-   * @return `Some` pitch class and tuning deviation for the base pitch if it is valid or `None`, otherwise. Typically,
-   *         it might not be valid if the deviation absolute value exceeds 100 cents.
+   * @return a [[TuningPitch]] for the base pitch of the composition
    */
   def baseTuningPitch: TuningPitch
+
+  /**
+   * @return the pitch class of the base pitch of the composition
+   */
+  def basePitchClass: PitchClass
+
+  /**
+   * @return the deviation from 12-EDO in cents of the `basePitchClass`
+   */
+  def baseDeviation: Double
 }
 
 /**
@@ -50,8 +56,9 @@ case class StandardTuningRef(override val basePitchClass: PitchClass) extends Tu
  * Tuning reference relative to concert pitch.
  *
  * @param concertPitchToBaseInterval Interval between the reference frequency and composition's base pitch.
- * @param baseMidiNote MIDI note number of the composition's base pitch, relative to which scales are tuned.
- * @param concertPitchFreq Reference frequency in Hz, typically known as concert pitch and set to `440.0` Hz.
+ * @param baseMidiNote               MIDI note number of the composition's base pitch, relative to which scales are
+ *                                   tuned.
+ * @param concertPitchFreq           Reference frequency in Hz, typically known as concert pitch and set to `440.0` Hz.
  */
 case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
                                  baseMidiNote: MidiNote,
