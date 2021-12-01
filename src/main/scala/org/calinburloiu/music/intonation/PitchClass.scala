@@ -53,6 +53,8 @@ object PitchClass {
   val BFlat: PitchClass = fromInt(10)
   val B: PitchClass = fromInt(11)
 
+  val values: Seq[PitchClass] = Seq(C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B)
+
   val noteNames = Seq("C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B")
 
   def fromInt(n: Int): PitchClass = {

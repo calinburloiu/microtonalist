@@ -18,18 +18,16 @@ package org.calinburloiu.music.tuning
 import org.calinburloiu.music.intonation.{CentsInterval, Interval, PitchClass, Scale}
 import org.calinburloiu.music.microtuner.TuningRef
 
-case class ManualTuningMapper(mapping: Seq[Option[Int]], deviationRange: (Int, Int) = (-100, 100)) extends TuningMapper {
-  require(mapping.size == 12, "mapping must have exactly 12 values")
-  require(mapping.forall(_.getOrElse(0) >= 0), "mapping values must be natural numbers")
+case class ManualTuningMapper(mapping: KeyboardMapping, deviationRange: (Int, Int) = (-100, 100)) extends TuningMapper {
   require(deviationRange._1 < 0 && deviationRange._2 > 0,
     "deviationRange must be a pair of a negative and a positive number")
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    val partialTuningValues = mapping.zipWithIndex.map { pair =>
-      val maybeScaleDegree = pair._1
+    val partialTuningValues = mapping.values.map { pair =>
+      val maybeScaleDegree = pair._2
       maybeScaleDegree match {
         case Some(scaleDegree) =>
-          val pitchClass = PitchClass.fromInt(pair._2)
+          val pitchClass = PitchClass.fromInt(pair._1)
           val interval = scale(scaleDegree)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
