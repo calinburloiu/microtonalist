@@ -16,8 +16,7 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.microtuner.StandardTuningRef
-import org.calinburloiu.music.tuning.AutoTuningMapper
+import org.calinburloiu.music.microtuner.core.{AutoTuningMapper, StandardTuningRef}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
