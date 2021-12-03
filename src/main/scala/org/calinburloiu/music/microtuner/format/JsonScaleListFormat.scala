@@ -61,7 +61,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
   private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
-    val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false)
+    val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow)
 
     val name = scaleListRepr.name.getOrElse("")
     val tuningRef = StandardTuningRef(PitchClass.fromInt(scaleListRepr.tuningReference.basePitchClass))

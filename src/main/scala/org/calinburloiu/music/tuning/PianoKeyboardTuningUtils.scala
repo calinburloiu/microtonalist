@@ -93,9 +93,11 @@ object PianoKeyboardTuningUtils {
 
       val deviationsAsString = tuningBase.deviations.map(fromDeviationToString)
 
-      (PianoKeyboardTuningUtils.noteNames zip deviationsAsString).map {
-        case (noteName, deviation) => s"$noteName: $deviation"
+      val notesWithDeviations = (PianoKeyboardTuningUtils.noteNames zip deviationsAsString).map {
+        case (noteName, deviation) => s"$noteName = ${deviation.trim}"
       }.mkString(", ")
+
+      s""""${tuningBase.name}" ($notesWithDeviations)"""
     }
 
     protected def fromDeviationToString(deviation: U): String

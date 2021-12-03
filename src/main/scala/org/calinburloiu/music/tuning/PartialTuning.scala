@@ -19,6 +19,8 @@ package org.calinburloiu.music.tuning
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
 import com.typesafe.scalalogging.LazyLogging
+import org.calinburloiu.music.intonation.PitchClass
+import org.calinburloiu.music.tuning.PianoKeyboardTuningUtils._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
@@ -102,7 +104,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
    * deviation, the resulting key will continue to be empty. If both have a deviation for a key, the deviation of
    * `this` for that key is kept.
    *
-   * @param that other partial tuning used for merging
+   * @param that      other partial tuning used for merging
    * @param tolerance maximum error tolerance in cents when comparing two correspondent deviations for equality
    * @return a new partial tuning
    */
@@ -141,7 +143,8 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
 
           // Conflict, stop!
           case _ =>
-            logger.debug(s"Conflict for pitch class $index in PartialTunings $this (${this.name}) and $that (${that.name})!")
+            logger.debug(s"Conflict for pitch class ${PitchClass.fromInt(index)} in PartialTunings ${this
+              .toNoteNamesString} and ${that.toNoteNamesString}")
             None
         }
       }
