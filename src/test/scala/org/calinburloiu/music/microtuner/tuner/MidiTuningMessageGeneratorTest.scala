@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtuner.tuner
 
 import org.calinburloiu.music.microtuner.core.OctaveTuning
-import org.calinburloiu.music.scmidi.MtsTuningFormat
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 

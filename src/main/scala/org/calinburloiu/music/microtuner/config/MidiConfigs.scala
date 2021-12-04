@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtuner.config
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtuner.tuner.TunerType
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MtsTuningFormat, PitchBendSensitivity}
+import org.calinburloiu.music.microtuner.tuner.{CcTriggers, MtsTuningFormat, TunerType}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
                             tunerType: TunerType,
@@ -124,16 +124,6 @@ object MidiInputConfigManager {
 }
 
 case class Triggers(cc: CcTriggers)
-
-case class CcTriggers(enabled: Boolean = false,
-                      prevTuningCc: Int = 67,
-                      nextTuningCc: Int = 66,
-                      ccThreshold: Int = 0,
-                      isFilteringThru: Boolean = true)
-
-object CcTriggers {
-  val default: CcTriggers = CcTriggers()
-}
 
 /** Only used to deserializing CC params in HOCON. */
 private case class CcParam(number: Int, value: Int)

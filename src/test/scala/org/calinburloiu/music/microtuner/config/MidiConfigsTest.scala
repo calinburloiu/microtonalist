@@ -16,9 +16,8 @@
 
 package org.calinburloiu.music.microtuner.config
 
-import org.calinburloiu.music.microtuner.config
-import org.calinburloiu.music.microtuner.tuner.TunerType
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MtsTuningFormat, PitchBendSensitivity}
+import org.calinburloiu.music.microtuner.tuner.{CcTriggers, MtsTuningFormat, TunerType}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -77,7 +76,7 @@ class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputCon
 
   override lazy val subConfigManager: MidiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
 
-  override lazy val expectedSubConfigRead: MidiOutputConfig = config.MidiOutputConfig(
+  override lazy val expectedSubConfigRead: MidiOutputConfig = MidiOutputConfig(
     devices = Seq(
       MidiDeviceId("FP-90", "Roland", "1.0"),
       MidiDeviceId("P-125", "Yamaha", "9.8.7")

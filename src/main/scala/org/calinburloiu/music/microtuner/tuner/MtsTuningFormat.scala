@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.scmidi
+package org.calinburloiu.music.microtuner.tuner
 
 import enumeratum.{Enum, EnumEntry}
-import org.calinburloiu.music.microtuner.tuner.MidiTuningMessageGenerator
 
 import scala.collection.immutable
 

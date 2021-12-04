@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtuner.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtuner.core.OctaveTuning
-import org.calinburloiu.music.scmidi.MtsTuningFormat
 
 import javax.sound.midi.MidiMessage
 

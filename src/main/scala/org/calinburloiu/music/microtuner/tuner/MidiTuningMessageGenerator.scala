@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtuner.tuner
 
 import org.calinburloiu.music.microtuner.core.OctaveTuning
-import org.calinburloiu.music.scmidi.MtsTuningFormat
 
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
