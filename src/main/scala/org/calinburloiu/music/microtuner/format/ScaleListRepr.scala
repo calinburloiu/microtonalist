@@ -16,9 +16,8 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import org.calinburloiu.music.intonation.format.{Ref, ScaleLibrary}
 import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.tuning.{TuningMapper, TuningReducer}
+import org.calinburloiu.music.microtuner.core.{TuningMapper, TuningReducer}
 
 /**
  * Class used as a representation for the JSON format of a scale list.

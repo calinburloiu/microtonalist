@@ -16,10 +16,9 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import org.calinburloiu.music.intonation.format.{JsonScaleFormat, Ref, ScaleLibrary}
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale}
-import org.calinburloiu.music.microtuner.{Modulation, ScaleList, ScaleMapping, StandardTuningRef}
-import org.calinburloiu.music.tuning._
+import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtuner.core._
+import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}

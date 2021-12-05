@@ -16,11 +16,9 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import org.calinburloiu.music.intonation.format.{InvalidScaleFormatException, LocalScaleLibrary, ScaleFormatRegistry, ScaleNotFoundException}
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
-import org.calinburloiu.music.microtuner.ScaleList
+import org.calinburloiu.music.microtuner.core._
 import org.calinburloiu.music.microtuner.format.ComponentPlayJsonFormat.SubComponentSpec
-import org.calinburloiu.music.tuning._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec

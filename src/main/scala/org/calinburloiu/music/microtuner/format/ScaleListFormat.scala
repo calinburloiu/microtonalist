@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtuner.format
 
-import org.calinburloiu.music.microtuner.ScaleList
+import org.calinburloiu.music.microtuner.core.ScaleList
 
 import java.io.{InputStream, OutputStream}
 
