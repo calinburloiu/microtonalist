@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation
+package org.calinburloiu.music.scmidi
 
 import scala.language.implicitConversions
 
@@ -25,11 +25,6 @@ case class PitchClass private (number: Int) extends AnyVal {
    * Context: Scala value classes do not allow constructor validation.
    */
   def assertValid(): Unit = require(number >= 0 && number < 12, "0 <= pitchClass < 12")
-
-  /**
-   * @return [[TuningPitch]] value in 12-EDO for `this` pitch class
-   */
-  def standardTuningPitch: TuningPitch = TuningPitch(this, 0.0)
 
   override def toString: String = PitchClass.noteNames(number)
 }

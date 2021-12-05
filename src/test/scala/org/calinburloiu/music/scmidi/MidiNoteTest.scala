@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.intonation.PitchClass
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

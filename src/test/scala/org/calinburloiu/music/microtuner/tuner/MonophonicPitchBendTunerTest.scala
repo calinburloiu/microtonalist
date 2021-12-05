@@ -16,9 +16,8 @@
 
 package org.calinburloiu.music.microtuner.tuner
 
-import org.calinburloiu.music.intonation.PitchClass
 import org.calinburloiu.music.microtuner.core.OctaveTuning
-import org.calinburloiu.music.scmidi._
+import org.calinburloiu.music.scmidi.{PitchClass, _}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec

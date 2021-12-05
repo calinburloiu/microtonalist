@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtuner.core
 
-import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, PitchClass, TuningPitch}
-import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval}
+import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
 /**
  * Tuning reference that tells what pitch class to be used for the base pitch and what tuning deviation should have

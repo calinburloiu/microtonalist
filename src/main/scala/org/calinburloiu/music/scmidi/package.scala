@@ -16,12 +16,13 @@
 
 package org.calinburloiu.music
 
-import org.calinburloiu.music.intonation.{ConcertPitchFreq, PitchClass}
-
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.language.implicitConversions
 
 package object scmidi {
+  /** Concert pitch frequency in Hz for central A4. */
+  val ConcertPitchFreq: Double = 440.0
+
   implicit class MidiNote(val number: Int) extends AnyVal {
     /**
      * Call this method after creating an instance.

@@ -17,7 +17,8 @@
 package org.calinburloiu.music.microtuner.core
 
 import com.google.common.math.IntMath
-import org.calinburloiu.music.intonation.{Interval, PitchClass, Scale, TuningPitch}
+import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.scmidi.PitchClass
 
 /**
  * A [[TuningMapper]] that attempts to automatically map scales to a piano keyboard tuning that specifies a key for

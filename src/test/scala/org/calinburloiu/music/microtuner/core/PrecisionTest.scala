@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtuner.core
 
 import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtuner.core.PianoKeyboardTuningUtils._
+import org.calinburloiu.music.scmidi.PitchClass
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks

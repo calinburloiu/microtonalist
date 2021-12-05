@@ -16,10 +16,11 @@
 
 package org.calinburloiu.music.microtuner.core
 
-import org.calinburloiu.music.intonation.PitchClass
+import org.calinburloiu.music.scmidi.PitchClass
 
 /**
  * A mapping between a pitch class and a scale degree (0-based). Not all pitch classes need to be mapped.
+ *
  * @param scaleDegrees array of scale degrees where the index represents the pitch class number
  */
 case class KeyboardMapping(scaleDegrees: Seq[Option[Int]]) {

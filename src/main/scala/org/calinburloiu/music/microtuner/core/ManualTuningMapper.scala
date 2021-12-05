@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtuner.core
 
-import org.calinburloiu.music.intonation.{CentsInterval, Interval, PitchClass, Scale}
+import org.calinburloiu.music.intonation.{CentsInterval, Interval, Scale}
+import org.calinburloiu.music.scmidi.PitchClass
 
 case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
 
@@ -33,7 +34,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
           if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {
             throw new TuningMapperOverflowException(
-              s"Deviation $deviation for ${pitchClass} overflowed range ($MinExclusiveDeviation, " +
+              s"Deviation $deviation for $pitchClass overflowed range ($MinExclusiveDeviation, " +
                 s"$MaxExclusiveDeviation)!")
           }
 

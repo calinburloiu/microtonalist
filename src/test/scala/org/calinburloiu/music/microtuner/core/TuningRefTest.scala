@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtuner.core
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation.{CentsInterval, Interval, PitchClass}
-import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.intonation.{CentsInterval, Interval}
+import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -37,8 +37,8 @@ class TuningRefTest extends AnyFlatSpec with Matchers {
   }
 
   it should "return baseTuningPitches of 12-EDO" in {
-    StandardTuningRef(PitchClass.D).baseTuningPitch shouldEqual PitchClass.D.standardTuningPitch
-    StandardTuningRef(PitchClass.AFlat).baseTuningPitch shouldEqual PitchClass.AFlat.standardTuningPitch
+    StandardTuningRef(PitchClass.D).baseTuningPitch shouldEqual TuningPitch(PitchClass.D, 0.0)
+    StandardTuningRef(PitchClass.AFlat).baseTuningPitch shouldEqual TuningPitch(PitchClass.AFlat, 0.0)
   }
 
   behavior of classOf[ConcertPitchTuningRef]

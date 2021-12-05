@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.intonation
+package org.calinburloiu.music.microtuner.core
 
 import com.google.common.math.DoubleMath
+import org.calinburloiu.music.intonation.CentsInterval
+import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.language.implicitConversions
 

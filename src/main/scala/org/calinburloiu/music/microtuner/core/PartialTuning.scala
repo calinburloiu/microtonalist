@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtuner.core
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.intonation.PitchClass
 import org.calinburloiu.music.microtuner.core.PianoKeyboardTuningUtils._
+import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
