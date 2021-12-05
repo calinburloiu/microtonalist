@@ -7,13 +7,28 @@ ThisBuild / organization := "org.calinburloiu.music"
 // # Projects
 
 lazy val root = (project in file("."))
-  .aggregate(app)
+  .aggregate(
+    app,
+    cli,
+    core,
+    format,
+    intonation,
+    scMidi
+  )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-root",
   )
 
 lazy val app = (project in file("app"))
+  .dependsOn(
+    core,
+    intonation,
+    format,
+    format % "test->test",
+    scMidi,
+    scMidi % "test->test"
+  )
   .settings(
     name := "microtonalist-app",
     assemblySettings,
@@ -27,8 +42,61 @@ lazy val app = (project in file("app"))
     )
   )
 
+lazy val cli = (project in file("cli"))
+  .dependsOn(
+    scMidi
+  )
+  .settings(
+    name := "microtonalist-cli",
+    assemblySettings,
+    libraryDependencies ++= commonDependencies
+  )
+
+lazy val intonation = (project in file("intonation"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "intonation",
+    libraryDependencies ++= commonDependencies ++ Seq(
+      guava
+    )
+  )
+
+lazy val scMidi = (project in file("sc-midi"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "sc-midi",
+    libraryDependencies ++= commonDependencies ++ Seq(
+      coreMidi4j
+    )
+  )
+
+lazy val core = (project in file("core"))
+  .dependsOn(
+    intonation,
+    scMidi
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-core",
+    libraryDependencies ++= commonDependencies
+  )
+
+lazy val format = (project in file("format"))
+  .dependsOn(
+    core
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format",
+    libraryDependencies ++= commonDependencies ++ Seq(
+      playJson,
+      scalaMock % Test
+    )
+  )
+
 // # Dependencies
 
+// TODO #26 Can we inject this in a commonSettings?
 lazy val commonDependencies = Seq(
   logback,
   scalaLogging,

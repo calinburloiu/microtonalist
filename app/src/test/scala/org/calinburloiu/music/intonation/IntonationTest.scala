@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.microtuner.core.{AutoTuningMapper, StandardTuningRef, TuningPitch}
+import org.calinburloiu.music.microtonalist.core.{AutoTuningMapper, StandardTuningRef, TuningPitch}
 import org.calinburloiu.music.scmidi.PitchClass
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
