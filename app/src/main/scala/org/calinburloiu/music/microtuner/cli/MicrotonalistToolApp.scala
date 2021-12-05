@@ -20,16 +20,16 @@ import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager}
 
 object MicrotonalistToolApp {
 
-  def main(args: Array[String]): Unit = {
-    args match {
-      case Array("midi-devices") => printMidiDevices()
-      case _ => println(
-        """Usage:
-          |midi-devices    prints all available MIDI devices
-          |""".stripMargin
-      )
-    }
-  }
+//  def main(args: Array[String]): Unit = {
+//    args match {
+//      case Array("midi-devices") => printMidiDevices()
+//      case _ => println(
+//        """Usage:
+//          |midi-devices    prints all available MIDI devices
+//          |""".stripMargin
+//      )
+//    }
+//  }
 
   def printMidiDevices(): Unit = {
     val midiManager = new MidiManager
