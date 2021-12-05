@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtuner.core
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
- * A mapping between a pitch class and a scale degree (0-based). Not all pitch classes need to be mapped.
+ * A mapping between pitch classes and scale degrees (0-based). Not all pitch classes need to be mapped.
  *
  * @param scaleDegrees array of scale degrees where the index represents the pitch class number
  */

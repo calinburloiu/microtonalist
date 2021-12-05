@@ -19,5 +19,3 @@ package org.calinburloiu.music.microtuner.tuner
 import org.calinburloiu.music.scmidi.MidiProcessor
 
 trait TuningSwitchProcessor extends MidiProcessor {}
-
-

@@ -30,7 +30,7 @@ import scala.annotation.tailrec
  * The algorithm also attempt to apply two kinds _local fill_:
  *
  *   1. **Back-fill:** deviations that come from preceding merged `PartialTuning`s.
- *      2. **Fore-fill:** deviations that come from succeeding merged `PartialTuning`s.
+ *   1. **Fore-fill:** deviations that come from succeeding merged `PartialTuning`s.
  *
  * The local fill applied attempts to minimize the number of notes retuned when switching tunings. When one plays a
  * piano with sustain pedal and the tuning is changed, a large number of nodes retuned could result in an unwanted

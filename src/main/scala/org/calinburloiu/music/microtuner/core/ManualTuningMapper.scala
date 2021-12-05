@@ -19,6 +19,12 @@ package org.calinburloiu.music.microtuner.core
 import org.calinburloiu.music.intonation.{CentsInterval, Interval, Scale}
 import org.calinburloiu.music.scmidi.PitchClass
 
+/**
+ * A [[TuningMapper]] that maps scales to a tuning, with deviations for some of the pitch classes, by using a
+ * user-provided mapping, from pitch classes to scale degrees.
+ *
+ * @param keyboardMapping user-provided mapping from pitch classes to scale degrees
+ */
 case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
 
   import ManualTuningMapper._

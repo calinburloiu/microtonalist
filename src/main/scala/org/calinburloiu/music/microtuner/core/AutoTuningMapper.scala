@@ -21,8 +21,8 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
- * A [[TuningMapper]] that attempts to automatically map scales to a piano keyboard tuning that specifies a key for
- * each pitch class, from C to B.
+ * A [[TuningMapper]] that attempts to automatically map scales to a tuning with deviations for some of the pitch
+ * classes.
  *
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
