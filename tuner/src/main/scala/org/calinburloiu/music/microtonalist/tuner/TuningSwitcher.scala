@@ -19,7 +19,6 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.microtonalist.TuningChangedEvent
 import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
 
 /**

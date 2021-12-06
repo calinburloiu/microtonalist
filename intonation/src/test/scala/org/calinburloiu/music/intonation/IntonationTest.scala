@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.microtonalist.core.{AutoTuningMapper, StandardTuningRef, TuningPitch}
-import org.calinburloiu.music.scmidi.PitchClass
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -31,29 +29,22 @@ class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Mat
 
   //@formatter:off
   private val commonTable = Table(
-    ("real value",  "cents",  "Hz",   "pitch class / deviation"),
-    (0.75,          -498.04,  330.0,  TuningPitch(PitchClass.G, 1.96)),
-    (1.0,           0.0,      440.0,  TuningPitch(PitchClass.C, 0.0)),
-    (1.25,          386.31,   550.0,  TuningPitch(PitchClass.E, -13.69)),
-    (1.5,           701.96,   660.0,  TuningPitch(PitchClass.G, 1.96)),
-    (2.0,           1200.0,   880.0,  TuningPitch(PitchClass.C, 0.0)),
-    (4.0,           2400.0,   1760.0, TuningPitch(PitchClass.C, 0.0))
+    ("real value",  "cents",  "Hz"),
+    (0.75,          -498.04,  330.0),
+    (1.0,           0.0,      440.0),
+    (1.25,          386.31,   550.0),
+    (1.5,           701.96,   660.0),
+    (2.0,           1200.0,   880.0),
+    (4.0,           2400.0,   1760.0)
   )
   //@formatter:on
 
-  test("common conversions between real values, cents, Hz and pitch classes") {
-    val autoTuningMapper: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, 0.0)
-    val tuningRef = StandardTuningRef(PitchClass.C)
-
-    forAll(commonTable) { (realValue, cents, hz, tuningPitch) =>
+  test("common conversions between real values, cents and Hz") {
+    forAll(commonTable) { (realValue, cents, hz) =>
       fromRealValueToCents(realValue) should equal(cents)
       fromCentsToRealValue(cents) should equal(realValue)
       fromCentsToHz(cents, 440) should equal(hz)
       fromHzToCents(hz, 440) should equal(cents)
-
-      val TuningPitch(semitone, deviation) = autoTuningMapper.mapInterval(CentsInterval(cents), tuningRef)
-      semitone should equal(tuningPitch.pitchClass)
-      deviation should equal(tuningPitch.deviation)
     }
   }
 

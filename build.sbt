@@ -10,10 +10,13 @@ lazy val root = (project in file("."))
   .aggregate(
     app,
     cli,
+    ui,
+    sync,
     core,
+    tuner,
     format,
     intonation,
-    scMidi
+    scMidi,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -27,29 +30,92 @@ lazy val app = (project in file("app"))
     format,
     format % "test->test",
     scMidi,
-    scMidi % "test->test"
+    scMidi % "test->test",
+    sync,
+    tuner,
+    ui,
   )
   .settings(
     name := "microtonalist-app",
     assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
     libraryDependencies ++= commonDependencies ++ Seq(
       coreMidi4j,
       enumeratum,
       ficus,
       guava,
       playJson,
-      scalaMock % Test
-    )
+      scalaMock % Test,
+    ),
   )
 
 lazy val cli = (project in file("cli"))
   .dependsOn(
-    scMidi
+    scMidi,
   )
   .settings(
     name := "microtonalist-cli",
     assemblySettings,
-    libraryDependencies ++= commonDependencies
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.cli.MicrotonalistToolApp"),
+    libraryDependencies ++= commonDependencies,
+  )
+
+lazy val ui = (project in file("ui"))
+  .dependsOn(
+    tuner,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-ui",
+    libraryDependencies ++= commonDependencies,
+  )
+
+lazy val sync = (project in file("sync"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-sync",
+    libraryDependencies ++= commonDependencies ++ Seq(
+      guava,
+    ),
+  )
+
+lazy val core = (project in file("core"))
+  .dependsOn(
+    intonation,
+    scMidi,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-core",
+    libraryDependencies ++= commonDependencies,
+  )
+
+lazy val tuner = (project in file("tuner"))
+  .dependsOn(
+    core,
+    scMidi,
+    scMidi % "test->test",
+    sync,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner",
+    libraryDependencies ++= commonDependencies ++ Seq(
+      enumeratum,
+    ),
+  )
+
+lazy val format = (project in file("format"))
+  .dependsOn(
+    core,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format",
+    libraryDependencies ++= commonDependencies ++ Seq(
+      playJson,
+      scalaMock % Test,
+    ),
   )
 
 lazy val intonation = (project in file("intonation"))
@@ -57,8 +123,8 @@ lazy val intonation = (project in file("intonation"))
   .settings(
     name := "intonation",
     libraryDependencies ++= commonDependencies ++ Seq(
-      guava
-    )
+      guava,
+    ),
   )
 
 lazy val scMidi = (project in file("sc-midi"))
@@ -66,32 +132,8 @@ lazy val scMidi = (project in file("sc-midi"))
   .settings(
     name := "sc-midi",
     libraryDependencies ++= commonDependencies ++ Seq(
-      coreMidi4j
-    )
-  )
-
-lazy val core = (project in file("core"))
-  .dependsOn(
-    intonation,
-    scMidi
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-core",
-    libraryDependencies ++= commonDependencies
-  )
-
-lazy val format = (project in file("format"))
-  .dependsOn(
-    core
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-format",
-    libraryDependencies ++= commonDependencies ++ Seq(
-      playJson,
-      scalaMock % Test
-    )
+      coreMidi4j,
+    ),
   )
 
 // # Dependencies

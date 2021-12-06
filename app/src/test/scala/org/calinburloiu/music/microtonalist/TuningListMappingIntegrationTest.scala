@@ -14,9 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.core
+package org.calinburloiu.music.microtonalist
 
 import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
+import org.calinburloiu.music.microtonalist.core.TuningList
 import org.calinburloiu.music.microtonalist.format.JsonScaleListFormatTest
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec

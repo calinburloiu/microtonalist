@@ -215,6 +215,14 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     //@formatter:off
     val table = Table[Double, AutoTuningMapper, TuningPitch](
       ("Input Cents", "AutoTuningMapper", "TuningPitch"),
+
+      (-498.04,        downMapper,         TuningPitch(PitchClass.G, 1.96)),
+      (0.0,            downMapper,         TuningPitch(PitchClass.C, 0.0)),
+      (386.31,         downMapper,         TuningPitch(PitchClass.E, -13.69)),
+      (701.96,         downMapper,         TuningPitch(PitchClass.G, 1.96)),
+      (1200.0,         downMapper,         TuningPitch(PitchClass.C, 0.0)),
+      (2400.0,         downMapper,         TuningPitch(PitchClass.C, 0.0)),
+
       (145.0,          downMapper,         TuningPitch(PitchClass.CSharp, 45.0)),
       (150.0,          downMapper,         TuningPitch(PitchClass.DFlat, 50.0)),
       (155.0,          downMapper,         TuningPitch(PitchClass.CSharp, 55.0)),
@@ -238,8 +246,10 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     //@formatter:on
 
     val tuningRef = StandardTuningRef(PitchClass.C)
-    forAll(table) { (inputCents, autoTuningMapper, tuningPitch) =>
-      autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningRef) shouldEqual tuningPitch
+    forAll(table) { (inputCents, autoTuningMapper, expectedTuningPitch) =>
+      val TuningPitch(pitchClass, deviation) = autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningRef)
+      pitchClass should equal(expectedTuningPitch.pitchClass)
+      deviation should equal(expectedTuningPitch.deviation)
     }
   }
 

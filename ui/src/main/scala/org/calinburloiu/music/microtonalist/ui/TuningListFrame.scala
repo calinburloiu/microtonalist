@@ -18,8 +18,7 @@ package org.calinburloiu.music.microtonalist.ui
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.TuningChangedEvent
-import org.calinburloiu.music.microtonalist.tuner.TuningSwitcher
+import org.calinburloiu.music.microtonalist.tuner.{TuningChangedEvent, TuningSwitcher}
 
 import java.awt.FlowLayout
 import java.awt.event.{KeyEvent, KeyListener}
