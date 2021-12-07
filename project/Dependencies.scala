@@ -3,15 +3,15 @@ import Keys._
 
 object Dependencies {
   // # Versions
-  val coreMidi4jVersion = "1.4"
-  val enumeratumVersion = "1.6.1"
-  val ficusVersion = "1.5.0"
-  val guavaVersion = "29.0-jre"
-  val logbackVersion = "1.2.3"
-  val playJsonVersion = "2.9.1"
-  val scalaLoggingVersion = "3.9.2"
-  val scalaMockVersion = "5.0.0"
-  val scalaTestVersion = "3.2.2"
+  val coreMidi4jVersion = "1.6"
+  val enumeratumVersion = "1.7.0"
+  val ficusVersion = "1.5.1"
+  val guavaVersion = "31.0.1-jre"
+  val logbackVersion = "1.2.7"
+  val playJsonVersion = "2.9.2"
+  val scalaLoggingVersion = "3.9.4"
+  val scalaMockVersion = "5.1.0"
+  val scalaTestVersion = "3.2.10"
 
   // # Dependency definitions
   val coreMidi4j = "uk.co.xfactory-librarians" % "coremidi4j" % coreMidi4jVersion

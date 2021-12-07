@@ -28,9 +28,7 @@ import play.api.libs.json._
 import java.nio.file.{Path, Paths}
 
 class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
-
   import JsonScaleListFormat._
-  import JsonScaleListFormatTest._
 
   val majorScale: RatiosScale = RatiosScale("Major",
     (1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
@@ -171,18 +169,6 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       case JsError(Seq((_, Seq(JsonValidationError(Seq(message)))))) =>
         message shouldEqual "error.component.invalid"
     }
-  }
-}
-
-object JsonScaleListFormatTest {
-
-  val scaleLibraryPath: Path = Paths.get(getClass.getClassLoader.getResource("scales/").getFile)
-
-  def readScaleListFromResources(path: String): ScaleList = {
-    val inputStream = getClass.getClassLoader.getResourceAsStream(path)
-    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
-
-    scaleListReader.read(inputStream)
   }
 }
 

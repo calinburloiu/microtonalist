@@ -100,10 +100,8 @@ object Interval {
 }
 
 
-case class RatioInterval(
-                          numerator: Int,
-                          denominator: Int
-                        ) extends Interval(numerator.toDouble / denominator.toDouble) {
+case class RatioInterval(numerator: Int,
+                         denominator: Int) extends Interval(numerator.toDouble / denominator.toDouble) {
 
   override def normalize: RatioInterval = {
     if (isNormalized) {
@@ -179,9 +177,7 @@ object RatioInterval {
 }
 
 
-case class CentsInterval(
-                          override val cents: Double
-                        ) extends Interval(fromCentsToRealValue(cents)) {
+case class CentsInterval(override val cents: Double) extends Interval(fromCentsToRealValue(cents)) {
 
   override def normalize: CentsInterval = {
     if (isNormalized) {

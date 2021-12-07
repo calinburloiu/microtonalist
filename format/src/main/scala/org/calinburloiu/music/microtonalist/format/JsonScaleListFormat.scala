@@ -22,6 +22,7 @@ import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
+import java.nio.file.{Path, Paths}
 
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
@@ -136,5 +137,13 @@ object JsonScaleListFormat {
       SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
       SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
     )
+  }
+
+  def readScaleListFromResources(path: String): ScaleList = {
+    val scaleLibraryPath: Path = Paths.get(getClass.getClassLoader.getResource("scales/").getFile)
+    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
+    val inputStream = getClass.getClassLoader.getResourceAsStream(path)
+
+    scaleListReader.read(inputStream)
   }
 }

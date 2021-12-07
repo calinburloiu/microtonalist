@@ -21,6 +21,11 @@ lazy val root = (project in file("."))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-root",
+    javacOptions ++= Seq(
+      "-source", "17", "-target", "17",
+    ),
+    scalacOptions ++= compilerOptions,
+    resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
   )
 
 lazy val app = (project in file("app"))
@@ -28,9 +33,7 @@ lazy val app = (project in file("app"))
     core,
     intonation,
     format,
-    format % "test->test",
     scMidi,
-    scMidi % "test->test",
     sync,
     tuner,
     ui,
@@ -94,7 +97,6 @@ lazy val tuner = (project in file("tuner"))
   .dependsOn(
     core,
     scMidi,
-    scMidi % "test->test",
     sync,
   )
   .disablePlugins(AssemblyPlugin)
@@ -146,6 +148,15 @@ lazy val commonDependencies = Seq(
 )
 
 // # Settings
+
+lazy val compilerOptions = Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-encoding", "utf8",
+  "-language:implicitConversions",
+  "-language:postfixOps",
+)
 
 lazy val assemblySettings = Seq(
   assembly / assemblyJarName := name.value + ".jar",

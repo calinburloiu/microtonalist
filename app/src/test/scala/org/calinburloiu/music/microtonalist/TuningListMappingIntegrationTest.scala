@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist
 
 import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
 import org.calinburloiu.music.microtonalist.core.TuningList
-import org.calinburloiu.music.microtonalist.format.JsonScaleListFormatTest
+import org.calinburloiu.music.microtonalist.format.JsonScaleListFormat
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -31,7 +31,7 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
 
   it should "successfully create a tuning list out of 'minor_major.scalist' file" in {
     val scaleListResource = "scale_lists/minor_major.scalist"
-    val scaleList = JsonScaleListFormatTest.readScaleListFromResources(scaleListResource)
+    val scaleList = JsonScaleListFormat.readScaleListFromResources(scaleListResource)
     val tuningList = TuningList.fromScaleList(scaleList)
 
     val justMinorThirdDeviation = 15.64 // cents
