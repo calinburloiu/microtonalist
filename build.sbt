@@ -140,7 +140,6 @@ lazy val scMidi = (project in file("sc-midi"))
 
 // # Dependencies
 
-// TODO #26 Can we inject this in a commonSettings?
 lazy val commonDependencies = Seq(
   logback,
   scalaLogging,
