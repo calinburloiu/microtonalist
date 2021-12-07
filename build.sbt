@@ -21,11 +21,7 @@ lazy val root = (project in file("."))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-root",
-    javacOptions ++= Seq(
-      "-source", "17", "-target", "17",
-    ),
-    scalacOptions ++= compilerOptions,
-    resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
+    commonSettings,
   )
 
 lazy val app = (project in file("app"))
@@ -40,9 +36,10 @@ lazy val app = (project in file("app"))
   )
   .settings(
     name := "microtonalist-app",
+    commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
-    libraryDependencies ++= commonDependencies ++ Seq(
+    libraryDependencies ++= Seq(
       coreMidi4j,
       enumeratum,
       ficus,
@@ -58,9 +55,9 @@ lazy val cli = (project in file("cli"))
   )
   .settings(
     name := "microtonalist-cli",
+    commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.cli.MicrotonalistToolApp"),
-    libraryDependencies ++= commonDependencies,
   )
 
 lazy val ui = (project in file("ui"))
@@ -70,14 +67,15 @@ lazy val ui = (project in file("ui"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-ui",
-    libraryDependencies ++= commonDependencies,
+    commonSettings,
   )
 
 lazy val sync = (project in file("sync"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-sync",
-    libraryDependencies ++= commonDependencies ++ Seq(
+    commonSettings,
+    libraryDependencies ++= Seq(
       guava,
     ),
   )
@@ -90,7 +88,7 @@ lazy val core = (project in file("core"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-core",
-    libraryDependencies ++= commonDependencies,
+    commonSettings,
   )
 
 lazy val tuner = (project in file("tuner"))
@@ -102,7 +100,8 @@ lazy val tuner = (project in file("tuner"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-tuner",
-    libraryDependencies ++= commonDependencies ++ Seq(
+    commonSettings,
+    libraryDependencies ++= Seq(
       enumeratum,
     ),
   )
@@ -114,7 +113,8 @@ lazy val format = (project in file("format"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-format",
-    libraryDependencies ++= commonDependencies ++ Seq(
+    commonSettings,
+    libraryDependencies ++= Seq(
       playJson,
       scalaMock % Test,
     ),
@@ -124,7 +124,8 @@ lazy val intonation = (project in file("intonation"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "intonation",
-    libraryDependencies ++= commonDependencies ++ Seq(
+    commonSettings,
+    libraryDependencies ++= Seq(
       guava,
     ),
   )
@@ -133,7 +134,8 @@ lazy val scMidi = (project in file("sc-midi"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "sc-midi",
-    libraryDependencies ++= commonDependencies ++ Seq(
+    commonSettings,
+    libraryDependencies ++= Seq(
       coreMidi4j,
     ),
   )
@@ -155,6 +157,15 @@ lazy val compilerOptions = Seq(
   "-encoding", "utf8",
   "-language:implicitConversions",
   "-language:postfixOps",
+)
+
+lazy val commonSettings = Seq(
+  javacOptions ++= Seq(
+    "-source", "17", "-target", "17",
+  ),
+  scalacOptions ++= compilerOptions,
+  resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
+  libraryDependencies ++= commonDependencies,
 )
 
 lazy val assemblySettings = Seq(
