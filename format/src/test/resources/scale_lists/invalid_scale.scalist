@@ -1,0 +1,22 @@
+{
+  "tuningReference": {
+    "basePitchClass": 9
+  },
+  "globalFill": {
+    "ref": "chromatic.scl"
+  },
+  "modulations": [
+    {
+      "transposition": "1",
+      "scale": {
+        "ref": "minor.jscl"
+      }
+    },
+    {
+      "transposition": "6/5",
+      "scale": {
+        "foo": "bar"
+      }
+    }
+  ]
+}
