@@ -19,8 +19,7 @@ package org.calinburloiu.music.intonation.intervals
 import org.calinburloiu.music.intonation.RatioInterval
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 
-object SagittalIntervalsRegistry {
-
+object SagittalInterval {
   val Schisma5: RatioInterval = 32805 /: 32768
   val Schisma19: RatioInterval = 513 /: 512
   val Kleisma5To7: RatioInterval = 5120 /: 5103

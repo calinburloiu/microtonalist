@@ -30,10 +30,10 @@ trait ScaleFormat {
 object ScaleFormat {
 
   private[format] def createScale(name: String, pitches: Seq[Interval]): Scale[Interval] = {
-    val hasUnison = pitches.headOption.contains(Interval(1.0))
+    val hasUnison = pitches.headOption.contains(RealInterval(1.0))
 
     if (pitches.isEmpty) {
-      Scale(name, Interval(1.0))
+      Scale(name, RealInterval(1.0))
     } else if (pitches.forall(_.isInstanceOf[CentsInterval])) {
       val resultPitches = if (hasUnison) pitches else CentsInterval(0.0) +: pitches
       CentsScale(name, resultPitches.map(_.asInstanceOf[CentsInterval]))
@@ -41,7 +41,7 @@ object ScaleFormat {
       val resultPitches = if (hasUnison) pitches else RatioInterval(1, 1) +: pitches
       RatiosScale(name, resultPitches.map(_.asInstanceOf[RatioInterval]))
     } else {
-      val resultPitches = if (hasUnison) pitches else Interval(1.0) +: pitches
+      val resultPitches = if (hasUnison) pitches else RealInterval(1.0) +: pitches
       Scale(name, resultPitches)
     }
   }

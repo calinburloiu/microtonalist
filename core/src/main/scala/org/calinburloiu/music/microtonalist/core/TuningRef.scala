@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.core
 
-import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval}
+import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, RealInterval}
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
 /**
@@ -69,7 +69,7 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
   override def basePitchClass: PitchClass = baseMidiNote.pitchClass
 
   override val baseDeviation: Double = {
-    val concertPitchToBaseMidiNoteInterval = Interval(baseMidiNote.freq / concertPitchFreq)
+    val concertPitchToBaseMidiNoteInterval = RealInterval(baseMidiNote.freq / concertPitchFreq)
     (concertPitchToBaseInterval - concertPitchToBaseMidiNoteInterval).cents
   }
 

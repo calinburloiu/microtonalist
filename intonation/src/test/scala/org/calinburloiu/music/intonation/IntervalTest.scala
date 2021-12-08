@@ -61,13 +61,13 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
 
   "an Interval" should "have a the real value greater than 0" in {
     assertThrows[IllegalArgumentException] {
-      Interval(0.0)
+      RealInterval(0.0)
     }
     assertThrows[IllegalArgumentException] {
-      Interval(-0.1)
+      RealInterval(-0.1)
     }
     assertThrows[IllegalArgumentException] {
-      Interval(-1.5)
+      RealInterval(-1.5)
     }
   }
 
@@ -87,7 +87,7 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
   "all interval classes" should "correctly compute the cents, normalize and invert values for " +
     "the most common just intervals" in {
     forAll(validIntervals) { (ratioInterval, cents, normalizedRatioInterval, invertedRatioInterval) =>
-      val interval = Interval(ratioInterval.numerator.toDouble / ratioInterval.denominator)
+      val interval = RealInterval(ratioInterval.numerator.toDouble / ratioInterval.denominator)
       val centsInterval = CentsInterval(cents)
 
       withClue("Interval.cents:") {
@@ -166,9 +166,9 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
     )
 
     forAll(table) { (ratioIntervalA, ratioIntervalB, ratioIntervalResult) =>
-      val intervalA = Interval(ratioIntervalA.realValue)
-      val intervalB = Interval(ratioIntervalB.realValue)
-      val intervalResult = Interval(ratioIntervalResult.realValue)
+      val intervalA = RealInterval(ratioIntervalA.realValue)
+      val intervalB = RealInterval(ratioIntervalB.realValue)
+      val intervalResult = RealInterval(ratioIntervalResult.realValue)
       (intervalA + intervalB).realValue shouldEqual intervalResult.realValue
 
       ratioIntervalA + ratioIntervalB shouldEqual ratioIntervalResult
@@ -201,9 +201,9 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
     )
 
     forAll(table) { (ratioIntervalA, ratioIntervalB, ratioIntervalResult) =>
-      val intervalA = Interval(ratioIntervalA.realValue)
-      val intervalB = Interval(ratioIntervalB.realValue)
-      val intervalResult = Interval(ratioIntervalResult.realValue)
+      val intervalA = RealInterval(ratioIntervalA.realValue)
+      val intervalB = RealInterval(ratioIntervalB.realValue)
+      val intervalResult = RealInterval(ratioIntervalResult.realValue)
       (intervalA - intervalB).realValue shouldEqual intervalResult.realValue
 
       ratioIntervalA - ratioIntervalB shouldEqual ratioIntervalResult
@@ -223,8 +223,8 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
   }
 
   they should "correctly report if they are unison" in {
-    Interval(1.0).isUnison should be(true)
-    Interval(1.5).isUnison should be(false)
+    RealInterval(1.0).isUnison should be(true)
+    RealInterval(1.5).isUnison should be(false)
 
     CentsInterval(0.0).isUnison should be(true)
     CentsInterval(700.0).isUnison should be(false)
@@ -246,13 +246,13 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
     (RatioInterval(3, 2) - RatioInterval(4, 3).asInstanceOf[Interval]).getClass shouldBe classOf[RatioInterval]
   }
 
-  "the result of a binary operation between intervals of different classe" should
+  "the result of a binary operation between intervals of different classes" should
     "have the class of the most specific common superclass" in {
-    (CentsInterval(700.0) + Interval(1.33)).getClass shouldBe classOf[Interval]
-    (CentsInterval(700.0) - Interval(1.33)).getClass shouldBe classOf[Interval]
+    (CentsInterval(700.0) + RealInterval(1.33)).getClass shouldBe classOf[Interval]
+    (CentsInterval(700.0) - RealInterval(1.33)).getClass shouldBe classOf[Interval]
 
-    (RatioInterval(3, 2) + Interval(1.33)).getClass shouldBe classOf[Interval]
-    (RatioInterval(3, 2) - Interval(1.33)).getClass shouldBe classOf[Interval]
+    (RatioInterval(3, 2) + RealInterval(1.33)).getClass shouldBe classOf[Interval]
+    (RatioInterval(3, 2) - RealInterval(1.33)).getClass shouldBe classOf[Interval]
 
     (CentsInterval(700.0) + RatioInterval(4, 3)).getClass shouldBe classOf[Interval]
     (CentsInterval(700.0) - RatioInterval(4, 3)).getClass shouldBe classOf[Interval]
