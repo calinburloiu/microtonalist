@@ -22,65 +22,33 @@ import java.lang.Math.{floor, pow}
 import scala.language.implicitConversions
 import scala.util.Try
 
-class Interval(val realValue: Double) extends Ordered[Interval] {
-  require(realValue > 0.0 &&
-    realValue != Double.PositiveInfinity && realValue != Double.NaN,
-    s"Expecting a positive finite real value for the interval, but got $realValue")
+trait Interval extends Ordered[Interval.this.type] {
+  def realValue: Double
 
-  def cents: Double = fromRealValueToCents(realValue)
+  def cents: Double
 
-  def isNormalized: Boolean = realValue >= 1 && realValue < 2
+  def isNormalized: Boolean
 
-  def normalize: Interval =
-    if (isNormalized) this else new Interval(realValue * normalizationFactor)
+  def normalize: this.type
 
-  def +(operand: Interval): Interval = Interval(this.realValue * operand.realValue)
+  def +(operand: this.type): this.type
 
-  def -(operand: Interval): Interval = Interval(this.realValue / operand.realValue)
+  def -(operand: this.type): this.type
 
-  def invert: Interval = {
-    require(this >= Interval.Unison && this <= Interval.Octave,
-      s"Expecting this to between an unison and an octave, inclusively, but got $this")
+  def *(operand: this.type): this.type
 
-    Interval.Octave - this
-  }
+  def invert: this.type
 
-  def toStringLengths: Interval = Interval(1.0 / this.realValue)
+  def toStringLengths: this.type
 
-  def isUnison: Boolean = {
-    realValue == 1
-  }
+  def isUnison: Boolean
 
-  def normalizationFactorExp: Double = -floor(DoubleMath.log2(realValue))
+  def normalizationFactorExp: Double
 
-  def normalizationFactor: Double = pow(2, normalizationFactorExp)
-
-  def canEqual(other: Any): Boolean = other.isInstanceOf[Interval]
-
-  override def equals(other: Any): Boolean = other match {
-    case that: Interval =>
-      (that canEqual this) &&
-        realValue == that.realValue
-    case _ => false
-  }
-
-  override def hashCode(): Int = {
-    val state = Seq(realValue)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-  }
-
-  override def compare(that: Interval): Int = this.realValue.compareTo(that.realValue)
-
-  override def toString = s"Interval($realValue, $cents ¢)"
+  def normalizationFactor: Double
 }
 
 object Interval {
-
-  val Unison: Interval = Interval(1.0)
-  val Octave: Interval = Interval(2.0)
-
-  def apply(realValue: Double): Interval = new Interval(realValue)
-
   def fromScalaTuningInterval(intervalValue: String): Option[Interval] = {
     if (intervalValue.contains(".")) {
       val maybeCents = Try(intervalValue.toDouble).toOption
@@ -97,6 +65,70 @@ object Interval {
       } yield RatioInterval(numerator, denominator)
     }
   }
+}
+
+case class RealInterval(override val realValue: Double) extends Interval {
+  require(realValue > 0.0 &&
+    realValue != Double.PositiveInfinity && realValue != Double.NaN,
+    s"Expecting a positive finite real value for the interval, but got $realValue")
+
+  override def cents: Double = fromRealValueToCents(realValue)
+
+  override def isNormalized: Boolean = realValue >= 1 && realValue < 2
+
+  override def normalize: this.type =
+    if (isNormalized) this else new RealInterval(realValue * normalizationFactor)
+
+  override def +(operand: this.type): this.type = RealInterval(this.realValue * operand.realValue)
+
+  override def -(operand: this.type): this.type = RealInterval(this.realValue / operand.realValue)
+
+  override def *(operand: this.type): this.type = ???
+
+  override def invert: this.type = {
+    require(this >= RealInterval.Unison && this <= RealInterval.Octave,
+      s"Expecting this to between an unison and an octave, inclusively, but got $this")
+
+    RealInterval.Octave.asInstanceOf[this.type] - this
+  }
+
+  // TODO #35 Consider renaming
+  override def toStringLengths: RealInterval = RealInterval(1.0 / this.realValue)
+
+  override def isUnison: Boolean = {
+    realValue == 1
+  }
+
+  // TODO #35 Rename to normalizationLogFactor
+  override def normalizationFactorExp: Double = -floor(DoubleMath.log2(realValue))
+
+  override def normalizationFactor: Double = pow(2, normalizationFactorExp)
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[Interval]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: RealInterval =>
+      (that canEqual this) &&
+        realValue == that.realValue
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(realValue)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
+
+  override def compare(that: RealInterval.this.type): Int = this.realValue.compareTo(that.realValue)
+
+  override def toString = s"RealInterval($realValue, $cents ¢)"
+}
+
+object RealInterval {
+
+  val Unison: RealInterval = RealInterval(1.0)
+  val Octave: RealInterval = RealInterval(2.0)
+
+  def apply(realValue: Double): RealInterval = new RealInterval(realValue)
 }
 
 
@@ -150,7 +182,6 @@ case class RatioInterval(numerator: Int,
     RatioInterval.Octave - this
   }
 
-
   override def toStringLengths: Interval = RatioInterval(this.denominator, this.numerator)
 
   override def isUnison: Boolean = {
@@ -167,15 +198,11 @@ object RatioInterval {
 
   implicit def fromPair(pair: (Int, Int)): RatioInterval = RatioInterval(pair._1, pair._2)
 
-  // TODO Don't forget to change Ints to Longs here as well!
   implicit class InfixOperator(denominator: Int) {
-
     // Using a right-associative infix operator in order to make it precede + and - operators.
     def /:(numerator: Int): RatioInterval = RatioInterval(numerator, denominator)
   }
-
 }
-
 
 case class CentsInterval(override val cents: Double) extends Interval(fromCentsToRealValue(cents)) {
 
@@ -183,7 +210,7 @@ case class CentsInterval(override val cents: Double) extends Interval(fromCentsT
     if (isNormalized) {
       this
     } else {
-      if (cents >= 0) CentsInterval(cents % 1200.0) else CentsInterval(1200.0 + cents % 1200.0)
+      CentsInterval(mod(cents, 1200))
     }
   }
 
@@ -231,3 +258,33 @@ object CentsInterval {
   }
 
 }
+
+//case class EdoInterval(edo: Int, count: Int) extends Interval(fromEdoToRealValue(edo, count)) {
+//  override def cents: Double = fromEdoToCents(edo, count)
+//
+//  override def isNormalized: Boolean = count >= 0 && count <= edo
+//
+//  override def normalize: Interval = {
+//    if (isNormalized) {
+//      this
+//    } else {
+//      EdoInterval(edo, IntMath.mod(count, edo))
+//    }
+//  }
+//
+//  def +(operand: EdoInterval): EdoInterval = ???
+//
+//  override def +(operand: Interval): Interval = super.+(operand)
+//
+//  def -(operand: EdoInterval): EdoInterval = ???
+//
+//  override def -(operand: Interval): Interval = super.-(operand)
+//
+//  override def invert: Interval = super.invert
+//
+//  override def toStringLengths: Interval = super.toStringLengths
+//
+//  override def isUnison: Boolean = super.isUnison
+//
+//  override def toString: String = super.toString
+//}

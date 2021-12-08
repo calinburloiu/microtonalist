@@ -35,7 +35,19 @@ package object intonation {
     fromRealValueToCents(numerator.toDouble / denominator.toDouble)
   }
 
+  def fromEdoToCents(edo: Int, count: Int): Double = {
+    require(edo > 0, s"Expecting positive edo value, but got $edo")
+
+    count.toDouble / edo * 1200
+  }
+
   def fromCentsToRealValue(cents: Double): Double = Math.pow(2, cents / 1200)
+
+  def fromEdoToRealValue(edo: Int, count: Int): Double = {
+    require(edo > 0, s"Expecting positive edo value, but got $edo")
+
+    Math.pow(2, count.toDouble / edo)
+  }
 
   def fromCentsToHz(cents: Double, baseFreqHz: Double): Double = {
     require(baseFreqHz > 0.0, s"Expecting positive baseFreqHz, but got $baseFreqHz")
@@ -48,5 +60,11 @@ package object intonation {
     require(baseFreqHz > 0.0, s"Expecting positive baseFreqHz, but got $baseFreqHz")
 
     fromRealValueToCents(freqHz / baseFreqHz)
+  }
+
+  def mod(x: Double, modulus: Double): Double = {
+    if (modulus <= 0) throw new ArithmeticException(s"modulus $modulus must be greater than 0.0")
+    val result = x % modulus
+    if (result >= 0) result else result + modulus
   }
 }
