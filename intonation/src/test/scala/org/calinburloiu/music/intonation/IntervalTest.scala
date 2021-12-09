@@ -21,8 +21,60 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
+class RealIntervalTest extends AnyFlatSpec with Matchers {
+  "a RealInterval" should "have a the real value greater than 0" in {
+    assertThrows[IllegalArgumentException] {
+      RealInterval(0.0)
+    }
+    assertThrows[IllegalArgumentException] {
+      RealInterval(-0.1)
+    }
+    assertThrows[IllegalArgumentException] {
+      RealInterval(-1.5)
+    }
+  }
 
+  "isUnison" should "correctly report if the interval is a unison" in {
+    RealInterval(1.0).isUnison should be(true)
+    RealInterval(1.5).isUnison should be(false)
+  }
+}
+
+class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+  "a RatioInterval" should "have the numerator and denominator greater than 0" in {
+    val values = Table("value", 0, -1, -2, -3)
+
+    forAll(values) { value =>
+      assertThrows[IllegalArgumentException] {
+        RatioInterval(value, 2)
+      }
+      assertThrows[IllegalArgumentException] {
+        RatioInterval(3, value)
+      }
+    }
+  }
+
+  "isUnison" should "correctly report if the interval is a unison" in {
+    RatioInterval(1, 1).isUnison should be(true)
+    RatioInterval(3, 2).isUnison should be(false)
+  }
+}
+
+class CentsIntervalTest extends AnyFlatSpec with Matchers {
+  "isUnison" should "correctly report if the interval is a unison" in {
+    CentsInterval(0.0).isUnison should be(true)
+    CentsInterval(700.0).isUnison should be(false)
+  }
+}
+
+class EdoIntervalTest extends AnyFlatSpec with Matchers {
+  "isUnison" should "correctly report if the interval is a unison" in {
+    EdoInterval(72, 0).isUnison should be(true)
+    EdoInterval(72, 42).isUnison should be(false)
+  }
+}
+
+class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
@@ -58,31 +110,6 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
     ((81, 16),         2807.82,   (81, 64),                   null),
   )
   //@formatter:on
-
-  "an Interval" should "have a the real value greater than 0" in {
-    assertThrows[IllegalArgumentException] {
-      RealInterval(0.0)
-    }
-    assertThrows[IllegalArgumentException] {
-      RealInterval(-0.1)
-    }
-    assertThrows[IllegalArgumentException] {
-      RealInterval(-1.5)
-    }
-  }
-
-  "a RatioInterval" should "have the numerator and denominator greater than 0" in {
-    val values = Table("value", 0, -1, -2, -3)
-
-    forAll(values) { value =>
-      assertThrows[IllegalArgumentException] {
-        RatioInterval(value, 2)
-      }
-      assertThrows[IllegalArgumentException] {
-        RatioInterval(3, value)
-      }
-    }
-  }
 
   "all interval classes" should "correctly compute the cents, normalize and invert values for " +
     "the most common just intervals" in {
@@ -222,17 +249,6 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
     }
   }
 
-  they should "correctly report if they are unison" in {
-    RealInterval(1.0).isUnison should be(true)
-    RealInterval(1.5).isUnison should be(false)
-
-    CentsInterval(0.0).isUnison should be(true)
-    CentsInterval(700.0).isUnison should be(false)
-
-    RatioInterval(1, 1).isUnison should be(true)
-    RatioInterval(3, 2).isUnison should be(false)
-  }
-
   "the result of a binary operation between intervals of the same class" should
     "keep the same class" in {
     (CentsInterval(700.0) + CentsInterval(500.0)).getClass shouldBe classOf[CentsInterval]
@@ -248,16 +264,44 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
 
   "the result of a binary operation between intervals of different classes" should
     "have the class of the most specific common superclass" in {
-    (CentsInterval(700.0) + RealInterval(1.33)).getClass shouldBe classOf[Interval]
-    (CentsInterval(700.0) - RealInterval(1.33)).getClass shouldBe classOf[Interval]
+    //@formatter:off
+    val table = Table[Interval, Double, Class[_]](
+      ("computation",                                "result in ¢",  "class"),
+      (RealInterval(1.5) + RatioInterval(4, 3),      1200.0,         classOf[RealInterval]),
+      (RealInterval(1.5) - RatioInterval(4, 3),      203.91,         classOf[RealInterval]),
+      (RatioInterval(3, 2) + RealInterval(4.0/3),    1200.0,         classOf[RealInterval]),
+      (RatioInterval(3, 2) - RealInterval(4.0/3),    203.91,         classOf[RealInterval]),
 
-    (RatioInterval(3, 2) + RealInterval(1.33)).getClass shouldBe classOf[Interval]
-    (RatioInterval(3, 2) - RealInterval(1.33)).getClass shouldBe classOf[Interval]
+      (RealInterval(1.5) + CentsInterval(498.04),    1200.0,         classOf[CentsInterval]),
+      (RealInterval(1.5) - CentsInterval(498.04),    203.91,         classOf[CentsInterval]),
+      (CentsInterval(701.96) + RealInterval(4.0/3),  1200.0,         classOf[CentsInterval]),
+      (CentsInterval(701.96) - RealInterval(4.0/3),  203.91,         classOf[CentsInterval]),
 
-    (CentsInterval(700.0) + RatioInterval(4, 3)).getClass shouldBe classOf[Interval]
-    (CentsInterval(700.0) - RatioInterval(4, 3)).getClass shouldBe classOf[Interval]
-    (CentsInterval(700.0) + RatioInterval(4, 3).asInstanceOf[Interval]).getClass shouldBe classOf[Interval]
-    (CentsInterval(700.0) - RatioInterval(4, 3).asInstanceOf[Interval]).getClass shouldBe classOf[Interval]
+      (RealInterval(1.5) + EdoInterval(72, 30),      1201.96,        classOf[RealInterval]),
+      (RealInterval(1.5) - EdoInterval(72, 30),      201.96,         classOf[RealInterval]),
+      (EdoInterval(72, 42) + RealInterval(4.0/3),    1198.04,        classOf[RealInterval]),
+      (EdoInterval(72, 42) - RealInterval(4.0/3),    201.96,         classOf[RealInterval]),
+
+      (RatioInterval(3, 2) + CentsInterval(498.04),  1200.0,         classOf[CentsInterval]),
+      (RatioInterval(3, 2) - CentsInterval(498.04),  203.91,         classOf[CentsInterval]),
+      (CentsInterval(701.96) + RatioInterval(4, 3),  1200.0,         classOf[CentsInterval]),
+      (CentsInterval(701.96) - RatioInterval(4, 3),  203.91,         classOf[CentsInterval]),
+
+      (RatioInterval(3, 2) + EdoInterval(72, 30),    1201.96,        classOf[RealInterval]),
+      (RatioInterval(3, 2) - EdoInterval(72, 30),    201.96,         classOf[RealInterval]),
+      (EdoInterval(72, 42) + RatioInterval(4, 3),    1198.04,        classOf[RealInterval]),
+      (EdoInterval(72, 42) - RatioInterval(4, 3),    201.96,         classOf[RealInterval]),
+
+      (CentsInterval(700.0) + EdoInterval(72, 30),   1200.0,         classOf[CentsInterval]),
+      (CentsInterval(700.0) - EdoInterval(72, 30),   200.0,          classOf[CentsInterval]),
+      (EdoInterval(72, 42) + CentsInterval(500.0),   1200.0,         classOf[CentsInterval]),
+      (EdoInterval(72, 42) - CentsInterval(500.0),   200.0,          classOf[CentsInterval]),
+    )
+    //@formatter:on
+
+    forAll(table) { (computation, cents, klass) =>
+      computation.cents shouldEqual cents
+      computation.getClass shouldEqual klass
+    }
   }
-
 }
