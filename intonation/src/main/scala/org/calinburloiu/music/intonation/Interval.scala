@@ -96,16 +96,16 @@ case class RealInterval(override val realValue: Double) extends Interval {
   def +(operand: RealInterval): RealInterval = RealInterval(this.realValue * operand.realValue)
 
   override def +(operand: Interval): Interval = operand match {
-    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case realInterval: RealInterval => this + realInterval
+    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case interval: Interval => this + interval.toRealInterval
   }
 
   def -(operand: RealInterval): RealInterval = RealInterval(this.realValue / operand.realValue)
 
   override def -(operand: Interval): Interval = operand match {
-    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case realInterval: RealInterval => this - realInterval
+    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case interval: Interval => this - interval.toRealInterval
   }
 
@@ -169,8 +169,8 @@ case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
   }
 
   override def +(that: Interval): Interval = that match {
-    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case ratioInterval: RatioInterval => this + ratioInterval
+    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case interval: Interval => this.toRealInterval + interval
   }
 
@@ -183,8 +183,8 @@ case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
   }
 
   override def -(that: Interval): Interval = that match {
-    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case ratioInterval: RatioInterval => this - ratioInterval
+    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case interval: Interval => this.toRealInterval - interval
   }
 
@@ -236,7 +236,6 @@ case class CentsInterval(override val cents: Double) extends Interval {
   def +(that: CentsInterval): CentsInterval = CentsInterval(this.cents + that.cents)
 
   override def +(that: Interval): Interval = that match {
-    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case centsInterval: CentsInterval => this + centsInterval
     case interval: Interval => this + interval.toCentsInterval
   }
@@ -244,7 +243,6 @@ case class CentsInterval(override val cents: Double) extends Interval {
   def -(that: CentsInterval): CentsInterval = CentsInterval(this.cents - that.cents)
 
   override def -(that: Interval): Interval = that match {
-    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case centsInterval: CentsInterval => this - centsInterval
     case interval: Interval => this - interval.toCentsInterval
   }
@@ -300,16 +298,16 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
   def +(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count + that.count)
 
   override def +(that: Interval): Interval = that match {
-    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case edoInterval: EdoInterval => this + edoInterval
+    case centsInterval: CentsInterval => this.toCentsInterval + centsInterval
     case interval: Interval => this.toRealInterval + interval
   }
 
   def -(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count - that.count)
 
   override def -(that: Interval): Interval = that match {
-    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case edoInterval: EdoInterval => this - edoInterval
+    case centsInterval: CentsInterval => this.toCentsInterval - centsInterval
     case interval: Interval => this.toRealInterval - interval
   }
 
