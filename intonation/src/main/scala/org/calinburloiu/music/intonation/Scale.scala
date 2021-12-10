@@ -118,4 +118,12 @@ object EdoScale {
 
   def apply(edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
     EdoScale("", edo, headCount, tailCounts: _*)
+
+  def apply(name: String,
+            edo: Int, headCountRelativeToStandard: (Int, Int),
+            tailCountRelativeToStandard: (Int, Int)*): EdoScale =
+    EdoScale(name, (headCountRelativeToStandard +: tailCountRelativeToStandard).map(EdoInterval(edo, _)))
+
+  def apply(edo: Int, headCountRelativeToStandard: (Int, Int), tailCountRelativeToStandard: (Int, Int)*): EdoScale =
+    EdoScale("", (headCountRelativeToStandard +: tailCountRelativeToStandard).map(EdoInterval(edo, _)))
 }

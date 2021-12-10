@@ -400,13 +400,178 @@ class CentsIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
   }
 }
 
-class EdoIntervalTest extends AnyFlatSpec with Matchers {
+class EdoIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
+  "an EdoInterval" should "have edo value as a natural number" in {
+    assertThrows[IllegalArgumentException] {
+      EdoInterval(0, 3)
+    }
+    assertThrows[IllegalArgumentException] {
+      EdoInterval(-1, 3)
+    }
+  }
+
+  "an EdoInterval relative to standard 12-EDO" should "be created" in {
+    EdoInterval(72, (7, 0)) shouldEqual EdoInterval(72, 42)
+    EdoInterval(72, (4, -1)) shouldEqual EdoInterval(72, 23)
+    EdoInterval(72, (3, +1)) shouldEqual EdoInterval(72, 19)
+
+    EdoInterval(53, (7, 0)) shouldEqual EdoInterval(53, 31)
+    EdoInterval(53, (4, -1)) shouldEqual EdoInterval(53, 17)
+    EdoInterval(53, (3, +1)) shouldEqual EdoInterval(53, 14)
+
+    EdoInterval(6, (7, 0)) shouldEqual EdoInterval(6, 4)
+  }
+
+  "1200-EDO intervals" should "give cents values equal to their counts" in {
+    EdoInterval(1200, 0).cents shouldEqual 0.0
+    EdoInterval(1200, 1200).cents shouldEqual 1200.0
+
+    EdoInterval(1200, 700).cents shouldEqual 700.0
+    EdoInterval(1200, 386).cents shouldEqual 386.0
+    EdoInterval(1200, 702).cents shouldEqual 702.0
+
+    EdoInterval(1200, -408).cents shouldEqual -408.0
+    EdoInterval(1200, 2811).cents shouldEqual 2811.0
+  }
+
+  "realValue" should "return the decimal value of the frequency ratio" in {
+    EdoInterval.unisonFor(17).realValue shouldEqual 1.0
+    EdoInterval.octaveFor(31).realValue shouldEqual 2.0
+    EdoInterval(72, 42).realValue shouldEqual 1.5
+    EdoInterval(53, 53 + 17).realValue shouldEqual 2.5
+    EdoInterval(53, -17).realValue shouldEqual 0.8
+  }
+
+  "cents" should "return the value of the interval in cents" in {
+    EdoInterval.unisonFor(17).cents shouldEqual 0.0
+    EdoInterval.octaveFor(31).cents shouldEqual 1200.0
+    EdoInterval(72, 42).cents shouldEqual 700.0
+    EdoInterval(53, 53 + 17).cents shouldEqual 1584.91
+    EdoInterval(53, -17).cents shouldEqual -384.91
+  }
+
+  "normalizing" should "put the interval between unison (inclusive) and octave (exclusive)" in {
+    //@formatter:off
+    val table = Table[EdoInterval, EdoInterval, Double, Double](
+      ("input",                 "normalize",            "normalizationFactor",    "normalizationLogFactor"),
+      (EdoInterval(72, 0),      EdoInterval(72, 0),     1.0,                      0.0),
+      (EdoInterval(53, 53),     EdoInterval(53, 0),     0.5,                      -1.0),
+      (EdoInterval(53, 31),     EdoInterval(53, 31),    1.0,                      0.0),
+      (EdoInterval(6, 8),       EdoInterval(6, 2),      0.5,                      -1.0),
+      (EdoInterval(72, 152),    EdoInterval(72, 8),     0.25,                     -2.0),
+      (EdoInterval(72, -177),   EdoInterval(72, 39),    8.0,                      3.0),
+    )
+    //@formatter:on
+
+    forAll(table) { (input, normalized, normalizationFactor, normalizationLogFactor) =>
+      input.isNormalized shouldEqual input == normalized
+      input.normalize.cents shouldEqual normalized.cents
+      input.normalizationFactor shouldEqual normalizationFactor
+      input.normalizationLogFactor shouldEqual normalizationLogFactor
+    }
+  }
+
+  "+" should "add two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (EdoInterval.unisonFor(36) + EdoInterval.unisonFor(36)) shouldEqual EdoInterval.unisonFor(36)
+    (EdoInterval.unisonFor(36) + EdoInterval(36, 21)) shouldEqual EdoInterval(36, 21)
+    // Commutative
+    (EdoInterval(72, 24) + EdoInterval(72, 18)) shouldEqual EdoInterval(72, 42)
+    (EdoInterval(72, 18) + EdoInterval(72, 24)) shouldEqual EdoInterval(72, 42)
+
+    (EdoInterval.unisonFor(53) + EdoInterval.octaveFor(53)) shouldEqual EdoInterval.octaveFor(53)
+    (EdoInterval(24, 7) + EdoInterval.octaveFor(24)) shouldEqual EdoInterval(24, 31)
+  }
+
+  "-" should "subtract two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (EdoInterval.unisonFor(72) - EdoInterval.unisonFor(72)) shouldEqual EdoInterval.unisonFor(72)
+    (EdoInterval(72, 51) - EdoInterval.unisonFor(72)) shouldEqual EdoInterval(72, 51)
+
+    (EdoInterval(53, 31) - EdoInterval(53, 14)) shouldEqual EdoInterval(53, 17)
+
+    (EdoInterval.unisonFor(36) - EdoInterval.octaveFor(36)) shouldEqual EdoInterval(36, -36)
+    (EdoInterval(5, 3) - EdoInterval.octaveFor(5)) shouldEqual EdoInterval(5, -2)
+  }
+
+  "*" should "repeatedly add an interval to itself musically (on the logarithmic scale)" in {
+    // Neutral element
+    (EdoInterval.unisonFor(24) * 5) shouldEqual EdoInterval.unisonFor(24)
+
+    (EdoInterval(72, 9) * 2) shouldEqual EdoInterval(72, 18)
+    (EdoInterval(72, 8) * 3) shouldEqual EdoInterval(72, 24)
+  }
+
+  "invert" should "compute the interval inversion" in {
+    EdoInterval.unisonFor(72).invert shouldEqual EdoInterval.octaveFor(72)
+    EdoInterval.octaveFor(72).invert shouldEqual EdoInterval.unisonFor(72)
+    EdoInterval(53, 31).invert shouldEqual EdoInterval(53, 22)
+    EdoInterval(53, 22).invert shouldEqual EdoInterval(53, 31)
+
+    assertThrows[IllegalArgumentException] {
+      EdoInterval(53, 84).invert
+    }
+    assertThrows[IllegalArgumentException] {
+      EdoInterval(53, -22).invert
+    }
+  }
+
+  "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
+    // Neutral element
+    EdoInterval.unisonFor(72).toStringLengthInterval shouldEqual EdoInterval.unisonFor(72)
+
+    EdoInterval.octaveFor(72).toStringLengthInterval shouldEqual EdoInterval(72, -72)
+    EdoInterval(24, 8).toStringLengthInterval shouldEqual EdoInterval(24, -8)
+
+    EdoInterval(24, 25).toStringLengthInterval shouldEqual EdoInterval(24, -25)
+    EdoInterval(24, -14).toStringLengthInterval shouldEqual EdoInterval(24, 14)
+  }
+
   "isUnison" should "correctly report if the interval is a unison" in {
     EdoInterval(72, 0).isUnison should be(true)
+    EdoInterval(7, 0).isUnison should be(true)
     EdoInterval(72, 42).isUnison should be(false)
+    EdoInterval(6, 5).isUnison should be(false)
+  }
+
+  "toRealInterval" should "convert the interval to a RealInterval" in {
+    EdoInterval.unisonFor(17).toRealInterval shouldEqual RealInterval(1.0)
+    EdoInterval.octaveFor(31).toRealInterval shouldEqual RealInterval(2.0)
+    EdoInterval(72, 42).toRealInterval.realValue shouldEqual RealInterval(1.5).realValue
+    EdoInterval(53, 53 + 17).toRealInterval.realValue shouldEqual RealInterval(2.5).realValue
+    EdoInterval(53, -17).toRealInterval.realValue shouldEqual RealInterval(0.8).realValue
+  }
+
+  "toCentsInterval" should "convert the interval to a CentsInterval" in {
+    EdoInterval.unisonFor(17).toCentsInterval shouldEqual CentsInterval(0.0)
+    EdoInterval.octaveFor(31).toCentsInterval shouldEqual CentsInterval(1200.0)
+    EdoInterval(72, 42).toCentsInterval shouldEqual CentsInterval(700.0)
+    EdoInterval(53, 53 + 17).toCentsInterval.cents shouldEqual CentsInterval(1584.91).cents
+    EdoInterval(53, -17).toCentsInterval.cents shouldEqual CentsInterval(-384.91).cents
+  }
+
+  "EdoIntervalFactory" should "allow easy creation of intervals with the same EDO value" in {
+    val moria = EdoIntervalFactory(72)
+
+    moria(0) shouldEqual EdoInterval.unisonFor(72)
+    moria.unison shouldEqual EdoInterval.unisonFor(72)
+
+    moria(72) shouldEqual EdoInterval.octaveFor(72)
+    moria.octave shouldEqual EdoInterval.octaveFor(72)
+
+    moria(42) shouldEqual EdoInterval(72, 42)
+    moria(7, 0) shouldEqual EdoInterval(72, 42)
+
+    moria(4, -1) shouldEqual EdoInterval(72, 23)
+    moria(3, +1) shouldEqual EdoInterval(72, 19)
+
+    moria(-6) shouldEqual EdoInterval(72, -6)
+    moria(-1, 0) shouldEqual EdoInterval(72, -6)
+
+    moria(84) shouldEqual EdoInterval(72, 84)
   }
 }
 
