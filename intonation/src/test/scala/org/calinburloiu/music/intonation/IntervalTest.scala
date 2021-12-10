@@ -22,7 +22,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class RealIntervalTest extends AnyFlatSpec with Matchers {
+class RealIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
@@ -38,9 +38,116 @@ class RealIntervalTest extends AnyFlatSpec with Matchers {
     }
   }
 
+  "realValue" should "return the same decimal value that was passed when the object was created" in {
+    val table = Table("realValue", 1.0, 2.0, 1.5, 2.5, 0.8)
+    forAll(table) { realValue =>
+      RealInterval(realValue).realValue shouldEqual realValue
+    }
+  }
+
+  "cents" should "return the value of the interval in cents" in {
+    RealInterval.Unison.cents shouldEqual 0.0
+    RealInterval.Octave.cents shouldEqual 1200.0
+    RealInterval(3.0 / 2).cents shouldEqual 701.96
+    RealInterval(5.0 / 2).cents shouldEqual 1586.31
+    RealInterval(4.0 / 5).cents shouldEqual -386.31
+  }
+
+  "normalizing" should "put the interval between unison (inclusive) and octave (exclusive)" in {
+    //@formatter:off
+    val table = Table[RealInterval, RealInterval, Double, Double](
+      ("input",                "normalize",             "normalizationFactor",  "normalizationLogFactor"),
+      (RealInterval(1.0 / 1),  RealInterval(1.0 / 1),   1.0,                    0.0),
+      (RealInterval(2.0 / 1),  RealInterval(1.0 / 1),   0.5,                    -1.0),
+      (RealInterval(3.0 / 2),  RealInterval(3.0 / 2),   1.0,                    0.0),
+      (RealInterval(5.0 / 2),  RealInterval(5.0 / 4),   0.5,                    -1.0),
+      (RealInterval(13.0 / 3), RealInterval(13.0 / 12), 0.25,                   -2.0),
+      (RealInterval(2.0 / 11), RealInterval(16.0 / 11), 8.0,                    3.0),
+    )
+    //@formatter:on
+
+    forAll(table) { (input, normalized, normalizationFactor, normalizationLogFactor) =>
+      input.isNormalized shouldEqual input == normalized
+      input.normalize shouldEqual normalized
+      input.normalizationFactor shouldEqual normalizationFactor
+      input.normalizationLogFactor shouldEqual normalizationLogFactor
+    }
+  }
+
+  "+" should "add two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (RealInterval.Unison + RealInterval.Unison) shouldEqual RealInterval.Unison
+    (RealInterval.Unison + RealInterval(1.5)) shouldEqual RealInterval(1.5)
+    // Commutative
+    (RealInterval(5.0 / 4) + RealInterval(6.0 / 5)) shouldEqual RealInterval(3.0 / 2)
+    (RealInterval(6.0 / 5) + RealInterval(5.0 / 4)) shouldEqual RealInterval(3.0 / 2)
+
+    (RealInterval.Unison + RealInterval.Octave) shouldEqual RealInterval.Octave
+    (RealInterval(1.5) + RealInterval.Octave) shouldEqual RealInterval(3.0)
+  }
+
+  "-" should "subtract two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (RealInterval.Unison - RealInterval.Unison) shouldEqual RealInterval.Unison
+    (RealInterval(3.0 / 2) - RealInterval.Unison) shouldEqual RealInterval(3.0 / 2)
+
+    (RealInterval(3.0 / 2) - RealInterval(6.0 / 5)) shouldEqual RealInterval(5.0 / 4)
+
+    (RealInterval.Unison - RealInterval.Octave) shouldEqual RealInterval(1.0 / 2)
+    (RealInterval(3.0 / 2) - RealInterval.Octave) shouldEqual RealInterval(3.0 / 4)
+  }
+
+  "*" should "repeatedly add an interval to itself musically (on the logarithmic scale)" in {
+    // Neutral element
+    (RealInterval.Unison * 5) shouldEqual RealInterval.Unison
+
+    (RealInterval(9.0 / 8) * 2) shouldEqual RealInterval(81.0 / 64)
+
+    // Synthonic comma
+    (RealInterval(3.0 / 2) * 4 - RealInterval(5.0)) shouldEqual RealInterval(81.0 / 80)
+  }
+
+  "invert" should "compute the interval inversion" in {
+    RealInterval.Unison.invert shouldEqual RealInterval.Octave
+    RealInterval.Octave.invert shouldEqual RealInterval.Unison
+    RealInterval(3.0 / 2).invert shouldEqual RealInterval(4.0 / 3)
+    RealInterval(4.0 / 3).invert shouldEqual RealInterval(3.0 / 2)
+
+    assertThrows[IllegalArgumentException] {
+      RealInterval(3.0).invert
+    }
+    assertThrows[IllegalArgumentException] {
+      RealInterval(0.67).invert
+    }
+  }
+
+  "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
+    // Neutral element
+    RealInterval.Unison.toStringLengthInterval shouldEqual RealInterval.Unison
+
+    RealInterval.Octave.toStringLengthInterval shouldEqual RealInterval(1.0 / 2)
+    RealInterval(5.0 / 4).toStringLengthInterval shouldEqual RealInterval(4.0 / 5)
+
+    RealInterval(7.0 / 2).toStringLengthInterval shouldEqual RealInterval(2.0 / 7)
+    RealInterval(2.0 / 3).toStringLengthInterval shouldEqual RealInterval(3.0 / 2)
+  }
+
   "isUnison" should "correctly report if the interval is a unison" in {
     RealInterval(1.0).isUnison should be(true)
     RealInterval(1.5).isUnison should be(false)
+  }
+
+  "toRealInterval" should "convert the interval to a RealInterval" in {
+    val interval = RealInterval(1.5)
+    interval.toRealInterval shouldBe theSameInstanceAs (interval)
+  }
+
+  "toCentsInterval" should "convert the interval to a CentsInterval" in {
+    RealInterval.Unison.toCentsInterval shouldEqual CentsInterval(0.0)
+    RealInterval.Octave.toCentsInterval shouldEqual CentsInterval(1200.0)
+    RealInterval(3.0 / 2).toCentsInterval shouldEqual CentsInterval(RatioInterval(3, 2).cents)
+    RealInterval(5.0 / 2).toCentsInterval.cents should be > 1200.0
+    RealInterval(4.0 / 5).toCentsInterval.cents should be < 0.0
   }
 }
 
@@ -178,13 +285,118 @@ class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
   }
 }
 
-class CentsIntervalTest extends AnyFlatSpec with Matchers {
+class CentsIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
+  "realValue" should "return the decimal value of the frequency ratio" in {
+    CentsInterval.Unison.realValue shouldEqual 1.0
+    CentsInterval.Octave.realValue shouldEqual 2.0
+    CentsInterval(701.96).realValue shouldEqual 1.5
+    CentsInterval(1586.31).realValue shouldEqual 2.5
+    CentsInterval(-386.31).realValue shouldEqual 0.8
+  }
+
+  "cents" should "return the same cents value that was passed when the object was created" in {
+    val table = Table("cents", 0.0, 1200.0, 701.96, 1586.31, -386.31)
+    forAll(table) { cents =>
+      CentsInterval(cents).cents shouldEqual cents
+    }
+  }
+
+  "normalizing" should "put the interval between unison (inclusive) and octave (exclusive)" in {
+    //@formatter:off
+    val table = Table[CentsInterval, CentsInterval, Double, Double](
+      ("input",                 "normalize",            "normalizationFactor",    "normalizationLogFactor"),
+      (CentsInterval(0.0),      CentsInterval(0.0),     1.0,                      0.0),
+      (CentsInterval(1200.0),   CentsInterval(0.0),     0.5,                      -1.0),
+      (CentsInterval(701.96),   CentsInterval(701.96),  1.0,                      0.0),
+      (CentsInterval(1600.0),   CentsInterval(400.0),   0.5,                      -1.0),
+      (CentsInterval(2533.33),  CentsInterval(133.33),  0.25,                     -2.0),
+      (CentsInterval(-2951.32), CentsInterval(648.68),  8.0,                      3.0),
+    )
+    //@formatter:on
+
+    forAll(table) { (input, normalized, normalizationFactor, normalizationLogFactor) =>
+      input.isNormalized shouldEqual input == normalized
+      input.normalize.cents shouldEqual normalized.cents
+      input.normalizationFactor shouldEqual normalizationFactor
+      input.normalizationLogFactor shouldEqual normalizationLogFactor
+    }
+  }
+
+  "+" should "add two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (CentsInterval.Unison + CentsInterval.Unison) shouldEqual CentsInterval.Unison
+    (CentsInterval.Unison + CentsInterval(700.0)) shouldEqual CentsInterval(700.0)
+    // Commutative
+    (CentsInterval(400.0) + CentsInterval(300.0)) shouldEqual CentsInterval(700.0)
+    (CentsInterval(300.0) + CentsInterval(400.0)) shouldEqual CentsInterval(700.0)
+
+    (CentsInterval.Unison + CentsInterval.Octave) shouldEqual CentsInterval.Octave
+    (CentsInterval(350.0) + CentsInterval.Octave) shouldEqual CentsInterval(1550.0)
+  }
+
+  "-" should "subtract two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (CentsInterval.Unison - CentsInterval.Unison) shouldEqual CentsInterval.Unison
+    (CentsInterval(850.0) - CentsInterval.Unison) shouldEqual CentsInterval(850.0)
+
+    (CentsInterval(700.0) - CentsInterval(300.0)) shouldEqual CentsInterval(400.0)
+
+    (CentsInterval.Unison - CentsInterval.Octave) shouldEqual CentsInterval(-1200.0)
+    (CentsInterval(700.0) - CentsInterval.Octave) shouldEqual CentsInterval(-500.0)
+  }
+
+  "*" should "repeatedly add an interval to itself musically (on the logarithmic scale)" in {
+    // Neutral element
+    (CentsInterval.Unison * 5) shouldEqual CentsInterval.Unison
+
+    (CentsInterval(150.0) * 2) shouldEqual CentsInterval(300.0)
+    (CentsInterval(133.33) * 3).cents shouldEqual 400.0
+  }
+
+  "invert" should "compute the interval inversion" in {
+    CentsInterval.Unison.invert shouldEqual CentsInterval.Octave
+    CentsInterval.Octave.invert shouldEqual CentsInterval.Unison
+    CentsInterval(700.0).invert shouldEqual CentsInterval(500.0)
+    CentsInterval(500.0).invert shouldEqual CentsInterval(700.0)
+
+    assertThrows[IllegalArgumentException] {
+      CentsInterval(1900.0).invert
+    }
+    assertThrows[IllegalArgumentException] {
+      CentsInterval(-500.0).invert
+    }
+  }
+
+  "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
+    // Neutral element
+    CentsInterval.Unison.toStringLengthInterval shouldEqual CentsInterval.Unison
+
+    CentsInterval.Octave.toStringLengthInterval shouldEqual CentsInterval(-1200.0)
+    CentsInterval(400.0).toStringLengthInterval shouldEqual CentsInterval(-400.0)
+
+    CentsInterval(1550.0).toStringLengthInterval shouldEqual CentsInterval(-1550)
+    CentsInterval(-701.96).toStringLengthInterval shouldEqual CentsInterval(701.96)
+  }
 
   "isUnison" should "correctly report if the interval is a unison" in {
     CentsInterval(0.0).isUnison should be(true)
     CentsInterval(700.0).isUnison should be(false)
+  }
+
+  "toRealInterval" should "convert the interval to a RealInterval" in {
+    CentsInterval.Unison.toRealInterval.realValue shouldEqual 1.0
+    CentsInterval.Octave.toRealInterval.realValue shouldEqual 2.0
+    CentsInterval(701.96).toRealInterval.realValue shouldEqual 1.5
+    CentsInterval(1586.31).toRealInterval.realValue shouldEqual 2.5
+    CentsInterval(-386.31).toRealInterval.realValue shouldEqual 0.8
+  }
+
+  "toCentsInterval" should "convert the same CentsInterval instance" in {
+    val interval = CentsInterval(383.33)
+    interval.toCentsInterval shouldBe theSameInstanceAs (interval)
   }
 }
 
