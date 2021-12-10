@@ -67,6 +67,7 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     val tuningRef = StandardTuningRef(PitchClass.fromInt(scaleListRepr.tuningReference.basePitchClass))
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
+      // TODO #4 For better precision we should use for unison the interval type chosen by the user
       val transposition = modulationRepr.transposition.getOrElse(RealInterval.Unison)
 
       val tuningMapper = modulationRepr.tuningMapper.getOrElse(defaultTuningMapper)

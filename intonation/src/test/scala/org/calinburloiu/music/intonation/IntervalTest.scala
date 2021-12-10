@@ -57,8 +57,8 @@ class RealIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropert
     //@formatter:off
     val table = Table[RealInterval, RealInterval, Double, Double](
       ("input",                "normalize",             "normalizationFactor",  "normalizationLogFactor"),
-      (RealInterval(1.0 / 1),  RealInterval(1.0 / 1),   1.0,                    0.0),
-      (RealInterval(2.0 / 1),  RealInterval(1.0 / 1),   0.5,                    -1.0),
+      (RealInterval.Unison,    RealInterval(1.0 / 1),   1.0,                    0.0),
+      (RealInterval(2.0 / 1),  RealInterval.Unison,     0.5,                    -1.0),
       (RealInterval(3.0 / 2),  RealInterval(3.0 / 2),   1.0,                    0.0),
       (RealInterval(5.0 / 2),  RealInterval(5.0 / 4),   0.5,                    -1.0),
       (RealInterval(13.0 / 3), RealInterval(13.0 / 12), 0.25,                   -2.0),
@@ -538,7 +538,7 @@ class EdoIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProperty
   }
 
   "toRealInterval" should "convert the interval to a RealInterval" in {
-    EdoInterval.unisonFor(17).toRealInterval shouldEqual RealInterval(1.0)
+    EdoInterval.unisonFor(17).toRealInterval shouldEqual RealInterval.Unison
     EdoInterval.octaveFor(31).toRealInterval shouldEqual RealInterval(2.0)
     EdoInterval(72, 42).toRealInterval.realValue shouldEqual RealInterval(1.5).realValue
     EdoInterval(53, 53 + 17).toRealInterval.realValue shouldEqual RealInterval(2.5).realValue
@@ -647,7 +647,7 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
         centsInterval.normalize.cents shouldEqual normalizedRatioInterval.cents
       }
 
-      if (ratioInterval >= RatioInterval(1, 1) && ratioInterval < RatioInterval(2, 1)) {
+      if (ratioInterval >= RatioInterval.Unison && ratioInterval < RatioInterval.Octave) {
         withClue("Interval.normalize same instance:") {
           interval.normalize should be theSameInstanceAs interval
         }
@@ -659,7 +659,7 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
         }
       }
 
-      if (ratioInterval >= RatioInterval(1, 1) && ratioInterval <= RatioInterval(2, 1)) {
+      if (ratioInterval >= RatioInterval.Unison && ratioInterval <= RatioInterval.Octave) {
         withClue("Interval.invert:") {
           interval.invert.realValue shouldEqual invertedRatioInterval.realValue
         }

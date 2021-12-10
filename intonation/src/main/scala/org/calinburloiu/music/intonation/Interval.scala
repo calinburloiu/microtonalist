@@ -40,7 +40,7 @@ import scala.util.Try
  */
 sealed trait Interval extends Ordered[Interval] {
   /**
-   * @return interval's frequency ration as a decimal number
+   * @return interval's frequency ratio as a decimal number
    */
   def realValue: Double
 
@@ -99,11 +99,13 @@ sealed trait Interval extends Ordered[Interval] {
 
   /**
    * @return the inversion of `this` interval
+   * @throws IllegalArgumentException if `this` is not normalized
+   * @see [[Interval.normalize]]
    */
   def invert: Interval
 
   /**
-   * Computes the interval corresponding to the string ratio needed to achieve `this` musical interval on vibrating
+   * Computes the interval corresponding to the string ratio needed to achieve `this` musical interval on a vibrating
    * string. That interval is the inverse of `this`' fraction, i.e. `1.0 / realValue`.
    *
    * @return the interval of the string length ratio
@@ -128,7 +130,9 @@ sealed trait Interval extends Ordered[Interval] {
 
 object Interval {
   /**
-   * Scala applications tuning files encodes intervals by using the following convention:
+   * Parses an interval expressed in the format present in Scala application tuning files (`*.scl`).
+   *
+   * Scala application tuning files encodes intervals by using the following convention:
    *
    * * An integer or a fraction is an interval expressed as a just intonation frequency ratio. E.g. `2` or `2/1` are
    * octaves, `3/2` is a perfect fifth.
@@ -157,7 +161,7 @@ object Interval {
 }
 
 /**
- * An [[Interval]] expressed as a frequency ration in a generic decimal formal.
+ * An [[Interval]] expressed as a frequency ratio in a generic decimal formal.
  *
  * This is the most generic interval format that can express anything, but it lacks just intonation or EDO precision.
  *
@@ -212,9 +216,7 @@ case class RealInterval(override val realValue: Double) extends Interval {
 
   override def toStringLengthInterval: RealInterval = RealInterval(1.0 / this.realValue)
 
-  override def isUnison: Boolean = {
-    realValue == 1
-  }
+  override def isUnison: Boolean = realValue == 1.0
 
   override def toRealInterval: RealInterval = this
 
@@ -309,9 +311,7 @@ case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
 
   override def toStringLengthInterval: Interval = RatioInterval(this.denominator, this.numerator)
 
-  override def isUnison: Boolean = {
-    numerator == 1 && denominator == 1
-  }
+  override def isUnison: Boolean = numerator == 1 && denominator == 1
 
   override def compare(that: Interval): Int = this.realValue.compareTo(that.realValue)
 
@@ -333,7 +333,7 @@ object RatioInterval {
 /**
  * An [[Interval]] expressed as a decimal value in cents.
  *
- * This interval type can approximate any interval, but it lack just intonation and EDO precision.
+ * This interval type can approximate any interval, but it lacks just intonation and EDO precision.
  *
  * Note that this interval type is not equivalent to 1200-EDO, because it allows fractions of a cent.
  *
@@ -366,7 +366,7 @@ case class CentsInterval(override val cents: Double) extends Interval {
   }
 
   /**
-   * Subtracts from `this` interval the given [[Interval]] musically, in logarithmic space.
+   * Subtracts from `this` interval the given [[CentsInterval]] musically, in logarithmic space.
    *
    * @param that the interval to subtract from `this`
    * @return the difference interval
@@ -532,6 +532,7 @@ case class EdoIntervalFactory(edo: Int) {
 
   /**
    * Creates an [[EdoInterval]] by specifying the number of division used to express the interval.
+   *
    * @param count the number of division used to express the interval
    * @return a new [[EdoInterval]]
    */
@@ -540,7 +541,8 @@ case class EdoIntervalFactory(edo: Int) {
   /**
    * Creates an [[EdoInterval]] by specifying a count value relative to an approximation in the given `edo` of the
    * standard tuning (12-EDO).
-   * @param semitones the number of 12-EDO semitones approximated in this EDO (by rounding, 0.5 goes up)
+   *
+   * @param semitones     the number of 12-EDO semitones approximated in this EDO (by rounding, 0.5 goes up)
    * @param relativeCount the deviation in divisions (in this EDO) from the approximated semitone
    * @return a new [[EdoInterval]]
    */
