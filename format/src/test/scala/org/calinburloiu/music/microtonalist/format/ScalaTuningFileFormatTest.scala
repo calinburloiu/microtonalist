@@ -123,7 +123,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
         |9/8
         |300.
         |5/4""",
-      Scale("Scale with pitches as both ratios and cents", CentsInterval.Unison,
+      Scale("Scale with pitches as both ratios and cents", RealInterval.Unison,
         CentsInterval(100.2), RatioInterval(9, 8), CentsInterval(300.0), RatioInterval(5, 4))
     )
 
@@ -145,7 +145,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
       |! 301.02
       |5/4
       |! THE END! See you soon!""",
-    Scale("Scale with pitches as both ratios and cents!", CentsInterval.Unison,
+    Scale("Scale with pitches as both ratios and cents!", RealInterval.Unison,
       CentsInterval(100.2), RatioInterval(9, 8), CentsInterval(300.0), RatioInterval(5, 4))
   )
 
@@ -156,7 +156,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
       |9/8	(here is a tab) a just intonation whole tone
       |300.0 3 hundred cents here!
       |5/4aPureMajorThird""",
-    Scale("Scale with pitches as both ratios and cents!", CentsInterval.Unison,
+    Scale("Scale with pitches as both ratios and cents!", RealInterval.Unison,
       CentsInterval(100.2), RatioInterval(9, 8), CentsInterval(300.0), RatioInterval(5, 4))
   )
 
@@ -167,7 +167,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
       |    9/8
       |		300.0 3
       |	5/4""",
-    Scale("Scale with pitches as both ratios and cents!", CentsInterval.Unison,
+    Scale("Scale with pitches as both ratios and cents!", RealInterval.Unison,
       CentsInterval(100.2), RatioInterval(9, 8), CentsInterval(300.0), RatioInterval(5, 4))
   )
 
@@ -189,7 +189,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
         |9/8
         |300.0 3
         |5/4""",
-      Scale("Scale with pitches as both ratios and cents", CentsInterval.Unison,
+      Scale("Scale with pitches as both ratios and cents", RealInterval.Unison,
         CentsInterval(100.2), RatioInterval(9, 8))
     )
 

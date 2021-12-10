@@ -63,7 +63,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
 
     result.getClass shouldEqual classOf[Scale[Interval]]
     result shouldEqual Scale("abc",
-      RatioInterval.Unison, RatioInterval(9, 8), CentsInterval(315.9), RatioInterval(4, 3))
+      RealInterval.Unison, RatioInterval(9, 8), CentsInterval(315.9), RatioInterval(4, 3))
   }
 
   "A JSON Scale without a name" should "correctly create a scale object with an empty string name" in {

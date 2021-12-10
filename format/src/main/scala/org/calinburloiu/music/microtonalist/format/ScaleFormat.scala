@@ -34,7 +34,7 @@ object ScaleFormat {
 
     // TODO #4 Handle the case when pitches are EdoIntervals
     if (pitches.isEmpty) {
-      Scale(name, CentsInterval(1.0))
+      Scale(name, CentsInterval(0.0))
     } else if (pitches.forall(_.isInstanceOf[CentsInterval])) {
       val resultPitches = if (hasUnison) pitches else CentsInterval.Unison +: pitches
       CentsScale(name, resultPitches.map(_.asInstanceOf[CentsInterval]))
