@@ -30,18 +30,19 @@ trait ScaleFormat {
 object ScaleFormat {
 
   private[format] def createScale(name: String, pitches: Seq[Interval]): Scale[Interval] = {
-    val hasUnison = pitches.headOption.contains(Interval(1.0))
+    val hasUnison = pitches.headOption.exists(interval => interval.isUnison)
 
+    // TODO #4 Handle the case when pitches are EdoIntervals
     if (pitches.isEmpty) {
-      Scale(name, Interval(1.0))
+      Scale(name, CentsInterval(1.0))
     } else if (pitches.forall(_.isInstanceOf[CentsInterval])) {
-      val resultPitches = if (hasUnison) pitches else CentsInterval(0.0) +: pitches
+      val resultPitches = if (hasUnison) pitches else CentsInterval.Unison +: pitches
       CentsScale(name, resultPitches.map(_.asInstanceOf[CentsInterval]))
     } else if (pitches.forall(_.isInstanceOf[RatioInterval])) {
-      val resultPitches = if (hasUnison) pitches else RatioInterval(1, 1) +: pitches
+      val resultPitches = if (hasUnison) pitches else RatioInterval.Unison +: pitches
       RatiosScale(name, resultPitches.map(_.asInstanceOf[RatioInterval]))
     } else {
-      val resultPitches = if (hasUnison) pitches else Interval(1.0) +: pitches
+      val resultPitches = if (hasUnison) pitches else RealInterval.Unison +: pitches
       Scale(name, resultPitches)
     }
   }

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.intonation.{Interval, RealInterval, Scale}
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
@@ -67,7 +67,8 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     val tuningRef = StandardTuningRef(PitchClass.fromInt(scaleListRepr.tuningReference.basePitchClass))
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
-      val transposition = modulationRepr.transposition.getOrElse(Interval.Unison)
+      // TODO #4 For better precision we should use for unison the interval type chosen by the user
+      val transposition = modulationRepr.transposition.getOrElse(RealInterval.Unison)
 
       val tuningMapper = modulationRepr.tuningMapper.getOrElse(defaultTuningMapper)
       val scaleMapping = ScaleMapping(modulationRepr.scale.value, tuningMapper)

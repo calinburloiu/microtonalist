@@ -99,3 +99,31 @@ object CentsScale {
   def apply(headCentValue: Double, tailCentValues: Double*): CentsScale =
     CentsScale("", headCentValue, tailCentValues: _*)
 }
+
+case class EdoScale(override val name: String,
+                    override val intervals: Seq[EdoInterval]) extends Scale[EdoInterval](name, intervals)
+
+object EdoScale {
+
+  def apply(name: String,
+            headEdoInterval: EdoInterval,
+            tailEdoIntervals: EdoInterval*): EdoScale =
+    EdoScale(name, headEdoInterval +: tailEdoIntervals)
+
+  def apply(headEdoInterval: EdoInterval, tailEdoIntervals: EdoInterval*): EdoScale =
+    EdoScale("", headEdoInterval, tailEdoIntervals: _*)
+
+  def apply(name: String, edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
+    EdoScale(name, (headCount +: tailCounts).map(EdoInterval(edo, _)))
+
+  def apply(edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
+    EdoScale("", edo, headCount, tailCounts: _*)
+
+  def apply(name: String,
+            edo: Int, headCountRelativeToStandard: (Int, Int),
+            tailCountRelativeToStandard: (Int, Int)*): EdoScale =
+    EdoScale(name, (headCountRelativeToStandard +: tailCountRelativeToStandard).map(EdoInterval(edo, _)))
+
+  def apply(edo: Int, headCountRelativeToStandard: (Int, Int), tailCountRelativeToStandard: (Int, Int)*): EdoScale =
+    EdoScale("", (headCountRelativeToStandard +: tailCountRelativeToStandard).map(EdoInterval(edo, _)))
+}

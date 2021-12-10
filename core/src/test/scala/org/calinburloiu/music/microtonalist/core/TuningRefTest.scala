@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.core
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation.{CentsInterval, Interval}
+import org.calinburloiu.music.intonation.{CentsInterval, Interval, RealInterval}
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -50,7 +50,7 @@ class TuningRefTest extends AnyFlatSpec with Matchers {
 
   it should "tune a base MIDI note of A4 relative to standard concert pitch of 440 Hz of A4" in {
     val tuningRef = ConcertPitchTuningRef(
-      concertPitchToBaseInterval = Interval.Unison, baseMidiNote = MidiNote.A4)
+      concertPitchToBaseInterval = RealInterval.Unison, baseMidiNote = MidiNote.A4)
     tuningRef.baseDeviation shouldEqual 0.0
     tuningRef.baseTuningPitch.pitchClass shouldEqual PitchClass.A
     tuningRef.baseTuningPitch.deviation shouldEqual 0.0
@@ -66,7 +66,7 @@ class TuningRefTest extends AnyFlatSpec with Matchers {
 
   it should "tune a base MIDI note of A4 relative to 432 Hz concert pitch of A4" in {
     val tuningRef = ConcertPitchTuningRef(
-      concertPitchToBaseInterval = Interval.Unison, baseMidiNote = MidiNote.A4, concertPitchFreq = 432.0)
+      concertPitchToBaseInterval = RealInterval.Unison, baseMidiNote = MidiNote.A4, concertPitchFreq = 432.0)
     tuningRef.baseDeviation shouldEqual -31.77
     tuningRef.baseTuningPitch.pitchClass shouldEqual PitchClass.A
     tuningRef.baseTuningPitch.deviation shouldEqual -31.77

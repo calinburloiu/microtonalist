@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.core
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.intonation.Interval
+import org.calinburloiu.music.intonation.{Interval, RealInterval}
 
 import scala.annotation.tailrec
 
@@ -40,7 +40,7 @@ object TuningList extends StrictLogging {
   def fromScaleList(scaleList: ScaleList): TuningList = {
     val globalFillScale = scaleList.globalFill.scale
     val globalFillTuning = scaleList.globalFill.tuningMapper.mapScale(globalFillScale, scaleList.tuningRef)
-    val partialTunings = createPartialTunings(Interval.Unison, Vector.empty,
+    val partialTunings = createPartialTunings(RealInterval.Unison, Vector.empty,
       scaleList.modulations, scaleList.tuningRef)
 
     scaleList.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
