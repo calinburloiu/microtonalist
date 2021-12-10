@@ -43,9 +43,9 @@ sealed trait Interval extends Ordered[Interval] {
 
   def normalize: Interval
 
-  def normalizationLogFactor: Double = -floor(DoubleMath.log2(realValue))
-
   def normalizationFactor: Double = pow(2, normalizationLogFactor)
+
+  def normalizationLogFactor: Double = -floor(DoubleMath.log2(realValue))
 
   def +(operand: Interval): Interval
 

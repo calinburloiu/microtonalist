@@ -16,12 +16,16 @@
 
 package org.calinburloiu.music.intonation
 
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 class RealIntervalTest extends AnyFlatSpec with Matchers {
+  private val epsilon: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
   "a RealInterval" should "have a the real value greater than 0" in {
     assertThrows[IllegalArgumentException] {
       RealInterval(0.0)
@@ -41,6 +45,9 @@ class RealIntervalTest extends AnyFlatSpec with Matchers {
 }
 
 class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+  private val epsilon: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
   "a RatioInterval" should "have the numerator and denominator greater than 0" in {
     val values = Table("value", 0, -1, -2, -3)
 
@@ -54,13 +61,127 @@ class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
     }
   }
 
+  "realValue" should "return the decimal value of the frequency ratio" in {
+    RatioInterval.Unison.realValue shouldEqual 1.0
+    RatioInterval.Octave.realValue shouldEqual 2.0
+    RatioInterval(3, 2).realValue shouldEqual 1.5
+    RatioInterval(5, 2).realValue shouldEqual 2.5
+    RatioInterval(4, 5).realValue shouldEqual 0.8
+  }
+
+  "cents" should "return the value of the interval in cents" in {
+    RatioInterval.Unison.cents shouldEqual 0.0
+    RatioInterval.Octave.cents shouldEqual 1200.0
+    RatioInterval(3, 2).cents shouldEqual 701.96
+    RatioInterval(5, 2).cents shouldEqual 1586.31
+    RatioInterval(4, 5).cents shouldEqual -386.31
+  }
+
+  "normalizing" should "put the interval between unison (inclusive) and octave (exclusive)" in {
+    //@formatter:off
+    val table = Table[RatioInterval, RatioInterval, Double, Double](
+      ("input", "normalize",  "normalizationFactor",  "normalizationLogFactor"),
+      (1/:1,    1/:1,         1.0,                      0.0),
+      (2/:1,    1/:1,         0.5,                      -1.0),
+      (3/:2,    3/:2,         1.0,                      0.0),
+      (5/:2,    5/:4,         0.5,                      -1.0),
+      (13/:3,   13/:12,       0.25,                     -2.0),
+      (2/:11,   16/:11,       8.0,                      3.0),
+    )
+    //@formatter:on
+
+    forAll(table) { (input, normalized, normalizationFactor, normalizationLogFactor) =>
+      input.isNormalized shouldEqual input == normalized
+      input.normalize shouldEqual normalized
+      input.normalizationFactor shouldEqual normalizationFactor
+      input.normalizationLogFactor shouldEqual normalizationLogFactor
+    }
+  }
+
+  "+" should "add two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (RatioInterval.Unison + RatioInterval.Unison) shouldEqual RatioInterval.Unison
+    (RatioInterval.Unison + RatioInterval(3, 2)) shouldEqual RatioInterval(3, 2)
+    // Commutative
+    (RatioInterval(5, 4) + RatioInterval(6, 5)) shouldEqual RatioInterval(3, 2)
+    (RatioInterval(6, 5) + RatioInterval(5, 4)) shouldEqual RatioInterval(3, 2)
+
+    (RatioInterval.Unison + RatioInterval.Octave) shouldEqual RatioInterval.Octave
+    (RatioInterval(3, 2) + RatioInterval.Octave) shouldEqual RatioInterval(3, 1)
+  }
+
+  "-" should "subtract two intervals musically (on the logarithmic scale)" in {
+    // Neutral element
+    (RatioInterval.Unison - RatioInterval.Unison) shouldEqual RatioInterval.Unison
+    (RatioInterval(3, 2) - RatioInterval.Unison) shouldEqual RatioInterval(3, 2)
+
+    (RatioInterval(3, 2) - RatioInterval(6, 5)) shouldEqual RatioInterval(5, 4)
+
+    (RatioInterval.Unison - RatioInterval.Octave) shouldEqual RatioInterval(1, 2)
+    (RatioInterval(3, 2) - RatioInterval.Octave) shouldEqual RatioInterval(3, 4)
+  }
+
+  "*" should "repeatedly add an interval to itself musically (on the logarithmic scale)" in {
+    // Neutral element
+    (RatioInterval.Unison * 5) shouldEqual RatioInterval.Unison
+
+    (RatioInterval(9, 8) * 2) shouldEqual RatioInterval(81, 64)
+
+    // Synthonic comma
+    (RatioInterval(3, 2) * 4 - RatioInterval(5, 1)) shouldEqual RatioInterval(81, 80)
+  }
+
+  "invert" should "compute the interval inversion" in {
+    RatioInterval.Unison.invert shouldEqual RatioInterval.Octave
+    RatioInterval.Octave.invert shouldEqual RatioInterval.Unison
+    RatioInterval(3, 2).invert shouldEqual RatioInterval(4, 3)
+    RatioInterval(4, 3).invert shouldEqual RatioInterval(3, 2)
+
+    assertThrows[IllegalArgumentException] {
+      RatioInterval(3, 1).invert
+    }
+    assertThrows[IllegalArgumentException] {
+      RatioInterval(2, 3).invert
+    }
+  }
+
+  "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
+    // Neutral element
+    RatioInterval.Unison.toStringLengthInterval shouldEqual RatioInterval.Unison
+
+    RatioInterval.Octave.toStringLengthInterval shouldEqual RatioInterval(1, 2)
+    RatioInterval(5, 4).toStringLengthInterval shouldEqual RatioInterval(4, 5)
+
+    RatioInterval(7, 2).toStringLengthInterval shouldEqual RatioInterval(2, 7)
+    RatioInterval(2, 3).toStringLengthInterval shouldEqual RatioInterval(3, 2)
+  }
+
   "isUnison" should "correctly report if the interval is a unison" in {
     RatioInterval(1, 1).isUnison should be(true)
     RatioInterval(3, 2).isUnison should be(false)
   }
+
+  "toRealInterval" should "convert the interval to a RealInterval" in {
+    RatioInterval.Unison.toRealInterval shouldEqual RealInterval(1.0)
+    RatioInterval.Octave.toRealInterval shouldEqual RealInterval(2.0)
+    RatioInterval(3, 2).toRealInterval shouldEqual RealInterval(1.5)
+    RatioInterval(5, 2).toRealInterval shouldEqual RealInterval(2.5)
+    RatioInterval(4, 5).toRealInterval shouldEqual RealInterval(0.8)
+  }
+
+  "toCentsInterval" should "convert the interval to a CentsInterval" in {
+    RatioInterval.Unison.toCentsInterval shouldEqual CentsInterval(0.0)
+    RatioInterval.Octave.toCentsInterval shouldEqual CentsInterval(1200.0)
+    RatioInterval(3, 2).toCentsInterval shouldEqual CentsInterval(RatioInterval(3, 2).cents)
+    RatioInterval(5, 2).toCentsInterval.cents should be > 1200.0
+    RatioInterval(4, 5).toCentsInterval.cents should be < 0.0
+  }
 }
 
 class CentsIntervalTest extends AnyFlatSpec with Matchers {
+  private val epsilon: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
   "isUnison" should "correctly report if the interval is a unison" in {
     CentsInterval(0.0).isUnison should be(true)
     CentsInterval(700.0).isUnison should be(false)
@@ -68,6 +189,9 @@ class CentsIntervalTest extends AnyFlatSpec with Matchers {
 }
 
 class EdoIntervalTest extends AnyFlatSpec with Matchers {
+  private val epsilon: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
   "isUnison" should "correctly report if the interval is a unison" in {
     EdoInterval(72, 0).isUnison should be(true)
     EdoInterval(72, 42).isUnison should be(false)
@@ -76,8 +200,7 @@ class EdoIntervalTest extends AnyFlatSpec with Matchers {
 
 class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
   private val epsilon: Double = 1e-2
-  private implicit val doubleEquality: Equality[Double] =
-    TolerantNumerics.tolerantDoubleEquality(epsilon)
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   //@formatter:off
   private val validIntervals = Table[RatioInterval, Double, RatioInterval, RatioInterval](
