@@ -25,8 +25,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json._
 
-import java.nio.file.{Path, Paths}
-
 class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
   import JsonScaleListFormat._
 
