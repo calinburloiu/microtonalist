@@ -16,13 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{CentsInterval, Interval, Scale}
+import org.calinburloiu.music.intonation.{CentsInterval, Interval, RatioInterval, Scale}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
-import java.io.{InputStream, OutputStream}
+import java.io.{InputStream, OutputStream, PrintWriter}
 
 class JsonScaleFormat extends ScaleFormat {
+  import JsonScaleFormat._
 
   override def read(inputStream: InputStream): Scale[Interval] = {
     val inputJson = Json.parse(inputStream)
@@ -30,15 +31,20 @@ class JsonScaleFormat extends ScaleFormat {
     read(inputJson)
   }
 
-  def read(inputJson: JsValue): Scale[Interval] = inputJson.validate(JsonScaleFormat.jsonScaleReads) match {
+  def read(inputJson: JsValue): Scale[Interval] = inputJson.validate(jsonAllScaleReads) match {
     case JsSuccess(scale: Scale[Interval], _) => scale
     case error: JsError => throw new InvalidJsonScaleException(JsError.toJson(error).toString)
   }
 
-  override def write(scale: Scale[Interval]): OutputStream = ???
+  override def write(scale: Scale[Interval], outputStream: OutputStream): Unit = {
+    val json = writeAsJsValue(scale)
+    val writer = new PrintWriter(outputStream)
+    writer.write(json.toString)
+  }
+
+  def writeAsJsValue(scale: Scale[Interval]): JsValue = Json.toJson(scale)(jsonVerboseScaleFormat)
 }
 
-// TODO DI
 object JsonScaleFormat extends JsonScaleFormat {
 
   implicit val intervalReads: Reads[Interval] = Reads.StringReads.collect(
@@ -51,20 +57,24 @@ object JsonScaleFormat extends JsonScaleFormat {
     }
   }
 
-  val jsonScaleReads: Reads[Scale[Interval]] = {
-    //@formatter:off
-    val jsonScaleObjReads = (
-      (__ \ "intervals").read[Seq[Interval]] and
-      (__ \ "name").readNullable[String]
-    ) { (pitches: Seq[Interval], name: Option[String]) =>
-      ScaleFormat.createScale(name.getOrElse(""), pitches)
-    }
-    //@formatter:on
-
-    jsonScaleObjReads orElse __.read[Seq[Interval]].map { pitches =>
-      ScaleFormat.createScale("", pitches)
-    }
+  implicit val intervalWrites: Writes[Interval] = Writes {
+    case RatioInterval(numerator, denominator) => JsString(s"$numerator/$denominator")
+    case interval: Interval => JsNumber(interval.cents)
   }
+
+  val jsonVerboseScaleFormat: Format[Scale[Interval]] = (
+    (__ \ "intervals").format[Seq[Interval]] and
+    (__ \ "name").formatNullable[String]
+  )({ (pitches: Seq[Interval], name: Option[String]) =>
+    ScaleFormat.createScale(name.getOrElse(""), pitches)
+  }, { scale =>
+    (scale.intervals, Some(scale.name))
+  })
+
+  val jsonConciseScaleReads: Reads[Scale[Interval]] = __.read[Seq[Interval]]
+    .map { pitches => ScaleFormat.createScale("", pitches) }
+
+  val jsonAllScaleReads: Reads[Scale[Interval]] = jsonVerboseScaleFormat orElse jsonConciseScaleReads
 }
 
 class InvalidJsonScaleException(message: String, cause: Throwable = null)

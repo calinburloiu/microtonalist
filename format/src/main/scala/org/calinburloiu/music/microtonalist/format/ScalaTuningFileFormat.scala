@@ -78,7 +78,7 @@ class ScalaTuningFileFormatImpl extends ScalaTuningFileFormat with StrictLogging
     ScaleFormat.createScale(description, pitches)
   }
 
-  override def write(scale: Scale[Interval]): OutputStream = ???
+  override def write(scale: Scale[Interval], outputStream: OutputStream): Unit = ???
 }
 
 class InvalidScalaTuningFileException(message: String, cause: Throwable = null)

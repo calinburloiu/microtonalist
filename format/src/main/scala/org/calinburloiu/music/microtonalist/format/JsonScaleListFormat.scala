@@ -42,10 +42,11 @@ class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
     fromReprToDomain(repr)
   }
 
+  // TODO #38 OutputStream should be a param
   /**
    * Writes a [[ScaleList]] to output stream.
    */
-  override def write(scaleList: ScaleList): OutputStream = ???
+  override def write(scaleList: ScaleList, outputStream: OutputStream): Unit = ???
 
   private def readRepr(inputStream: InputStream): ScaleListRepr = {
     import JsonScaleListFormat._
@@ -95,7 +96,7 @@ object JsonScaleListFormat {
   private val tolerance: Double = DefaultCentsTolerance
 
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
-  private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
+  private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
   private[JsonScaleListFormat] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =

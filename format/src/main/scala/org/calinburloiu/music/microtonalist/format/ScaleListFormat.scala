@@ -33,7 +33,7 @@ trait ScaleListFormat {
   /**
    * Writes a [[ScaleList]] to [[OutputStream]].
    */
-  def write(scaleList: ScaleList): OutputStream
+  def write(scaleList: ScaleList, outputStream: OutputStream): Unit
 }
 
 /**

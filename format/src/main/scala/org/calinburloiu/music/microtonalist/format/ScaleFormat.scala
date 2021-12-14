@@ -24,7 +24,7 @@ trait ScaleFormat {
 
   def read(inputStream: InputStream): Scale[Interval]
 
-  def write(scale: Scale[Interval]): OutputStream
+  def write(scale: Scale[Interval], outputStream: OutputStream): Unit
 }
 
 object ScaleFormat {
