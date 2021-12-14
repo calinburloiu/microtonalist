@@ -24,44 +24,64 @@ class JsonPreprocessor(refLoaders: Seq[JsonRefLoader]) {
 
   import JsonPreprocessor._
 
-  def preprocess(obj: JsObject): JsObject = preprocessObject(obj, JsPath())
+  def preprocess(obj: JsObject): JsObject = preprocessObject(obj, JsPath()).value
 
-  private def preprocessValue(json: JsValue, path: JsPath): JsValue = {
+  /**
+   * @param json JSON value to preprocess
+   * @param path path where the value was found
+   * @return [[Unchanged]] with the unchanged value or [[Changed]] with the preprocessed value
+   */
+  private def preprocessValue(json: JsValue, path: JsPath): PreprocessResult[JsValue] = {
     json match {
       case obj: JsObject => preprocessObject(obj, path)
       case array: JsArray => preprocessArray(array, path)
-      case other => other
+      case other => Unchanged(other)
     }
   }
 
-  private def preprocessObject(obj: JsObject, path: JsPath): JsObject = {
+  /**
+   * @param obj JSON object to preprocess
+   * @param path path where the object was found
+   * @return [[Unchanged]] with the unchanged object or [[Changed]] with the preprocessed object
+   */
+  private def preprocessObject(obj: JsObject, path: JsPath): PreprocessResult[JsObject] = {
     val preprocessedMap = obj.value.flatMap {
       case (`RefProp`, JsString(_)) => None
       case (prop, value) => Some((prop, preprocessValue(value, path \ prop)))
     }
-    val preprocessedObj = JsObject(preprocessedMap)
+    lazy val preprocessedObj = JsObject(preprocessedMap.view.mapValues(_.value).toMap)
 
-    val maybeUri = obj.value.get(RefProp) match {
+    val maybeRefUri = obj.value.get(RefProp) match {
       case Some(JsString(uri)) => Some(uri)
       case _ => None
     }
 
-    maybeUri match {
+    maybeRefUri match {
       case Some(uriString) =>
-        // TODO #38 Use a special exception class
+        // We have a reference inside this object
         val uri = new URI(uriString)
         val loadedJson = loadRef(uri, path)
-          .getOrElse(throw new JsonRefLoadException(uri, path, "No loaded matched the reference!"))
-        preprocessedObj ++ loadedJson
-      case None => preprocessedObj
+          .getOrElse(throw new JsonRefLoadException(uri, path, "No loader matched the reference!"))
+        Changed(preprocessedObj ++ loadedJson)
+      case None =>
+        // There is no reference inside this object.
+        // Was there one deeper inside this object properties?
+        val changed = preprocessedMap.values.exists(_.wasChanged)
+        if (changed) Changed(preprocessedObj) else Unchanged(obj)
     }
   }
 
-  private def preprocessArray(array: JsArray, path: JsPath): JsArray = {
-    val items = array.value.zipWithIndex.map {
+  /**
+   * @param array JSON array to preprocess
+   * @param path path where the array was found
+   * @return [[Unchanged]] with the unchanged array or [[Changed]] with the preprocessed array
+   */
+  private def preprocessArray(array: JsArray, path: JsPath): PreprocessResult[JsArray] = {
+    val resultItems = array.value.zipWithIndex.map {
       case (value, i) => preprocessValue(value, path \ i)
     }
-    JsArray(items)
+    val changed = resultItems.exists(_.wasChanged)
+    if (changed) Changed(JsArray(resultItems.map(_.value))) else Unchanged(array)
   }
 
   private def loadRef(uri: URI, pathContext: JsPath): Option[JsObject] = {
@@ -78,6 +98,19 @@ class JsonPreprocessor(refLoaders: Seq[JsonRefLoader]) {
 
 object JsonPreprocessor {
   val RefProp: String = "$ref"
+  
+  sealed trait PreprocessResult[+A <: JsValue] {
+    val value: A
+    def wasChanged: Boolean
+  }
+
+  case class Unchanged[+A <: JsValue](override val value: A) extends PreprocessResult[A] {
+    override def wasChanged: Boolean = false
+  }
+
+  case class Changed[+A <: JsValue](override val value: A) extends PreprocessResult[A] {
+    override def wasChanged: Boolean = true
+  }
 }
 
 trait JsonRefLoader {

@@ -28,15 +28,8 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
   behavior of classOf[JsonPreprocessor].getSimpleName
 
-  // TODO #38 Is it used more than once?
-  private def assertPreprocessing(input: JsObject, loaders: RefLoaders, expectedOutput: JsObject): Unit = {
-    val preprocessor = new JsonPreprocessor(loaders)
-    val output = preprocessor.preprocess(input)
-
-    output shouldEqual expectedOutput
-  }
-
   it should "replace references in a JSON based on URI" in {
+    // Given
     val dogUri = "https://dogs.org/pamela"
     val catUri = "https://cats.org/mitzy"
     val input = Json.obj(
@@ -65,8 +58,8 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
       (uri, _) => {
         if (uri.toString == catUri) {
           Some(Json.obj(
-            "animal" -> "dog",
-            "name" -> "Pamela"
+            "animal" -> "cat",
+            "name" -> "Mitzy"
           ))
         } else {
           None
@@ -102,13 +95,17 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
           "name" -> "Florica"
         ),
         Json.obj(
-          "animal" -> "dog",
-          "name" -> "Pamela"
+          "animal" -> "cat",
+          "name" -> "Mitzy"
         )
       )
     )
+    val preprocessor = new JsonPreprocessor(loaders)
 
-    assertPreprocessing(input, loaders, expectedOutput)
+    // When
+    val output = preprocessor.preprocess(input)
+    // Then
+    output shouldEqual expectedOutput
   }
 
   it should "pass the correct JsonPath context to JsonRefLoaders" in {
@@ -169,7 +166,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     }
     exception.uri shouldEqual new URI(uri)
     exception.pathContext shouldEqual JsPath()
-    exception.getMessage shouldEqual "No loaded matched the reference!"
+    exception.getMessage shouldEqual "No loader matched the reference!"
   }
 
   it should "fail if an error occurs while loading a reference" in {
