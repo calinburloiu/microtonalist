@@ -20,7 +20,7 @@ import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
-import org.calinburloiu.music.microtonalist.format.{DefaultScaleRepo, FileScaleRepo, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, JsonScaleListFormat, MicrotonalistLibraryScaleRepo, ScaleFormatRegistry}
+import org.calinburloiu.music.microtonalist.format.{DefaultScaleRepo, FileScaleRepo, FormatModule, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, JsonScaleListFormat, MicrotonalistLibraryScaleRepo, ScaleFormatRegistry}
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.MidiManager
@@ -87,15 +87,10 @@ object MicrotonalistApp extends StrictLogging {
     // TODO #38 Rename "scale library" to "microtonalist library" everywhere
     val baseUri = new URI(Paths.get(inputFileName).getParent.toAbsolutePath.toString)
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val scaleFormatRegistry = new ScaleFormatRegistry(Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat))
-    val fileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
-    val httpScaleRepo = new HttpScaleRepo(scaleFormatRegistry)
-    val scaleRepo = new DefaultScaleRepo(baseUri, fileScaleRepo, httpScaleRepo,
-      new MicrotonalistLibraryScaleRepo(scaleLibraryPath.toUri, fileScaleRepo, httpScaleRepo))
-    val scaleListFormat = new JsonScaleListFormat(scaleRepo)
+    val formatModule = new FormatModule(scaleLibraryPath.toUri, baseUri)
 
     // # Microtuner
-    val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
+    val scaleList = formatModule.scaleListFormat.read(new FileInputStream(inputFileName))
     val tuningList = TuningList.fromScaleList(scaleList)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)

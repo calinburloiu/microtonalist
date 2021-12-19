@@ -148,6 +148,7 @@ object MicrotonalistLibraryScaleRepo {
   private val RootPath = Paths.get("/")
 }
 
+// TODO #38 Not sure about the name of this class
 class DefaultScaleRepo(baseUri: URI,
                        fileScaleRepo: FileScaleRepo,
                        httpScaleRepo: HttpScaleRepo,
