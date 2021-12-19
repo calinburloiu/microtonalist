@@ -51,7 +51,7 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
   def load(): HoconConfig = configFile
     .map { path =>
       val loadedHoconConfig = ConfigFactory.parseFile(path.toFile)
-      logger.info(s"Loaded config file from '$path''")
+      logger.info(s"Loaded config file from \"$path\"")
       loadedHoconConfig.resolve()
     }
     .getOrElse {
@@ -63,11 +63,11 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
     if (_dirty) {
       configFile.foreach { path =>
         Try(Files.newBufferedWriter(path, StandardCharsets.UTF_8)).fold(
-          exception => logger.error(s"Failed to save config file to '$path'", exception),
+          exception => logger.error(s"Failed to save config file to \"$path\"", exception),
           writer => {
             writer.write(render())
             _dirty = false
-            logger.info(s"Saved config file to '$path")
+            logger.info(s"Saved config file to \"$path\"")
           }
         )
       }

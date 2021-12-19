@@ -30,7 +30,7 @@ case class ScaleListRepr(name: Option[String],
                          globalFillTuningMapper: Option[TuningMapper] = None,
                          config: Option[ScaleListConfigRepr]) {
 
-  def resolve(implicit scaleLibrary: ScaleLibrary): ScaleListRepr = {
+  def resolve(implicit scaleLibrary: ScaleRepo): ScaleListRepr = {
     copy(
       modulations = modulations.map { modulation =>
         modulation.copy(

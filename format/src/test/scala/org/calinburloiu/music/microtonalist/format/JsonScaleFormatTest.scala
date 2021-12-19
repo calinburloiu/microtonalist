@@ -22,6 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.Json
 
 class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
+  private val scaleFormat: JsonScaleFormat = new JsonScaleFormat
 
   private val centsScale = CentsScale("abc", 0.0, 204.3, 315.9, 498.5)
   private val centsScaleJson = Json.obj(
@@ -32,13 +33,13 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
   )
 
   "A JSON Scale with pitches in cents" should "correctly create a CentsScale object" in {
-    val result = JsonScaleFormat.read(centsScaleJson)
+    val result = scaleFormat.read(centsScaleJson)
     result.getClass shouldEqual classOf[CentsScale]
     result shouldEqual centsScale
   }
 
   "A scale with pitches as cents" should "correctly be written as JSON" in {
-    JsonScaleFormat.writeAsJsValue(centsScale) shouldEqual centsScaleJson
+    scaleFormat.writeAsJsValue(centsScale) shouldEqual centsScaleJson
   }
 
   private val ratiosScale = RatiosScale("abc", (1, 1), (9, 8), (5, 4), (4, 3))
@@ -50,13 +51,13 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
   )
 
   "A JSON Scale with pitches as ratios" should "correctly create a RatiosScale object" in {
-    val result = JsonScaleFormat.read(ratiosScaleJson)
+    val result = scaleFormat.read(ratiosScaleJson)
     result.getClass shouldEqual classOf[RatiosScale]
     result shouldEqual ratiosScale
   }
 
   "A scale with pitches as rations" should "correctly be written as JSON" in {
-    JsonScaleFormat.writeAsJsValue(ratiosScale) shouldEqual ratiosScaleJson
+    scaleFormat.writeAsJsValue(ratiosScale) shouldEqual ratiosScaleJson
   }
 
   "A JSON Scale with pitches in both cents and as ratios" should "correctly create a Scale object" in {
@@ -67,7 +68,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
       )
     )
 
-    val result = JsonScaleFormat.read(json)
+    val result = scaleFormat.read(json)
 
     result.getClass shouldEqual classOf[Scale[Interval]]
     result shouldEqual Scale("abc",
@@ -81,7 +82,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
       )
     )
 
-    val result = JsonScaleFormat.read(json)
+    val result = scaleFormat.read(json)
 
     result.name should be(empty)
   }
@@ -95,7 +96,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
     )
 
     assertThrows[InvalidJsonScaleException] {
-      JsonScaleFormat.read(json)
+      scaleFormat.read(json)
     }
   }
 }

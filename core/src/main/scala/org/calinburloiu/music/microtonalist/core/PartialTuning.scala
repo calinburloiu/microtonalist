@@ -78,7 +78,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
     val resultDeviations = (this.deviations zip that.deviations).map {
-      case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).headOption
+      case (thisDeviation, thatDeviation) => thisDeviation.orElse(thatDeviation)
     }
 
     PartialTuning(resultDeviations, name)

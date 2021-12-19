@@ -27,11 +27,11 @@ import java.nio.file.{Path, Paths}
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
  *
- * @param scaleLibrary repository for retrieving scales by URI
+ * @param scaleRepo repository for retrieving scales by URI
  */
-class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
+class JsonScaleListFormat(scaleRepo: ScaleRepo) extends ScaleListFormat {
 
-  private implicit val scaleLibraryImpl: ScaleLibrary = scaleLibrary
+  private implicit val scaleLibraryImpl: ScaleRepo = scaleRepo
 
   /**
    * Reads a [[ScaleList]] from input stream.
@@ -143,7 +143,8 @@ object JsonScaleListFormat {
 
   def readScaleListFromResources(path: String): ScaleList = {
     val scaleLibraryPath: Path = Paths.get(getClass.getClassLoader.getResource("scales/").getFile)
-    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
+    val scaleFormatRegistry = new ScaleFormatRegistry(Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat))
+    val scaleListReader = new JsonScaleListFormat(new FileScaleRepo(scaleFormatRegistry))
     val inputStream = getClass.getClassLoader.getResourceAsStream(path)
 
     scaleListReader.read(inputStream)

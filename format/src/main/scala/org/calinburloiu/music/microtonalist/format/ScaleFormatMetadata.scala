@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-case class FormatIdentifier(name: String,
-                            extensions: Set[String],
-                            // TODO Using a special object for MediaType would provide validation
-                            mediaTypes: Set[String] = Set.empty)
+import com.google.common.net.MediaType
+
+case class ScaleFormatMetadata(name: String,
+                               extensions: Set[String],
+                               mediaTypes: Set[MediaType] = Set.empty)

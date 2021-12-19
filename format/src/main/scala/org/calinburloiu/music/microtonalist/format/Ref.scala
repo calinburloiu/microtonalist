@@ -19,6 +19,8 @@ package org.calinburloiu.music.microtonalist.format
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
+import java.net.URI
+
 // TODO How can I make it like a collection? (with map, foreach etc.)
 sealed trait Ref[+A] {
 
@@ -54,7 +56,7 @@ case class UnresolvedRef[+A](uri: String) extends Ref[A] {
   override def valueOption: Option[A] = None
 
   override def resolve[B >: A](implicit refResolver: RefResolver[B]): Ref[B] =
-    ResolvedRef(uri, refResolver.get(uri))
+    ResolvedRef(uri, refResolver.read(new URI(uri)))
 }
 
 case class ResolvedRef[+A](uri: String, value: A) extends Ref[A] {

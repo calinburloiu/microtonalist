@@ -25,20 +25,14 @@ import scala.io.Source
 import scala.util.Try
 import scala.util.matching.Regex
 
-trait ScalaTuningFileFormat extends ScaleFormat {
+class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
 
-  @throws[IOException]
-  @throws[InvalidScalaTuningFileException]
-  override def read(inputStream: InputStream): Scale[Interval]
-}
-
-// TODO DI
-object ScalaTuningFileFormat extends ScalaTuningFileFormatImpl
-
-class ScalaTuningFileFormatImpl extends ScalaTuningFileFormat with StrictLogging {
+  override val metadata: ScaleFormatMetadata = ScaleFormatMetadata("Huygens-Fokker Scala Application Scale", Set("scl"))
 
   private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
 
+  @throws[IOException]
+  @throws[InvalidScalaTuningFileException]
   override def read(inputStream: InputStream): Scale[Interval] = {
     val lines = Source.fromInputStream(inputStream, StandardCharsets.ISO_8859_1.toString).getLines()
       .filter(!_.startsWith("!")).toIndexedSeq

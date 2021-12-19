@@ -21,6 +21,7 @@ import org.calinburloiu.music.intonation._
 import java.io.{InputStream, OutputStream}
 
 trait ScaleFormat {
+  val metadata: ScaleFormatMetadata
 
   def read(inputStream: InputStream): Scale[Interval]
 

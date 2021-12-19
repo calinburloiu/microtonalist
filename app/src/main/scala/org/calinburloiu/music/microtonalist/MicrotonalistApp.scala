@@ -20,12 +20,13 @@ import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
-import org.calinburloiu.music.microtonalist.format.{JsonScaleListFormat, LocalScaleLibrary, ScaleFormatRegistry}
+import org.calinburloiu.music.microtonalist.format.{DefaultScaleRepo, FileScaleRepo, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, JsonScaleListFormat, MicrotonalistLibraryScaleRepo, ScaleFormatRegistry}
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.MidiManager
 
 import java.io.FileInputStream
+import java.net.URI
 import java.nio.file.Paths
 import scala.util.Try
 
@@ -83,8 +84,15 @@ object MicrotonalistApp extends StrictLogging {
     val receiver = midiManager.outputReceiver(outputDeviceId)
 
     // # I/O
+    // TODO #38 Rename "scale library" to "microtonalist library" everywhere
+    val baseUri = new URI(Paths.get(inputFileName).getParent.toAbsolutePath.toString)
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val scaleListFormat = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
+    val scaleFormatRegistry = new ScaleFormatRegistry(Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat))
+    val fileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
+    val httpScaleRepo = new HttpScaleRepo(scaleFormatRegistry)
+    val scaleRepo = new DefaultScaleRepo(baseUri, fileScaleRepo, httpScaleRepo,
+      new MicrotonalistLibraryScaleRepo(scaleLibraryPath.toUri, fileScaleRepo, httpScaleRepo))
+    val scaleListFormat = new JsonScaleListFormat(scaleRepo)
 
     // # Microtuner
     val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))

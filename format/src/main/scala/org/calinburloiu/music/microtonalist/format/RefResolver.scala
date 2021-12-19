@@ -16,13 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import scala.util.Try
+import com.google.common.net.MediaType
+
+import java.net.URI
 
 trait RefResolver[+A] {
 
-  def get(uri: String, mediaType: Option[String] = None): A
-
-  def getOption(uri: String, mediaType: Option[String] = None): Option[A] = Try {
-    get(uri, mediaType)
-  }.toOption
+  def read(uri: URI, mediaType: Option[MediaType] = None): A
 }

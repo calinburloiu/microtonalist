@@ -24,7 +24,8 @@ import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
 
-class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
+class HuygensFokkerScalaScaleFormatTest extends AnyFlatSpec with Matchers {
+  private val scaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
 
   "Reading a .scl file with invalid header" should "throw InvalidScalaTuningFileException" in testFailure(
     "description",
@@ -205,7 +206,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
     val input = scalaTuningFileString.stripMargin.toInputStream
 
     val caught = intercept[InvalidScalaTuningFileException] {
-      ScalaTuningFileFormat.read(input)
+      scaleFormat.read(input)
     }
 
     maybeMessageContained match {
@@ -218,7 +219,7 @@ class ScalaTuningFileFormatTest extends AnyFlatSpec with Matchers {
   def testSuccess(scalaTuningFileString: String, expectedScale: Scale[Interval]): Unit = {
     val input = scalaTuningFileString.stripMargin.toInputStream
 
-    val actualScale = ScalaTuningFileFormat.read(input)
+    val actualScale = scaleFormat.read(input)
 
     actualScale.getClass shouldEqual expectedScale.getClass
     actualScale shouldEqual expectedScale
