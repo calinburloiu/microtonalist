@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.io.{InputStream, OutputStream}
+import java.net.URI
 
 /**
  * Trait extended for serialization/deserialization of [[ScaleList]]s.
@@ -27,8 +28,11 @@ trait ScaleListFormat {
 
   /**
    * Reads a [[ScaleList]] from an [[InputStream]].
+   * @param inputStream stream to read input from
+   * @param baseUri an optional base URI for resolving relative URIs present in the input scale list
+   * @return the scale list read
    */
-  def read(inputStream: InputStream): ScaleList
+  def read(inputStream: InputStream, baseUri: Option[URI]): ScaleList
 
   /**
    * Writes a [[ScaleList]] to [[OutputStream]].

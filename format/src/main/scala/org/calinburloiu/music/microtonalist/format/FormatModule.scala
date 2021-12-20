@@ -18,8 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 
-// TODO #38 baseUri shouldn't be injected in DefaultScaleRepo
-class FormatModule(microtonalistLibraryUri: URI, baseUri: URI) {
+class FormatModule(microtonalistLibraryUri: URI) {
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
   lazy val jsonScaleFormat: ScaleFormat = new JsonScaleFormat
 
@@ -31,8 +30,13 @@ class FormatModule(microtonalistLibraryUri: URI, baseUri: URI) {
   lazy val microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo = new MicrotonalistLibraryScaleRepo(
     microtonalistLibraryUri, fileScaleRepo, httpScaleRepo)
 
-  lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(baseUri,
+  lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
     fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
 
   lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(defaultScaleRepo)
+
+  lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat)
+  lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(scaleListFormat)
+
+  lazy val defaultScaleListRepo: ScaleListRepo = new DefaultScaleListRepo(fileScaleListRepo, httpScaleListRepo)
 }

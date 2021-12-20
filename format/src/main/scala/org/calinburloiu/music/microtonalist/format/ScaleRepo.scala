@@ -62,13 +62,9 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
 }
 
-object FileScaleRepo {
-  val FileUriScheme: String = "file"
-}
-
 class HttpScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
   override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] = {
-    require(uri.isAbsolute && UriSchemes.contains(uri.getScheme), "URI must be absolute and have file scheme!")
+    require(uri.isAbsolute && UriSchemes.contains(uri.getScheme), "URI must be absolute and have http/https scheme!")
 
     ???
   }
@@ -77,27 +73,17 @@ class HttpScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
 }
 
 object HttpScaleRepo {
-  val HttpUriScheme: String = "http"
-  val HttpsUriScheme: String = "https"
-  val UriSchemes: Set[String] = Set(HttpUriScheme, HttpsUriScheme)
+  val UriSchemes: Set[String] = Set(UriScheme.Http, UriScheme.Https)
 }
 
-abstract class ComposedScaleRepo() extends ScaleRepo {
-  override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] = {
-    val resolvedUri = resolveUri(uri)
-    val scaleRepo = getScaleRepoOrThrow(resolvedUri, mediaType)
-    scaleRepo.read(resolvedUri, mediaType)
-  }
-
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = {
-    val resolvedUri = resolveUri(uri)
-    val scaleRepo = getScaleRepoOrThrow(resolvedUri, mediaType)
-    scaleRepo.write(scale, resolvedUri, mediaType)
-  }
-
+trait ComposedScaleRepo extends ScaleRepo {
   def getScaleRepo(uri: URI): Option[ScaleRepo]
 
-  def resolveUri(uri: URI): URI
+  override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] =
+    getScaleRepoOrThrow(uri, mediaType).read(uri, mediaType)
+
+  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
+    getScaleRepoOrThrow(uri, mediaType).write(scale, uri, mediaType)
 
   protected def getScaleRepoOrThrow(uri: URI, mediaType: Option[MediaType]): ScaleRepo = getScaleRepo(uri)
     .getOrElse(throw new BadScaleRequestException(uri, mediaType))
@@ -106,20 +92,13 @@ abstract class ComposedScaleRepo() extends ScaleRepo {
 class MicrotonalistLibraryScaleRepo(libraryUri: URI,
                                     fileScaleRepo: FileScaleRepo,
                                     httpScaleRepo: HttpScaleRepo) extends ScaleRepo {
-  import MicrotonalistLibraryScaleRepo._
-
   val scaleRepo: ScaleRepo = new ComposedScaleRepo {
     override def getScaleRepo(uri: URI): Option[ScaleRepo] = {
       uri.getScheme match {
-        case FileScaleRepo.FileUriScheme => Some(fileScaleRepo)
-        case HttpScaleRepo.HttpUriScheme | HttpScaleRepo.HttpsUriScheme => Some(httpScaleRepo)
+        case UriScheme.File => Some(fileScaleRepo)
+        case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
         case _ => None
       }
-    }
-
-    override def resolveUri(uri: URI): URI = {
-      assert(uri.isAbsolute)
-      uri
     }
   }
 
@@ -134,35 +113,26 @@ class MicrotonalistLibraryScaleRepo(libraryUri: URI,
   }
 
   private def resolveUri(uri: URI) = {
-    require(uri.isAbsolute && uri.getScheme == MicrotonalistUriScheme,
+    require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
       "URI must be absolute and have microtonalist scheme!")
 
-    val relativePath = RootPath.relativize(Paths.get(uri.getPath))
+    val absolutePath = Paths.get(uri.getPath)
+    // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
+    val relativePath = absolutePath.getRoot.relativize(absolutePath)
     libraryUri.resolve(new URI(relativePath.toString))
   }
 }
 
-object MicrotonalistLibraryScaleRepo {
-  val MicrotonalistUriScheme: String = "microtonalist"
-
-  private val RootPath = Paths.get("/")
-}
-
 // TODO #38 Not sure about the name of this class
-class DefaultScaleRepo(baseUri: URI,
-                       fileScaleRepo: FileScaleRepo,
+class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
                        httpScaleRepo: HttpScaleRepo,
                        microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo) extends ComposedScaleRepo {
-  override def getScaleRepo(uri: URI): Option[ScaleRepo] = {
-    uri.getScheme match {
-      case null | FileScaleRepo.FileUriScheme => Some(fileScaleRepo)
-      case HttpScaleRepo.HttpUriScheme | HttpScaleRepo.HttpsUriScheme => Some(httpScaleRepo)
-      case MicrotonalistLibraryScaleRepo.MicrotonalistUriScheme => Some(microtonalistLibraryScaleRepo)
-      case _ => None
-    }
+  override def getScaleRepo(uri: URI): Option[ScaleRepo] = uri.getScheme match {
+    case null | UriScheme.File => Some(fileScaleRepo)
+    case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
+    case UriScheme.MicrotonalistLibrary => Some(microtonalistLibraryScaleRepo)
+    case _ => None
   }
-
-  override def resolveUri(uri: URI): URI = baseUri.resolve(uri)
 }
 
 /**

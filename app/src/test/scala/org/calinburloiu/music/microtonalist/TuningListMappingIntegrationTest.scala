@@ -30,7 +30,7 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   it should "successfully create a tuning list out of 'minor_major.scalist' file" in {
-    val scaleListResource = "scale_lists/minor_major.scalist"
+    val scaleListResource = "minor_major.scalist"
     val scaleList = JsonScaleListFormat.readScaleListFromResources(scaleListResource)
     val tuningList = TuningList.fromScaleList(scaleList)
 

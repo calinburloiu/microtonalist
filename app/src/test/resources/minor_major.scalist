@@ -6,21 +6,21 @@
     "mapQuarterTonesLow": true
   },
   "globalFill": {
-    "ref": "chromatic.scl"
+    "ref": "scales/chromatic.scl"
   },
   "tuningReducer": "merge",
   "modulations": [
     {
       "transposition": "1",
       "scale": {
-        "ref": "minor.jscl"
+        "ref": "scales/minor.jscl"
       },
       "tuningMapper": "auto"
     },
     {
       "transposition": "6/5",
       "scale": {
-        "ref": "major.scl"
+        "ref": "scales/major.scl"
       }
     },
     {

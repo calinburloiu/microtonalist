@@ -85,12 +85,11 @@ object MicrotonalistApp extends StrictLogging {
 
     // # I/O
     // TODO #38 Rename "scale library" to "microtonalist library" everywhere
-    val baseUri = new URI(Paths.get(inputFileName).getParent.toAbsolutePath.toString)
     val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val formatModule = new FormatModule(scaleLibraryPath.toUri, baseUri)
+    val formatModule = new FormatModule(scaleLibraryPath.toUri)
 
     // # Microtuner
-    val scaleList = formatModule.scaleListFormat.read(new FileInputStream(inputFileName))
+    val scaleList = formatModule.defaultScaleListRepo.read(Paths.get(inputFileName).toUri)
     val tuningList = TuningList.fromScaleList(scaleList)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)

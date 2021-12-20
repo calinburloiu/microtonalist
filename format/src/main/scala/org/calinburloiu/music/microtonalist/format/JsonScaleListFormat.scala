@@ -22,7 +22,7 @@ import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
-import java.nio.file.{Path, Paths}
+import java.net.URI
 
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
@@ -30,14 +30,11 @@ import java.nio.file.{Path, Paths}
  * @param scaleRepo repository for retrieving scales by URI
  */
 class JsonScaleListFormat(scaleRepo: ScaleRepo) extends ScaleListFormat {
-
-  private implicit val scaleLibraryImpl: ScaleRepo = scaleRepo
-
   /**
    * Reads a [[ScaleList]] from input stream.
    */
-  override def read(inputStream: InputStream): ScaleList = {
-    val repr = readRepr(inputStream).resolve
+  override def read(inputStream: InputStream, baseUri: Option[URI]): ScaleList = {
+    val repr = readRepr(inputStream).resolve(scaleRepo, baseUri)
 
     fromReprToDomain(repr)
   }
@@ -141,12 +138,13 @@ object JsonScaleListFormat {
     )
   }
 
-  def readScaleListFromResources(path: String): ScaleList = {
-    val scaleLibraryPath: Path = Paths.get(getClass.getClassLoader.getResource("scales/").getFile)
+  // TODO #38 This is not very efficient, we should a pass a ScaleListRepo
+  def readScaleListFromResources(pathString: String): ScaleList = {
+    val uri = getClass.getClassLoader.getResource(pathString).toURI
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat))
-    val scaleListReader = new JsonScaleListFormat(new FileScaleRepo(scaleFormatRegistry))
-    val inputStream = getClass.getClassLoader.getResourceAsStream(path)
+    val scaleListFormat = new JsonScaleListFormat(new FileScaleRepo(scaleFormatRegistry))
+    val scaleListRepo = new FileScaleListRepo(scaleListFormat)
 
-    scaleListReader.read(inputStream)
+    scaleListRepo.read(uri)
   }
 }
