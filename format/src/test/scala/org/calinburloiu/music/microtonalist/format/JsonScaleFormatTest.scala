@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.Json
 
 class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
-  private val scaleFormat: JsonScaleFormat = new JsonScaleFormat
+  private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
 
   private val centsScale = CentsScale("abc", 0.0, 204.3, 315.9, 498.5)
   private val centsScaleJson = Json.obj(

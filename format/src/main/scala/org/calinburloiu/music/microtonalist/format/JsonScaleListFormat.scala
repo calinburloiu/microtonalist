@@ -29,12 +29,12 @@ import java.net.URI
  *
  * @param scaleRepo repository for retrieving scales by URI
  */
-class JsonScaleListFormat(scaleRepo: ScaleRepo) extends ScaleListFormat {
+class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocessor) extends ScaleListFormat {
   /**
    * Reads a [[ScaleList]] from input stream.
    */
-  override def read(inputStream: InputStream, baseUri: Option[URI]): ScaleList = {
-    val repr = readRepr(inputStream).resolve(scaleRepo, baseUri)
+  override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList = {
+    val repr = readRepr(inputStream, baseUri).resolve(scaleRepo, baseUri)
 
     fromReprToDomain(repr)
   }
@@ -45,12 +45,13 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo) extends ScaleListFormat {
    */
   override def write(scaleList: ScaleList, outputStream: OutputStream): Unit = ???
 
-  private def readRepr(inputStream: InputStream): ScaleListRepr = {
+  private def readRepr(inputStream: InputStream, baseUri: Option[URI]): ScaleListRepr = {
     import JsonScaleListFormat._
 
     val json = Json.parse(inputStream)
+    val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    json.validate[ScaleListRepr] match {
+    preprocessedJson.validate[ScaleListRepr] match {
       case JsSuccess(scaleList, _) => scaleList
       case error: JsError => throw new InvalidScaleListFormatException(JsError.toJson(error).toString)
     }
@@ -141,8 +142,9 @@ object JsonScaleListFormat {
   // TODO #38 This is not very efficient, we should a pass a ScaleListRepo
   def readScaleListFromResources(pathString: String): ScaleList = {
     val uri = getClass.getClassLoader.getResource(pathString).toURI
-    val scaleFormatRegistry = new ScaleFormatRegistry(Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat))
-    val scaleListFormat = new JsonScaleListFormat(new FileScaleRepo(scaleFormatRegistry))
+    val scaleFormatRegistry = new ScaleFormatRegistry(
+      Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat(NoJsonPreprocessor)))
+    val scaleListFormat = new JsonScaleListFormat(new FileScaleRepo(scaleFormatRegistry), NoJsonPreprocessor)
     val scaleListRepo = new FileScaleListRepo(scaleListFormat)
 
     scaleListRepo.read(uri)

@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
 import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.microtonalist.format.HttpScaleRepo.UriSchemes
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
@@ -56,7 +55,7 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
     val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
       .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
-    scaleFormat.read(inputStream)
+    scaleFormat.read(inputStream, Some(baseUriOf(uri)))
   }
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
@@ -64,16 +63,12 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
 
 class HttpScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
   override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] = {
-    require(uri.isAbsolute && UriSchemes.contains(uri.getScheme), "URI must be absolute and have http/https scheme!")
+    require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme), "URI must be absolute and have http/https scheme!")
 
     ???
   }
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
-}
-
-object HttpScaleRepo {
-  val UriSchemes: Set[String] = Set(UriScheme.Http, UriScheme.Https)
 }
 
 trait ComposedScaleRepo extends ScaleRepo {

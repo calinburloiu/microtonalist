@@ -45,10 +45,8 @@ class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo 
 }
 
 class HttpScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo {
-  import HttpScaleListRepo._
-
   override def read(uri: URI): ScaleList = {
-    require(uri.isAbsolute && UriSchemes.contains(uri.getScheme), "URI must be absolute and have an http/https scheme!")
+    require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme), "URI must be absolute and have an http/https scheme!")
 
     ???
   }
@@ -75,11 +73,6 @@ class DefaultScaleListRepo(fileScaleListRepo: FileScaleListRepo,
     case _ => None
   }
 }
-
-object HttpScaleListRepo {
-  val UriSchemes: Set[String] = Set(UriScheme.Http, UriScheme.Https)
-}
-
 
 /**
  * Exception thrown if the requested scale list could not be found.

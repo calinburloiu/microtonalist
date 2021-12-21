@@ -20,6 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation._
 
 import java.io.{IOException, InputStream, OutputStream}
+import java.net.URI
 import java.nio.charset.StandardCharsets
 import scala.io.Source
 import scala.util.Try
@@ -33,7 +34,7 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
 
   @throws[IOException]
   @throws[InvalidScalaTuningFileException]
-  override def read(inputStream: InputStream): Scale[Interval] = {
+  override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
     val lines = Source.fromInputStream(inputStream, StandardCharsets.ISO_8859_1.toString).getLines()
       .filter(!_.startsWith("!")).toIndexedSeq
     logger.debug(s"The .scl file has ${lines.size} line(s)")

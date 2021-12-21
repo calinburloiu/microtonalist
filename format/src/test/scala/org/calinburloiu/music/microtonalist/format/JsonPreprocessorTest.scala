@@ -19,12 +19,12 @@ package org.calinburloiu.music.microtonalist.format
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{JsObject, JsPath, Json, __}
+import play.api.libs.json.{JsPath, Json, __}
 
 import java.net.URI
 
 class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
-  type RefLoaders = Seq[JsonRefLoader]
+  type RefLoaders = Seq[JsonPreprocessorRefLoader]
 
   behavior of classOf[JsonPreprocessor].getSimpleName
 
@@ -103,12 +103,25 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val preprocessor = new JsonPreprocessor(loaders)
 
     // When
-    val output = preprocessor.preprocess(input)
+    val output = preprocessor.preprocess(input, None)
     // Then
     output shouldEqual expectedOutput
   }
+  
+  it should "pass resolved URIs to JsonPreprocessorRefLoaders" in {
+    // Given
+    val input = Json.obj("$ref" -> "company/employees/john.json")
+    val mockLoader = stub[JsonPreprocessorRefLoader]
+    mockLoader.load _ when(*, *) returns Some(Json.obj())
+    val loaders: RefLoaders = Seq(mockLoader)
+    val preprocessor = new JsonPreprocessor(loaders)
+    // When
+    preprocessor.preprocess(input, Some(new URI("https://example.org/")))
+    // Then
+    mockLoader.load _ verify (new URI("https://example.org/company/employees/john.json"), __)
+  }
 
-  it should "pass the correct JsonPath context to JsonRefLoaders" in {
+  it should "pass the correct JsonPath context to JsonPreprocessorRefLoaders" in {
     // Given
     val input = Json.obj(
       "$ref" -> "https://example.org/1",
@@ -129,12 +142,12 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
         )
       )
     )
-    val mockLoader = stub[JsonRefLoader]
+    val mockLoader = stub[JsonPreprocessorRefLoader]
     mockLoader.load _ when(*, *) returns Some(Json.obj())
     val loaders: RefLoaders = Seq(mockLoader)
     val preprocessor = new JsonPreprocessor(loaders)
     // When
-    val output = preprocessor.preprocess(input)
+    preprocessor.preprocess(input, None)
     // Then
     mockLoader.load _ verify (new URI("https://example.org/1"), __)
     mockLoader.load _ verify (new URI("https://example.org/2"), __ \ "foo")
@@ -146,9 +159,20 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
   it should "leave a JSON as it is if it does not have references" in {
     // Given
     val input = Json.obj("name" -> "John Doe", "age" -> 30)
+    val preprocessor = new JsonPreprocessor(Seq(mock[JsonPreprocessorRefLoader]))
+    // When
+    val output = preprocessor.preprocess(input, None)
+    // Then
+    output shouldEqual input
+    output shouldBe theSameInstanceAs (input)
+  }
+
+  it should "leave a JSON as it is there are no reference loaders" in {
+    // Given
+    val input = Json.obj("name" -> "John Doe", "age" -> 30, "$ref" -> "https://example.org/1")
     val preprocessor = new JsonPreprocessor(Seq.empty)
     // When
-    val output = preprocessor.preprocess(input)
+    val output = preprocessor.preprocess(input, None)
     // Then
     output shouldEqual input
     output shouldBe theSameInstanceAs (input)
@@ -161,8 +185,8 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val loaders: RefLoaders = Seq((_, _) => None, (_, _) => None)
     val preprocessor = new JsonPreprocessor(loaders)
     // Then
-    val exception = intercept[JsonRefLoadException] {
-      preprocessor.preprocess(input)
+    val exception = intercept[JsonPreprocessorRefLoadException] {
+      preprocessor.preprocess(input, None)
     }
     exception.uri shouldEqual new URI(uri)
     exception.pathContext shouldEqual JsPath()
@@ -172,11 +196,11 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
   it should "fail if an error occurs while loading a reference" in {
     // Given
     val input = Json.obj("$ref" -> "https://example.org/1")
-    val loaders: RefLoaders = Seq((_, _) => None, (uri, path) => throw new JsonRefLoadException(uri, path, "Boom!"))
+    val loaders: RefLoaders = Seq((_, _) => None, (uri, path) => throw new JsonPreprocessorRefLoadException(uri, path, "Boom!"))
     val preprocessor = new JsonPreprocessor(loaders)
     // Then
-    assertThrows[JsonRefLoadException] {
-      preprocessor.preprocess(input)
+    assertThrows[JsonPreprocessorRefLoadException] {
+      preprocessor.preprocess(input, None)
     }
   }
 }

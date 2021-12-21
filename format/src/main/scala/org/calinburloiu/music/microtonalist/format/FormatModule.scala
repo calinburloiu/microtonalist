@@ -18,9 +18,15 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 
-class FormatModule(microtonalistLibraryUri: URI) {
+class FormatModule(libraryUri: URI) {
+  lazy val jsonPreprocessor: JsonPreprocessor = new JsonPreprocessor(
+    Seq(jsonPreprocessorFileRefLoader, jsonPreprocessorHttpRefLoader)
+  )
+  lazy val jsonPreprocessorFileRefLoader: JsonPreprocessorFileRefLoader = new JsonPreprocessorFileRefLoader
+  lazy val jsonPreprocessorHttpRefLoader: JsonPreprocessorHttpRefLoader = new JsonPreprocessorHttpRefLoader
+
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  lazy val jsonScaleFormat: ScaleFormat = new JsonScaleFormat
+  lazy val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(jsonPreprocessor)
 
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
@@ -28,12 +34,12 @@ class FormatModule(microtonalistLibraryUri: URI) {
   lazy val fileScaleRepo: FileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
   lazy val httpScaleRepo: HttpScaleRepo = new HttpScaleRepo(scaleFormatRegistry)
   lazy val microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo = new MicrotonalistLibraryScaleRepo(
-    microtonalistLibraryUri, fileScaleRepo, httpScaleRepo)
+    libraryUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
     fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
 
-  lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(defaultScaleRepo)
+  lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(defaultScaleRepo, jsonPreprocessor)
 
   lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat)
   lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(scaleListFormat)

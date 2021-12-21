@@ -32,7 +32,7 @@ trait ScaleListFormat {
    * @param baseUri an optional base URI for resolving relative URIs present in the input scale list
    * @return the scale list read
    */
-  def read(inputStream: InputStream, baseUri: Option[URI]): ScaleList
+  def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList
 
   /**
    * Writes a [[ScaleList]] to [[OutputStream]].

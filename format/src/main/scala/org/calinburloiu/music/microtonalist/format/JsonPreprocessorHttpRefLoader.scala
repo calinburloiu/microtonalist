@@ -15,12 +15,18 @@
  */
 
 package org.calinburloiu.music.microtonalist.format
+import play.api.libs.json.{JsObject, JsPath}
 
-object UriScheme {
-  val File: String = "file"
-  val Http: String = "http"
-  val Https: String = "https"
-  val MicrotonalistLibrary: String = "microtonalist"
+import java.net.URI
 
-  val HttpSet: Set[String] = Set(Http, Https)
+/**
+ * Loader for JSON preprocessor references that retrieves the referenced URIs via HTTP without
+ * performing any validation and checking for the path context.
+ */
+class JsonPreprocessorHttpRefLoader extends JsonPreprocessorRefLoader {
+  override def load(uri: URI, pathContext: JsPath): Option[JsObject] = {
+    require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme))
+
+    ???
+  }
 }

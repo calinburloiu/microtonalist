@@ -19,11 +19,12 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation._
 
 import java.io.{InputStream, OutputStream}
+import java.net.URI
 
 trait ScaleFormat {
   val metadata: ScaleFormatMetadata
 
-  def read(inputStream: InputStream): Scale[Interval]
+  def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval]
 
   def write(scale: Scale[Interval], outputStream: OutputStream): Unit
 }

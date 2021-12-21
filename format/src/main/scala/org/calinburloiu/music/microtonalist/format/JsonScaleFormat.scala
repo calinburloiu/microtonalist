@@ -22,17 +22,19 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream, PrintWriter}
+import java.net.URI
 
-class JsonScaleFormat extends ScaleFormat {
+class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
   import JsonScaleFormat._
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata(
     "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType))
 
-  override def read(inputStream: InputStream): Scale[Interval] = {
-    val inputJson = Json.parse(inputStream)
+  override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
+    val json = Json.parse(inputStream)
+    val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    read(inputJson)
+    read(preprocessedJson)
   }
 
   def read(inputJson: JsValue): Scale[Interval] = inputJson.validate(jsonAllScaleReads) match {
