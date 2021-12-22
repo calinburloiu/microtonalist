@@ -19,23 +19,27 @@ package org.calinburloiu.music.microtonalist.format
 import play.api.libs.json._
 
 import java.net.URI
+import scala.collection.mutable
 
 class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
 
   import JsonPreprocessor._
 
   def preprocess(json: JsValue, baseUri: Option[URI]): JsValue =
-    if (refLoaders.isEmpty) json else preprocessValue(json, JsPath(), baseUri).value
+    if (refLoaders.isEmpty) json else preprocessValue(json, JsPath(), baseUri, new NestedRefContext).value
 
   /**
    * @param json JSON value to preprocess
    * @param path path where the value was found
    * @return [[Unchanged]] with the unchanged value or [[Changed]] with the preprocessed value
    */
-  private def preprocessValue(json: JsValue, path: JsPath, baseUri: Option[URI]): PreprocessResult[JsValue] = {
+  private def preprocessValue(json: JsValue,
+                              path: JsPath,
+                              baseUri: Option[URI],
+                              nestedRefContext: NestedRefContext): PreprocessResult[JsValue] = {
     json match {
-      case obj: JsObject => preprocessObject(obj, path, baseUri)
-      case array: JsArray => preprocessArray(array, path, baseUri)
+      case obj: JsObject => preprocessObject(obj, path, baseUri, nestedRefContext)
+      case array: JsArray => preprocessArray(array, path, baseUri, nestedRefContext)
       case other => Unchanged(other)
     }
   }
@@ -45,10 +49,13 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
    * @param path path where the object was found
    * @return [[Unchanged]] with the unchanged object or [[Changed]] with the preprocessed object
    */
-  private def preprocessObject(obj: JsObject, path: JsPath, baseUri: Option[URI]): PreprocessResult[JsObject] = {
+  private def preprocessObject(obj: JsObject,
+                               path: JsPath,
+                               baseUri: Option[URI],
+                               nestedRefContext: NestedRefContext): PreprocessResult[JsObject] = {
     val preprocessedMap = obj.value.flatMap {
       case (`RefProp`, JsString(_)) => None
-      case (prop, value) => Some((prop, preprocessValue(value, path \ prop, baseUri)))
+      case (prop, value) => Some((prop, preprocessValue(value, path \ prop, baseUri, nestedRefContext)))
     }
     lazy val preprocessedObj = JsObject(preprocessedMap.view.mapValues(_.value).toMap)
 
@@ -62,7 +69,7 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
         // We have a reference inside this object
         val uri = new URI(uriString)
         val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
-        val loadedJson = loadRef(resolvedUri, path)
+        val loadedJson = loadRef(resolvedUri, path, nestedRefContext)
           .getOrElse(throw new JsonPreprocessorRefLoadException(uri, path, "No loader matched the reference!"))
         Changed(preprocessedObj ++ loadedJson)
       case None =>
@@ -78,18 +85,39 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
    * @param path  path where the array was found
    * @return [[Unchanged]] with the unchanged array or [[Changed]] with the preprocessed array
    */
-  private def preprocessArray(array: JsArray, path: JsPath, baseUri: Option[URI]): PreprocessResult[JsArray] = {
+  private def preprocessArray(array: JsArray,
+                              path: JsPath,
+                              baseUri: Option[URI],
+                              nestedRefContext: NestedRefContext): PreprocessResult[JsArray] = {
     val resultItems = array.value.zipWithIndex.map {
-      case (value, i) => preprocessValue(value, path \ i, baseUri)
+      case (value, i) => preprocessValue(value, path \ i, baseUri, nestedRefContext)
     }
     val changed = resultItems.exists(_.wasChanged)
     if (changed) Changed(JsArray(resultItems.map(_.value))) else Unchanged(array)
   }
 
-  private def loadRef(uri: URI, pathContext: JsPath): Option[JsObject] = {
+  private def loadRef(uri: URI, pathContext: JsPath, nestedRefContext: NestedRefContext): Option[JsObject] = {
     for (loader <- refLoaders) {
       loader.load(uri, pathContext) match {
-        case Some(obj) => return Some(obj)
+        case Some(obj) =>
+          nestedRefContext.depth += 1
+          if (nestedRefContext.depth == MaxNestedRefDepth) {
+            throw new JsonPreprocessorRefLoadException(uri, pathContext,
+              "JSON preprocessor encountered nested references that exceed the maximum allowed depth of " +
+                MaxNestedRefDepth)
+          }
+
+          val normalizedUri = uri.normalize
+          if (nestedRefContext.visitedRefs.contains(normalizedUri)) {
+            throw new JsonPreprocessorRefLoadException(uri, pathContext,
+              s"JSON preprocessor encountered nested references that from a cycle: $uri was already loaded")
+          }
+          nestedRefContext.visitedRefs += uri.normalize
+
+          val preprocessedObj = preprocessObject(obj, pathContext, Some(baseUriOf(uri)), nestedRefContext).value
+
+          return Some(preprocessedObj)
+
         case None =>
       }
     }
@@ -100,6 +128,8 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
 
 object JsonPreprocessor {
   val RefProp: String = "$ref"
+
+  val MaxNestedRefDepth: Int = 100
 
   private sealed trait PreprocessResult[+A <: JsValue] {
     val value: A
@@ -113,6 +143,11 @@ object JsonPreprocessor {
 
   private case class Changed[+A <: JsValue](override val value: A) extends PreprocessResult[A] {
     override def wasChanged: Boolean = true
+  }
+
+  private class NestedRefContext {
+    var depth: Int = 0
+    val visitedRefs: mutable.Set[URI] = mutable.HashSet()
   }
 }
 

@@ -22,6 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{JsPath, Json, __}
 
 import java.net.URI
+import scala.collection.mutable
 
 class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
   type RefLoaders = Seq[JsonPreprocessorRefLoader]
@@ -202,5 +203,161 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     assertThrows[JsonPreprocessorRefLoadException] {
       preprocessor.preprocess(input, None)
     }
+  }
+
+  it should "replace nested references" in {
+    // Given
+    val input = Json.obj(
+      "$ref" -> "https://example.org/1"
+    )
+    val loaders: RefLoaders = Seq(
+      (uri, _) => uri.toString match {
+        case "https://example.org/1" => Some(Json.obj(
+          "name" -> "John",
+          "$ref" -> "https://example.org/2"
+        ))
+        case "https://example.org/2" => Some(Json.obj(
+          "age" -> 25
+        ))
+        case _ => None
+      }
+    )
+    val expectedOutput = Json.obj(
+      "name" -> "John",
+      "age" -> 25
+    )
+    val preprocessor = new JsonPreprocessor(loaders)
+
+    // When
+    val output = preprocessor.preprocess(input, None)
+    // Then
+    output shouldEqual expectedOutput
+  }
+
+  it should "continue to resolve URI and append to path context with nested references" in {
+    // Given
+    val input = Json.obj(
+      "name" -> "John Doe",
+      "$ref" -> "people/john-details.json",
+      "pets" -> Json.arr(
+        Json.obj(
+          "animal" -> "cat",
+          "name" -> "Felix"
+        ),
+        Json.obj(
+          "name" -> "Pamela",
+          "$ref" -> "pets/pamela.json"
+        )
+      )
+    )
+    val refs = mutable.ArrayBuffer[String]()
+    val paths = mutable.ArrayBuffer[JsPath]()
+    val loaders: RefLoaders = Seq(
+      (uri, path) => {
+        val uriString = uri.toString
+
+        refs += uriString
+        paths += path
+
+        uriString match {
+          case "https://example.org/data/people/john-details.json" => Some(Json.obj(
+            "age" -> 25,
+          ))
+          case "https://example.org/data/pets/pamela.json" => Some(Json.obj(
+            "animal" -> "dog",
+            "details" -> Json.obj(
+            "$ref" -> "details/countryside.json"
+            )
+          ))
+          case "https://example.org/data/pets/details/countryside.json" => Some(Json.obj(
+            "location" -> "countryside"
+          ))
+          case _ => None
+        }
+      }
+    )
+    val expectedOutput = Json.obj(
+      "name" -> "John Doe",
+      "age" -> 25,
+      "pets" -> Json.arr(
+        Json.obj(
+          "animal" -> "cat",
+          "name" -> "Felix"
+        ),
+        Json.obj(
+          "name" -> "Pamela",
+          "animal" -> "dog",
+          "details" -> Json.obj(
+            "location" -> "countryside"
+          )
+        )
+      )
+    )
+    val preprocessor = new JsonPreprocessor(loaders)
+
+    // When
+    val output = preprocessor.preprocess(input, Some(new URI("https://example.org/data/")))
+    // Then
+    output shouldEqual expectedOutput
+    refs.toSet shouldEqual Set(
+      "https://example.org/data/people/john-details.json",
+      "https://example.org/data/pets/pamela.json",
+      "https://example.org/data/pets/details/countryside.json"
+    )
+    paths.toSet shouldEqual Set(
+      __,
+      __ \ "pets" \ 1,
+      __ \ "pets" \ 1 \ "details"
+    )
+  }
+
+  it should "fail gracefully with cyclic references" in {
+    // Given
+    val input = Json.obj(
+      "$ref" -> "https://example.org/1"
+    )
+    val loaders: RefLoaders = Seq(
+      (uri, _) => uri.toString match {
+        case "https://example.org/1" => Some(Json.obj(
+          "$ref" -> "https://example.org/2"
+        ))
+        case "https://example.org/2" => Some(Json.obj(
+          "$ref" -> "https://example.org/1"
+        ))
+        case _ => None
+      }
+    )
+    val preprocessor = new JsonPreprocessor(loaders)
+
+    // Then
+    assertThrows[JsonPreprocessorRefLoadException] {
+      preprocessor.preprocess(input, None)
+    }
+  }
+
+  it should "fail gracefully with nested references that exceed the depth threshold" in {
+    // Given
+    val input = Json.obj(
+      "$ref" -> "https://example.org/foo"
+    )
+    var i = 0
+    val loaders: RefLoaders = Seq(
+      (uri, path) => uri.toString match {
+        case _ =>
+          i += 1
+          Some(Json.obj(
+            s"a$i" -> Json.obj(
+              "$ref" -> s"https://example.org/$i"
+            )
+          ))
+      }
+    )
+    val preprocessor = new JsonPreprocessor(loaders)
+
+    // Then
+    assertThrows[JsonPreprocessorRefLoadException] {
+      preprocessor.preprocess(input, None)
+    }
+    i shouldEqual JsonPreprocessor.MaxNestedRefDepth
   }
 }
