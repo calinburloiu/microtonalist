@@ -16,12 +16,16 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import com.google.common.net.MediaType
+import com.google.common.net.{MediaType, HttpHeaders => GuavaHttpHeaders}
+import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
+import java.net.http.HttpResponse.BodyHandlers
+import java.net.http.{HttpClient, HttpRequest}
 import java.nio.file.Paths
+import scala.jdk.OptionConverters.RichOptional
 import scala.util.Try
 
 // TODO #38 Break inheritance from RefResolver
@@ -39,21 +43,22 @@ trait ScaleRepo extends RefResolver[Scale[Interval]] {
    *                  used for identification.
    * @return the identified scale
    */
-  def read(uri: URI, mediaType: Option[MediaType] = None): Scale[Interval]
+  def read(uri: URI): Scale[Interval]
 
   def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit
 }
 
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
-  override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] = {
+  override def read(uri: URI): Scale[Interval] = {
     val scaleAbsolutePath = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.toString)
     val inputStream = Try {
       new FileInputStream(scaleAbsolutePath.toString)
     }.recover {
-      case e: FileNotFoundException => throw new ScaleNotFoundException(uri, mediaType, e.getCause)
+      case e: FileNotFoundException => throw new ScaleNotFoundException(uri, e.getCause)
     }.get
-    val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
-      .getOrElse(throw new BadScaleRequestException(uri, mediaType))
+
+    val scaleFormat = scaleFormatRegistry.get(uri, None)
+      .getOrElse(throw new BadScaleRequestException(uri, None))
 
     scaleFormat.read(inputStream, Some(baseUriOf(uri)))
   }
@@ -61,11 +66,33 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
 }
 
-class HttpScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
-  override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] = {
+class HttpScaleRepo(httpClient: HttpClient,
+                    scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
+
+  override def read(uri: URI): Scale[Interval] = {
     require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme), "URI must be absolute and have http/https scheme!")
 
-    ???
+    val request = HttpRequest.newBuilder(uri)
+      .GET()
+      .build()
+    val response = httpClient.send(request, BodyHandlers.ofInputStream())
+    response.statusCode() match {
+      case 200 =>
+        val mediaType = response.headers().firstValue(GuavaHttpHeaders.CONTENT_TYPE).toScala.map(MediaType.parse)
+
+        // TODO #38 Consider getting the ScaleFormat via a base protected method
+        val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
+          .getOrElse(throw new BadScaleRequestException(uri, mediaType))
+
+        logger.info(s"Reading scale from $uri via HTTP...")
+        scaleFormat.read(response.body(), Some(baseUriOf(uri)))
+      case 404 => throw new ScaleNotFoundException(uri)
+      case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
+        Some(s"HTTP response status code $status"))
+      case status if status >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
+        s"HTTP response status code $status")
+      case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status")
+    }
   }
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
@@ -74,14 +101,14 @@ class HttpScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
 trait ComposedScaleRepo extends ScaleRepo {
   def getScaleRepo(uri: URI): Option[ScaleRepo]
 
-  override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] =
-    getScaleRepoOrThrow(uri, mediaType).read(uri, mediaType)
+  override def read(uri: URI): Scale[Interval] =
+    getScaleRepoOrThrow(uri).read(uri)
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
-    getScaleRepoOrThrow(uri, mediaType).write(scale, uri, mediaType)
+    getScaleRepoOrThrow(uri).write(scale, uri, mediaType)
 
-  protected def getScaleRepoOrThrow(uri: URI, mediaType: Option[MediaType]): ScaleRepo = getScaleRepo(uri)
-    .getOrElse(throw new BadScaleRequestException(uri, mediaType))
+  protected def getScaleRepoOrThrow(uri: URI): ScaleRepo = getScaleRepo(uri)
+    .getOrElse(throw new BadScaleRequestException(uri))
 }
 
 class MicrotonalistLibraryScaleRepo(libraryUri: URI,
@@ -97,9 +124,9 @@ class MicrotonalistLibraryScaleRepo(libraryUri: URI,
     }
   }
 
-  override def read(uri: URI, mediaType: Option[MediaType]): Scale[Interval] = {
+  override def read(uri: URI): Scale[Interval] = {
     val resolvedUri = resolveUri(uri)
-    scaleRepo.read(resolvedUri, mediaType)
+    scaleRepo.read(resolvedUri)
   }
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = {
@@ -133,13 +160,16 @@ class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
 /**
  * Exception thrown if the requested scale could not be found.
  */
-class ScaleNotFoundException(uri: URI, mediaType: Option[MediaType], cause: Throwable = null)
-  extends RuntimeException(s"A scale $uri with ${mediaType.getOrElse("any")} media type was not found",
-    cause)
+class ScaleNotFoundException(val uri: URI, cause: Throwable = null)
+  extends RuntimeException(s"No scale was found at $uri", cause)
 
 /**
  * Exception thrown if the the scale request was invalid.
  */
-class BadScaleRequestException(uri: URI, mediaType: Option[MediaType] = None, cause: Throwable = null)
-  extends RuntimeException(s"A scale could not be processed for $uri and ${mediaType.getOrElse("any")} media type",
-    cause)
+class BadScaleRequestException(val uri: URI, val mediaType: Option[MediaType] = None,
+                               message: Option[String] = None, cause: Throwable = null)
+  extends RuntimeException(
+    message.getOrElse(s"Bad scale request for $uri and ${mediaType.getOrElse("any")} media type"), cause)
+
+class ScaleReadFailureException(val uri: URI, message: String, cause: Throwable = null)
+  extends RuntimeException(message, cause)

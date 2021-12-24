@@ -16,10 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
+import java.net.http.HttpResponse.BodyHandlers
+import java.net.http.{HttpClient, HttpRequest}
 import java.nio.file.Paths
 import scala.util.Try
 
@@ -44,11 +47,30 @@ class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo 
   override def write(scaleList: ScaleList, uri: URI): Unit = ???
 }
 
-class HttpScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo {
-  override def read(uri: URI): ScaleList = {
-    require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme), "URI must be absolute and have an http/https scheme!")
+class HttpScaleListRepo(httpClient: HttpClient, scaleListFormat: ScaleListFormat)
+  extends ScaleListRepo with StrictLogging {
 
-    ???
+  override def read(uri: URI): ScaleList = {
+    require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme),
+      "URI must be absolute and have an http/https scheme!")
+
+    val request = HttpRequest.newBuilder(uri)
+      .GET()
+      .build()
+    val response = httpClient.send(request, BodyHandlers.ofInputStream())
+    response.statusCode() match {
+      case 200 =>
+        logger.info(s"Reading scale list from $uri via HTTP...")
+        scaleListFormat.read(response.body(), Some(baseUriOf(uri)))
+      case 404 =>
+        throw new ScaleListNotFoundException(uri)
+      case status if status >= 400 && status < 500 =>
+        throw new BadScaleListRequestException(uri, Some(s"HTTP response status code $status"))
+      case status if status >= 500 && status < 600 =>
+        throw new ScaleListReadFailureException(uri, s"HTTP response status code $status")
+      case status =>
+        throw new ScaleListReadFailureException(uri, s"Unexpected HTTP response status code $status")
+    }
   }
 
   override def write(scaleList: ScaleList, uri: URI): Unit = ???
@@ -84,5 +106,8 @@ class ScaleListNotFoundException(uri: URI, cause: Throwable = null)
 /**
  * Exception thrown if the the scale list request was invalid.
  */
-class BadScaleListRequestException(uri: URI, cause: Throwable = null)
-  extends RuntimeException(s"A scale list could not be processed for $uri", cause)
+class BadScaleListRequestException(uri: URI, message: Option[String] = None, cause: Throwable = null)
+  extends RuntimeException(message.getOrElse(s"Bad scale list request for $uri"), cause)
+
+class ScaleListReadFailureException(val uri: URI, message: String, cause: Throwable = null)
+  extends RuntimeException(message, cause)

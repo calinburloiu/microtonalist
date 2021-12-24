@@ -45,11 +45,8 @@ class ScaleFormatRegistry(val scaleFormats: Seq[ScaleFormat]) {
    * @param uri scale file URI
    * @param mediaType media type for the scale
    */
-  def get(uri: URI, mediaType: Option[MediaType]): Option[ScaleFormat] = mediaType match {
-    case Some(actualMediaType) => getByMediaType(actualMediaType)
-    case None =>
-      val extension = Files.getFileExtension(uri.getPath)
-      getByExtension(extension)
+  def get(uri: URI, mediaType: Option[MediaType]): Option[ScaleFormat] = {
+    mediaType.flatMap(getByMediaType) orElse getByExtension(Files.getFileExtension(uri.getPath))
   }
 
   /**

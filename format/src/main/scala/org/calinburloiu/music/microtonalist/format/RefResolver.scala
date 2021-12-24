@@ -22,5 +22,5 @@ import java.net.URI
 
 trait RefResolver[+A] {
 
-  def read(uri: URI, mediaType: Option[MediaType] = None): A
+  def read(uri: URI): A
 }
