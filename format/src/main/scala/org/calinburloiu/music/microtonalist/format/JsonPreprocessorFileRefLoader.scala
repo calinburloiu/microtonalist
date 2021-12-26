@@ -31,6 +31,7 @@ class JsonPreprocessorFileRefLoader extends JsonPreprocessorRefLoader {
     if (uri.isAbsolute && uri.getScheme != UriScheme.File) {
       None
     } else {
+      // TODO #38 Should we always use Paths.get(uri.toString)
       val absolutePath = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.toString)
       val inputStream = Try {
         new FileInputStream(absolutePath.toString)

@@ -50,6 +50,7 @@ trait ScaleRepo extends RefResolver[Scale[Interval]] {
 
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
   override def read(uri: URI): Scale[Interval] = {
+    // TODO #38 Should we always use Paths.get(uri.toString)
     val scaleAbsolutePath = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.toString)
     val inputStream = Try {
       new FileInputStream(scaleAbsolutePath.toString)
@@ -139,6 +140,7 @@ class MicrotonalistLibraryScaleRepo(libraryUri: URI,
       "URI must be absolute and have microtonalist scheme!")
 
     val absolutePath = Paths.get(uri.getPath)
+    // TODO #38 Does this work on Windows
     // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
     val relativePath = absolutePath.getRoot.relativize(absolutePath)
     libraryUri.resolve(new URI(relativePath.toString))

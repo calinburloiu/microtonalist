@@ -17,17 +17,24 @@
 package org.calinburloiu.music.microtonalist
 
 import java.net.URI
-import java.nio.file.Paths
 
 package object format {
   def baseUriOf(uri: URI): URI = {
-    // TODO Does this work on Windows?
-    val parentPath = Paths.get(uri.getPath).getParent
-    if (parentPath == null) {
-      return uri
+    def updateUriPath(uri: URI, newPath: String): URI = {
+      new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, newPath, uri.getQuery, uri.getFragment)
     }
 
-    val basePath = parentPath.toString + "/"
-    new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, basePath, uri.getQuery, uri.getFragment)
+    val path = uri.getPath
+    if (path == null || path == "") {
+      return updateUriPath(uri, "/")
+    }
+
+    val lastSlashIndex = path.lastIndexOf('/')
+    if (lastSlashIndex == path.length - 1) {
+      uri
+    } else {
+      val basePath = path.substring(0, lastSlashIndex + 1)
+      updateUriPath(uri, basePath)
+    }
   }
 }
