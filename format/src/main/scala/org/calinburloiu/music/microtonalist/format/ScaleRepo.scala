@@ -115,6 +115,8 @@ trait ComposedScaleRepo extends ScaleRepo {
 class MicrotonalistLibraryScaleRepo(libraryUri: URI,
                                     fileScaleRepo: FileScaleRepo,
                                     httpScaleRepo: HttpScaleRepo) extends ScaleRepo {
+  import MicrotonalistLibraryScaleRepo._
+
   val scaleRepo: ScaleRepo = new ComposedScaleRepo {
     override def getScaleRepo(uri: URI): Option[ScaleRepo] = {
       uri.getScheme match {
@@ -139,11 +141,18 @@ class MicrotonalistLibraryScaleRepo(libraryUri: URI,
     require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
       "URI must be absolute and have microtonalist scheme!")
 
-    val absolutePath = Paths.get(uri.getPath)
-    // TODO #38 Does this work on Windows
     // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
-    val relativePath = absolutePath.getRoot.relativize(absolutePath)
-    libraryUri.resolve(new URI(relativePath.toString))
+    val relativePath = makePathRelativeToRoot(uri)
+    libraryUri.resolve(relativePath)
+  }
+}
+
+object MicrotonalistLibraryScaleRepo {
+  private def makePathRelativeToRoot(uri: URI): String = {
+    val path = uri.getPath
+    require(path != null && path.startsWith("/"), "microtonalist scheme URI must point to a file")
+
+    path.substring(1)
   }
 }
 
