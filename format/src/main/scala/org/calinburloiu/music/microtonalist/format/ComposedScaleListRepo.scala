@@ -20,24 +20,13 @@ import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.net.URI
 
-trait ScaleListRepo {
-  def read(uri: URI): ScaleList
+trait ComposedScaleListRepo extends ScaleListRepo {
+  def getScaleListRepo(uri: URI): Option[ScaleListRepo]
 
-  def write(scaleList: ScaleList, uri: URI): Unit
+  override def read(uri: URI): ScaleList = getScaleListRepoOrThrow(uri).read(uri)
+
+  override def write(scaleList: ScaleList, uri: URI): Unit = getScaleListRepoOrThrow(uri).write(scaleList, uri)
+
+  protected def getScaleListRepoOrThrow(uri: URI): ScaleListRepo = getScaleListRepo(uri)
+    .getOrElse(throw new BadScaleListRequestException(uri))
 }
-
-/**
- * Exception thrown if the requested scale list could not be found.
- */
-class ScaleListNotFoundException(uri: URI, cause: Throwable = null)
-  extends RuntimeException(s"A scale list with $uri was not found", cause)
-
-
-/**
- * Exception thrown if the the scale list request was invalid.
- */
-class BadScaleListRequestException(uri: URI, message: Option[String] = None, cause: Throwable = null)
-  extends RuntimeException(message.getOrElse(s"Bad scale list request for $uri"), cause)
-
-class ScaleListReadFailureException(val uri: URI, message: String, cause: Throwable = null)
-  extends RuntimeException(message, cause)

@@ -20,6 +20,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
+import java.nio.file.Paths
 
 class FormatUtilsTest extends AnyFlatSpec with Matchers {
 
@@ -51,5 +52,19 @@ class FormatUtilsTest extends AnyFlatSpec with Matchers {
 
   it should "return a URI with root path for a URI without path" in {
     baseUriOf(new URI("https://example.org")) shouldEqual new URI("https://example.org/")
+  }
+
+  "pathOf" should "convert an absolute URI to a file system path" in {
+    pathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual
+      Paths.get("/" , "Users", "john", "Music", "phrygian.scl")
+  }
+
+  it should "convert a relative URI to file system path" in {
+    pathOf(new URI("Music/phrygian.scl")) shouldEqual
+      Paths.get("Music", "phrygian.scl")
+  }
+
+  it should "fail for a non file URI" in {
+    assertThrows[IllegalArgumentException] { pathOf(new URI("https://example.org/path/to/file.scl")) }
   }
 }

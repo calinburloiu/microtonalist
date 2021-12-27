@@ -16,16 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import com.google.common.net.{MediaType, HttpHeaders => GuavaHttpHeaders}
-import com.typesafe.scalalogging.StrictLogging
+
+import com.google.common.net.MediaType
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
-import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
-import java.net.http.HttpResponse.BodyHandlers
-import java.net.http.{HttpClient, HttpRequest}
-import scala.jdk.OptionConverters.RichOptional
-import scala.util.Try
 
 // TODO #38 Break inheritance from RefResolver
 /**
@@ -45,123 +40,6 @@ trait ScaleRepo extends RefResolver[Scale[Interval]] {
   def read(uri: URI): Scale[Interval]
 
   def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit
-}
-
-class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
-  override def read(uri: URI): Scale[Interval] = {
-    val scalePath = pathOf(uri)
-    val inputStream = Try {
-      new FileInputStream(scalePath.toString)
-    }.recover {
-      case e: FileNotFoundException => throw new ScaleNotFoundException(uri, e.getCause)
-    }.get
-
-    val scaleFormat = scaleFormatRegistry.get(uri, None)
-      .getOrElse(throw new BadScaleRequestException(uri, None))
-
-    scaleFormat.read(inputStream, Some(baseUriOf(uri)))
-  }
-
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
-}
-
-class HttpScaleRepo(httpClient: HttpClient,
-                    scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
-
-  override def read(uri: URI): Scale[Interval] = {
-    require(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme), "URI must be absolute and have http/https scheme!")
-
-    val request = HttpRequest.newBuilder(uri)
-      .GET()
-      .build()
-    val response = httpClient.send(request, BodyHandlers.ofInputStream())
-    response.statusCode() match {
-      case 200 =>
-        val mediaType = response.headers().firstValue(GuavaHttpHeaders.CONTENT_TYPE).toScala.map(MediaType.parse)
-
-        val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
-          .getOrElse(throw new BadScaleRequestException(uri, mediaType))
-
-        logger.info(s"Reading scale from $uri via HTTP...")
-        scaleFormat.read(response.body(), Some(baseUriOf(uri)))
-      case 404 => throw new ScaleNotFoundException(uri)
-      case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
-        Some(s"HTTP response status code $status"))
-      case status if status >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
-        s"HTTP response status code $status")
-      case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status")
-    }
-  }
-
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
-}
-
-trait ComposedScaleRepo extends ScaleRepo {
-  def getScaleRepo(uri: URI): Option[ScaleRepo]
-
-  override def read(uri: URI): Scale[Interval] =
-    getScaleRepoOrThrow(uri).read(uri)
-
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
-    getScaleRepoOrThrow(uri).write(scale, uri, mediaType)
-
-  protected def getScaleRepoOrThrow(uri: URI): ScaleRepo = getScaleRepo(uri)
-    .getOrElse(throw new BadScaleRequestException(uri))
-}
-
-class MicrotonalistLibraryScaleRepo(libraryUri: URI,
-                                    fileScaleRepo: FileScaleRepo,
-                                    httpScaleRepo: HttpScaleRepo) extends ScaleRepo {
-  import MicrotonalistLibraryScaleRepo._
-
-  val scaleRepo: ScaleRepo = new ComposedScaleRepo {
-    override def getScaleRepo(uri: URI): Option[ScaleRepo] = {
-      uri.getScheme match {
-        case UriScheme.File => Some(fileScaleRepo)
-        case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
-        case _ => None
-      }
-    }
-  }
-
-  override def read(uri: URI): Scale[Interval] = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.read(resolvedUri)
-  }
-
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.write(scale, resolvedUri, mediaType)
-  }
-
-  private def resolveUri(uri: URI) = {
-    require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
-      "URI must be absolute and have microtonalist scheme!")
-
-    // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
-    val relativePath = makePathRelativeToRoot(uri)
-    libraryUri.resolve(relativePath)
-  }
-}
-
-object MicrotonalistLibraryScaleRepo {
-  private def makePathRelativeToRoot(uri: URI): String = {
-    val path = uri.getPath
-    require(path != null && path.startsWith("/"), "microtonalist scheme URI must point to a file")
-
-    path.substring(1)
-  }
-}
-
-class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
-                       httpScaleRepo: HttpScaleRepo,
-                       microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo) extends ComposedScaleRepo {
-  override def getScaleRepo(uri: URI): Option[ScaleRepo] = uri.getScheme match {
-    case null | UriScheme.File => Some(fileScaleRepo)
-    case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
-    case UriScheme.MicrotonalistLibrary => Some(microtonalistLibraryScaleRepo)
-    case _ => None
-  }
 }
 
 /**

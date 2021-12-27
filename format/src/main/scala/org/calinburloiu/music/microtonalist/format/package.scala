@@ -39,5 +39,9 @@ package object format {
     }
   }
 
-  def pathOf(uri: URI): Path = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.getPath)
+  def pathOf(uri: URI): Path = {
+    require(!uri.isAbsolute || uri.getScheme == UriScheme.File)
+
+    if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.getPath)
+  }
 }
