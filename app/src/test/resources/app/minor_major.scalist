@@ -3,7 +3,7 @@
     "basePitchClass": 2
   },
   "config": {
-    "mapQuarterTonesLow": true
+    "$ref": "common-config.json"
   },
   "globalFill": {
     "ref": "scales/chromatic.scl"
@@ -20,7 +20,7 @@
     {
       "transposition": "6/5",
       "scale": {
-        "ref": "scales/major.scl"
+        "ref": "microtonalist:///scales/major.scl"
       }
     },
     {

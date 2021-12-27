@@ -50,7 +50,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     (7, 4), (15, 8), (2, 1))
 
   it should "successfully read a valid scale list file" in {
-    val scaleList = readScaleListFromResources("minor_major.scalist", scaleListRepo)
+    val scaleList = readScaleListFromResources("format/minor_major.scalist", scaleListRepo)
 
     scaleList.globalFill.scale shouldEqual chromaticScale
     scaleList.tuningRef.basePitchClass.number shouldEqual 2
@@ -67,25 +67,25 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
 
   it should "fail when a transposition interval in invalid" in {
     assertThrows[InvalidScaleListFormatException] {
-      readScaleListFromResources("invalid_transposition_interval.scalist", scaleListRepo)
+      readScaleListFromResources("format/invalid_transposition_interval.scalist", scaleListRepo)
     }
   }
 
   it should "fail when a scale reference points to a non existent file" in {
     assertThrows[ScaleNotFoundException] {
-      readScaleListFromResources("non_existent_scale_ref.scalist", scaleListRepo)
+      readScaleListFromResources("format/non_existent_scale_ref.scalist", scaleListRepo)
     }
   }
 
   it should "fail when a scale reference points to an invalid file" in {
     assertThrows[ScaleNotFoundException] {
-      readScaleListFromResources("invalid_referenced_scale.scalist", scaleListRepo)
+      readScaleListFromResources("format/invalid_referenced_scale.scalist", scaleListRepo)
     }
   }
 
   it should "fail when a scale defined inside the scale list is invalid" in {
     assertThrows[InvalidScaleListFormatException] {
-      readScaleListFromResources("invalid_scale.scalist", scaleListRepo)
+      readScaleListFromResources("format/invalid_scale.scalist", scaleListRepo)
     }
   }
 

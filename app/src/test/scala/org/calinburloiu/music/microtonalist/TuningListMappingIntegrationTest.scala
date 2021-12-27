@@ -24,14 +24,14 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
-  private val formatModule = new FormatModule(ScaleListTestUtils.uriOfResource("scales/"))
+  private val formatModule = new FormatModule(ScaleListTestUtils.uriOfResource("app/"))
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   it should "successfully create a tuning list out of 'minor_major.scalist' file" in {
-    val scaleListResource = "minor_major.scalist"
+    val scaleListResource = "app/minor_major.scalist"
     val scaleList = ScaleListTestUtils.readScaleListFromResources(scaleListResource, formatModule.defaultScaleListRepo)
     val tuningList = TuningList.fromScaleList(scaleList)
 
