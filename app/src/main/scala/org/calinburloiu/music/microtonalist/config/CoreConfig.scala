@@ -21,7 +21,7 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.PlatformUtils
 
-import java.nio.file.{FileSystem, FileSystems, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 case class CoreConfig(libraryPath: Path = CoreConfig.defaultLibraryPath,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured

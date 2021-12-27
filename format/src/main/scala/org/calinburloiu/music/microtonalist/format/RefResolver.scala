@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import com.google.common.net.MediaType
-
 import java.net.URI
 
 trait RefResolver[+A] {

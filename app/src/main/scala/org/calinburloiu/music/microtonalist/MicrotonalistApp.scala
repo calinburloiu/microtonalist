@@ -25,7 +25,7 @@ import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.MidiManager
 
-import java.net.{URI, URISyntaxException}
+import java.net.URI
 import java.nio.file.{InvalidPathException, Path, Paths}
 import scala.util.Try
 

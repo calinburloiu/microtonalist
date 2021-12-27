@@ -25,6 +25,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json._
 
+import java.net.URI
+
 class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
   import JsonScaleListFormat._
   import ScaleListTestUtils.readScaleListFromResources
@@ -86,6 +88,12 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   it should "fail when a scale defined inside the scale list is invalid" in {
     assertThrows[InvalidScaleListFormatException] {
       readScaleListFromResources("format/invalid_scale.scalist", scaleListRepo)
+    }
+  }
+
+  it should "fail when a scale list does not exist" in {
+    assertThrows[ScaleListNotFoundException] {
+      scaleListRepo.read(new URI("file:///Users/john/non_existent.scalist"))
     }
   }
 

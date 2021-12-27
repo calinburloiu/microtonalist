@@ -33,31 +33,31 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
   private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
 
   @throws[IOException]
-  @throws[InvalidScalaTuningFileException]
+  @throws[InvalidHuygensFokkerScalaFileException]
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
     val lines = Source.fromInputStream(inputStream, StandardCharsets.ISO_8859_1.toString).getLines()
       .filter(!_.startsWith("!")).toIndexedSeq
     logger.debug(s"The .scl file has ${lines.size} line(s)")
 
     if (lines.size < 2)
-      throw new InvalidScalaTuningFileException("Invalid file format: it should have at least 2 lines")
+      throw new InvalidHuygensFokkerScalaFileException("Invalid file format: it should have at least 2 lines")
 
     val description = lines.head
     val pitchesCount = Try(lines(1).toInt).recover {
-      case e: NumberFormatException => throw new InvalidScalaTuningFileException(
+      case e: NumberFormatException => throw new InvalidHuygensFokkerScalaFileException(
         "Invalid file format: the number of pitches is not a number", e)
     }.get
 
     val pitchValues = lines.slice(2, 2 + pitchesCount)
     // .slice might return less items than expected
     if (pitchValues.lengthCompare(pitchesCount) != 0)
-      throw new InvalidScalaTuningFileException(
+      throw new InvalidHuygensFokkerScalaFileException(
         s"Invalid file format: expected $pitchesCount pitches, but only ${pitchValues.size} were present in the file")
 
     val pitches = pitchValues.zipWithIndex.map {
       case (intervalValueRegex(pitchValue), pitchIndex) =>
         val pitch = Interval.fromScalaTuningInterval(pitchValue).getOrElse(
-          throw new InvalidScalaTuningFileException(
+          throw new InvalidHuygensFokkerScalaFileException(
             s"Invalid file format: the value of pitch with index ${pitchIndex + 1} is invalid")
         )
 
@@ -66,7 +66,7 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
         pitch
 
       case (_, pitchIndex) =>
-        throw new InvalidScalaTuningFileException(
+        throw new InvalidHuygensFokkerScalaFileException(
           s"Invalid file format: the value of pitch with index ${pitchIndex + 1} is invalid")
     }
 
@@ -76,5 +76,5 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
   override def write(scale: Scale[Interval], outputStream: OutputStream): Unit = ???
 }
 
-class InvalidScalaTuningFileException(message: String, cause: Throwable = null)
+class InvalidHuygensFokkerScalaFileException(message: String, cause: Throwable = null)
   extends InvalidScaleFormatException(message, cause)

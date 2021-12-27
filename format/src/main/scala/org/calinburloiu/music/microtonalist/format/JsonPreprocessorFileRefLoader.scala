@@ -19,7 +19,6 @@ import play.api.libs.json.{JsObject, JsPath, Json}
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
-import java.nio.file.Paths
 import scala.util.Try
 
 /**
