@@ -40,7 +40,6 @@ class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreproce
     response.statusCode() match {
       case 200 =>
         logger.info(s"Reading JSON preprocessor reference $uri via HTTP...")
-        // TODO #38 Consider putting this common logic in a base protected method
         Json.parse(response.body()) match {
           case obj: JsObject => Some(obj)
           case _ => throw new JsonPreprocessorRefLoadException(uri, pathContext,

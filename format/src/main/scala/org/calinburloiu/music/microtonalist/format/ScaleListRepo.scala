@@ -34,10 +34,9 @@ trait ScaleListRepo {
 
 class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo {
   override def read(uri: URI): ScaleList = {
-    // TODO #38 Should we always use Paths.get(uri.toString)
-    val absolutePath = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.toString)
+    val path = pathOf(uri)
     val inputStream = Try {
-      new FileInputStream(absolutePath.toString)
+      new FileInputStream(path.toString)
     }.recover {
       case e: FileNotFoundException => throw new ScaleListNotFoundException(uri, e.getCause)
     }.get

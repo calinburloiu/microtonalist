@@ -24,7 +24,6 @@ import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
-import java.nio.file.Paths
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.Try
 
@@ -50,10 +49,9 @@ trait ScaleRepo extends RefResolver[Scale[Interval]] {
 
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
   override def read(uri: URI): Scale[Interval] = {
-    // TODO #38 Should we always use Paths.get(uri.toString)
-    val scaleAbsolutePath = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.toString)
+    val scalePath = pathOf(uri)
     val inputStream = Try {
-      new FileInputStream(scaleAbsolutePath.toString)
+      new FileInputStream(scalePath.toString)
     }.recover {
       case e: FileNotFoundException => throw new ScaleNotFoundException(uri, e.getCause)
     }.get
@@ -81,7 +79,6 @@ class HttpScaleRepo(httpClient: HttpClient,
       case 200 =>
         val mediaType = response.headers().firstValue(GuavaHttpHeaders.CONTENT_TYPE).toScala.map(MediaType.parse)
 
-        // TODO #38 Consider getting the ScaleFormat via a base protected method
         val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
           .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
@@ -156,7 +153,6 @@ object MicrotonalistLibraryScaleRepo {
   }
 }
 
-// TODO #38 Not sure about the name of this class
 class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
                        httpScaleRepo: HttpScaleRepo,
                        microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo) extends ComposedScaleRepo {

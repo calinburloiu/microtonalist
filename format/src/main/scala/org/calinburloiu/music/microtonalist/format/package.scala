@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist
 
 import java.net.URI
+import java.nio.file.{Path, Paths}
 
 package object format {
   def baseUriOf(uri: URI): URI = {
@@ -37,4 +38,6 @@ package object format {
       updateUriPath(uri, basePath)
     }
   }
+
+  def pathOf(uri: URI): Path = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.getPath)
 }

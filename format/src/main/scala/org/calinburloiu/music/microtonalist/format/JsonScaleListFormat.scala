@@ -39,7 +39,6 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocess
     fromReprToDomain(repr)
   }
 
-  // TODO #38 OutputStream should be a param
   /**
    * Writes a [[ScaleList]] to output stream.
    */
@@ -137,16 +136,5 @@ object JsonScaleListFormat {
       SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
       SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
     )
-  }
-
-  // TODO #38 This is not very efficient, we should a pass a ScaleListRepo
-  def readScaleListFromResources(pathString: String): ScaleList = {
-    val uri = getClass.getClassLoader.getResource(pathString).toURI
-    val scaleFormatRegistry = new ScaleFormatRegistry(
-      Seq(new HuygensFokkerScalaScaleFormat, new JsonScaleFormat(NoJsonPreprocessor)))
-    val scaleListFormat = new JsonScaleListFormat(new FileScaleRepo(scaleFormatRegistry), NoJsonPreprocessor)
-    val scaleListRepo = new FileScaleListRepo(scaleListFormat)
-
-    scaleListRepo.read(uri)
   }
 }

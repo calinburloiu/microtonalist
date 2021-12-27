@@ -31,10 +31,9 @@ class JsonPreprocessorFileRefLoader extends JsonPreprocessorRefLoader {
     if (uri.isAbsolute && uri.getScheme != UriScheme.File) {
       None
     } else {
-      // TODO #38 Should we always use Paths.get(uri.toString)
-      val absolutePath = if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.toString)
+      val path = pathOf(uri)
       val inputStream = Try {
-        new FileInputStream(absolutePath.toString)
+        new FileInputStream(path.toString)
       }.recover {
         case e: FileNotFoundException => throw new JsonPreprocessorRefLoadException(uri, pathContext,
           s"Referenced file $uri not found at $pathContext", e.getCause)

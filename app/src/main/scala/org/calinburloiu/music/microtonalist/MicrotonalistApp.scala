@@ -59,15 +59,15 @@ object MicrotonalistApp extends StrictLogging {
       System.exit(1000)
   }
 
-  private def parseUriArg(uriString: String): URI = Try(new URI(uriString)).recover {
-    case _: URISyntaxException => throw AppUsageException
-  }.get
+  private def parseUriArg(uriString: String): URI = {
+    val maybeUri = Try(new URI(uriString)).toOption.filter(_.isAbsolute)
+    maybeUri getOrElse parsePathArg(uriString).toUri
+  }
 
   private def parsePathArg(fileName: String): Path = Try(Paths.get(fileName)).recover {
     case _: InvalidPathException => throw AppUsageException
   }.get
 
-  // TODO #38 URI doesn't work well with files now
   def run(inputUri: URI, maybeConfigPath: Option[Path] = None): Unit = {
     val configPath = maybeConfigPath.getOrElse(MainConfigManager.defaultConfigFile)
     val eventBus: EventBus = new EventBus
@@ -94,9 +94,8 @@ object MicrotonalistApp extends StrictLogging {
     val receiver = midiManager.outputReceiver(outputDeviceId)
 
     // # I/O
-    // TODO #38 Rename "scale library" to "microtonalist library" everywhere
-    val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val formatModule = new FormatModule(scaleLibraryPath.toUri)
+    val libraryPath = mainConfigManager.coreConfig.libraryPath
+    val formatModule = new FormatModule(libraryPath.toUri)
 
     // # Microtuner
     val scaleList = formatModule.defaultScaleListRepo.read(inputUri)

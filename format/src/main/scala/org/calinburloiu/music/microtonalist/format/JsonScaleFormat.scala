@@ -28,7 +28,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
   import JsonScaleFormat._
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata(
-    "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType))
+    "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType, MediaType.JSON_UTF_8))
 
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
     val json = Json.parse(inputStream)
