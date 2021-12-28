@@ -29,7 +29,7 @@ import java.net.URI
 
 class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
   import JsonScaleListFormat._
-  import ScaleListTestUtils.readScaleListFromResources
+  import ScaleListFormatTestUtils.readScaleListFromResources
 
   private lazy val scaleListRepo = {
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(

@@ -23,6 +23,11 @@ import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
 import scala.util.Try
 
+/**
+ * Scale repository implementation that retrieves and persists scales by using the file system.
+ *
+ * @param scaleFormatRegistry registry responsible for choosing the scale format
+ */
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
   override def read(uri: URI): Scale[Interval] = {
     val scalePath = pathOf(uri)

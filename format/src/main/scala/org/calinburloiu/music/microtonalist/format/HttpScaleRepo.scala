@@ -25,6 +25,12 @@ import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
 import scala.jdk.OptionConverters.RichOptional
 
+/**
+ * Scale repository implementation that retrieves and persists scales remotely by using HTTP.
+ *
+ * @param httpClient          HTTP client configured to access scales
+ * @param scaleFormatRegistry registry responsible for choosing the scale format
+ */
 class HttpScaleRepo(httpClient: HttpClient,
                     scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
 

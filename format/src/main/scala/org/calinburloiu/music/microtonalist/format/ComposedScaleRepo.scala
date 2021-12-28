@@ -21,7 +21,15 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
 
+/**
+ * Scale repository trait to be extended for choosing different repository implementations based on URI (see
+ * [[ComposedScaleRepo#getScaleRepo]]).
+ */
 trait ComposedScaleRepo extends ScaleRepo {
+  /**
+   * @param uri URI used for identifying the scale
+   * @return a [[ScaleRepo]] implementation based on the given URI
+   */
   def getScaleRepo(uri: URI): Option[ScaleRepo]
 
   override def read(uri: URI): Scale[Interval] =
@@ -30,6 +38,9 @@ trait ComposedScaleRepo extends ScaleRepo {
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
     getScaleRepoOrThrow(uri).write(scale, uri, mediaType)
 
+  /**
+   * Variant of [[getScaleRepo]] that throws if a repository implementation is not available.
+   */
   protected def getScaleRepoOrThrow(uri: URI): ScaleRepo = getScaleRepo(uri)
     .getOrElse(throw new BadScaleRequestException(uri))
 }

@@ -18,6 +18,15 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 
+/**
+ * Default scale list repository implementation that accesses scale lists from other repositories based on URI:
+ *
+ *   - Relative URIs and those with `file` scheme use [[FileScaleListRepo]]
+ *   - URIs with `http`/`https` scheme use [[HttpScaleListRepo]]
+ *
+ * @param fileScaleListRepo    a [[FileScaleRepo]] instance
+ * @param httpScaleListRepo    an [[HttpScaleRepo]] instance
+ */
 class DefaultScaleListRepo(fileScaleListRepo: FileScaleListRepo,
                            httpScaleListRepo: HttpScaleListRepo) extends ComposedScaleListRepo {
   override def getScaleListRepo(uri: URI): Option[ScaleListRepo] = uri.getScheme match {

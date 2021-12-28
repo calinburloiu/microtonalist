@@ -22,6 +22,10 @@ import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
 import scala.util.Try
 
+/**
+ * Scale list repository implementation that retrieves and persists scales by using the file system.
+ * @param scaleListFormat format implementation responsible for (de)serialization.
+ */
 class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo {
   override def read(uri: URI): ScaleList = {
     val path = pathOf(uri)

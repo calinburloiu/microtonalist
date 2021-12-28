@@ -20,24 +20,48 @@ import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.net.URI
 
+/**
+ * Repository pattern trait used for retrieving or persisting scale lists identified by URI. Implementations are
+ * responsible for abstracting reading and writing from a particular data source like file, Web or cloud service.
+ */
 trait ScaleListRepo {
+  /**
+   * Retrieves a scale list.
+   *
+   * @param uri universal resource identifier (URI) for the scale list
+   * @return the requested scale list
+   */
   def read(uri: URI): ScaleList
 
+  /**
+   * Persists a scale list.
+   *
+   * @param scaleList scale list to be persisted
+   * @param uri       universal resource identifier (URI) for the scale list
+   */
   def write(scaleList: ScaleList, uri: URI): Unit
 }
+
+/**
+ * Base exception thrown when an error occurred in a [[ScaleListRepo]] instance.
+ */
+class ScaleListRepoException(message: String, cause: Throwable) extends RuntimeException(message, cause)
 
 /**
  * Exception thrown if the requested scale list could not be found.
  */
 class ScaleListNotFoundException(uri: URI, cause: Throwable = null)
-  extends RuntimeException(s"A scale list with $uri was not found", cause)
+  extends ScaleListRepoException(s"A scale list with $uri was not found", cause)
 
 
 /**
  * Exception thrown if the the scale list request was invalid.
  */
 class BadScaleListRequestException(uri: URI, message: Option[String] = None, cause: Throwable = null)
-  extends RuntimeException(message.getOrElse(s"Bad scale list request for $uri"), cause)
+  extends ScaleListRepoException(message.getOrElse(s"Bad scale list request for $uri"), cause)
 
+/**
+ * Exception thrown if the scale list could not be read from the given source URI.
+ */
 class ScaleListReadFailureException(val uri: URI, message: String, cause: Throwable = null)
-  extends RuntimeException(message, cause)
+  extends ScaleListRepoException(message, cause)

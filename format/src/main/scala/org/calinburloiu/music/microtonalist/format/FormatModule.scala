@@ -37,7 +37,7 @@ class FormatModule(libraryUri: URI) {
 
   lazy val fileScaleRepo: FileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
   lazy val httpScaleRepo: HttpScaleRepo = new HttpScaleRepo(httpClient, scaleFormatRegistry)
-  lazy val microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo = new MicrotonalistLibraryScaleRepo(
+  lazy val microtonalistLibraryScaleRepo: LibraryScaleRepo = new LibraryScaleRepo(
     libraryUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(

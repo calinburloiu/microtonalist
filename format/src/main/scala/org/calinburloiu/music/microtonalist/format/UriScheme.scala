@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+/**
+ * URI schemes used for application format / persistence.
+ */
 object UriScheme {
   val File: String = "file"
   val Http: String = "http"

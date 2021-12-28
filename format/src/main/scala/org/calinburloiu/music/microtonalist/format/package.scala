@@ -20,6 +20,13 @@ import java.net.URI
 import java.nio.file.{Path, Paths}
 
 package object format {
+  /**
+   * Removes the trailing path item from the URI after the last slash. If the URI points to a file, for example,
+   * it remove the file name from the path and only leaves its folder location.
+   *
+   * Example: `baseUriOf(new URI("https://example.org/path/to/file.json))` returns
+   * `new URI("https://example.org/path/to/)`.
+   */
   def baseUriOf(uri: URI): URI = {
     def updateUriPath(uri: URI, newPath: String): URI = {
       new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, newPath, uri.getQuery, uri.getFragment)
@@ -39,6 +46,10 @@ package object format {
     }
   }
 
+  /**
+   * Converts the given [[URI]] to a [[Path]].
+   * @throws IllegalArgumentException if the URI does not represent a file path
+   */
   def pathOf(uri: URI): Path = {
     require(!uri.isAbsolute || uri.getScheme == UriScheme.File)
 

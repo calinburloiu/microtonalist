@@ -21,16 +21,34 @@ import play.api.libs.json._
 import java.net.URI
 import scala.collection.mutable
 
+/**
+ * JSON preprocessor that replaces JSON references to other JSON files with the actual JSON value.
+ *
+ * A JSON reference is a `$ref` property in a JSON object that has a URI as value. The given `refLoaders` are used
+ * to load JSON objects based on that URI and other context information. The `$ref` property is replaced with the
+ * object loaded. Properties already present in the object that contained the `$ref` are overridden by those loaded.
+ *
+ * @param refLoaders a list of reference loaders responsible to load JSON values from reference URI based on context
+ */
 class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
 
   import JsonPreprocessor._
 
+  /**
+   * Performs preprocessing in the given JSON value.
+   *
+   * @param json    JSON value to be preprocessed
+   * @param baseUri optional base URI used to resolve relative URIs from `$ref` properties
+   * @return a preprocessed JSON with all references replaced
+   */
   def preprocess(json: JsValue, baseUri: Option[URI]): JsValue =
     if (refLoaders.isEmpty) json else preprocessValue(json, JsPath(), baseUri, new NestedRefContext).value
 
   /**
-   * @param json JSON value to preprocess
-   * @param path path where the value was found
+   * @param json             JSON value to preprocess
+   * @param path             path where the value was found
+   * @param baseUri          optional base URI used to resolve relative URIs from `$ref` properties
+   * @param nestedRefContext object used for accounting nested references
    * @return [[Unchanged]] with the unchanged value or [[Changed]] with the preprocessed value
    */
   private def preprocessValue(json: JsValue,
@@ -45,8 +63,10 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
   }
 
   /**
-   * @param obj  JSON object to preprocess
-   * @param path path where the object was found
+   * @param obj              JSON object to preprocess
+   * @param path             path where the object was found
+   * @param baseUri          optional base URI used to resolve relative URIs from `$ref` properties
+   * @param nestedRefContext object used for accounting nested references
    * @return [[Unchanged]] with the unchanged object or [[Changed]] with the preprocessed object
    */
   private def preprocessObject(obj: JsObject,
@@ -81,8 +101,10 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
   }
 
   /**
-   * @param array JSON array to preprocess
-   * @param path  path where the array was found
+   * @param array            JSON array to preprocess
+   * @param path             path where the array was found
+   * @param baseUri          optional base URI used to resolve relative URIs from `$ref` properties
+   * @param nestedRefContext object used for accounting nested references
    * @return [[Unchanged]] with the unchanged array or [[Changed]] with the preprocessed array
    */
   private def preprocessArray(array: JsArray,
@@ -96,6 +118,14 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
     if (changed) Changed(JsArray(resultItems.map(_.value))) else Unchanged(array)
   }
 
+  /**
+   * Tries to load a JSON object from the given URI by taking a JSON path as context.
+   *
+   * @param uri              URI where the JSON object is to be read
+   * @param pathContext      JSON path used as context
+   * @param nestedRefContext object used for accounting nested references
+   * @return maybe a JSON object
+   */
   private def loadRef(uri: URI, pathContext: JsPath, nestedRefContext: NestedRefContext): Option[JsObject] = {
     for (loader <- refLoaders) {
       loader.load(uri, pathContext) match {
@@ -131,28 +161,47 @@ object JsonPreprocessor {
 
   val MaxNestedRefDepth: Int = 100
 
+  /**
+   * Internal intermediary preprocessing result object used for accounting if a subtree was modified by the
+   * preprocessor.
+   */
   private sealed trait PreprocessResult[+A <: JsValue] {
     val value: A
 
     def wasChanged: Boolean
   }
 
+  /**
+   * Internal intermediary preprocessing result object which tells that a subtree was not modified by the preprocessor.
+   */
   private case class Unchanged[+A <: JsValue](override val value: A) extends PreprocessResult[A] {
     override def wasChanged: Boolean = false
   }
 
+  /**
+   * Internal intermediary preprocessing result object which tells that a subtree was modified by the preprocessor.
+   */
   private case class Changed[+A <: JsValue](override val value: A) extends PreprocessResult[A] {
     override def wasChanged: Boolean = true
   }
 
+  /**
+   * Object used for accounting nested references in order to avoid very deep references or cycles.
+   */
   private class NestedRefContext {
     var depth: Int = 0
     val visitedRefs: mutable.Set[URI] = mutable.HashSet()
   }
 }
 
+/**
+ * A special no-op [[JsonPreprocessor]] that performs no preprocessing.
+ */
 object NoJsonPreprocessor extends JsonPreprocessor(Seq.empty)
 
+/**
+ * Trait extended for loading JSON references for [[JsonPreprocessor]].
+ */
 trait JsonPreprocessorRefLoader {
   /**
    * Attempts to load a JSON reference by using the given URI found in the given path in the input JSON.
@@ -169,5 +218,11 @@ trait JsonPreprocessorRefLoader {
   def load(uri: URI, pathContext: JsPath): Option[JsObject]
 }
 
+/**
+ * Exception thrown when an error occurred loading a JSON reference in [[JsonPreprocessor]].
+ *
+ * @param uri         URI where the JSON object referenced is to be read
+ * @param pathContext JSON path where the reference was encountered
+ */
 class JsonPreprocessorRefLoadException(val uri: URI, val pathContext: JsPath, message: String, cause: Throwable = null)
   extends RuntimeException(message, cause)

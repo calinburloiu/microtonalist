@@ -24,7 +24,13 @@ import play.api.libs.json._
 import java.io.{InputStream, OutputStream, PrintWriter}
 import java.net.URI
 
+/**
+ * [[ScaleFormat]] implementation that provides support for Microtonalist's own JSON-based scale format.
+ *
+ * @param jsonPreprocessor a preprocessor instance that can replace JSON references
+ */
 class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
+
   import JsonScaleFormat._
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata(
@@ -72,15 +78,15 @@ object JsonScaleFormat {
 
   private[format] val jsonVerboseScaleFormat: Format[Scale[Interval]] = (
     (__ \ "intervals").format[Seq[Interval]] and
-    (__ \ "name").formatNullable[String]
-  )({ (pitches: Seq[Interval], name: Option[String]) =>
-    ScaleFormat.createScale(name.getOrElse(""), pitches)
+      (__ \ "name").formatNullable[String]
+    ) ({ (pitches: Seq[Interval], name: Option[String]) =>
+    Scale.create(name.getOrElse(""), pitches)
   }, { scale =>
     (scale.intervals, Some(scale.name))
   })
 
   private[format] val jsonConciseScaleReads: Reads[Scale[Interval]] = __.read[Seq[Interval]]
-    .map { pitches => ScaleFormat.createScale("", pitches) }
+    .map { pitches => Scale.create("", pitches) }
 
   private[format] val jsonAllScaleReads: Reads[Scale[Interval]] = jsonVerboseScaleFormat orElse jsonConciseScaleReads
 }

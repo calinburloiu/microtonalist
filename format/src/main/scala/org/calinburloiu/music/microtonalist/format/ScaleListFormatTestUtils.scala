@@ -20,7 +20,10 @@ import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.net.URI
 
-object ScaleListTestUtils {
+/**
+ * Utilities used for testing scale list format.
+ */
+object ScaleListFormatTestUtils {
   def uriOfResource(pathString: String): URI = getClass.getClassLoader.getResource(pathString).toURI
 
   def readScaleListFromResources(resourcePathString: String, scaleListRepo: ScaleListRepo): ScaleList = {

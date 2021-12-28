@@ -23,24 +23,36 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 import java.net.URI
 
 // TODO #38 Break inheritance from RefResolver
+
 /**
- * Repository pattern trait used for retrieving scales by their URI. Implementations are responsible for implementing
- * the retrieval from a particular data source like file, Web or cloud service.
+ * Repository pattern trait used for retrieving or persisting scales identified by URI. Implementations are
+ * responsible for abstracting reading and writing from a particular data source like file, Web or cloud service.
  */
 trait ScaleRepo extends RefResolver[Scale[Interval]] {
 
   /**
    * Retrieves a scale.
    *
-   * @param uri       universal resource identifier for the scale
-   * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
-   *                  used for identification.
-   * @return the identified scale
+   * @param uri universal resource identifier (URI) for the scale
+   * @return the requested scale
    */
   def read(uri: URI): Scale[Interval]
 
+  /**
+   * Persists a scale.
+   *
+   * @param scale     scale to be persisted
+   * @param uri       universal resource identifier (URI) for the scale
+   * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
+   *                  used for identification.
+   */
   def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit
 }
+
+/**
+ * Base exception thrown when an error occurred in a [[ScaleRepo]] instance.
+ */
+class ScaleRepoException(message: String, cause: Throwable) extends RuntimeException(message, cause)
 
 /**
  * Exception thrown if the requested scale could not be found.
@@ -53,8 +65,11 @@ class ScaleNotFoundException(val uri: URI, cause: Throwable = null)
  */
 class BadScaleRequestException(val uri: URI, val mediaType: Option[MediaType] = None,
                                message: Option[String] = None, cause: Throwable = null)
-  extends RuntimeException(
+  extends ScaleRepoException(
     message.getOrElse(s"Bad scale request for $uri and ${mediaType.getOrElse("any")} media type"), cause)
 
+/**
+ * Exception thrown if the scale could not be read from the given source URI.
+ */
 class ScaleReadFailureException(val uri: URI, message: String, cause: Throwable = null)
-  extends RuntimeException(message, cause)
+  extends ScaleRepoException(message, cause)

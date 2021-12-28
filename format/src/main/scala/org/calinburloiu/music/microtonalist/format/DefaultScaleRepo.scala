@@ -18,13 +18,24 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 
+/**
+ * Default scale repository implementation that accesses scales from other repositories based on URI:
+ *
+ *   - Relative URIs and those with `file` scheme use [[FileScaleRepo]]
+ *   - URIs with `http`/`https` scheme use [[HttpScaleRepo]]
+ *   - URIs with `microtonalist` scheme use [[LibraryScaleRepo]].
+ *
+ * @param fileScaleRepo    a [[FileScaleRepo]] instance
+ * @param httpScaleRepo    an [[HttpScaleRepo]] instance
+ * @param libraryScaleRepo a [[LibraryScaleRepo]] instance
+ */
 class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
                        httpScaleRepo: HttpScaleRepo,
-                       microtonalistLibraryScaleRepo: MicrotonalistLibraryScaleRepo) extends ComposedScaleRepo {
+                       libraryScaleRepo: LibraryScaleRepo) extends ComposedScaleRepo {
   override def getScaleRepo(uri: URI): Option[ScaleRepo] = uri.getScheme match {
     case null | UriScheme.File => Some(fileScaleRepo)
     case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
-    case UriScheme.MicrotonalistLibrary => Some(microtonalistLibraryScaleRepo)
+    case UriScheme.MicrotonalistLibrary => Some(libraryScaleRepo)
     case _ => None
   }
 }

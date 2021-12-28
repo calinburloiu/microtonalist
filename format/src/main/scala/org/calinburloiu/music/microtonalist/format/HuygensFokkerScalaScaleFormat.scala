@@ -26,6 +26,10 @@ import scala.io.Source
 import scala.util.Try
 import scala.util.matching.Regex
 
+/**
+ * [[ScaleFormat]] implementation that provides support for the
+ * [[https://www.huygens-fokker.org/scala/ Scala application]] (from Huygens-Fokker organization) `.scl` files.
+ */
 class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata("Huygens-Fokker Scala Application Scale", Set("scl"))
@@ -70,7 +74,7 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
           s"Invalid file format: the value of pitch with index ${pitchIndex + 1} is invalid")
     }
 
-    ScaleFormat.createScale(description, pitches)
+    Scale.create(description, pitches)
   }
 
   override def write(scale: Scale[Interval], outputStream: OutputStream): Unit = ???

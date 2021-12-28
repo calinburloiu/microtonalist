@@ -25,23 +25,17 @@ import java.io.{InputStream, OutputStream}
 import java.net.URI
 
 /**
- * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
+ * Class used for serialization/deserialization of [[ScaleList]]s in Microtonalist's own JSON format.
  *
  * @param scaleRepo repository for retrieving scales by URI
  */
 class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocessor) extends ScaleListFormat {
-  /**
-   * Reads a [[ScaleList]] from input stream.
-   */
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList = {
     val repr = readRepr(inputStream, baseUri).resolve(scaleRepo, baseUri)
 
     fromReprToDomain(repr)
   }
 
-  /**
-   * Writes a [[ScaleList]] to output stream.
-   */
   override def write(scaleList: ScaleList, outputStream: OutputStream): Unit = ???
 
   private def readRepr(inputStream: InputStream, baseUri: Option[URI]): ScaleListRepr = {
@@ -56,6 +50,9 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocess
     }
   }
 
+  /**
+   * Converts the objects used for JSON representation into core / domain model objects.
+   */
   private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow

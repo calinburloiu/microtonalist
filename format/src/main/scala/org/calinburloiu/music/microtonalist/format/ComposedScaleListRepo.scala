@@ -20,13 +20,24 @@ import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.net.URI
 
+/**
+ * Scale list repository trait to be extended for choosing different repository implementations based on URI (see
+ * [[ComposedScaleListRepo#getScaleListRepo]]).
+ */
 trait ComposedScaleListRepo extends ScaleListRepo {
+  /**
+   * @param uri URI used for identifying the scale list
+   * @return a [[ScaleListRepo]] implementation based on the given URI
+   */
   def getScaleListRepo(uri: URI): Option[ScaleListRepo]
 
   override def read(uri: URI): ScaleList = getScaleListRepoOrThrow(uri).read(uri)
 
   override def write(scaleList: ScaleList, uri: URI): Unit = getScaleListRepoOrThrow(uri).write(scaleList, uri)
 
+  /**
+   * Variant of [[getScaleListRepo]] that throws if a repository implementation is not available.
+   */
   protected def getScaleListRepoOrThrow(uri: URI): ScaleListRepo = getScaleListRepo(uri)
     .getOrElse(throw new BadScaleListRequestException(uri))
 }

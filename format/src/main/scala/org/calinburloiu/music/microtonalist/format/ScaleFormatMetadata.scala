@@ -18,6 +18,12 @@ package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
 
+/**
+ * Scale format metadata.
+ * @param name name of the scale format
+ * @param extensions file extensions (without the dot) used to the format (if any)
+ * @param mediaTypes specific media types (MIME types) used for the format (if any)
+ */
 case class ScaleFormatMetadata(name: String,
                                extensions: Set[String],
                                mediaTypes: Set[MediaType] = Set.empty)

@@ -62,6 +62,31 @@ object Scale {
 
   def apply[I <: Interval](headPitch: I, tailPitches: I*): Scale[I] =
     Scale("", headPitch, tailPitches: _*)
+
+  /**
+   * Creates the correct [[Scale]] implementation by taking pitches [[Interval]] implementation into accound.
+   *
+   * @param name    name of scale to be created
+   * @param pitches scale pitches
+   * @return the created scale
+   */
+   def create(name: String, pitches: Seq[Interval]): Scale[Interval] = {
+    val hasUnison = pitches.headOption.exists(interval => interval.isUnison)
+
+    // TODO #4 Handle the case when pitches are EdoIntervals
+    if (pitches.isEmpty) {
+      Scale(name, CentsInterval(0.0))
+    } else if (pitches.forall(_.isInstanceOf[CentsInterval])) {
+      val resultPitches = if (hasUnison) pitches else CentsInterval.Unison +: pitches
+      CentsScale(name, resultPitches.map(_.asInstanceOf[CentsInterval]))
+    } else if (pitches.forall(_.isInstanceOf[RatioInterval])) {
+      val resultPitches = if (hasUnison) pitches else RatioInterval.Unison +: pitches
+      RatiosScale(name, resultPitches.map(_.asInstanceOf[RatioInterval]))
+    } else {
+      val resultPitches = if (hasUnison) pitches else RealInterval.Unison +: pitches
+      Scale(name, resultPitches)
+    }
+  }
 }
 
 

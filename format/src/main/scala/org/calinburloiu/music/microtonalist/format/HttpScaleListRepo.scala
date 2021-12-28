@@ -23,6 +23,12 @@ import java.net.URI
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
 
+/**
+ * Scale repository implementation that retrieves and persists scale lists remotely by using HTTP.
+ *
+ * @param httpClient      HTTP client configured to access scale lists
+ * @param scaleListFormat format implementation responsible for (de)serialization.
+ */
 class HttpScaleListRepo(httpClient: HttpClient, scaleListFormat: ScaleListFormat)
   extends ScaleListRepo with StrictLogging {
 
