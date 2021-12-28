@@ -14,17 +14,14 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
-
-import com.google.common.net.MediaType
+package org.calinburloiu.music.microtonalist.config
 
 /**
- * Scale format metadata.
+ * Exception thrown when an error occurred while deserializing a config property.
  *
- * @param name       name of the scale format
- * @param extensions file extensions (without the dot) used to the format (if any)
- * @param mediaTypes specific media types (MIME types) used for the format (if any)
+ * @param propertyPath               HOCON config property path (e.g. `"core.libraryUri"`)
+ * @param propertyRequirementMessage message that describes the requirement for the above property (e.g. "must be a
+ *                                   valid URI or file system path")
  */
-case class ScaleFormatMetadata(name: String,
-                               extensions: Set[String],
-                               mediaTypes: Set[MediaType] = Set.empty)
+class ConfigPropertyException(propertyPath: String, propertyRequirementMessage: String, cause: Throwable = null)
+  extends ConfigException(s"$propertyPath $propertyRequirementMessage", cause)

@@ -58,7 +58,7 @@ class ScaleRepoException(message: String, cause: Throwable) extends RuntimeExcep
  * Exception thrown if the requested scale could not be found.
  */
 class ScaleNotFoundException(val uri: URI, cause: Throwable = null)
-  extends RuntimeException(s"No scale was found at $uri", cause)
+  extends ScaleRepoException(s"No scale was found at $uri", cause)
 
 /**
  * Exception thrown if the the scale request was invalid.

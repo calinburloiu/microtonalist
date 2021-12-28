@@ -20,10 +20,10 @@ import com.typesafe.config.{Config => HoconConfig}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.PlatformUtils
+import org.calinburloiu.music.microtonalist.format.parseBaseUri
 
 import java.net.URI
-import java.nio.file.{Path, Paths}
-import scala.util.Try
+import java.nio.file.Paths
 
 case class CoreConfig(libraryUri: URI = CoreConfig.defaultLibraryUri,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
@@ -64,9 +64,8 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
     libraryUri = hoconConfig.getAs[String]("libraryUri")
-      // TODO Create a custom config exception
-      .map(uri => parseUri(uri).getOrElse(throw new IllegalArgumentException(
-        "libraryUri should be a valid URI or a local path")))
+      .map(uri => parseBaseUri(uri).getOrElse(throw new ConfigPropertyException(
+        s"$configRootPath.libraryUri", "must be a valid URI or a local path")))
       .getOrElse(CoreConfig.defaultLibraryUri),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
@@ -81,8 +80,4 @@ object CoreConfigManager {
       saveOnExit = hc.getAs[Boolean]("saveOnExit").getOrElse(MetaConfig.default.saveOnExit)
     )
   }
-
-  private def parseUri(uriString: String): Option[URI] =
-    Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map(_.toUri)
-
 }

@@ -67,4 +67,38 @@ class FormatUtilsTest extends AnyFlatSpec with Matchers {
   it should "fail for a non file URI" in {
     assertThrows[IllegalArgumentException] { pathOf(new URI("https://example.org/path/to/file.scl")) }
   }
+
+  "parseUri" should "parse an absolute URI" in {
+    parseBaseUri("https://example.org/path/to/") should contain (new URI("https://example.org/path/to/"))
+    parseBaseUri("https://example.org/path/to/file.json") should contain
+      new URI("https://example.org/path/to/file.json")
+
+    parseBaseUri("file:///path/to/") should contain (new URI("file:///path/to/"))
+    parseBaseUri("file:///path/to/file.json") should contain
+      new URI("file:///path/to/file.json")
+  }
+
+  "parseUri" should "parse a UNIX path" in {
+    parseBaseUri("/Users/johnny/Music/microtonalist/lib/scales/") should contain
+      new URI("file:///Users/johnny/Music/microtonalist/lib/scales/")
+    parseBaseUri("/Users/johnny/Music/microtonalist/lib/scales") should contain
+      new URI("file:///Users/johnny/Music/microtonalist/lib/scales")
+  }
+
+  "parseBaseUri" should "parse an absolute URI" in {
+    parseBaseUri("https://example.org/path/to/") should contain (new URI("https://example.org/path/to/"))
+    parseBaseUri("https://example.org/path/to/file.json") should contain
+      new URI("https://example.org/path/to/file.json/")
+
+    parseBaseUri("file:///path/to/") should contain (new URI("file:///path/to/"))
+    parseBaseUri("file:///path/to/file.json") should contain
+      new URI("file:///path/to/file.json/")
+  }
+
+  it should "parse a UNIX path" in {
+    parseBaseUri("/Users/johnny/Music/microtonalist/lib/scales/") should contain
+      new URI("file:///Users/johnny/Music/microtonalist/lib/scales/")
+    parseBaseUri("/Users/johnny/Music/microtonalist/lib/scales") should contain
+      new URI("file:///Users/johnny/Music/microtonalist/lib/scales/")
+  }
 }
