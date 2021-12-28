@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.core
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation.{CentsInterval, Interval, RealInterval}
+import org.calinburloiu.music.intonation.{CentsInterval, RealInterval}
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec

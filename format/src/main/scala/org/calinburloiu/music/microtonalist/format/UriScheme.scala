@@ -16,9 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import java.net.URI
+/**
+ * URI schemes used for application format / persistence.
+ */
+object UriScheme {
+  val File: String = "file"
+  val Http: String = "http"
+  val Https: String = "https"
+  val MicrotonalistLibrary: String = "microtonalist"
 
-trait RefResolver[+A] {
-
-  def read(uri: URI): A
+  val HttpSet: Set[String] = Set(Http, Https)
 }

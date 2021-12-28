@@ -16,9 +16,17 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.microtonalist.core.ScaleList
+
 import java.net.URI
 
-trait RefResolver[+A] {
+/**
+ * Utilities used for testing scale list format.
+ */
+object ScaleListFormatTestUtils {
+  def uriOfResource(pathString: String): URI = getClass.getClassLoader.getResource(pathString).toURI
 
-  def read(uri: URI): A
+  def readScaleListFromResources(resourcePathString: String, scaleListRepo: ScaleListRepo): ScaleList = {
+    scaleListRepo.read(uriOfResource(resourcePathString))
+  }
 }

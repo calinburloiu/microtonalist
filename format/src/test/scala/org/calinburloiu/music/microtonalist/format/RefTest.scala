@@ -23,7 +23,7 @@ import play.api.libs.json.{Json, Reads}
 
 class RefTest extends AnyFlatSpec with Matchers {
 
-  implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
+  implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
 
   "refReads" should "read a JSON containing only a reference as an UnresolvedRef" in {
     // Arrange

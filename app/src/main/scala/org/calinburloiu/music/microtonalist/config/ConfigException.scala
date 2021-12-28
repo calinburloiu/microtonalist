@@ -14,11 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.config
 
-import java.net.URI
-
-trait RefResolver[+A] {
-
-  def read(uri: URI): A
-}
+/**
+ * Base exception thrown when a HOCON configuration error occurred.
+ */
+class ConfigException(message: String, cause: Throwable = null) extends RuntimeException(message, cause)

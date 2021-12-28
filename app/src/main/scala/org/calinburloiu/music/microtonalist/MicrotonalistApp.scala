@@ -20,13 +20,13 @@ import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
-import org.calinburloiu.music.microtonalist.format.{JsonScaleListFormat, LocalScaleLibrary, ScaleFormatRegistry}
+import org.calinburloiu.music.microtonalist.format.{FormatModule, parseUri}
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.MidiManager
 
-import java.io.FileInputStream
-import java.nio.file.Paths
+import java.net.URI
+import java.nio.file.{InvalidPathException, Path, Paths}
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
@@ -38,7 +38,7 @@ object MicrotonalistApp extends StrictLogging {
     }
   }
 
-  case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list> [config-file]", 1)
+  case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list-uri> [config-file]", 1)
 
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
 
@@ -46,8 +46,10 @@ object MicrotonalistApp extends StrictLogging {
 
   def main(args: Array[String]): Unit = Try {
     args match {
-      case Array(inputFileName: String) => run(inputFileName)
-      case Array(inputFileName: String, configFileName: String) => run(inputFileName, Some(configFileName))
+      case Array(inputUriString: String) =>
+        run(parseUriArg(inputUriString))
+      case Array(inputUriString: String, configFileName: String) =>
+        run(parseUriArg(inputUriString), Some(parsePathArg(configFileName)))
       case _ => throw AppUsageException
     }
   }.recover {
@@ -57,8 +59,16 @@ object MicrotonalistApp extends StrictLogging {
       System.exit(1000)
   }
 
-  def run(inputFileName: String, configFileName: Option[String] = None): Unit = {
-    val configPath = configFileName.map(Paths.get(_)).getOrElse(MainConfigManager.defaultConfigFile)
+  private def parseUriArg(uriString: String): URI = {
+    parseUri(uriString).getOrElse(throw AppUsageException)
+  }
+
+  private def parsePathArg(fileName: String): Path = Try(Paths.get(fileName)).recover {
+    case _: InvalidPathException => throw AppUsageException
+  }.get
+
+  def run(inputUri: URI, maybeConfigPath: Option[Path] = None): Unit = {
+    val configPath = maybeConfigPath.getOrElse(MainConfigManager.defaultConfigFile)
     val eventBus: EventBus = new EventBus
     val mainConfigManager = MainConfigManager(configPath)
 
@@ -83,11 +93,10 @@ object MicrotonalistApp extends StrictLogging {
     val receiver = midiManager.outputReceiver(outputDeviceId)
 
     // # I/O
-    val scaleLibraryPath = mainConfigManager.coreConfig.scaleLibraryPath
-    val scaleListFormat = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
+    val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
 
     // # Microtuner
-    val scaleList = scaleListFormat.read(new FileInputStream(inputFileName))
+    val scaleList = formatModule.defaultScaleListRepo.read(inputUri)
     val tuningList = TuningList.fromScaleList(scaleList)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)

@@ -20,17 +20,21 @@ import com.typesafe.config.{Config => HoconConfig}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.PlatformUtils
+import org.calinburloiu.music.microtonalist.format.parseBaseUri
 
-import java.nio.file.{Path, Paths}
+import java.net.URI
+import java.nio.file.Paths
 
-case class CoreConfig(scaleLibraryPath: Path = CoreConfig.defaultScaleLibraryPath,
+case class CoreConfig(libraryUri: URI = CoreConfig.defaultLibraryUri,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
-  val defaultScaleLibraryPath: Path = if (PlatformUtils.isMac)
-    Paths.get("~/Music/microtonalist/lib/scales/")
-  else
+  val defaultLibraryUri: URI = if (PlatformUtils.isMac) {
+    val homePath = Paths.get(System.getProperty("user.home"))
+    homePath.resolve("Music/microtonalist/lib/").toUri
+  } else {
     throw new RuntimeException("Only Mac platform is currently supported")
+  }
 }
 
 case class MetaConfig(saveIntervalMillis: Int = 5000,
@@ -54,13 +58,15 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
     )
 
     hoconConfig
-      .withAnyRefValue("scaleLibraryPath", config.scaleLibraryPath.toString)
+      .withAnyRefValue("libraryUri", config.libraryUri.toString)
       .withAnyRefValue("metaConfig", metaConfigMap)
   }
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
-    scaleLibraryPath = hoconConfig.getAs[String]("scaleLibraryPath").map(Paths.get(_))
-      .getOrElse(CoreConfig.defaultScaleLibraryPath),
+    libraryUri = hoconConfig.getAs[String]("libraryUri")
+      .map(uri => parseBaseUri(uri).getOrElse(throw new ConfigPropertyException(
+        s"$configRootPath.libraryUri", "must be a valid URI or a local path")))
+      .getOrElse(CoreConfig.defaultLibraryUri),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
 }

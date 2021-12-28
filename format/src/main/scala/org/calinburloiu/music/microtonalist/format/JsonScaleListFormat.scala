@@ -22,42 +22,37 @@ import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
-import java.nio.file.{Path, Paths}
+import java.net.URI
 
 /**
- * Class used for serialization/deserialization of [[ScaleList]]s in JSON format.
+ * Class used for serialization/deserialization of [[ScaleList]]s in Microtonalist's own JSON format.
  *
- * @param scaleLibrary repository for retrieving scales by URI
+ * @param scaleRepo repository for retrieving scales by URI
  */
-class JsonScaleListFormat(scaleLibrary: ScaleLibrary) extends ScaleListFormat {
-
-  private implicit val scaleLibraryImpl: ScaleLibrary = scaleLibrary
-
-  /**
-   * Reads a [[ScaleList]] from input stream.
-   */
-  override def read(inputStream: InputStream): ScaleList = {
-    val repr = readRepr(inputStream).resolve
+class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocessor) extends ScaleListFormat {
+  override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList = {
+    val repr = readRepr(inputStream, baseUri).resolve(scaleRepo, baseUri)
 
     fromReprToDomain(repr)
   }
 
-  /**
-   * Writes a [[ScaleList]] to output stream.
-   */
-  override def write(scaleList: ScaleList): OutputStream = ???
+  override def write(scaleList: ScaleList, outputStream: OutputStream): Unit = ???
 
-  private def readRepr(inputStream: InputStream): ScaleListRepr = {
+  private def readRepr(inputStream: InputStream, baseUri: Option[URI]): ScaleListRepr = {
     import JsonScaleListFormat._
 
     val json = Json.parse(inputStream)
+    val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    json.validate[ScaleListRepr] match {
+    preprocessedJson.validate[ScaleListRepr] match {
       case JsSuccess(scaleList, _) => scaleList
       case error: JsError => throw new InvalidScaleListFormatException(JsError.toJson(error).toString)
     }
   }
 
+  /**
+   * Converts the objects used for JSON representation into core / domain model objects.
+   */
   private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
     val mapQuarterTonesLow = scaleListRepr.config
       .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
@@ -95,7 +90,7 @@ object JsonScaleListFormat {
   private val tolerance: Double = DefaultCentsTolerance
 
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
-  private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonScaleReads
+  private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
   private[JsonScaleListFormat] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
@@ -138,13 +133,5 @@ object JsonScaleListFormat {
       SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
       SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
     )
-  }
-
-  def readScaleListFromResources(path: String): ScaleList = {
-    val scaleLibraryPath: Path = Paths.get(getClass.getClassLoader.getResource("scales/").getFile)
-    val scaleListReader = new JsonScaleListFormat(new LocalScaleLibrary(ScaleFormatRegistry, scaleLibraryPath))
-    val inputStream = getClass.getClassLoader.getResourceAsStream(path)
-
-    scaleListReader.read(inputStream)
   }
 }

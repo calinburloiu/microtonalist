@@ -14,11 +14,14 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.config
 
-import java.net.URI
-
-trait RefResolver[+A] {
-
-  def read(uri: URI): A
-}
+/**
+ * Exception thrown when an error occurred while deserializing a config property.
+ *
+ * @param propertyPath               HOCON config property path (e.g. `"core.libraryUri"`)
+ * @param propertyRequirementMessage message that describes the requirement for the above property (e.g. "must be a
+ *                                   valid URI or file system path")
+ */
+class ConfigPropertyException(propertyPath: String, propertyRequirementMessage: String, cause: Throwable = null)
+  extends ConfigException(s"$propertyPath $propertyRequirementMessage", cause)

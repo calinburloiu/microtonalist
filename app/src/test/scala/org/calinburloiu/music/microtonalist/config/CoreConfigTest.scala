@@ -16,14 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import java.nio.file.Paths
+import java.net.URI
 
 class CoreConfigTest extends SubConfigTest[CoreConfig, CoreConfigManager] {
 
   override lazy val subConfigManager: CoreConfigManager = mainConfigManager.coreConfigManager
 
   override lazy val expectedSubConfigRead: CoreConfig = CoreConfig(
-    scaleLibraryPath = Paths.get("/Users/johnny/Music/microtonalist/lib/scales/"),
+    libraryUri = new URI("file:///Users/johnny/Music/microtonalist/lib/scales/"),
     metaConfig = MetaConfig(
       saveIntervalMillis = 2000,
       saveOnExit = false
@@ -38,7 +38,7 @@ class CoreConfigTest extends SubConfigTest[CoreConfig, CoreConfigManager] {
       )
     ),
     expectedSubConfigRead.copy(
-      scaleLibraryPath = Paths.get("/tmp/scales")
+      libraryUri = new URI("file:///tmp/scales/")
     )
   )
 }
@@ -48,7 +48,7 @@ class CoreConfigDefaultsTest extends CoreConfigTest {
   override def configResource: String = SubConfigTest.defaultConfigResourceWithDefaults
 
   override lazy val expectedSubConfigRead: CoreConfig = CoreConfig(
-    scaleLibraryPath = CoreConfig.defaultScaleLibraryPath,
+    libraryUri = CoreConfig.defaultLibraryUri,
     metaConfig = MetaConfig(
       saveIntervalMillis = 5000,
       saveOnExit = true

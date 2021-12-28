@@ -19,6 +19,8 @@ package org.calinburloiu.music.microtonalist.format
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
+import java.net.URI
+
 // TODO How can I make it like a collection? (with map, foreach etc.)
 sealed trait Ref[+A] {
 
@@ -31,7 +33,7 @@ sealed trait Ref[+A] {
 
   def valueOption: Option[A]
 
-  def resolve[B >: A](implicit refResolver: RefResolver[B]): Ref[B]
+  def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B]
 }
 
 case class NoRef[+A](value: A) extends Ref[A] {
@@ -42,7 +44,7 @@ case class NoRef[+A](value: A) extends Ref[A] {
 
   override def valueOption: Option[A] = Some(value)
 
-  override def resolve[B >: A](implicit refResolver: RefResolver[B]): Ref[B] = this
+  override def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B] = this
 }
 
 case class UnresolvedRef[+A](uri: String) extends Ref[A] {
@@ -53,8 +55,10 @@ case class UnresolvedRef[+A](uri: String) extends Ref[A] {
 
   override def valueOption: Option[A] = None
 
-  override def resolve[B >: A](implicit refResolver: RefResolver[B]): Ref[B] =
-    ResolvedRef(uri, refResolver.get(uri))
+  override def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B] = {
+    val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(new URI(uri))
+    ResolvedRef(uri, refResolver.read(resolvedUri))
+  }
 }
 
 case class ResolvedRef[+A](uri: String, value: A) extends Ref[A] {
@@ -63,7 +67,7 @@ case class ResolvedRef[+A](uri: String, value: A) extends Ref[A] {
 
   override def valueOption: Option[A] = Some(value)
 
-  override def resolve[B >: A](implicit refResolver: RefResolver[B]): Ref[B] = this
+  override def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B] = this
 }
 
 object Ref {

@@ -19,33 +19,34 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation._
 
 import java.io.{InputStream, OutputStream}
+import java.net.URI
 
+/**
+ * Trait to be extended by implementations that perform (de)serialization of scales.
+ */
 trait ScaleFormat {
+  val metadata: ScaleFormatMetadata
 
-  def read(inputStream: InputStream): Scale[Interval]
+  /**
+   * Reads a scale from an [[InputStream]].
+   *
+   * @param inputStream scale source
+   * @param baseUri     optional base URI to be used when for resolving relative URI references found in the scale
+   *                    that is read
+   * @return the scale read
+   */
+  def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval]
 
-  def write(scale: Scale[Interval]): OutputStream
+  /**
+   * Writes the given scale to the given [[OutputStream]].
+   *
+   * @param scale        scale to write
+   * @param outputStream target where the scale should be written
+   */
+  def write(scale: Scale[Interval], outputStream: OutputStream): Unit
 }
 
-object ScaleFormat {
-
-  private[format] def createScale(name: String, pitches: Seq[Interval]): Scale[Interval] = {
-    val hasUnison = pitches.headOption.exists(interval => interval.isUnison)
-
-    // TODO #4 Handle the case when pitches are EdoIntervals
-    if (pitches.isEmpty) {
-      Scale(name, CentsInterval(0.0))
-    } else if (pitches.forall(_.isInstanceOf[CentsInterval])) {
-      val resultPitches = if (hasUnison) pitches else CentsInterval.Unison +: pitches
-      CentsScale(name, resultPitches.map(_.asInstanceOf[CentsInterval]))
-    } else if (pitches.forall(_.isInstanceOf[RatioInterval])) {
-      val resultPitches = if (hasUnison) pitches else RatioInterval.Unison +: pitches
-      RatiosScale(name, resultPitches.map(_.asInstanceOf[RatioInterval]))
-    } else {
-      val resultPitches = if (hasUnison) pitches else RealInterval.Unison +: pitches
-      Scale(name, resultPitches)
-    }
-  }
-}
-
+/**
+ * Base exception thrown when a scale being read is invalid.
+ */
 class InvalidScaleFormatException(message: String, cause: Throwable = null) extends Exception(message, cause)

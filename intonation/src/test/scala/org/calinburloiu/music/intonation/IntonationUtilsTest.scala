@@ -21,7 +21,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class IntonationTest extends AnyFunSuite with TableDrivenPropertyChecks with Matchers {
+class IntonationUtilsTest extends AnyFunSuite with TableDrivenPropertyChecks with Matchers {
 
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =

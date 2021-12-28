@@ -19,6 +19,8 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.core.{TuningMapper, TuningReducer}
 
+import java.net.URI
+
 /**
  * Class used as a representation for the JSON format of a scale list.
  */
@@ -30,15 +32,15 @@ case class ScaleListRepr(name: Option[String],
                          globalFillTuningMapper: Option[TuningMapper] = None,
                          config: Option[ScaleListConfigRepr]) {
 
-  def resolve(implicit scaleLibrary: ScaleLibrary): ScaleListRepr = {
+  def resolve(scaleRepo: ScaleRepo, baseUri: Option[URI]): ScaleListRepr = {
     copy(
       modulations = modulations.map { modulation =>
         modulation.copy(
-          scale = modulation.scale.resolve,
-          extension = modulation.extension.map(_.resolve)
+          scale = modulation.scale.resolve(scaleRepo, baseUri),
+          extension = modulation.extension.map(_.resolve(scaleRepo, baseUri))
         )
       },
-      globalFill = globalFill.resolve
+      globalFill = globalFill.resolve(scaleRepo, baseUri)
     )
   }
 }
