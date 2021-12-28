@@ -94,8 +94,7 @@ object MicrotonalistApp extends StrictLogging {
     val receiver = midiManager.outputReceiver(outputDeviceId)
 
     // # I/O
-    val libraryPath = mainConfigManager.coreConfig.libraryPath
-    val formatModule = new FormatModule(libraryPath.toUri)
+    val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
 
     // # Microtuner
     val scaleList = formatModule.defaultScaleListRepo.read(inputUri)

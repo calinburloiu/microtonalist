@@ -21,15 +21,17 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.PlatformUtils
 
+import java.net.URI
 import java.nio.file.{Path, Paths}
+import scala.util.Try
 
-case class CoreConfig(libraryPath: Path = CoreConfig.defaultLibraryPath,
+case class CoreConfig(libraryUri: URI = CoreConfig.defaultLibraryUri,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
-  val defaultLibraryPath: Path = if (PlatformUtils.isMac) {
+  val defaultLibraryUri: URI = if (PlatformUtils.isMac) {
     val homePath = Paths.get(System.getProperty("user.home"))
-    homePath.resolve("Music/microtonalist/lib/")
+    homePath.resolve("Music/microtonalist/lib/").toUri
   } else {
     throw new RuntimeException("Only Mac platform is currently supported")
   }
@@ -56,13 +58,16 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
     )
 
     hoconConfig
-      .withAnyRefValue("libraryPath", config.libraryPath.toString)
+      .withAnyRefValue("libraryUri", config.libraryUri.toString)
       .withAnyRefValue("metaConfig", metaConfigMap)
   }
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
-    libraryPath = hoconConfig.getAs[String]("libraryPath").map(Paths.get(_))
-      .getOrElse(CoreConfig.defaultLibraryPath),
+    libraryUri = hoconConfig.getAs[String]("libraryUri")
+      // TODO Create a custom config exception
+      .map(uri => parseUri(uri).getOrElse(throw new IllegalArgumentException(
+        "libraryUri should be a valid URI or a local path")))
+      .getOrElse(CoreConfig.defaultLibraryUri),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
 }
@@ -76,4 +81,8 @@ object CoreConfigManager {
       saveOnExit = hc.getAs[Boolean]("saveOnExit").getOrElse(MetaConfig.default.saveOnExit)
     )
   }
+
+  private def parseUri(uriString: String): Option[URI] =
+    Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map(_.toUri)
+
 }

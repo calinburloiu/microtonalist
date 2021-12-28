@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
+import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.io.{FileInputStream, FileNotFoundException}
@@ -28,7 +29,7 @@ import scala.util.Try
  *
  * @param scaleFormatRegistry registry responsible for choosing the scale format
  */
-class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo {
+class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
   override def read(uri: URI): Scale[Interval] = {
     val scalePath = pathOf(uri)
     val inputStream = Try {
@@ -40,6 +41,7 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
     val scaleFormat = scaleFormatRegistry.get(uri, None)
       .getOrElse(throw new BadScaleRequestException(uri, None))
 
+    logger.info(s"Reading scale from path \"$scalePath\"...")
     scaleFormat.read(inputStream, Some(baseUriOf(uri)))
   }
 

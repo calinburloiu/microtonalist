@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
+import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
@@ -38,9 +39,11 @@ import java.net.URI
  */
 class LibraryScaleRepo(libraryUri: URI,
                        fileScaleRepo: FileScaleRepo,
-                       httpScaleRepo: HttpScaleRepo) extends ScaleRepo {
+                       httpScaleRepo: HttpScaleRepo) extends ScaleRepo with StrictLogging {
 
   import LibraryScaleRepo._
+
+  logger.info(s"Using Microtonalist library base URI: $libraryUri")
 
   private val scaleRepo: ScaleRepo = new ComposedScaleRepo {
     override def getScaleRepo(uri: URI): Option[ScaleRepo] = {

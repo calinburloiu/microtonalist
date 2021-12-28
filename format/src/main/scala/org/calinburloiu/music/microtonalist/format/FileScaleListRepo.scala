@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.io.{FileInputStream, FileNotFoundException}
@@ -26,7 +27,7 @@ import scala.util.Try
  * Scale list repository implementation that retrieves and persists scales by using the file system.
  * @param scaleListFormat format implementation responsible for (de)serialization.
  */
-class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo {
+class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo with StrictLogging {
   override def read(uri: URI): ScaleList = {
     val path = pathOf(uri)
     val inputStream = Try {
@@ -35,6 +36,7 @@ class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo 
       case e: FileNotFoundException => throw new ScaleListNotFoundException(uri, e.getCause)
     }.get
 
+    logger.info(s"Reading scale list from path \"$path\"...")
     scaleListFormat.read(inputStream, Some(baseUriOf(uri)))
   }
 
