@@ -31,7 +31,8 @@ import java.net.URI
  */
 class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocessor) extends ScaleListFormat {
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList = {
-    val repr = readRepr(inputStream, baseUri).resolve(scaleRepo, baseUri)
+    val repr = readRepr(inputStream, baseUri)
+    repr.loadDeferredData(scaleRepo, baseUri)
 
     fromReprToDomain(repr)
   }
@@ -89,9 +90,12 @@ object JsonScaleListFormat {
   // TODO #31 Read this from JSON
   private val tolerance: Double = DefaultCentsTolerance
 
+  private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
+
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
   private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
-  private[JsonScaleListFormat] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
+  private[JsonScaleListFormat] implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
+    DeferrableRead.reads(scaleReads, importFormat)
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
@@ -116,7 +120,7 @@ object JsonScaleListFormat {
       },
       Writes { mapper: AutoTuningMapper =>
         val repr = AutoTuningMapperRepr(mapper.mapQuarterTonesLow, halfTolerance = Some(mapper.halfTolerance))
-        Json.writes[AutoTuningMapperRepr].writes(repr)
+        autoReprPlayJsonFormat.writes(repr)
       }
     )
 

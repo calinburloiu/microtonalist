@@ -28,29 +28,38 @@ case class ScaleListRepr(name: Option[String],
                          tuningReference: OriginRepr,
                          modulations: Seq[ModulationRepr],
                          tuningReducer: Option[TuningReducer] = None,
-                         globalFill: Ref[Scale[Interval]],
+                         globalFill: DeferrableRead[Scale[Interval], Import],
                          globalFillTuningMapper: Option[TuningMapper] = None,
                          config: Option[ScaleListConfigRepr]) {
 
-  def resolve(scaleRepo: ScaleRepo, baseUri: Option[URI]): ScaleListRepr = {
-    copy(
-      modulations = modulations.map { modulation =>
-        modulation.copy(
-          scale = modulation.scale.resolve(scaleRepo, baseUri),
-          extension = modulation.extension.map(_.resolve(scaleRepo, baseUri))
-        )
-      },
-      globalFill = globalFill.resolve(scaleRepo, baseUri)
-    )
+  def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Unit = {
+    def scaleLoader(placeholder: Import): Scale[Interval] = {
+      val uri = placeholder.ref
+      val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
+      scaleRepo.read(resolvedUri)
+    }
+
+    modulations.foreach { modulation =>
+      modulation.scale.load(scaleLoader)
+
+      modulation.extension.foreach { extension =>
+        extension.load(scaleLoader)
+      }
+    }
+
+    globalFill.load(scaleLoader)
   }
 }
+
+// TODO #38 Rename ref to import
+case class Import(ref: URI)
 
 case class OriginRepr(basePitchClass: Int)
 
 case class ModulationRepr(transposition: Option[Interval] = None,
-                          scale: Ref[Scale[Interval]],
+                          scale: DeferrableRead[Scale[Interval], Import],
                           tuningMapper: Option[TuningMapper],
-                          extension: Option[Ref[Scale[Interval]]])
+                          extension: Option[DeferrableRead[Scale[Interval], Import]])
 
 case class ScaleListConfigRepr(mapQuarterTonesLow: Boolean = false)
 
