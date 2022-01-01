@@ -20,6 +20,10 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.core.{TuningMapper, TuningReducer}
 
 import java.net.URI
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Future
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Class used as a representation for the JSON format of a scale list.
@@ -32,22 +36,28 @@ case class ScaleListRepr(name: Option[String],
                          globalFillTuningMapper: Option[TuningMapper] = None,
                          config: Option[ScaleListConfigRepr]) {
 
-  def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Unit = {
-    def scaleLoader(placeholder: Import): Scale[Interval] = {
+  def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[Unit] = {
+    def scaleLoader(placeholder: Import): Future[Scale[Interval]] = {
       val uri = placeholder.ref
       val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
-      scaleRepo.read(resolvedUri)
+
+      // TODO #38 Change ScaleRepo to support an async API instead of putting a Future here
+      import scala.concurrent.ExecutionContext.Implicits.global
+      Future { scaleRepo.read(resolvedUri) }
     }
 
+    val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
     modulations.foreach { modulation =>
-      modulation.scale.load(scaleLoader)
+      futures += modulation.scale.load(scaleLoader)
 
       modulation.extension.foreach { extension =>
-        extension.load(scaleLoader)
+        futures += extension.load(scaleLoader)
       }
     }
 
-    globalFill.load(scaleLoader)
+    futures += globalFill.load(scaleLoader)
+
+    Future.sequence(futures).map(_ => ())
   }
 }
 

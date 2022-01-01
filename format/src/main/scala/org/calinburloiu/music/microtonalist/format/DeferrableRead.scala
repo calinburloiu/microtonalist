@@ -21,7 +21,17 @@ import play.api.libs.json._
 
 import java.net.URI
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
-import scala.util.Try
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
+
+sealed trait DeferrableReadStatus
+object DeferrableReadStatus {
+  case object Unloaded extends DeferrableReadStatus
+  case object PendingLoad extends DeferrableReadStatus
+  case object Loaded extends DeferrableReadStatus
+  case class FailedLoad(exception: Throwable) extends DeferrableReadStatus
+}
 
 /**
  * Marks a JSON value representation to be potentially loaded later. The value may be read immediately, if it's
@@ -35,7 +45,11 @@ import scala.util.Try
  */
 sealed trait DeferrableRead[V, P] {
   // TODO #38 Return a Future instead
-  def load(loader: P => V): V
+  def load(loader: P => Future[V]): Future[V]
+
+  def status: DeferrableReadStatus
+
+  def futureValue: Future[V]
 
   /**
    * @return the value if it was already loaded
@@ -45,17 +59,23 @@ sealed trait DeferrableRead[V, P] {
 }
 
 case class AlreadyRead[V, P](override val value: V) extends DeferrableRead[V, P] {
-  override def load(loader: P => V): V = value
+  override def load(loader: P => Future[V]): Future[V] = Future(value)
+
+  override def status: DeferrableReadStatus = DeferrableReadStatus.Loaded
+
+  override def futureValue: Future[V] = Future(value)
 }
 
 case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] {
+  var _futureValue: Option[Future[V]] = None
   var _value: Option[V] = None
+  var _status: DeferrableReadStatus = DeferrableReadStatus.Unloaded
   val lock: ReadWriteLock = new ReentrantReadWriteLock()
 
-  override def load(loader: P => V): V = {
+  override def load(loader: P => Future[V]): Future[V] = {
     // Read locks are cheaper, first try to read to see if it was not already loaded
     lock.readLock.lock()
-    val valueRead = _value
+    val valueRead = _futureValue
     lock.readLock.unlock()
 
     val loadedValue = valueRead match {
@@ -64,15 +84,26 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] {
         lock.writeLock.lock()
         try {
           // We need to read the value again because it might has changed since we released the read lock above
-          _value match {
+          _futureValue match {
             case Some(v) => v
             case None =>
-              val v = loader(placeholder)
-              _value = Some(v)
-              v
+              val futureValue = loader(placeholder)
+              _status = DeferrableReadStatus.PendingLoad
+              futureValue.onComplete {
+                case Success(v) =>
+                  _value = Some(v)
+                  _status = DeferrableReadStatus.Loaded
+                case Failure(exception) =>
+                  _status = DeferrableReadStatus.FailedLoad(exception)
+              }
+              _futureValue = Some(futureValue)
+              futureValue
           }
+        } catch {
+          case throwable: Throwable =>
+            _status = DeferrableReadStatus.FailedLoad(throwable)
+            throw throwable
         } finally {
-          // TODO #38 Test this case when an exception occurs
           // Make sure we release the write lock if the loader function above might throw an exception
           lock.writeLock().unlock()
         }
@@ -81,15 +112,35 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] {
     loadedValue
   }
 
+  override def status: DeferrableReadStatus = {
+    lock.readLock.lock()
+    val status = _status
+    lock.readLock.unlock()
+
+    status
+  }
+
+  override def futureValue: Future[V] = {
+    lock.readLock.lock()
+    val futureValueRead = _futureValue
+    lock.readLock.unlock()
+
+    futureValueRead
+      .getOrElse(throw new NoSuchElementException("load was not called before getting the value in DeferredRead"))
+  }
+
   override def value: V = {
     lock.readLock.lock()
     val valueRead = _value
+    val status = _status
     lock.readLock.unlock()
 
-    Try(valueRead.get).recover {
-      case exception: NoSuchElementException => throw new NoSuchElementException(
-        "load was not called before getting the value in DeferredRead", exception)
-    }.get
+    valueRead.getOrElse {
+      status match {
+        case DeferrableReadStatus.FailedLoad(exception) => throw exception
+        case _ => throw new NoSuchElementException(s"value not loaded; status=$status")
+      }
+    }
   }
 }
 

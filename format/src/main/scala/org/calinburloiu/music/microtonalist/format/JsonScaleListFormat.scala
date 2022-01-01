@@ -23,6 +23,8 @@ import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
 import java.net.URI
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in Microtonalist's own JSON format.
@@ -32,7 +34,7 @@ import java.net.URI
 class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocessor) extends ScaleListFormat {
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList = {
     val repr = readRepr(inputStream, baseUri)
-    repr.loadDeferredData(scaleRepo, baseUri)
+    Await.ready(repr.loadDeferredData(scaleRepo, baseUri), 1 minute)
 
     fromReprToDomain(repr)
   }

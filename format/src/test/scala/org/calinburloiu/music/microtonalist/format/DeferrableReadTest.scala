@@ -17,11 +17,16 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{Interval, RatioInterval, Scale}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.Assertion
+import org.scalatest.flatspec.{AnyFlatSpec, AsyncFlatSpec}
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{Format, Json, Reads}
 
-class DeferrableReadTest extends AnyFlatSpec with Matchers {
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Future
+import scala.util.Failure
+
+class DeferrableReadTest extends AsyncFlatSpec with Matchers {
   case class Person(name: String, age: Int)
   case class Import(`import`: String)
   case class Profile(id: String,
@@ -100,32 +105,61 @@ class DeferrableReadTest extends AnyFlatSpec with Matchers {
     // Then
     actualProfile shouldEqual profile
 
+    val futures = ArrayBuffer[Future[Assertion]]()
+
     // Successfully load data
     val john = Person("John", 25)
-    actualProfile.person.load { placeholder =>
+    futures += actualProfile.person.load { placeholder =>
       placeholder.`import` shouldEqual "https://example.org/persons/john"
-      john
-    } shouldEqual john
-    actualProfile.person.value shouldEqual john
+      Future(john)
+    }.map { person => person shouldEqual john }
+    actualProfile.person.futureValue.map { person => person shouldEqual john }
 
     // Loading the second time has no effect
-    actualProfile.person.load { _ => Person("Max", 50) } shouldEqual john
-    actualProfile.person.value shouldEqual john
+    futures += actualProfile.person.load { _ => Future(Person("Max", 50)) }
+      .map { person => person shouldEqual john }
 
     // Loading already loaded data does nothing
     val mary = Person("Mary", 19)
-    actualProfile.friends(1).load { _ => Person("Susan", 37) } shouldEqual mary
-    actualProfile.friends(1).value shouldEqual mary
+    actualProfile.friends(1).load { _ => Future(Person("Susan", 37)) }
+      .map { person => person shouldEqual mary }
+    actualProfile.friends(1).futureValue.map { person => person shouldEqual mary }
 
-    // Fail to load data
+    // Immediately fail to load data
     val exception = intercept[RuntimeException] {
-      actualProfile.friends(2).load { placeholder =>
-        placeholder.`import` shouldEqual "https://example.org/persons/paul"
+      actualProfile.friends.head.load { placeholder =>
+        placeholder.`import` shouldEqual "https://example.org/persons/george"
         throw new RuntimeException("epic failure")
       }
     }
     exception.getMessage shouldEqual "epic failure"
+
+    actualProfile.friends(2).status shouldEqual DeferrableReadStatus.Unloaded
     assertThrows[NoSuchElementException] { actualProfile.friends(2).value }
+
+    // Eventually fail to load data
+    actualProfile.friends(2).load { placeholder =>
+      placeholder.`import` shouldEqual "https://example.org/persons/paul"
+      Future { throw new RuntimeException("another epic failure") }
+    }.onComplete {
+      case Failure(exception) => exception.getMessage shouldEqual "another epic failure"
+    }
+
+    Future.sequence(futures).map { v =>
+      actualProfile.person.value shouldEqual john
+      actualProfile.person.status shouldEqual DeferrableReadStatus.Loaded
+
+      actualProfile.friends(1).value shouldEqual mary
+      actualProfile.friends(1).status shouldEqual DeferrableReadStatus.Loaded
+
+      val exception = intercept[RuntimeException] { actualProfile.friends(2).value }
+      actualProfile.friends(2).status shouldEqual DeferrableReadStatus.FailedLoad(exception)
+
+      val exception2 = intercept[RuntimeException] { actualProfile.friends.head.value }
+      actualProfile.friends.head.status shouldEqual DeferrableReadStatus.FailedLoad(exception2)
+
+      v.head
+    }
   }
 
   it should "write an object with deferred data as JSON" in {
