@@ -20,6 +20,7 @@ import com.google.common.net.MediaType
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
+import scala.concurrent.Future
 
 /**
  * Scale repository trait to be extended for choosing different repository implementations based on URI (see
@@ -35,8 +36,14 @@ trait ComposedScaleRepo extends ScaleRepo {
   override def read(uri: URI): Scale[Interval] =
     getScaleRepoOrThrow(uri).read(uri)
 
+  override def readAsync(uri: URI): Future[Scale[Interval]] =
+    getScaleRepoOrThrow(uri).readAsync(uri)
+
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
     getScaleRepoOrThrow(uri).write(scale, uri, mediaType)
+
+  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] =
+    getScaleRepoOrThrow(uri).writeAsync(scale, uri, mediaType)
 
   /**
    * Variant of [[getScaleRepo]] that throws if a repository implementation is not available.

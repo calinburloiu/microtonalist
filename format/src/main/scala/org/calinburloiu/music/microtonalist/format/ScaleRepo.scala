@@ -21,6 +21,7 @@ import com.google.common.net.MediaType
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
+import scala.concurrent.Future
 
 // TODO #38 Break inheritance from RefResolver
 
@@ -39,6 +40,14 @@ trait ScaleRepo extends RefResolver[Scale[Interval]] {
   def read(uri: URI): Scale[Interval]
 
   /**
+   * Retrieves a scale asynchronously.
+   *
+   * @param uri universal resource identifier (URI) for the scale
+   * @return a [[Future]] of the requested scale
+   */
+  def readAsync(uri: URI): Future[Scale[Interval]]
+
+  /**
    * Persists a scale.
    *
    * @param scale     scale to be persisted
@@ -47,6 +56,17 @@ trait ScaleRepo extends RefResolver[Scale[Interval]] {
    *                  used for identification.
    */
   def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit
+
+  /**
+   * Persists a scale asynchronously.
+   *
+   * @param scale     scale to be persisted
+   * @param uri       universal resource identifier (URI) for the scale
+   * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
+   *                  used for identification.
+   * @return a [[Future]] for tracking when the operation finished
+   */
+  def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit]
 }
 
 /**

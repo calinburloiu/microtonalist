@@ -41,9 +41,7 @@ case class ScaleListRepr(name: Option[String],
       val uri = placeholder.ref
       val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
 
-      // TODO #38 Change ScaleRepo to support an async API instead of putting a Future here
-      import scala.concurrent.ExecutionContext.Implicits.global
-      Future { scaleRepo.read(resolvedUri) }
+      scaleRepo.readAsync(resolvedUri)
     }
 
     val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
