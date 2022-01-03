@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.net.URI
+import scala.concurrent.Future
 
 /**
  * Repository pattern trait used for retrieving or persisting scale lists identified by URI. Implementations are
@@ -34,12 +35,29 @@ trait ScaleListRepo {
   def read(uri: URI): ScaleList
 
   /**
+   * Retrieves a scale list asynchronously.
+   *
+   * @param uri universal resource identifier (URI) for the scale list
+   * @return a [[Future]] of the requested scale list
+   */
+  def readAsync(uri: URI): Future[ScaleList]
+
+  /**
    * Persists a scale list.
    *
    * @param scaleList scale list to be persisted
    * @param uri       universal resource identifier (URI) for the scale list
    */
   def write(scaleList: ScaleList, uri: URI): Unit
+
+  /**
+   * Persists a scale list asynchronously.
+   *
+   * @param scaleList scale list to be persisted
+   * @param uri       universal resource identifier (URI) for the scale list
+   * @return a Future for tracking when the operation finished
+   */
+  def writeAsync(scaleList: ScaleList, uri: URI): Future[Unit]
 }
 
 /**

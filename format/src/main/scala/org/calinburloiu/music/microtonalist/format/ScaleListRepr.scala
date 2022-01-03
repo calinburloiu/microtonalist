@@ -36,7 +36,7 @@ case class ScaleListRepr(name: Option[String],
                          globalFillTuningMapper: Option[TuningMapper] = None,
                          config: Option[ScaleListConfigRepr]) {
 
-  def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[Unit] = {
+  def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
     def scaleLoader(placeholder: Import): Future[Scale[Interval]] = {
       val uri = placeholder.ref
       val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
@@ -55,7 +55,7 @@ case class ScaleListRepr(name: Option[String],
 
     futures += globalFill.load(scaleLoader)
 
-    Future.sequence(futures).map(_ => ())
+    Future.sequence(futures).map(_ => this)
   }
 }
 
