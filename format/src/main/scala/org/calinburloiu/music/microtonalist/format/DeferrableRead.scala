@@ -44,7 +44,6 @@ object DeferrableReadStatus {
  *           reference (e.g. a URI)
  */
 sealed trait DeferrableRead[V, P] {
-  // TODO #38 Return a Future instead
   def load(loader: P => Future[V]): Future[V]
 
   def status: DeferrableReadStatus
@@ -160,79 +159,4 @@ object DeferrableRead {
     reads(valueFormat, placeholderFormat),
     writes(valueFormat, placeholderFormat)
   )
-}
-
-// TODO #38 Remove Ref hierarchy
-@deprecated
-sealed trait Ref[+A] {
-
-  // TODO Make this an actual URI
-  def uri: String
-
-  def uriOption: Option[String]
-
-  def value: A
-
-  def valueOption: Option[A]
-
-  def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B]
-}
-
-@deprecated
-case class NoRef[+A](override val value: A) extends Ref[A] {
-
-  override def uri = throw new NoSuchElementException(getClass.getSimpleName)
-
-  override def uriOption: Option[String] = None
-
-  override def valueOption: Option[A] = Some(value)
-
-  override def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B] = this
-}
-
-@deprecated
-case class UnresolvedRef[+A](override val uri: String) extends Ref[A] {
-
-  override def uriOption: Option[String] = Some(uri)
-
-  override def value: A = throw new NoSuchElementException(getClass.getSimpleName)
-
-  override def valueOption: Option[A] = None
-
-  override def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B] = {
-    val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(new URI(uri))
-    ResolvedRef(uri, refResolver.read(resolvedUri))
-  }
-}
-
-@deprecated
-case class ResolvedRef[+A](override val uri: String, override val value: A) extends Ref[A] {
-
-  override def uriOption: Option[String] = Some(uri)
-
-  override def valueOption: Option[A] = Some(value)
-
-  override def resolve[B >: A](refResolver: RefResolver[B], baseUri: Option[URI]): Ref[B] = this
-}
-
-@deprecated
-object Ref {
-
-  def refReads[A](implicit valueReads: Reads[A]): Reads[Ref[A]] = {
-    val onlyRef: Reads[JsObject] = Reads.filter(
-      JsonValidationError("only \"ref\" and/or value's fields are allowed")
-    ) { jsObject: JsObject =>
-      jsObject.keys == Set("ref")
-    }
-    val unresolvedRefReads: Reads[Ref[A]] = (__ \ "ref").read[String].map(UnresolvedRef.apply[A])
-    val noRefReads: Reads[Ref[A]] = valueReads.map(NoRef.apply)
-    //@formatter:off
-    val resolvedRefReads: Reads[Ref[A]] = (
-      (__ \ "ref").read[String] and
-      __.read[A]
-    ) { (uri, value) => ResolvedRef(uri, value) }
-    //@formatter:on
-
-    (onlyRef andThen unresolvedRefReads) orElse resolvedRefReads orElse noRefReads
-  }
 }

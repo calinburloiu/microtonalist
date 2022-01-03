@@ -59,7 +59,7 @@ case class ScaleListRepr(name: Option[String],
   }
 }
 
-// TODO #38 Rename ref to import
+// TODO #4 Rename ref to import
 case class Import(ref: URI)
 
 case class OriginRepr(basePitchClass: Int)

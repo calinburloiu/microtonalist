@@ -23,13 +23,11 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 import java.net.URI
 import scala.concurrent.Future
 
-// TODO #38 Break inheritance from RefResolver
-
 /**
  * Repository pattern trait used for retrieving or persisting scales identified by URI. Implementations are
  * responsible for abstracting reading and writing from a particular data source like file, Web or cloud service.
  */
-trait ScaleRepo extends RefResolver[Scale[Interval]] {
+trait ScaleRepo {
 
   /**
    * Retrieves a scale.
