@@ -23,20 +23,29 @@ import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
 import java.net.URI
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Future}
 
 /**
  * Class used for serialization/deserialization of [[ScaleList]]s in Microtonalist's own JSON format.
  *
  * @param scaleRepo repository for retrieving scales by URI
  */
-class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocessor) extends ScaleListFormat {
-  override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList = {
-    val repr = readRepr(inputStream, baseUri).resolve(scaleRepo, baseUri)
+class JsonScaleListFormat(scaleRepo: ScaleRepo,
+                          jsonPreprocessor: JsonPreprocessor,
+                          synchronousAwaitTimeout: FiniteDuration = 1 minute) extends ScaleListFormat {
+  override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList =
+    Await.result(readAsync(inputStream, baseUri), synchronousAwaitTimeout)
 
-    fromReprToDomain(repr)
-  }
+  override def readAsync(inputStream: InputStream, baseUri: Option[URI]): Future[ScaleList] =
+    readRepr(inputStream, baseUri)
+      .loadDeferredData(scaleRepo, baseUri)
+      .map(fromReprToDomain)
 
   override def write(scaleList: ScaleList, outputStream: OutputStream): Unit = ???
+
+  override def writeAsync(scaleList: ScaleList, outputStream: OutputStream): Future[Unit] = ???
 
   private def readRepr(inputStream: InputStream, baseUri: Option[URI]): ScaleListRepr = {
     import JsonScaleListFormat._
@@ -85,13 +94,15 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo, jsonPreprocessor: JsonPreprocess
 }
 
 object JsonScaleListFormat {
-
   // TODO #31 Read this from JSON
   private val tolerance: Double = DefaultCentsTolerance
 
+  private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
+
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
   private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
-  private[JsonScaleListFormat] implicit val scaleRefReads: Reads[Ref[Scale[Interval]]] = Ref.refReads[Scale[Interval]]
+  private[JsonScaleListFormat] implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
+    DeferrableRead.reads(scaleReads, importFormat)
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
@@ -105,6 +116,7 @@ object JsonScaleListFormat {
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
+
     import ComponentPlayJsonFormat._
 
     private implicit val autoReprPlayJsonFormat: Format[AutoTuningMapperRepr] =
@@ -116,7 +128,7 @@ object JsonScaleListFormat {
       },
       Writes { mapper: AutoTuningMapper =>
         val repr = AutoTuningMapperRepr(mapper.mapQuarterTonesLow, halfTolerance = Some(mapper.halfTolerance))
-        Json.writes[AutoTuningMapperRepr].writes(repr)
+        autoReprPlayJsonFormat.writes(repr)
       }
     )
 
@@ -127,6 +139,7 @@ object JsonScaleListFormat {
   }
 
   private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
+
     import ComponentPlayJsonFormat._
 
     override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(

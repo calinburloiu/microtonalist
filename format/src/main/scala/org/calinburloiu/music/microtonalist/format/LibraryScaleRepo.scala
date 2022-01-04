@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
+import scala.concurrent.Future
 
 /**
  * Special scale repository implementation that accesses scales from user's configured private Microtonalist Library.
@@ -55,15 +56,15 @@ class LibraryScaleRepo(libraryUri: URI,
     }
   }
 
-  override def read(uri: URI): Scale[Interval] = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.read(resolvedUri)
-  }
+  override def read(uri: URI): Scale[Interval] = scaleRepo.read(resolveUri(uri))
 
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.write(scale, resolvedUri, mediaType)
-  }
+  override def readAsync(uri: URI): Future[Scale[Interval]] = scaleRepo.readAsync(resolveUri(uri))
+
+  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
+    scaleRepo.write(scale, resolveUri(uri), mediaType)
+
+  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] =
+    scaleRepo.writeAsync(scale, resolveUri(uri), mediaType)
 
   private def resolveUri(uri: URI) = {
     require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,

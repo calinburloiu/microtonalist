@@ -21,24 +21,37 @@ import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
-import scala.util.Try
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success}
 
 /**
  * Scale list repository implementation that retrieves and persists scales by using the file system.
+ *
  * @param scaleListFormat format implementation responsible for (de)serialization.
  */
-class FileScaleListRepo(scaleListFormat: ScaleListFormat) extends ScaleListRepo with StrictLogging {
-  override def read(uri: URI): ScaleList = {
+class FileScaleListRepo(scaleListFormat: ScaleListFormat,
+                        synchronousAwaitTimeout: FiniteDuration = 1 minute) extends ScaleListRepo with StrictLogging {
+  override def read(uri: URI): ScaleList = Await.result(readAsync(uri), synchronousAwaitTimeout)
+
+  override def readAsync(uri: URI): Future[ScaleList] = {
     val path = pathOf(uri)
-    val inputStream = Try {
+
+    logger.info(s"Reading scale list from path \"$path\"...")
+    Future {
       new FileInputStream(path.toString)
     }.recover {
       case e: FileNotFoundException => throw new ScaleListNotFoundException(uri, e.getCause)
-    }.get
-
-    logger.info(s"Reading scale list from path \"$path\"...")
-    scaleListFormat.read(inputStream, Some(baseUriOf(uri)))
+    }.flatMap { inputStream =>
+      scaleListFormat.readAsync(inputStream, Some(baseUriOf(uri)))
+    }.andThen {
+      case Success(_) => logger.info(s"Successfully read scale list from path \"$path\"")
+      case Failure(exception) => logger.error(s"Failed to read scale list from path \"$path\"!", exception)
+    }
   }
 
   override def write(scaleList: ScaleList, uri: URI): Unit = ???
+
+  override def writeAsync(scaleList: ScaleList, uri: URI): Future[Unit] = ???
 }

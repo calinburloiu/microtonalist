@@ -109,14 +109,15 @@ object MicrotonalistApp extends StrictLogging {
     tuningSwitcher.tune()
 
     // # GUI
-    logger.info("Initializing the main frame...")
+    logger.info("Initializing GUI...")
     val tuningListFrame = new TuningListFrame(tuningSwitcher)
     eventBus.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        logger.info("Switching back to 12-EDO before exit...")
+        logger.info("Preparing to exit...")
+        logger.info("Switching back to 12-EDO...")
         try {
           tuner.tune(OctaveTuning.Edo12)
         } catch {
@@ -124,7 +125,10 @@ object MicrotonalistApp extends StrictLogging {
         }
         Thread.sleep(1000)
 
+        logger.info("Closing MIDI connections...")
         midiManager.close()
+
+        logger.info("Bye bye!")
       }
     })
   }

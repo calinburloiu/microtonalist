@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core.ScaleList
 
 import java.net.URI
+import scala.concurrent.Future
 
 /**
  * Scale list repository trait to be extended for choosing different repository implementations based on URI (see
@@ -33,7 +34,12 @@ trait ComposedScaleListRepo extends ScaleListRepo {
 
   override def read(uri: URI): ScaleList = getScaleListRepoOrThrow(uri).read(uri)
 
+  override def readAsync(uri: URI): Future[ScaleList] = getScaleListRepoOrThrow(uri).readAsync(uri)
+
   override def write(scaleList: ScaleList, uri: URI): Unit = getScaleListRepoOrThrow(uri).write(scaleList, uri)
+
+  override def writeAsync(scaleList: ScaleList, uri: URI): Future[Unit] =
+    getScaleListRepoOrThrow(uri).writeAsync(scaleList, uri)
 
   /**
    * Variant of [[getScaleListRepo]] that throws if a repository implementation is not available.

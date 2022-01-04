@@ -22,6 +22,8 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -45,5 +47,9 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
     scaleFormat.read(inputStream, Some(baseUriOf(uri)))
   }
 
+  override def readAsync(uri: URI): Future[Scale[Interval]] = Future { read(uri) }
+
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
+
+  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] = ???
 }
