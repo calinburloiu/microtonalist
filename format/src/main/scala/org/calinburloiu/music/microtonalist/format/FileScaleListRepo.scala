@@ -38,12 +38,12 @@ class FileScaleListRepo(scaleListFormat: ScaleListFormat,
   override def readAsync(uri: URI): Future[ScaleList] = {
     val path = pathOf(uri)
 
+    logger.info(s"Reading scale list from path \"$path\"...")
     Future {
       new FileInputStream(path.toString)
     }.recover {
       case e: FileNotFoundException => throw new ScaleListNotFoundException(uri, e.getCause)
     }.flatMap { inputStream =>
-      logger.info(s"Reading scale list from path \"$path\"...")
       scaleListFormat.readAsync(inputStream, Some(baseUriOf(uri)))
     }.andThen {
       case Success(_) => logger.info(s"Successfully read scale list from path \"$path\"")

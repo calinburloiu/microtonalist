@@ -18,8 +18,10 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 import java.net.http.HttpClient
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class FormatModule(libraryUri: URI) {
+class FormatModule(libraryUri: URI,
+                   synchronousAwaitTimeout: FiniteDuration = 1 minute) {
   lazy val jsonPreprocessor: JsonPreprocessor = new JsonPreprocessor(
     Seq(jsonPreprocessorFileRefLoader, jsonPreprocessorHttpRefLoader)
   )
@@ -43,10 +45,12 @@ class FormatModule(libraryUri: URI) {
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
     fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
 
-  lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(defaultScaleRepo, jsonPreprocessor)
+  lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(
+    defaultScaleRepo, jsonPreprocessor, synchronousAwaitTimeout)
 
-  lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat)
-  lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(httpClient, scaleListFormat)
+  lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat, synchronousAwaitTimeout)
+  lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(
+    httpClient, scaleListFormat, synchronousAwaitTimeout)
 
   lazy val defaultScaleListRepo: ScaleListRepo = new DefaultScaleListRepo(fileScaleListRepo, httpScaleListRepo)
 }

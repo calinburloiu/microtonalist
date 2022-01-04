@@ -51,7 +51,5 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
 
-  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] = Future {
-    write(scale, uri, mediaType)
-  }
+  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] = ???
 }

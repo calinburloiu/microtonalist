@@ -56,25 +56,15 @@ class LibraryScaleRepo(libraryUri: URI,
     }
   }
 
-  override def read(uri: URI): Scale[Interval] = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.read(resolvedUri)
-  }
+  override def read(uri: URI): Scale[Interval] = scaleRepo.read(resolveUri(uri))
 
-  override def readAsync(uri: URI): Future[Scale[Interval]] = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.readAsync(resolvedUri)
-  }
+  override def readAsync(uri: URI): Future[Scale[Interval]] = scaleRepo.readAsync(resolveUri(uri))
 
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.write(scale, resolvedUri, mediaType)
-  }
+  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
+    scaleRepo.write(scale, resolveUri(uri), mediaType)
 
-  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] = {
-    val resolvedUri = resolveUri(uri)
-    scaleRepo.writeAsync(scale, resolvedUri, mediaType)
-  }
+  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] =
+    scaleRepo.writeAsync(scale, resolveUri(uri), mediaType)
 
   private def resolveUri(uri: URI) = {
     require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,

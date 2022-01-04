@@ -21,9 +21,8 @@ import org.calinburloiu.music.microtonalist.core.{TuningMapper, TuningReducer}
 
 import java.net.URI
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Future
-
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
  * Class used as a representation for the JSON format of a scale list.

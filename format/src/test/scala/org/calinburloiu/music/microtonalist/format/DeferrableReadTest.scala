@@ -39,7 +39,7 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     DeferrableRead.format(personFormat, importFormat)
   implicit val profileFormat: Format[Profile] = Json.format[Profile]
 
-  behavior of DeferrableRead.getClass.getSimpleName
+  behavior of classOf[DeferrableRead[_, _]].getSimpleName
 
   it should "read a JSON with non-deferred data" in {
     // Given

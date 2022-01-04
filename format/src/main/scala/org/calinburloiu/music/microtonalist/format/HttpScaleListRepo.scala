@@ -24,8 +24,8 @@ import java.net.URI
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Future}
 import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.{Failure, Success}
 
@@ -83,8 +83,7 @@ class HttpScaleListRepo(httpClient: HttpClient,
                                  response: HttpResponse[InputStream]): Future[ScaleList] = {
     response.statusCode() match {
       case 200 =>
-        scaleListFormat
-          .readAsync(response.body(), Some(baseUriOf(uri)))
+        scaleListFormat.readAsync(response.body(), Some(baseUriOf(uri)))
       case 404 =>
         throw new ScaleListNotFoundException(uri)
       case status if status >= 400 && status < 500 =>
