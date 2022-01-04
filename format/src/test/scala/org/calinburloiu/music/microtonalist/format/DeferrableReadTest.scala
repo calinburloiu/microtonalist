@@ -16,12 +16,12 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, RatioInterval, Scale}
 import org.scalatest.Assertion
-import org.scalatest.flatspec.{AnyFlatSpec, AsyncFlatSpec}
+import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{Format, Json, Reads}
+import play.api.libs.json.{Format, Json}
 
+import java.util.concurrent.locks.{Lock, ReentrantLock}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.util.Failure
@@ -116,7 +116,8 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     actualProfile.person.futureValue.map { person => person shouldEqual john }
 
     // Loading the second time has no effect
-    futures += actualProfile.person.load { _ => Future(Person("Max", 50)) }
+    futures += actualProfile.person
+      .load { _ => Future(Person("Max", 50)) }
       .map { person => person shouldEqual john }
 
     // Loading already loaded data does nothing
@@ -164,5 +165,21 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
 
   it should "write an object with deferred data as JSON" in {
     profileFormat.writes(profile) shouldEqual jsonProfile
+  }
+
+  "reading" should "be blocked while writing via load" in {
+    val actualProfile = jsonProfile.as[Profile]
+    val lock: Lock = new ReentrantLock()
+    val john = Person("John", 25)
+    actualProfile.person.load { _ =>
+      lock.lock()
+      Future(john)
+    }
+
+    val value = Future { actualProfile.person.futureValue }.flatten
+    value.isCompleted shouldBe false
+
+    lock.unlock()
+    value.map { v => v shouldEqual john }
   }
 }

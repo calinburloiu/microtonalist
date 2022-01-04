@@ -53,6 +53,7 @@ sealed trait DeferrableRead[V, P] {
   /**
    * @return the value if it was already loaded
    * @throws NoSuchElementException if the value was not loaded yet
+   * @throws Throwable any other exception caught while loading the value
    */
   def value: V
 }
@@ -86,8 +87,8 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] {
           _futureValue match {
             case Some(v) => v
             case None =>
-              val futureValue = loader(placeholder)
               _status = DeferrableReadStatus.PendingLoad
+              val futureValue = loader(placeholder)
               futureValue.onComplete {
                 case Success(v) =>
                   _value = Some(v)
