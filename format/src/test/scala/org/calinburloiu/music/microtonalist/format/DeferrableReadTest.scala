@@ -24,7 +24,7 @@ import play.api.libs.json.{Format, Json}
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 class DeferrableReadTest extends AsyncFlatSpec with Matchers {
   case class Person(name: String, age: Int)
@@ -112,19 +112,25 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     futures += actualProfile.person.load { placeholder =>
       placeholder.`import` shouldEqual "https://example.org/persons/john"
       Future(john)
-    }.map { person => person shouldEqual john }
-    actualProfile.person.futureValue.map { person => person shouldEqual john }
+    }.flatMap { person =>
+      person shouldEqual john
 
-    // Loading the second time has no effect
-    futures += actualProfile.person
-      .load { _ => Future(Person("Max", 50)) }
-      .map { person => person shouldEqual john }
+      actualProfile.person.futureValue
+    }.flatMap { person =>
+      person shouldEqual john
+
+      // Loading the second time has no effect
+      actualProfile.person.load { _ => Future(Person("Max", 50)) }
+    }.map { person => person shouldEqual john }
 
     // Loading already loaded data does nothing
     val mary = Person("Mary", 19)
-    actualProfile.friends(1).load { _ => Future(Person("Susan", 37)) }
-      .map { person => person shouldEqual mary }
-    actualProfile.friends(1).futureValue.map { person => person shouldEqual mary }
+    futures += actualProfile.friends(1)
+      .load { _ => Future(Person("Susan", 37)) }
+      .flatMap { person =>
+        person shouldEqual mary
+        actualProfile.friends(1).futureValue
+      }.map { person => person shouldEqual mary}
 
     // Immediately fail to load data
     val exception = intercept[RuntimeException] {
@@ -139,11 +145,12 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     assertThrows[NoSuchElementException] { actualProfile.friends(2).value }
 
     // Eventually fail to load data
-    actualProfile.friends(2).load { placeholder =>
+    futures += actualProfile.friends(2).load { placeholder =>
       placeholder.`import` shouldEqual "https://example.org/persons/paul"
       Future { throw new RuntimeException("another epic failure") }
-    }.onComplete {
-      case Failure(exception) => exception.getMessage shouldEqual "another epic failure"
+    }.transform {
+      case Failure(exception) => Success(exception.getMessage shouldEqual "another epic failure")
+      case _ => fail("expected a failure")
     }
 
     Future.sequence(futures).map { v =>

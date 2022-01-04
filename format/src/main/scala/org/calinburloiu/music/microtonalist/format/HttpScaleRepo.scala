@@ -28,6 +28,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.FutureConverters.CompletionStageOps
 import scala.jdk.OptionConverters.RichOptional
+import scala.util.{Failure, Success}
 
 /**
  * Scale repository implementation that retrieves and persists scales remotely by using HTTP.
@@ -41,21 +42,31 @@ class HttpScaleRepo(httpClient: HttpClient,
   override def read(uri: URI): Scale[Interval] = {
     checkReadRequirements(uri)
 
+    logger.info(s"Reading scale from $uri via HTTP...")
     val request = createReadRequest(uri)
     val response = httpClient.send(request, BodyHandlers.ofInputStream())
 
-    handleReadResponse(uri, response)
+    val result = handleReadResponse(uri, response)
+    logger.info(s"Successfully read scale from $uri via HTTP")
+    result
   }
 
   override def readAsync(uri: URI): Future[Scale[Interval]] = {
     checkReadRequirements(uri)
 
+    logger.info(s"Reading scale from $uri via HTTP...")
     val request = createReadRequest(uri)
     val futureResponse: Future[HttpResponse[InputStream]] = httpClient
       .sendAsync(request, BodyHandlers.ofInputStream())
       .asScala
 
-    futureResponse.map { response => handleReadResponse(uri, response) }
+    futureResponse
+      .map { response => handleReadResponse(uri, response) }
+      .andThen {
+        case Success(_) => logger.info(s"Successfully read scale from $uri via HTTP")
+        case Failure(exception) => logger.error(s"Failed to read scale from $uri via HTTP!",
+          exception)
+      }
   }
 
   private def checkReadRequirements(uri: URI): Unit = require(
@@ -75,14 +86,13 @@ class HttpScaleRepo(httpClient: HttpClient,
       val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
         .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
-      logger.info(s"Reading scale from $uri via HTTP...")
       scaleFormat.read(response.body(), Some(baseUriOf(uri)))
     case 404 => throw new ScaleNotFoundException(uri)
     case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
-      Some(s"HTTP response status code $status"))
-    case status if status >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
-      s"HTTP response status code $status")
-    case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status")
+      Some(s"HTTP request to $uri returned status code $status"))
+    case status if status  >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
+      s"HTTP request to $uri returned status code $status")
+    case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
   }
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???

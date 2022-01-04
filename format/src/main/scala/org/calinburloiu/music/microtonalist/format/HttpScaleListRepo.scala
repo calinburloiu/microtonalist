@@ -43,21 +43,31 @@ class HttpScaleListRepo(httpClient: HttpClient,
   override def read(uri: URI): ScaleList = {
     checkRequirements(uri)
 
+    logger.info(s"Reading scale list from $uri via HTTP...")
     val request = createReadRequest(uri)
     val response = httpClient.send(request, BodyHandlers.ofInputStream())
 
-    Await.result(handleReadResponse(uri, response), synchronousAwaitTimeout)
+    val result = Await.result(handleReadResponse(uri, response), synchronousAwaitTimeout)
+    logger.info(s"Successfully read scale list from $uri via HTTP")
+    result
   }
 
   override def readAsync(uri: URI): Future[ScaleList] = {
     checkRequirements(uri)
 
+    logger.info(s"Reading scale list from $uri via HTTP...")
     val request = createReadRequest(uri)
     val futureResponse: Future[HttpResponse[InputStream]] = httpClient
       .sendAsync(request, BodyHandlers.ofInputStream())
       .asScala
 
-    futureResponse.flatMap { response => handleReadResponse(uri, response) }
+    futureResponse
+      .flatMap { response => handleReadResponse(uri, response) }
+      .andThen {
+        case Success(_) => logger.info(s"Successfully read scale list from $uri via HTTP")
+        case Failure(exception) => logger.error(s"Failed to read scale list from $uri via HTTP!",
+          exception)
+      }
   }
 
   private def checkRequirements(uri: URI): Unit = require(
@@ -73,22 +83,16 @@ class HttpScaleListRepo(httpClient: HttpClient,
                                  response: HttpResponse[InputStream]): Future[ScaleList] = {
     response.statusCode() match {
       case 200 =>
-        logger.info(s"Reading scale list from $uri via HTTP...")
         scaleListFormat
           .readAsync(response.body(), Some(baseUriOf(uri)))
-          .andThen {
-            case Success(_) => logger.info(s"Successfully read scale list from $uri via HTTP")
-            case Failure(exception) => logger.error(s"Failed to read scale list from $uri via HTTP!",
-              exception)
-          }
       case 404 =>
         throw new ScaleListNotFoundException(uri)
       case status if status >= 400 && status < 500 =>
-        throw new BadScaleListRequestException(uri, Some(s"HTTP response status code $status"))
+        throw new BadScaleListRequestException(uri, Some(s"HTTP request to $uri returned status code $status"))
       case status if status >= 500 && status < 600 =>
-        throw new ScaleListReadFailureException(uri, s"HTTP response status code $status")
+        throw new ScaleListReadFailureException(uri, s"HTTP request to $uri returned status code $status")
       case status =>
-        throw new ScaleListReadFailureException(uri, s"Unexpected HTTP response status code $status")
+        throw new ScaleListReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
     }
   }
 

@@ -33,13 +33,13 @@ class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreproce
       return None
     }
 
+    logger.info(s"Reading JSON preprocessor reference $uri via HTTP...")
     val request = HttpRequest.newBuilder(uri)
       .GET()
       .build()
     val response = httpClient.send(request, BodyHandlers.ofInputStream())
-    response.statusCode() match {
+    val result = response.statusCode() match {
       case 200 =>
-        logger.info(s"Reading JSON preprocessor reference $uri via HTTP...")
         Json.parse(response.body()) match {
           case obj: JsObject => Some(obj)
           case _ => throw new JsonPreprocessorRefLoadException(uri, pathContext,
@@ -47,9 +47,13 @@ class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreproce
         }
       case 404 => throw new ScaleNotFoundException(uri)
       case status if status >= 400 && status < 600 =>
-        throw new JsonPreprocessorRefLoadException(uri, pathContext, s"HTTP response status code $status")
+        throw new JsonPreprocessorRefLoadException(uri, pathContext,
+          s"HTTP request to $uri returned status code $status")
       case status =>
-        throw new JsonPreprocessorRefLoadException(uri, pathContext, s"Unexpected HTTP response status code $status")
+        throw new JsonPreprocessorRefLoadException(uri, pathContext,
+          s"Unexpected HTTP response status code $status for $uri")
     }
+    logger.info(s"Successfully read JSON preprocessor reference from $uri via HTTP")
+    result
   }
 }
