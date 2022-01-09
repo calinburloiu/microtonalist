@@ -34,14 +34,10 @@ import org.calinburloiu.music.scmidi.PitchClass
  *                                avoid precision errors while mapping a quarter tone to its pitch class
  * @param overrideKeyboardMapping a [[KeyboardMapping]] containing scale degree marked as exceptions that are going
  *                                to be manually mapped to a user specified pitch class
- * @param tolerance               Error in cents that should be tolerated when comparing corresponding pitch class
- *                                deviations of
- *                                `PartialTuning`s to avoid double precision errors.
  */
 case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
-                            halfTolerance: Double = DefaultCentsTolerance,
-                            overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
-                            tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
+                            halfTolerance: Double = CentsTolerance,
+                            overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty) extends TuningMapper {
 
   import AutoTuningMapper._
 
@@ -69,7 +65,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
       case None => PartialTuning.empty(12)
     }
 
-    val resultPartialTuning = autoPartialTuning.merge(manualPartialTuning, tolerance)
+    val resultPartialTuning = autoPartialTuning.merge(manualPartialTuning, CentsTolerance)
     assert(resultPartialTuning.isDefined,
       "Pitch classes from overrideKeyboardMapping shouldn't be automatically mapped!")
     resultPartialTuning.get
@@ -150,7 +146,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
       false
     } else {
       val first = tuningPitches.head
-      tuningPitches.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
+      tuningPitches.tail.exists(item => !item.equalsWithTolerance(first, CentsTolerance))
     }
   }
 }

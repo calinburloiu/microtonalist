@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist
 
 package object core {
   /** Default difference allowed when comparing cents values to avoid double precision errors. */
-  val DefaultCentsTolerance: Double = 0.005
+  val CentsTolerance: Double = 0.000001
 
   /**
    * Rounds a [[Double]] value to the nearest [[Int]] neighbor value. If the neighbors are close to equidistant with
