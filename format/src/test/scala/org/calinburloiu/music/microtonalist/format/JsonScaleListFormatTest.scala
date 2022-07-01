@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtonalist.core._
-import org.calinburloiu.music.microtonalist.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
@@ -97,38 +96,38 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     }
   }
 
-  "TuningReducerPlayJsonFormat" should "deserialize JSON string containing type" in {
-    inside(TuningReducerPlayJsonFormat.reads(JsString("direct"))) {
+  "tuningReducerComponentFormat" should "deserialize JSON string containing type" in {
+    inside(tuningReducerComponentFormat.reads(JsString("direct"))) {
       case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
     }
-    inside(TuningReducerPlayJsonFormat.reads(JsString("merge"))) {
+    inside(tuningReducerComponentFormat.reads(JsString("merge"))) {
       case JsSuccess(value, _) => value shouldBe a[MergeTuningReducer]
     }
-    TuningReducerPlayJsonFormat.reads(JsString("bogus")) shouldBe a[JsError]
+    tuningReducerComponentFormat.reads(JsString("bogus")) shouldBe a[JsError]
   }
 
   it should "deserialize JSON object only containing type by using default factory" in {
     val directTuningReducerJson = Json.obj("type" -> "direct")
-    inside(TuningReducerPlayJsonFormat.reads(directTuningReducerJson)) {
+    inside(tuningReducerComponentFormat.reads(directTuningReducerJson)) {
       case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
     }
 
     val mergeTuningReducerJson = Json.obj("type" -> "merge")
-    inside(TuningReducerPlayJsonFormat.reads(mergeTuningReducerJson)) {
+    inside(tuningReducerComponentFormat.reads(mergeTuningReducerJson)) {
       case JsSuccess(value, _) => value shouldBe a[MergeTuningReducer]
     }
 
     val bogusTuningReducerJson = Json.obj("type" -> "bogus")
-    TuningReducerPlayJsonFormat.reads(bogusTuningReducerJson) shouldBe a[JsError]
+    tuningReducerComponentFormat.reads(bogusTuningReducerJson) shouldBe a[JsError]
 
     val invalidJson = Json.obj("typ" -> "direct")
-    TuningReducerPlayJsonFormat.reads(invalidJson) shouldBe a[JsError]
+    tuningReducerComponentFormat.reads(invalidJson) shouldBe a[JsError]
   }
 
   it should "serialize JSON string containing types of direct and merge" in {
-    TuningReducerPlayJsonFormat.writes(DirectTuningReducer()) shouldEqual JsString("direct")
-    TuningReducerPlayJsonFormat.writes(MergeTuningReducer()) shouldEqual JsString("merge")
-    a[Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
+    tuningReducerComponentFormat.writes(DirectTuningReducer()) shouldEqual JsString("direct")
+    tuningReducerComponentFormat.writes(MergeTuningReducer()) shouldEqual JsString("merge")
+    a[Error] should be thrownBy tuningReducerComponentFormat.writes(mock[TuningReducer])
   }
 
   "TuningMapperPlayJsonFormat" should "deserialize JSON object containing type auto and its params" in {
@@ -137,7 +136,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       "mapQuarterTonesLow" -> true,
       "halfTolerance" -> 0.02
     )
-    inside(TuningMapperPlayJsonFormat.reads(autoJsonWithParams)) {
+    inside(tuningMapperComponentFormat.reads(autoJsonWithParams)) {
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
@@ -146,7 +145,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     }
 
     val autoJsonWithDefaultParams = Json.obj("type" -> "auto")
-    inside(TuningMapperPlayJsonFormat.reads(autoJsonWithDefaultParams)) {
+    inside(tuningMapperComponentFormat.reads(autoJsonWithDefaultParams)) {
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
@@ -155,7 +154,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   }
 
   it should "serialize JSON object for type auto" in {
-    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.1))
+    val actual = tuningMapperComponentFormat.writes(AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.1))
     val expected = Json.obj(
       "type" -> "auto",
       "mapQuarterTonesLow" -> true,
@@ -164,13 +163,15 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     actual shouldEqual expected
   }
 
-  "a ComponentPlayJsonFormat with mandatory params" should "fail when deserializing JSON without params" in {
+  "a ComponentFormat with mandatory params" should "fail when deserializing JSON without params" in {
     implicit val subComponentFormat: Format[SubComponent] = Json.format[SubComponent]
-    val stubFormat = new ComponentPlayJsonFormat[Stub] {
-      override val subComponentSpecs: Seq[ComponentPlayJsonFormat.SubComponentSpec[_ <: Stub]] = Seq(
-        SubComponentSpec("foo", classOf[SubComponent], Some(subComponentFormat), None)
-      )
+    val spec = new ComponentFormatSpec[SubComponent] {
+      override val typeName: String = "foo"
+      override val javaClass: Class[SubComponent] = classOf[SubComponent]
+      override val format: Option[Format[SubComponent]] = Some(subComponentFormat)
+      override val default: Option[SubComponent] = None
     }
+    val stubFormat = new ComponentFormat[Stub](Seq(spec))
 
     val stubJsonStr = JsString("foo")
     val stubJsonObj = Json.obj("type" -> "foo")

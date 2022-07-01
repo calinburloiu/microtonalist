@@ -35,11 +35,8 @@ import scala.annotation.tailrec
  * The local fill applied attempts to minimize the number of notes retuned when switching tunings. When one plays a
  * piano with sustain pedal and the tuning is changed, a large number of nodes retuned could result in an unwanted
  * effect.
- *
- * @param tolerance Error in cents that should be tolerated when comparing corresponding pitch class deviations of
- *                  `PartialTuning`s to avoid double precision errors.
  */
-case class MergeTuningReducer(tolerance: Double = DefaultCentsTolerance) extends TuningReducer with StrictLogging {
+case class MergeTuningReducer() extends TuningReducer with StrictLogging {
 
   override def reduceTunings(partialTunings: Seq[PartialTuning],
                              globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
@@ -89,7 +86,7 @@ case class MergeTuningReducer(tolerance: Double = DefaultCentsTolerance) extends
                           partialTunings: Seq[PartialTuning]): (PartialTuning, Seq[PartialTuning]) = {
     partialTunings.headOption match {
       case Some(nextPartialTuning) =>
-        acc.merge(nextPartialTuning, tolerance) match {
+        acc.merge(nextPartialTuning, CentsTolerance) match {
           case Some(mergedTuning) =>
             merge(mergedTuning, partialTunings.tail)
 

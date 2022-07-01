@@ -19,38 +19,58 @@ package org.calinburloiu.music.microtonalist.format
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
+// TODO #38 It seems that playJsonFormat must not include the type property. This needs to be documented.
+// TODO #38 Require one of format or default to be defined
+
+/**
+ * Specification of a class that extend type parameter `A` (from companion class) used for
+ * serialization/deserialization.
+ *
+ * @tparam B a class that extends `A`
+ */
+trait ComponentFormatSpec[B] {
+  /** Value used for `type` JSON field to identify the class that extends `A`. */
+  val typeName: String
+
+  /** Exact class that extends `A`. */
+  val javaClass: Class[B]
+
+  /** play-json library [[Format]] for reading/writing the class that extends `A`. */
+  val format: Option[Format[B]]
+
+  /** A default instance of the class that extends `A` used when no parameters are provided for the JSON component.
+   * If the parameters are required this parameter will be [[None]].
+   */
+  val default: Option[B]
+}
+
 /**
  * Trait extended for serialization/deserialization between a Scala base class or trait `A` and the classes that
  * extend it, on one side, and their JSON representation, on the other side.
  * The JSON representation could either be an object containing a `type` property, which is
  * used to identify the Scala children class or string representing that type if there are no parameters required.
  *
+ * @param specs specifications used for serialization/deserialization of the classes that extend `A`
  * @tparam A base Scala class or trait
  */
-trait ComponentPlayJsonFormat[A] extends Format[A] {
+class ComponentFormat[A](val specs: Seq[ComponentFormatSpec[_ <: A]]) extends Format[A] {
 
-  import ComponentPlayJsonFormat._
+  import ComponentFormat._
 
-  /**
-   * Specification used for serialization/deserialization of the classes that extend `A`.
-   *
-   * @see [[ComponentPlayJsonFormat.SubComponentSpec]]
-   */
-  val subComponentSpecs: Seq[SubComponentSpec[_ <: A]]
-
-  private lazy val subComponentSpecsByType: Map[String, SubComponentSpec[_ <: A]] = subComponentSpecs
+  private lazy val specsByType: Map[String, ComponentFormatSpec[_ <: A]] = specs
     .map { spec => spec.typeName -> spec }.toMap
-  private lazy val subComponentSpecsByClass: Map[Class[_ <: A], SubComponentSpec[_ <: A]] = subComponentSpecs
+  private lazy val specsByClass: Map[Class[_ <: A], ComponentFormatSpec[_ <: A]] = specs
     .map { spec => spec.javaClass -> spec }.toMap
 
+  // TODO #38 Document that it only writes as JSON object
   override def writes(component: A): JsValue = {
-    subComponentSpecsByClass.get(component.getClass) match {
+    specsByClass.get(component.getClass) match {
       case Some(spec) =>
-        spec.playJsonFormat
+        spec.format
           .map { componentFormat =>
             //@formatter:off
             val writesWithType = (
-              (__ \ SubComponentTypeFieldName).write[String] and
+              (__ \ TypeJsonProperty).write[String] and
               __.write[A](componentFormat.asInstanceOf[Format[A]])
             ) ({ component: A => (spec.typeName, component) })
             //@formatter:on
@@ -65,22 +85,23 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
   override def reads(json: JsValue): JsResult[A] = {
     val readsStrWithType = Reads.StringReads
       .map { typeName =>
-        subComponentSpecsByType.get(typeName).map { spec =>
-          spec.defaultFactory.map { factory => factory() }
+        specsByType.get(typeName).map { spec =>
+          spec.default
         }
       }
+      // TODO #38 We need to test these error cases and this pipeline
       .filter(UnrecognizedTypeError) { foundByType => foundByType.nonEmpty }
       .map(_.get)
       .filter(MissingRequiredParams) { maybeDefaultFactory => maybeDefaultFactory.nonEmpty }
       .map(_.get)
 
-    def objWithTypeResult = (json \ SubComponentTypeFieldName).asOpt[String] match {
+    def objWithTypeResult = (json \ TypeJsonProperty).asOpt[String] match {
       case Some(typeName) =>
-        subComponentSpecsByType.get(typeName) match {
+        specsByType.get(typeName) match {
           case Some(spec) =>
-            val maybeRead = spec.playJsonFormat.map(_.reads(json))
-            spec.defaultFactory
-              .map { factory => maybeRead.getOrElse(JsSuccess(factory())) }
+            val maybeRead = spec.format.map(_.reads(json))
+            spec.default
+              .map { default => maybeRead.getOrElse(JsSuccess(default)) }
               .getOrElse(JsError(Seq(JsPath -> Seq(MissingRequiredParams))))
           case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
         }
@@ -95,29 +116,13 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
   }
 }
 
-object ComponentPlayJsonFormat {
+object ComponentFormat {
 
   /** Field that identifies the class that extends type parameter `A` in companion class. */
-  val SubComponentTypeFieldName = "type"
+  val TypeJsonProperty = "type"
 
   val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
   val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
   val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
   val MissingRequiredParams: JsonValidationError = JsonValidationError("error.component.params.missing")
-
-  /**
-   * Specification of a class that extend type parameter `A` (from companion class) used for
-   * serialization/deserialization.
-   *
-   * @param typeName       value used for `type` JSON field to identify the class that extends `A`
-   * @param javaClass      exact class that extends `A`
-   * @param playJsonFormat play-json library [[Format]] for reading/writing the class that extends `A`
-   * @param defaultFactory factory function that creates an instance of the class that extends `A` without parameters.
-   *                       If the parameters are required this parameter will be [[None]].
-   * @tparam B a class that extends `A`
-   */
-  private[format] case class SubComponentSpec[B](typeName: String, javaClass: Class[B],
-                                                 playJsonFormat: Option[Format[B]],
-                                                 defaultFactory: Option[() => B])
-
 }

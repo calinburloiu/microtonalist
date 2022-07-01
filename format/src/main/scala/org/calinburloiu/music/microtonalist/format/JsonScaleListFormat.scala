@@ -94,9 +94,6 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo,
 }
 
 object JsonScaleListFormat {
-  // TODO #31 Read this from JSON
-  private val tolerance: Double = DefaultCentsTolerance
-
   private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalReads
@@ -106,45 +103,17 @@ object JsonScaleListFormat {
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
-  private[JsonScaleListFormat] implicit val tuningMapperPlayJsonFormat: Format[TuningMapper] =
-    TuningMapperPlayJsonFormat
-  private[JsonScaleListFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
-    TuningReducerPlayJsonFormat
+  private[format] implicit val tuningMapperComponentFormat: Format[TuningMapper] =
+    new ComponentFormat[TuningMapper](Seq(
+      AutoTuningMapperComponentFormatSpec
+    ))
+  private[format] implicit val tuningReducerComponentFormat: Format[TuningReducer] =
+    new ComponentFormat[TuningReducer](Seq(
+      DirectTuningReducerComponentFormatSpec,
+      MergeTuningReducerComponentFormatSpec
+    ))
   private[JsonScaleListFormat] implicit val modulationReprReads: Reads[ModulationRepr] =
     Json.using[Json.WithDefaultValues].reads[ModulationRepr]
   private[JsonScaleListFormat] implicit val scaleListReprReads: Reads[ScaleListRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
-
-  private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
-
-    import ComponentPlayJsonFormat._
-
-    private implicit val autoReprPlayJsonFormat: Format[AutoTuningMapperRepr] =
-      Json.using[Json.WithDefaultValues].format[AutoTuningMapperRepr]
-    private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
-      autoReprPlayJsonFormat.map { repr =>
-        AutoTuningMapper(mapQuarterTonesLow = repr.mapQuarterTonesLow,
-          halfTolerance = repr.halfTolerance.getOrElse(tolerance), tolerance = tolerance)
-      },
-      Writes { mapper: AutoTuningMapper =>
-        val repr = AutoTuningMapperRepr(mapper.mapQuarterTonesLow, halfTolerance = Some(mapper.halfTolerance))
-        autoReprPlayJsonFormat.writes(repr)
-      }
-    )
-
-    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningMapper]] = Seq(
-      SubComponentSpec("auto", classOf[AutoTuningMapper], Some(autoPlayJsonFormat),
-        Some(() => AutoTuningMapper(mapQuarterTonesLow = false)))
-    )
-  }
-
-  private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
-
-    import ComponentPlayJsonFormat._
-
-    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
-      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
-      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
-    )
-  }
 }
