@@ -328,6 +328,23 @@ object RatioInterval {
     // Using a right-associative infix operator in order to make it precede + and - operators.
     def /:(numerator: Int): RatioInterval = RatioInterval(numerator, denominator)
   }
+
+  /**
+   * Create a series of intervals that correspond with the harmonics that match for a set of ratio intervals.
+   * @param intervals ratio intervals
+   * @return a sequence of harmonics in ascending order
+   */
+  def harmonicSeriesOf(intervals: RatioInterval*): Seq[Int] = {
+    require(intervals.nonEmpty)
+
+    val commonDenominator = lcm(intervals.map(_.denominator))
+    val nonSimplifiedSeries = intervals.map { interval =>
+      commonDenominator / interval.denominator * interval.numerator
+    }
+    val seriesGcd = gcd(nonSimplifiedSeries)
+
+    if (seriesGcd == 1) nonSimplifiedSeries else nonSimplifiedSeries.map(_ / seriesGcd)
+  }
 }
 
 /**

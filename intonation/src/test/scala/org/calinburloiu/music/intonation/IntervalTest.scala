@@ -283,6 +283,16 @@ class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
     RatioInterval(5, 2).toCentsInterval.cents should be > 1200.0
     RatioInterval(4, 5).toCentsInterval.cents should be < 0.0
   }
+
+  "harmonicSeriesOf" should "create a series with the harmonics that match for a set of ratio intervals" in {
+    assertThrows[IllegalArgumentException](RatioInterval.harmonicSeriesOf())
+    RatioInterval.harmonicSeriesOf(1/:1, 5/:4, 3/:2) shouldEqual Seq(4, 5, 6)
+    RatioInterval.harmonicSeriesOf(1/:1, 4/:3, 3/:2) shouldEqual Seq(6, 8, 9)
+    RatioInterval.harmonicSeriesOf(1/:1, 11/:8, 3/:2) shouldEqual Seq(8, 11, 12)
+    RatioInterval.harmonicSeriesOf(1/:1, 4/:3, 11/:6) shouldEqual Seq(6, 8, 11)
+    RatioInterval.harmonicSeriesOf(1/:1, 11/:8, 11/:6) shouldEqual Seq(24, 33, 44)
+    RatioInterval.harmonicSeriesOf(1/:1, 5/:4, 3/:2, 7/:4) shouldEqual Seq(4, 5, 6, 7)
+  }
 }
 
 class CentsIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {

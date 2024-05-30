@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music
 
-import com.google.common.math.DoubleMath
+import com.google.common.math.{DoubleMath, IntMath}
+
+import scala.annotation.tailrec
 
 package object intonation {
   /** Concert pitch frequency in Hz for central A4. */
@@ -66,5 +68,41 @@ package object intonation {
     if (modulus <= 0) throw new ArithmeticException(s"modulus $modulus must be greater than 0.0")
     val result = x % modulus
     if (result >= 0) result else result + modulus
+  }
+
+  def gcd(values: Seq[Int]): Int = {
+    require(values.nonEmpty)
+
+    def _gcd(index: Int): Int = {
+      val length = values.length - index
+      if (length == 1) {
+        values(index)
+      } else if (length == 2) {
+        IntMath.gcd(values(index), values(index + 1))
+      } else {
+        IntMath.gcd(values(index), _gcd(index + 1))
+      }
+    }
+
+    _gcd(0)
+  }
+
+  def lcm(values: Seq[Int]): Int = {
+    require(values.nonEmpty)
+
+    def _lcm2(a: Int, b: Int): Int = Math.abs(a * b) / IntMath.gcd(a, b)
+
+    def _lcm(index: Int): Int = {
+      val length = values.length - index
+      if (length == 1) {
+        values(index)
+      } else if (length == 2) {
+        _lcm2(values(index), values(index + 1))
+      } else {
+        _lcm2(_lcm2(values(index), values(index + 1)), _lcm(index + 2))
+      }
+    }
+
+    _lcm(0)
   }
 }

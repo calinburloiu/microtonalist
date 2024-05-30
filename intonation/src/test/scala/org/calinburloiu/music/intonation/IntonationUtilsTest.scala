@@ -103,4 +103,19 @@ class IntonationUtilsTest extends AnyFunSuite with TableDrivenPropertyChecks wit
       assertThrows[IllegalArgumentException](fromHzToCents(value, 100.0))
     }
   }
+
+  test("gcd") {
+    assertThrows[IllegalArgumentException](gcd(Nil))
+    gcd(Seq(6)) shouldEqual 6
+    gcd(Seq(9, 12)) shouldEqual 3
+    gcd(Seq(36, 54)) shouldEqual 18
+    gcd(Seq(36, 54, 30)) shouldEqual 6
+  }
+
+  test("lcm") {
+    assertThrows[IllegalArgumentException](lcm(Nil))
+    lcm(Seq(6)) shouldEqual 6
+    lcm(Seq(9, 12)) shouldEqual 36
+    lcm(Seq(20, 36, 18)) shouldEqual 180
+  }
 }
