@@ -27,6 +27,7 @@ import play.api.libs.json._
  *
  * @tparam A base Scala class or trait
  */
+@deprecated
 trait ComponentPlayJsonFormat[A] extends Format[A] {
 
   import ComponentPlayJsonFormat._
@@ -95,6 +96,7 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
   }
 }
 
+@deprecated
 object ComponentPlayJsonFormat {
 
   /** Field that identifies the class that extends type parameter `A` in companion class. */
