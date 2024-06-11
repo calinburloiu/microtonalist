@@ -108,5 +108,3 @@ private object ComponentJsonFormat {
     //@formatter:on
   }
 }
-
-
