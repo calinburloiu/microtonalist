@@ -28,13 +28,12 @@ import play.api.libs.functional.syntax._
  * A _JSON component_ is an object with a particular _type_ that is part of a _family_. The family is used in a
  * certain context (e.g. tuning mapper, tuning reduces, scale etc.). For each family there can be one or more types.
  * The type is identified in the JSON object by the `type` property (which might be implicit for a default type).
- * Each type may have its own specific properties.
+ * Each type may have its own specific properties called _settings_.
  *
  * One should create separate instances of this class for each family and configure it with a sequence of specs, each
- * for each type. Each type may have default values, in `defaultSettings`, for certain properties to allow users to
- * omit them. Property values per family/type can also be set globally by the user per composition file in the
- * settings section and the class has a getter for setter for settings the root of the settings JSON after the JSON
- * file was parsed.
+ * for each type. Each type may have default values, in `defaultSettings`, for certain settings to allow users to
+ * omit them. Settings values per family/type can also be set globally by the user per composition file in the
+ * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
 class ComponentJsonFormat[F](val familyName: String,
                              specs: Seq[ComponentJsonFormat.TypeSpec[_ <: F]],
