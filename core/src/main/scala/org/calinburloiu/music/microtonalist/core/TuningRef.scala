@@ -75,3 +75,5 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
 
   override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
 }
+
+// TODO Add support for Scala-app-style implementation; also look at Ableton Live 12 (https://www.ableton.com/en/live-manual/12/using-tuning-systems/#the-tuning-section)
