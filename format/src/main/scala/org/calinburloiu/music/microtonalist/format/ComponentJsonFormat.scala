@@ -16,8 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import play.api.libs.json.{Format, JsError, JsObject, JsPath, JsResult, JsString, JsValue, Json, JsonValidationError,
-  OWrites, Writes, __}
+import play.api.libs.json.{
+  Format, JsError, JsObject, JsPath, JsResult, JsString, JsValue, Json, JsonValidationError,
+  OWrites, Writes, __
+}
 import play.api.libs.functional.syntax._
 
 /**
@@ -47,27 +49,32 @@ class ComponentJsonFormat[F](val familyName: String,
   private val componentSpecsByClass: Map[Class[_ <: F], TypeSpec[_ <: F]] = specs
     .map { spec => spec.javaClass -> spec }.toMap
 
+  def rootGlobalSettings: JsObject = _rootGlobalSettings
+
   def rootGlobalSettings_=(newValue: JsObject): Unit = {
     _rootGlobalSettings = newValue
   }
 
   override def reads(componentJson: JsValue): JsResult[F] = {
-    val (typeNameOpt, localSettings) = componentJson match {
-      case typeName: JsString => (Some(typeName.value), Json.obj())
-      case componentObj: JsObject =>
-        val typeNameOpt = (componentObj \ PropertyNameType).asOpt[String].orElse(defaultTypeName)
-        (typeNameOpt, componentObj - PropertyNameType)
+    def doRead(typeNameOpt: Option[String], localSettings: JsObject): JsResult[F] = {
+      typeNameOpt match {
+        case Some(typeName) =>
+          componentSpecsByType.get(typeName) match {
+            case Some(spec) =>
+              val mergedSettings = spec.defaultSettings ++ globalSettingsOf(typeName) ++ localSettings
+              spec.format.reads(mergedSettings)
+            case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
+          }
+        case None => JsError(Seq(JsPath -> Seq(MissingTypeError)))
+      }
     }
 
-    typeNameOpt match {
-      case Some(typeName) =>
-        componentSpecsByType.get(typeName) match {
-          case Some(spec) =>
-            val mergedSettings = spec.defaultSettings ++ globalSettingsOf(typeName) ++ localSettings
-            spec.format.reads(mergedSettings)
-          case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
-        }
-      case None => JsError(Seq(JsPath -> Seq(MissingTypeError)))
+    componentJson match {
+      case typeName: JsString => doRead(Some(typeName.value), Json.obj())
+      case componentObj: JsObject =>
+        val typeNameOpt = (componentObj \ PropertyNameType).asOpt[String].orElse(defaultTypeName)
+        doRead(typeNameOpt, componentObj - PropertyNameType)
+      case _ => JsError(Seq(JsPath -> Seq(InvalidError)))
     }
   }
 
@@ -82,15 +89,16 @@ class ComponentJsonFormat[F](val familyName: String,
 }
 
 private object ComponentJsonFormat {
+  val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
+  val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
+  val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
+
   private val PropertyNameType = "type"
 
-  private val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
-  private val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
-
-  private[format] case class TypeSpec[T](typeName: String,
-                                         javaClass: Class[T],
-                                         format: Format[T],
-                                         defaultSettings: JsObject)
+  case class TypeSpec[T](typeName: String,
+                         javaClass: Class[T],
+                         format: Format[T],
+                         defaultSettings: JsObject = Json.obj())
 
   private def writesWithTypeFor[A](writes: Writes[A], typeName: String): OWrites[A] = {
     //@formatter:off
