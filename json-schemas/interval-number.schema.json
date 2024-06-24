@@ -1,6 +1,0 @@
-{
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "Microtonal interval expressed in cents or a number of equal divisions of the octave (EDO)",
-    "type": "number",
-    "minimum": 0
-}

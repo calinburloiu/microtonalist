@@ -1,0 +1,19 @@
+{
+    "$schema": "../scale.schema.json",
+    "authorName": "Călin-Andrei Burloiu",
+    "authorSortName": "Burloiu, Călin-Andrei",
+    "name": "Rast",
+    "intonationStandard": {
+        "type": "edo",
+        "divisionCount": 72
+    },
+    "pitches": [
+        { "name": "rast", "interval": [0, 0], "degree": 1, "role": "primary" },
+        { "name": "dügah", "interval": [2, 0] },
+        { "name": "segah", "interval": [4, -1], "role": "tertiary" },
+        { "name": "çargah", "interval": [5, 0] },
+        { "name": "neva", "interval": [7, 0], "role": "secondary" },
+        { "name": "hüseyni", "interval": [9, 0] },
+        { "name": "eviç", "interval": [11, -1] }
+    ]
+}

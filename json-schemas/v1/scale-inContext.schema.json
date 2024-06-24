@@ -1,0 +1,12 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Microtonalist App scale format as it appears in the context of / inside a composition file.",
+    "type": ["object", "array"],
+    "oneOf": [
+        { "$ref": "scale-inContextObject.schema.json" },
+        {
+            "type": "array",
+            "items": { "$ref": "pitch.schema.json" }
+        }
+    ]
+}
