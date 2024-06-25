@@ -24,7 +24,8 @@
                     "if": {
                         "properties": {
                             "type": { "const": "edo" }
-                        }
+                        },
+                        "required": ["type"]
                     },
                     "then": {
                         "properties": {
