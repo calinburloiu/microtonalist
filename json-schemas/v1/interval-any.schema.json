@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Any type of interval",
+    "description": "Type that matches any type of interval which can be one of: a number which may be a value in cents or the number of divisions for EDO, a string as a just intonation ratio in format \"<integer>/<integer>\", or array with two items where the first one is the approximate number of 12-EDO semitones and the second one is the deviation from that in divisions.",
+    "type": ["number", "string", "array"],
+    "oneOf": [
+        {
+            "title": "Interval value in cents or divisions",
+            "description": "A number which may be a value in cents or the number of divisions for EDO. If the value is in divisions it should be an integer.",
+            "type": "number"
+        },
+        {
+            "$ref": "interval-justIntonation.schema.json"
+        },
+        {
+            "$ref": "interval-edoWithSemitones.schema.json"
+        }
+    ]
+}

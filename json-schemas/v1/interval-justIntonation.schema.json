@@ -1,0 +1,7 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "A just intonation ratio",
+    "description": "Microtonal interval expressed in just intonation as a ratio in format \"<integer>/<integer>\"",
+    "type": "string",
+    "pattern": "^[1-9][0-9]*/[1-9][0-9]*$"
+}

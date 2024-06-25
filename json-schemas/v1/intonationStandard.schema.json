@@ -1,0 +1,50 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Intonation Standard",
+    "description": "Intonation Standard describes how microtonal intervals are expressed.",
+    "type": ["object", "string"],
+    "oneOf": [
+        { "$ref": "#/$defs/object" },
+        { "$ref": "#/$defs/string" }
+    ],
+    "default": "cents",
+    "$defs": {
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "title": "Intonation Standard Type",
+                    "description": "Name that serves as a unique identifier of the Intonation Standard Type. The following values are allowed:\n- \"cents\": scale pitch intervals are expressed as a number value in cents\n- \"justIntonation\": scale pitch intervals are expressed as a string with a ratio of two integers separated by slash, e.g. \"5/4\"\n- \"edo\": abbreviation EDO stands for equal divisions of the octave; scale pitch intervals are expressed either as a number of divisions or an array with two items, where the first one is the approximate number of 12-EDO semitones and the second one is the deviation from that in divisions.",
+                    "enum": ["cents", "justIntonation", "edo"],
+                    "default": "cents"
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "edo" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "divisionCount": {
+                                "type": "integer",
+                                "title": "Division Count",
+                                "description": "The number of equal divisions of the octave.",
+                                "minimum": 1
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "string": {
+            "$comment": "The Intonation Standard Type can only be set with a string for the types that don't require additional parameters.",
+            "type": "string",
+            "enum": ["cents", "justIntonation"]
+        }
+    }
+}

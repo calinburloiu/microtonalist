@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Number or divisions, or an array of semitones and a deviation in divisions from that",
+    "description": "Microtonal interval used for a particular EDO (equal divisions of the octave) expressed either as a number of divisions or an array with two items, where the first one is the approximate number of 12-EDO semitones and the second one the deviation from that in divisions. It is recommended to use the later for EDOs that are multiple of 12 such that the first value in semitones is not an approximated value but a precise one. For example, the 72-EDO interval that approximates a 5/4 can be either expressed as `23` or `[4, -1]`.",
+    "type": ["number", "array"],
+    "oneOf": [
+        {
+            "title": "Divisions",
+            "description": "The number of divisions of the given EDO.",
+            "type": "integer"
+        },
+        {
+            "$ref": "interval-edoWithSemitones.schema.json"
+        }
+    ]
+}

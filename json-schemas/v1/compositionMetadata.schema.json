@@ -1,0 +1,59 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Composition Metadata",
+    "description": "Metadata object used for additional information about a Microtonalist app composition file.",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Composition name."
+        },
+        "altName": {
+            "type": "string",
+            "title": "Alternative Name",
+            "description": "Alternative name that may include information like opus number."
+        },
+        "composerName": {
+            "type": "string",
+            "title": "Composer Name",
+            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown. If this property is not defined and composerSortName is defined, this property can be computed from the later."
+        },
+        "composerSortName": {
+            "type": "string",
+            "title": "Composer Sort Name",
+            "description": "The sort name of the composer which should start with the word used for sorting. Separate the part of the name that should be used for sorting with the other part that provides more details by using a comma and a space, \", \". For a person this would typically be \"<Last Name, <First Name>\", e.g. for composerName \"John Doe\", the composerSortName is \"Doe, John\"."
+        },
+        "arrangerName": {
+            "type": "string",
+            "title": "Arranger Name",
+            "description": "Name of the arranger, if any."
+        },
+        "arrangerSortName": {
+            "type": "string",
+            "title": "Arranger Sort Name",
+            "description": "The sort name of the arranger of the composition which should start with the word used for sorting. Separate the part of the name that should be used for sorting with the other part that provides more details by using a comma and a space, \", \". For a person this would typically be \"<Last Name, <First Name>\", e.g. for arrangerName \"John Doe\", the arrangerSortName is \"Doe, John\"."
+        },
+        "authorName": {
+            "type": "string",
+            "title": "Author Name",
+            "description": "The person or organization who created this Microtonalist app tuning file."
+        },
+        "authorSortName": {
+            "type": "string",
+            "title": "Author Sort Name",
+            "description": "The sort name of the author which should start with the word used for sorting. Separate the part of the name that should be used for sorting with the other part that provides more details by using a comma and a space, \", \". For a person this would typically be \"<Last Name, <First Name>\", e.g. for authorName \"John Doe\", the authorSortName is \"Doe, John\"."
+        },
+        "compositionYear": {
+            "type": "number",
+            "title": "Composition Year",
+            "description": "Year when the composition was composed.",
+            "minimum": 1
+        },
+        "copyright": {
+            "type": "string",
+            "title": "Copyright",
+            "description": "Copyright information, if any."
+        }
+    }
+}

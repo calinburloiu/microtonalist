@@ -1,0 +1,52 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Scale pitch",
+    "description": "Pitch used for forming a scale.",
+    "type": ["string", "number", "array", "object"],
+    "oneOf": [
+        { "$ref": "interval-any.schema.json" },
+        { "$ref": "#/$defs/pitchObject" }
+    ],
+    "$defs": {
+        "pitchObject": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "title": "Name",
+                    "description": "Name of the pitch."
+                },
+                "altNames": {
+                    "type": "array",
+                    "title": "Alternative Names",
+                    "description": "Array of alternative names in the order of their importance. The name property is considered the most important and comes before alternative names.",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "interval": {
+                    "allOf": [
+                        {
+                            "title": "Interval",
+                            "description": "Interval of the pitch in relation to the main scale degree (tonic)."
+                        },
+                        { "$ref": "interval-any.schema.json" }
+                    ]
+                },
+                "degree": {
+                    "type": "number",
+                    "title": "Degree",
+                    "description": "Scale degree number expressed as an interval ordinal number between 1 (unison) and 7 (seventh). Note that this property is opinionated for heptatonic scales defined within the bounds of one octave and may be omitted when it does not make sense. If the degree value is omitted for all pitches of a scale, degree is not used. If at least one pitch of a scale defines degree, then it is used and the value of pitches that don't set a degree is inferred.\nThe degree value for unison should typically be set to 1 or at least make sure it's inferred as 1.\nFor scales that omit the unison and start from the second scale degree, the value for that should be set or inferred as 2.\nFor any pitch without a degree its value is inferred by continuing from the degree of the previous pitch. This means adding a second to the interval while keeping it in one octave boundary; e.g. after 1 (unison interval) comes 2 (second interval), after 7 (seventh interval) comes 1 (unison).",
+                    "minimum": 1,
+                    "maximum": 7
+                },
+                "role": {
+                    "enum": [null, "primary", "secondary", "tertiary"],
+                    "description": "The importance of the pitch within the scale.\n- null: pitch does not have a special role within the scale.\n- \"primary\": the most important pitch of the scale, typically used for the tonic. The unison has its role inferred as primary if not explicitly set otherwise.\n- \"secondary\": the second most important pitch of the scale, typically used for the dominant. The term dominant was avoided due to its overloaded use in Western music: it may refer to the fifth degree of the scale, but modal music may use another scale degree as dominant, or it may refer to a dominant chord, which in modal music is not always the case for the dominant scale degree to have such a chord on it.\n- \"tertiary\": the third most important pitch of the scale. Note that not all scales need this role.",
+                    "default": null
+                }
+            },
+            "required": ["interval"]
+        }
+    }
+}
