@@ -1,0 +1,49 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Scale",
+    "description": "Microtonalist App scale format as used in a context where the intonation standard is known and the name is already provided if not present in this object.",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "title": "Scale Name",
+            "description": "The name of the scale."
+        },
+        "sortName": {
+            "type": "string",
+            "title": "Scale Sort Name",
+            "description": "The sort name of the scale which should start with the word used for sorting. Separate the part of the name that should be used for sorting with the other part that provides more details by using a comma and a space, \", \". Usually, the sorting part is a substantive and the detail part is an adjective. In languages where the adjective is placed before the substantive (like English) and sorting by substantive is desired a sortName is very useful. For example a scale with name \"Beautiful Minor\" could have sort name \"Minor, Beautiful\". The Ottoman scale \"Zirgüleli Hicaz\" should be sorted by \"Hicaz\", so the sort name would be \"Hicaz, Zirgüleli\"."
+        },
+        "altNames": {
+            "type": ["array"],
+            "title": "Alternative Names",
+            "description": "Array of alternative names in the order of their importance. The name property is considered the most important and comes before alternative names.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "intonationStandard": { "$ref": "intonationStandard.schema.json" },
+        "pitches": {
+            "type": "array",
+            "title": "Pitches",
+            "description": "An array of scale pitches.\nThe main scale degree (e.g. tonic) is implied to be unison, so it may start from the second scale degree. A scale with an empty array of pitches is perfectly valid and will implicitly only contain a unison.\nSome scales may start with intervals below the main scale degree (with a negative value in cents) for the purpose of defining pitches like leading tones or subtonics. In this case, it is preferred to explicitly add the unison.\nPitches should be sorted, either in ascending or descending order.",
+            "items": { "$ref": "pitch.schema.json" }
+        },
+        "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Details about the scale."
+        },
+        "authorName": {
+            "type": "string",
+            "title": "Author Name",
+            "description": "The person or organization who created the scale. On some platforms this could be a uniquely identifiable username which can then be linked to an actual person/organization name through their profile. In this case, it is recommended to not include spaces and prefix the value by \"@\" (without quotes). If this property is missing and authorSortName is present, the former should be computed by concatenating the second part of the authorSort name with the first part separated by a space."
+        },
+        "authorSortName": {
+            "type": "string",
+            "title": "Author Sort Name",
+            "description": "The sort name of the author which should start with the word used for sorting. Separate the part of the name that should be used for sorting with the other part that provides more details by using a comma and a space, \", \". For a person this would typically be \"<Last Name, <First Name>\", e.g. for authorName \"John Doe\", the authorSortName is \"Doe, John\"."
+        }
+    },
+    "required": ["pitches"]
+}

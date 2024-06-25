@@ -1,0 +1,12 @@
+{
+    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "allOf": [
+        {
+            "title": "Scale",
+            "description": "Microtonalist App scale format.",
+            "required": ["name", "pitches"]
+        },
+        { "$ref": "scale-inContextObject.schema.json" }
+    ]
+}
