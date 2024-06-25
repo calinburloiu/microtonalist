@@ -11,7 +11,7 @@
         },
         {
             "title": "Divisions",
-            "description": "The deviation from the number of semitones (first item) expressed divisions of the given EDO.",
+            "description": "The deviation from the number of semitones (first item) expressed in divisions of the given EDO.",
             "type": "integer"
         }
     ],

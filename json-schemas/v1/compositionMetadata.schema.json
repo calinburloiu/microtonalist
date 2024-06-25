@@ -6,15 +6,18 @@
     "properties": {
         "name": {
             "type": "string",
+            "title": "Name",
             "description": "Composition name."
         },
         "altName": {
             "type": "string",
-            "description": "Alternative name that typically includes Opus number, if any."
+            "title": "Alternative Name",
+            "description": "Alternative name that may include information like opus number."
         },
         "composerName": {
             "type": "string",
-            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown."
+            "title": "Composer Name",
+            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown. If this property is not defined and composerSortName is defined, this property can be computed from the later."
         },
         "composerSortName": {
             "type": "string",
@@ -23,6 +26,7 @@
         },
         "arrangerName": {
             "type": "string",
+            "title": "Arranger Name",
             "description": "Name of the arranger, if any."
         },
         "arrangerSortName": {
@@ -32,7 +36,8 @@
         },
         "authorName": {
             "type": "string",
-            "description": "The person or organization who created the Microtonalist app tuning file.",
+            "title": "Author Name",
+            "description": "The person or organization who created this Microtonalist app tuning file."
         },
         "authorSortName": {
             "type": "string",
@@ -41,11 +46,13 @@
         },
         "compositionYear": {
             "type": "number",
+            "title": "Composition Year",
             "description": "Year when the composition was composed.",
             "minimum": 1
         },
         "copyright": {
             "type": "string",
+            "title": "Copyright",
             "description": "Copyright information, if any."
         }
     }

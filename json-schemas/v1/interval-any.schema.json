@@ -6,7 +6,7 @@
     "oneOf": [
         {
             "title": "Interval value in cents or divisions",
-            "description": "A number which may be a value in cents or the number of divisions for EDO. If the value is in division it should be an integer.",
+            "description": "A number which may be a value in cents or the number of divisions for EDO. If the value is in divisions it should be an integer.",
             "type": "number"
         },
         {

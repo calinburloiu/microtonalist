@@ -1,10 +1,12 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "Microtonalist App scale format as it appears in the context of / inside a composition file.",
+    "title": "Scale",
+    "description": "Microtonalist App scale format as it appears in the context or inside of a composition file.",
     "type": ["object", "array"],
     "oneOf": [
         { "$ref": "scale-inContextObject.schema.json" },
         {
+            "$comment": "An inline scale that directly specifies the pitches for brevity. This will only be allowed in a composition file when the tuning spec sets a name for the scale, effectively putting it in the context. Note that the intonation standard is already specified in the context of a composition file.",
             "type": "array",
             "items": { "$ref": "pitch.schema.json" }
         }
