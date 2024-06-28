@@ -1,5 +1,5 @@
 {
-    "$schema": "../scale.schema.json",
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale.schema.json",
     "authorName": "Călin-Andrei Burloiu",
     "authorSortName": "Burloiu, Călin-Andrei",
     "name": "Rast",

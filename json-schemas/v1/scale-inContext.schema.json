@@ -1,4 +1,5 @@
 {
+    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale-inContext.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Scale",
     "description": "Microtonalist App scale format as it appears in the context or inside of a composition file.",
