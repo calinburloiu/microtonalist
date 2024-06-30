@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.scalatest.{BeforeAndAfterEach, Inside}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{JsError, JsNull, JsSuccess, JsValue, Json, JsonValidationError}
+import play.api.libs.json.{JsError, JsNull, JsString, JsSuccess, JsValue, Json, JsonValidationError}
 
 class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
   private sealed trait Animals
@@ -30,10 +30,13 @@ class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
 
   private case class Jungle(lion: String, snake: String) extends Animals
 
+  private case object Sea extends Animals
+
   private val FamilyNameAnimals = "animals"
   private val TypeNameDomestic = "domestic"
   private val TypeNameForest = "forest"
   private val TypeNameJungle = "jungle"
+  private val TypeNameSea = "sea"
 
   private val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
   format.rootGlobalSettings = Json.obj(
@@ -52,16 +55,17 @@ class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
   private def createFormat(defaultTypeName: Option[String]): ComponentJsonFormat[Animals] = new ComponentJsonFormat(
     FamilyNameAnimals,
     Seq(
-      ComponentJsonFormat.TypeSpec[Domestic](TypeNameDomestic, classOf[Domestic], Json.format[Domestic]),
-      ComponentJsonFormat.TypeSpec[Forest](TypeNameForest, classOf[Forest], Json.format[Forest], Json.obj(
+      ComponentJsonFormat.TypeSpec.withSettings[Domestic](TypeNameDomestic, Json.format[Domestic], classOf[Domestic]),
+      ComponentJsonFormat.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest], Json.obj(
         "rabbit" -> "Bugs Bunny",
         "squirrel" -> "Nutz",
         "wolf" -> "White Fang"
       )),
-      ComponentJsonFormat.TypeSpec[Jungle](TypeNameJungle, classOf[Jungle], Json.format[Jungle], Json.obj(
+      ComponentJsonFormat.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle], Json.obj(
         "lion" -> "King",
         "snake" -> "Monty"
-      ))
+      )),
+      ComponentJsonFormat.TypeSpec.withNoSettings(TypeNameSea, Sea)
     ),
     defaultTypeName
   )
@@ -140,12 +144,19 @@ class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
     assertReadsFailure(Json.arr(1, 2), ComponentJsonFormat.InvalidError)
   }
 
-  "writes" should "serialize as JSON a Scala component" in {
+  it should "parse a component with no settings" in {
+    assertReads(JsString(TypeNameSea), Sea)
+    assertReads(Json.obj("type" -> TypeNameSea), Sea)
+  }
+
+  "writes" should "serialize as JSON Scala component objects" in {
     val domestic = Domestic("Tom", "Scooby")
     format.writes(domestic) shouldEqual Json.obj(
       "type" -> TypeNameDomestic,
       "cat" -> "Tom",
       "dog" -> "Scooby"
     )
+
+    format.writes(Sea) shouldEqual JsString(TypeNameSea)
   }
 }
