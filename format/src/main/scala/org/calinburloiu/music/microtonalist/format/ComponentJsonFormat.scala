@@ -36,7 +36,7 @@ import play.api.libs.functional.syntax._
  * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
 class ComponentJsonFormat[F](val familyName: String,
-                             specs: Seq[ComponentJsonFormat.TypeSpec[_ <: F]],
+                             specs: ComponentJsonFormat.SpecsSeqType[F],
                              defaultTypeName: Option[String] = None) extends Format[F] {
 
   import ComponentJsonFormat._
@@ -90,10 +90,12 @@ class ComponentJsonFormat[F](val familyName: String,
   }
 }
 
-private object ComponentJsonFormat {
-  val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
-  val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
-  val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
+object ComponentJsonFormat {
+  type SpecsSeqType[F] = Seq[ComponentJsonFormat.TypeSpec[_ <: F]]
+
+  private[format] val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
+  private[format] val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
+  private[format] val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
 
   private val PropertyNameType = "type"
 
@@ -141,7 +143,7 @@ private object ComponentJsonFormat {
      *
      * Note that in this case the [[TypeSpec]] does not need a [[Format]].
      */
-    def withNoSettings[T <: Object](typeName: String, componentValue: T): TypeSpec[T] = {
+    def withoutSettings[T <: Object](typeName: String, componentValue: T): TypeSpec[T] = {
       TypeSpec[T](typeName, Right(componentValue), componentValue.getClass.asInstanceOf[Class[T]])
     }
   }

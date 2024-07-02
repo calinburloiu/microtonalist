@@ -19,18 +19,22 @@ package org.calinburloiu.music.microtonalist.format
 import org.scalatest.{BeforeAndAfterEach, Inside}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{JsError, JsNull, JsString, JsSuccess, JsValue, Json, JsonValidationError}
+import play.api.libs.json.{Format, JsError, JsNull, JsString, JsSuccess, JsValue, Json, JsonValidationError}
 
-class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
-  private sealed trait Animals
+object ComponentJsonFormatTest {
+  sealed trait Animals
 
-  private case class Domestic(cat: String, dog: String) extends Animals
+  case class Domestic(cat: String, dog: String) extends Animals
 
-  private case class Forest(fox: String, rabbit: String, squirrel: String, wolf: String) extends Animals
+  case class Forest(fox: String, rabbit: String, squirrel: String, wolf: String) extends Animals
 
-  private case class Jungle(lion: String, snake: String) extends Animals
+  case class Jungle(lion: String, snake: String) extends Animals
 
-  private case object Sea extends Animals
+  case object Sea extends Animals
+}
+
+class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[ComponentJsonFormatTest.Animals]] {
+  import ComponentJsonFormatTest._
 
   private val FamilyNameAnimals = "animals"
   private val TypeNameDomestic = "domestic"
@@ -38,7 +42,7 @@ class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
   private val TypeNameJungle = "jungle"
   private val TypeNameSea = "sea"
 
-  private val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
+  override val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
   format.rootGlobalSettings = Json.obj(
     "animals" -> Json.obj(
       "domestic" -> Json.obj(
@@ -65,18 +69,10 @@ class ComponentJsonFormatTest extends AnyFlatSpec with Matchers with Inside {
         "lion" -> "King",
         "snake" -> "Monty"
       )),
-      ComponentJsonFormat.TypeSpec.withNoSettings(TypeNameSea, Sea)
+      ComponentJsonFormat.TypeSpec.withoutSettings(TypeNameSea, Sea)
     ),
     defaultTypeName
   )
-
-  private def assertReads(json: JsValue, result: Animals): Unit =
-    format.reads(json) should matchPattern { case JsSuccess(`result`, _) => }
-
-  private def assertReadsFailure(json: JsValue,
-                                 error: JsonValidationError,
-                                 customFormat: ComponentJsonFormat[Animals] = format): Unit =
-    customFormat.reads(json) should matchPattern { case JsError(Seq((_, Seq(`error`)))) => }
 
   "reads" should "parse a component with type property and all properties given" in {
     val json = Json.obj(
