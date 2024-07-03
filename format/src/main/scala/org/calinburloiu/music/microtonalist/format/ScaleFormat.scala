@@ -35,7 +35,9 @@ trait ScaleFormat {
    *                    that is read
    * @return the scale read
    */
-  def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval]
+  def read(inputStream: InputStream,
+           baseUri: Option[URI] = None,
+           context: Option[ScaleReadingContext] = None): Scale[Interval]
 
   /**
    * Writes the given scale to the given [[OutputStream]].

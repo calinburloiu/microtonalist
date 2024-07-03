@@ -34,7 +34,7 @@ import scala.concurrent.Future
  * the Microtonalist Library URI `microtonalist:///scales/lydian.scl` used in a scale import will actually point to
  * `/Users/john/Music/microtonalist/lib/scales/lydian.scl`.
  *
- * @param libraryUri base URI for Microtonalist Library
+ * @param libraryUri    base URI for Microtonalist Library
  * @param fileScaleRepo a [[FileScaleRepo]] instance
  * @param httpScaleRepo an [[HttpScaleRepo]] instance
  */
@@ -56,9 +56,11 @@ class LibraryScaleRepo(libraryUri: URI,
     }
   }
 
-  override def read(uri: URI): Scale[Interval] = scaleRepo.read(resolveUri(uri))
+  override def read(uri: URI, context: Option[ScaleReadingContext] = None): Scale[Interval] =
+    scaleRepo.read(resolveUri(uri))
 
-  override def readAsync(uri: URI): Future[Scale[Interval]] = scaleRepo.readAsync(resolveUri(uri))
+  override def readAsync(uri: URI, context: Option[ScaleReadingContext] = None): Future[Scale[Interval]] =
+    scaleRepo.readAsync(resolveUri(uri))
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
     scaleRepo.write(scale, resolveUri(uri), mediaType)

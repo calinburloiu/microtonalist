@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-
 import com.google.common.net.MediaType
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
@@ -35,7 +34,7 @@ trait ScaleRepo {
    * @param uri universal resource identifier (URI) for the scale
    * @return the requested scale
    */
-  def read(uri: URI): Scale[Interval]
+  def read(uri: URI, context: Option[ScaleReadingContext] = None): Scale[Interval]
 
   /**
    * Retrieves a scale asynchronously.
@@ -43,7 +42,7 @@ trait ScaleRepo {
    * @param uri universal resource identifier (URI) for the scale
    * @return a [[Future]] of the requested scale
    */
-  def readAsync(uri: URI): Future[Scale[Interval]]
+  def readAsync(uri: URI, context: Option[ScaleReadingContext] = None): Future[Scale[Interval]]
 
   /**
    * Persists a scale.

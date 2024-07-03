@@ -38,7 +38,9 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
 
   @throws[IOException]
   @throws[InvalidHuygensFokkerScalaFileException]
-  override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
+  override def read(inputStream: InputStream,
+                    baseUri: Option[URI] = None,
+                    context: Option[ScaleReadingContext] = None): Scale[Interval] = {
     val lines = Source.fromInputStream(inputStream, StandardCharsets.ISO_8859_1.toString).getLines()
       .filter(!_.startsWith("!")).toIndexedSeq
     logger.debug(s"The .scl file has ${lines.size} line(s)")

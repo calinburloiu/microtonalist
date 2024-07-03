@@ -33,10 +33,10 @@ trait ComposedScaleRepo extends ScaleRepo {
    */
   def getScaleRepo(uri: URI): Option[ScaleRepo]
 
-  override def read(uri: URI): Scale[Interval] =
+  override def read(uri: URI, context: Option[ScaleReadingContext] = None): Scale[Interval] =
     getScaleRepoOrThrow(uri).read(uri)
 
-  override def readAsync(uri: URI): Future[Scale[Interval]] =
+  override def readAsync(uri: URI, context: Option[ScaleReadingContext] = None): Future[Scale[Interval]] =
     getScaleRepoOrThrow(uri).readAsync(uri)
 
   override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =

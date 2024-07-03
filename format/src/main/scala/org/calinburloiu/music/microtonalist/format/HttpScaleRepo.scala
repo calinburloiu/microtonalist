@@ -39,7 +39,7 @@ import scala.util.{Failure, Success}
 class HttpScaleRepo(httpClient: HttpClient,
                     scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
 
-  override def read(uri: URI): Scale[Interval] = {
+  override def read(uri: URI, context: Option[ScaleReadingContext] = None): Scale[Interval] = {
     checkReadRequirements(uri)
 
     logger.info(s"Reading scale from $uri via HTTP...")
@@ -51,7 +51,7 @@ class HttpScaleRepo(httpClient: HttpClient,
     result
   }
 
-  override def readAsync(uri: URI): Future[Scale[Interval]] = {
+  override def readAsync(uri: URI, context: Option[ScaleReadingContext] = None): Future[Scale[Interval]] = {
     checkReadRequirements(uri)
 
     logger.info(s"Reading scale from $uri via HTTP...")

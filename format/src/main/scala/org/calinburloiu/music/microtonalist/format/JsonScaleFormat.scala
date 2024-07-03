@@ -36,7 +36,9 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata(
     "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType, MediaType.JSON_UTF_8))
 
-  override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
+  override def read(inputStream: InputStream,
+                    baseUri: Option[URI] = None,
+                    context: Option[ScaleReadingContext] = None): Scale[Interval] = {
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
@@ -59,10 +61,10 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
 object JsonScaleFormat {
 
-  val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist-scale")
+  val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist-json-scale")
 
-  private[format] implicit val intervalReads: Reads[Interval] = Reads.StringReads.collect(
-    JsonValidationError("error.expecting.ScalaAppScalePitch")
+  private val intervalReads: Reads[Interval] = Reads.StringReads.collect(
+    JsonValidationError("error.expecting.HuygensFokkerScalaScalePitch")
   )(
     Function.unlift(Interval.fromScalaTuningInterval)
   ).orElse {
@@ -71,19 +73,23 @@ object JsonScaleFormat {
     }
   }
 
-  private[format] implicit val intervalWrites: Writes[Interval] = Writes {
+  private val intervalWrites: Writes[Interval] = Writes {
     case RatioInterval(numerator, denominator) => JsString(s"$numerator/$denominator")
     case interval: Interval => JsNumber(interval.cents)
   }
 
+  private[format] implicit val intervalFormat: Format[Interval] = Format(intervalReads, intervalWrites)
+
+  //@formatter:off
   private[format] val jsonVerboseScaleFormat: Format[Scale[Interval]] = (
     (__ \ "intervals").format[Seq[Interval]] and
-      (__ \ "name").formatNullable[String]
-    ) ({ (pitches: Seq[Interval], name: Option[String]) =>
+    (__ \ "name").formatNullable[String]
+  ) ({ (pitches: Seq[Interval], name: Option[String]) =>
     Scale.create(name.getOrElse(""), pitches)
   }, { scale =>
     (scale.intervals, Some(scale.name))
   })
+  //@formatter:on
 
   private[format] val jsonConciseScaleReads: Reads[Scale[Interval]] = __.read[Seq[Interval]]
     .map { pitches => Scale.create("", pitches) }
