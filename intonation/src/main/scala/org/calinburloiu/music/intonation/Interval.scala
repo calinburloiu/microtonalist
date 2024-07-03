@@ -126,6 +126,8 @@ sealed trait Interval extends Ordered[Interval] {
    * Converts `this` interval to a [[CentsInterval]].
    */
   def toCentsInterval: CentsInterval = CentsInterval(cents)
+
+  def toEdoInterval(edo: Int): EdoInterval = EdoInterval(edo, (cents * edo / 1200.0).round.toInt)
 }
 
 object Interval {
@@ -464,7 +466,10 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
    * @param that the interval to add to `this`
    * @return the sum interval
    */
-  def +(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count + that.count)
+  def +(that: EdoInterval): EdoInterval = {
+    require(edo == that.edo)
+    EdoInterval(edo, this.count + that.count)
+  }
 
   override def +(that: Interval): Interval = that match {
     case edoInterval: EdoInterval => this + edoInterval
@@ -478,7 +483,10 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
    * @param that the interval to subtract from `this`
    * @return the difference interval
    */
-  def -(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count - that.count)
+  def -(that: EdoInterval): EdoInterval = {
+    require(edo == that.edo)
+    EdoInterval(edo, this.count - that.count)
+  }
 
   override def -(that: Interval): Interval = that match {
     case edoInterval: EdoInterval => this - edoInterval

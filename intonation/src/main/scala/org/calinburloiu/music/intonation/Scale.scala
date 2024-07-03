@@ -28,13 +28,31 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 
   def size: Int = intervals.size
 
-  def transpose(interval: Interval): Scale[Interval] = {
-    val newPitches = intervals.map(_ + interval)
+  def transpose(interval: Interval): Scale[Interval] = new Scale(name, intervals.map(_ + interval))
 
-    new Scale(name, newPitches)
+  def rename(newName: String): Scale[I] = new Scale(newName, intervals)
+
+  def isCentsScale: Boolean = intervals.forall(_.isInstanceOf[CentsInterval])
+
+  def isRatiosScale: Boolean = intervals.forall(_.isInstanceOf[RatioInterval])
+
+  def isEdoScale: Boolean = intervals.forall(_.isInstanceOf[EdoInterval])
+
+  def convertToIntonationStandard(intonationStandard: IntonationStandard): Scale[Interval] = {
+    intonationStandard match {
+      case CentsIntonationStandard => if (isCentsScale) this else CentsScale(name, intervals.map(_.toCentsInterval))
+      case JustIntonationStandard => if (isRatiosScale) this else
+        throw new IllegalArgumentException("Cannot convert a scale to just intonation from another intonation " +
+          "standard!")
+      case EdoIntonationStandard(edo) => if (isEdoScale && intervals.forall(_.asInstanceOf[EdoInterval].edo == edo)) {
+        this
+      } else {
+        EdoScale(name, intervals.map(_.toEdoInterval(edo)))
+      }
+    }
   }
 
-  def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[_]]
+  private def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[_]]
 
   override def equals(other: Any): Boolean = other match {
     case that: Scale[_] =>
@@ -48,7 +66,6 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
     val state = Seq(intervals, name)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
-
 
   override def toString: String = s"Scale($name, $intervals)"
 }
@@ -64,34 +81,78 @@ object Scale {
     Scale("", headPitch, tailPitches: _*)
 
   /**
-   * Creates the correct [[Scale]] implementation by taking pitches [[Interval]] implementation into accound.
+   * Creates the correct [[Scale]] implementation by taking pitches [[Interval]] implementation into account.
    *
-   * @param name    name of scale to be created
-   * @param pitches scale pitches
+   * @param name      name of scale to be created
+   * @param intervals scale pitches
    * @return the created scale
    */
-   def create(name: String, pitches: Seq[Interval]): Scale[Interval] = {
-    val hasUnison = pitches.headOption.exists(interval => interval.isUnison)
+  def create(name: String, intervals: Seq[Interval]): Scale[Interval] = {
+    def checkAllSameEdo: Boolean = {
+      if (intervals.nonEmpty && intervals.head.isInstanceOf[EdoInterval]) {
+        val edo = intervals.head.asInstanceOf[EdoInterval].edo
+        intervals.tail.forall {
+          case interval: EdoInterval => interval.edo == edo
+          case _ => false
+        }
+      } else {
+        false
+      }
+    }
 
-    // TODO #4 Handle the case when pitches are EdoIntervals
-    if (pitches.isEmpty) {
+    if (intervals.isEmpty) {
       Scale(name, CentsInterval(0.0))
-    } else if (pitches.forall(_.isInstanceOf[CentsInterval])) {
-      val resultPitches = if (hasUnison) pitches else CentsInterval.Unison +: pitches
-      CentsScale(name, resultPitches.map(_.asInstanceOf[CentsInterval]))
-    } else if (pitches.forall(_.isInstanceOf[RatioInterval])) {
-      val resultPitches = if (hasUnison) pitches else RatioInterval.Unison +: pitches
-      RatiosScale(name, resultPitches.map(_.asInstanceOf[RatioInterval]))
+    } else if (intervals.forall(_.isInstanceOf[CentsInterval])) {
+      create(name, intervals, CentsIntonationStandard)
+    } else if (intervals.forall(_.isInstanceOf[RatioInterval])) {
+      create(name, intervals, JustIntonationStandard)
+    } else if (checkAllSameEdo) {
+      val edo = intervals.head.asInstanceOf[EdoInterval].edo
+      create(name, intervals, EdoIntonationStandard(edo))
     } else {
-      val resultPitches = if (hasUnison) pitches else RealInterval.Unison +: pitches
-      Scale(name, resultPitches)
+      Scale(name, addUnison(intervals, RealInterval.Unison))
+    }
+  }
+
+  def create(name: String, intervals: Seq[Interval], intonationStandard: IntonationStandard): Scale[Interval] = {
+    intonationStandard match {
+      case CentsIntonationStandard => CentsScale(name, addUnison(intervals.map(_.toCentsInterval), CentsInterval.Unison))
+      case JustIntonationStandard if intervals.forall(_.isInstanceOf[RatioInterval]) =>
+        RatiosScale(name, addUnison(intervals.asInstanceOf[Seq[RatioInterval]], RatioInterval.Unison))
+      case JustIntonationStandard => throw new IllegalArgumentException("A scale with JustIntonationStandard must " +
+        "have all intervals of type RatioInterval")
+      case EdoIntonationStandard(edo) => EdoScale(name, addUnison(intervals.map(_.toEdoInterval(edo)), EdoInterval.unisonFor(edo)))
+    }
+  }
+
+  private def addUnison[I](intervals: Seq[Interval], unison: I): Seq[I] = {
+    if (intervals.exists(interval => interval.isUnison)) {
+      intervals.asInstanceOf[Seq[I]]
+    } else {
+      (unison +: intervals).asInstanceOf[Seq[I]]
     }
   }
 }
 
 
 case class RatiosScale(override val name: String,
-                       override val intervals: Seq[RatioInterval]) extends Scale[RatioInterval](name, intervals)
+                       override val intervals: Seq[RatioInterval]) extends Scale[RatioInterval](name, intervals) {
+
+  def transpose(interval: RatioInterval): RatiosScale = copy(intervals = intervals.map(_ + interval))
+
+  override def transpose(interval: Interval): Scale[Interval] = interval match {
+    case ratioInterval: RatioInterval => transpose(ratioInterval)
+    case _ => super.transpose(interval)
+  }
+
+  override def rename(newName: String): RatiosScale = copy(name = newName)
+
+  override def isCentsScale: Boolean = false
+
+  override def isRatiosScale: Boolean = true
+
+  override def isEdoScale: Boolean = false
+}
 
 object RatiosScale {
 
@@ -106,7 +167,23 @@ object RatiosScale {
 
 
 case class CentsScale(override val name: String,
-                      override val intervals: Seq[CentsInterval]) extends Scale[CentsInterval](name, intervals)
+                      override val intervals: Seq[CentsInterval]) extends Scale[CentsInterval](name, intervals) {
+
+  def transpose(interval: CentsInterval): CentsScale = copy(intervals = intervals.map(_ + interval))
+
+  override def transpose(interval: Interval): Scale[Interval] = interval match {
+    case centsInterval: CentsInterval => transpose(centsInterval)
+    case _ => super.transpose(interval)
+  }
+
+  override def rename(newName: String): CentsScale = copy(name = newName)
+
+  override def isCentsScale: Boolean = true
+
+  override def isRatiosScale: Boolean = false
+
+  override def isEdoScale: Boolean = false
+}
 
 object CentsScale {
 
@@ -126,7 +203,23 @@ object CentsScale {
 }
 
 case class EdoScale(override val name: String,
-                    override val intervals: Seq[EdoInterval]) extends Scale[EdoInterval](name, intervals)
+                    override val intervals: Seq[EdoInterval]) extends Scale[EdoInterval](name, intervals) {
+  def edo: Int = intervals.head.edo
+  require(intervals.forall(_.edo == edo))
+
+  def transpose(interval: EdoInterval): EdoScale = {
+    require(interval.edo == edo)
+    copy(intervals = intervals.map(_ + interval))
+  }
+
+  override def rename(newName: String): EdoScale = copy(name = newName)
+
+  override def isCentsScale: Boolean = false
+
+  override def isRatiosScale: Boolean = false
+
+  override def isEdoScale: Boolean = true
+}
 
 object EdoScale {
 

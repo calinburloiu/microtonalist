@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.core
+package org.calinburloiu.music.intonation
 
 sealed abstract class IntonationStandard(val typeName: String)
 
