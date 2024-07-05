@@ -131,6 +131,17 @@ sealed trait Interval extends Ordered[Interval] {
 }
 
 object Interval {
+  def fromRatioString(intervalValue: String): Option[Interval] = {
+    val ratioArray = intervalValue.split("/")
+    val maybeNumerator = Try(ratioArray(0).toInt).toOption
+    val maybeDenominator = if (ratioArray.size == 1) Some(1) else Try(ratioArray(1).toInt).toOption
+
+    for {
+      numerator <- maybeNumerator if numerator > 0
+      denominator <- maybeDenominator if denominator > 0
+    } yield RatioInterval(numerator, denominator)
+  }
+
   /**
    * Parses an interval expressed in the format present in Scala application tuning files (`*.scl`).
    *
@@ -150,14 +161,7 @@ object Interval {
 
       maybeCents.map(CentsInterval.apply)
     } else {
-      val ratioArray = intervalValue.split("/")
-      val maybeNumerator = Try(ratioArray(0).toInt).toOption
-      val maybeDenominator = if (ratioArray.size == 1) Some(1) else Try(ratioArray(1).toInt).toOption
-
-      for {
-        numerator <- maybeNumerator
-        denominator <- maybeDenominator
-      } yield RatioInterval(numerator, denominator)
+      fromRatioString(intervalValue)
     }
   }
 }
@@ -333,6 +337,7 @@ object RatioInterval {
 
   /**
    * Create a series of intervals that correspond with the harmonics that match for a set of ratio intervals.
+   *
    * @param intervals ratio intervals
    * @return a sequence of harmonics in ascending order
    */
@@ -510,6 +515,19 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
   override def compare(that: Interval): Int = that match {
     case EdoInterval(`edo`, thatCount) => this.count.compareTo(thatCount)
     case interval: Interval => this.realValue.compareTo(interval.realValue)
+  }
+
+  /**
+   * @return a pair of integers where the first is the number of 12-EDO semitones approximated
+   *         in this EDO (by rounding, 0.5 goes up), and the second is the deviation in
+   *         divisions (in this EDO) from the approximated semitone.
+   */
+  def countRelativeToStandard: (Int, Int) = {
+    val factor = edo / 12.0
+    val semitones = Math.round(count / factor).toInt
+    val deviation = Math.round(count - factor * semitones).toInt
+
+    (semitones, deviation)
   }
 }
 

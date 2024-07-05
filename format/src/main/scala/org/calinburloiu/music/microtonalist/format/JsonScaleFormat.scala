@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.calinburloiu.music.intonation.{CentsInterval, Interval, RatioInterval, Scale}
+import org.calinburloiu.music.intonation.{CentsInterval, CentsIntonationStandard, EdoInterval, EdoIntonationStandard, Interval, IntonationStandard, JustIntonationStandard, RatioInterval, Scale}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
@@ -74,11 +74,48 @@ object JsonScaleFormat {
   }
 
   private val intervalWrites: Writes[Interval] = Writes {
+    case CentsInterval(centsValue) => JsNumber(centsValue)
     case RatioInterval(numerator, denominator) => JsString(s"$numerator/$denominator")
+    case edoInterval: EdoInterval if edoInterval.edo % 12 == 0 =>
+      val (semitones, deviation) = edoInterval.countRelativeToStandard
+      Json.arr(JsNumber(semitones), JsNumber(deviation))
+    case EdoInterval(_, count) => JsNumber(count)
     case interval: Interval => JsNumber(interval.cents)
   }
 
+  @deprecated
   private[format] implicit val intervalFormat: Format[Interval] = Format(intervalReads, intervalWrites)
+
+  private def intervalReadsFor(intonationStandard: IntonationStandard): Reads[Interval] = {
+    lazy val centsReads: Reads[Interval] = Reads.JsNumberReads.map { jsNumber =>
+      CentsInterval(jsNumber.value.doubleValue)
+    }
+    lazy val ratioReads: Reads[Interval] = Reads.StringReads.collect(
+      JsonValidationError("error.expecting.ratioInterval")
+    )(
+      Function.unlift(Interval.fromRatioString)
+    )
+
+    intonationStandard match {
+      case CentsIntonationStandard => centsReads orElse ratioReads
+      case JustIntonationStandard => ratioReads
+      case EdoIntonationStandard(countPerOctave) => Reads.JsNumberReads.map { jsNumber =>
+        EdoInterval(countPerOctave, jsNumber.value.intValue).asInstanceOf[Interval]
+      } orElse Reads.JsArrayReads.collect(
+        JsonValidationError("error.expecting.edoIntervalWithSemitones")
+      ) {
+        case JsArray(Seq(JsNumber(semitones), JsNumber(deviation))) =>
+          EdoInterval(countPerOctave, (semitones.intValue, deviation.intValue)).asInstanceOf[Interval]
+        case arr: JsArray if arr.value.size == 2 =>
+          EdoInterval(countPerOctave, (arr.value.head.as[Int], arr.value(1).as[Int])).asInstanceOf[Interval]
+      } orElse ratioReads
+    }
+  }
+
+  private[format] def intervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = Format(
+    intervalReadsFor(intonationStandard),
+    intervalWrites
+  )
 
   //@formatter:off
   private[format] val jsonVerboseScaleFormat: Format[Scale[Interval]] = (
