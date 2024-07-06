@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{Format, JsError, JsSuccess, JsValue, JsonValidationError}
+import play.api.libs.json._
 
 trait JsonFormatTestUtils[F <: Format[_]] extends AnyFlatSpec with Matchers with Inside {
 
@@ -28,8 +28,13 @@ trait JsonFormatTestUtils[F <: Format[_]] extends AnyFlatSpec with Matchers with
   def assertReads[A](json: JsValue, result: A): Unit =
     format.reads(json) should matchPattern { case JsSuccess(`result`, _) => }
 
-  def assertReadsFailure[A](json: JsValue,
-                            error: JsonValidationError,
-                            customFormat: F = format): Unit =
+  def assertReadsFailure(json: JsValue,
+                         error: JsonValidationError,
+                         customFormat: F = format): Unit =
     customFormat.reads(json) should matchPattern { case JsError(Seq((_, Seq(`error`)))) => }
+
+  def assertReadsFailure(json: JsValue,
+                         errorMessage: String): Unit = {
+    assertReadsFailure(json, JsonValidationError(errorMessage))
+  }
 }

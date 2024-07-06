@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.calinburloiu.music.intonation.{CentsInterval, CentsIntonationStandard, EdoInterval, EdoIntonationStandard, Interval, IntonationStandard, JustIntonationStandard, RatioInterval, Scale}
+import org.calinburloiu.music.intonation._
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
@@ -63,6 +63,12 @@ object JsonScaleFormat {
 
   val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist-json-scale")
 
+  val ErrorExpectingIntervalFor: Map[String, String] = Map(
+    CentsIntonationStandard.typeName -> "error.expecting.intervalForCentsIntonationStandard",
+    JustIntonationStandard.typeName -> "error.expecting.intervalForJustIntonationStandard",
+    EdoIntonationStandard.typeName -> "error.expecting.intervalForEdoIntonationStandard"
+  )
+
   private val intervalReads: Reads[Interval] = Reads.StringReads.collect(
     JsonValidationError("error.expecting.HuygensFokkerScalaScalePitch")
   )(
@@ -90,25 +96,31 @@ object JsonScaleFormat {
     lazy val centsReads: Reads[Interval] = Reads.JsNumberReads.map { jsNumber =>
       CentsInterval(jsNumber.value.doubleValue)
     }
-    lazy val ratioReads: Reads[Interval] = Reads.StringReads.collect(
-      JsonValidationError("error.expecting.ratioInterval")
-    )(
-      Function.unlift(Interval.fromRatioString)
-    )
+    lazy val ratioReads: Reads[Interval] = Reads.StringReads
+      .collect(JsonValidationError(ErrorExpectingIntervalFor(JustIntonationStandard.typeName)))(
+        Function.unlift(Interval.fromRatioString)
+      )
 
     intonationStandard match {
-      case CentsIntonationStandard => centsReads orElse ratioReads
-      case JustIntonationStandard => ratioReads
+      case CentsIntonationStandard => centsReads orElse ratioReads orElse
+        Reads.failed(ErrorExpectingIntervalFor(CentsIntonationStandard.typeName))
+      case JustIntonationStandard => ratioReads orElse
+        Reads.failed(ErrorExpectingIntervalFor(JustIntonationStandard.typeName))
       case EdoIntonationStandard(countPerOctave) => Reads.JsNumberReads.map { jsNumber =>
         EdoInterval(countPerOctave, jsNumber.value.intValue).asInstanceOf[Interval]
-      } orElse Reads.JsArrayReads.collect(
-        JsonValidationError("error.expecting.edoIntervalWithSemitones")
-      ) {
-        case JsArray(Seq(JsNumber(semitones), JsNumber(deviation))) =>
-          EdoInterval(countPerOctave, (semitones.intValue, deviation.intValue)).asInstanceOf[Interval]
-        case arr: JsArray if arr.value.size == 2 =>
-          EdoInterval(countPerOctave, (arr.value.head.as[Int], arr.value(1).as[Int])).asInstanceOf[Interval]
-      } orElse ratioReads
+      } orElse Reads.JsArrayReads.flatMapResult { jsArr =>
+        if (jsArr.value.size == 2) {
+          val semitones = jsArr.value.head.asOpt[Int]
+          val deviation = jsArr.value(1).asOpt[Int]
+          if (semitones.isDefined && deviation.isDefined) {
+            JsSuccess(EdoInterval(countPerOctave, (semitones.get, deviation.get)).asInstanceOf[Interval])
+          } else {
+            JsError()
+          }
+        } else {
+          JsError()
+        }
+      } orElse ratioReads orElse Reads.failed(ErrorExpectingIntervalFor(EdoIntonationStandard.typeName))
     }
   }
 

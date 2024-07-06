@@ -18,9 +18,10 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation._
+import org.calinburloiu.music.microtonalist.format.JsonScaleFormat._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{Format, JsNumber, JsString, Json, JsonValidationError}
+import play.api.libs.json.{Format, JsNumber, JsString, Json}
 
 class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
   private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
@@ -43,9 +44,19 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
 
       assertReads(JsString("5/4"), RatioInterval(5, 4))
       assertReads(JsString("8/9"), RatioInterval(8, 9))
-      assertReadsFailure(JsString("blah"), JsonValidationError("error.expecting.ratioInterval"))
-      assertReadsFailure(JsString("0/4"), JsonValidationError("error.expecting.ratioInterval"))
-      assertReadsFailure(JsString("4/0"), JsonValidationError("error.expecting.ratioInterval"))
+    }
+
+  it should "not read invalid data in CentsIntonationStandard" in
+    new JsonFormatTestUtils[Format[Interval]] {
+      val format: Format[Interval] = JsonScaleFormat.intervalFormatFor(CentsIntonationStandard)
+      val error: String = ErrorExpectingIntervalFor(CentsIntonationStandard.typeName)
+
+      assertReadsFailure(JsString("blah"), error)
+      assertReadsFailure(JsString("0/4"), error)
+      assertReadsFailure(JsString("4/0"), error)
+
+      assertReadsFailure(Json.arr(1, 2), error)
+      assertReadsFailure(Json.obj("foo" -> "bar"), error)
     }
 
   it should "read ratio intervals in JustIntonationStandard" in
@@ -54,9 +65,20 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
 
       assertReads(JsString("5/4"), RatioInterval(5, 4))
       assertReads(JsString("8/9"), RatioInterval(8, 9))
-      assertReadsFailure(JsString("blah"), JsonValidationError("error.expecting.ratioInterval"))
-      assertReadsFailure(JsString("0/4"), JsonValidationError("error.expecting.ratioInterval"))
-      assertReadsFailure(JsString("4/0"), JsonValidationError("error.expecting.ratioInterval"))
+    }
+
+  it should "not read invalid data in JustIntonationStandard" in
+    new JsonFormatTestUtils[Format[Interval]] {
+      val format: Format[Interval] = JsonScaleFormat.intervalFormatFor(JustIntonationStandard)
+      val error: String = ErrorExpectingIntervalFor(JustIntonationStandard.typeName)
+
+      assertReadsFailure(JsString("blah"), error)
+      assertReadsFailure(JsString("0/4"), error)
+      assertReadsFailure(JsString("4/0"), error)
+
+      assertReadsFailure(JsNumber(1), error)
+      assertReadsFailure(Json.arr(1, 2), error)
+      assertReadsFailure(Json.obj("foo" -> "bar"), error)
     }
 
   it should "read EDO and ratio intervals in EdoIntonationStandard" in
@@ -73,9 +95,22 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
 
       assertReads(JsString("5/4"), RatioInterval(5, 4))
       assertReads(JsString("8/9"), RatioInterval(8, 9))
-      assertReadsFailure(JsString("blah"), JsonValidationError("error.expecting.ratioInterval"))
-      assertReadsFailure(JsString("0/4"), JsonValidationError("error.expecting.ratioInterval"))
-      assertReadsFailure(JsString("4/0"), JsonValidationError("error.expecting.ratioInterval"))
+    }
+
+  it should "not read invalid data in EdoIntonationStandard" in
+    new JsonFormatTestUtils[Format[Interval]] {
+      val format: Format[Interval] = JsonScaleFormat.intervalFormatFor(EdoIntonationStandard(72))
+      val error: String = ErrorExpectingIntervalFor(EdoIntonationStandard.typeName)
+
+      assertReadsFailure(JsString("blah"), error)
+      assertReadsFailure(JsString("0/4"), error)
+      assertReadsFailure(JsString("4/0"), error)
+
+      assertReadsFailure(Json.arr(), error)
+      assertReadsFailure(Json.arr(1), error)
+      assertReadsFailure(Json.arr(1, 2, 3), error)
+      assertReadsFailure(Json.arr("1", "2"), error)
+      assertReadsFailure(Json.obj("foo" -> "bar"), error)
     }
 
   it should "write a cents interval" in {

@@ -245,8 +245,9 @@ object RealInterval {
  * @param denominator positive integer fraction denominator
  */
 case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
-  require(numerator > 0, s"Expecting a positive value for the numerator, but got $numerator")
-  require(denominator > 0, s"Expecting a positive value for the denominator, but got $denominator")
+  require(numerator > 0 && numerator.isFinite, s"Expecting a positive value for the numerator, but got $numerator")
+  require(denominator > 0 && denominator.isFinite, s"Expecting a positive value for the denominator, but got " +
+    s"$denominator")
 
   override def realValue: Double = numerator.toDouble / denominator
 
@@ -364,6 +365,8 @@ object RatioInterval {
  * @param cents a decimal value in cents
  */
 case class CentsInterval(override val cents: Double) extends Interval {
+  require(cents.isFinite)
+
   override def realValue: Double = fromCentsToRealValue(cents)
 
   override def isNormalized: Boolean = cents >= 0.0 && cents < 1200.0
@@ -449,7 +452,8 @@ object CentsInterval {
  * @param count the number of division used to express the interval
  */
 case class EdoInterval(edo: Int, count: Int) extends Interval {
-  require(edo > 0, s"Expecting a positive value for edo, but got $edo")
+  require(edo > 0 && edo.isFinite, s"Expecting a positive value for edo, but got $edo")
+  require(count.isFinite)
 
   override def realValue: Double = fromEdoToRealValue(edo, count)
 
