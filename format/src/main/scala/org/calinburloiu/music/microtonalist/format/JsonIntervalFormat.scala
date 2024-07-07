@@ -24,7 +24,7 @@ import play.api.libs.json.{Format, JsError, JsNumber, JsString, JsSuccess, Json,
  *
  * Note that how an interval is read in JSON format depends on the [[IntonationStandard]].
  */
-object JsonIntervalFormat {
+private[format] object JsonIntervalFormat {
   val ErrorExpectingIntervalFor: Map[String, String] = Map(
     CentsIntonationStandard.typeName -> "error.expecting.intervalForCentsIntonationStandard",
     JustIntonationStandard.typeName -> "error.expecting.intervalForJustIntonationStandard",

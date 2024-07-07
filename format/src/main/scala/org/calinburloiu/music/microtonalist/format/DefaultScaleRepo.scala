@@ -54,15 +54,15 @@ class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
     case _ => None
   }
 
-  override def read(uri: URI, context: Option[ScaleReadingContext]): Scale[Interval] = {
+  override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
     updateScaleFromContext(super.read(uri, context), context)
   }
 
-  override def readAsync(uri: URI, context: Option[ScaleReadingContext]): Future[Scale[Interval]] = {
+  override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
     super.readAsync(uri, context).map { scale => updateScaleFromContext(scale, context) }
   }
 
-  private def updateScaleFromContext(scale: Scale[Interval], context: Option[ScaleReadingContext]): Scale[Interval] = {
+  private def updateScaleFromContext(scale: Scale[Interval], context: Option[ScaleFormatContext]): Scale[Interval] = {
     // TODO #45
     scale
   }

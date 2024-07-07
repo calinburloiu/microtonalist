@@ -28,16 +28,19 @@ import play.api.libs.json._
 import java.net.URI
 
 class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
+
   import JsonScaleListFormat._
   import ScaleListFormatTestUtils.readScaleListFromResources
 
   private lazy val scaleListRepo = {
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
-      new JsonScaleFormat(NoJsonPreprocessor)
+      new JsonScaleFormat(NoJsonPreprocessor, IntonationStandardComponentFormat.createComponentJsonFormat())
     ))
     val scaleRepo = new FileScaleRepo(scaleFormatRegistry)
-    val scaleListFormat = new JsonScaleListFormat(scaleRepo, NoJsonPreprocessor)
+    val scaleFormat = new JsonScaleFormat(NoJsonPreprocessor, IntonationStandardComponentFormat
+      .createComponentJsonFormat())
+    val scaleListFormat = new JsonScaleListFormat(scaleRepo, NoJsonPreprocessor, scaleFormat)
     new FileScaleListRepo(scaleListFormat)
   }
 

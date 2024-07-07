@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.IntonationStandard
 
 /**
- * Information passed when a scale is read in the context of a composition file.
+ * Information passed when a scale is read/written in the context of a composition file.
  *
  * The context information may fill missing properties from the embedded scale or override them.
  *
@@ -37,4 +37,4 @@ import org.calinburloiu.music.intonation.IntonationStandard
  * @param intonationStandard The intonation standard of the composition file that may either be used to convert the
  *                           scale read to it, if it has a different one, or use it, if an embedded scale omits it.
  */
-case class ScaleReadingContext(name: Option[String], intonationStandard: Option[IntonationStandard])
+case class ScaleFormatContext(name: Option[String] = None, intonationStandard: Option[IntonationStandard] = None)

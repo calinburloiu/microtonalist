@@ -21,20 +21,19 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json._
 
-trait JsonFormatTestUtils[F <: Format[_]] extends AnyFlatSpec with Matchers with Inside {
+trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside {
 
-  val format: F
+  def assertReads[A](reads: Reads[A], json: JsValue, result: A): Unit =
+    reads.reads(json) should matchPattern { case JsSuccess(`result`, _) => }
 
-  def assertReads[A](json: JsValue, result: A): Unit =
-    format.reads(json) should matchPattern { case JsSuccess(`result`, _) => }
+  def assertReadsFailure[A](reads: Reads[A],
+                            json: JsValue,
+                            error: JsonValidationError): Unit =
+    reads.reads(json) should matchPattern { case JsError(Seq((_, Seq(`error`)))) => }
 
-  def assertReadsFailure(json: JsValue,
-                         error: JsonValidationError,
-                         customFormat: F = format): Unit =
-    customFormat.reads(json) should matchPattern { case JsError(Seq((_, Seq(`error`)))) => }
-
-  def assertReadsFailure(json: JsValue,
-                         errorMessage: String): Unit = {
-    assertReadsFailure(json, JsonValidationError(errorMessage))
+  def assertReadsFailure[A](reads: Reads[A],
+                            json: JsValue,
+                            errorMessage: String): Unit = {
+    assertReadsFailure(reads, json, JsonValidationError(errorMessage))
   }
 }

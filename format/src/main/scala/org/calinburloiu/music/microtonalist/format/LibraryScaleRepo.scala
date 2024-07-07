@@ -56,16 +56,22 @@ class LibraryScaleRepo(libraryUri: URI,
     }
   }
 
-  override def read(uri: URI, context: Option[ScaleReadingContext] = None): Scale[Interval] =
+  override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] =
     scaleRepo.read(resolveUri(uri))
 
-  override def readAsync(uri: URI, context: Option[ScaleReadingContext] = None): Future[Scale[Interval]] =
+  override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] =
     scaleRepo.readAsync(resolveUri(uri))
 
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit =
+  override def write(scale: Scale[Interval],
+                     uri: URI,
+                     mediaType: Option[MediaType],
+                     context: Option[ScaleFormatContext] = None): Unit =
     scaleRepo.write(scale, resolveUri(uri), mediaType)
 
-  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] =
+  override def writeAsync(scale: Scale[Interval],
+                          uri: URI,
+                          mediaType: Option[MediaType],
+                          context: Option[ScaleFormatContext] = None): Future[Unit] =
     scaleRepo.writeAsync(scale, resolveUri(uri), mediaType)
 
   private def resolveUri(uri: URI) = {

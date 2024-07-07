@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.IntonationStandard
+import play.api.libs.json.Format
+
 import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -31,8 +34,11 @@ class FormatModule(libraryUri: URI,
   lazy val jsonPreprocessorFileRefLoader: JsonPreprocessorFileRefLoader = new JsonPreprocessorFileRefLoader
   lazy val jsonPreprocessorHttpRefLoader: JsonPreprocessorHttpRefLoader = new JsonPreprocessorHttpRefLoader(httpClient)
 
+  lazy val intonationStandardComponentFormat: Format[IntonationStandard] = IntonationStandardComponentFormat
+    .createComponentJsonFormat()
+
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  lazy val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(jsonPreprocessor)
+  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor, intonationStandardComponentFormat)
 
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
@@ -46,7 +52,7 @@ class FormatModule(libraryUri: URI,
     fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
 
   lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(
-    defaultScaleRepo, jsonPreprocessor, synchronousAwaitTimeout)
+    defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
 
   lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat, synchronousAwaitTimeout)
   lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(

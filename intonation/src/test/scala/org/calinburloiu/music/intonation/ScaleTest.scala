@@ -81,6 +81,13 @@ class ScaleTest extends AnyFlatSpec with Matchers {
     edo72Scale.rename("new") shouldEqual EdoScale("new", edo72Scale.intervals)
   }
 
+  "intonationStandard" should "return Some IntonationStandard if there is a consistent one" in {
+    mixedScale.intonationStandard shouldBe empty
+    centsScale.intonationStandard should contain (CentsIntonationStandard)
+    ratiosScale.intonationStandard should contain (JustIntonationStandard)
+    edo72Scale.intonationStandard should contain (EdoIntonationStandard(72))
+  }
+
   "isCentsScale" should "tell if it's a scale that only has cents intervals" in {
     mixedScale.isCentsScale shouldBe false
     centsScale.isCentsScale shouldBe true

@@ -22,8 +22,8 @@ case object CentsIntonationStandard extends IntonationStandard("cents")
 
 case object JustIntonationStandard extends IntonationStandard("justIntonation")
 
-case class EdoIntonationStandard(divisionCount: Int) extends IntonationStandard("edo"){
-  require(divisionCount > 0)
+case class EdoIntonationStandard(countPerOctave: Int) extends IntonationStandard("edo"){
+  require(countPerOctave > 0)
 }
 
 object EdoIntonationStandard {

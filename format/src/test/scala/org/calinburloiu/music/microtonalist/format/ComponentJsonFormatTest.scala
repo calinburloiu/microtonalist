@@ -16,10 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.scalatest.{BeforeAndAfterEach, Inside}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{Format, JsError, JsNull, JsString, JsSuccess, JsValue, Json, JsonValidationError}
+import play.api.libs.json.{JsNull, JsString, Json}
 
 object ComponentJsonFormatTest {
   sealed trait Animals
@@ -33,7 +30,8 @@ object ComponentJsonFormatTest {
   case object Sea extends Animals
 }
 
-class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[ComponentJsonFormatTest.Animals]] {
+class ComponentJsonFormatTest extends JsonFormatTestUtils {
+
   import ComponentJsonFormatTest._
 
   private val FamilyNameAnimals = "animals"
@@ -42,7 +40,7 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[Co
   private val TypeNameJungle = "jungle"
   private val TypeNameSea = "sea"
 
-  override val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
+  val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
   format.rootGlobalSettings = Json.obj(
     "animals" -> Json.obj(
       "domestic" -> Json.obj(
@@ -82,22 +80,22 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[Co
       "squirrel" -> "Cheeks",
       "wolf" -> "Jack"
     )
-    assertReads(json, Forest("Lady", "Snowy", "Cheeks", "Jack"))
+    assertReads(format, json, Forest("Lady", "Snowy", "Cheeks", "Jack"))
   }
 
   it should "parse a component without a type property and use the default type provided" in {
     val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReads(json, Domestic("Mitzi", "Pamela"))
+    assertReads(format, json, Domestic("Mitzi", "Pamela"))
   }
 
   it should "fail to parse a component without a type property when the format does not provide a default type" in {
     val format2 = createFormat(defaultTypeName = None)
     val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReadsFailure(json, ComponentJsonFormat.MissingTypeError, format2)
+    assertReadsFailure(format2, json, ComponentJsonFormat.MissingTypeError)
   }
 
   it should "parse a component expressed as a type string when all settings have defaults" in {
-    assertReads(Json.toJson(TypeNameJungle), Jungle("King", "Monty"))
+    assertReads(format, Json.toJson(TypeNameJungle), Jungle("King", "Monty"))
   }
 
   it should "fail to parse a component expressed as a type string when not all settings have defaults" in {
@@ -105,8 +103,8 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[Co
   }
 
   it should "fail to parse components with unknown type" in {
-    assertReadsFailure(Json.toJson("foo"), ComponentJsonFormat.UnrecognizedTypeError)
-    assertReadsFailure(Json.obj("type" -> "bar", "x" -> 3), ComponentJsonFormat.UnrecognizedTypeError)
+    assertReadsFailure(format, Json.toJson("foo"), ComponentJsonFormat.UnrecognizedTypeError)
+    assertReadsFailure(format, Json.obj("type" -> "bar", "x" -> 3), ComponentJsonFormat.UnrecognizedTypeError)
   }
 
   it should "parse components whose missing settings are taken from defaults or global settings" in {
@@ -115,7 +113,7 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[Co
       "cat" -> "Tom"
     )
     // dog is taken from global settings
-    assertReads(domesticJson, Domestic("Tom", "Scooby"))
+    assertReads(format, domesticJson, Domestic("Tom", "Scooby"))
 
     val forestJson = Json.obj(
       "type" -> TypeNameForest,
@@ -124,25 +122,25 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[Co
       "squirrel" -> "Mark"
     )
     // wolf is taken from global settings
-    assertReads(forestJson, Forest("Sebastian", "Norris", "Mark", "Daos"))
+    assertReads(format, forestJson, Forest("Sebastian", "Norris", "Mark", "Daos"))
 
     val jungleJson = Json.obj(
       "type" -> TypeNameJungle,
       "lion" -> "Chris"
     )
     // snake is taken from defaults
-    assertReads(jungleJson, Jungle("Chris", "Monty"))
+    assertReads(format, jungleJson, Jungle("Chris", "Monty"))
   }
 
   it should "fail to parse a component that is not a type name string or valid object" in {
-    assertReadsFailure(Json.toJson(3), ComponentJsonFormat.InvalidError)
-    assertReadsFailure(JsNull, ComponentJsonFormat.InvalidError)
-    assertReadsFailure(Json.arr(1, 2), ComponentJsonFormat.InvalidError)
+    assertReadsFailure(format, Json.toJson(3), ComponentJsonFormat.InvalidError)
+    assertReadsFailure(format, JsNull, ComponentJsonFormat.InvalidError)
+    assertReadsFailure(format, Json.arr(1, 2), ComponentJsonFormat.InvalidError)
   }
 
   it should "parse a component with no settings" in {
-    assertReads(JsString(TypeNameSea), Sea)
-    assertReads(Json.obj("type" -> TypeNameSea), Sea)
+    assertReads(format, JsString(TypeNameSea), Sea)
+    assertReads(format, Json.obj("type" -> TypeNameSea), Sea)
   }
 
   "writes" should "serialize as JSON Scala component objects" in {

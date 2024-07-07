@@ -32,6 +32,26 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 
   def rename(newName: String): Scale[I] = new Scale(newName, intervals)
 
+  /**
+   * @return [[Some]] [[IntonationStandard]] if all intervals are compatible with it, or [[None]] otherwise.
+   */
+  def intonationStandard: Option[IntonationStandard] = {
+    val perInterval = intervals.map {
+      case _: CentsInterval => Some(CentsIntonationStandard)
+      case _: RatioInterval => Some(JustIntonationStandard)
+      case EdoInterval(edo, _) => Some(EdoIntonationStandard(edo))
+      case _ => None
+    }
+    // intervals cannot be empty, so head will never fail
+    val forFirstInterval = perInterval.head
+
+    if (perInterval.tail.forall(_ == forFirstInterval)) {
+      forFirstInterval
+    } else {
+      None
+    }
+  }
+
   def isCentsScale: Boolean = intervals.forall(_.isInstanceOf[CentsInterval])
 
   def isRatiosScale: Boolean = intervals.forall(_.isInstanceOf[RatioInterval])
@@ -147,6 +167,8 @@ case class RatiosScale(override val name: String,
 
   override def rename(newName: String): RatiosScale = copy(name = newName)
 
+  override def intonationStandard: Option[IntonationStandard] = Some(JustIntonationStandard)
+
   override def isCentsScale: Boolean = false
 
   override def isRatiosScale: Boolean = true
@@ -177,6 +199,8 @@ case class CentsScale(override val name: String,
   }
 
   override def rename(newName: String): CentsScale = copy(name = newName)
+
+  override def intonationStandard: Option[IntonationStandard] = Some(CentsIntonationStandard)
 
   override def isCentsScale: Boolean = true
 
@@ -213,6 +237,8 @@ case class EdoScale(override val name: String,
   }
 
   override def rename(newName: String): EdoScale = copy(name = newName)
+
+  override def intonationStandard: Option[IntonationStandard] = Some(EdoIntonationStandard(edo))
 
   override def isCentsScale: Boolean = false
 

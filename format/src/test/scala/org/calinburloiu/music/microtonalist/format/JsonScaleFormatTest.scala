@@ -16,13 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation._
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, JsString, Json}
 
-class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
-  private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+class JsonScaleFormatTest extends JsonFormatTestUtils {
+  private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor,
+    IntonationStandardComponentFormat.createComponentJsonFormat())
 
   private val centsScale = CentsScale("abc", 0.0, 204.3, 315.9, 498.5)
   private val centsScaleJson = Json.obj(
@@ -32,8 +32,15 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
     )
   )
 
+  "pitchIntervalFormatFor" should "either read on interval directly or get it from a scale pitch object" in {
+    val format: Format[Interval] = JsonScaleFormat.pitchIntervalFormatFor(JustIntonationStandard)
+
+    assertReads(format, JsString("7/4"), 7 /: 4)
+    assertReads(format, Json.obj("name" -> "segah", "interval" -> "5/4"), 5 /: 4)
+  }
+
   "A JSON Scale with pitches in cents" should "correctly create a CentsScale object" in {
-    val result = scaleFormat.read(centsScaleJson)
+    val result = scaleFormat.read(centsScaleJson, None)
     result.getClass shouldEqual classOf[CentsScale]
     result shouldEqual centsScale
   }
@@ -51,7 +58,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
   )
 
   "A JSON Scale with pitches as ratios" should "correctly create a RatiosScale object" in {
-    val result = scaleFormat.read(ratiosScaleJson)
+    val result = scaleFormat.read(ratiosScaleJson, None)
     result.getClass shouldEqual classOf[RatiosScale]
     result shouldEqual ratiosScale
   }
@@ -68,7 +75,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
       )
     )
 
-    val result = scaleFormat.read(json)
+    val result = scaleFormat.read(json, None)
 
     result.getClass shouldEqual classOf[Scale[Interval]]
     result shouldEqual Scale("abc",
@@ -82,7 +89,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
       )
     )
 
-    val result = scaleFormat.read(json)
+    val result = scaleFormat.read(json, None)
 
     result.name should be(empty)
   }
@@ -96,7 +103,7 @@ class JsonScaleFormatTest extends AnyFlatSpec with Matchers {
     )
 
     assertThrows[InvalidJsonScaleException] {
-      scaleFormat.read(json)
+      scaleFormat.read(json, None)
     }
   }
 }

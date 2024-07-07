@@ -20,22 +20,22 @@ import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonation
   JustIntonationStandard}
 import play.api.libs.json.{JsString, Json}
 
-class IntonationStandardComponentFormatTest extends JsonFormatTestUtils[ComponentJsonFormat[IntonationStandard]] {
-  override val format: ComponentJsonFormat[IntonationStandard] = IntonationStandardComponentFormat
+class IntonationStandardComponentFormatTest extends JsonFormatTestUtils {
+  val format: ComponentJsonFormat[IntonationStandard] = IntonationStandardComponentFormat
     .createComponentJsonFormat()
 
   "reads" should "deserialize a cents component" in {
-    assertReads(JsString("cents"), CentsIntonationStandard)
-    assertReads(Json.obj("type" -> "cents"), CentsIntonationStandard)
+    assertReads(format, JsString("cents"), CentsIntonationStandard)
+    assertReads(format, Json.obj("type" -> "cents"), CentsIntonationStandard)
   }
 
   it should "deserialize a justIntonation component" in {
-    assertReads(JsString("justIntonation"), JustIntonationStandard)
-    assertReads(Json.obj("type" -> "justIntonation"), JustIntonationStandard)
+    assertReads(format, JsString("justIntonation"), JustIntonationStandard)
+    assertReads(format, Json.obj("type" -> "justIntonation"), JustIntonationStandard)
   }
 
   it should "deserialize an edo component" in {
-    assertReads(Json.obj("type" -> "edo", "divisionCount" -> 31), EdoIntonationStandard(31))
+    assertReads(format, Json.obj("type" -> "edo", "divisionCount" -> 31), EdoIntonationStandard(31))
   }
 
   "writes" should "serialize a cents component" in {

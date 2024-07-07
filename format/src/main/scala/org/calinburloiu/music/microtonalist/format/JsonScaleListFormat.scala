@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, RealInterval, Scale}
+import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, RealInterval, Scale}
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
@@ -34,6 +34,7 @@ import scala.concurrent.{Await, Future}
  */
 class JsonScaleListFormat(scaleRepo: ScaleRepo,
                           jsonPreprocessor: JsonPreprocessor,
+                          jsonScaleFormat: JsonScaleFormat,
                           synchronousAwaitTimeout: FiniteDuration = 1 minute) extends ScaleListFormat {
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList =
     Await.result(readAsync(inputStream, baseUri), synchronousAwaitTimeout)
@@ -52,6 +53,16 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo,
 
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
+
+    // TODO #4 Temporary hard-coded context
+    val fallbackContext = Some(ScaleFormatContext(intonationStandard = Some(CentsIntonationStandard)))
+    implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(fallbackContext)
+    implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
+      DeferrableRead.reads(scaleReads, importFormat)
+    implicit val modulationReprReads: Reads[ModulationRepr] =
+      Json.using[Json.WithDefaultValues].reads[ModulationRepr]
+    implicit val scaleListReprReads: Reads[ScaleListRepr] =
+      Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
     preprocessedJson.validate[ScaleListRepr] match {
       case JsSuccess(scaleList, _) => scaleList
@@ -100,9 +111,6 @@ object JsonScaleListFormat {
   private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
   private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.legacyIntervalFormat
-  private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
-  private[JsonScaleListFormat] implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
-    DeferrableRead.reads(scaleReads, importFormat)
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
@@ -110,10 +118,6 @@ object JsonScaleListFormat {
     TuningMapperPlayJsonFormat
   private[JsonScaleListFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
     TuningReducerPlayJsonFormat
-  private[JsonScaleListFormat] implicit val modulationReprReads: Reads[ModulationRepr] =
-    Json.using[Json.WithDefaultValues].reads[ModulationRepr]
-  private[JsonScaleListFormat] implicit val scaleListReprReads: Reads[ScaleListRepr] =
-    Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
 
