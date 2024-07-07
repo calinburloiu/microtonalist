@@ -99,7 +99,7 @@ object JsonScaleListFormat {
 
   private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
-  private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonScaleFormat.intervalFormat
+  private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.legacyIntervalFormat
   private[JsonScaleListFormat] implicit val scaleReads: Reads[Scale[Interval]] = JsonScaleFormat.jsonAllScaleReads
   private[JsonScaleListFormat] implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
     DeferrableRead.reads(scaleReads, importFormat)

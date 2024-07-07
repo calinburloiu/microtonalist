@@ -61,73 +61,10 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
 object JsonScaleFormat {
 
+  // TODO #45 Remove
+  import JsonIntervalFormat.legacyIntervalFormat
+
   val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist-json-scale")
-
-  val ErrorExpectingIntervalFor: Map[String, String] = Map(
-    CentsIntonationStandard.typeName -> "error.expecting.intervalForCentsIntonationStandard",
-    JustIntonationStandard.typeName -> "error.expecting.intervalForJustIntonationStandard",
-    EdoIntonationStandard.typeName -> "error.expecting.intervalForEdoIntonationStandard"
-  )
-
-  private val intervalReads: Reads[Interval] = Reads.StringReads.collect(
-    JsonValidationError("error.expecting.HuygensFokkerScalaScalePitch")
-  )(
-    Function.unlift(Interval.fromScalaTuningInterval)
-  ).orElse {
-    Reads.JsNumberReads.map { jsNumber =>
-      CentsInterval(jsNumber.value.doubleValue)
-    }
-  }
-
-  private val intervalWrites: Writes[Interval] = Writes {
-    case CentsInterval(centsValue) => JsNumber(centsValue)
-    case RatioInterval(numerator, denominator) => JsString(s"$numerator/$denominator")
-    case edoInterval: EdoInterval if edoInterval.edo % 12 == 0 =>
-      val (semitones, deviation) = edoInterval.countRelativeToStandard
-      Json.arr(JsNumber(semitones), JsNumber(deviation))
-    case EdoInterval(_, count) => JsNumber(count)
-    case interval: Interval => JsNumber(interval.cents)
-  }
-
-  @deprecated
-  private[format] implicit val intervalFormat: Format[Interval] = Format(intervalReads, intervalWrites)
-
-  private def intervalReadsFor(intonationStandard: IntonationStandard): Reads[Interval] = {
-    lazy val centsReads: Reads[Interval] = Reads.JsNumberReads.map { jsNumber =>
-      CentsInterval(jsNumber.value.doubleValue)
-    }
-    lazy val ratioReads: Reads[Interval] = Reads.StringReads
-      .collect(JsonValidationError(ErrorExpectingIntervalFor(JustIntonationStandard.typeName)))(
-        Function.unlift(Interval.fromRatioString)
-      )
-
-    intonationStandard match {
-      case CentsIntonationStandard => centsReads orElse ratioReads orElse
-        Reads.failed(ErrorExpectingIntervalFor(CentsIntonationStandard.typeName))
-      case JustIntonationStandard => ratioReads orElse
-        Reads.failed(ErrorExpectingIntervalFor(JustIntonationStandard.typeName))
-      case EdoIntonationStandard(countPerOctave) => Reads.JsNumberReads.map { jsNumber =>
-        EdoInterval(countPerOctave, jsNumber.value.intValue).asInstanceOf[Interval]
-      } orElse Reads.JsArrayReads.flatMapResult { jsArr =>
-        if (jsArr.value.size == 2) {
-          val semitones = jsArr.value.head.asOpt[Int]
-          val deviation = jsArr.value(1).asOpt[Int]
-          if (semitones.isDefined && deviation.isDefined) {
-            JsSuccess(EdoInterval(countPerOctave, (semitones.get, deviation.get)).asInstanceOf[Interval])
-          } else {
-            JsError()
-          }
-        } else {
-          JsError()
-        }
-      } orElse ratioReads orElse Reads.failed(ErrorExpectingIntervalFor(EdoIntonationStandard.typeName))
-    }
-  }
-
-  private[format] def intervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = Format(
-    intervalReadsFor(intonationStandard),
-    intervalWrites
-  )
 
   //@formatter:off
   private[format] val jsonVerboseScaleFormat: Format[Scale[Interval]] = (
@@ -148,3 +85,8 @@ object JsonScaleFormat {
 
 class InvalidJsonScaleException(message: String, cause: Throwable = null)
   extends InvalidScaleFormatException(message, cause)
+
+private case class ScalePitchRepr(interval: Interval)
+
+// Note that the intonationStandard property is read before reading this representation.
+private case class ScaleRepr(name: Option[String], pitches: Seq[ScalePitchRepr])
