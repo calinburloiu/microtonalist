@@ -76,9 +76,14 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
     )
     val intonationStandard = scale.intonationStandard.orElse(context.flatMap(_.intonationStandard))
       .getOrElse(throw new MissingContextScaleFormatException)
+    // Making sure that the intonation standard that we output is still consistent with the intervals
+    val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.intervals).getOrElse {
+      // TODO #45 Better exception
+      throw new IllegalArgumentException("")
+    }
 
     val contextJson = Json.toJson(scaleSelfContext)(contextFormatWith(fallbackContext = context)).asInstanceOf[JsObject]
-    val pitchesJson = Json.toJson(scale.intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
+    val pitchesJson = Json.toJson(intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
 
     contextJson ++ pitchesJson
   }
@@ -91,8 +96,8 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
         .flatMap {
           case ScaleFormatContext(Some(name), Some(intonationStandard)) =>
             pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals => Scale.create(name, intervals) }
-          // TODO #45 Probably not a good idea to throw here, but instead return a JsError
-          case _ => throw new MissingContextScaleFormatException
+          // TODO #45 Improve the error message and make a constant for it
+          case _ => JsError("error.missingContextForScale")
         }
     }
   }

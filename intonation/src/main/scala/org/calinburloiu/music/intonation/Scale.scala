@@ -58,17 +58,21 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 
   def isEdoScale: Boolean = intervals.forall(_.isInstanceOf[EdoInterval])
 
-  def convertToIntonationStandard(intonationStandard: IntonationStandard): Scale[Interval] = {
-    intonationStandard match {
-      case CentsIntonationStandard => if (isCentsScale) this else CentsScale(name, intervals.map(_.toCentsInterval))
-      case JustIntonationStandard => if (isRatiosScale) this else
-        throw new IllegalArgumentException("Cannot convert a scale to just intonation from another intonation " +
-          "standard!")
-      case EdoIntonationStandard(edo) => if (isEdoScale && intervals.forall(_.asInstanceOf[EdoInterval].edo == edo)) {
-        this
-      } else {
-        EdoScale(name, intervals.map(_.toEdoInterval(edo)))
-      }
+  /**
+   * Attempts to convert the scale such that the new one has its intervals in the given intonation standard.
+   *
+   * Note that the converted result might be the exact same instance if no conversion was needed and the scale already
+   * complies with the given intonation standard.
+   *
+   * @param newIntonationStandard The given intonation standard to convert to.
+   * @return [[Some]] new scale with the intervals converted or [[None]] if the conversion is not possible.
+   */
+  def convertToIntonationStandard(newIntonationStandard: IntonationStandard): Option[Scale[Interval]] = {
+    newIntonationStandard match {
+      case _: IntonationStandard if intonationStandard.contains(newIntonationStandard) => Some(this)
+      case CentsIntonationStandard => Some(CentsScale(name, intervals.map(_.toCentsInterval)))
+      case JustIntonationStandard => None
+      case EdoIntonationStandard(edo) => Some(EdoScale(name, intervals.map(_.toEdoInterval(edo))))
     }
   }
 
@@ -130,27 +134,26 @@ object Scale {
       val edo = intervals.head.asInstanceOf[EdoInterval].edo
       create(name, intervals, EdoIntonationStandard(edo))
     } else {
-      Scale(name, addUnison(intervals, RealInterval.Unison))
+      Scale(name, processIntervals(intervals, RealInterval.Unison))
     }
   }
 
   def create(name: String, intervals: Seq[Interval], intonationStandard: IntonationStandard): Scale[Interval] = {
     intonationStandard match {
-      case CentsIntonationStandard => CentsScale(name, addUnison(intervals.map(_.toCentsInterval), CentsInterval.Unison))
+      case CentsIntonationStandard => CentsScale(name, processIntervals(intervals.map(_.toCentsInterval),
+        CentsInterval.Unison))
       case JustIntonationStandard if intervals.forall(_.isInstanceOf[RatioInterval]) =>
-        RatiosScale(name, addUnison(intervals.asInstanceOf[Seq[RatioInterval]], RatioInterval.Unison))
+        RatiosScale(name, processIntervals(intervals.asInstanceOf[Seq[RatioInterval]], RatioInterval.Unison))
       case JustIntonationStandard => throw new IllegalArgumentException("A scale with JustIntonationStandard must " +
         "have all intervals of type RatioInterval")
-      case EdoIntonationStandard(edo) => EdoScale(name, addUnison(intervals.map(_.toEdoInterval(edo)), EdoInterval.unisonFor(edo)))
+      case EdoIntonationStandard(edo) => EdoScale(name, processIntervals(intervals.map(_.toEdoInterval(edo)),
+        EdoInterval.unisonFor(edo)))
     }
   }
 
-  private def addUnison[I](intervals: Seq[Interval], unison: I): Seq[I] = {
-    if (intervals.exists(interval => interval.isUnison)) {
-      intervals.asInstanceOf[Seq[I]]
-    } else {
-      (unison +: intervals).asInstanceOf[Seq[I]]
-    }
+  private def processIntervals[I <: Interval](intervals: Seq[Interval], unison: I): Seq[I] = {
+    val intervalsWithUnison = if (!intervals.exists(interval => interval.isUnison)) unison +: intervals else intervals
+    intervalsWithUnison.sorted.asInstanceOf[Seq[I]]
   }
 }
 

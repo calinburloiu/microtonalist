@@ -119,6 +119,11 @@ class ScaleTest extends AnyFlatSpec with Matchers {
     Scale.create("edo", Seq(edo(12), edo(19), edo(30))) shouldEqual edo72Scale
   }
 
+  it should "sort intervals in ascending order" in {
+    Scale.create("shuffled", Seq(5 /: 4, EdoInterval(72, 30), 15 /: 16, 200.0 cents)) shouldEqual
+      new Scale("shuffled", Seq(15 /: 16, RealInterval(1.0), 200 cents, 5 /: 4, EdoInterval(72, 30)))
+  }
+
   "create with intonationStandard" should "create a scale with the correct type" in {
     val edo = EdoIntervalFactory(72)
 
@@ -142,21 +147,45 @@ class ScaleTest extends AnyFlatSpec with Matchers {
   }
 
   "convertToIntonationStandard" should "convert a scale if necessary to a given intonation standard" in {
-    mixedScale.convertToIntonationStandard(CentsIntonationStandard)(2) shouldBe a[CentsInterval]
-    assertThrows[IllegalArgumentException] {
-      mixedScale.convertToIntonationStandard(JustIntonationStandard)
-    }
-    mixedScale.convertToIntonationStandard(EdoIntonationStandard(72)) shouldEqual EdoScale(
+    // When
+    var result: Option[Scale[Interval]] = mixedScale.convertToIntonationStandard(CentsIntonationStandard)
+    // Then
+    result should not be empty
+    result.get.apply(2) shouldBe a[CentsInterval]
+
+    // When
+    result = mixedScale.convertToIntonationStandard(JustIntonationStandard)
+    // Then
+    result shouldBe empty
+
+    // When
+    result = mixedScale.convertToIntonationStandard(EdoIntonationStandard(72))
+    // Then
+    result should contain (EdoScale(
       "mixed",
       72,
       (0, 0), (2, 0), (4, -1), (5, 0)
-    )
+    ))
 
-    centsScale.convertToIntonationStandard(CentsIntonationStandard) shouldBe theSameInstanceAs(centsScale)
-    ratiosScale.convertToIntonationStandard(JustIntonationStandard) shouldBe theSameInstanceAs(ratiosScale)
-    edo72Scale.convertToIntonationStandard(EdoIntonationStandard(72)) shouldBe theSameInstanceAs(edo72Scale)
-    val edo72to31Scale = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(31))
-    edo72to31Scale shouldNot be theSameInstanceAs edo72Scale
-    edo72to31Scale(2) shouldEqual EdoInterval(31, 8)
+    // When
+    result = centsScale.convertToIntonationStandard(CentsIntonationStandard)
+    // Then
+    result.get shouldBe theSameInstanceAs(centsScale)
+
+    // When
+    result = ratiosScale.convertToIntonationStandard(JustIntonationStandard)
+    // Then
+    result.get shouldBe theSameInstanceAs(ratiosScale)
+
+    // When
+    result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(72))
+    // Then
+    result.get shouldBe theSameInstanceAs(edo72Scale)
+
+    // When
+    result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(31))
+    // Then
+    result.get should not be theSameInstanceAs (edo72Scale)
+    result.get.apply(2) shouldEqual EdoInterval(31, 8)
   }
 }
