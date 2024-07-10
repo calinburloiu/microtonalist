@@ -21,9 +21,9 @@ import org.calinburloiu.music.scmidi.PitchClass
 
 /**
  * A [[TuningMapper]] that maps scales to a tuning, with deviations for some of the pitch classes, by using a
- * user-provided mapping, from pitch classes to scale degrees.
+ * user-provided mapping, from pitch classes to scale pitch indexes.
  *
- * @param keyboardMapping user-provided mapping from pitch classes to scale degrees
+ * @param keyboardMapping user-provided mapping from pitch classes to scale pitch indexes
  */
 case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
 
@@ -31,11 +31,11 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
     val partialTuningValues = keyboardMapping.values.map { pair =>
-      val maybeScaleDegree = pair._2
-      maybeScaleDegree match {
-        case Some(scaleDegree) =>
+      val maybeScalePitchIndex = pair._2
+      maybeScalePitchIndex match {
+        case Some(scalePitchIndex) =>
           val pitchClass = PitchClass.fromInt(pair._1)
-          val interval = scale(scaleDegree)
+          val interval = scale(scalePitchIndex)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
           if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {

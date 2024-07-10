@@ -32,7 +32,7 @@ import org.calinburloiu.music.scmidi.PitchClass
  * @param halfTolerance           tolerance value used for deviations when they are close to +50 or -50 cents in
  *                                order to
  *                                avoid precision errors while mapping a quarter tone to its pitch class
- * @param overrideKeyboardMapping a [[KeyboardMapping]] containing scale degree marked as exceptions that are going
+ * @param overrideKeyboardMapping a [[KeyboardMapping]] containing scale pitch index marked as exceptions that are going
  *                                to be manually mapped to a user specified pitch class
  * @param tolerance               Error in cents that should be tolerated when comparing corresponding pitch class
  *                                deviations of
@@ -45,7 +45,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
 
   import AutoTuningMapper._
 
-  private val scaleDegreesMappedManually: Set[Int] = overrideKeyboardMapping.scaleDegrees.flatten.toSet
+  private val scalePitchIndexesMappedManually: Set[Int] = overrideKeyboardMapping.indexesInScale.flatten.toSet
   private val manualTuningMapper: Option[ManualTuningMapper] = {
     if (overrideKeyboardMapping.isEmpty) None
     else Some(ManualTuningMapper(overrideKeyboardMapping))
@@ -99,35 +99,35 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
 
     /**
      * @param pitches Duplicated non-conflicting pitches that are mapped to the same pitch class. They might differ
-     *                slightly in deviation (due to precision errors) and have different scale degree.
-     * @return The min scale degree to use for all those pitches.
+     *                slightly in deviation (due to precision errors) and have different scale pitch index.
+     * @return The min scale pitch index to use for all those pitches.
      */
-    def extractScaleDegree(pitches: Seq[PitchInfo]): Int = {
-      pitches.foldLeft(Int.MaxValue) { (minScaleDegree, pitch) =>
-        val scaleDegree = pitch.scaleDegree
-        if (scaleDegree < minScaleDegree) scaleDegree else minScaleDegree
+    def extractScalePitchIndex(pitches: Seq[PitchInfo]): Int = {
+      pitches.foldLeft(Int.MaxValue) { (minScalePitchIndex, pitch) =>
+        val scalePitchIndex = pitch.scalePitchIndex
+        if (scalePitchIndex < minScalePitchIndex) scalePitchIndex else minScalePitchIndex
       }
     }
 
-    val scaleDegreesByPitchClass = pitches
+    val scalePitchIndexesByPitchClass = pitches
       .groupBy(_.tuningPitch.pitchClass)
-      .view.mapValues(extractScaleDegree)
+      .view.mapValues(extractScalePitchIndex)
       .toMap
-    val overriddenScaleDegreesByPitchClass = scaleDegreesByPitchClass ++ overrideKeyboardMapping.toMap
-    val keyboardMappingScaleDegrees = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
-      overriddenScaleDegreesByPitchClass.get(PitchClass.fromInt(pitchClass))
+    val overriddenScalePitchIndexesByPitchClass = scalePitchIndexesByPitchClass ++ overrideKeyboardMapping.toMap
+    val keyboardMappingScalePitchIndexes = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
+      overriddenScalePitchIndexesByPitchClass.get(PitchClass.fromInt(pitchClass))
     }
 
-    KeyboardMapping(keyboardMappingScaleDegrees)
+    KeyboardMapping(keyboardMappingScalePitchIndexes)
   }
 
   /**
-   * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale degree, with the
+   * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale pitch index, with the
    *         pitches mentioned in `overrideKeyboardMapping` excluded.
    */
   private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Seq[PitchInfo] = {
-    val pitchesInfo = scale.intervals.zipWithIndex.map { case (interval, scaleDegree) =>
-      PitchInfo(mapInterval(interval, ref), scaleDegree)
+    val pitchesInfo = scale.intervals.zipWithIndex.map { case (interval, scalePitchIndex) =>
+      PitchInfo(mapInterval(interval, ref), scalePitchIndex)
     }
 
     val tuningPitches = pitchesInfo.map(_.tuningPitch)
@@ -137,7 +137,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
       throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
         conflicts)
     } else {
-      pitchesInfo.filter { pitchInfo => !scaleDegreesMappedManually.contains(pitchInfo.scaleDegree) }
+      pitchesInfo.filter { pitchInfo => !scalePitchIndexesMappedManually.contains(pitchInfo.scalePitchIndex) }
     }
   }
 
@@ -156,5 +156,5 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
 }
 
 object AutoTuningMapper {
-  private case class PitchInfo(tuningPitch: TuningPitch, scaleDegree: Int)
+  private case class PitchInfo(tuningPitch: TuningPitch, scalePitchIndex: Int)
 }

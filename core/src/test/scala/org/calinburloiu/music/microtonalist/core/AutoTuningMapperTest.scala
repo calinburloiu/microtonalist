@@ -286,4 +286,8 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     keyboardMapping shouldEqual KeyboardMapping(d = Some(0), dSharpOrEFlat = Some(1), f = Some(2), g = Some(3),
       a = Some(4), b = Some(5), c = Some(6))
   }
+
+  it should "map scales with negative intervals" in {
+    fail("TODO")
+  }
 }

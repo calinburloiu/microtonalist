@@ -19,61 +19,61 @@ package org.calinburloiu.music.microtonalist.core
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
- * A mapping between pitch classes and scale degrees (0-based). Not all pitch classes need to be mapped.
+ * A mapping between pitch classes and scale pitch indexes (0-based). Not all pitch classes need to be mapped.
  *
- * @param scaleDegrees array of scale degrees where the index represents the pitch class number
+ * @param indexesInScale array of scale pitch indexes where the index represents the pitch class number
  */
-case class KeyboardMapping(scaleDegrees: Seq[Option[Int]]) {
-  require(scaleDegrees.size == 12, "There must be exactly 12 scale degree values")
-  require(scaleDegrees.forall(_.getOrElse(0) >= 0), "Scale degrees must be natural numbers")
+case class KeyboardMapping(indexesInScale: Seq[Option[Int]]) {
+  require(indexesInScale.size == 12, "There must be exactly 12 scale pitch index values")
+  require(indexesInScale.forall(_.getOrElse(0) >= 0), "Scale pitch indexes must be natural numbers")
 
   /**
-   * @return `Some` scale degree if the given pitch class was mapped or `None` otherwise
+   * @return `Some` scale pitch index if the given pitch class was mapped or `None` otherwise
    */
   def apply(pitchClass: PitchClass): Option[Int] = {
     pitchClass.assertValid()
-    scaleDegrees(pitchClass)
+    indexesInScale(pitchClass)
   }
 
   /**
-   * @return a copy of the `KeyboardMapping` with the given pitch class not mapped to any scale degree
+   * @return a copy of the `KeyboardMapping` with the given pitch class not mapped to any scale pitch index
    */
   def removed(pitchClass: PitchClass): KeyboardMapping = {
     updated(pitchClass, None)
   }
 
   /**
-   * @return a copy of the `KeyboardMapping` with the given pitch class mapped to the given scale degree
+   * @return a copy of the `KeyboardMapping` with the given pitch class mapped to the given scale pitch index
    */
   def updated(pitchClass: PitchClass, value: Option[Int]): KeyboardMapping = {
-    KeyboardMapping(scaleDegrees.updated(pitchClass, value))
+    KeyboardMapping(indexesInScale.updated(pitchClass, value))
   }
 
   /**
-   * @return a sequence of pairs each containing a pitch class and maybe a scale degree associated with it
+   * @return a sequence of pairs each containing a pitch class and maybe a scale pitch index associated with it
    */
   def values: Seq[(PitchClass, Option[Int])] = iterator.toSeq
 
   /**
-   * @return a [[Map]] from [[PitchClass]] to a scale degree. Pitch classes that are not mapped are not included.
+   * @return a [[Map]] from [[PitchClass]] to a scale pitch index. Pitch classes that are not mapped are not included.
    */
   def toMap: Map[PitchClass, Int] = values.flatMap {
-    case (pitchClass, Some(scaleDegree)) => Some((pitchClass, scaleDegree))
+    case (pitchClass, Some(scalePitchIndex)) => Some((pitchClass, scalePitchIndex))
     case _ => None
   }.toMap
 
   /**
-   * @return an iterator of pairs each containing a pitch class and maybe a scale degree associated with it
+   * @return an iterator of pairs each containing a pitch class and maybe a scale pitch index associated with it
    */
-  def iterator: Iterator[(PitchClass, Option[Int])] = (PitchClass.values zip scaleDegrees).iterator
+  def iterator: Iterator[(PitchClass, Option[Int])] = (PitchClass.values zip indexesInScale).iterator
 
   /**
-   * @return the number of pitch classes mapped to scale degrees
+   * @return the number of pitch classes mapped to scale pitch indexes
    */
-  def size: Int = scaleDegrees.flatten.size
+  def size: Int = indexesInScale.flatten.size
 
   /**
-   * @return true is no pitch class is mapped to any scale degree, false otherwise
+   * @return true is no pitch class is mapped to any scale pitch index, false otherwise
    */
   def isEmpty: Boolean = size == 0
 }
@@ -96,7 +96,7 @@ object KeyboardMapping {
   }
 
   /**
-   * @return a [[KeyboardMapping]] with no pitch class mapped to any scale degree
+   * @return a [[KeyboardMapping]] with no pitch class mapped to any scale pitch index
    */
   def empty: KeyboardMapping = KeyboardMapping(Seq.fill(12)(None))
 }
