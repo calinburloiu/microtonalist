@@ -18,6 +18,7 @@ package org.calinburloiu.music.intonation
 
 import org.calinburloiu.music.intonation.CentsInterval._
 import org.calinburloiu.music.intonation.RatioInterval._
+import org.calinburloiu.music.intonation.Scale._
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -49,7 +50,7 @@ class ScaleTest extends AnyFlatSpec with Matchers {
   }
 
   "equals" should "tell if two scales have the same name and the same intervals" in {
-    centsScale shouldNot equal (centsScale.rename("new"))
+    centsScale shouldNot equal(centsScale.rename("new"))
     centsScale shouldEqual centsScale
 
     mixedScale shouldEqual new Scale("mixed",
@@ -83,9 +84,9 @@ class ScaleTest extends AnyFlatSpec with Matchers {
 
   "intonationStandard" should "return Some IntonationStandard if there is a consistent one" in {
     mixedScale.intonationStandard shouldBe empty
-    centsScale.intonationStandard should contain (CentsIntonationStandard)
-    ratiosScale.intonationStandard should contain (JustIntonationStandard)
-    edo72Scale.intonationStandard should contain (EdoIntonationStandard(72))
+    centsScale.intonationStandard should contain(CentsIntonationStandard)
+    ratiosScale.intonationStandard should contain(JustIntonationStandard)
+    edo72Scale.intonationStandard should contain(EdoIntonationStandard(72))
   }
 
   "isCentsScale" should "tell if it's a scale that only has cents intervals" in {
@@ -148,10 +149,11 @@ class ScaleTest extends AnyFlatSpec with Matchers {
 
   "convertToIntonationStandard" should "convert a scale if necessary to a given intonation standard" in {
     // When
-    var result: Option[Scale[Interval]] = mixedScale.convertToIntonationStandard(CentsIntonationStandard)
+    var result: Option[ScaleConversionResult] = mixedScale.convertToIntonationStandard(CentsIntonationStandard)
     // Then
     result should not be empty
-    result.get.apply(2) shouldBe a[CentsInterval]
+    result.get.conversionQuality shouldEqual LosslessConversion
+    result.get.scale.apply(2) shouldBe a[CentsInterval]
 
     // When
     result = mixedScale.convertToIntonationStandard(JustIntonationStandard)
@@ -161,31 +163,42 @@ class ScaleTest extends AnyFlatSpec with Matchers {
     // When
     result = mixedScale.convertToIntonationStandard(EdoIntonationStandard(72))
     // Then
-    result should contain (EdoScale(
-      "mixed",
-      72,
-      (0, 0), (2, 0), (4, -1), (5, 0)
+    result should contain(ScaleConversionResult(
+      EdoScale(
+        "mixed",
+        72,
+        (0, 0), (2, 0), (4, -1), (5, 0)
+      ),
+      LossyConversion
     ))
 
     // When
     result = centsScale.convertToIntonationStandard(CentsIntonationStandard)
     // Then
-    result.get shouldBe theSameInstanceAs(centsScale)
+    result should not be empty
+    result.get.conversionQuality shouldEqual NoConversion
+    result.get.scale shouldBe theSameInstanceAs(centsScale)
 
     // When
     result = ratiosScale.convertToIntonationStandard(JustIntonationStandard)
     // Then
-    result.get shouldBe theSameInstanceAs(ratiosScale)
+    result should not be empty
+    result.get.conversionQuality shouldEqual NoConversion
+    result.get.scale shouldBe theSameInstanceAs(ratiosScale)
 
     // When
     result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(72))
     // Then
-    result.get shouldBe theSameInstanceAs(edo72Scale)
+    result should not be empty
+    result.get.conversionQuality shouldEqual NoConversion
+    result.get.scale shouldBe theSameInstanceAs(edo72Scale)
 
     // When
     result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(31))
     // Then
-    result.get should not be theSameInstanceAs (edo72Scale)
-    result.get.apply(2) shouldEqual EdoInterval(31, 8)
+    result should not be empty
+    result.get.conversionQuality shouldEqual LossyConversion
+    result.get.scale should not be theSameInstanceAs(edo72Scale)
+    result.get.scale.apply(2) shouldEqual EdoInterval(31, 8)
   }
 }

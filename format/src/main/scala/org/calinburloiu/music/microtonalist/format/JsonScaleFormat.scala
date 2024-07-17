@@ -77,7 +77,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
     val intonationStandard = scale.intonationStandard.orElse(context.flatMap(_.intonationStandard))
       .getOrElse(throw new MissingContextScaleFormatException)
     // Making sure that the intonation standard that we output is still consistent with the intervals
-    val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.intervals).getOrElse {
+    val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.scale.intervals).getOrElse {
       throw new IncompatibleIntervalsScaleFormatException
     }
 

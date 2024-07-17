@@ -21,6 +21,8 @@ import com.google.common.base.Preconditions.checkElementIndex
 class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
 
+  import Scale._
+
   def apply(index: Int): I = {
     checkElementIndex(index, size)
     intervals(index)
@@ -67,12 +69,22 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    * @param newIntonationStandard The given intonation standard to convert to.
    * @return [[Some]] new scale with the intervals converted or [[None]] if the conversion is not possible.
    */
-  def convertToIntonationStandard(newIntonationStandard: IntonationStandard): Option[Scale[Interval]] = {
+  def convertToIntonationStandard(newIntonationStandard: IntonationStandard): Option[ScaleConversionResult] = {
     newIntonationStandard match {
-      case _: IntonationStandard if intonationStandard.contains(newIntonationStandard) => Some(this)
-      case CentsIntonationStandard => Some(CentsScale(name, intervals.map(_.toCentsInterval)))
+      case _: IntonationStandard if intonationStandard.contains(newIntonationStandard) =>
+        Some(ScaleConversionResult(this, NoConversion))
+      case CentsIntonationStandard =>
+        Some(ScaleConversionResult(
+          CentsScale(name, intervals.map(_.toCentsInterval)),
+          LosslessConversion
+        ))
       case JustIntonationStandard => None
-      case EdoIntonationStandard(edo) => Some(EdoScale(name, intervals.map(_.toEdoInterval(edo))))
+      case EdoIntonationStandard(thatEdo) =>
+        val quality = intonationStandard match {
+          case Some(EdoIntonationStandard(thisEdo)) if thatEdo % thisEdo == 0 => LosslessConversion
+          case _ => LossyConversion
+        }
+        Some(ScaleConversionResult(EdoScale(name, intervals.map(_.toEdoInterval(thatEdo))), quality))
     }
   }
 
@@ -95,6 +107,11 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 }
 
 object Scale {
+
+  sealed trait ConversionQuality
+  case object NoConversion extends ConversionQuality
+  case object LosslessConversion extends ConversionQuality
+  case object LossyConversion extends ConversionQuality
 
   def apply[I <: Interval](name: String, pitches: Seq[I]): Scale[I] = new Scale(name, pitches)
 
@@ -156,6 +173,9 @@ object Scale {
     intervalsWithUnison.sorted.asInstanceOf[Seq[I]]
   }
 }
+
+
+case class ScaleConversionResult(scale: Scale[Interval], conversionQuality: Scale.ConversionQuality)
 
 
 case class RatiosScale(override val name: String,

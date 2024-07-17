@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
+import com.typesafe.scalalogging.LazyLogging
+import org.calinburloiu.music.intonation.Scale.ConversionQuality
+import org.calinburloiu.music.intonation.{Interval, IntonationStandard, Scale, ScaleConversionResult}
 
 import java.net.URI
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -46,7 +48,7 @@ import scala.concurrent.Future
  */
 class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
                        httpScaleRepo: HttpScaleRepo,
-                       libraryScaleRepo: LibraryScaleRepo) extends ComposedScaleRepo {
+                       libraryScaleRepo: LibraryScaleRepo) extends ComposedScaleRepo with LazyLogging {
   override def getScaleRepo(uri: URI): Option[ScaleRepo] = uri.getScheme match {
     case null | UriScheme.File => Some(fileScaleRepo)
     case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
@@ -55,15 +57,36 @@ class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
   }
 
   override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
-    updateScaleFromContext(super.read(uri, context), context)
+    updateScaleFromContext(super.read(uri, context), uri, context)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
-    super.readAsync(uri, context).map { scale => updateScaleFromContext(scale, context) }
+    super.readAsync(uri, context).map { scale => updateScaleFromContext(scale, uri, context) }
   }
 
-  private def updateScaleFromContext(scale: Scale[Interval], context: Option[ScaleFormatContext]): Scale[Interval] = {
-    // TODO #45
-    scale
+  private def updateScaleFromContext(scale: Scale[Interval],
+                                     uri: URI,
+                                     context: Option[ScaleFormatContext]): Scale[Interval] = {
+    context match {
+      case Some(ScaleFormatContext(maybeName, maybeIntonationStandard)) =>
+        val renamedScale = maybeName.map(scale.rename).getOrElse(scale)
+
+        maybeIntonationStandard.map { toIntonationStandard =>
+          renamedScale.convertToIntonationStandard(toIntonationStandard) match {
+            case Some(ScaleConversionResult(convertedScale, conversionQuality)) =>
+              reportConversionQuality(conversionQuality, toIntonationStandard, uri)
+              convertedScale
+            case None => throw new IncompatibleIntervalsScaleFormatException
+          }
+        }.getOrElse(renamedScale)
+      case None => scale
+    }
+  }
+
+  private def reportConversionQuality(conversionQuality: ConversionQuality,
+                                      intonationStandard: IntonationStandard,
+                                      uri: URI): Unit = conversionQuality match {
+    case Scale.LossyConversion => logger.warn(s"Conversion of scale $uri to $intonationStandard is lossy!")
+    case _ =>
   }
 }

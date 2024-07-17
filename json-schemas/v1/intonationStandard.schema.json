@@ -30,9 +30,9 @@
                     },
                     "then": {
                         "properties": {
-                            "divisionCount": {
+                            "countPerOctave": {
                                 "type": "integer",
-                                "title": "Division Count",
+                                "title": "Division Count per Octave",
                                 "description": "The number of equal divisions of the octave.",
                                 "minimum": 1
                             }
