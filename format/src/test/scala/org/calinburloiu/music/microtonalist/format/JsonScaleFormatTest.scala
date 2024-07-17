@@ -162,7 +162,6 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
   private val edo53Scale = EdoScale("hicaz-4", 53, 0, 5, 17, 22)
   private val edo53ScaleJson = Json.obj(
     "name" -> "hicaz-4",
-    // TODO #45 Rename divisionCount in schema
     "intonationStandard" -> Json.obj("type" -> "edo", "countPerOctave" -> 53),
     "pitches" -> Json.arr(0, 5, 17, 22)
   )
@@ -264,7 +263,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // Given
     val context = Some(ScaleFormatContext(intonationStandard = Some(JustIntonationStandard)))
     // Then
-    assertThrows[IllegalArgumentException] {
+    assertThrows[IncompatibleIntervalsScaleFormatException] {
       scaleFormat.writeAsJsValue(mixedScale, context)
     }
   }

@@ -60,3 +60,7 @@ class InvalidScaleFormatException(message: String, cause: Throwable = null) exte
 class MissingContextScaleFormatException extends InvalidScaleFormatException(
   "If name and intonationStandard properties are missing from the scale definition, they must be present in the " +
     "surrounding context!")
+
+class IncompatibleIntervalsScaleFormatException extends InvalidScaleFormatException(
+  "The scale intervals are incompatible with the intonation standard"
+)
