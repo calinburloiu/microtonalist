@@ -156,7 +156,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
   }
 
   // TODO #31
-  def equalsWithTolerance(that: PartialTuning): Boolean = ???
+  def almostEquals(that: PartialTuning, centsTolerance: Double): Boolean = ???
 }
 
 object PartialTuning {

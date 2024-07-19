@@ -150,7 +150,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
       false
     } else {
       val first = tuningPitches.head
-      tuningPitches.tail.exists(item => !item.equalsWithTolerance(first, tolerance))
+      tuningPitches.tail.exists(item => !item.almostEquals(first, tolerance))
     }
   }
 }

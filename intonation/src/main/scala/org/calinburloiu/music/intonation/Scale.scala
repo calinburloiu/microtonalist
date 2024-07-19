@@ -17,6 +17,7 @@
 package org.calinburloiu.music.intonation
 
 import com.google.common.base.Preconditions.checkElementIndex
+import com.google.common.math.DoubleMath
 
 class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
@@ -98,6 +99,20 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
     case _ => false
   }
 
+  /**
+   * Checks if this scale has the intervals equal within an error tolerance with the given scale. Other properties
+   * are ignore in the comparison.
+   *
+   * @param that The scale to compare with.
+   * @param centsTolerance Error tolerance in cents.
+   * @return true if the scales are almost equal, or false otherwise.
+   */
+  def almostEquals(that: Scale[Interval], centsTolerance: Double = 0.02): Boolean = {
+    (this.intervals zip that.intervals).forall { case (i1, i2) =>
+      DoubleMath.fuzzyEquals(i1.cents, i2.cents, centsTolerance)
+    }
+  }
+
   override def hashCode(): Int = {
     val state = Seq(intervals, name)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
@@ -109,8 +124,11 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 object Scale {
 
   sealed trait ConversionQuality
+
   case object NoConversion extends ConversionQuality
+
   case object LosslessConversion extends ConversionQuality
+
   case object LossyConversion extends ConversionQuality
 
   def apply[I <: Interval](name: String, pitches: Seq[I]): Scale[I] = new Scale(name, pitches)
@@ -252,6 +270,7 @@ object CentsScale {
 case class EdoScale(override val name: String,
                     override val intervals: Seq[EdoInterval]) extends Scale[EdoInterval](name, intervals) {
   def edo: Int = intervals.head.edo
+
   require(intervals.forall(_.edo == edo))
 
   def transpose(interval: EdoInterval): EdoScale = {
