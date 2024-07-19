@@ -122,4 +122,10 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
     result shouldEqual minorScale31Edo
     result.intonationStandard should contain(EdoIntonationStandard(31))
   }
+
+  it should "override the name read from the file with the one from the context" in {
+    val context = Some(ScaleFormatContext(name = Some("minor")))
+    val result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, context)
+    result shouldEqual RatiosScale("minor", minorScaleJust.intervals)
+  }
 }
