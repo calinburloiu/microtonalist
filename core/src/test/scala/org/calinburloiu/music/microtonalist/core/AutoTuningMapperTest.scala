@@ -75,6 +75,20 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     major2TuningWithLowQuarterTones should equal(major2TuningWithHighQuarterTones)
   }
 
+  it should "map scales with negative intervals" in {
+    val maj5 = RatiosScale((15, 16), (1, 1), (9, 8), (5, 4), (4, 3), (3, 2))
+    val tuningRef = ConcertPitchTuningRef(32/:27, MidiNote(PitchClass.C, 5))
+    val tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj5, tuningRef)
+
+    tuning.c should contain(-5.87)
+    tuning.d should contain(-1.96)
+    tuning.e should contain(-19.56)
+    tuning.f should contain(-7.83)
+    tuning.g should contain(-3.91)
+    tuning.a shouldBe empty
+    tuning.b should contain(-17.60)
+  }
+
   it should "fail to map a scale with conflicting pitches " +
     "(concurrent pitches on the same tuning pitch class)" in {
     // 5/4 and 81/64 are concurrent on E
@@ -285,9 +299,5 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     // Then
     keyboardMapping shouldEqual KeyboardMapping(d = Some(0), dSharpOrEFlat = Some(1), f = Some(2), g = Some(3),
       a = Some(4), b = Some(5), c = Some(6))
-  }
-
-  it should "map scales with negative intervals" in {
-    fail("TODO")
   }
 }
