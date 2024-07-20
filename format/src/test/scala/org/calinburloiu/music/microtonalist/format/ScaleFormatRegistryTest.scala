@@ -24,12 +24,13 @@ import java.net.URI
 
 class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
   val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+  val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, IntonationStandardComponentFormat
+    .createComponentJsonFormat())
   val registry: ScaleFormatRegistry = new ScaleFormatRegistry(Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
 
   def assertResult(actualResult: Option[ScaleFormat], expectedResult: ScaleFormat): Unit = {
     actualResult should not be empty
-    actualResult.get shouldBe theSameInstanceAs (expectedResult)
+    actualResult.get shouldBe theSameInstanceAs(expectedResult)
   }
 
   "getByExtension" should "return the ScaleFormat by file extension" in {

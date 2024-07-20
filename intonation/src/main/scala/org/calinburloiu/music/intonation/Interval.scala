@@ -126,9 +126,22 @@ sealed trait Interval extends Ordered[Interval] {
    * Converts `this` interval to a [[CentsInterval]].
    */
   def toCentsInterval: CentsInterval = CentsInterval(cents)
+
+  def toEdoInterval(edo: Int): EdoInterval = EdoInterval(edo, (cents * edo / 1200.0).round.toInt)
 }
 
 object Interval {
+  def fromRatioString(intervalValue: String): Option[Interval] = {
+    val ratioArray = intervalValue.split("/")
+    val maybeNumerator = Try(ratioArray(0).toInt).toOption
+    val maybeDenominator = if (ratioArray.size == 1) Some(1) else Try(ratioArray(1).toInt).toOption
+
+    for {
+      numerator <- maybeNumerator if numerator > 0
+      denominator <- maybeDenominator if denominator > 0
+    } yield RatioInterval(numerator, denominator)
+  }
+
   /**
    * Parses an interval expressed in the format present in Scala application tuning files (`*.scl`).
    *
@@ -148,14 +161,7 @@ object Interval {
 
       maybeCents.map(CentsInterval.apply)
     } else {
-      val ratioArray = intervalValue.split("/")
-      val maybeNumerator = Try(ratioArray(0).toInt).toOption
-      val maybeDenominator = if (ratioArray.size == 1) Some(1) else Try(ratioArray(1).toInt).toOption
-
-      for {
-        numerator <- maybeNumerator
-        denominator <- maybeDenominator
-      } yield RatioInterval(numerator, denominator)
+      fromRatioString(intervalValue)
     }
   }
 }
@@ -239,8 +245,9 @@ object RealInterval {
  * @param denominator positive integer fraction denominator
  */
 case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
-  require(numerator > 0, s"Expecting a positive value for the numerator, but got $numerator")
-  require(denominator > 0, s"Expecting a positive value for the denominator, but got $denominator")
+  require(numerator > 0 && numerator.isFinite, s"Expecting a positive value for the numerator, but got $numerator")
+  require(denominator > 0 && denominator.isFinite, s"Expecting a positive value for the denominator, but got " +
+    s"$denominator")
 
   override def realValue: Double = numerator.toDouble / denominator
 
@@ -331,6 +338,7 @@ object RatioInterval {
 
   /**
    * Create a series of intervals that correspond with the harmonics that match for a set of ratio intervals.
+   *
    * @param intervals ratio intervals
    * @return a sequence of harmonics in ascending order
    */
@@ -357,6 +365,8 @@ object RatioInterval {
  * @param cents a decimal value in cents
  */
 case class CentsInterval(override val cents: Double) extends Interval {
+  require(cents.isFinite)
+
   override def realValue: Double = fromCentsToRealValue(cents)
 
   override def isNormalized: Boolean = cents >= 0.0 && cents < 1200.0
@@ -442,7 +452,8 @@ object CentsInterval {
  * @param count the number of division used to express the interval
  */
 case class EdoInterval(edo: Int, count: Int) extends Interval {
-  require(edo > 0, s"Expecting a positive value for edo, but got $edo")
+  require(edo > 0 && edo.isFinite, s"Expecting a positive value for edo, but got $edo")
+  require(count.isFinite)
 
   override def realValue: Double = fromEdoToRealValue(edo, count)
 
@@ -464,7 +475,10 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
    * @param that the interval to add to `this`
    * @return the sum interval
    */
-  def +(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count + that.count)
+  def +(that: EdoInterval): EdoInterval = {
+    require(edo == that.edo)
+    EdoInterval(edo, this.count + that.count)
+  }
 
   override def +(that: Interval): Interval = that match {
     case edoInterval: EdoInterval => this + edoInterval
@@ -478,7 +492,10 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
    * @param that the interval to subtract from `this`
    * @return the difference interval
    */
-  def -(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count - that.count)
+  def -(that: EdoInterval): EdoInterval = {
+    require(edo == that.edo)
+    EdoInterval(edo, this.count - that.count)
+  }
 
   override def -(that: Interval): Interval = that match {
     case edoInterval: EdoInterval => this - edoInterval
@@ -502,6 +519,19 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
   override def compare(that: Interval): Int = that match {
     case EdoInterval(`edo`, thatCount) => this.count.compareTo(thatCount)
     case interval: Interval => this.realValue.compareTo(interval.realValue)
+  }
+
+  /**
+   * @return a pair of integers where the first is the number of 12-EDO semitones approximated
+   *         in this EDO (by rounding, 0.5 goes up), and the second is the deviation in
+   *         divisions (in this EDO) from the approximated semitone.
+   */
+  def countRelativeToStandard: (Int, Int) = {
+    val factor = edo / 12.0
+    val semitones = Math.round(count / factor).toInt
+    val deviation = Math.round(count - factor * semitones).toInt
+
+    (semitones, deviation)
   }
 }
 

@@ -21,6 +21,7 @@ import java.nio.file.{Path, Paths}
 import scala.util.Try
 
 package object format {
+  // TODO #4 Function not necessary: the base URI may contain the "file" after the last "/" and resolve will work
   /**
    * Removes the trailing path item from the URI after the last slash. If the URI points to a file, for example,
    * it removes the file name from the path and only leaves its folder location.

@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-
 import com.google.common.net.MediaType
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
@@ -32,18 +31,22 @@ trait ScaleRepo {
   /**
    * Retrieves a scale.
    *
-   * @param uri universal resource identifier (URI) for the scale
+   * @param uri     Universal resource identifier (URI) for the scale.
+   * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
+   *                certain properties in order to override or fill them when they are missing.
    * @return the requested scale
    */
-  def read(uri: URI): Scale[Interval]
+  def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval]
 
   /**
    * Retrieves a scale asynchronously.
    *
-   * @param uri universal resource identifier (URI) for the scale
+   * @param uri     Universal resource identifier (URI) for the scale.
+   * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
+   *                certain properties in order to override or fill them when they are missing.
    * @return a [[Future]] of the requested scale
    */
-  def readAsync(uri: URI): Future[Scale[Interval]]
+  def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]]
 
   /**
    * Persists a scale.
@@ -52,8 +55,13 @@ trait ScaleRepo {
    * @param uri       universal resource identifier (URI) for the scale
    * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
    *                  used for identification.
+   * @param context   If writing occurs in a context, such as from a composition file, then a context may be set
+   *                  with certain properties to override them in the serialized scale.
    */
-  def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit
+  def write(scale: Scale[Interval],
+            uri: URI,
+            mediaType: Option[MediaType],
+            context: Option[ScaleFormatContext] = None): Unit
 
   /**
    * Persists a scale asynchronously.
@@ -62,9 +70,14 @@ trait ScaleRepo {
    * @param uri       universal resource identifier (URI) for the scale
    * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
    *                  used for identification.
+   * @param context   If writing occurs in a context, such as from a composition file, then a context may be set
+   *                  with certain properties to override them in the serialized scale.
    * @return a [[Future]] for tracking when the operation finished
    */
-  def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit]
+  def writeAsync(scale: Scale[Interval],
+                 uri: URI,
+                 mediaType: Option[MediaType],
+                 context: Option[ScaleFormatContext] = None): Future[Unit]
 }
 
 /**

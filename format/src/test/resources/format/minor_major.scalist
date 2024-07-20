@@ -13,7 +13,7 @@
     {
       "transposition": "1",
       "scale": {
-        "ref": "scales/minor.jscl"
+        "ref": "scales/minor-just.jscl"
       },
       "tuningMapper": "auto"
     },
