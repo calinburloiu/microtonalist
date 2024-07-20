@@ -193,7 +193,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     result shouldEqual edo72Scale
   }
 
-  it should "create a Scale object when some intervals if ratios are given" in {
+  it should "create a Scale object when some intervals are given as ratios" in {
     // Given
     val json = Json.obj(
       "name" -> "hicaz-4",
@@ -307,6 +307,16 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     result shouldEqual min4Scale
   }
 
+  it should "take ignore the name from the context if the scale already provides one" in {
+    // Given
+    val context = Some(ScaleFormatContext(name = Some("blah")))
+    // When
+    val result = scaleFormat.read(centsScaleJson, context)
+    // Then
+    result.name shouldEqual "min-4"
+    result shouldEqual centsScale
+  }
+
   "Reading a JSON Scale without intonation standard" should "fail if the context does not provide one" in {
     assertThrows[MissingContextScaleFormatException] {
       scaleFormat.read(scaleJsonWithoutIntonationStandard, None)
@@ -321,6 +331,16 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // Then
     result.intonationStandard should contain(JustIntonationStandard)
     result shouldEqual min4Scale
+  }
+
+  it should "take ignore the name from the context if the scale already provides one" in {
+    // Given
+    val context = Some(ScaleFormatContext(intonationStandard = Some(JustIntonationStandard)))
+    // When
+    val result = scaleFormat.read(centsScaleJson, context)
+    // Then
+    result.intonationStandard should contain(CentsIntonationStandard)
+    result shouldEqual centsScale
   }
 
   "Reading a concise JSON Scale" should "fail if the context does not provide a name and the intonation standard" in {

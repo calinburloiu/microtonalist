@@ -21,6 +21,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json._
 
+/**
+ * Convenience trait that can be mixed in tests for various utilities like easily asserting reading JSON with the
+ * play-json library.
+ */
 trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside {
 
   def assertReads[A](reads: Reads[A], json: JsValue, result: A): Unit =

@@ -33,7 +33,7 @@ trait ScaleRepo {
    *
    * @param uri     Universal resource identifier (URI) for the scale.
    * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
-   *                certain properties, that may be omitted from the serialized scale.
+   *                certain properties in order to override or fill them when they are missing.
    * @return the requested scale
    */
   def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval]
@@ -43,7 +43,7 @@ trait ScaleRepo {
    *
    * @param uri     Universal resource identifier (URI) for the scale.
    * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
-   *                certain properties, that may be omitted from the serialized scale.
+   *                certain properties in order to override or fill them when they are missing.
    * @return a [[Future]] of the requested scale
    */
   def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]]
@@ -56,7 +56,7 @@ trait ScaleRepo {
    * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
    *                  used for identification.
    * @param context   If writing occurs in a context, such as from a composition file, then a context may be set
-   *                  with certain properties, that may be omitted from the serialized scale.
+   *                  with certain properties to override them in the serialized scale.
    */
   def write(scale: Scale[Interval],
             uri: URI,
@@ -71,7 +71,7 @@ trait ScaleRepo {
    * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
    *                  used for identification.
    * @param context   If writing occurs in a context, such as from a composition file, then a context may be set
-   *                  with certain properties, that may be omitted from the serialized scale.
+   *                  with certain properties to override them in the serialized scale.
    * @return a [[Future]] for tracking when the operation finished
    */
   def writeAsync(scale: Scale[Interval],

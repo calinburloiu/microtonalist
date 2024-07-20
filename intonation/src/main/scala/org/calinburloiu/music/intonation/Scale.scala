@@ -101,9 +101,9 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 
   /**
    * Checks if this scale has the intervals equal within an error tolerance with the given scale. Other properties
-   * are ignore in the comparison.
+   * are ignored in the comparison.
    *
-   * @param that The scale to compare with.
+   * @param that           The scale to compare with.
    * @param centsTolerance Error tolerance in cents.
    * @return true if the scales are almost equal, or false otherwise.
    */
@@ -269,9 +269,9 @@ object CentsScale {
 
 case class EdoScale(override val name: String,
                     override val intervals: Seq[EdoInterval]) extends Scale[EdoInterval](name, intervals) {
-  def edo: Int = intervals.head.edo
-
   require(intervals.forall(_.edo == edo))
+
+  def edo: Int = intervals.head.edo
 
   def transpose(interval: EdoInterval): EdoScale = {
     require(interval.edo == edo)

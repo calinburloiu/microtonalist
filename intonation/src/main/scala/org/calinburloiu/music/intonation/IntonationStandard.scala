@@ -16,13 +16,29 @@
 
 package org.calinburloiu.music.intonation
 
+/**
+ * Class that codifies how intervals are expressed: as values in cents, as just intonation ratios or as the number of
+ * divisions in a particular EDO tuning.
+ *
+ * @param typeName Identifier of the intonation standard type.
+ */
 sealed abstract class IntonationStandard(val typeName: String)
 
+/**
+ * Intonation standard which specifies that intervals are expressed or interpreted in cents.
+ */
 case object CentsIntonationStandard extends IntonationStandard("cents")
 
+/**
+ * Intonation standard which specifies that intervals are expressed as just intonation ratios.
+ */
 case object JustIntonationStandard extends IntonationStandard("justIntonation")
 
-case class EdoIntonationStandard(countPerOctave: Int) extends IntonationStandard("edo"){
+/**
+ * Intonation standard which specifies that intervals are expressed or interpreted as the number of divisions in a
+ * particular EDO tuning.
+ */
+case class EdoIntonationStandard(countPerOctave: Int) extends IntonationStandard("edo") {
   require(countPerOctave > 0)
 }
 

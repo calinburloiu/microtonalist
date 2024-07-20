@@ -16,16 +16,22 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{CentsInterval, CentsIntonationStandard, EdoInterval, EdoIntonationStandard, Interval, IntonationStandard, JustIntonationStandard, RatioInterval}
+import org.calinburloiu.music.intonation.{
+  CentsInterval, CentsIntonationStandard, EdoInterval, EdoIntonationStandard,
+  Interval, IntonationStandard, JustIntonationStandard, RatioInterval
+}
 import play.api.libs.json.{Format, JsError, JsNumber, JsString, JsSuccess, Json, JsonValidationError, Reads, Writes}
 
 /**
  * Object that contains format utilities for reading intervals in JSON format.
  *
- * Note that how an interval is read in JSON format depends on the [[IntonationStandard]].
+ * Note that how an interval is read in JSON format depends on the [[IntonationStandard]]. For a given intonation
+ * standard, intervals specific to other intonation standards are allowed if those are convertible to the former and
+ * if there are no ambiguities (e.g. for [[EdoIntonationStandard]] JSON numbers are values in divisions and cannot
+ * be interpreted as cents because for them the same JSON number type is used).
  */
-private[format] object JsonIntervalFormat {
-  val ErrorExpectingIntervalFor: Map[String, String] = Map(
+object JsonIntervalFormat {
+  private[format] val ErrorExpectingIntervalFor: Map[String, String] = Map(
     CentsIntonationStandard.typeName -> "error.expecting.intervalForCentsIntonationStandard",
     JustIntonationStandard.typeName -> "error.expecting.intervalForJustIntonationStandard",
     EdoIntonationStandard.typeName -> "error.expecting.intervalForEdoIntonationStandard"
@@ -54,9 +60,12 @@ private[format] object JsonIntervalFormat {
           if (semitones.isDefined && deviation.isDefined) {
             JsSuccess(EdoInterval(countPerOctave, (semitones.get, deviation.get)).asInstanceOf[Interval])
           } else {
+            // We don't care about the message of the error here because the fallback below will override the error
+            // anyway.
             JsError()
           }
         } else {
+          // See the comment above for the other JsError.
           JsError()
         }
       } orElse ratioReads orElse Reads.failed(ErrorExpectingIntervalFor(EdoIntonationStandard.typeName))

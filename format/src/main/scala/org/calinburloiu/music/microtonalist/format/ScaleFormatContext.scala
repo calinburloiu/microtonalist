@@ -32,6 +32,9 @@ import org.calinburloiu.music.intonation.IntonationStandard
  *   - In a composition file, a tuning spec may choose to use a scale that has a different intonation standard. Its
  *     intervals will be converted to the intonation standard from the context.
  *
+ * Note that [[ScaleFormat]]s use the context in a different way than the [[DefaultScaleRepo]] does. The former will
+ * use the context to fill missing information, while the latter will override the scale that was already read.
+ *
  * @param name               Optional name that may either override the one already present in the scale to be read,
  *                           or fill this property if it's missing.
  * @param intonationStandard The intonation standard of the composition file that may either be used to convert the

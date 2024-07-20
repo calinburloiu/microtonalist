@@ -30,8 +30,10 @@ import scala.concurrent.Future
  *
  * Other repositories are accessed based on URI in the following way:
  *
- *   - Relative URIs and those with `file` scheme use [[FileScaleRepo]]
- *   - URIs with `http`/`https` scheme use [[HttpScaleRepo]]
+ *   - Relative URIs and those with `file` scheme use [[FileScaleRepo]]. [[ScaleRepo]]s don't have a base URI, that's
+ *     why it was chosen to interpret relative URIs as files. Callers are advised to always resolve relative URI
+ *     based on the base URI before making calls to the repo. In this way relative URI can be based on any scheme.
+ *   - URIs with `http`/`https` scheme use [[HttpScaleRepo]].
  *   - URIs with `microtonalist` scheme use [[LibraryScaleRepo]].
  *
  * A scale that was read in the context of a composition file may be modified based on context in the following way:

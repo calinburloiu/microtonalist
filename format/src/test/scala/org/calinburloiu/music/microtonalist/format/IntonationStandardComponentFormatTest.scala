@@ -35,7 +35,7 @@ class IntonationStandardComponentFormatTest extends JsonFormatTestUtils {
   }
 
   it should "deserialize an edo component" in {
-    assertReads(format, Json.obj("type" -> "edo", "divisionCount" -> 31), EdoIntonationStandard(31))
+    assertReads(format, Json.obj("type" -> "edo", "countPerOctave" -> 31), EdoIntonationStandard(31))
   }
 
   "writes" should "serialize a cents component" in {
@@ -47,6 +47,6 @@ class IntonationStandardComponentFormatTest extends JsonFormatTestUtils {
   }
 
   it should "serialize an edo component" in {
-    format.writes(EdoIntonationStandard(72)) shouldEqual Json.obj("type" -> "edo", "divisionCount" -> 72)
+    format.writes(EdoIntonationStandard(72)) shouldEqual Json.obj("type" -> "edo", "countPerOctave" -> 72)
   }
 }

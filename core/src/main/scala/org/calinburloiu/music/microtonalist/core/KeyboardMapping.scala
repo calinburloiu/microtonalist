@@ -21,7 +21,7 @@ import org.calinburloiu.music.scmidi.PitchClass
 /**
  * A mapping between pitch classes and scale pitch indexes (0-based). Not all pitch classes need to be mapped.
  *
- * @param indexesInScale array of scale pitch indexes where the index represents the pitch class number
+ * @param indexesInScale array where its index represents the pitch class and the values are scale pitch indexes.
  */
 case class KeyboardMapping(indexesInScale: Seq[Option[Int]]) {
   require(indexesInScale.size == 12, "There must be exactly 12 scale pitch index values")

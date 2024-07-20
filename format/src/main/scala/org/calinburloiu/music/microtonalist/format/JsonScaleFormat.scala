@@ -49,6 +49,8 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
   /**
    * Reads a scale from a raw JSON object.
    *
+   * This overloaded method does not use the preprocessor as the other stream-based one uses.
+   *
    * @see [[read]]
    */
   def read(inputJson: JsValue,
@@ -71,7 +73,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
 
   def writeAsJsValue(scale: Scale[Interval], context: Option[ScaleFormatContext] = None): JsValue = {
     val scaleSelfContext = ScaleFormatContext(
-      name = if (scale.name.isBlank) None else Some(scale.name),
+      name = if (scale.name.trim.isBlank) None else Some(scale.name),
       intonationStandard = scale.intonationStandard
     )
     val intonationStandard = scale.intonationStandard.orElse(context.flatMap(_.intonationStandard))
@@ -100,19 +102,18 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
   }
 
   private[format] def contextFormatWith(fallbackContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
-    def getFallbackName = fallbackContext.flatMap(_.name)
-
-    def getFallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
+    lazy val fallbackName = fallbackContext.flatMap(_.name)
+    lazy val fallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
 
     //@formatter:off
     (
-      (__ \ "name").formatNullableWithDefault[String](getFallbackName) and
-      (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](getFallbackIntonationStandard)
+      (__ \ "name").formatNullableWithDefault[String](fallbackName) and
+      (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
     )(
       { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
       { context: ScaleFormatContext =>
         // There's a play-json bug on write, so we need to apply the fallback manually here
-        (context.name.orElse(getFallbackName), context.intonationStandard.orElse(getFallbackIntonationStandard))
+        (context.name.orElse(fallbackName), context.intonationStandard.orElse(fallbackIntonationStandard))
       }
     )
     //@formatter:on
@@ -121,7 +122,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
 
 object JsonScaleFormat {
 
-  val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist-json-scale")
+  val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist.scale+json")
 
   val ErrorMissingContext: String = "error.scale.missingContext"
 
