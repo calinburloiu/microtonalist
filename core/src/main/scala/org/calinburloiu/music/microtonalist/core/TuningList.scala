@@ -40,44 +40,32 @@ object TuningList extends StrictLogging {
   def fromScaleList(scaleList: ScaleList): TuningList = {
     val globalFillScale = scaleList.globalFill.scale
     val globalFillTuning = scaleList.globalFill.tuningMapper.mapScale(globalFillScale, scaleList.tuningRef)
-    val partialTunings = createPartialTunings(RealInterval.Unison, Vector.empty,
-      scaleList.modulations, scaleList.tuningRef)
+    val partialTunings = createPartialTunings(Vector.empty, scaleList.modulations, scaleList.tuningRef)
 
     scaleList.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
   }
 
   @tailrec
-  private[this] def createPartialTunings(cumulativeTransposition: Interval,
-                                         partialTuningsAcc: Seq[PartialTuning],
+  private[this] def createPartialTunings(partialTuningsAcc: Seq[PartialTuning],
                                          modulations: Seq[Modulation],
                                          tuningRef: TuningRef): Seq[PartialTuning] = {
     if (modulations.isEmpty) {
       partialTuningsAcc
     } else {
-      val crtTransposition = modulations.head.transposition
-      // TODO Not sure why I've put an if here in the past. I think I should remove it only use the else part.
-      val newCumulativeTransposition = if (cumulativeTransposition.normalize.isUnison) {
-        crtTransposition.normalize
-      } else {
-        (cumulativeTransposition + crtTransposition).normalize
-      }
-      val partialTuning = createPartialTuning(
-        newCumulativeTransposition, modulations.head, tuningRef)
-
-      createPartialTunings(newCumulativeTransposition, partialTuningsAcc :+ partialTuning,
-        modulations.tail, tuningRef)
+      val partialTuning = createPartialTuning(modulations.head, tuningRef)
+      createPartialTunings(partialTuningsAcc :+ partialTuning, modulations.tail, tuningRef)
     }
   }
 
-  private[this] def createPartialTuning(cumulativeTransposition: Interval,
-                                        modulation: Modulation,
+  private[this] def createPartialTuning(modulation: Modulation,
                                         tuningRef: TuningRef): PartialTuning = {
     val scaleName = modulation.scaleMapping.scale.name
+    val transposition = modulation.transposition
 
-    val extensionTuning = modulation.extension.map(_.tuningFor(cumulativeTransposition, tuningRef))
+    val extensionTuning = modulation.extension.map(_.tuningFor(transposition, tuningRef))
       .getOrElse(PartialTuning.EmptyOctave)
 
-    val tuning = modulation.scaleMapping.tuningFor(cumulativeTransposition, tuningRef).overwrite(extensionTuning)
+    val tuning = modulation.scaleMapping.tuningFor(transposition, tuningRef).overwrite(extensionTuning)
     tuning.copy(name = scaleName)
   }
 }
