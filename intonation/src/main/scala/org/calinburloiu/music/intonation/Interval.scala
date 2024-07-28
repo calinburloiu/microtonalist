@@ -105,12 +105,11 @@ sealed trait Interval extends Ordered[Interval] {
   def invert: Interval
 
   /**
-   * Computes the interval corresponding to the string ratio needed to achieve `this` musical interval on a vibrating
-   * string. That interval is the inverse of `this`' fraction, i.e. `1.0 / realValue`.
+   * Makes a negative interval positive and vice versa.
    *
-   * @return the interval of the string length ratio
+   * @return a new interval in the reverse direction.
    */
-  def toStringLengthInterval: Interval
+  def reverse: Interval
 
   /**
    * @return true if `this` interval is a unison or false otherwise
@@ -220,7 +219,7 @@ case class RealInterval(override val realValue: Double) extends Interval {
     RealInterval.Octave - this
   }
 
-  override def toStringLengthInterval: RealInterval = RealInterval(1.0 / this.realValue)
+  override def reverse: RealInterval = RealInterval(1.0 / this.realValue)
 
   override def isUnison: Boolean = realValue == 1.0
 
@@ -245,8 +244,8 @@ object RealInterval {
  * @param denominator positive integer fraction denominator
  */
 case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
-  require(numerator > 0 && numerator.isFinite, s"Expecting a positive value for the numerator, but got $numerator")
-  require(denominator > 0 && denominator.isFinite, s"Expecting a positive value for the denominator, but got " +
+  require(numerator > 0, s"Expecting a positive value for the numerator, but got $numerator")
+  require(denominator > 0, s"Expecting a positive value for the denominator, but got " +
     s"$denominator")
 
   override def realValue: Double = numerator.toDouble / denominator
@@ -316,7 +315,7 @@ case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
     RatioInterval.Octave - this
   }
 
-  override def toStringLengthInterval: Interval = RatioInterval(this.denominator, this.numerator)
+  override def reverse: Interval = RatioInterval(this.denominator, this.numerator)
 
   override def isUnison: Boolean = numerator == 1 && denominator == 1
 
@@ -365,8 +364,6 @@ object RatioInterval {
  * @param cents a decimal value in cents
  */
 case class CentsInterval(override val cents: Double) extends Interval {
-  require(cents.isFinite)
-
   override def realValue: Double = fromCentsToRealValue(cents)
 
   override def isNormalized: Boolean = cents >= 0.0 && cents < 1200.0
@@ -420,7 +417,7 @@ case class CentsInterval(override val cents: Double) extends Interval {
     CentsInterval.Octave - this
   }
 
-  override def toStringLengthInterval: CentsInterval = CentsInterval(-cents)
+  override def reverse: CentsInterval = CentsInterval(-cents)
 
   override def isUnison: Boolean = cents == 0.0
 
@@ -452,8 +449,7 @@ object CentsInterval {
  * @param count the number of division used to express the interval
  */
 case class EdoInterval(edo: Int, count: Int) extends Interval {
-  require(edo > 0 && edo.isFinite, s"Expecting a positive value for edo, but got $edo")
-  require(count.isFinite)
+  require(edo > 0, s"Expecting a positive value for edo, but got $edo")
 
   override def realValue: Double = fromEdoToRealValue(edo, count)
 
@@ -512,7 +508,7 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
     EdoInterval.octaveFor(edo) - this
   }
 
-  override def toStringLengthInterval: EdoInterval = EdoInterval(edo, -count)
+  override def reverse: EdoInterval = EdoInterval(edo, -count)
 
   override def isUnison: Boolean = count == 0
 
