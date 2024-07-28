@@ -121,15 +121,15 @@ class RealIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropert
     }
   }
 
-  "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
+  "reverse" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
     // Neutral element
-    RealInterval.Unison.toStringLengthInterval shouldEqual RealInterval.Unison
+    RealInterval.Unison.reverse shouldEqual RealInterval.Unison
 
-    RealInterval.Octave.toStringLengthInterval shouldEqual RealInterval(1.0 / 2)
-    RealInterval(5.0 / 4).toStringLengthInterval shouldEqual RealInterval(4.0 / 5)
+    RealInterval.Octave.reverse shouldEqual RealInterval(1.0 / 2)
+    RealInterval(5.0 / 4).reverse shouldEqual RealInterval(4.0 / 5)
 
-    RealInterval(7.0 / 2).toStringLengthInterval shouldEqual RealInterval(2.0 / 7)
-    RealInterval(2.0 / 3).toStringLengthInterval shouldEqual RealInterval(3.0 / 2)
+    RealInterval(7.0 / 2).reverse shouldEqual RealInterval(2.0 / 7)
+    RealInterval(2.0 / 3).reverse shouldEqual RealInterval(3.0 / 2)
   }
 
   "isUnison" should "correctly report if the interval is a unison" in {
@@ -254,13 +254,13 @@ class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
 
   "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
     // Neutral element
-    RatioInterval.Unison.toStringLengthInterval shouldEqual RatioInterval.Unison
+    RatioInterval.Unison.reverse shouldEqual RatioInterval.Unison
 
-    RatioInterval.Octave.toStringLengthInterval shouldEqual RatioInterval(1, 2)
-    RatioInterval(5, 4).toStringLengthInterval shouldEqual RatioInterval(4, 5)
+    RatioInterval.Octave.reverse shouldEqual RatioInterval(1, 2)
+    RatioInterval(5, 4).reverse shouldEqual RatioInterval(4, 5)
 
-    RatioInterval(7, 2).toStringLengthInterval shouldEqual RatioInterval(2, 7)
-    RatioInterval(2, 3).toStringLengthInterval shouldEqual RatioInterval(3, 2)
+    RatioInterval(7, 2).reverse shouldEqual RatioInterval(2, 7)
+    RatioInterval(2, 3).reverse shouldEqual RatioInterval(3, 2)
   }
 
   "isUnison" should "correctly report if the interval is a unison" in {
@@ -382,13 +382,13 @@ class CentsIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
 
   "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
     // Neutral element
-    CentsInterval.Unison.toStringLengthInterval shouldEqual CentsInterval.Unison
+    CentsInterval.Unison.reverse shouldEqual CentsInterval.Unison
 
-    CentsInterval.Octave.toStringLengthInterval shouldEqual CentsInterval(-1200.0)
-    CentsInterval(400.0).toStringLengthInterval shouldEqual CentsInterval(-400.0)
+    CentsInterval.Octave.reverse shouldEqual CentsInterval(-1200.0)
+    CentsInterval(400.0).reverse shouldEqual CentsInterval(-400.0)
 
-    CentsInterval(1550.0).toStringLengthInterval shouldEqual CentsInterval(-1550)
-    CentsInterval(-701.96).toStringLengthInterval shouldEqual CentsInterval(701.96)
+    CentsInterval(1550.0).reverse shouldEqual CentsInterval(-1550)
+    CentsInterval(-701.96).reverse shouldEqual CentsInterval(701.96)
   }
 
   "isUnison" should "correctly report if the interval is a unison" in {
@@ -544,13 +544,13 @@ class EdoIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProperty
 
   "toStringLengthInterval" should "compute the ratio useful for reproducing intervals on vibrating strings" in {
     // Neutral element
-    EdoInterval.unisonFor(72).toStringLengthInterval shouldEqual EdoInterval.unisonFor(72)
+    EdoInterval.unisonFor(72).reverse shouldEqual EdoInterval.unisonFor(72)
 
-    EdoInterval.octaveFor(72).toStringLengthInterval shouldEqual EdoInterval(72, -72)
-    EdoInterval(24, 8).toStringLengthInterval shouldEqual EdoInterval(24, -8)
+    EdoInterval.octaveFor(72).reverse shouldEqual EdoInterval(72, -72)
+    EdoInterval(24, 8).reverse shouldEqual EdoInterval(24, -8)
 
-    EdoInterval(24, 25).toStringLengthInterval shouldEqual EdoInterval(24, -25)
-    EdoInterval(24, -14).toStringLengthInterval shouldEqual EdoInterval(24, 14)
+    EdoInterval(24, 25).reverse shouldEqual EdoInterval(24, -25)
+    EdoInterval(24, -14).reverse shouldEqual EdoInterval(24, 14)
   }
 
   "isUnison" should "correctly report if the interval is a unison" in {
