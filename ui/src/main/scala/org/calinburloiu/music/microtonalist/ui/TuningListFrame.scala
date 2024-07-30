@@ -20,7 +20,7 @@ import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.tuner.{TuningChangedEvent, TuningSwitcher}
 
-import java.awt.{BorderLayout, FlowLayout}
+import java.awt.BorderLayout
 import java.awt.event.{KeyEvent, KeyListener}
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
@@ -82,7 +82,7 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
   panel.add(new JScrollPane(listComponent), BorderLayout.CENTER)
 
   add(panel)
-  setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+  setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
   setSize(480, 640)
 
   @Subscribe
