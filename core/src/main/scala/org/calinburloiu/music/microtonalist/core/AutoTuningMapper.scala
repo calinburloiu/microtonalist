@@ -134,8 +134,8 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
     val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
     if (conflicts.nonEmpty) {
-      throw new TuningMapperConflictException("Cannot tune automatically, some pitch classes have conflicts:" +
-        conflicts)
+      throw new TuningMapperConflictException(s"Cannot tune automatically scale \"${scale.name}\", some pitch classes" +
+        s" have conflicts: $conflicts")
     } else {
       pitchesInfo.filter { pitchInfo => !scalePitchIndexesMappedManually.contains(pitchInfo.scalePitchIndex) }
     }
