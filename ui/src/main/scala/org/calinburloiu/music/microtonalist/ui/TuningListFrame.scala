@@ -20,7 +20,7 @@ import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.tuner.{TuningChangedEvent, TuningSwitcher}
 
-import java.awt.FlowLayout
+import java.awt.{BorderLayout, FlowLayout}
 import java.awt.event.{KeyEvent, KeyListener}
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
@@ -29,7 +29,7 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
 
   private[this] val tuningList = tuningSwitch.tuningList
 
-  private[this] val panel = new JPanel(new FlowLayout())
+  private[this] val panel = new JPanel(new BorderLayout())
 
   private[this] val listModel = new AbstractListModel[String] {
     override def getSize: Int = tuningList.tunings.size
@@ -65,6 +65,10 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
             listComponent.setSelectedIndex(0)
           }
 
+        case key if key >= KeyEvent.VK_1 && key <= KeyEvent.VK_9 =>
+          val number = key - KeyEvent.VK_1
+          listComponent.setSelectedIndex(number)
+
         // Do nothing for other keys.
         case _ =>
       }
@@ -75,11 +79,11 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
     override def keyReleased(e: KeyEvent): Unit = {}
   })
 
-  panel.add(listComponent)
+  panel.add(new JScrollPane(listComponent), BorderLayout.CENTER)
 
   add(panel)
   setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-  setSize(640, 480)
+  setSize(480, 640)
 
   @Subscribe
   def handleTuningChanged(tuningChangedEvent: TuningChangedEvent): Unit = {
