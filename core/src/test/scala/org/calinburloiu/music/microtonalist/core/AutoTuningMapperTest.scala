@@ -30,8 +30,8 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
   val cTuningRef: TuningRef = StandardTuningRef(PitchClass.C)
 
   val halfTolerance: Int = 5
-  val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance)
-  val autoTuningMapperWithHighQuarterTones: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance)
+  val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, halfTolerance)
+  val autoTuningMapperWithHighQuarterTones: AutoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, halfTolerance)
 
   private val testTolerance: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(testTolerance)
@@ -204,7 +204,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val scale = RatiosScale(1/:1, 12/:11, 32/:27, 4/:3, 3/:2, 13/:8, 16/:9)
     val tuningRef = ConcertPitchTuningRef(2/:3, MidiNote.D4)
     val overrideKeyboardMapping = KeyboardMapping(dSharpOrEFlat = Some(1))
-    val mapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance = 5.0,
+    val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 5.0,
       overrideKeyboardMapping = overrideKeyboardMapping)
     // When
     val partialTuning = mapper.mapScale(scale, tuningRef)
@@ -223,8 +223,8 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   it should "map an interval to a pitch class with a deviation in cents" in {
     val tolerance = 10
-    val downMapper = AutoTuningMapper(mapQuarterTonesLow = true, tolerance)
-    val upMapper = AutoTuningMapper(mapQuarterTonesLow = false, tolerance)
+    val downMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, tolerance)
+    val upMapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, tolerance)
 
     //@formatter:off
     val table = Table[Double, AutoTuningMapper, TuningPitch](
@@ -292,7 +292,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val scale = RatiosScale(1/:1, 12/:11, 32/:27, 4/:3, 3/:2, 13/:8, 16/:9)
     val tuningRef = ConcertPitchTuningRef(2/:3, MidiNote.D4)
     val overrideKeyboardMapping = KeyboardMapping(dSharpOrEFlat = Some(1), b = Some(5))
-    val mapper = AutoTuningMapper(mapQuarterTonesLow = false, halfTolerance = 15.0,
+    val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 15.0,
       overrideKeyboardMapping = overrideKeyboardMapping)
     // When
     val keyboardMapping = mapper.keyboardMappingOf(scale, tuningRef)

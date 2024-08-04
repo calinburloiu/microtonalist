@@ -27,19 +27,17 @@ import org.calinburloiu.music.scmidi.PitchClass
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param mapQuarterTonesLow      'true' if a quarter tone should be the lower pitch class with +50 cents deviation or
- *                                `false` if it should be the higher pitch class with -50 cents deviation
- * @param halfTolerance           tolerance value used for deviations when they are close to +50 or -50 cents in
- *                                order to
- *                                avoid precision errors while mapping a quarter tone to its pitch class
- * @param overrideKeyboardMapping a [[KeyboardMapping]] containing scale pitch index marked as exceptions that are going
- *                                to be manually mapped to a user specified pitch class
- * @param tolerance               Error in cents that should be tolerated when comparing corresponding pitch class
- *                                deviations of
- *                                `PartialTuning`s to avoid double precision errors.
+ * @param shouldMapQuarterTonesLow 'true' if a quarter tone should be the lower pitch class with +50 cents deviation or
+ *                                 `false` if it should be the higher pitch class with -50 cents deviation
+ * @param quarterToneTolerance     tolerance value used for deviations when they are close to +50 or -50 cents in
+ *                                 order to avoid precision errors while mapping a quarter tone to its pitch class
+ * @param overrideKeyboardMapping  a [[KeyboardMapping]] containing scale pitch index marked as exceptions that are
+ *                                 going to be manually mapped to a user specified pitch class
+ * @param tolerance                Error in cents that should be tolerated when comparing corresponding pitch class
+ *                                 deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
-case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
-                            halfTolerance: Double = DefaultCentsTolerance,
+case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
+                            quarterToneTolerance: Double = DefaultCentsTolerance,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
@@ -59,8 +57,8 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
     val deviationsByPitchClass = pitchesInfo
       .map { case PitchInfo(tuningPitch, _) => TuningPitch.unapply(tuningPitch).get }
       .toMap
-    val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
-      deviationsByPitchClass.get(PitchClass.fromInt(pitchClass))
+    val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
+      deviationsByPitchClass.get(PitchClass.fromInt(pitchClassNum))
     }
     val autoPartialTuning = PartialTuning(partialTuningValues, scale.name)
 
@@ -84,7 +82,7 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
    */
   def mapInterval(interval: Interval, ref: TuningRef): TuningPitch = {
     val totalCents = ref.baseTuningPitch.cents + interval.cents
-    val totalSemitones = roundWithTolerance(totalCents / 100, mapQuarterTonesLow, halfTolerance / 100)
+    val totalSemitones = roundWithTolerance(totalCents / 100, shouldMapQuarterTonesLow, quarterToneTolerance / 100)
     val deviation = totalCents - 100 * totalSemitones
     val pitchClassNumber = IntMath.mod(totalSemitones, 12)
 
@@ -130,12 +128,13 @@ case class AutoTuningMapper(mapQuarterTonesLow: Boolean,
       PitchInfo(mapInterval(interval, ref), scalePitchIndex)
     }
 
+    // Check if there are conflicts
     val tuningPitches = pitchesInfo.map(_.tuningPitch)
     val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
+
     if (conflicts.nonEmpty) {
-      throw new TuningMapperConflictException(s"Cannot tune automatically scale \"${scale.name}\", some pitch classes" +
-        s" have conflicts: $conflicts")
+      throw new TuningMapperConflictException(scale, conflicts)
     } else {
       pitchesInfo.filter { pitchInfo => !scalePitchIndexesMappedManually.contains(pitchInfo.scalePitchIndex) }
     }

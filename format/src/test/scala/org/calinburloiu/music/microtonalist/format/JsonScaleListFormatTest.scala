@@ -144,8 +144,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       case JsSuccess(tuningMapper, _) =>
         tuningMapper shouldBe a[AutoTuningMapper]
         val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper.mapQuarterTonesLow shouldBe true
-        autoTuningMapper.halfTolerance shouldEqual 0.02
+        autoTuningMapper.shouldMapQuarterTonesLow shouldBe true
+        autoTuningMapper.quarterToneTolerance shouldEqual 0.02
     }
 
     val autoJsonWithDefaultParams = Json.obj("type" -> "auto")
@@ -158,7 +158,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   }
 
   it should "serialize JSON object for type auto" in {
-    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.1))
+    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.1))
     val expected = Json.obj(
       "type" -> "auto",
       "mapQuarterTonesLow" -> true,
