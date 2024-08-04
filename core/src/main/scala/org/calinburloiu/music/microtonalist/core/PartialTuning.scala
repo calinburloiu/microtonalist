@@ -143,8 +143,10 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
 
           // Conflict, stop!
           case _ =>
-            logger.debug(s"Conflict for pitch class ${PitchClass.fromInt(index)} in PartialTunings ${this
-              .toNoteNamesString} and ${that.toNoteNamesString}")
+            logger.debug(s"Conflict for pitch class ${PitchClass.fromInt(index)} in PartialTunings ${
+              this
+                .toNoteNamesString
+            } and ${that.toNoteNamesString}")
             None
         }
       }
@@ -155,8 +157,21 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     accMerge(emptyAcc, 0)
   }
 
-  // TODO #31
-  def almostEquals(that: PartialTuning, centsTolerance: Double): Boolean = ???
+  /**
+   * Checks if this [[PartialTuning]] has the deviations equal within an error tolerance with the given
+   * [[PartialTuning]]. Other properties are ignored in the comparison.
+   *
+   * @param that           The partial tuning to compare with.
+   * @param centsTolerance Error tolerance in cents.
+   * @return true if the partial tunings are almost equal, or false otherwise.
+   */
+  def almostEquals(that: PartialTuning, centsTolerance: Double): Boolean = {
+    (this.deviations zip that.deviations).forall {
+      case (None, None) => true
+      case (Some(d1), Some(d2)) => DoubleMath.fuzzyEquals(d1, d2, centsTolerance)
+      case _ => false
+    }
+  }
 }
 
 object PartialTuning {

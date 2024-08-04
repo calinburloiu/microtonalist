@@ -20,6 +20,8 @@ import com.google.common.math.IntMath
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.scmidi.PitchClass
 
+import scala.collection.mutable
+
 /**
  * A [[TuningMapper]] that attempts to automatically map scales to a tuning with deviations for some of the pitch
  * classes.
@@ -27,11 +29,14 @@ import org.calinburloiu.music.scmidi.PitchClass
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param shouldMapQuarterTonesLow 'true' if a quarter tone should be the lower pitch class with +50 cents deviation or
- *                                 `false` if it should be the higher pitch class with -50 cents deviation
+ * @param shouldMapQuarterTonesLow 'true' if the mapper should attempt to map a quarter tone to the lower pitch class
+ *                                 with +50 cents deviation, or `false` if it should attempt to map it to the higher
+ *                                 pitch class with -50 cents deviation. Note that in case of a conflict, with
+ *                                 multiple intervals on the same key pitch class, the mapper will prioritize the
+ *                                 conflict resolution and avoid this flag.
  * @param quarterToneTolerance     tolerance value used for deviations when they are close to +50 or -50 cents in
  *                                 order to avoid precision errors while mapping a quarter tone to its pitch class
- * @param overrideKeyboardMapping  a [[KeyboardMapping]] containing scale pitch index marked as exceptions that are
+ * @param overrideKeyboardMapping  a [[KeyboardMapping]] containing scale pitch index mar ked as exceptions that are
  *                                 going to be manually mapped to a user specified pitch class
  * @param tolerance                Error in cents that should be tolerated when comparing corresponding pitch class
  *                                 deviations of `PartialTuning`s to avoid floating-point precision errors.
@@ -50,9 +55,6 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
   }
 
   override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
-    // TODO #4 Consider Transforming Seq[TuningPitch] into PartialTuning in a reusable manner:
-    //     1) In PartialTuning
-    //     2) Via KeyboardTuningMapper
     val pitchesInfo = mapScaleToPitchesInfo(scale, ref)
     val deviationsByPitchClass = pitchesInfo
       .map { case PitchInfo(tuningPitch, _) => TuningPitch.unapply(tuningPitch).get }
@@ -80,9 +82,12 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    * @param ref      reference taken when mapping the interval
    * @return a pitch class with its deviation from 12-EDO
    */
-  def mapInterval(interval: Interval, ref: TuningRef): TuningPitch = {
+  def mapInterval(interval: Interval,
+                  ref: TuningRef,
+                  overrideShouldMapQuarterTonesLow: Option[Boolean] = None): TuningPitch = {
     val totalCents = ref.baseTuningPitch.cents + interval.cents
-    val totalSemitones = roundWithTolerance(totalCents / 100, shouldMapQuarterTonesLow, quarterToneTolerance / 100)
+    val halfDown = overrideShouldMapQuarterTonesLow.getOrElse(shouldMapQuarterTonesLow)
+    val totalSemitones = roundWithTolerance(totalCents / 100, halfDown, quarterToneTolerance / 100)
     val deviation = totalCents - 100 * totalSemitones
     val pitchClassNumber = IntMath.mod(totalSemitones, 12)
 
@@ -124,9 +129,26 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    *         pitches mentioned in `overrideKeyboardMapping` excluded.
    */
   private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Seq[PitchInfo] = {
-    val pitchesInfo = scale.intervals.zipWithIndex.map { case (interval, scalePitchIndex) =>
-      PitchInfo(mapInterval(interval, ref), scalePitchIndex)
+    val pitchesInfoBuffer = mutable.ArrayBuffer[PitchInfo]()
+    val scalePitchIndexRange = if (shouldMapQuarterTonesLow) {
+      0 until scale.size
+    } else {
+      (scale.size - 1) to 0 by -1
     }
+    var lastPitchClassNumber = -1
+    for (scalePitchIndex <- scalePitchIndexRange) {
+      val currInterval = scale(scalePitchIndex)
+      var tuningPitch = mapInterval(currInterval, ref)
+      if (tuningPitch.pitchClass.number == lastPitchClassNumber) {
+        tuningPitch = mapInterval(currInterval, ref, Some(!shouldMapQuarterTonesLow))
+      }
+
+      pitchesInfoBuffer += PitchInfo(tuningPitch, scalePitchIndex)
+
+      lastPitchClassNumber = tuningPitch.pitchClass.number
+    }
+
+    val pitchesInfo = pitchesInfoBuffer.toSeq
 
     // Check if there are conflicts
     val tuningPitches = pitchesInfo.map(_.tuningPitch)
