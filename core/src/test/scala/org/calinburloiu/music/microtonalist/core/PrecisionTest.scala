@@ -35,7 +35,7 @@ class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyCh
     }
     val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail: _*)
 
-    val autoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.5e-2)
+    val autoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.5e-2)
     val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningRef(PitchClass.C))
 
     // When setting halfTolerance to 0.0, the quarter tones are mapped to D and A, instead of
