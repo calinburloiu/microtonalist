@@ -22,17 +22,23 @@ package org.calinburloiu.music.intonation
  *
  * @param typeName Identifier of the intonation standard type.
  */
-sealed abstract class IntonationStandard(val typeName: String)
+sealed abstract class IntonationStandard(val typeName: String) {
+  def unison: Interval
+}
 
 /**
  * Intonation standard which specifies that intervals are expressed or interpreted in cents.
  */
-case object CentsIntonationStandard extends IntonationStandard("cents")
+case object CentsIntonationStandard extends IntonationStandard("cents") {
+  override def unison: Interval = CentsInterval.Unison
+}
 
 /**
  * Intonation standard which specifies that intervals are expressed as just intonation ratios.
  */
-case object JustIntonationStandard extends IntonationStandard("justIntonation")
+case object JustIntonationStandard extends IntonationStandard("justIntonation") {
+  override def unison: Interval = RatioInterval.Unison
+}
 
 /**
  * Intonation standard which specifies that intervals are expressed or interpreted as the number of divisions in a
@@ -40,6 +46,8 @@ case object JustIntonationStandard extends IntonationStandard("justIntonation")
  */
 case class EdoIntonationStandard(countPerOctave: Int) extends IntonationStandard("edo") {
   require(countPerOctave > 0)
+
+  override def unison: Interval = EdoInterval.unisonFor(countPerOctave)
 }
 
 object EdoIntonationStandard {

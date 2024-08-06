@@ -156,6 +156,19 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
     }
   }
 
+  /**
+   * @return the index of the unison interval if there is one, or `-1` otherwise.
+   */
+  def indexOfUnison: Int = {
+    for (i <- 0 until size) {
+      if (intervals(i).isUnison) {
+        return i
+      }
+    }
+
+    -1
+  }
+
   private def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[_]]
 
   override def equals(other: Any): Boolean = other match {
