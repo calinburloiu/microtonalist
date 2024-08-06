@@ -29,13 +29,14 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
 
   import ManualTuningMapper._
 
-  override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+  override def mapScale(scale: Scale[Interval], transposition: Interval, ref: TuningRef): PartialTuning = {
+    val processedScale = scale.transpose(transposition)
     val partialTuningValues = keyboardMapping.values.map { pair =>
       val maybeScalePitchIndex = pair._2
       maybeScalePitchIndex match {
         case Some(scalePitchIndex) =>
           val pitchClass = PitchClass.fromInt(pair._1)
-          val interval = scale(scalePitchIndex)
+          val interval = processedScale(scalePitchIndex)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
           if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {
@@ -51,7 +52,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
       }
     }
 
-    PartialTuning(partialTuningValues, scale.name)
+    PartialTuning(partialTuningValues, processedScale.name)
   }
 }
 

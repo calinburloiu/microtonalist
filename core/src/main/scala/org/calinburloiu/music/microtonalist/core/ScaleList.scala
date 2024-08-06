@@ -33,6 +33,6 @@ case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {
 
   def tuningFor(transposition: Interval, ref: TuningRef): PartialTuning = {
-    tuningMapper.mapScale(scale.transpose(transposition), ref)
+    tuningMapper.mapScale(scale, transposition, ref)
   }
 }

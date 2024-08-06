@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.core
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.intonation.{Interval, RealInterval, Scale}
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
@@ -27,7 +27,12 @@ import org.calinburloiu.music.scmidi.PitchClass
  * This results in throwing a [[TuningMapperConflictException]].
  */
 trait TuningMapper {
-  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
+  def mapScale(scale: Scale[Interval], transposition: Interval, ref: TuningRef): PartialTuning
+
+  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+    val unison = scale.intonationStandard.map(_.unison).getOrElse(RealInterval.Unison)
+    mapScale(scale, unison, ref)
+  }
 }
 
 object TuningMapper {
@@ -38,6 +43,7 @@ object TuningMapper {
 }
 
 // TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?
+
 /**
  * Exception thrown if a conflict occurs while mapping a scale to a partial tuning.
  *
