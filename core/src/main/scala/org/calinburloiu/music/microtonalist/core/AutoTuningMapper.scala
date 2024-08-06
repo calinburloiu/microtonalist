@@ -140,11 +140,12 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
       val currInterval = scale(scalePitchIndex)
       var tuningPitch = mapInterval(currInterval, ref)
       if (tuningPitch.pitchClass.number == lastPitchClassNumber) {
+        // Conflict detected! Attempting to remap to interval with the quarter-tone in the opposite direction, in
+        // case the current interval is a quarter-tone.
         tuningPitch = mapInterval(currInterval, ref, Some(!shouldMapQuarterTonesLow))
       }
 
       pitchesInfoBuffer += PitchInfo(tuningPitch, scalePitchIndex)
-
       lastPitchClassNumber = tuningPitch.pitchClass.number
     }
 
