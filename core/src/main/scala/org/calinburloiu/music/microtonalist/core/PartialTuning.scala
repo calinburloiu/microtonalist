@@ -114,8 +114,10 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     def mergeName(leftName: String, rightName: String): String = {
       if (leftName.isEmpty) {
         rightName
+      } else if (rightName.isEmpty) {
+        leftName
       } else {
-        s"$leftName | $rightName"
+        s"$leftName + $rightName"
       }
     }
 

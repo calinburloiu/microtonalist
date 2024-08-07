@@ -51,6 +51,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val majorTuningWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major, tuningRef)
     val major2TuningWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(major2, tuningRef)
 
+    majorTuningWithLowQuarterTones.completedCount shouldEqual 7
     majorTuningWithLowQuarterTones.c should contain(-5.87)
     majorTuningWithLowQuarterTones.d should contain(-1.96)
     majorTuningWithLowQuarterTones.e should contain(-19.56)
@@ -59,6 +60,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     majorTuningWithLowQuarterTones.a should contain(-21.51)
     majorTuningWithLowQuarterTones.b should contain(-17.60)
 
+    major2TuningWithLowQuarterTones.completedCount shouldEqual 7
     major2TuningWithLowQuarterTones.a should contain(0.0)
 
     // major and major2 only differ in A by a synthonic comma
@@ -74,15 +76,75 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
     val majorTuningWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(major, tuningRef)
     val major2TuningWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(major2, tuningRef)
+    majorTuningWithHighQuarterTones.completedCount shouldEqual 7
+    major2TuningWithHighQuarterTones.completedCount shouldEqual 7
     majorTuningWithLowQuarterTones.almostEquals(majorTuningWithHighQuarterTones, testTolerance) shouldBe true
     major2TuningWithLowQuarterTones.almostEquals(major2TuningWithHighQuarterTones, testTolerance) shouldBe true
   }
 
+  it should "transpose a scale before mapping it" in {
+    // Given
+    val maj4 = EdoScale(72, (0, 0), (2, 0), (4, -1), (5, 0))
+
+    // When
+    var result = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef)
+    // Then
+    result.completedCount shouldEqual 4
+    result.c should contain(0.0)
+    result.d should contain(0.0)
+    result.e should contain(-16.67)
+    result.f should contain(0.0)
+
+    // When
+    result = autoTuningMapperWithHighQuarterTones.mapScale(maj4, EdoInterval(72, (5, 0)), cTuningRef)
+    // Then
+    result.completedCount shouldEqual 4
+    result.f should contain(0.0)
+    result.g should contain(0.0)
+    result.a should contain(-16.67)
+    result.bFlat should contain(0.0)
+  }
+
+  it should "prepend tuning name with the tuning base pitch class when the scale has a unison" in {
+    // Given
+    val maj4 = RatiosScale("maj-4", 1 /: 1, 9 /: 8, 5 /: 4, 4 /: 3)
+
+    // When
+    var tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef)
+    // Then
+    tuning.name shouldEqual "C maj-4"
+
+    // When
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    // Then
+    tuning.name shouldEqual "G maj-4"
+
+    // When
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 6 /: 5, cTuningRef)
+    // Then
+    tuning.name shouldEqual "D♯/E♭ maj-4"
+  }
+
+  it should "not prepend tuning name with the tuning base pitch class when the scale does not have a unison" in {
+    // Given
+    val maj4 = RatiosScale("maj-4", 9 /: 8, 5 /: 4, 4 /: 3)
+
+    // When
+    var tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef)
+    // Then
+    tuning.name shouldEqual "maj-4"
+
+    // When
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    tuning.name shouldEqual "maj-4"
+  }
+
   it should "map scales with negative intervals" in {
-    val maj5 = RatiosScale((15, 16), (1, 1), (9, 8), (5, 4), (4, 3), (3, 2))
+    val maj5 = RatiosScale("maj-5", (15, 16), (1, 1), (9, 8), (5, 4), (4, 3), (3, 2))
     val tuningRef = ConcertPitchTuningRef(32 /: 27, MidiNote(PitchClass.C, 5))
     val tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj5, tuningRef)
 
+    tuning.name shouldEqual "C maj-5"
     tuning.c should contain(-5.87)
     tuning.d should contain(-1.96)
     tuning.e should contain(-19.56)
@@ -122,11 +184,13 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
   }
 
   it should "map a scale without unison or octave to a tuning without the base pitch class" in {
-    val tetrachord = RatiosScale((9, 8), (5, 4), (4, 3))
+    val tetrachord = RatiosScale("maj-4", (9, 8), (5, 4), (4, 3))
 
     val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(tetrachord, cTuningRef)
     val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(tetrachord, cTuningRef)
     resultWithLowQuarterTones shouldEqual resultWithHighQuarterTones
+    resultWithLowQuarterTones.name shouldEqual "maj-4"
+    resultWithHighQuarterTones.name shouldEqual "maj-4"
 
     resultWithLowQuarterTones.head should be(empty)
   }

@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.core
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.intonation.{Interval, RealInterval}
 
 import scala.annotation.tailrec
 
@@ -65,7 +64,6 @@ object TuningList extends StrictLogging {
     val extensionTuning = modulation.extension.map(_.tuningFor(transposition, tuningRef))
       .getOrElse(PartialTuning.EmptyOctave)
 
-    val tuning = modulation.scaleMapping.tuningFor(transposition, tuningRef).overwrite(extensionTuning)
-    tuning.copy(name = scaleName)
+    modulation.scaleMapping.tuningFor(transposition, tuningRef).overwrite(extensionTuning)
   }
 }
