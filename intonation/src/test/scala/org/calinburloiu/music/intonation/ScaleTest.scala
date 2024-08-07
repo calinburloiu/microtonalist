@@ -204,7 +204,7 @@ class ScaleTest extends AnyFlatSpec with Matchers {
 
   "indexOfUnison" should "tell the index where a unison interval is in the scale's intervals, if any" in {
     allScales.foreach { scale => scale.indexOfUnison shouldEqual 0 }
-    RatiosScale(3/:5, 15/:16, 1/:1, 9/:8, 5/:4).indexOfUnison shouldEqual 2
-    RatiosScale(9/:8, 5/:4, 4/:3).indexOfUnison shouldEqual -1
+    RatiosScale(3 /: 5, 15 /: 16, 1 /: 1, 9 /: 8, 5 /: 4).indexOfUnison shouldEqual 2
+    RatiosScale(9 /: 8, 5 /: 4, 4 /: 3).indexOfUnison shouldEqual -1
   }
 }
