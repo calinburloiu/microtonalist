@@ -126,4 +126,22 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
 
     assertThrows[IllegalArgumentException](incompletePartialTuning.merge(smallerPartialTuning, mergeTolerance))
   }
+
+  it should "combine the names" in {
+    // Given
+    val deviations1: Seq[Option[Double]] = Seq.fill[Option[Double]](11)(None) :+ Some(5.0)
+    val deviations2: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](11)(None)
+    val expectedDeviations: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](10)(None) :+ Some(5.0)
+    val ptWithName1 = PartialTuning(deviations = deviations1, name = "Foo")
+    val ptWithName2 = PartialTuning(deviations = deviations2, name = "Bar")
+    val ptWithoutName = PartialTuning(deviations = deviations2)
+
+    // Then
+    ptWithName1.merge(ptWithoutName, mergeTolerance) should contain(PartialTuning(
+      deviations = expectedDeviations, name = "Foo"))
+    ptWithoutName.merge(ptWithName1, mergeTolerance) should contain(PartialTuning(
+      deviations = expectedDeviations, name = "Foo"))
+    ptWithName1.merge(ptWithName2, mergeTolerance) should contain(PartialTuning(
+      deviations = expectedDeviations, name = "Foo + Bar"))
+  }
 }

@@ -27,8 +27,25 @@ import org.calinburloiu.music.scmidi.PitchClass
  * This results in throwing a [[TuningMapperConflictException]].
  */
 trait TuningMapper {
+  /**
+   * Maps a scale to a tuning.
+   *
+   * @param scale Scale to map.
+   * @param transposition Interval by which the scale should be transposed before mapping it.
+   * @param ref Tuning reference.
+   * @return a partial tuning for the given scale.
+   */
   def mapScale(scale: Scale[Interval], transposition: Interval, ref: TuningRef): PartialTuning
 
+  /**
+   * Maps a scale to a tuning.
+   *
+   * The scale is not transposed before mapping.
+   *
+   * @param scale Scale to map.
+   * @param ref Tuning reference.
+   * @return a partial tuning for the given scale.
+   */
   def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
     val unison = scale.intonationStandard.map(_.unison).getOrElse(RealInterval.Unison)
     mapScale(scale, unison, ref)
