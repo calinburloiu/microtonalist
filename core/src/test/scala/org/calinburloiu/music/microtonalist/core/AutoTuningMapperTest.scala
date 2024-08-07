@@ -107,7 +107,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   it should "prepend tuning name with the tuning base pitch class when the scale has a unison" in {
     // Given
-    val maj4 = RatiosScale("maj-4", 1/:1, 9/:8, 5/:4, 4/:3)
+    val maj4 = RatiosScale("maj-4", 1 /: 1, 9 /: 8, 5 /: 4, 4 /: 3)
 
     // When
     var tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef)
@@ -115,13 +115,19 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     tuning.name shouldEqual "C maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3/:2, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    // Then
     tuning.name shouldEqual "G maj-4"
+
+    // When
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 6 /: 5, cTuningRef)
+    // Then
+    tuning.name shouldEqual "D♯/E♭ maj-4"
   }
 
   it should "not prepend tuning name with the tuning base pitch class when the scale does not have a unison" in {
     // Given
-    val maj4 = RatiosScale("maj-4", 9/:8, 5/:4, 4/:3)
+    val maj4 = RatiosScale("maj-4", 9 /: 8, 5 /: 4, 4 /: 3)
 
     // When
     var tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef)
@@ -129,7 +135,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     tuning.name shouldEqual "maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3/:2, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
     tuning.name shouldEqual "maj-4"
   }
 
