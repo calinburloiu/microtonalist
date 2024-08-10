@@ -16,25 +16,25 @@
 
 package org.calinburloiu.music.microtonalist.core
 
-import com.google.common.math.IntMath
+import com.google.common.math.{DoubleMath, IntMath}
 import enumeratum.{Enum, EnumEntry}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.collection.{immutable, mutable}
 
-sealed abstract class SoftChromaticGenusMappingLevel(val value: Int,
-                                                     val aug2Threshold: Double) extends EnumEntry
+sealed abstract class SoftChromaticGenusMapping(val value: Int,
+                                                val aug2Threshold: Double) extends EnumEntry
 
-object SoftChromaticGenusMappingLevel extends Enum[SoftChromaticGenusMappingLevel] {
-  override val values: immutable.IndexedSeq[SoftChromaticGenusMappingLevel] = findValues
+object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
+  override val values: immutable.IndexedSeq[SoftChromaticGenusMapping] = findValues
 
-  case object Off extends SoftChromaticGenusMappingLevel(0, Double.PositiveInfinity)
-
-  case object Strict extends SoftChromaticGenusMappingLevel(1, 200.0)
+  case object Off extends SoftChromaticGenusMapping(0, Double.PositiveInfinity)
 
   // TODO #52 Fine tune thresholds
-  case object SoftDiatonic extends SoftChromaticGenusMappingLevel(2, 230.0)
+  case object Strict extends SoftChromaticGenusMapping(1, 230.0)
+
+  case object PseudoChromatic extends SoftChromaticGenusMapping(2, 200.0)
 }
 
 /**
@@ -58,9 +58,12 @@ object SoftChromaticGenusMappingLevel extends Enum[SoftChromaticGenusMappingLeve
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
-                            softChromaticGenusMappingLevel: SoftChromaticGenusMappingLevel = SoftChromaticGenusMappingLevel.Off,
+                            // TODO It should default to Off after adding this to JSON
+                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Strict,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
+  private val SoftChromaticSmallInterval = 150.0
+  private val SoftChromaticMaxAug2Interval = 300.0
 
   private val scalePitchIndexesMappedManually: Set[Int] = overrideKeyboardMapping.indexesInScale.flatten.toSet
   private val manualTuningMapper: Option[ManualTuningMapper] = {
@@ -184,7 +187,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
         !scalePitchIndexesMappedManually.contains(scalePitchIndex)
       }
 
-      applySoftChromaticGenusMapping(result)
+      applySoftChromaticGenusMapping(result, scale, ref)
     } else {
       throw new TuningMapperConflictException(scale, conflicts)
     }
@@ -203,19 +206,64 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     }
   }
 
-  private def applySoftChromaticGenusMapping(pitchesInfo: Map[Int, TuningPitch]): Map[Int, TuningPitch] = {
-    if (softChromaticGenusMappingLevel == SoftChromaticGenusMappingLevel.Off) {
+  private def applySoftChromaticGenusMapping(pitchesInfo: Map[Int, TuningPitch],
+                                             scale: Scale[Interval],
+                                             ref: TuningRef): Map[Int, TuningPitch] = {
+    val aug2Threshold = softChromaticGenusMapping.aug2Threshold
+
+    def detect2ndDegreeOfSoftHijaz(intervalBelow: Double, intervalAbove: Double,
+                                   keysBelow: Int, keysAbove: Int): Boolean = {
+      !shouldMapQuarterTonesLow &&
+        DoubleMath.fuzzyEquals(intervalBelow, SoftChromaticSmallInterval, quarterToneTolerance) &&
+        DoubleMath.fuzzyCompare(intervalAbove, aug2Threshold, tolerance) >= 0 &&
+        DoubleMath.fuzzyCompare(intervalAbove, SoftChromaticMaxAug2Interval, tolerance) <= 0 &&
+        keysBelow == 2 && keysAbove == 2
+    }
+
+    def detect3rdDegreeOfSoftHijaz(intervalBelow: Double, intervalAbove: Double,
+                                   keysBelow: Int, keysAbove: Int): Boolean = {
+      shouldMapQuarterTonesLow &&
+        DoubleMath.fuzzyCompare(intervalBelow, aug2Threshold, tolerance) >= 0 &&
+        DoubleMath.fuzzyCompare(intervalBelow, SoftChromaticMaxAug2Interval, tolerance) <= 0 &&
+        DoubleMath.fuzzyEquals(intervalAbove, SoftChromaticSmallInterval, quarterToneTolerance) &&
+        keysBelow == 2 && keysAbove == 2
+    }
+
+    def mapQuarterTonePitch(index: Int, tuningPitch: TuningPitch): (Int, TuningPitch) = {
+      val prevIndex = IntMath.mod(index - 1, pitchesInfo.size)
+      val nextIndex = IntMath.mod(index + 1, pitchesInfo.size)
+
+      val maybePrevTuningPitch = pitchesInfo.get(prevIndex)
+      val maybeNextTuningPitch = pitchesInfo.get(nextIndex)
+      (maybePrevTuningPitch, maybeNextTuningPitch) match {
+        case (Some(prevTuningPitch), Some(nextTuningPitch)) =>
+          val intervalBelow = (scale(index) - scale(prevIndex)).cents
+          val intervalAbove = (scale(nextIndex) - scale(index)).cents
+          val keysBelow = IntMath.mod(tuningPitch.pitchClass - prevTuningPitch.pitchClass, 12)
+          val keysAbove = IntMath.mod(nextTuningPitch.pitchClass - tuningPitch.pitchClass, 12)
+
+          if (detect2ndDegreeOfSoftHijaz(intervalBelow, intervalAbove, keysBelow, keysAbove)) {
+            (index, mapInterval(scale(index), ref, Some(true)))
+          } else if (detect3rdDegreeOfSoftHijaz(intervalBelow, intervalAbove, keysBelow, keysAbove)) {
+            (index, mapInterval(scale(index), ref, Some(false)))
+          } else {
+            (index, tuningPitch)
+          }
+
+        case _ => (index, tuningPitch)
+      }
+    }
+
+    if (softChromaticGenusMapping == SoftChromaticGenusMapping.Off) {
       pitchesInfo
     } else {
-//      val aug2Threshold = softChromaticGenusMappingLevel.aug2Threshold
-//
-//      pitchesInfo.zipWithIndex.map { case (pitchInfo, index) =>
-//        val prevIndex = IntMath.mod(index - 1, pitchesInfo.size)
-//        val nextIndex = IntMath.mod(index + 1, pitchesInfo.size)
-//
-//      }
-
-      pitchesInfo
+      pitchesInfo.map { case (index, tuningPitch) =>
+        if (tuningPitch.isQuarterTone(quarterToneTolerance)) {
+          mapQuarterTonePitch(index, tuningPitch)
+        } else {
+          (index, tuningPitch)
+        }
+      }
     }
   }
 }
