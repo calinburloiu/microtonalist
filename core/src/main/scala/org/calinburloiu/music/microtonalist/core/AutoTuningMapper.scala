@@ -62,8 +62,6 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
-  import AutoTuningMapper._
-
   private val scalePitchIndexesMappedManually: Set[Int] = overrideKeyboardMapping.indexesInScale.flatten.toSet
   private val manualTuningMapper: Option[ManualTuningMapper] = {
     if (overrideKeyboardMapping.isEmpty) None
@@ -76,12 +74,12 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
 
     // TODO #34 Temporary workaround to add the base pitch class in the tuning name before taking it from lineage
     val indexOfUnison = scale.indexOfUnison
-    val basePitchInfo = pitchesInfo.find(_.scalePitchIndex == indexOfUnison)
-    val tuningNamePrefix = basePitchInfo.map { pitchInfo => s"${pitchInfo.tuningPitch.pitchClass} " }.getOrElse("")
+    val baseTuningPitch = pitchesInfo.get(indexOfUnison)
+    val tuningNamePrefix = baseTuningPitch.map { tuningPitch => s"${tuningPitch.pitchClass} " }.getOrElse("")
     val tuningName = tuningNamePrefix + processedScale.name
 
     val deviationsByPitchClass = pitchesInfo
-      .map { case PitchInfo(tuningPitch, _) => TuningPitch.unapply(tuningPitch).get }
+      .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
       .toMap
     val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
       deviationsByPitchClass.get(PitchClass.fromInt(pitchClassNum))
@@ -124,22 +122,19 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    * @return the [[KeyboardMapping]] found by the mapper for the given scale and reference
    */
   def keyboardMappingOf(scale: Scale[Interval], ref: TuningRef): KeyboardMapping = {
-    val pitches = mapScaleToPitchesInfo(scale, ref)
+    val pitchesInfo = mapScaleToPitchesInfo(scale, ref)
 
     /**
      * @param pitches Duplicated non-conflicting pitches that are mapped to the same pitch class. They might differ
      *                slightly in deviation (due to precision errors) and have different scale pitch index.
      * @return The min scale pitch index to use for all those pitches.
      */
-    def extractScalePitchIndex(pitches: Seq[PitchInfo]): Int = {
-      pitches.foldLeft(Int.MaxValue) { (minScalePitchIndex, pitch) =>
-        val scalePitchIndex = pitch.scalePitchIndex
-        if (scalePitchIndex < minScalePitchIndex) scalePitchIndex else minScalePitchIndex
-      }
+    def extractScalePitchIndex(pitches: Map[Int, TuningPitch]): Int = {
+      pitches.min((a: (Int, TuningPitch), b: (Int, TuningPitch)) => a._1.compare(b._1))._1
     }
 
-    val scalePitchIndexesByPitchClass = pitches
-      .groupBy(_.tuningPitch.pitchClass)
+    val scalePitchIndexesByPitchClass = pitchesInfo
+      .groupBy(_._2.pitchClass)
       .view.mapValues(extractScalePitchIndex)
       .toMap
     val overriddenScalePitchIndexesByPitchClass = scalePitchIndexesByPitchClass ++ overrideKeyboardMapping.toMap
@@ -154,14 +149,15 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale pitch index, with the
    *         pitches mentioned in `overrideKeyboardMapping` excluded.
    */
-  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Seq[PitchInfo] = {
-    val pitchesInfoBuffer = mutable.ArrayBuffer[PitchInfo]()
+  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Map[Int, TuningPitch] = {
+    val mutablePitchesInfo = mutable.Map[Int, TuningPitch]()
     val scalePitchIndexRange = if (shouldMapQuarterTonesLow) {
       0 until scale.size
     } else {
       (scale.size - 1) to 0 by -1
     }
     var lastPitchClassNumber = -1
+
     for (scalePitchIndex <- scalePitchIndexRange) {
       val currInterval = scale(scalePitchIndex)
       var tuningPitch = mapInterval(currInterval, ref)
@@ -171,21 +167,21 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
         tuningPitch = mapInterval(currInterval, ref, Some(!shouldMapQuarterTonesLow))
       }
 
-      pitchesInfoBuffer += PitchInfo(tuningPitch, scalePitchIndex)
+      mutablePitchesInfo.update(scalePitchIndex, tuningPitch)
       lastPitchClassNumber = tuningPitch.pitchClass.number
     }
 
-    val pitchesInfo = pitchesInfoBuffer.toSeq
+    val pitchesInfo = mutablePitchesInfo.toMap
 
     // Check if there are conflicts
-    val tuningPitches = pitchesInfo.map(_.tuningPitch)
+    val tuningPitches = pitchesInfo.values.toSeq
     val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
 
     if (conflicts.isEmpty) {
       // Return the result
-      val result = pitchesInfo.filter { pitchInfo =>
-        !scalePitchIndexesMappedManually.contains(pitchInfo.scalePitchIndex)
+      val result = pitchesInfo.filter { case (scalePitchIndex, _) =>
+        !scalePitchIndexesMappedManually.contains(scalePitchIndex)
       }
 
       applySoftChromaticGenusMapping(result)
@@ -207,17 +203,19 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     }
   }
 
-  private def applySoftChromaticGenusMapping(pitchesInfo: Seq[PitchInfo]): Seq[PitchInfo] = {
+  private def applySoftChromaticGenusMapping(pitchesInfo: Map[Int, TuningPitch]): Map[Int, TuningPitch] = {
     if (softChromaticGenusMappingLevel == SoftChromaticGenusMappingLevel.Off) {
       pitchesInfo
     } else {
-      val aug2Threshold = softChromaticGenusMappingLevel.aug2Threshold
+//      val aug2Threshold = softChromaticGenusMappingLevel.aug2Threshold
+//
+//      pitchesInfo.zipWithIndex.map { case (pitchInfo, index) =>
+//        val prevIndex = IntMath.mod(index - 1, pitchesInfo.size)
+//        val nextIndex = IntMath.mod(index + 1, pitchesInfo.size)
+//
+//      }
 
       pitchesInfo
     }
   }
-}
-
-object AutoTuningMapper {
-  private case class PitchInfo(tuningPitch: TuningPitch, scalePitchIndex: Int)
 }
