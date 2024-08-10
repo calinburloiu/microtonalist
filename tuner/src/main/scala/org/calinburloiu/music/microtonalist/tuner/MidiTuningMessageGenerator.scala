@@ -32,8 +32,9 @@ object MidiTuningMessageGenerator {
 
   case object NonRealTime1BOctave extends MidiTuningMessageGenerator {
 
-    val headerBytes: Array[Byte] = Array(SysexMessage.SYSTEM_EXCLUSIVE.toByte, 0x7E, 0x7F, 0x08, 0x08).map(_.toByte)
-    val allChannelsBytes: Array[Byte] = Array(0x03, 0x7F, 0x7F).map(_.toByte)
+    private val headerBytes: Array[Byte] = Array(SysexMessage.SYSTEM_EXCLUSIVE.toByte, 0x7E, 0x7F, 0x08, 0x08)
+      .map(_.toByte)
+    private val allChannelsBytes: Array[Byte] = Array(0x03, 0x7F, 0x7F).map(_.toByte)
 
     override def generate(tuning: OctaveTuning): SysexMessage = {
       val tuningValuesBytes: Array[Byte] = tuning.deviations.map { noteTuning =>

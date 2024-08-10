@@ -17,10 +17,25 @@
 package org.calinburloiu.music.microtonalist.core
 
 import com.google.common.math.IntMath
+import enumeratum.{Enum, EnumEntry}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.scmidi.PitchClass
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
+
+sealed abstract class SoftChromaticGenusMappingLevel(val value: Int,
+                                                     val aug2Threshold: Double) extends EnumEntry
+
+object SoftChromaticGenusMappingLevel extends Enum[SoftChromaticGenusMappingLevel] {
+  override val values: immutable.IndexedSeq[SoftChromaticGenusMappingLevel] = findValues
+
+  case object Off extends SoftChromaticGenusMappingLevel(0, Double.PositiveInfinity)
+
+  case object Strict extends SoftChromaticGenusMappingLevel(1, 200.0)
+
+  // TODO #52 Fine tune thresholds
+  case object SoftDiatonic extends SoftChromaticGenusMappingLevel(2, 230.0)
+}
 
 /**
  * A [[TuningMapper]] that attempts to automatically map scales to a tuning with deviations for some of the pitch
@@ -42,7 +57,8 @@ import scala.collection.mutable
  *                                 deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
-                            quarterToneTolerance: Double = DefaultCentsTolerance,
+                            quarterToneTolerance: Double = DefaultQuarterToneTolerance,
+                            softChromaticGenusMappingLevel: SoftChromaticGenusMappingLevel = SoftChromaticGenusMappingLevel.Off,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
 
@@ -166,10 +182,15 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
 
-    if (conflicts.nonEmpty) {
-      throw new TuningMapperConflictException(scale, conflicts)
+    if (conflicts.isEmpty) {
+      // Return the result
+      val result = pitchesInfo.filter { pitchInfo =>
+        !scalePitchIndexesMappedManually.contains(pitchInfo.scalePitchIndex)
+      }
+
+      applySoftChromaticGenusMapping(result)
     } else {
-      pitchesInfo.filter { pitchInfo => !scalePitchIndexesMappedManually.contains(pitchInfo.scalePitchIndex) }
+      throw new TuningMapperConflictException(scale, conflicts)
     }
   }
 
@@ -183,6 +204,16 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     } else {
       val first = tuningPitches.head
       tuningPitches.tail.exists(item => !item.almostEquals(first, tolerance))
+    }
+  }
+
+  private def applySoftChromaticGenusMapping(pitchesInfo: Seq[PitchInfo]): Seq[PitchInfo] = {
+    if (softChromaticGenusMappingLevel == SoftChromaticGenusMappingLevel.Off) {
+      pitchesInfo
+    } else {
+      val aug2Threshold = softChromaticGenusMappingLevel.aug2Threshold
+
+      pitchesInfo
     }
   }
 }

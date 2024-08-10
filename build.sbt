@@ -89,6 +89,9 @@ lazy val core = (project in file("core"))
   .settings(
     name := "microtonalist-core",
     commonSettings,
+    libraryDependencies ++= Seq(
+      enumeratum,
+    ),
   )
 
 lazy val tuner = (project in file("tuner"))
