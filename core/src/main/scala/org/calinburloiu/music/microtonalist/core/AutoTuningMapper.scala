@@ -23,18 +23,44 @@ import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.collection.{immutable, mutable}
 
-sealed abstract class SoftChromaticGenusMapping(val value: Int,
+/**
+ * Enum type for the method used to detect the soft chromatic genus pattern between scale's intervals to allow mapping
+ * them on a keyboard by using the characteristic augmented second, despite `shouldMapQuarterTonesLow` property.
+ *
+ * A pattern of intervals that have the soft chromatic genus is defined here as a trichord with two neighboring
+ * relative intervals out of which one is a three-quarter-tone interval and the other is a remaining between a whole
+ * tone and an augmented second. The [[aug2Threshold]] property determines the minimum value in cents of the
+ * "augmented second".
+ *
+ * These two intervals can be seen in a tetrachord by adding an interval which has a size between a semitone and a
+ * three-quarter-tone.
+ *
+ * For example, an Easter Hijaz / Hicaz soft tetrachord may have the absolute intervals 12/11, 5/4 and 4/3. The first
+ * relative interval is a three-quarter-tone of about 151 cents and the augmented second has about 236 cents. When
+ * `shouldMapQuarterTonesLow` is set to false this tetrachord would be mapped on the C key to C, D, E and F keys.
+ * However, one would expect a chromatic tetrachord to be mapped to C, Db, E and F. This feature allows that.
+ *
+ * @param name          The identified of the mapping method.
+ * @param aug2Threshold The minimum size in cents of the augmented second.
+ */
+sealed abstract class SoftChromaticGenusMapping(val name: String,
                                                 val aug2Threshold: Double) extends EnumEntry
 
 object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
   override val values: immutable.IndexedSeq[SoftChromaticGenusMapping] = findValues
 
-  case object Off extends SoftChromaticGenusMapping(0, Double.PositiveInfinity)
+  /** The special mapping of the soft chromatic genus is disabled. */
+  case object Off extends SoftChromaticGenusMapping("off", Double.PositiveInfinity)
 
-  // TODO #52 Fine tune thresholds
-  case object Strict extends SoftChromaticGenusMapping(1, 230.0)
+  /** The augmented second is a slightly larger than a whole tone. */
+  case object Strict extends SoftChromaticGenusMapping("strict", 210.0)
 
-  case object PseudoChromatic extends SoftChromaticGenusMapping(2, 200.0)
+  /**
+   * The augmented second is about the size a whole tone. Strictly speaking this wouldn't be the chromatic genus
+   * anymore, being a soft diatonic. But the way intervals are arranged makes the structure sound like a very soft
+   * chromatic. Ottoman Makam Hüzzam may contain such a structure starting from its third degree.
+   */
+  case object PseudoChromatic extends SoftChromaticGenusMapping("pseudoChromatic", 190.0)
 }
 
 /**
@@ -44,17 +70,20 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param shouldMapQuarterTonesLow 'true' if the mapper should attempt to map a quarter tone to the lower pitch class
- *                                 with +50 cents deviation, or `false` if it should attempt to map it to the higher
- *                                 pitch class with -50 cents deviation. Note that in case of a conflict, with
- *                                 multiple intervals on the same key pitch class, the mapper will prioritize the
- *                                 conflict resolution and avoid this flag.
- * @param quarterToneTolerance     tolerance value used for deviations when they are close to +50 or -50 cents in
- *                                 order to avoid precision errors while mapping a quarter tone to its pitch class
- * @param overrideKeyboardMapping  a [[KeyboardMapping]] containing scale pitch index mar ked as exceptions that are
- *                                 going to be manually mapped to a user specified pitch class
- * @param tolerance                Error in cents that should be tolerated when comparing corresponding pitch class
- *                                 deviations of `PartialTuning`s to avoid floating-point precision errors.
+ * @param shouldMapQuarterTonesLow  'true' if the mapper should attempt to map a quarter tone to the lower pitch class
+ *                                  with +50 cents deviation, or `false` if it should attempt to map it to the higher
+ *                                  pitch class with -50 cents deviation. Note that in case of a conflict, with
+ *                                  multiple intervals on the same key pitch class, the mapper will prioritize the
+ *                                  conflict resolution and avoid this flag.
+ * @param quarterToneTolerance      tolerance value used for deviations when they are close to +50 or -50 cents in
+ *                                  order to avoid precision errors while mapping a quarter tone to its pitch class
+ * @param softChromaticGenusMapping Method used to detect the soft chromatic genus pattern between scale's intervals
+ *                                  to allow mapping them on a keyboard by using the characteristic augmented second,
+ *                                  despite `shouldMapQuarterTonesLow` property.
+ * @param overrideKeyboardMapping   a [[KeyboardMapping]] containing scale pitch index mar ked as exceptions that are
+ *                                  going to be manually mapped to a user specified pitch class
+ * @param tolerance                 Error in cents that should be tolerated when comparing corresponding pitch class
+ *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,

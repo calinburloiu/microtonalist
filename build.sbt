@@ -143,6 +143,30 @@ lazy val scMidi = (project in file("sc-midi"))
     ),
   )
 
+lazy val experiments = (project in file("experiments"))
+  .dependsOn(
+    core,
+    intonation,
+    format,
+    scMidi,
+    sync,
+    tuner,
+  )
+  .settings(
+    name := "microtonalist-app",
+    commonSettings,
+    assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
+    libraryDependencies ++= Seq(
+      coreMidi4j,
+      enumeratum,
+      ficus,
+      guava,
+      playJson,
+      scalaMock % Test,
+    ),
+  )
+
 // # Dependencies
 
 lazy val commonDependencies = Seq(
