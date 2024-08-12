@@ -39,7 +39,7 @@ case class OctaveTuning(override val name: String,
 object OctaveTuning {
 
   /** The tuning for a 12-tone equal temperament, which has 0 cents deviation for each of the 12-keys. */
-  val Edo12: OctaveTuning = OctaveTuning("Equal Temperament", Seq.fill(12)(0.0))
+  val Edo12: OctaveTuning = OctaveTuning("12-EDO", Seq.fill(12)(0.0))
 
   def apply(name: String,
             c: Double,

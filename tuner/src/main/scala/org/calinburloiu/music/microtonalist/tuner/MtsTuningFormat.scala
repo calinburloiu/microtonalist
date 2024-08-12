@@ -26,5 +26,4 @@ object MtsTuningFormat extends Enum[MtsTuningFormat] {
   override val values: immutable.IndexedSeq[MtsTuningFormat] = findValues
 
   case object NonRealTime1BOctave extends MtsTuningFormat(MidiTuningMessageGenerator.NonRealTime1BOctave)
-
 }

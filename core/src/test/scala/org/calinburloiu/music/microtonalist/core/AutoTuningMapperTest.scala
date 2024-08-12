@@ -28,13 +28,11 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
 
-  val cTuningRef: TuningRef = StandardTuningRef(PitchClass.C)
+  private val cTuningRef = StandardTuningRef(PitchClass.C)
 
-  val halfTolerance: Int = 5
-  val autoTuningMapperWithLowQuarterTones: AutoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true,
-    halfTolerance)
-  val autoTuningMapperWithHighQuarterTones: AutoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = false,
-    halfTolerance)
+  private val halfTolerance = 5
+  private val autoTuningMapperWithLowQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = true, halfTolerance)
+  private val autoTuningMapperWithHighQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = false, halfTolerance)
 
   private val testTolerance: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(testTolerance)
@@ -219,19 +217,19 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
   }
 
   it should "map quarter tones by taking quarter-tone tolerance into account" in {
-    val scale = CentsScale(145.1, 347.3, 453.4, 854.9)
+    val scale = CentsScale(145.1, 344.3, 453.4, 856.9)
 
     val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(scale, cTuningRef)
     resultWithLowQuarterTones.dFlat should contain(45.1)
-    resultWithLowQuarterTones.eFlat should contain(47.3)
+    resultWithLowQuarterTones.eFlat should contain(44.3)
     resultWithLowQuarterTones.e should contain(53.4)
-    resultWithLowQuarterTones.aFlat should contain(54.9)
+    resultWithLowQuarterTones.a should contain(-43.1)
 
     val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(scale, cTuningRef)
     resultWithHighQuarterTones.d should contain(-54.9)
-    resultWithHighQuarterTones.e should contain(-52.7)
+    resultWithHighQuarterTones.eFlat should contain(44.3)
     resultWithHighQuarterTones.f should contain(-46.6)
-    resultWithHighQuarterTones.a should contain(-45.1)
+    resultWithHighQuarterTones.a should contain(-43.1)
   }
 
   it should "avoid conflicts with quarter-tones when mapping them to opposite direction is possible" in {
@@ -254,6 +252,232 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
       autoTuningMapperWithLowQuarterTones.mapScale(concurrency, cTuningRef))
     assertThrows[TuningMapperConflictException](
       autoTuningMapperWithHighQuarterTones.mapScale(concurrency, cTuningRef))
+  }
+
+  private val karcigarWithSoftChromatic = EdoScale(72, (0, 0), (2, -3), (3, 0), (5, 0), (6, 3), (9, -1), (10, 0))
+  private val karcigarWithSoftChromatic2 = EdoScale(72, (0, 0), (2, -3), (3, 0), (5, 0), (6, 1), (9, -3), (10, 0))
+  private val karcigarWithPseudoChromatic = EdoScale(72, (0, 0), (2, -3), (3, 0), (5, 0), (6, 3), (9, -3), (10, 0))
+
+  it should "map a scale with softChromaticGenusMapping set to off" in {
+    // Given
+    val mapperWithLowQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = true,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.Off)
+    val mapperWithHighQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = false,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.Off)
+
+    // When
+    var tuning = mapperWithLowQuarterTones.mapScale(karcigarWithSoftChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-16.67)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithSoftChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.g should contain(-50.0)
+    tuning.a should contain(-16.67)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithLowQuarterTones.mapScale(karcigarWithSoftChromatic2, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(16.67)
+    tuning.aFlat should contain(50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithSoftChromatic2, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(16.67)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithLowQuarterTones.mapScale(karcigarWithPseudoChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.aFlat should contain(50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithPseudoChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.g should contain(-50.0)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+  }
+
+  it should "map a scale with softChromaticGenusMapping set to strict" in {
+    // Given
+    val mapperWithLowQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = true,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.Strict)
+    val mapperWithHighQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = false,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.Strict)
+
+    // When
+    var tuning = mapperWithLowQuarterTones.mapScale(karcigarWithSoftChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-16.67)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithSoftChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-16.67)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithLowQuarterTones.mapScale(karcigarWithSoftChromatic2, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(16.67)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithSoftChromatic2, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(16.67)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithLowQuarterTones.mapScale(karcigarWithPseudoChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.aFlat should contain(50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithPseudoChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.g should contain(-50.0)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+  }
+
+  it should "map a scale with softChromaticGenusMapping set to pseudoChromatic" in {
+    // Given
+    val mapperWithLowQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = true,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.PseudoChromatic)
+    val mapperWithHighQuarterTones = AutoTuningMapper(shouldMapQuarterTonesLow = false,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.PseudoChromatic)
+
+    // When
+    var tuning = mapperWithLowQuarterTones.mapScale(karcigarWithSoftChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-16.67)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithSoftChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-16.67)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithLowQuarterTones.mapScale(karcigarWithSoftChromatic2, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(16.67)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithSoftChromatic2, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(16.67)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithLowQuarterTones.mapScale(karcigarWithPseudoChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.dFlat should contain(50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
+
+    // When
+    tuning = mapperWithHighQuarterTones.mapScale(karcigarWithPseudoChromatic, cTuningRef)
+    // Then
+    tuning.c should contain(0.0)
+    tuning.d should contain(-50.0)
+    tuning.eFlat should contain(0.0)
+    tuning.f should contain(0.0)
+    tuning.gFlat should contain(50.0)
+    tuning.a should contain(-50.0)
+    tuning.bFlat should contain(0.0)
   }
 
   it should "map a scale on different pitch classes based on basePitchClass parameter" in {

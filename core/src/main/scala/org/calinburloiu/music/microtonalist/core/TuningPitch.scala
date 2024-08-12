@@ -41,6 +41,11 @@ case class TuningPitch(pitchClass: PitchClass, deviation: Double) {
    */
   def isOverflowing: Boolean = Math.abs(deviation) >= 100.0
 
+  def isQuarterTone(quarterToneTolerance: Double = DefaultQuarterToneTolerance): Boolean = {
+    val absDeviation = Math.abs(deviation)
+    50.0 - quarterToneTolerance <= absDeviation && absDeviation <= 50.0 + quarterToneTolerance
+  }
+
   def almostEquals(that: TuningPitch, tolerance: Double = 0.02): Boolean = {
     this.pitchClass == that.pitchClass && DoubleMath.fuzzyEquals(this.deviation, that.deviation, tolerance)
   }

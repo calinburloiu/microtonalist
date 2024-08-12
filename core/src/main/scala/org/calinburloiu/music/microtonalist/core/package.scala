@@ -17,6 +17,15 @@
 package org.calinburloiu.music.microtonalist
 
 package object core {
+  /**
+   * Error allowed (inclusive) when detecting quarter-tone values.
+   *
+   * A perfect quarter-tone `q` is an odd multiple of 50 cents. When a tolerance is allowed with this constant its
+   * value can be between `q - DefaultQuarterToneTolerance` and `q + DefaultQuarterToneTolerance`, inclusive.
+   */
+  val DefaultQuarterToneTolerance: Double = 13.0
+
+  // TODO #31 Should various almostEquals functions/methods use this tolerance with a potential different value?
   /** Default difference allowed when comparing cents values to avoid double precision errors. */
   val DefaultCentsTolerance: Double = 0.005
 

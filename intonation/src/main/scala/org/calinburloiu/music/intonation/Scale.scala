@@ -58,7 +58,7 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   /**
    * @return the intervals between all pairs of the adjacent absolute [[intervals]].
    */
-  def recurrentIntervals: Seq[I] = {
+  def relativeIntervals: Seq[I] = {
     val result = intervals.sliding(2).map { case Seq(a, b) => (b - a).asInstanceOf[I] }.toSeq
     if (direction >= 0) result else result.map(_.reverse.asInstanceOf[I])
   }
@@ -66,12 +66,12 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   /**
    * A measure of how soft a scale is which uses the concept of entropy.
    *
-   * The softer a scale is, the closer to each other are its [[recurrentIntervals]].
+   * The softer a scale is, the closer to each other are its [[relativeIntervals]].
    *
-   * The softest scale with a given number if intervals is the one in which all [[recurrentIntervals]] are equal. For
+   * The softest scale with a given number if intervals is the one in which all [[relativeIntervals]] are equal. For
    * example, the whole tone scale is the softest octave-based scale.
    *
-   * For computing the entropy each interval of [[recurrentIntervals]] is transformed into a probability by taking
+   * For computing the entropy each interval of [[relativeIntervals]] is transformed into a probability by taking
    * its proportion with respect to scale's [[range]].
    *
    * @param logBase the base to be used for the logarithm when computing the entropy.
@@ -80,7 +80,7 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    */
   def entropy(logBase: Int): Double = {
     val rangeInCents = range.cents
-    val ps = recurrentIntervals.map { interval => interval.cents / rangeInCents }
+    val ps = relativeIntervals.map { interval => interval.cents / rangeInCents }
 
     -ps.map { p => p * Math.log(p) / Math.log(logBase) }.sum
   }
@@ -91,7 +91,7 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    * The softest scale for a given number of intervals will have a softness of 1. The harder the scale is the closer
    * the softness value is to 0.
    *
-   * It uses [[entropy]] with a logarithm base equal to the number of [[recurrentIntervals]].
+   * It uses [[entropy]] with a logarithm base equal to the number of [[relativeIntervals]].
    *
    * @return the softness value.
    * @see [[entropy]] for details about what a soft/hard scale means and for details about the usage of entropy.
