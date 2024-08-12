@@ -64,6 +64,22 @@ class ScaleTest extends AnyFlatSpec with Matchers {
     allScales.foreach(_.size shouldEqual 4)
   }
 
+  "range" should "tell the interval between the first and the last step" in {
+    CentsScale(0.0).range shouldEqual (0.0 cents)
+    ratiosScale.range shouldEqual 4 /: 3
+  }
+
+  "direction" should "tell whether the scale is ascending or descending" in {
+    CentsScale(0.0).direction shouldEqual 0
+    ratiosScale.direction should be > 0
+    CentsScale(400.0, 200.0, 0.0).direction should be < 0
+  }
+
+  "relative intervals" should "return the intervals between all pairs of the adjacent absolute intervals" in {
+    ratiosScale.relativeIntervals shouldEqual Seq(7 /: 6, 15 /: 14, 16 /: 15)
+    RatiosScale(5 /: 4, 9 /: 8, 1 /: 1).relativeIntervals shouldEqual Seq(10 /: 9, 9 /: 8)
+  }
+
   "transpose" should "add an interval to all scale pitches" in {
     centsScale.transpose(700 cents) shouldEqual CentsScale("cents", 700 cents, 800 cents, 1100 cents, 1200 cents)
     ratiosScale.transpose(3 /: 2) shouldEqual RatiosScale("ratios", 3 /: 2, 7 /: 4, 15 /: 8, 2 /: 1)
