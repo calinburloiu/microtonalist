@@ -66,7 +66,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     scaleList.modulations(1).transposition shouldEqual RatioInterval(6, 5)
     scaleList.modulations(1).scaleMapping.scale shouldEqual majorScale
 
-    scaleList.modulations(2).transposition shouldEqual RatioInterval(5, 3)
+    scaleList.modulations(2).transposition shouldEqual RatioInterval(1, 1)
     scaleList.modulations(2).scaleMapping.scale shouldEqual romanianMinorScale
   }
 

@@ -128,7 +128,7 @@ object JsonScaleListFormat {
     private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
       autoReprPlayJsonFormat.map { repr =>
         AutoTuningMapper(shouldMapQuarterTonesLow = repr.mapQuarterTonesLow,
-          quarterToneTolerance = repr.halfTolerance.getOrElse(tolerance), tolerance = tolerance)
+          quarterToneTolerance = repr.halfTolerance.getOrElse(DefaultQuarterToneTolerance), tolerance = tolerance)
       },
       Writes { mapper: AutoTuningMapper =>
         val repr = AutoTuningMapperRepr(mapper.shouldMapQuarterTonesLow, halfTolerance = Some(mapper.quarterToneTolerance))
