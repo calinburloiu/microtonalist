@@ -38,7 +38,7 @@ class SoftChromaticGenusStudy {
 
     def checkThresholds(recurrentIntervals: Seq[Interval]): (Boolean, Boolean, Boolean) = {
       val Seq(i1, i2, i3) = recurrentIntervals
-      def checkQuarterTone(interval: Interval) = 137.0 <= interval.cents && interval.cents <= 163.0
+      def checkQuarterTone(interval: Interval) = interval.cents <= 163.0
 
       (checkQuarterTone(i1), i2.cents >= aug2Threshold, checkQuarterTone(i3))
     }
