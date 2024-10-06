@@ -1,0 +1,27 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Composition",
+    "description": "File format that defines a collection of tunings to be used in a musical composition. The player is expected to switch between the tuning while playing the composition.",
+    "type": "object",
+    "properties": {
+        "metadata": { "$ref": "compositionMetadata.schema.json" },
+        "intonationStandard": { "$ref": "intonationStandard.schema.json" },
+        "tuningReference": { "$ref": "tuningReference.schema.json" },
+        "baseUri": {
+            "type": "string",
+            "title": "Base URI",
+            "description": "Custom base URI to be used for all internal URIs in this file.",
+            "format": "uri-reference"
+        },
+        "definitions": {},
+        "tunings": {
+            "type": "array"
+        },
+        "globalFill": {
+            "$comment": "Separate file for the schema of a tuning spec. Does the term global still makes sense?"
+        },
+        "tuningReducer": {},
+        "settings": {}
+    },
+    "required": ["tuningReference", "tunings"]
+}
