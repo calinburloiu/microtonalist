@@ -98,17 +98,21 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
   }
 
   /**
-   * Merges `this` partial tuning with another into a new partial tuning by completing the corresponding keys.
+   * Merges `this` partial tuning with another into a new partial tuning by complementing the corresponding keys.
    *
-   * If one has a deviation and the other does not for a key, the deviation of the former is used. If none have a
-   * deviation, the resulting key will continue to be empty. If both have a deviation for a key, the deviation of
-   * `this` for that key is kept.
+   * The following cases apply:
+   *
+   *   - If one has a deviation and the other does not for a key, the deviation of the former is used.
+   *   - If none have a deviation, the resulting key will continue to be empty.
+   *   - If both have the same deviation for a key (equal within the given tolerance), that key will use that deviation.
+   *   - If both have deviations for a key, and they are not equal, it is said that there is a ''conflict'' and
+   *     `None` is returned.
    *
    * @param that      other partial tuning used for merging
    * @param tolerance maximum error tolerance in cents when comparing two correspondent deviations for equality
-   * @return a new partial tuning
+   * @return `Some` new partial tuning if the merge was successful, or `None` if there was a conflict.
    */
-  def merge(that: PartialTuning, tolerance: Double): Option[PartialTuning] = {
+  def merge(that: PartialTuning, tolerance: Double = DefaultCentsTolerance): Option[PartialTuning] = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
     def mergeName(leftName: String, rightName: String): String = {
