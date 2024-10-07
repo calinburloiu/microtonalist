@@ -15,13 +15,33 @@
         },
         "definitions": {},
         "tunings": {
-            "type": "array"
+            "type": "array",
+            "title": "Tunings",
+            "description": "An array of tuning specifications, where each one allows a scale to be mapped to a keyboard tuning.",
+            "items": { "$ref": "tuningMapper.schema.json" }
         },
-        "globalFill": {
-            "$comment": "Separate file for the schema of a tuning spec. Does the term global still makes sense?"
+        "defaultFill": {
+            "allOf": [
+                {
+                    "title": "Default Fill",
+                    "description": "Fallback tuning to be used for unused keyboard keys.\nIf this fallback itself, does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with a deviation of 0 cents). If the defaultFill is not provided, unused keys will use the standard 12-EDO tuning."
+                },
+                { "$ref": "tuningSpec.schema.json" }
+            ]
         },
         "tuningReducer": {},
-        "settings": {}
+        "settings": {
+            "type": "object",
+            "properties": {
+                "tuningMapper": {
+                    "type": "object",
+                    "properties": {
+                        "manual": { "$ref": "tuningMapper.schema.json#/$defs/manualSettings" },
+                        "auto": { "$ref": "tuningMapper.schema.json#/$defs/autoSettings" }
+                    }
+                }
+            }
+        }
     },
     "required": ["tuningReference", "tunings"]
 }

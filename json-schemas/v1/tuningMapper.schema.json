@@ -1,0 +1,74 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Mapper",
+    "description": "TODO",
+    "type": ["object", "string"],
+    "oneOf": [
+        { "$ref": "#/$defs/object" },
+        { "$ref": "#/$defs/string" }
+    ],
+    "default": "auto",
+    "$defs": {
+        "keyboardMapping": {
+            "type": "array",
+            "items": {
+                "type": ["integer", "null"],
+                "minimum": 0
+            },
+            "minItems": 12,
+            "maxItems": 12
+        },
+        "manualSettings": {
+            "type": "object",
+            "properties": {
+                "keyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
+            }
+        },
+        "autoSettings": {
+            "type": "object",
+            "properties": {
+                "shouldMapQuarterTonesLow": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "quarterToneTolerance": {
+                    "type": "number"
+                },
+                "softChromaticGenusMapping": {
+                    "type": "string",
+                    "enum": ["off", "strict", "pseudoChromatic"]
+                },
+                "overrideKeyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
+            }
+        },
+        "string": {
+            "type": "string",
+            "enum": ["manual", "auto"]
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": { "$ref": "#/$defs/string" }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "manual" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": { "$ref": "#/$defs/manualSettings" }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "auto" }
+                        }
+                    },
+                    "then": { "$ref": "#/$defs/autoSettings" }
+                }
+            ]
+        }
+    }
+}

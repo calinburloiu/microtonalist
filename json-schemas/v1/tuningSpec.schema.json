@@ -1,0 +1,44 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Specification",
+    "description": "A tuning specification defines how a scale is mapped to keyboard tuning.",
+    "type": "object",
+    "properties": {
+        "transposition": {
+            "allOf": [
+                {
+                    "title": "Transposition",
+                    "description": "Interval used for transposing a scale before mapping it to a tuning.",
+                    "default": "1/1"
+                },
+                { "$ref": "interval-any.schema.json" }
+            ]
+        },
+        "transpositionIntervalNumber": {
+            "type": "integer",
+            "title": "Transposition Interval Number",
+            "description": "Interval number expressed as an ordinal number between 1 (unison) and 7 (seventh).",
+            "minimum": 1,
+            "maximum": 7
+        },
+        "scale": {
+            "allOf": [
+                {
+                    "title": "Scale",
+                    "description": "Scale to be mapped to a keyboard tuning."
+                },
+                {
+                    "oneOf": [
+                        { "$ref": "scale-inContext.schema.json" },
+                        {
+                            "type": "string",
+                            "format": "uri-reference"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tuningMapper": { "$ref": "tuningMapper.schema.json" }
+    },
+    "required": ["scale"]
+}
