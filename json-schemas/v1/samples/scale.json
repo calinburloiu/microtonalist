@@ -5,7 +5,7 @@
     "name": "Rast",
     "intonationStandard": {
         "type": "edo",
-        "divisionCount": 72
+        "countPerOctave": 72
     },
     "pitches": [
         { "name": "rast", "interval": [0, 0], "degree": 1, "role": "primary" },

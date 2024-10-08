@@ -39,7 +39,8 @@
                     },
                     "then": { "$ref": "#/$defs/mergeSettings" }
                 }
-            ]
+            ],
+            "unevaluatedProperties": false
         }
     }
 }

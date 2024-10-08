@@ -39,7 +39,8 @@
                         }
                     }
                 }
-            ]
+            ],
+            "unevaluatedProperties": false
         },
         "string": {
             "$comment": "The Intonation Standard Type can only be set with a string for the types that don't require additional parameters.",

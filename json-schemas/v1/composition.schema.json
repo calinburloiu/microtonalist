@@ -4,6 +4,10 @@
     "description": "File format that defines a collection of tunings to be used in a musical composition. The player is expected to switch between the tuning while playing the composition.",
     "type": "object",
     "properties": {
+        "$schema": {
+            "type": "string",
+            "format": "uri-reference"
+        },
         "metadata": { "$ref": "compositionMetadata.schema.json" },
         "intonationStandard": { "$ref": "intonationStandard.schema.json" },
         "tuningReference": { "$ref": "tuningReference.schema.json" },
@@ -23,7 +27,7 @@
                     "patternProperties": {
                         "^[\\w\\-_]+$": { "$ref": "scale-inContext.schema.json" }
                     },
-                    "additionalProperties": false
+                    "unevaluatedProperties": false
                 },
                 "tunings": {
                     "type": "object",
@@ -31,9 +35,10 @@
                     "patternProperties": {
                         "^[\\w\\-_]+$": { "$ref": "tuningSpec.schema.json" }
                     },
-                    "additionalProperties": false
+                    "unevaluatedProperties": false
                 }
-            }
+            },
+            "unevaluatedProperties": false
         },
         "tunings": {
             "type": "array",
@@ -58,18 +63,31 @@
                 "tuningMapper": {
                     "type": "object",
                     "properties": {
-                        "manual": { "$ref": "tuningMapper.schema.json#/$defs/manualSettings" },
-                        "auto": { "$ref": "tuningMapper.schema.json#/$defs/autoSettings" }
-                    }
+                        "manual": {
+                            "$ref": "tuningMapper.schema.json#/$defs/manualSettings",
+                            "unevaluatedProperties": false
+                        },
+                        "auto": {
+                            "$ref": "tuningMapper.schema.json#/$defs/autoSettings",
+                            "unevaluatedProperties": false
+                        }
+                    },
+                    "unevaluatedProperties": false
                 },
                 "tuningReducer": {
                     "type": "object",
                     "properties": {
-                        "merge": { "$ref": "tuningReducer.schema.json#/$defs/mergeSettings" }
-                    }
+                        "merge": {
+                            "$ref": "tuningReducer.schema.json#/$defs/mergeSettings",
+                            "unevaluatedProperties": false
+                        }
+                    },
+                    "unevaluatedProperties": false
                 }
-            }
+            },
+            "unevaluatedProperties": false
         }
     },
-    "required": ["tuningReference", "tunings"]
+    "required": ["tuningReference", "tunings"],
+    "unevaluatedProperties": false
 }

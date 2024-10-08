@@ -16,7 +16,7 @@
     "tunings": [
 
     ],
-    "defaultFill": {
+    "globalFill": {
         "transposition": "3/2",
         "transpositionIntervalNumber": 5,
         "scale": "rast.jscl",

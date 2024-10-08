@@ -4,6 +4,10 @@
     "description": "Microtonalist App scale format as used in a context where the intonation standard is known and the name is already provided if not present in this object.",
     "type": "object",
     "properties": {
+        "$schema": {
+            "type": "string",
+            "format": "uri-reference"
+        },
         "name": {
             "type": "string",
             "title": "Scale Name",
@@ -45,5 +49,6 @@
             "description": "The sort name of the author which should start with the word used for sorting. Separate the part of the name that should be used for sorting with the other part that provides more details by using a comma and a space, \", \". For a person this would typically be \"<Last Name, <First Name>\", e.g. for authorName \"John Doe\", the authorSortName is \"Doe, John\"."
         }
     },
-    "required": ["intonationStandard", "pitches"]
+    "required": ["intonationStandard", "pitches"],
+    "unevaluatedProperties": false
 }

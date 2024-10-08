@@ -70,5 +70,6 @@
             }
         }
     ],
-    "required": ["type"]
+    "required": ["type"],
+    "unevaluatedProperties": false
 }

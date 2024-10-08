@@ -31,5 +31,6 @@
         },
         "tuningMapper": { "$ref": "tuningMapper.schema.json" }
     },
-    "required": ["scale"]
+    "required": ["scale"],
+    "unevaluatedProperties": false
 }

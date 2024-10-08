@@ -68,7 +68,8 @@
                     },
                     "then": { "$ref": "#/$defs/autoSettings" }
                 }
-            ]
+            ],
+            "unevaluatedProperties": false
         }
     }
 }
