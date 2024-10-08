@@ -1,0 +1,45 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Reducer",
+    "description": "TODO",
+    "type": ["object", "string"],
+    "oneOf": [
+        { "$ref": "#/$defs/object" },
+        { "$ref": "#/$defs/string" }
+    ],
+    "default": "merge",
+    "$defs": {
+        "mergeSettings": {
+            "type": "object",
+            "properties": {
+                "equalityTolerance": {
+                    "type": "number"
+                }
+            }
+        },
+        "string": {
+            "type": "string",
+            "title": "Tuning Reducer Type",
+            "description": "TODO Name that serves as a unique identifier of the Tuning Reducer Type. The following values are allowed:\n- \"merge\": ...\n- \"direct\": ...",
+            "enum": ["merge", "direct"],
+            "default": "merge"
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": { "$ref": "#/$defs/string" }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "merge" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": { "$ref": "#/$defs/mergeSettings" }
+                }
+            ]
+        }
+    }
+}

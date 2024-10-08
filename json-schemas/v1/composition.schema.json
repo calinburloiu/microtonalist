@@ -13,23 +13,45 @@
             "description": "Custom base URI to be used for all internal URIs in this file.",
             "format": "uri-reference"
         },
-        "definitions": {},
+        "definitions": {
+            "type": "object",
+            "title": "Definitions",
+            "properties": {
+                "scales": {
+                    "type": "object",
+                    "title": "Scale Definitions",
+                    "patternProperties": {
+                        "^[\\w\\-_]+$": { "$ref": "scale-inContext.schema.json" }
+                    },
+                    "additionalProperties": false
+                },
+                "tunings": {
+                    "type": "object",
+                    "title": "Tuning Definitions",
+                    "patternProperties": {
+                        "^[\\w\\-_]+$": { "$ref": "tuningSpec.schema.json" }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
         "tunings": {
             "type": "array",
             "title": "Tunings",
             "description": "An array of tuning specifications, where each one allows a scale to be mapped to a keyboard tuning.",
             "items": { "$ref": "tuningMapper.schema.json" }
         },
-        "defaultFill": {
+        "globalFill": {
+            "$comment": "TODO Haven't decided if we should call this default or global!",
             "allOf": [
                 {
-                    "title": "Default Fill",
-                    "description": "Fallback tuning to be used for unused keyboard keys.\nIf this fallback itself, does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with a deviation of 0 cents). If the defaultFill is not provided, unused keys will use the standard 12-EDO tuning."
+                    "title": "Global Fill",
+                    "description": "Fallback tuning to be used for unused keyboard keys.\nIt is applied globally, for all tunings that have unused keys, by using the tuning values. If this fallback itself, does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with a deviation of 0 cents). If the defaultFill is not provided, unused keys will use the standard 12-EDO tuning."
                 },
                 { "$ref": "tuningSpec.schema.json" }
             ]
         },
-        "tuningReducer": {},
+        "tuningReducer": { "$ref": "tuningReducer.schema.json" },
         "settings": {
             "type": "object",
             "properties": {
@@ -38,6 +60,12 @@
                     "properties": {
                         "manual": { "$ref": "tuningMapper.schema.json#/$defs/manualSettings" },
                         "auto": { "$ref": "tuningMapper.schema.json#/$defs/autoSettings" }
+                    }
+                },
+                "tuningReducer": {
+                    "type": "object",
+                    "properties": {
+                        "merge": { "$ref": "tuningReducer.schema.json#/$defs/mergeSettings" }
                     }
                 }
             }

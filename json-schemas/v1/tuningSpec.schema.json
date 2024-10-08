@@ -24,18 +24,9 @@
         "scale": {
             "allOf": [
                 {
-                    "title": "Scale",
                     "description": "Scale to be mapped to a keyboard tuning."
                 },
-                {
-                    "oneOf": [
-                        { "$ref": "scale-inContext.schema.json" },
-                        {
-                            "type": "string",
-                            "format": "uri-reference"
-                        }
-                    ]
-                }
+                { "$ref": "scale-inContext.schema.json" }
             ]
         },
         "tuningMapper": { "$ref": "tuningMapper.schema.json" }

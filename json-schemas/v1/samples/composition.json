@@ -6,6 +6,13 @@
         "baseMidiNote": 76,
         "concertPitchFrequency": 432
     },
+    "definitions": {
+        "scales": {
+            "ussak": "ussak.jscl",
+            "rast": ["9/8", "fgd"],
+            "&^&": null
+        }
+    },
     "tunings": [
 
     ],
