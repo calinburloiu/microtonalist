@@ -1,11 +1,14 @@
 {
+    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/composition.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Composition",
-    "description": "File format that defines a collection of tunings to be used in a musical composition. The player is expected to switch between the tuning while playing the composition.",
+    "description": "File format that defines a collection of tunings to be used in a musical composition. The player is expected to switch between tunings while playing the composition.",
     "type": "object",
     "properties": {
         "$schema": {
+            "$comment": "Property added to allow adding the JSON-Schema for validation inside an editor.",
             "type": "string",
+            "title": "JSON-Schema",
             "format": "uri-reference"
         },
         "metadata": { "$ref": "compositionMetadata.schema.json" },
@@ -14,16 +17,18 @@
         "baseUri": {
             "type": "string",
             "title": "Base URI",
-            "description": "Custom base URI to be used for all internal URIs in this file.",
+            "description": "Custom base URI to be used for all internal URIs in this file. For local files this property allows changing the current directory.",
             "format": "uri-reference"
         },
         "definitions": {
             "type": "object",
             "title": "Definitions",
+            "description": "Definitions gives a standardized place to keep internal composition assets to be reused. Currently, scales and tunings are the only supported assets, each one having its own section inside scales and tunings properties. Those assets can be referenced in other sections of the composition file by using their identifier.",
             "properties": {
                 "scales": {
                     "type": "object",
                     "title": "Scale Definitions",
+                    "description": "Key-value pairs, where keys are scale identifiers to be referenced in other sections of the composition file, and values are scale definitions which include both inline scale or an external URI for the scale. Keys should only use basic Latin letters, numbers, hyphens and underscores.",
                     "patternProperties": {
                         "^[\\w\\-_]+$": { "$ref": "scale-inContext.schema.json" }
                     },
@@ -32,6 +37,7 @@
                 "tunings": {
                     "type": "object",
                     "title": "Tuning Definitions",
+                    "description": "Key-value pairs, where keys are tuning specification identifiers to be referenced in other sections of the composition file, and values are tuning specifications. Keys should only use basic Latin letters, numbers, hyphens and underscores.",
                     "patternProperties": {
                         "^[\\w\\-_]+$": { "$ref": "tuningSpec.schema.json" }
                     },
@@ -44,10 +50,9 @@
             "type": "array",
             "title": "Tunings",
             "description": "An array of tuning specifications, where each one allows a scale to be mapped to a keyboard tuning.",
-            "items": { "$ref": "tuningMapper.schema.json" }
+            "items": { "$ref": "tuningSpec.schema.json" }
         },
         "globalFill": {
-            "$comment": "TODO Haven't decided if we should call this default or global!",
             "allOf": [
                 {
                     "title": "Global Fill",
@@ -59,9 +64,13 @@
         "tuningReducer": { "$ref": "tuningReducer.schema.json" },
         "settings": {
             "type": "object",
+            "title": "Settings",
+            "description": "Composition settings allow configuring defaults at the composition level for various settings of the format components. A format component (such as the tuningMapper) may omit some settings and in this case the values of from this section will be used.\nFor example, every tuning specifications can be configured with a tuningMapper. If all of them prefer to set shouldMapQuarterTonesLow to true, the setting can be set here and omit the property at the tuning specification level.",
             "properties": {
                 "tuningMapper": {
                     "type": "object",
+                    "title": "Tuning Mapper Settings",
+                    "description": "Default settings Tuning Mappers.",
                     "properties": {
                         "manual": {
                             "$ref": "tuningMapper.schema.json#/$defs/manualSettings",
@@ -76,6 +85,8 @@
                 },
                 "tuningReducer": {
                     "type": "object",
+                    "title": "Tuning Reducer Settings",
+                    "description": "Default setting for the Tuning Reducer.",
                     "properties": {
                         "merge": {
                             "$ref": "tuningReducer.schema.json#/$defs/mergeSettings",

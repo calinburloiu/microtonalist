@@ -1,11 +1,11 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Mapper",
-    "description": "TODO",
+    "description": "A tuning mapper maps a scale to a tuning by providing a mapping between the scale pitch and the tuning pitch class (keyboard key).",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },
-        { "$ref": "#/$defs/string" }
+        { "$ref": "#/$defs/type" }
     ],
     "default": "auto",
     "$defs": {
@@ -41,14 +41,20 @@
                 "overrideKeyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
             }
         },
-        "string": {
+        "type": {
             "type": "string",
-            "enum": ["manual", "auto"]
+            "enum": ["auto"]
         },
         "object": {
             "type": "object",
             "properties": {
-                "type": { "$ref": "#/$defs/string" }
+                "type": {
+                    "type": "string",
+                    "title": "Tuning Mapper Type",
+                    "description": "Name that serves as a unique identifier of the Tuning Mapper Type. The following values are allowed:\n- \"manual\": allows the user to manually specify the scale pitch to be used for each keyboard pitch class.\n- \"auto\": automatically chooses the keyboard pitch class to be used for each scale pitch.",
+                    "enum": ["manual", "auto"],
+                    "default": "auto"
+                }
             },
             "allOf": [
                 {
@@ -58,7 +64,10 @@
                         },
                         "required": ["type"]
                     },
-                    "then": { "$ref": "#/$defs/manualSettings" }
+                    "then": {
+                        "$ref": "#/$defs/manualSettings",
+                        "required": ["keyboardMapping"]
+                    }
                 },
                 {
                     "if": {

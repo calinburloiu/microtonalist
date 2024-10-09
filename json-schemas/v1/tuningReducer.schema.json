@@ -1,11 +1,11 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Reducer",
-    "description": "TODO",
+    "description": "A tuning reducer can take more consecutive tunings and combine them into a single one based on its algorithm.",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },
-        { "$ref": "#/$defs/string" }
+        { "$ref": "#/$defs/type" }
     ],
     "default": "merge",
     "$defs": {
@@ -17,17 +17,17 @@
                 }
             }
         },
-        "string": {
+        "type": {
             "type": "string",
             "title": "Tuning Reducer Type",
-            "description": "TODO Name that serves as a unique identifier of the Tuning Reducer Type. The following values are allowed:\n- \"merge\": ...\n- \"direct\": ...",
+            "description": "Name that serves as a unique identifier of the Tuning Reducer Type. The following values are allowed:\n- \"merge\": combines consecutive tunings as long as they don't have corresponding pitch classes that are in conflict. Two pitch classes are said to be in conflict if their tuning values are not close according to a tolerance value.\n- \"direct\": does not combine consecutive tunings and directly maps input tunings to output tunings, essentially disabling the reduce.",
             "enum": ["merge", "direct"],
             "default": "merge"
         },
         "object": {
             "type": "object",
             "properties": {
-                "type": { "$ref": "#/$defs/string" }
+                "type": { "$ref": "#/$defs/type" }
             },
             "allOf": [
                 {
