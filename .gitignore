@@ -64,3 +64,6 @@ fabric.properties
 
 # MacOS
 **/.DS_Store
+
+# Sample JSON
+json-schemas/v1/samples/

@@ -1,0 +1,84 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Mapper",
+    "description": "A tuning mapper maps a scale to a tuning by providing a mapping between the scale pitch and the tuning pitch class (keyboard key).",
+    "type": ["object", "string"],
+    "oneOf": [
+        { "$ref": "#/$defs/object" },
+        { "$ref": "#/$defs/type" }
+    ],
+    "default": "auto",
+    "$defs": {
+        "keyboardMapping": {
+            "type": "array",
+            "items": {
+                "type": ["integer", "null"],
+                "minimum": 0
+            },
+            "minItems": 12,
+            "maxItems": 12
+        },
+        "manualSettings": {
+            "type": "object",
+            "properties": {
+                "keyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
+            }
+        },
+        "autoSettings": {
+            "type": "object",
+            "properties": {
+                "shouldMapQuarterTonesLow": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "quarterToneTolerance": {
+                    "type": "number"
+                },
+                "softChromaticGenusMapping": {
+                    "type": "string",
+                    "enum": ["off", "strict", "pseudoChromatic"]
+                },
+                "overrideKeyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
+            }
+        },
+        "type": {
+            "type": "string",
+            "enum": ["auto"]
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "title": "Tuning Mapper Type",
+                    "description": "Name that serves as a unique identifier of the Tuning Mapper Type. The following values are allowed:\n- \"manual\": allows the user to manually specify the scale pitch to be used for each keyboard pitch class.\n- \"auto\": automatically chooses the keyboard pitch class to be used for each scale pitch.",
+                    "enum": ["manual", "auto"],
+                    "default": "auto"
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "manual" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/manualSettings",
+                        "required": ["keyboardMapping"]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "auto" }
+                        }
+                    },
+                    "then": { "$ref": "#/$defs/autoSettings" }
+                }
+            ],
+            "unevaluatedProperties": false
+        }
+    }
+}

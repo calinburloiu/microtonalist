@@ -5,7 +5,7 @@
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },
-        { "$ref": "#/$defs/string" }
+        { "$ref": "#/$defs/type" }
     ],
     "default": "cents",
     "$defs": {
@@ -39,9 +39,10 @@
                         }
                     }
                 }
-            ]
+            ],
+            "unevaluatedProperties": false
         },
-        "string": {
+        "type": {
             "$comment": "The Intonation Standard Type can only be set with a string for the types that don't require additional parameters.",
             "type": "string",
             "enum": ["cents", "justIntonation"]

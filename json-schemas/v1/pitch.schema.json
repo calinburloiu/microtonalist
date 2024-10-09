@@ -46,7 +46,8 @@
                     "default": null
                 }
             },
-            "required": ["interval"]
+            "required": ["interval"],
+            "unevaluatedProperties": false
         }
     }
 }
