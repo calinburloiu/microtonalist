@@ -1,0 +1,75 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Reference",
+    "description": "Tuning reference tells what pitch class should be used on the keyboard for the base pitch and what tuning deviation should that have with respect to standard tuning (12-EDO).",
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "title": "Tuning Reference Type",
+            "description": "Name that serves as a unique identifier for the Tuning Reference Type. The following values are allowed:\n- \"standard\": Tuning reference relative standard tuning (12-EDO).\n- \"concertPitch\": Tuning reference relative to concert pitch.",
+            "enum": ["standard", "concertPitch"],
+            "default": "standard"
+        }
+    },
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "type": { "const": "standard" }
+                }
+            },
+            "then": {
+                "properties": {
+                    "basePitchClass": {
+                        "type": "integer",
+                        "title": "Base Pitch Class",
+                        "description": "The integer number (0-11) that identifies the pitch class on the keyboard to be used for the base pitch. 0 is C, 1 is C♯/D♭, ..., 11 is B.",
+                        "minimum": 0,
+                        "maximum": 11
+                    }
+                },
+                "required": ["basePitchClass"]
+            }
+        },
+        {
+            "if": {
+                "properties": {
+                    "type": { "const": "concertPitch" }
+                },
+                "required": ["type"]
+            },
+            "then": {
+                "properties": {
+                    "concertPitchToBaseInterval": {
+                        "allOf": [
+                            {
+                                "title": "Concert Pitch to Base Pitch Interval",
+                                "description": "Interval between the concert pitch (reference frequency) and composition's base pitch."
+                            },
+                            { "$ref": "interval-any.schema.json" }
+                        ]
+                    },
+                    "baseMidiNote": {
+                        "type": "integer",
+                        "title": "Base MIDI Note Number",
+                        "description": "MIDI note number of the composition's base pitch, relative to which scales are tuned.",
+                        "minimum": 0,
+                        "maximum": 127
+                    },
+                    "concertPitchFrequency": {
+                        "type": "number",
+                        "title": "Concert Pitch Frequency (Hz)",
+                        "description": "Reference frequency in Hz, typically known as concert pitch, and set to 440 Hz.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 20000,
+                        "default": 440
+                    }
+                },
+                "required": ["concertPitchToBaseInterval", "baseMidiNote"]
+            }
+        }
+    ],
+    "required": ["type"],
+    "unevaluatedProperties": false
+}
