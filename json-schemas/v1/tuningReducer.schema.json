@@ -34,8 +34,7 @@
                     "if": {
                         "properties": {
                             "type": { "const": "merge" }
-                        },
-                        "required": ["type"]
+                        }
                     },
                     "then": { "$ref": "#/$defs/mergeSettings" }
                 }
