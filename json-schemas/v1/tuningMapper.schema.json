@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Mapper",
-    "description": "A tuning mapper maps a scale to a tuning by providing a mapping between the scale pitch and the tuning pitch class (keyboard key).",
+    "description": "A tuning mapper is a format component that maps a scale to a tuning by providing a mapping between the scale pitch and the tuning pitch class (keyboard key).\nAs any format component it can be defined as an object with a \"type\" property that identifies the tuning mapper to be used. Check the documentation for that property for details about what tuning mappers are supported.",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },
@@ -11,6 +11,8 @@
     "$defs": {
         "keyboardMapping": {
             "type": "array",
+            "title": "Keyboard Mapping",
+            "description": "A mapping between a keyboard instrument pitch classes and the a scale's pitches, expressed as an array with 12 values, one for each pitch class of the keyboard instrument starting from C (the first is for C, the second is for C♯/D♭, ..., the twelfth is B), and each value representing the scale pitch index starting from 0. The array values of the pitch classes from the keyboard that do not use any scale pitch must have a null value.",
             "items": {
                 "type": ["integer", "null"],
                 "minimum": 0
@@ -29,16 +31,30 @@
             "properties": {
                 "shouldMapQuarterTonesLow": {
                     "type": "boolean",
+                    "title": "Should Map Quarter Tones Low",
+                    "description": "Some scale pitches can be ambiguously mapped to two possible adjacent pitch classes. Those are called quarter tones and the absolute difference between their tunings and the standard 12-EDO tuning of those pitch classes is equal or close to equal. The user may decide to map those to the lower pitch class by setting this property to true, or to the higher pitch class by setting it to false (or leaving it unset because it defaults to false). For example, consider a scale starting from D with pitches a pitch of 150 cents. If shouldMapQuarterTonesLow is set to true, the 150 cents pitch will be mapped to E♭, but if shouldMapQuarterTonesLow is set to false or absent, it will be mapped to E♮.\nHowever, note the word \"should\" in the name of the setting. Some pitches may not respect this settings, if there is another pitch already set to the same pitch class.\nFor example, let's consider shouldMapQuarterTonesLow is true and a scale with pitches [100 cents, 150 cents] when 0 cents is D. The pitch 100 cents will be mapped to E♭ with no ambiguity. Normally, 150 cents will also be mapped to the same pitch class due to shouldMapQuarterTonesLow being true, but because that pitch class is already occupied, 150 cents will be mapped to E♮ instead. Similarly, for a scale with pitches [350 cents, 400 cents], shouldMapQuarterTonesLow set to false and 0 cents also set to D, the pitch 350 cents, instead of being mapped to F♯, it will be mapped to F because F♯ is already taken by the 400 cents pitch.",
                     "default": false
                 },
                 "quarterToneTolerance": {
-                    "type": "number"
+                    "type": "number",
+                    "title": "Quarter Tone Tolerance",
+                    "description": "As explained for setting shouldMapQuarterTonesLow, a quarter tone tuning value may be equally close to the standard 12-EDO tuning of two adjacent pitch classes from a keyboard. A perfect quarter tone, will have its cents value ending in 50 cents and is equally close to either of those pitch classes. This tolerance value allows the quarter tone to deviate from that perfect value with a desired value in cents.\nFor example, consider a scale starting from C with a pitch that has the ratio 13/12 (138.6 cents). If quarterToneTolerance is set to 15 cents, then, quarter tone values are allowed within the range of 135 and 165 cents and 13/12, will be considered a quarter tone. This allows it to be tuned to D with a tuning of -61.4 cents with respect to the standard 12-EDO tuning."
                 },
                 "softChromaticGenusMapping": {
                     "type": "string",
+                    "title": "Soft Chromatic Genus Mapping",
+                    "description": "Method used to detect the soft chromatic genus pattern between scale's intervals to allow mapping them on a keyboard by using the characteristic augmented second, despite shouldMapQuarterTonesLow setting. The player will see an augmented second on a keyboard, two notes that are three keys/semitones apart, but will hear a slightly augmented second, ranging from a whole tone to three semitones depending on how soft the tuning is and the value set for this setting.\nThe following values can be set for this setting to control the aggressiveness of the effect or to disable it altogether:\n- \"off\": the special mapping of the soft chromatic genus is disabled.\n- \"strict\": the soft chromatic genus pattern is detected when the augmented second is slightly larger than a whole tone, that is, has a value greater or equal to 210 cents.\n- \"pseudoChromatic\": the soft chromatic genus pattern is detected when there is a fake augmented second that is about the size of a whole tone, that is, has a value greater or equal to 190 cents. Strictly speaking this wouldn't be the chromatic genus anymore, being a soft diatonic, hence its name \"pseudo\", the Greek word for fake. But the way intervals are arranged makes the structure sound like a very soft chromatic. Ottoman Makam Hüzzam may contain such a structure starting from its third degree.\nExamples:\n1. Consider the following scale in cents starting from D for the Ottoman Makam Karcığar: [0, 150, 300, 500, 650, 883, 1000, 1200]. The setting shouldMapQuarterTonesLow is set to false and softChromaticGenusMapping is set to \"strict\". The scale neutral second of the scale is mapped to E, due to shouldMapQuarterTonesLow being false, but the slightly diminished fifth is mapped to A♭ on the keyboard, because a soft chromatic tetrachord is detected between G and C. The augmented second between A♭ and B has 233 cents, which makes it greater than the threshold of 210 cents used for the \"strict\" mode.\n2. Consider the following scale in cents starting from D for the Ottoman Makam Karcığar: [0, 150, 300, 500, 650, 850, 1000, 1200]. The setting shouldMapQuarterTonesLow is set to true. If softChromaticGenusMapping would be set to \"strict\", all quarter tones on the second, fifth and sixth would be mapped low, to E♭, A♭ and B♭, respectively. No soft chromatic genus is detected in this mode because the fake augmented second has 200 cents, which falls below the 210 cents threshold. However, in this case, the \"pseudoChromatic\" mode can be used which would successfully map the sixth to B♮ instead of B♭.",
                     "enum": ["off", "strict", "pseudoChromatic"]
                 },
-                "overrideKeyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
+                "overrideKeyboardMapping": {
+                    "allOf": [
+                        {
+                            "title": "Override Keyboard Mapping",
+                            "description": "Similar to the keyboardMapping setting of the \"manual\" tuning mapper type, this setting can provide a mapping between a keyboard instrument pitch classes and the a scale's pitches. But unlike that, this setting is meant as an override which only specifies pitches that should be mapped manually, in a custom way, instead of relying on the automatic mapping. Similar to keyboardMapping it is expressed as an array with 12 values, one for each pitch class of the keyboard instrument starting from C (the first is for C, the second is for C♯/D♭, ..., the twelfth is B), and each value representing the scale pitch index starting from 0. Scale pitches that are not included in the array will be mapped automatically. The array values for pitch classes from the keyboard that do not use any scale pitch must have null value and can be used by the automatic mapping."
+                        },
+                        { "$ref": "#/$defs/keyboardMapping" }
+                    ]
+                }
             }
         },
         "type": {
@@ -51,7 +67,7 @@
                 "type": {
                     "type": "string",
                     "title": "Tuning Mapper Type",
-                    "description": "Name that serves as a unique identifier of the Tuning Mapper Type. The following values are allowed:\n- \"manual\": allows the user to manually specify the scale pitch to be used for each keyboard pitch class.\n- \"auto\": automatically chooses the keyboard pitch class to be used for each scale pitch.",
+                    "description": "Name that serves as a unique identifier of the Tuning Mapper Type. The following values are allowed:\n- \"manual\": allows the user to manually specify the scale pitch to be used for each keyboard pitch class.\n- \"auto\": automatically chooses the keyboard pitch class to be used for each scale pitch such that the difference between a pitch class tuning and its standard 12-EDO tuning is minimized.",
                     "enum": ["manual", "auto"],
                     "default": "auto"
                 }

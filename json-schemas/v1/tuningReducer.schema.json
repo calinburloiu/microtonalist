@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Reducer",
-    "description": "A tuning reducer can take more consecutive tunings and combine them into a single one based on its algorithm.",
+    "description": "A tuning reducer is a format component that can take more consecutive tunings and combine them into a single one based on its algorithm.\nAs any format component it can be defined as an object with a \"type\" property that identifies the tuning reducer to be used. Check the documentation for that property for details about what tuning reducers are supported.",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },
@@ -13,7 +13,9 @@
             "type": "object",
             "properties": {
                 "equalityTolerance": {
-                    "type": "number"
+                    "type": "number",
+                    "title": "Equality Tolerance",
+                    "description": "Maximum error allowed when checking if two tuning values are equal.\nWhen two corresponding tuning values of the same pitch class of two consecutive tunings are not equal within this tolerance, it is said that there is a conflict between them which blocks merging of those tunings."
                 }
             }
         },
