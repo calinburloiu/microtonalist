@@ -67,10 +67,38 @@
             "title": "Settings",
             "description": "Composition settings allow configuring defaults at the composition level for various settings of the format components. A format component (such as the tuningMapper) may omit some settings and in this case the values of from this section will be used.\nFor example, every tuning specifications can be configured with a tuningMapper. If all of them prefer to set shouldMapQuarterTonesLow to true, the setting can be set here and omit the property at the tuning specification level.",
             "properties": {
+                "tuningReference": {
+                    "type": "object",
+                    "title": "Tuning Reference Settings",
+                    "description": "Default settings for the tuning reference format component.",
+                    "properties": {
+                        "standard": {
+                            "$ref": "tuningReference.schema.json#/$defs/standardSettings",
+                            "unevaluatedProperties": false
+                        },
+                        "concertPitch": {
+                            "$ref": "tuningReference.schema.json#/$defs/concertPitchSettings",
+                            "unevaluatedProperties": false
+                        }
+                    },
+                    "unevaluatedProperties": false
+                },
+                "intonationStandard": {
+                    "type": "object",
+                    "title": "Intonation Standard Settings",
+                    "description": "Default settings for the intonation standard format component.",
+                    "properties": {
+                        "edo": {
+                            "$ref": "intonationStandard.schema.json#/$defs/edoSettings",
+                            "unevaluatedProperties": false
+                        }
+                    },
+                    "unevaluatedProperties": false
+                },
                 "tuningMapper": {
                     "type": "object",
                     "title": "Tuning Mapper Settings",
-                    "description": "Default settings Tuning Mappers.",
+                    "description": "Default settings for the tuning mapper format components.",
                     "properties": {
                         "manual": {
                             "$ref": "tuningMapper.schema.json#/$defs/manualSettings",
@@ -86,7 +114,7 @@
                 "tuningReducer": {
                     "type": "object",
                     "title": "Tuning Reducer Settings",
-                    "description": "Default setting for the Tuning Reducer.",
+                    "description": "Default setting for the tuning reducer format components.",
                     "properties": {
                         "merge": {
                             "$ref": "tuningReducer.schema.json#/$defs/mergeSettings",
