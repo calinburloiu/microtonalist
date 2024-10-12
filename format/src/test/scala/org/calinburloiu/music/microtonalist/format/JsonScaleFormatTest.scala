@@ -23,7 +23,7 @@ import play.api.libs.json._
 
 class JsonScaleFormatTest extends JsonFormatTestUtils {
   private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor,
-    IntonationStandardComponentFormat.createComponentJsonFormat())
+    IntonationStandardComponentFormat.componentJsonFormat)
 
   "pitchIntervalFormatFor" should "either read on interval directly or get it from a scale pitch object" in {
     val format: Format[Interval] = JsonScaleFormat.pitchIntervalFormatFor(JustIntonationStandard)

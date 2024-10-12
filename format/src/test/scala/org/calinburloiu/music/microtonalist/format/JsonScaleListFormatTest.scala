@@ -33,7 +33,7 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   import FormatTestUtils.readScaleListFromResources
 
   private lazy val scaleListRepo = {
-    val intonationStandardComponentFormat = IntonationStandardComponentFormat.createComponentJsonFormat()
+    val intonationStandardComponentFormat = IntonationStandardComponentFormat.componentJsonFormat
     val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, intonationStandardComponentFormat)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,

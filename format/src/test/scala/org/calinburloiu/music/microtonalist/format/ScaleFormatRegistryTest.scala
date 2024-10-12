@@ -25,7 +25,7 @@ import java.net.URI
 class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
   val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
   val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, IntonationStandardComponentFormat
-    .createComponentJsonFormat())
+    .componentJsonFormat)
   val registry: ScaleFormatRegistry = new ScaleFormatRegistry(Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
 
   def assertResult(actualResult: Option[ScaleFormat], expectedResult: ScaleFormat): Unit = {

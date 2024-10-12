@@ -21,8 +21,7 @@ import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonation
 import play.api.libs.json.{JsString, Json}
 
 class IntonationStandardComponentFormatTest extends JsonFormatTestUtils {
-  val format: ComponentJsonFormat[IntonationStandard] = IntonationStandardComponentFormat
-    .createComponentJsonFormat()
+  val format: ComponentJsonFormat[IntonationStandard] = IntonationStandardComponentFormat.componentJsonFormat
 
   "reads" should "deserialize a cents component" in {
     assertReads(format, JsString("cents"), CentsIntonationStandard)
