@@ -21,6 +21,11 @@
             "minimum": 1,
             "maximum": 7
         },
+        "name": {
+            "type": "string",
+            "title": "Override Scale Name",
+            "description": "If present, overrides or fills the scale name.\nThe scale can be given inline, without a name, so in this case, this property is mandatory. Otherwise, if the scale already has a name, it will be replaced with this one."
+        },
         "scale": {
             "allOf": [
                 {
