@@ -9,7 +9,7 @@
     "ref": "scales/chromatic.scl"
   },
   "tuningReducer": "merge",
-  "modulations": [
+  "tunings": [
     {
       "transposition": "1",
       "scale": {

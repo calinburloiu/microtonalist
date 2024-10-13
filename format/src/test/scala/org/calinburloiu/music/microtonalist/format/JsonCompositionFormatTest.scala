@@ -57,7 +57,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   it should "successfully read a valid composition file" in {
     val composition = readCompositionFromResources("format/minor_major.scalist", compositionRepo)
 
-    composition.globalFill.scale shouldEqual chromaticScale
+    composition.globalFill.map(_.scaleMapping.scale) should contain(chromaticScale)
     composition.tuningRef.basePitchClass.number shouldEqual 2
 
     composition.tuningSpecs.head.scaleMapping.scale shouldEqual naturalMinorScale

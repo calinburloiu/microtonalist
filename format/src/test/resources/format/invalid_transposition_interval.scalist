@@ -5,7 +5,7 @@
   "globalFill": {
     "ref": "chromatic.scl"
   },
-  "modulations": [
+  "tunings": [
     {
       "transposition": "1",
       "scale": {

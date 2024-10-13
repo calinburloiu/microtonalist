@@ -46,8 +46,8 @@ case class CompositionRepr(name: Option[String],
     }
 
     val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
-    tunings.foreach { modulation =>
-      futures += modulation.scale.load(scaleLoader)
+    tunings.foreach { tuningSpec =>
+      futures += tuningSpec.scale.load(scaleLoader)
     }
 
     if (globalFill.isDefined) {

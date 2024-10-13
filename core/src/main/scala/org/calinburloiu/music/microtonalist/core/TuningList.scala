@@ -48,20 +48,20 @@ object TuningList extends StrictLogging {
 
   @tailrec
   private[this] def createPartialTunings(partialTuningsAcc: Seq[PartialTuning],
-                                         modulations: Seq[TuningSpec],
+                                         tuningSpecs: Seq[TuningSpec],
                                          tuningRef: TuningRef): Seq[PartialTuning] = {
-    if (modulations.isEmpty) {
+    if (tuningSpecs.isEmpty) {
       partialTuningsAcc
     } else {
-      val partialTuning = createPartialTuning(modulations.head, tuningRef)
-      createPartialTunings(partialTuningsAcc :+ partialTuning, modulations.tail, tuningRef)
+      val partialTuning = createPartialTuning(tuningSpecs.head, tuningRef)
+      createPartialTunings(partialTuningsAcc :+ partialTuning, tuningSpecs.tail, tuningRef)
     }
   }
 
-  private[this] def createPartialTuning(modulation: TuningSpec,
+  private[this] def createPartialTuning(tuningSpec: TuningSpec,
                                         tuningRef: TuningRef): PartialTuning = {
-    val transposition = modulation.transposition
+    val transposition = tuningSpec.transposition
 
-    modulation.scaleMapping.tuningFor(transposition, tuningRef)
+    tuningSpec.scaleMapping.tuningFor(transposition, tuningRef)
   }
 }
