@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, RealInterval, Scale}
+import org.calinburloiu.music.intonation.{Interval, IntonationStandard, RealInterval, Scale}
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
@@ -54,17 +54,20 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo,
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    // TODO #4 Temporary hard-coded context
-    val fallbackContext = Some(ScaleFormatContext(intonationStandard = Some(CentsIntonationStandard)))
-    implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(fallbackContext)
-    implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
-      DeferrableRead.reads(scaleReads, importFormat)
-    implicit val modulationReprReads: Reads[ModulationRepr] =
-      Json.using[Json.WithDefaultValues].reads[ModulationRepr]
-    implicit val scaleListReprReads: Reads[ScaleListRepr] =
-      Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
+    preprocessedJson.validate[CompositionFormatContext].flatMap { context =>
+      implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(context.intonationStandard)
+      implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(
+        Some(ScaleFormatContext(name = Some(""), Some(context.intonationStandard)))
+      )
+      implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
+        DeferrableRead.reads(scaleReads, importFormat)
+      implicit val modulationReprReads: Reads[ModulationRepr] =
+        Json.using[Json.WithDefaultValues].reads[ModulationRepr]
+      implicit val scaleListReprReads: Reads[ScaleListRepr] =
+        Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
 
-    preprocessedJson.validate[ScaleListRepr] match {
+      preprocessedJson.validate[ScaleListRepr]
+    } match {
       case JsSuccess(scaleList, _) => scaleList
       case error: JsError => throw new InvalidScaleListFormatException(JsError.toJson(error).toString)
     }
@@ -82,7 +85,7 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo,
     val tuningRef = StandardTuningRef(PitchClass.fromInt(scaleListRepr.tuningReference.basePitchClass))
 
     val modulations = scaleListRepr.modulations.map { modulationRepr =>
-      // TODO #4 For better precision we should use for unison the interval type chosen by the user
+      // TODO #58 For better precision we should use for unison the interval type chosen by the user
       val transposition = modulationRepr.transposition.getOrElse(RealInterval.Unison)
 
       val tuningMapper = modulationRepr.tuningMapper.getOrElse(defaultTuningMapper)
@@ -108,9 +111,13 @@ object JsonScaleListFormat {
   // TODO #31 Read this from JSON
   private val tolerance: Double = DefaultCentsTolerance
 
+  private[JsonScaleListFormat] implicit val intonationStandardReads: Reads[IntonationStandard] =
+    IntonationStandardComponentFormat.componentJsonFormat
+  private[JsonScaleListFormat] implicit val contextReads: Reads[CompositionFormatContext] =
+    Json.using[Json.WithDefaultValues].reads[CompositionFormatContext]
+
   private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
-  private[JsonScaleListFormat] implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.legacyIntervalFormat
   private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
@@ -131,7 +138,8 @@ object JsonScaleListFormat {
           quarterToneTolerance = repr.halfTolerance.getOrElse(DefaultQuarterToneTolerance), tolerance = tolerance)
       },
       Writes { mapper: AutoTuningMapper =>
-        val repr = AutoTuningMapperRepr(mapper.shouldMapQuarterTonesLow, halfTolerance = Some(mapper.quarterToneTolerance))
+        val repr = AutoTuningMapperRepr(mapper.shouldMapQuarterTonesLow, halfTolerance = Some(mapper
+          .quarterToneTolerance))
         autoReprPlayJsonFormat.writes(repr)
       }
     )

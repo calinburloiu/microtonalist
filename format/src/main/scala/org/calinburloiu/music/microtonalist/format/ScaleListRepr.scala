@@ -16,8 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core.{TuningMapper, TuningReducer}
+import play.api.libs.json.JsObject
 
 import java.net.URI
 import scala.collection.mutable.ArrayBuffer
@@ -58,9 +59,18 @@ case class ScaleListRepr(name: Option[String],
   }
 }
 
+case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], Import]] = Map())
+
+case class CompositionFormatContext(intonationStandard: IntonationStandard = CentsIntonationStandard,
+                                    baseUri: Option[URI],
+                                    settings: Map[String, Map[String, JsObject]] = Map())
+
 // TODO #4 Rename ref to import
 case class Import(ref: URI)
 
+// TODO #62 Use a tuning reference component format
+
+@deprecated("To be replaced with tuning reference component format")
 case class OriginRepr(basePitchClass: Int)
 
 case class ModulationRepr(transposition: Option[Interval] = None,
