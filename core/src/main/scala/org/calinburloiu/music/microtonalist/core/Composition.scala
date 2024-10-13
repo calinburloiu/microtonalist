@@ -25,7 +25,9 @@ case class Composition(name: String,
                        tuningRef: TuningRef,
                        tuningSpecs: Seq[TuningSpec],
                        tuningReducer: TuningReducer,
-                       globalFill: ScaleMapping)
+                       // TODO #58 Allow incomplete globalFills: tunings can be incomplete; fill them with standard
+                       //  tunings.
+                       globalFill: Option[TuningSpec])
 
 case class TuningSpec(transposition: Interval,
                       scaleMapping: ScaleMapping)

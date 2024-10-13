@@ -85,24 +85,25 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       .getOrElse(CompositionConfigRepr.Default).mapQuarterTonesLow
     val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow)
 
-    val name = compositionRepr.name.getOrElse("")
-    val tuningRef = StandardTuningRef(PitchClass.fromInt(compositionRepr.tuningReference.basePitchClass))
+    def convertTuningSpec(tuningSpecRepr: TuningSpecRepr): TuningSpec = {
+      val transposition = tuningSpecRepr.transposition.getOrElse(context.intonationStandard.unison)
 
-    val modulations = compositionRepr.tunings.map { modulationRepr =>
-      val transposition = modulationRepr.transposition.getOrElse(context.intonationStandard.unison)
-
-      val tuningMapper = modulationRepr.tuningMapper.getOrElse(defaultTuningMapper)
-      val scaleMapping = ScaleMapping(modulationRepr.scale.value, tuningMapper)
+      val tuningMapper = tuningSpecRepr.tuningMapper.getOrElse(defaultTuningMapper)
+      val scaleMapping = ScaleMapping(tuningSpecRepr.scale.value, tuningMapper)
 
       TuningSpec(transposition, scaleMapping)
     }
 
+    val name = compositionRepr.name.getOrElse("")
+    val tuningRef = StandardTuningRef(PitchClass.fromInt(compositionRepr.tuningReference.basePitchClass))
+
+    val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
+
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
+    
+    val globalFill = compositionRepr.globalFill.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
 
-    val globalFillTuningMapper = compositionRepr.globalFillTuningMapper.getOrElse(defaultTuningMapper)
-    val globalFill = ScaleMapping(compositionRepr.globalFill.value, globalFillTuningMapper)
-
-    Composition(name, context.intonationStandard, tuningRef, modulations, tuningReducer, globalFill)
+    Composition(name, context.intonationStandard, tuningRef, tuningSpecs, tuningReducer, globalFill)
   }
 }
 

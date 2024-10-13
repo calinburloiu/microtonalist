@@ -32,8 +32,7 @@ case class CompositionRepr(name: Option[String],
                            tuningReference: OriginRepr,
                            tunings: Seq[TuningSpecRepr],
                            tuningReducer: Option[TuningReducer] = None,
-                           globalFill: DeferrableRead[Scale[Interval], Import],
-                           globalFillTuningMapper: Option[TuningMapper] = None,
+                           globalFill: Option[TuningSpecRepr],
                            config: Option[CompositionConfigRepr]) {
 
   var context: CompositionFormatContext = CompositionFormatContext()
@@ -51,7 +50,9 @@ case class CompositionRepr(name: Option[String],
       futures += modulation.scale.load(scaleLoader)
     }
 
-    futures += globalFill.load(scaleLoader)
+    if (globalFill.isDefined) {
+      futures += globalFill.get.scale.load(scaleLoader)
+    }
 
     Future.sequence(futures).map(_ => this)
   }
