@@ -51,12 +51,12 @@ class FormatModule(libraryUri: URI,
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
     fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
 
-  lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(
+  lazy val compositionFormat: CompositionFormat = new JsonCompositionFormat(
     defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
 
-  lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat, synchronousAwaitTimeout)
-  lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(
-    httpClient, scaleListFormat, synchronousAwaitTimeout)
+  lazy val fileCompositionRepo: FileCompositionRepo = new FileCompositionRepo(compositionFormat, synchronousAwaitTimeout)
+  lazy val httpCompositionRepo: HttpCompositionRepo = new HttpCompositionRepo(
+    httpClient, compositionFormat, synchronousAwaitTimeout)
 
-  lazy val defaultScaleListRepo: ScaleListRepo = new DefaultScaleListRepo(fileScaleListRepo, httpScaleListRepo)
+  lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(fileCompositionRepo, httpCompositionRepo)
 }

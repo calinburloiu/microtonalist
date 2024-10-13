@@ -27,12 +27,12 @@ import play.api.libs.json._
 
 import java.net.URI
 
-class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
+class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
 
-  import JsonScaleListFormat._
-  import FormatTestUtils.readScaleListFromResources
+  import JsonCompositionFormat._
+  import FormatTestUtils.readCompositionFromResources
 
-  private lazy val scaleListRepo = {
+  private lazy val compositionRepo = {
     val intonationStandardComponentFormat = IntonationStandardComponentFormat.componentJsonFormat
     val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, intonationStandardComponentFormat)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
@@ -40,8 +40,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
       jsonScaleFormat
     ))
     val scaleRepo = new FileScaleRepo(scaleFormatRegistry)
-    val scaleListFormat = new JsonScaleListFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
-    new FileScaleListRepo(scaleListFormat)
+    val compositionFormat = new JsonCompositionFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
+    new FileCompositionRepo(compositionFormat)
   }
 
   val majorScale: RatiosScale = RatiosScale("Major",
@@ -54,49 +54,49 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3),
     (7, 4), (15, 8), (2, 1))
 
-  it should "successfully read a valid scale list file" in {
-    val scaleList = readScaleListFromResources("format/minor_major.scalist", scaleListRepo)
+  it should "successfully read a valid composition file" in {
+    val composition = readCompositionFromResources("format/minor_major.scalist", compositionRepo)
 
-    scaleList.globalFill.scale shouldEqual chromaticScale
-    scaleList.tuningRef.basePitchClass.number shouldEqual 2
+    composition.globalFill.scale shouldEqual chromaticScale
+    composition.tuningRef.basePitchClass.number shouldEqual 2
 
-    scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
-    scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual naturalMinorScale
+    composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
 
-    scaleList.modulations(1).transposition shouldEqual RatioInterval(6, 5)
-    scaleList.modulations(1).scaleMapping.scale shouldEqual majorScale
+    composition.tuningSpecs(1).transposition shouldEqual RatioInterval(6, 5)
+    composition.tuningSpecs(1).scaleMapping.scale shouldEqual majorScale
 
-    scaleList.modulations(2).transposition shouldEqual RatioInterval(1, 1)
-    scaleList.modulations(2).scaleMapping.scale shouldEqual romanianMinorScale
+    composition.tuningSpecs(2).transposition shouldEqual RatioInterval(1, 1)
+    composition.tuningSpecs(2).scaleMapping.scale shouldEqual romanianMinorScale
   }
 
   it should "fail when a transposition interval in invalid" in {
-    assertThrows[InvalidScaleListFormatException] {
-      readScaleListFromResources("format/invalid_transposition_interval.scalist", scaleListRepo)
+    assertThrows[InvalidCompositionFormatException] {
+      readCompositionFromResources("format/invalid_transposition_interval.scalist", compositionRepo)
     }
   }
 
   it should "fail when a scale reference points to a non existent file" in {
     assertThrows[ScaleNotFoundException] {
-      readScaleListFromResources("format/non_existent_scale_ref.scalist", scaleListRepo)
+      readCompositionFromResources("format/non_existent_scale_ref.scalist", compositionRepo)
     }
   }
 
   it should "fail when a scale reference points to an invalid file" in {
     assertThrows[ScaleNotFoundException] {
-      readScaleListFromResources("format/invalid_referenced_scale.scalist", scaleListRepo)
+      readCompositionFromResources("format/invalid_referenced_scale.scalist", compositionRepo)
     }
   }
 
-  it should "fail when a scale defined inside the scale list is invalid" in {
-    assertThrows[InvalidScaleListFormatException] {
-      readScaleListFromResources("format/invalid_scale.scalist", scaleListRepo)
+  it should "fail when a scale defined inside the composition is invalid" in {
+    assertThrows[InvalidCompositionFormatException] {
+      readCompositionFromResources("format/invalid_scale.scalist", compositionRepo)
     }
   }
 
-  it should "fail when a scale list does not exist" in {
-    assertThrows[ScaleListNotFoundException] {
-      scaleListRepo.read(new URI("file:///Users/john/non_existent.scalist"))
+  it should "fail when a composition does not exist" in {
+    assertThrows[CompositionNotFoundException] {
+      compositionRepo.read(new URI("file:///Users/john/non_existent.scalist"))
     }
   }
 

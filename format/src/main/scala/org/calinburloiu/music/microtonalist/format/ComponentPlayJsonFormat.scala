@@ -59,7 +59,7 @@ trait ComponentPlayJsonFormat[A] extends Format[A] {
             writesWithType.writes(component)
           }
           .getOrElse(JsString(spec.typeName))
-      case None => throw new Error(s"Unregistered scale list sub-component class ${component.getClass.getName}")
+      case None => throw new Error(s"Unregistered composition sub-component class ${component.getClass.getName}")
     }
   }
 

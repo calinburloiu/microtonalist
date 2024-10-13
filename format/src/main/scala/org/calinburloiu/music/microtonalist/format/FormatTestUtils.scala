@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.microtonalist.core.ScaleList
+import org.calinburloiu.music.microtonalist.core.Composition
 
 import java.net.URI
 
@@ -27,8 +27,8 @@ import java.net.URI
 object FormatTestUtils {
   def uriOfResource(pathString: String): URI = getClass.getClassLoader.getResource(pathString).toURI
 
-  def readScaleListFromResources(resourcePathString: String, scaleListRepo: ScaleListRepo): ScaleList = {
-    scaleListRepo.read(uriOfResource(resourcePathString))
+  def readCompositionFromResources(resourcePathString: String, compositionRepo: CompositionRepo): Composition = {
+    compositionRepo.read(uriOfResource(resourcePathString))
   }
 
   def readScaleFromResources(resourcePathString: String,

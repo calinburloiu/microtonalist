@@ -18,16 +18,17 @@ package org.calinburloiu.music.microtonalist.core
 
 import org.calinburloiu.music.intonation._
 
-case class ScaleList(name: String,
-                     tuningRef: TuningRef,
-                     modulations: Seq[Modulation],
-                     tuningReducer: TuningReducer,
-                     globalFill: ScaleMapping)
+// TODO #4 Document classes in this file
 
-case class Modulation(transposition: Interval,
-                      scaleMapping: ScaleMapping,
-                      // TODO extension probably needs to be renamed to alterations, overrides or something
-                      extension: Option[ScaleMapping] = None)
+case class Composition(name: String,
+                       intonationStandard: IntonationStandard,
+                       tuningRef: TuningRef,
+                       tuningSpecs: Seq[TuningSpec],
+                       tuningReducer: TuningReducer,
+                       globalFill: ScaleMapping)
+
+case class TuningSpec(transposition: Interval,
+                      scaleMapping: ScaleMapping)
 
 case class ScaleMapping(scale: Scale[Interval],
                         tuningMapper: TuningMapper) {

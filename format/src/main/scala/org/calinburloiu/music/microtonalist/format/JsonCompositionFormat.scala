@@ -28,28 +28,28 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
 
 /**
- * Class used for serialization/deserialization of [[ScaleList]]s in Microtonalist's own JSON format.
+ * Class used for serialization/deserialization of [[Composition]]s in Microtonalist's own JSON format.
  *
  * @param scaleRepo repository for retrieving scales by URI
  */
-class JsonScaleListFormat(scaleRepo: ScaleRepo,
-                          jsonPreprocessor: JsonPreprocessor,
-                          jsonScaleFormat: JsonScaleFormat,
-                          synchronousAwaitTimeout: FiniteDuration = 1 minute) extends ScaleListFormat {
-  override def read(inputStream: InputStream, baseUri: Option[URI] = None): ScaleList =
+class JsonCompositionFormat(scaleRepo: ScaleRepo,
+                            jsonPreprocessor: JsonPreprocessor,
+                            jsonScaleFormat: JsonScaleFormat,
+                            synchronousAwaitTimeout: FiniteDuration = 1 minute) extends CompositionFormat {
+  override def read(inputStream: InputStream, baseUri: Option[URI] = None): Composition =
     Await.result(readAsync(inputStream, baseUri), synchronousAwaitTimeout)
 
-  override def readAsync(inputStream: InputStream, baseUri: Option[URI]): Future[ScaleList] =
+  override def readAsync(inputStream: InputStream, baseUri: Option[URI]): Future[Composition] =
     readRepr(inputStream, baseUri)
       .loadDeferredData(scaleRepo, baseUri)
       .map(fromReprToDomain)
 
-  override def write(scaleList: ScaleList, outputStream: OutputStream): Unit = ???
+  override def write(composition: Composition, outputStream: OutputStream): Unit = ???
 
-  override def writeAsync(scaleList: ScaleList, outputStream: OutputStream): Future[Unit] = ???
+  override def writeAsync(composition: Composition, outputStream: OutputStream): Future[Unit] = ???
 
-  private def readRepr(inputStream: InputStream, baseUri: Option[URI]): ScaleListRepr = {
-    import JsonScaleListFormat._
+  private def readRepr(inputStream: InputStream, baseUri: Option[URI]): CompositionRepr = {
+    import JsonCompositionFormat._
 
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
@@ -61,69 +61,68 @@ class JsonScaleListFormat(scaleRepo: ScaleRepo,
       )
       implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
         DeferrableRead.reads(scaleReads, importFormat)
-      implicit val modulationReprReads: Reads[ModulationRepr] =
-        Json.using[Json.WithDefaultValues].reads[ModulationRepr]
-      implicit val scaleListReprReads: Reads[ScaleListRepr] =
-        Json.using[Json.WithDefaultValues].reads[ScaleListRepr]
+      implicit val modulationReprReads: Reads[TuningSpecRepr] =
+        Json.using[Json.WithDefaultValues].reads[TuningSpecRepr]
+      implicit val compositionReprReads: Reads[CompositionRepr] =
+        Json.using[Json.WithDefaultValues].reads[CompositionRepr]
 
-      preprocessedJson.validate[ScaleListRepr]
+      preprocessedJson.validate[CompositionRepr].map { compositionRepr =>
+        compositionRepr.context = context
+        compositionRepr
+      }
     } match {
-      case JsSuccess(scaleList, _) => scaleList
-      case error: JsError => throw new InvalidScaleListFormatException(JsError.toJson(error).toString)
+      case JsSuccess(compositionRepr, _) => compositionRepr
+      case error: JsError => throw new InvalidCompositionFormatException(JsError.toJson(error).toString)
     }
   }
 
   /**
    * Converts the objects used for JSON representation into core / domain model objects.
    */
-  private def fromReprToDomain(scaleListRepr: ScaleListRepr): ScaleList = {
-    val mapQuarterTonesLow = scaleListRepr.config
-      .getOrElse(ScaleListConfigRepr.Default).mapQuarterTonesLow
+  private def fromReprToDomain(compositionRepr: CompositionRepr): Composition = {
+    val context = compositionRepr.context
+    val mapQuarterTonesLow = compositionRepr.config
+      .getOrElse(CompositionConfigRepr.Default).mapQuarterTonesLow
     val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow)
 
-    val name = scaleListRepr.name.getOrElse("")
-    val tuningRef = StandardTuningRef(PitchClass.fromInt(scaleListRepr.tuningReference.basePitchClass))
+    val name = compositionRepr.name.getOrElse("")
+    val tuningRef = StandardTuningRef(PitchClass.fromInt(compositionRepr.tuningReference.basePitchClass))
 
-    val modulations = scaleListRepr.modulations.map { modulationRepr =>
-      // TODO #58 For better precision we should use for unison the interval type chosen by the user
-      val transposition = modulationRepr.transposition.getOrElse(RealInterval.Unison)
+    val modulations = compositionRepr.tunings.map { modulationRepr =>
+      val transposition = modulationRepr.transposition.getOrElse(context.intonationStandard.unison)
 
       val tuningMapper = modulationRepr.tuningMapper.getOrElse(defaultTuningMapper)
       val scaleMapping = ScaleMapping(modulationRepr.scale.value, tuningMapper)
 
-      val extension = modulationRepr.extension.map { extensionScaleRef =>
-        ScaleMapping(extensionScaleRef.value, defaultTuningMapper)
-      }
-
-      Modulation(transposition, scaleMapping, extension)
+      TuningSpec(transposition, scaleMapping)
     }
 
-    val tuningReducer = scaleListRepr.tuningReducer.getOrElse(TuningReducer.Default)
+    val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
 
-    val globalFillTuningMapper = scaleListRepr.globalFillTuningMapper.getOrElse(defaultTuningMapper)
-    val globalFill = ScaleMapping(scaleListRepr.globalFill.value, globalFillTuningMapper)
+    val globalFillTuningMapper = compositionRepr.globalFillTuningMapper.getOrElse(defaultTuningMapper)
+    val globalFill = ScaleMapping(compositionRepr.globalFill.value, globalFillTuningMapper)
 
-    ScaleList(name, tuningRef, modulations, tuningReducer, globalFill)
+    Composition(name, context.intonationStandard, tuningRef, modulations, tuningReducer, globalFill)
   }
 }
 
-object JsonScaleListFormat {
+object JsonCompositionFormat {
   // TODO #31 Read this from JSON
   private val tolerance: Double = DefaultCentsTolerance
 
-  private[JsonScaleListFormat] implicit val intonationStandardReads: Reads[IntonationStandard] =
+  private[JsonCompositionFormat] implicit val intonationStandardReads: Reads[IntonationStandard] =
     IntonationStandardComponentFormat.componentJsonFormat
-  private[JsonScaleListFormat] implicit val contextReads: Reads[CompositionFormatContext] =
+  private[JsonCompositionFormat] implicit val contextReads: Reads[CompositionFormatContext] =
     Json.using[Json.WithDefaultValues].reads[CompositionFormatContext]
 
-  private[JsonScaleListFormat] implicit val importFormat: Format[Import] = Json.format[Import]
+  private[JsonCompositionFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
-  private[JsonScaleListFormat] implicit val scaleListBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
-  private[JsonScaleListFormat] implicit val scaleListConfigReprReads: Reads[ScaleListConfigRepr] =
-    Json.using[Json.WithDefaultValues].reads[ScaleListConfigRepr]
-  private[JsonScaleListFormat] implicit val tuningMapperPlayJsonFormat: Format[TuningMapper] =
+  private[JsonCompositionFormat] implicit val compositionBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
+  private[JsonCompositionFormat] implicit val compositionConfigReprReads: Reads[CompositionConfigRepr] =
+    Json.using[Json.WithDefaultValues].reads[CompositionConfigRepr]
+  private[JsonCompositionFormat] implicit val tuningMapperPlayJsonFormat: Format[TuningMapper] =
     TuningMapperPlayJsonFormat
-  private[JsonScaleListFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
+  private[JsonCompositionFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
     TuningReducerPlayJsonFormat
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {

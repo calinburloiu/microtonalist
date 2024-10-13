@@ -26,15 +26,17 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
- * Class used as a representation for the JSON format of a scale list.
+ * Class used as a representation for the JSON format of a Microtonalist composition file.
  */
-case class ScaleListRepr(name: Option[String],
-                         tuningReference: OriginRepr,
-                         modulations: Seq[ModulationRepr],
-                         tuningReducer: Option[TuningReducer] = None,
-                         globalFill: DeferrableRead[Scale[Interval], Import],
-                         globalFillTuningMapper: Option[TuningMapper] = None,
-                         config: Option[ScaleListConfigRepr]) {
+case class CompositionRepr(name: Option[String],
+                           tuningReference: OriginRepr,
+                           tunings: Seq[TuningSpecRepr],
+                           tuningReducer: Option[TuningReducer] = None,
+                           globalFill: DeferrableRead[Scale[Interval], Import],
+                           globalFillTuningMapper: Option[TuningMapper] = None,
+                           config: Option[CompositionConfigRepr]) {
+
+  var context: CompositionFormatContext = CompositionFormatContext()
 
   def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
     def scaleLoader(placeholder: Import): Future[Scale[Interval]] = {
@@ -45,12 +47,8 @@ case class ScaleListRepr(name: Option[String],
     }
 
     val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
-    modulations.foreach { modulation =>
+    tunings.foreach { modulation =>
       futures += modulation.scale.load(scaleLoader)
-
-      modulation.extension.foreach { extension =>
-        futures += extension.load(scaleLoader)
-      }
     }
 
     futures += globalFill.load(scaleLoader)
@@ -62,10 +60,11 @@ case class ScaleListRepr(name: Option[String],
 case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], Import]] = Map())
 
 case class CompositionFormatContext(intonationStandard: IntonationStandard = CentsIntonationStandard,
-                                    baseUri: Option[URI],
+                                    baseUri: Option[URI] = None,
                                     settings: Map[String, Map[String, JsObject]] = Map())
 
-// TODO #4 Rename ref to import
+// TODO #59
+@deprecated("To use a string with a URI directly")
 case class Import(ref: URI)
 
 // TODO #62 Use a tuning reference component format
@@ -73,17 +72,20 @@ case class Import(ref: URI)
 @deprecated("To be replaced with tuning reference component format")
 case class OriginRepr(basePitchClass: Int)
 
-case class ModulationRepr(transposition: Option[Interval] = None,
+case class TuningSpecRepr(transposition: Option[Interval] = None,
                           scale: DeferrableRead[Scale[Interval], Import],
-                          tuningMapper: Option[TuningMapper],
-                          extension: Option[DeferrableRead[Scale[Interval], Import]])
+                          tuningMapper: Option[TuningMapper])
 
-case class ScaleListConfigRepr(mapQuarterTonesLow: Boolean = false)
+// TODO #61
+@deprecated("To be replaced to config with settings")
+case class CompositionConfigRepr(mapQuarterTonesLow: Boolean = false)
 
-object ScaleListConfigRepr {
+object CompositionConfigRepr {
 
-  val Default: ScaleListConfigRepr = ScaleListConfigRepr()
+  val Default: CompositionConfigRepr = CompositionConfigRepr()
 }
 
+// TODO #61
+@deprecated("To be replaced with TuningMapper component JSON format")
 case class AutoTuningMapperRepr(mapQuarterTonesLow: Boolean = false,
                                 halfTolerance: Option[Double] = None)

@@ -14,7 +14,7 @@ The application is composed of the following modules:
 * **`sync`** with package `org.calinburloiu.music.microtuner.sync`: module responsible for synchronizing the data between other modules. Currently, it contains assets for Guava `EventBus` communication.
 * **`core`** with package `org.calinburloiu.music.microtuner.core`: domain model of the application around which other modules revolve.
 * **`tuner`** with package `org.calinburloiu.music.microtuner.tuner`: module responsible to tune output instruments by using standard Java MIDI library.
-* **`format`** with package `org.calinburloiu.music.microtuner.format`: module responsible for reading / writing scale lists and other things related to a musical composition to persistence storage. Right now, only files are supported by using JSON and Scala application formats, but in the future we might support cloud storage.  Application configuration is handled in `app` module via HOCON files.
+* **`format`** with package `org.calinburloiu.music.microtuner.format`: module responsible for reading / writing compositions and other things related to a musical composition to persistence storage. Right now, only files are supported by using JSON and Scala application formats, but in the future we might support cloud storage.  Application configuration is handled in `app` module via HOCON files.
 
 Other reusable libraries, not specifically related to the application, are also defined as modules:
 
