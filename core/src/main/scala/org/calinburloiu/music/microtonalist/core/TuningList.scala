@@ -39,7 +39,7 @@ object TuningList extends StrictLogging {
   def fromComposition(composition: Composition): TuningList = {
     val globalFillTuning = composition.globalFill.map { tuningSpec =>
       val scale = tuningSpec.scaleMapping.scale
-      tuningSpec.scaleMapping.tuningMapper.mapScale(scale, composition.tuningRef)
+      tuningSpec.scaleMapping.tuningMapper.mapScale(scale, composition.tuningRef).fillWithStandardTuning
     }.getOrElse(PartialTuning.StandardTuningOctave)
     val partialTunings = createPartialTunings(Vector.empty, composition.tuningSpecs, composition.tuningRef)
 
