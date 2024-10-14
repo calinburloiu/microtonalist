@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, IntonationStandard, RealInterval, Scale}
+import org.calinburloiu.music.intonation.{Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
@@ -36,6 +36,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
                             jsonPreprocessor: JsonPreprocessor,
                             jsonScaleFormat: JsonScaleFormat,
                             synchronousAwaitTimeout: FiniteDuration = 1 minute) extends CompositionFormat {
+
+  import JsonCompositionFormat._
+
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): Composition =
     Await.result(readAsync(inputStream, baseUri), synchronousAwaitTimeout)
 
@@ -49,20 +52,12 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
   override def writeAsync(composition: Composition, outputStream: OutputStream): Future[Unit] = ???
 
   private def readRepr(inputStream: InputStream, baseUri: Option[URI]): CompositionRepr = {
-    import JsonCompositionFormat._
 
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
     preprocessedJson.validate[CompositionFormatContext].flatMap { context =>
-      implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(context.intonationStandard)
-      implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(
-        Some(ScaleFormatContext(name = Some(""), Some(context.intonationStandard)))
-      )
-      implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
-        DeferrableRead.reads(scaleReads, importFormat)
-      implicit val tuningSpecReprReads: Reads[TuningSpecRepr] =
-        Json.using[Json.WithDefaultValues].reads[TuningSpecRepr]
+      implicit val tuningSpecReprReads: Reads[TuningSpecRepr] = tuningSpecReprReadsFor(context.intonationStandard)
       implicit val compositionReprReads: Reads[CompositionRepr] =
         Json.using[Json.WithDefaultValues].reads[CompositionRepr]
 
@@ -105,11 +100,28 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
     Composition(name, context.intonationStandard, tuningRef, tuningSpecs, tuningReducer, globalFill)
   }
+
+  private def tuningSpecReprReadsFor(intonationStandard: IntonationStandard): Reads[TuningSpecRepr] = {
+    Reads { jsValue =>
+      jsValue.validate[JsObject].flatMap { jsObj => (jsObj \ "name").validateOpt[String] }
+    }.flatMap { name =>
+      val scaleFormatContext = Some(ScaleFormatContext(name.orElse(Some(DefaultScaleName)), Some(intonationStandard)))
+
+      implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(intonationStandard)
+      implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(scaleFormatContext)
+      implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
+        DeferrableRead.reads(scaleReads, importFormat)
+
+      Json.using[Json.WithDefaultValues].reads[TuningSpecRepr]
+    }
+  }
 }
 
 object JsonCompositionFormat {
   // TODO #31 Read this from JSON
   private val tolerance: Double = DefaultCentsTolerance
+
+  private val DefaultScaleName: String = ""
 
   private[JsonCompositionFormat] implicit val intonationStandardReads: Reads[IntonationStandard] =
     IntonationStandardComponentFormat.componentJsonFormat
@@ -118,7 +130,7 @@ object JsonCompositionFormat {
 
   private[JsonCompositionFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
-  private[JsonCompositionFormat] implicit val compositionBaseReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
+  private[JsonCompositionFormat] implicit val tuningRefReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonCompositionFormat] implicit val compositionConfigReprReads: Reads[CompositionConfigRepr] =
     Json.using[Json.WithDefaultValues].reads[CompositionConfigRepr]
   private[JsonCompositionFormat] implicit val tuningMapperPlayJsonFormat: Format[TuningMapper] =
