@@ -33,8 +33,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   import FormatTestUtils.readCompositionFromResources
 
   private lazy val compositionRepo = {
-    val intonationStandardComponentFormat = IntonationStandardComponentFormat.componentJsonFormat
-    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, intonationStandardComponentFormat)
+    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat
@@ -55,7 +54,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     (7, 4), (15, 8), (2, 1))
 
   it should "successfully read a valid composition file" in {
-    val composition = readCompositionFromResources("format/minor_major.scalist", compositionRepo)
+    val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
 
     composition.globalFill.map(_.scaleMapping.scale) should contain(chromaticScale)
     composition.tuningRef.basePitchClass.number shouldEqual 2
@@ -72,31 +71,31 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
   it should "fail when a transposition interval in invalid" in {
     assertThrows[InvalidCompositionFormatException] {
-      readCompositionFromResources("format/invalid_transposition_interval.scalist", compositionRepo)
+      readCompositionFromResources("format/invalid-transposition-interval.mtlist", compositionRepo)
     }
   }
 
   it should "fail when a scale reference points to a non existent file" in {
     assertThrows[ScaleNotFoundException] {
-      readCompositionFromResources("format/non_existent_scale_ref.scalist", compositionRepo)
+      readCompositionFromResources("format/non-existent-scale-ref.mtlist", compositionRepo)
     }
   }
 
   it should "fail when a scale reference points to an invalid file" in {
     assertThrows[ScaleNotFoundException] {
-      readCompositionFromResources("format/invalid_referenced_scale.scalist", compositionRepo)
+      readCompositionFromResources("format/invalid-referenced-scale.mtlist", compositionRepo)
     }
   }
 
   it should "fail when a scale defined inside the composition is invalid" in {
     assertThrows[InvalidCompositionFormatException] {
-      readCompositionFromResources("format/invalid_scale.scalist", compositionRepo)
+      readCompositionFromResources("format/invalid-scale.mtlist", compositionRepo)
     }
   }
 
   it should "fail when a composition does not exist" in {
     assertThrows[CompositionNotFoundException] {
-      compositionRepo.read(new URI("file:///Users/john/non_existent.scalist"))
+      compositionRepo.read(new URI("file:///Users/john/non-existent.mtlist"))
     }
   }
 

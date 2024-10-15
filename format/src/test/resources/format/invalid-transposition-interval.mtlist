@@ -3,7 +3,8 @@
     "basePitchClass": 9
   },
   "globalFill": {
-    "ref": "chromatic.scl"
+    "transposition": "1/1",
+    "scale": { "ref": "chromatic.scl" }
   },
   "tunings": [
     {
@@ -13,9 +14,9 @@
       }
     },
     {
-      "transposition": "6/5",
+      "transposition": "foo",
       "scale": {
-        "ref": "bar.scl"
+        "ref": "major.scl"
       }
     }
   ]

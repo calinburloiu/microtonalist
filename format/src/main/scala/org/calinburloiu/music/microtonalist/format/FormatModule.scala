@@ -34,11 +34,8 @@ class FormatModule(libraryUri: URI,
   lazy val jsonPreprocessorFileRefLoader: JsonPreprocessorFileRefLoader = new JsonPreprocessorFileRefLoader
   lazy val jsonPreprocessorHttpRefLoader: JsonPreprocessorHttpRefLoader = new JsonPreprocessorHttpRefLoader(httpClient)
 
-  lazy val intonationStandardComponentFormat: Format[IntonationStandard] = IntonationStandardComponentFormat
-    .componentJsonFormat
-
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor, intonationStandardComponentFormat)
+  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor)
 
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))

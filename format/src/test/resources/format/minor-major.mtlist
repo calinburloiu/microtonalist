@@ -3,10 +3,11 @@
     "basePitchClass": 2
   },
   "config": {
-    "$ref": "common-config.json"
+    "mapQuarterTonesLow": true
   },
   "globalFill": {
-    "ref": "scales/chromatic.scl"
+    "transposition": "1/1",
+    "scale": { "ref": "scales/chromatic.scl" }
   },
   "tuningReducer": "merge",
   "tunings": [
@@ -20,7 +21,7 @@
     {
       "transposition": "6/5",
       "scale": {
-        "ref": "microtonalist:///scales/major.scl"
+        "ref": "scales/major.scl"
       }
     },
     {
