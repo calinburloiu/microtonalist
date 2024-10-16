@@ -8,22 +8,18 @@
   },
   "globalFill": {
     "transposition": "1/1",
-    "scale": { "ref": "scales/chromatic.scl" }
+    "scale": "scales/chromatic.scl"
   },
   "tuningReducer": "merge",
   "tunings": [
     {
       "transposition": "1",
-      "scale": {
-        "ref": "scales/minor-just.jscl"
-      },
+      "scale": "scales/minor-just.jscl",
       "tuningMapper": "auto"
     },
     {
       "transposition": "6/5",
-      "scale": {
-        "ref": "scales/major.scl"
-      }
+      "scale": "scales/major.scl"
     },
     {
       "transposition": "1/1",

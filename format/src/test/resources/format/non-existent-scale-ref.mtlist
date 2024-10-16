@@ -4,20 +4,16 @@
   },
   "globalFill": {
     "transposition": "1/1",
-    "scale": { "ref": "chromatic.scl" }
+    "scale": "chromatic.scl"
   },
   "tunings": [
     {
       "transposition": "1",
-      "scale": {
-        "ref": "minor-just.jscl"
-      }
+      "scale": "minor-just.jscl"
     },
     {
       "transposition": "6/5",
-      "scale": {
-        "ref": "bar.scl"
-      }
+      "scale": "bar.scl"
     }
   ]
 }
