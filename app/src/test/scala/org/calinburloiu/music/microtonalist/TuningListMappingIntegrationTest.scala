@@ -30,10 +30,11 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  it should "successfully create a tuning list out of 'minor_major.scalist' file" in {
-    val scaleListResource = "app/minor_major.scalist"
-    val scaleList = FormatTestUtils.readScaleListFromResources(scaleListResource, formatModule.defaultScaleListRepo)
-    val tuningList = TuningList.fromScaleList(scaleList)
+  it should "successfully create a tuning list out of 'minor-major.mtlist' file" in {
+    val compositionResource = "app/minor-major.mtlist"
+    val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
+      .defaultCompositionRepo)
+    val tuningList = TuningList.fromComposition(composition)
 
     val justMinorThirdDeviation = 15.64 // cents
 

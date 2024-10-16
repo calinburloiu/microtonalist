@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.core.ScaleList
+import org.calinburloiu.music.microtonalist.core.Composition
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
@@ -27,31 +27,31 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
 /**
- * Scale list repository implementation that retrieves and persists scales by using the file system.
+ * Composition repository implementation that retrieves and persists scales by using the file system.
  *
- * @param scaleListFormat format implementation responsible for (de)serialization.
+ * @param compositionFormat format implementation responsible for (de)serialization.
  */
-class FileScaleListRepo(scaleListFormat: ScaleListFormat,
-                        synchronousAwaitTimeout: FiniteDuration = 1 minute) extends ScaleListRepo with StrictLogging {
-  override def read(uri: URI): ScaleList = Await.result(readAsync(uri), synchronousAwaitTimeout)
+class FileCompositionRepo(compositionFormat: CompositionFormat,
+                          synchronousAwaitTimeout: FiniteDuration = 1 minute) extends CompositionRepo with StrictLogging {
+  override def read(uri: URI): Composition = Await.result(readAsync(uri), synchronousAwaitTimeout)
 
-  override def readAsync(uri: URI): Future[ScaleList] = {
+  override def readAsync(uri: URI): Future[Composition] = {
     val path = pathOf(uri)
 
-    logger.info(s"Reading scale list from path \"$path\"...")
+    logger.info(s"Reading composition from path \"$path\"...")
     Future {
       new FileInputStream(path.toString)
     }.recover {
-      case e: FileNotFoundException => throw new ScaleListNotFoundException(uri, e.getCause)
+      case e: FileNotFoundException => throw new CompositionNotFoundException(uri, e.getCause)
     }.flatMap { inputStream =>
-      scaleListFormat.readAsync(inputStream, Some(baseUriOf(uri)))
+      compositionFormat.readAsync(inputStream, Some(baseUriOf(uri)))
     }.andThen {
-      case Success(_) => logger.info(s"Successfully read scale list from path \"$path\"")
-      case Failure(exception) => logger.error(s"Failed to read scale list from path \"$path\"!", exception)
+      case Success(_) => logger.info(s"Successfully read composition from path \"$path\"")
+      case Failure(exception) => logger.error(s"Failed to read composition from path \"$path\"!", exception)
     }
   }
 
-  override def write(scaleList: ScaleList, uri: URI): Unit = ???
+  override def write(composition: Composition, uri: URI): Unit = ???
 
-  override def writeAsync(scaleList: ScaleList, uri: URI): Future[Unit] = ???
+  override def writeAsync(composition: Composition, uri: URI): Future[Unit] = ???
 }

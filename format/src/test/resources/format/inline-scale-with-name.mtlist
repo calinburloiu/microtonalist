@@ -1,0 +1,14 @@
+{
+  "tuningReference": {
+    "basePitchClass": 2
+  },
+  "tunings": [
+    {
+      "name": "maj-5",
+      "scale": [204, 386, 498, 702]
+    }
+  ],
+  "globalFill": {
+    "scale": [112, 306, 583]
+  }
+}

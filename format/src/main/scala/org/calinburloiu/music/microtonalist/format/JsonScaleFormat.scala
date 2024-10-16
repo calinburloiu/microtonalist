@@ -29,8 +29,7 @@ import java.net.URI
  *
  * @param jsonPreprocessor a preprocessor instance that can replace JSON references
  */
-class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
-                      implicit val intonationStandardComponentFormat: Format[IntonationStandard]) extends ScaleFormat {
+class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
   import JsonScaleFormat._
 
@@ -125,6 +124,9 @@ object JsonScaleFormat {
   val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist.scale+json")
 
   val ErrorMissingContext: String = "error.scale.missingContext"
+
+  private[JsonScaleFormat] implicit val intonationStandardComponentFormat: Format[IntonationStandard] =
+    IntonationStandardComponentFormat.componentJsonFormat
 
   private[format] def pitchIntervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = {
     val intervalFormat: Format[Interval] = JsonIntervalFormat.formatFor(intonationStandard)

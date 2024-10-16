@@ -64,7 +64,7 @@ object ManualTuningMapper {
    * Computes the deviation from 12-EDO for the given pitch class.
    *
    * @param totalCentsInterval a normalized total number of cents counted from a 12-EDO C which contains absolute
-   *                           scale intervals (with summed modulation transpositions)
+   *                           scale intervals
    * @param pitchClass         pitch class from which the deviation is computed
    * @return a deviation in cents
    */

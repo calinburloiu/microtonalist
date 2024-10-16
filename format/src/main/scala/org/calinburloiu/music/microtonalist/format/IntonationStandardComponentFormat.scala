@@ -36,7 +36,7 @@ object IntonationStandardComponentFormat {
     )
   )
 
-  def createComponentJsonFormat(): ComponentJsonFormat[IntonationStandard] = new ComponentJsonFormat(
+  lazy val componentJsonFormat: ComponentJsonFormat[IntonationStandard] = new ComponentJsonFormat(
     ComponentFamilyName,
     specs,
     Some(CentsIntonationStandard.typeName)

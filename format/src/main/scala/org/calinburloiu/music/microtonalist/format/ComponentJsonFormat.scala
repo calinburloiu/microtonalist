@@ -86,7 +86,7 @@ class ComponentJsonFormat[F](val familyName: String,
     case Some(spec) if spec.formatOrComponentValue.isLeft =>
       writesWithTypeFor(spec.format.asInstanceOf[Format[F]], spec.typeName).writes(component)
     case Some(spec) if spec.formatOrComponentValue.isRight => JsString(spec.typeName)
-    case None => throw new Error(s"Unregistered scale list sub-component class ${component.getClass.getName}")
+    case None => throw new Error(s"Unregistered composition sub-component class ${component.getClass.getName}")
   }
 }
 

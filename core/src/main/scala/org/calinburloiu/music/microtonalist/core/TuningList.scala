@@ -36,34 +36,32 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 
 object TuningList extends StrictLogging {
 
-  def fromScaleList(scaleList: ScaleList): TuningList = {
-    val globalFillScale = scaleList.globalFill.scale
-    val globalFillTuning = scaleList.globalFill.tuningMapper.mapScale(globalFillScale, scaleList.tuningRef)
-    val partialTunings = createPartialTunings(Vector.empty, scaleList.modulations, scaleList.tuningRef)
+  def fromComposition(composition: Composition): TuningList = {
+    val globalFillTuning = composition.globalFill.map { tuningSpec =>
+      val scale = tuningSpec.scaleMapping.scale
+      tuningSpec.scaleMapping.tuningMapper.mapScale(scale, composition.tuningRef).fillWithStandardTuning
+    }.getOrElse(PartialTuning.StandardTuningOctave)
+    val partialTunings = createPartialTunings(Vector.empty, composition.tuningSpecs, composition.tuningRef)
 
-    scaleList.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
+    composition.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
   }
 
   @tailrec
   private[this] def createPartialTunings(partialTuningsAcc: Seq[PartialTuning],
-                                         modulations: Seq[Modulation],
+                                         tuningSpecs: Seq[TuningSpec],
                                          tuningRef: TuningRef): Seq[PartialTuning] = {
-    if (modulations.isEmpty) {
+    if (tuningSpecs.isEmpty) {
       partialTuningsAcc
     } else {
-      val partialTuning = createPartialTuning(modulations.head, tuningRef)
-      createPartialTunings(partialTuningsAcc :+ partialTuning, modulations.tail, tuningRef)
+      val partialTuning = createPartialTuning(tuningSpecs.head, tuningRef)
+      createPartialTunings(partialTuningsAcc :+ partialTuning, tuningSpecs.tail, tuningRef)
     }
   }
 
-  private[this] def createPartialTuning(modulation: Modulation,
+  private[this] def createPartialTuning(tuningSpec: TuningSpec,
                                         tuningRef: TuningRef): PartialTuning = {
-    val scaleName = modulation.scaleMapping.scale.name
-    val transposition = modulation.transposition
+    val transposition = tuningSpec.transposition
 
-    val extensionTuning = modulation.extension.map(_.tuningFor(transposition, tuningRef))
-      .getOrElse(PartialTuning.EmptyOctave)
-
-    modulation.scaleMapping.tuningFor(transposition, tuningRef).overwrite(extensionTuning)
+    tuningSpec.scaleMapping.tuningFor(transposition, tuningRef)
   }
 }

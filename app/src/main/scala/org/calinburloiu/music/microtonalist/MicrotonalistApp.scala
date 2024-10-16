@@ -96,8 +96,8 @@ object MicrotonalistApp extends StrictLogging {
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
 
     // # Microtuner
-    val scaleList = formatModule.defaultScaleListRepo.read(inputUri)
-    val tuningList = TuningList.fromScaleList(scaleList)
+    val composition = formatModule.defaultCompositionRepo.read(inputUri)
+    val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
     val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
     val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)

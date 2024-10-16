@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
+import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.microtonalist.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.scalamock.scalatest.MockFactory
@@ -27,21 +28,23 @@ import play.api.libs.json._
 
 import java.net.URI
 
-class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
+class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
 
-  import JsonScaleListFormat._
-  import FormatTestUtils.readScaleListFromResources
+  import FormatTestUtils.readCompositionFromResources
+  import JsonCompositionFormat._
 
-  private lazy val scaleListRepo = {
-    val intonationStandardComponentFormat = IntonationStandardComponentFormat.createComponentJsonFormat()
-    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, intonationStandardComponentFormat)
+  private lazy val compositionFormat: CompositionFormat = {
+    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat
     ))
-    val scaleRepo = new FileScaleRepo(scaleFormatRegistry)
-    val scaleListFormat = new JsonScaleListFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
-    new FileScaleListRepo(scaleListFormat)
+    val scaleRepo = new DefaultScaleRepo(Some(new FileScaleRepo(scaleFormatRegistry)), None, None)
+    new JsonCompositionFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
+  }
+
+  private lazy val compositionRepo: CompositionRepo = {
+    new FileCompositionRepo(compositionFormat)
   }
 
   val majorScale: RatiosScale = RatiosScale("Major",
@@ -54,49 +57,88 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
     (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3),
     (7, 4), (15, 8), (2, 1))
 
-  it should "successfully read a valid scale list file" in {
-    val scaleList = readScaleListFromResources("format/minor_major.scalist", scaleListRepo)
+  it should "take name from tuning spec context when reading an inline scale" in {
+    val composition = readCompositionFromResources("format/inline-scale-with-name.mtlist", compositionRepo)
 
-    scaleList.globalFill.scale shouldEqual chromaticScale
-    scaleList.tuningRef.basePitchClass.number shouldEqual 2
+    // Takes name from context
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual CentsScale("maj-5", 0, 204, 386, 498, 702)
 
-    scaleList.modulations.head.scaleMapping.scale shouldEqual naturalMinorScale
-    scaleList.modulations.head.transposition shouldEqual RatioInterval(1, 1)
+    // Uses a default name when no name is in context for an inline scale
+    composition.globalFill.map(_.scaleMapping.scale.name) should contain("")
+  }
 
-    scaleList.modulations(1).transposition shouldEqual RatioInterval(6, 5)
-    scaleList.modulations(1).scaleMapping.scale shouldEqual majorScale
+  it should "successfully read 72-EDO intervals in 72-EDO intonation standard" in {
+    val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
 
-    scaleList.modulations(2).transposition shouldEqual RatioInterval(1, 1)
-    scaleList.modulations(2).scaleMapping.scale shouldEqual romanianMinorScale
+    composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
+
+    // TODO #62 Also test tuningRef intervals
+  }
+
+  // TODO #68
+  ignore should "successfully read just intonation intervals in 72-EDO intonation standard" in {
+    val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
+
+    composition.tuningSpecs(1).transposition shouldEqual EdoInterval(72, (4, -1))
+    composition.tuningSpecs(1).scaleMapping.scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
+  }
+
+  // TODO #62 Also test tuningRef intervals
+  ignore should "successfully interpret concertPitchToBaseInterval from tuningReference in 72-EDO intonation " +
+    "standard" in {
+  }
+
+  it should "fail to interpret EDO intervals in just intonation standard" in {
+    assertThrows[InvalidCompositionFormatException] {
+      readCompositionFromResources("format/intonation-standard-incompatibility.mtlist", compositionRepo)
+    }
+  }
+
+  it should "successfully read a valid composition file" in {
+    val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
+
+    composition.globalFill.map(_.scaleMapping.scale) should contain(chromaticScale)
+    composition.globalFill.map(_.transposition) should contain(1 /: 1)
+    composition.tuningRef.basePitchClass.number shouldEqual 2
+
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual naturalMinorScale
+    composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
+
+    composition.tuningSpecs(1).transposition shouldEqual RatioInterval(6, 5)
+    composition.tuningSpecs(1).scaleMapping.scale shouldEqual majorScale
+
+    composition.tuningSpecs(2).transposition shouldEqual RatioInterval(1, 1)
+    composition.tuningSpecs(2).scaleMapping.scale shouldEqual romanianMinorScale
   }
 
   it should "fail when a transposition interval in invalid" in {
-    assertThrows[InvalidScaleListFormatException] {
-      readScaleListFromResources("format/invalid_transposition_interval.scalist", scaleListRepo)
+    assertThrows[InvalidCompositionFormatException] {
+      readCompositionFromResources("format/invalid-transposition-interval.mtlist", compositionRepo)
     }
   }
 
   it should "fail when a scale reference points to a non existent file" in {
     assertThrows[ScaleNotFoundException] {
-      readScaleListFromResources("format/non_existent_scale_ref.scalist", scaleListRepo)
+      readCompositionFromResources("format/non-existent-scale-ref.mtlist", compositionRepo)
     }
   }
 
   it should "fail when a scale reference points to an invalid file" in {
     assertThrows[ScaleNotFoundException] {
-      readScaleListFromResources("format/invalid_referenced_scale.scalist", scaleListRepo)
+      readCompositionFromResources("format/invalid-referenced-scale.mtlist", compositionRepo)
     }
   }
 
-  it should "fail when a scale defined inside the scale list is invalid" in {
-    assertThrows[InvalidScaleListFormatException] {
-      readScaleListFromResources("format/invalid_scale.scalist", scaleListRepo)
+  it should "fail when a scale defined inside the composition is invalid" in {
+    assertThrows[InvalidCompositionFormatException] {
+      readCompositionFromResources("format/invalid-scale.mtlist", compositionRepo)
     }
   }
 
-  it should "fail when a scale list does not exist" in {
-    assertThrows[ScaleListNotFoundException] {
-      scaleListRepo.read(new URI("file:///Users/john/non_existent.scalist"))
+  it should "fail when a composition does not exist" in {
+    assertThrows[CompositionNotFoundException] {
+      compositionRepo.read(new URI("file:///Users/john/non-existent.mtlist"))
     }
   }
 
@@ -158,7 +200,8 @@ class JsonScaleListFormatTest extends AnyFlatSpec with Matchers with Inside with
   }
 
   it should "serialize JSON object for type auto" in {
-    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.1))
+    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(shouldMapQuarterTonesLow = true,
+      quarterToneTolerance = 0.1))
     val expected = Json.obj(
       "type" -> "auto",
       "mapQuarterTonesLow" -> true,
