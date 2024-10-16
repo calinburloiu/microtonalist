@@ -38,43 +38,38 @@ case class CompositionRepr(name: Option[String],
   var context: CompositionFormatContext = CompositionFormatContext()
 
   def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
-    def scaleLoader(placeholder: Import): Future[Scale[Interval]] = {
-      val uri = placeholder.ref
+    def scaleLoader(uri: URI): Future[Scale[Interval]] = {
       val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
-
       scaleRepo.readAsync(resolvedUri)
     }
 
     val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
-    tunings.foreach { tuningSpec =>
-      futures += tuningSpec.scale.load(scaleLoader)
+    for (tuningSpec <- tunings; scale <- tuningSpec.scale) {
+      futures += scale.load(scaleLoader)
     }
 
-    if (globalFill.isDefined) {
-      futures += globalFill.get.scale.load(scaleLoader)
+    for (globalFillValue <- globalFill; scale <- globalFillValue.scale) {
+      futures += scale.load(scaleLoader)
     }
 
     Future.sequence(futures).map(_ => this)
   }
 }
 
-case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], Import]] = Map())
+case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], URI]] = Map())
 
 case class CompositionFormatContext(intonationStandard: IntonationStandard = CentsIntonationStandard,
                                     baseUri: Option[URI] = None,
                                     settings: Map[String, Map[String, JsObject]] = Map())
-
-// TODO #59
-@deprecated("To use a string with a URI directly")
-case class Import(ref: URI)
 
 // TODO #62 Use a tuning reference component format
 
 @deprecated("To be replaced with tuning reference component format")
 case class OriginRepr(basePitchClass: Int)
 
-case class TuningSpecRepr(transposition: Option[Interval] = None,
-                          scale: DeferrableRead[Scale[Interval], Import],
+case class TuningSpecRepr(name: Option[String],
+                          transposition: Option[Interval] = None,
+                          scale: Option[DeferrableRead[Scale[Interval], URI]],
                           tuningMapper: Option[TuningMapper])
 
 // TODO #61

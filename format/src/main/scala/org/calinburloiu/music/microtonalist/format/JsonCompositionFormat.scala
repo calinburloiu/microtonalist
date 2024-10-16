@@ -82,9 +82,12 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
     def convertTuningSpec(tuningSpecRepr: TuningSpecRepr): TuningSpec = {
       val transposition = tuningSpecRepr.transposition.getOrElse(context.intonationStandard.unison)
-
+      val name = tuningSpecRepr.name.getOrElse(DefaultScaleName)
+      val intonationStandard = context.intonationStandard
+      val scale = tuningSpecRepr.scale.map(_.value).getOrElse(
+        Scale.create(name, Seq(intonationStandard.unison), intonationStandard))
       val tuningMapper = tuningSpecRepr.tuningMapper.getOrElse(defaultTuningMapper)
-      val scaleMapping = ScaleMapping(tuningSpecRepr.scale.value, tuningMapper)
+      val scaleMapping = ScaleMapping(scale, tuningMapper)
 
       TuningSpec(transposition, scaleMapping)
     }
@@ -109,8 +112,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
       implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(intonationStandard)
       implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(scaleFormatContext)
-      implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], Import]] =
-        DeferrableRead.reads(scaleReads, importFormat)
+      implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], URI]] =
+        DeferrableRead.reads(scaleReads, Reads.uriReads)
 
       Json.using[Json.WithDefaultValues].reads[TuningSpecRepr]
     }
@@ -127,8 +130,6 @@ object JsonCompositionFormat {
     IntonationStandardComponentFormat.componentJsonFormat
   private[JsonCompositionFormat] implicit val contextReads: Reads[CompositionFormatContext] =
     Json.using[Json.WithDefaultValues].reads[CompositionFormatContext]
-
-  private[JsonCompositionFormat] implicit val importFormat: Format[Import] = Json.format[Import]
 
   private[JsonCompositionFormat] implicit val tuningRefReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
   private[JsonCompositionFormat] implicit val compositionConfigReprReads: Reads[CompositionConfigRepr] =

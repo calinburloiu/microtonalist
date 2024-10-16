@@ -142,6 +142,22 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     }
   }
 
+  it should "allow tuning specs without a scale property" in {
+    val composition = readCompositionFromResources("format/accidentals.mtlist", compositionRepo)
+
+    composition.tuningSpecs.head.transposition shouldEqual 16 /: 15
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual RatiosScale(1 /: 1)
+
+    composition.tuningSpecs(1).transposition shouldEqual 5 /: 4
+    composition.tuningSpecs(1).scaleMapping.scale shouldEqual RatiosScale("hicaz", 1 /: 1)
+
+    composition.tuningSpecs(2).transposition shouldEqual 1 /: 1
+    composition.tuningSpecs(2).scaleMapping.scale shouldEqual RatiosScale(1 /: 1)
+
+    composition.tuningSpecs(3).transposition shouldEqual 1 /: 1
+    composition.tuningSpecs(3).scaleMapping.scale shouldEqual RatiosScale("dügah", 1 /: 1)
+  }
+
   "TuningReducerPlayJsonFormat" should "deserialize JSON string containing type" in {
     inside(TuningReducerPlayJsonFormat.reads(JsString("direct"))) {
       case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
