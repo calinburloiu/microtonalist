@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{RatioInterval, RatiosScale}
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
+import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.microtonalist.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.scalamock.scalatest.MockFactory
@@ -29,17 +30,20 @@ import java.net.URI
 
 class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
 
-  import JsonCompositionFormat._
   import FormatTestUtils.readCompositionFromResources
+  import JsonCompositionFormat._
 
-  private lazy val compositionRepo = {
+  private lazy val compositionFormat: CompositionFormat = {
     val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat
     ))
-    val scaleRepo = new FileScaleRepo(scaleFormatRegistry)
-    val compositionFormat = new JsonCompositionFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
+    val scaleRepo = new DefaultScaleRepo(Some(new FileScaleRepo(scaleFormatRegistry)), None, None)
+    new JsonCompositionFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
+  }
+
+  private lazy val compositionRepo: CompositionRepo = {
     new FileCompositionRepo(compositionFormat)
   }
 
@@ -53,10 +57,49 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3),
     (7, 4), (15, 8), (2, 1))
 
+  it should "take name from tuning spec context when reading an inline scale" in {
+    val composition = readCompositionFromResources("format/inline-scale-with-name.mtlist", compositionRepo)
+
+    // Takes name from context
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual CentsScale("maj-5", 0, 204, 386, 498, 702)
+
+    // Uses a default name when no name is in context for an inline scale
+    composition.globalFill.map(_.scaleMapping.scale.name) should contain("")
+  }
+
+  it should "successfully read 72-EDO intervals in 72-EDO intonation standard" in {
+    val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
+
+    composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
+    composition.tuningSpecs.head.scaleMapping.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
+
+    // TODO #62 Also test tuningRef intervals
+  }
+
+  // TODO #68
+  ignore should "successfully read just intonation intervals in 72-EDO intonation standard" in {
+    val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
+
+    composition.tuningSpecs(1).transposition shouldEqual EdoInterval(72, (4, -1))
+    composition.tuningSpecs(1).scaleMapping.scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
+  }
+
+  // TODO #62 Also test tuningRef intervals
+  ignore should "successfully interpret concertPitchToBaseInterval from tuningReference in 72-EDO intonation " +
+    "standard" in {
+  }
+
+  it should "fail to interpret EDO intervals in just intonation standard" in {
+    assertThrows[InvalidCompositionFormatException] {
+      readCompositionFromResources("format/intonation-standard-incompatibility.mtlist", compositionRepo)
+    }
+  }
+
   it should "successfully read a valid composition file" in {
     val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
 
     composition.globalFill.map(_.scaleMapping.scale) should contain(chromaticScale)
+    composition.globalFill.map(_.transposition) should contain(1 /: 1)
     composition.tuningRef.basePitchClass.number shouldEqual 2
 
     composition.tuningSpecs.head.scaleMapping.scale shouldEqual naturalMinorScale
@@ -157,7 +200,8 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   }
 
   it should "serialize JSON object for type auto" in {
-    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.1))
+    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(shouldMapQuarterTonesLow = true,
+      quarterToneTolerance = 0.1))
     val expected = Json.obj(
       "type" -> "auto",
       "mapQuarterTonesLow" -> true,

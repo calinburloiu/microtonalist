@@ -48,13 +48,13 @@ import scala.concurrent.Future
  * @param httpScaleRepo    an [[HttpScaleRepo]] instance
  * @param libraryScaleRepo a [[LibraryScaleRepo]] instance
  */
-class DefaultScaleRepo(fileScaleRepo: FileScaleRepo,
-                       httpScaleRepo: HttpScaleRepo,
-                       libraryScaleRepo: LibraryScaleRepo) extends ComposedScaleRepo with LazyLogging {
+class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
+                       httpScaleRepo: Option[HttpScaleRepo],
+                       libraryScaleRepo: Option[LibraryScaleRepo]) extends ComposedScaleRepo with LazyLogging {
   override def getScaleRepo(uri: URI): Option[ScaleRepo] = uri.getScheme match {
-    case null | UriScheme.File => Some(fileScaleRepo)
-    case UriScheme.Http | UriScheme.Https => Some(httpScaleRepo)
-    case UriScheme.MicrotonalistLibrary => Some(libraryScaleRepo)
+    case null | UriScheme.File => fileScaleRepo
+    case UriScheme.Http | UriScheme.Https => httpScaleRepo
+    case UriScheme.MicrotonalistLibrary => libraryScaleRepo
     case _ => None
   }
 

@@ -16,9 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.IntonationStandard
-import play.api.libs.json.Format
-
 import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -46,14 +43,16 @@ class FormatModule(libraryUri: URI,
     libraryUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
-    fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
+    Some(fileScaleRepo), Some(httpScaleRepo), Some(microtonalistLibraryScaleRepo))
 
   lazy val compositionFormat: CompositionFormat = new JsonCompositionFormat(
     defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
 
-  lazy val fileCompositionRepo: FileCompositionRepo = new FileCompositionRepo(compositionFormat, synchronousAwaitTimeout)
+  lazy val fileCompositionRepo: FileCompositionRepo = new FileCompositionRepo(compositionFormat,
+    synchronousAwaitTimeout)
   lazy val httpCompositionRepo: HttpCompositionRepo = new HttpCompositionRepo(
     httpClient, compositionFormat, synchronousAwaitTimeout)
 
-  lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(fileCompositionRepo, httpCompositionRepo)
+  lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(fileCompositionRepo,
+    httpCompositionRepo)
 }

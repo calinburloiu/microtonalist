@@ -17,10 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation.{
-  CentsIntonationStandard, CentsScale, EdoIntonationStandard, EdoScale,
-  Interval, JustIntonationStandard, RatiosScale, Scale
-}
+import org.calinburloiu.music.intonation._
 import org.scalamock.scalatest.AbstractMockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -30,7 +27,7 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
     val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(jsonScaleFormat))
     val fileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
-    new DefaultScaleRepo(fileScaleRepo, stub[HttpScaleRepo], stub[LibraryScaleRepo])
+    new DefaultScaleRepo(Some(fileScaleRepo), Some(stub[HttpScaleRepo]), Some(stub[LibraryScaleRepo]))
   }
 
   private val minorScaleCents = CentsScale("Natural Minor", 0.0,
