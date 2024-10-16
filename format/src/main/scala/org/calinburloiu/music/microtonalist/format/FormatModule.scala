@@ -53,6 +53,6 @@ class FormatModule(libraryUri: URI,
   lazy val httpCompositionRepo: HttpCompositionRepo = new HttpCompositionRepo(
     httpClient, compositionFormat, synchronousAwaitTimeout)
 
-  lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(fileCompositionRepo,
-    httpCompositionRepo)
+  lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(Some(fileCompositionRepo),
+    Some(httpCompositionRepo))
 }

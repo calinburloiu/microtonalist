@@ -27,11 +27,11 @@ import java.net.URI
  * @param fileCompositionRepo a [[FileScaleRepo]] instance
  * @param httpCompositionRepo an [[HttpScaleRepo]] instance
  */
-class DefaultCompositionRepo(fileCompositionRepo: FileCompositionRepo,
-                             httpCompositionRepo: HttpCompositionRepo) extends ComposedCompositionRepo {
+class DefaultCompositionRepo(fileCompositionRepo: Option[FileCompositionRepo],
+                             httpCompositionRepo: Option[HttpCompositionRepo]) extends ComposedCompositionRepo {
   override def getCompositionRepo(uri: URI): Option[CompositionRepo] = uri.getScheme match {
-    case null | UriScheme.File => Some(fileCompositionRepo)
-    case UriScheme.Http | UriScheme.Https => Some(httpCompositionRepo)
+    case null | UriScheme.File => fileCompositionRepo
+    case UriScheme.Http | UriScheme.Https => httpCompositionRepo
     case _ => None
   }
 }
