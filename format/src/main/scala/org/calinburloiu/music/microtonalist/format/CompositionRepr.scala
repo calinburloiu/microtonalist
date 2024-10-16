@@ -44,12 +44,12 @@ case class CompositionRepr(name: Option[String],
     }
 
     val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
-    tunings.foreach { tuningSpec =>
-      futures += tuningSpec.scale.load(scaleLoader)
+    for (tuningSpec <- tunings; scale <- tuningSpec.scale) {
+      futures += scale.load(scaleLoader)
     }
 
-    if (globalFill.isDefined) {
-      futures += globalFill.get.scale.load(scaleLoader)
+    for (globalFillValue <- globalFill; scale <- globalFillValue.scale) {
+      futures += scale.load(scaleLoader)
     }
 
     Future.sequence(futures).map(_ => this)
@@ -67,8 +67,9 @@ case class CompositionFormatContext(intonationStandard: IntonationStandard = Cen
 @deprecated("To be replaced with tuning reference component format")
 case class OriginRepr(basePitchClass: Int)
 
-case class TuningSpecRepr(transposition: Option[Interval] = None,
-                          scale: DeferrableRead[Scale[Interval], URI],
+case class TuningSpecRepr(name: Option[String],
+                          transposition: Option[Interval] = None,
+                          scale: Option[DeferrableRead[Scale[Interval], URI]],
                           tuningMapper: Option[TuningMapper])
 
 // TODO #61
