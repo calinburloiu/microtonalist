@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.core.{TuningMapper, TuningReducer}
+import org.calinburloiu.music.microtonalist.core.{CompositionMetadata, TuningMapper, TuningReducer}
 import play.api.libs.json.JsObject
 
 import java.net.URI
@@ -28,7 +28,7 @@ import scala.concurrent.Future
 /**
  * Class used as a representation for the JSON format of a Microtonalist composition file.
  */
-case class CompositionRepr(name: Option[String],
+case class CompositionRepr(metadata: Option[CompositionMetadata],
                            tuningReference: OriginRepr,
                            tunings: Seq[TuningSpecRepr],
                            tuningReducer: Option[TuningReducer] = None,
@@ -78,13 +78,13 @@ case class CompositionFormatContext(intonationStandard: IntonationStandard = Cen
 case class OriginRepr(basePitchClass: Int)
 
 case class TuningSpecRepr(name: Option[String],
-                          transposition: Option[Interval] = None,
+                          transposition: Option[Interval],
                           scale: Option[DeferrableRead[Scale[Interval], URI]],
                           tuningMapper: Option[TuningMapper])
 
 // TODO #61
 @deprecated("To be replaced to config with settings")
-case class CompositionConfigRepr(mapQuarterTonesLow: Boolean = false)
+case class CompositionConfigRepr(shouldMapQuarterTonesLow: Boolean = false)
 
 object CompositionConfigRepr {
 
@@ -93,5 +93,5 @@ object CompositionConfigRepr {
 
 // TODO #61
 @deprecated("To be replaced with TuningMapper component JSON format")
-case class AutoTuningMapperRepr(mapQuarterTonesLow: Boolean = false,
-                                halfTolerance: Option[Double] = None)
+case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
+                                quarterToneTolerance: Option[Double] = None)

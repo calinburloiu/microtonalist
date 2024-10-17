@@ -17,8 +17,8 @@
 package org.calinburloiu.music.intonation
 
 /**
- * Class that codifies how intervals are expressed: as values in cents, as just intonation ratios or as the number of
- * divisions in a particular EDO tuning.
+ * Class that specified how intervals are expressed or interpreted: as values in cents, as just intonation ratios or
+ * as the number of divisions in a particular EDO tuning.
  *
  * @param typeName Identifier of the intonation standard type.
  */

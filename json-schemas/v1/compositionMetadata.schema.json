@@ -17,7 +17,7 @@
         "composerName": {
             "type": "string",
             "title": "Composer Name",
-            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown. If this property is not defined and composerSortName is defined, this property can be computed from the later."
+            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown. If this property is not defined and composerSortName is defined, this property can be computed from the latter."
         },
         "composerSortName": {
             "type": "string",
