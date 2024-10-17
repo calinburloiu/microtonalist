@@ -224,8 +224,8 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   "TuningMapperPlayJsonFormat" should "deserialize JSON object containing type auto and its params" in {
     val autoJsonWithParams = Json.obj(
       "type" -> "auto",
-      "mapQuarterTonesLow" -> true,
-      "halfTolerance" -> 0.02
+      "shouldMapQuarterTonesLow" -> true,
+      "quarterToneTolerance" -> 0.02
     )
     inside(TuningMapperPlayJsonFormat.reads(autoJsonWithParams)) {
       case JsSuccess(tuningMapper, _) =>
@@ -249,8 +249,8 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
       quarterToneTolerance = 0.1))
     val expected = Json.obj(
       "type" -> "auto",
-      "mapQuarterTonesLow" -> true,
-      "halfTolerance" -> 0.1
+      "shouldMapQuarterTonesLow" -> true,
+      "quarterToneTolerance" -> 0.1
     )
     actual shouldEqual expected
   }

@@ -84,7 +84,7 @@ case class TuningSpecRepr(name: Option[String],
 
 // TODO #61
 @deprecated("To be replaced to config with settings")
-case class CompositionConfigRepr(mapQuarterTonesLow: Boolean = false)
+case class CompositionConfigRepr(shouldMapQuarterTonesLow: Boolean = false)
 
 object CompositionConfigRepr {
 
@@ -93,5 +93,5 @@ object CompositionConfigRepr {
 
 // TODO #61
 @deprecated("To be replaced with TuningMapper component JSON format")
-case class AutoTuningMapperRepr(mapQuarterTonesLow: Boolean = false,
-                                halfTolerance: Option[Double] = None)
+case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
+                                quarterToneTolerance: Option[Double] = None)

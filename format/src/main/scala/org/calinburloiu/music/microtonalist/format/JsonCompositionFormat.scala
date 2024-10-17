@@ -76,9 +76,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
    */
   private def fromReprToDomain(compositionRepr: CompositionRepr): Composition = {
     val context = compositionRepr.context
-    val mapQuarterTonesLow = compositionRepr.config
-      .getOrElse(CompositionConfigRepr.Default).mapQuarterTonesLow
-    val defaultTuningMapper = AutoTuningMapper(mapQuarterTonesLow)
+    val shouldMapQuarterTonesLow = compositionRepr.config
+      .getOrElse(CompositionConfigRepr.Default).shouldMapQuarterTonesLow
+    val defaultTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow)
 
     def convertTuningSpec(tuningSpecRepr: TuningSpecRepr): TuningSpec = {
       val transposition = tuningSpecRepr.transposition.getOrElse(context.intonationStandard.unison)
@@ -152,11 +152,11 @@ object JsonCompositionFormat {
       Json.using[Json.WithDefaultValues].format[AutoTuningMapperRepr]
     private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
       autoReprPlayJsonFormat.map { repr =>
-        AutoTuningMapper(shouldMapQuarterTonesLow = repr.mapQuarterTonesLow,
-          quarterToneTolerance = repr.halfTolerance.getOrElse(DefaultQuarterToneTolerance), tolerance = tolerance)
+        AutoTuningMapper(shouldMapQuarterTonesLow = repr.shouldMapQuarterTonesLow,
+          quarterToneTolerance = repr.quarterToneTolerance.getOrElse(DefaultQuarterToneTolerance), tolerance = tolerance)
       },
       Writes { mapper: AutoTuningMapper =>
-        val repr = AutoTuningMapperRepr(mapper.shouldMapQuarterTonesLow, halfTolerance = Some(mapper
+        val repr = AutoTuningMapperRepr(mapper.shouldMapQuarterTonesLow, quarterToneTolerance = Some(mapper
           .quarterToneTolerance))
         autoReprPlayJsonFormat.writes(repr)
       }
