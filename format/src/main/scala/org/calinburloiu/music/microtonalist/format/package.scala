@@ -29,6 +29,7 @@ package object format {
    * Example: `baseUriOf(new URI("https://example.org/path/to/file.json))` returns
    * `new URI("https://example.org/path/to/)`.
    */
+  @deprecated
   def baseUriOf(uri: URI): URI = {
     def updateUriPath(uri: URI, newPath: String): URI = {
       new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, newPath, uri.getQuery, uri.getFragment)
