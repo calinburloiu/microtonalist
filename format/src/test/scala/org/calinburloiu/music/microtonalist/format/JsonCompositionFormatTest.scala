@@ -21,17 +21,21 @@ import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.microtonalist.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfter, Inside}
 import play.api.libs.json._
 
 import java.net.URI
+import scala.collection.mutable
+import scala.concurrent.Future
 
-class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with MockFactory {
+class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with BeforeAndAfter with MockFactory {
 
   import FormatTestUtils.readCompositionFromResources
   import JsonCompositionFormat._
+
+  private val urisOfReadScales: mutable.ArrayBuffer[URI] = mutable.ArrayBuffer()
 
   private lazy val compositionFormat: CompositionFormat = {
     val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
@@ -39,7 +43,15 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat
     ))
-    val scaleRepo = new DefaultScaleRepo(Some(new FileScaleRepo(scaleFormatRegistry)), None, None)
+    val scaleRepo = new FileScaleRepo(scaleFormatRegistry) {
+      override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
+        val result = super.readAsync(uri, context)
+
+        urisOfReadScales += uri
+
+        result
+      }
+    }
     new JsonCompositionFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
   }
 
@@ -56,6 +68,10 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   val chromaticScale: RatiosScale = RatiosScale("Just Chromatic",
     (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3),
     (7, 4), (15, 8), (2, 1))
+
+  after {
+    urisOfReadScales.clear()
+  }
 
   it should "take name from tuning spec context when reading an inline scale" in {
     val composition = readCompositionFromResources("format/inline-scale-with-name.mtlist", compositionRepo)
@@ -156,6 +172,13 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     composition.tuningSpecs(3).transposition shouldEqual 1 /: 1
     composition.tuningSpecs(3).scaleMapping.scale shouldEqual RatiosScale("dügah", 1 /: 1)
+  }
+
+  it should "read scales with the same URI once" in {
+    readCompositionFromResources("format/same-scale-transposed.mtlist", compositionRepo)
+
+    urisOfReadScales should have length 1
+    urisOfReadScales.head.toString should endWith("scales/major.scl")
   }
 
   "TuningReducerPlayJsonFormat" should "deserialize JSON string containing type" in {

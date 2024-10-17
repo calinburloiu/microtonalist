@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.core.{TuningMapper, TuningReducer}
 import play.api.libs.json.JsObject
 
 import java.net.URI
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -38,12 +38,22 @@ case class CompositionRepr(name: Option[String],
   var context: CompositionFormatContext = CompositionFormatContext()
 
   def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
+    val localScaleCache = mutable.Map[URI, Future[Scale[Interval]]]()
+
     def scaleLoader(uri: URI): Future[Scale[Interval]] = {
       val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
-      scaleRepo.readAsync(resolvedUri)
+
+      localScaleCache.get(resolvedUri) match {
+        case None =>
+          val scale = scaleRepo.readAsync(resolvedUri)
+          localScaleCache.addOne((resolvedUri, scale))
+          scale
+        case Some(scale) => scale
+      }
+
     }
 
-    val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
+    val futures: mutable.ArrayBuffer[Future[Any]] = mutable.ArrayBuffer()
     for (tuningSpec <- tunings; scale <- tuningSpec.scale) {
       futures += scale.load(scaleLoader)
     }
