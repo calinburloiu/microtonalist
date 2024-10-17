@@ -22,7 +22,6 @@ import play.api.libs.json.JsObject
 
 import java.net.URI
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -40,6 +39,7 @@ case class CompositionRepr(name: Option[String],
 
   def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
     val localScaleCache = mutable.Map[URI, Future[Scale[Interval]]]()
+
     def scaleLoader(uri: URI): Future[Scale[Interval]] = {
       val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
 
@@ -53,7 +53,7 @@ case class CompositionRepr(name: Option[String],
 
     }
 
-    val futures: ArrayBuffer[Future[Any]] = ArrayBuffer()
+    val futures: mutable.ArrayBuffer[Future[Any]] = mutable.ArrayBuffer()
     for (tuningSpec <- tunings; scale <- tuningSpec.scale) {
       futures += scale.load(scaleLoader)
     }
