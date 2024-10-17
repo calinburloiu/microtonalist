@@ -45,6 +45,7 @@ trait TuningRef {
  * Tuning reference relative standard tuning (12-EDO).
  *
  * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
+ * @param baseDeviation  Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.
  */
 case class StandardTuningRef(override val basePitchClass: PitchClass,
                              override val baseDeviation: Double = 0.0) extends TuningRef {
