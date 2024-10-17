@@ -126,6 +126,12 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     composition.tuningSpecs(2).transposition shouldEqual RatioInterval(1, 1)
     composition.tuningSpecs(2).scale shouldEqual romanianMinorScale
+
+    composition.metadata should contain(CompositionMetadata(
+      name = Some("Minor & Major"),
+      composerName = Some("Călin-Andrei Burloiu"),
+      authorName = Some("John Doe")
+    ))
   }
 
   it should "fail when a transposition interval in invalid" in {

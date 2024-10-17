@@ -91,13 +91,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       TuningSpec(transposition, scale, tuningMapper)
     }
 
-    val name = compositionRepr.name.getOrElse("")
     val tuningRef = StandardTuningRef(PitchClass.fromInt(compositionRepr.tuningReference.basePitchClass))
-
     val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
-
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
-
     val globalFill = compositionRepr.globalFill.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
 
     Composition(
@@ -106,7 +102,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       tuningSpecs = tuningSpecs,
       tuningReducer = tuningReducer,
       globalFill = globalFill,
-      Some(CompositionMetadata(name))
+      metadata = compositionRepr.metadata
     )
   }
 
@@ -144,6 +140,9 @@ object JsonCompositionFormat {
     TuningMapperPlayJsonFormat
   private[JsonCompositionFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
     TuningReducerPlayJsonFormat
+
+  private[JsonCompositionFormat] implicit val metadataReads: Reads[CompositionMetadata] =
+    Json.reads[CompositionMetadata]
 
   private[format] object TuningMapperPlayJsonFormat extends ComponentPlayJsonFormat[TuningMapper] {
 

@@ -63,6 +63,6 @@ case class TuningSpec(transposition: Interval,
  * @param composerName Name of the composer. You may use [[None]] if the composer is anonymous or unknown.
  * @param authorName   The person or organization who created this Microtonalist app tuning file.
  */
-case class CompositionMetadata(name: String,
+case class CompositionMetadata(name: Option[String],
                                composerName: Option[String] = None,
                                authorName: Option[String] = None)
