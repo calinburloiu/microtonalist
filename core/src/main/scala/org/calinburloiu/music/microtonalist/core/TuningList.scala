@@ -38,8 +38,8 @@ object TuningList extends StrictLogging {
 
   def fromComposition(composition: Composition): TuningList = {
     val globalFillTuning = composition.globalFill.map { tuningSpec =>
-      val scale = tuningSpec.scaleMapping.scale
-      tuningSpec.scaleMapping.tuningMapper.mapScale(scale, composition.tuningRef).fillWithStandardTuning
+      val scale = tuningSpec.scale
+      tuningSpec.tuningMapper.mapScale(scale, composition.tuningRef).fillWithStandardTuning
     }.getOrElse(PartialTuning.StandardTuningOctave)
     val partialTunings = createPartialTunings(Vector.empty, composition.tuningSpecs, composition.tuningRef)
 
@@ -53,15 +53,8 @@ object TuningList extends StrictLogging {
     if (tuningSpecs.isEmpty) {
       partialTuningsAcc
     } else {
-      val partialTuning = createPartialTuning(tuningSpecs.head, tuningRef)
+      val partialTuning = tuningSpecs.head.tuningFor(tuningRef)
       createPartialTunings(partialTuningsAcc :+ partialTuning, tuningSpecs.tail, tuningRef)
     }
-  }
-
-  private[this] def createPartialTuning(tuningSpec: TuningSpec,
-                                        tuningRef: TuningRef): PartialTuning = {
-    val transposition = tuningSpec.transposition
-
-    tuningSpec.scaleMapping.tuningFor(transposition, tuningRef)
   }
 }

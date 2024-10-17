@@ -77,17 +77,17 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     val composition = readCompositionFromResources("format/inline-scale-with-name.mtlist", compositionRepo)
 
     // Takes name from context
-    composition.tuningSpecs.head.scaleMapping.scale shouldEqual CentsScale("maj-5", 0, 204, 386, 498, 702)
+    composition.tuningSpecs.head.scale shouldEqual CentsScale("maj-5", 0, 204, 386, 498, 702)
 
     // Uses a default name when no name is in context for an inline scale
-    composition.globalFill.map(_.scaleMapping.scale.name) should contain("")
+    composition.globalFill.map(_.scale.name) should contain("")
   }
 
   it should "successfully read 72-EDO intervals in 72-EDO intonation standard" in {
     val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
 
     composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
-    composition.tuningSpecs.head.scaleMapping.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
+    composition.tuningSpecs.head.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
 
     // TODO #62 Also test tuningRef intervals
   }
@@ -97,7 +97,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
 
     composition.tuningSpecs(1).transposition shouldEqual EdoInterval(72, (4, -1))
-    composition.tuningSpecs(1).scaleMapping.scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
+    composition.tuningSpecs(1).scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
   }
 
   // TODO #62 Also test tuningRef intervals
@@ -114,18 +114,18 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   it should "successfully read a valid composition file" in {
     val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
 
-    composition.globalFill.map(_.scaleMapping.scale) should contain(chromaticScale)
+    composition.globalFill.map(_.scale) should contain(chromaticScale)
     composition.globalFill.map(_.transposition) should contain(1 /: 1)
     composition.tuningRef.basePitchClass.number shouldEqual 2
 
-    composition.tuningSpecs.head.scaleMapping.scale shouldEqual naturalMinorScale
+    composition.tuningSpecs.head.scale shouldEqual naturalMinorScale
     composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
 
     composition.tuningSpecs(1).transposition shouldEqual RatioInterval(6, 5)
-    composition.tuningSpecs(1).scaleMapping.scale shouldEqual majorScale
+    composition.tuningSpecs(1).scale shouldEqual majorScale
 
     composition.tuningSpecs(2).transposition shouldEqual RatioInterval(1, 1)
-    composition.tuningSpecs(2).scaleMapping.scale shouldEqual romanianMinorScale
+    composition.tuningSpecs(2).scale shouldEqual romanianMinorScale
   }
 
   it should "fail when a transposition interval in invalid" in {
@@ -162,16 +162,16 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     val composition = readCompositionFromResources("format/accidentals.mtlist", compositionRepo)
 
     composition.tuningSpecs.head.transposition shouldEqual 16 /: 15
-    composition.tuningSpecs.head.scaleMapping.scale shouldEqual RatiosScale(1 /: 1)
+    composition.tuningSpecs.head.scale shouldEqual RatiosScale(1 /: 1)
 
     composition.tuningSpecs(1).transposition shouldEqual 5 /: 4
-    composition.tuningSpecs(1).scaleMapping.scale shouldEqual RatiosScale("hicaz", 1 /: 1)
+    composition.tuningSpecs(1).scale shouldEqual RatiosScale("hicaz", 1 /: 1)
 
     composition.tuningSpecs(2).transposition shouldEqual 1 /: 1
-    composition.tuningSpecs(2).scaleMapping.scale shouldEqual RatiosScale(1 /: 1)
+    composition.tuningSpecs(2).scale shouldEqual RatiosScale(1 /: 1)
 
     composition.tuningSpecs(3).transposition shouldEqual 1 /: 1
-    composition.tuningSpecs(3).scaleMapping.scale shouldEqual RatiosScale("dügah", 1 /: 1)
+    composition.tuningSpecs(3).scale shouldEqual RatiosScale("dügah", 1 /: 1)
   }
 
   it should "read scales with the same URI once" in {

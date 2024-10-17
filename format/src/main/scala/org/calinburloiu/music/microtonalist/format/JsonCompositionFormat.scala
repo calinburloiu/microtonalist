@@ -87,9 +87,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       val scale = tuningSpecRepr.scale.map(_.value).getOrElse(
         Scale.create(name, Seq(intonationStandard.unison), intonationStandard))
       val tuningMapper = tuningSpecRepr.tuningMapper.getOrElse(defaultTuningMapper)
-      val scaleMapping = ScaleMapping(scale, tuningMapper)
 
-      TuningSpec(transposition, scaleMapping)
+      TuningSpec(transposition, scale, tuningMapper)
     }
 
     val name = compositionRepr.name.getOrElse("")
@@ -101,7 +100,14 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
     val globalFill = compositionRepr.globalFill.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
 
-    Composition(name, context.intonationStandard, tuningRef, tuningSpecs, tuningReducer, globalFill)
+    Composition(
+      intonationStandard = context.intonationStandard,
+      tuningRef = tuningRef,
+      tuningSpecs = tuningSpecs,
+      tuningReducer = tuningReducer,
+      globalFill = globalFill,
+      Some(CompositionMetadata(name))
+    )
   }
 
   private def tuningSpecReprReadsFor(intonationStandard: IntonationStandard): Reads[TuningSpecRepr] = {

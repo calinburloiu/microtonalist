@@ -20,8 +20,8 @@ import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, RealInterv
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
 /**
- * Tuning reference that tells what pitch class to be used for the base pitch and what tuning deviation should have
- * with respect to standard tuning (12-EDO).
+ * Tuning reference tells what pitch class from the keyboard instrument must be used for the base pitch of a
+ * composition and what tuning deviation should have with respect to standard tuning (12-EDO).
  */
 trait TuningRef {
 
@@ -46,8 +46,8 @@ trait TuningRef {
  *
  * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
  */
-case class StandardTuningRef(override val basePitchClass: PitchClass) extends TuningRef {
-  override def baseDeviation: Double = 0.0
+case class StandardTuningRef(override val basePitchClass: PitchClass,
+                             override val baseDeviation: Double = 0.0) extends TuningRef {
 
   override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
 }
@@ -76,4 +76,5 @@ case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
   override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
 }
 
-// TODO Add support for Scala-app-style implementation; also look at Ableton Live 12 (https://www.ableton.com/en/live-manual/12/using-tuning-systems/#the-tuning-section)
+// TODO Add support for Scala-app-style implementation; also look at Ableton Live 12 (https://www.ableton
+//  .com/en/live-manual/12/using-tuning-systems/#the-tuning-section)

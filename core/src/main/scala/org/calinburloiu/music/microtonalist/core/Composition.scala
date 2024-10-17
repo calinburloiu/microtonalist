@@ -18,22 +18,51 @@ package org.calinburloiu.music.microtonalist.core
 
 import org.calinburloiu.music.intonation._
 
-// TODO #4 Document classes in this file
-
-case class Composition(name: String,
-                       intonationStandard: IntonationStandard,
+/**
+ * A collection of scales to be mapped to tunings.
+ *
+ * @param intonationStandard Specifies how intervals from the composition are expressed or interpreted.
+ * @param tuningRef          Establishes the relation between the composition base pitch and a pitch class from the
+ *                           keyboard instrument.
+ * @param tuningSpecs        A sequence of specifications that defines each tuning based on scales.
+ * @param tuningReducer      Strategy for reducing the number of tunings by merging them together.
+ * @param globalFill         Specification for a tuning that should be used as a fallback for the unused pitch
+ *                           classes of the keyboard instrument.
+ * @param metadata           Additional information about the composition.
+ */
+case class Composition(intonationStandard: IntonationStandard,
                        tuningRef: TuningRef,
                        tuningSpecs: Seq[TuningSpec],
                        tuningReducer: TuningReducer,
-                       globalFill: Option[TuningSpec])
+                       globalFill: Option[TuningSpec] = None,
+                       metadata: Option[CompositionMetadata] = None)
 
+/**
+ * Defines a tuning based on a scale.
+ *
+ * @param transposition How should the scale be transposed with respect to the base pitch.
+ * @param scale         Scale to be tuned and mapped to a keyboard instrument.
+ * @param tuningMapper  Strategy used for mapping a scale to a keyboard instrument.
+ */
 case class TuningSpec(transposition: Interval,
-                      scaleMapping: ScaleMapping)
+                      scale: Scale[Interval],
+                      tuningMapper: TuningMapper) {
 
-case class ScaleMapping(scale: Scale[Interval],
-                        tuningMapper: TuningMapper) {
-
-  def tuningFor(transposition: Interval, ref: TuningRef): PartialTuning = {
+  def tuningFor(ref: TuningRef): PartialTuning = {
     tuningMapper.mapScale(scale, transposition, ref)
   }
 }
+
+/**
+ * Metadata object used for additional information about a Microtonalist app composition file.
+ *
+ * Note that not all properties from the JSON-Schema are parsed and available here, only those that are used or are
+ * likely to be needed.
+ *
+ * @param name         Composition name.
+ * @param composerName Name of the composer. You may use [[None]] if the composer is anonymous or unknown.
+ * @param authorName   The person or organization who created this Microtonalist app tuning file.
+ */
+case class CompositionMetadata(name: String,
+                               composerName: Option[String] = None,
+                               authorName: Option[String] = None)
