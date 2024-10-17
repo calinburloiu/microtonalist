@@ -78,7 +78,7 @@ case class CompositionFormatContext(intonationStandard: IntonationStandard = Cen
 case class OriginRepr(basePitchClass: Int)
 
 case class TuningSpecRepr(name: Option[String],
-                          transposition: Option[Interval] = None,
+                          transposition: Option[Interval],
                           scale: Option[DeferrableRead[Scale[Interval], URI]],
                           tuningMapper: Option[TuningMapper])
 

@@ -52,7 +52,6 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
   override def writeAsync(composition: Composition, outputStream: OutputStream): Future[Unit] = ???
 
   private def readRepr(inputStream: InputStream, baseUri: Option[URI]): CompositionRepr = {
-
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
@@ -153,7 +152,8 @@ object JsonCompositionFormat {
     private val autoPlayJsonFormat: Format[AutoTuningMapper] = Format(
       autoReprPlayJsonFormat.map { repr =>
         AutoTuningMapper(shouldMapQuarterTonesLow = repr.shouldMapQuarterTonesLow,
-          quarterToneTolerance = repr.quarterToneTolerance.getOrElse(DefaultQuarterToneTolerance), tolerance = tolerance)
+          quarterToneTolerance = repr.quarterToneTolerance.getOrElse(DefaultQuarterToneTolerance), tolerance =
+            tolerance)
       },
       Writes { mapper: AutoTuningMapper =>
         val repr = AutoTuningMapperRepr(mapper.shouldMapQuarterTonesLow, quarterToneTolerance = Some(mapper
