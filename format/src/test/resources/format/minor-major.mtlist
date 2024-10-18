@@ -12,15 +12,16 @@
   "tuningReference": {
     "basePitchClass": 2
   },
+  "baseUri": "scales/",
   "tunings": [
     {
       "transposition": "1",
-      "scale": "scales/minor-just.jscl",
+      "scale": "minor-just.jscl",
       "tuningMapper": "auto"
     },
     {
       "transposition": "6/5",
-      "scale": "scales/major.scl"
+      "scale": "major.scl"
     },
     {
       "transposition": "1/1",
@@ -31,7 +32,7 @@
   "tuningReducer": "merge",
   "globalFill": {
     "transposition": "1/1",
-    "scale": "scales/chromatic.scl"
+    "scale": "chromatic.scl"
   },
   "config": {
     "shouldMapQuarterTonesLow": true
