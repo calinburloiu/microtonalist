@@ -20,7 +20,7 @@ import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
-import org.calinburloiu.music.microtonalist.format.{FormatModule, parseUri}
+import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.MidiManager
@@ -38,7 +38,7 @@ object MicrotonalistApp extends StrictLogging {
     }
   }
 
-  case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list-uri> [config-file]", 1)
+  case object AppUsageException extends AppException("Usage: microtonalist <input-composition-uri> [config-file]", 1)
 
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
 

@@ -83,7 +83,7 @@ class HttpCompositionRepo(httpClient: HttpClient,
                                  response: HttpResponse[InputStream]): Future[Composition] = {
     response.statusCode() match {
       case 200 =>
-        compositionFormat.readAsync(response.body(), Some(baseUriOf(uri)))
+        compositionFormat.readAsync(response.body(), Some(uri))
       case 404 =>
         throw new CompositionNotFoundException(uri)
       case status if status >= 400 && status < 500 =>

@@ -38,10 +38,16 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
   var context: CompositionFormatContext = CompositionFormatContext()
 
   def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
+    val actualBaseUri = (baseUri, context.baseUri) match {
+      case (Some(baseUriValue), Some(contextBaseUriValue)) => Some(baseUriValue.resolve(contextBaseUriValue))
+      case (Some(baseUriValue), None) => Some(baseUriValue)
+      case (None, Some(contextBaseUriValue)) => Some(contextBaseUriValue)
+      case (None, None) => None
+    }
     val localScaleCache = mutable.Map[URI, Future[Scale[Interval]]]()
 
     def scaleLoader(uri: URI): Future[Scale[Interval]] = {
-      val resolvedUri = baseUri.map(_.resolve(uri)).getOrElse(uri)
+      val resolvedUri = actualBaseUri.map(_.resolve(uri)).getOrElse(uri)
 
       localScaleCache.get(resolvedUri) match {
         case None =>

@@ -86,7 +86,7 @@ class HttpScaleRepo(httpClient: HttpClient,
       val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
         .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
-      scaleFormat.read(response.body(), Some(baseUriOf(uri)))
+      scaleFormat.read(response.body(), Some(uri))
     case 404 => throw new ScaleNotFoundException(uri)
     case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
       Some(s"HTTP request to $uri returned status code $status"))

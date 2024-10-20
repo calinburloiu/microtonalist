@@ -36,7 +36,7 @@ class FileCompositionRepo(compositionFormat: CompositionFormat,
   override def read(uri: URI): Composition = Await.result(readAsync(uri), synchronousAwaitTimeout)
 
   override def readAsync(uri: URI): Future[Composition] = {
-    val path = pathOf(uri)
+    val path = filePathOf(uri)
 
     logger.info(s"Reading composition from path \"$path\"...")
     Future {
@@ -44,7 +44,7 @@ class FileCompositionRepo(compositionFormat: CompositionFormat,
     }.recover {
       case e: FileNotFoundException => throw new CompositionNotFoundException(uri, e.getCause)
     }.flatMap { inputStream =>
-      compositionFormat.readAsync(inputStream, Some(baseUriOf(uri)))
+      compositionFormat.readAsync(inputStream, Some(uri))
     }.andThen {
       case Success(_) => logger.info(s"Successfully read composition from path \"$path\"")
       case Failure(exception) => logger.error(s"Failed to read composition from path \"$path\"!", exception)

@@ -33,7 +33,7 @@ import scala.util.Try
  */
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
   override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
-    val scalePath = pathOf(uri)
+    val scalePath = filePathOf(uri)
     val inputStream = Try {
       new FileInputStream(scalePath.toString)
     }.recover {
@@ -44,7 +44,7 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
       .getOrElse(throw new BadScaleRequestException(uri, None))
 
     logger.info(s"Reading scale from path \"$scalePath\"...")
-    scaleFormat.read(inputStream, Some(baseUriOf(uri)))
+    scaleFormat.read(inputStream, Some(uri))
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] =
