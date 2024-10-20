@@ -36,7 +36,7 @@ class FileCompositionRepo(compositionFormat: CompositionFormat,
   override def read(uri: URI): Composition = Await.result(readAsync(uri), synchronousAwaitTimeout)
 
   override def readAsync(uri: URI): Future[Composition] = {
-    val path = pathOf(uri)
+    val path = filePathOf(uri)
 
     logger.info(s"Reading composition from path \"$path\"...")
     Future {

@@ -33,7 +33,7 @@ import scala.util.Try
  */
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
   override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
-    val scalePath = pathOf(uri)
+    val scalePath = filePathOf(uri)
     val inputStream = Try {
       new FileInputStream(scalePath.toString)
     }.recover {

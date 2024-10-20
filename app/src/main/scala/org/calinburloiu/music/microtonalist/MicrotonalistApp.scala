@@ -20,7 +20,7 @@ import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
-import org.calinburloiu.music.microtonalist.format.{FormatModule, parseUri}
+import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.MidiManager
