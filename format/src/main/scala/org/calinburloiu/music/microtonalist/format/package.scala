@@ -21,33 +21,6 @@ import java.nio.file.{Path, Paths}
 import scala.util.Try
 
 package object format {
-  // TODO #60 Function not necessary: the base URI may contain the "file" after the last "/" and resolve will work
-  /**
-   * Removes the trailing path item from the URI after the last slash. If the URI points to a file, for example,
-   * it removes the file name from the path and only leaves its folder location.
-   *
-   * Example: `baseUriOf(new URI("https://example.org/path/to/file.json))` returns
-   * `new URI("https://example.org/path/to/)`.
-   */
-  @deprecated
-  def baseUriOf(uri: URI): URI = {
-    def updateUriPath(uri: URI, newPath: String): URI = {
-      new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, newPath, uri.getQuery, uri.getFragment)
-    }
-
-    val path = uri.getPath
-    if (path == null || path == "") {
-      return updateUriPath(uri, "/")
-    }
-
-    val lastSlashIndex = path.lastIndexOf('/')
-    if (lastSlashIndex == path.length - 1) {
-      uri
-    } else {
-      val basePath = path.substring(0, lastSlashIndex + 1)
-      updateUriPath(uri, basePath)
-    }
-  }
 
   /**
    * Converts the given [[URI]] to a [[Path]].

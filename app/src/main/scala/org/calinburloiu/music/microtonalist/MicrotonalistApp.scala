@@ -38,7 +38,7 @@ object MicrotonalistApp extends StrictLogging {
     }
   }
 
-  case object AppUsageException extends AppException("Usage: microtonalist <input-scale-list-uri> [config-file]", 1)
+  case object AppUsageException extends AppException("Usage: microtonalist <input-composition-uri> [config-file]", 1)
 
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
 

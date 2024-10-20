@@ -44,7 +44,7 @@ class FileCompositionRepo(compositionFormat: CompositionFormat,
     }.recover {
       case e: FileNotFoundException => throw new CompositionNotFoundException(uri, e.getCause)
     }.flatMap { inputStream =>
-      compositionFormat.readAsync(inputStream, Some(baseUriOf(uri)))
+      compositionFormat.readAsync(inputStream, Some(uri))
     }.andThen {
       case Success(_) => logger.info(s"Successfully read composition from path \"$path\"")
       case Failure(exception) => logger.error(s"Failed to read composition from path \"$path\"!", exception)

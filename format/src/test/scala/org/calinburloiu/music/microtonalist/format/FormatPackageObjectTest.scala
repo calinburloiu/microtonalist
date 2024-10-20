@@ -24,35 +24,6 @@ import java.nio.file.Paths
 
 class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
 
-  "baseUriOf" should "only strip the part after last slash in a URI path" in {
-    baseUriOf(new URI("https://example.org/path/to/file.json")) shouldEqual new URI("https://example.org/path/to/")
-  }
-
-  it should "only affect path and leave other URI components unchanged" in {
-    baseUriOf(new URI("http://john@example.org:8080/path/to/file.txt?a=2&b=3#contents")) shouldEqual new URI(
-      "http://john@example.org:8080/path/to/?a=2&b=3#contents")
-  }
-
-  it should "not strip a URI path if it ends in slash" in {
-    val uri = new URI("https://example.org/path/to/")
-    val baseUri = baseUriOf(uri)
-
-    baseUri shouldEqual uri
-    baseUri shouldBe theSameInstanceAs(uri)
-  }
-
-  it should "not strip a root URI path" in {
-    val uri = new URI("https://example.org/")
-    val baseUri = baseUriOf(uri)
-
-    baseUri shouldEqual uri
-    baseUri shouldBe theSameInstanceAs(uri)
-  }
-
-  it should "return a URI with root path for a URI without path" in {
-    baseUriOf(new URI("https://example.org")) shouldEqual new URI("https://example.org/")
-  }
-
   "filePathOf" should "convert an absolute URI to a file system path" in {
     filePathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual Paths
       .get("/", "Users", "john", "Music", "phrygian.scl")
