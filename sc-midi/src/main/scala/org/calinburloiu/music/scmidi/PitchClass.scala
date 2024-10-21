@@ -59,4 +59,6 @@ object PitchClass {
   }
 
   implicit def toInt(pitchClass: PitchClass): Int = pitchClass.number
+
+  def nameOf(n: Int): String = noteNames(n)
 }
