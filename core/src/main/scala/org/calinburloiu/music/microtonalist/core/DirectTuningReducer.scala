@@ -26,18 +26,15 @@ case class DirectTuningReducer() extends TuningReducer with StrictLogging {
 
   override def reduceTunings(partialTunings: Seq[PartialTuning],
                              globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
-    val maybeTunings = partialTunings.map { partialTuning =>
-      val mergedPartialTuning = Seq(
-        partialTuning,
-        globalFillTuning
-      ).reduce(_ fill _)
-      mergedPartialTuning.resolve
+    val tunings = partialTunings.map { partialTuning =>
+      val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
+      if (!enrichedPartialTuning.isComplete) {
+        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.toStringUnfilled}")
+      }
+
+      enrichedPartialTuning.resolve
     }
 
-    if (maybeTunings.forall(_.nonEmpty)) {
-      TuningList(maybeTunings.map(_.get))
-    } else {
-      throw new IncompleteTuningsException(s"Some tunings are not complete: $maybeTunings")
-    }
+    TuningList(tunings)
   }
 }
