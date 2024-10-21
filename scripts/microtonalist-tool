@@ -16,7 +16,7 @@
 #    limitations under the License.
 #
 
-SCRIPT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_PATH="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd )"
 JAR="${SCRIPT_PATH}/../cli/target/scala-2.13/microtonalist-cli.jar"
 
 java -jar "$JAR" "$@"
