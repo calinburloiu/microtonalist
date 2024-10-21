@@ -190,13 +190,13 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     s"$name: ${pitches.mkString(", ")}"
   }
 
-  def toStringUnfilled: String = {
+  def unfilledPitchClassesString: String = {
     val pitches = deviations.zipWithIndex.map {
       case (None, index) =>
         Some(PitchClass.nameOf(index))
       case _ => None
     }.filter(_.nonEmpty).map(_.get)
-    s"$name: ${pitches.mkString(", ")}"
+    s"\"$name\" (${pitches.mkString(", ")})"
   }
 }
 

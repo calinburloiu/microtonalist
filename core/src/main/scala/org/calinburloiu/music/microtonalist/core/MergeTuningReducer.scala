@@ -52,7 +52,7 @@ case class MergeTuningReducer(tolerance: Double = DefaultCentsTolerance) extends
     val tunings = reducedPartialTunings.map { partialTuning =>
       val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
       if (!enrichedPartialTuning.isComplete) {
-        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.toStringUnfilled}")
+        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.unfilledPitchClassesString}")
       }
 
       enrichedPartialTuning.resolve

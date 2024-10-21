@@ -29,7 +29,7 @@ case class DirectTuningReducer() extends TuningReducer with StrictLogging {
     val tunings = partialTunings.map { partialTuning =>
       val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
       if (!enrichedPartialTuning.isComplete) {
-        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.toStringUnfilled}")
+        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.unfilledPitchClassesString}")
       }
 
       enrichedPartialTuning.resolve

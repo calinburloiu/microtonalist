@@ -26,7 +26,7 @@ case class PitchClass private (number: Int) extends AnyVal {
    */
   def assertValid(): Unit = require(number >= 0 && number < 12, "0 <= pitchClass < 12")
 
-  override def toString: String = PitchClass.noteNames(number)
+  override def toString: String = PitchClass.nameOf(number)
 }
 
 object PitchClass {
@@ -50,7 +50,7 @@ object PitchClass {
 
   val values: Seq[PitchClass] = Seq(C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B)
 
-  val noteNames: Seq[String] = Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
+  private val noteNames: Seq[String] = Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
 
   def fromInt(n: Int): PitchClass = {
     val result = PitchClass(n)
