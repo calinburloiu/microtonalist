@@ -86,7 +86,6 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
-                            // TODO #76 This causes a conflict in the just intonation version of Ciresar by Burloiu
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
                             // TODO It should default to Off after adding this to JSON
                             softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Strict,
@@ -184,15 +183,19 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    */
   private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Map[Int, TuningPitch] = {
     val mutablePitchesInfo = mutable.Map[Int, TuningPitch]()
+    // We add an extra degree to the range and then use modulo to also cover the quarter-tone between the last and
+    // the first degree. This was a fix for https://github.com/calinburloiu/microtonalist/issues/76.
+    val scaleIntervals = scale.intervals.map(_.normalize).sorted.distinct
     val scalePitchIndexRange = if (shouldMapQuarterTonesLow) {
-      0 until scale.size
+      0 to scaleIntervals.size
     } else {
-      (scale.size - 1) to 0 by -1
+      scaleIntervals.size to 0 by -1
     }
     var lastPitchClassNumber = -1
 
-    for (scalePitchIndex <- scalePitchIndexRange) {
-      val currInterval = scale(scalePitchIndex)
+    for (i <- scalePitchIndexRange) {
+      val scalePitchIndex = i % scaleIntervals.size
+      val currInterval = scaleIntervals(scalePitchIndex)
       var tuningPitch = mapInterval(currInterval, ref)
       if (tuningPitch.pitchClass.number == lastPitchClassNumber) {
         // Conflict detected! Attempting to remap to interval with the quarter-tone in the opposite direction, in

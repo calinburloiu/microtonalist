@@ -106,7 +106,7 @@ object PianoKeyboardTuningUtils {
 
     override def toPianoKeyboardString: String = {
       val asciiPiano = super.toPianoKeyboardString
-      s"${tuning.name}:\n$asciiPiano"
+      s"\"${tuning.name}\":\n$asciiPiano"
     }
 
     override protected def fromDeviationToString(deviation: Double) = f"$deviation%+06.2f"
