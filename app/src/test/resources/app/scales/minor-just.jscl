@@ -1,0 +1,5 @@
+{
+  "$ref": "minor-name.json",
+  "intonationStandard": "justIntonation",
+  "pitches": ["9/8", "6/5", "4/3", "3/2", "8/5", "9/5", "2"]
+}

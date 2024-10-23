@@ -14,10 +14,15 @@
             "title": "Alternative Name",
             "description": "Alternative name that may include information like opus number."
         },
+        "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Short description of the composition or tuning list."
+        },
         "composerName": {
             "type": "string",
             "title": "Composer Name",
-            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown. If this property is not defined and composerSortName is defined, this property can be computed from the later."
+            "description": "Name of the composer. You may omit the property if the composer is anonymous or unknown. If this property is not defined and composerSortName is defined, this property can be computed from the latter."
         },
         "composerSortName": {
             "type": "string",
@@ -55,5 +60,6 @@
             "title": "Copyright",
             "description": "Copyright information, if any."
         }
-    }
+    },
+    "unevaluatedProperties": false
 }

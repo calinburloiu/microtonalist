@@ -21,64 +21,15 @@ import java.nio.file.{Path, Paths}
 import scala.util.Try
 
 package object format {
-  /**
-   * Removes the trailing path item from the URI after the last slash. If the URI points to a file, for example,
-   * it removes the file name from the path and only leaves its folder location.
-   *
-   * Example: `baseUriOf(new URI("https://example.org/path/to/file.json))` returns
-   * `new URI("https://example.org/path/to/)`.
-   */
-  def baseUriOf(uri: URI): URI = {
-    def updateUriPath(uri: URI, newPath: String): URI = {
-      new URI(uri.getScheme, uri.getUserInfo, uri.getHost, uri.getPort, newPath, uri.getQuery, uri.getFragment)
-    }
-
-    val path = uri.getPath
-    if (path == null || path == "") {
-      return updateUriPath(uri, "/")
-    }
-
-    val lastSlashIndex = path.lastIndexOf('/')
-    if (lastSlashIndex == path.length - 1) {
-      uri
-    } else {
-      val basePath = path.substring(0, lastSlashIndex + 1)
-      updateUriPath(uri, basePath)
-    }
-  }
 
   /**
    * Converts the given [[URI]] to a [[Path]].
    *
    * @throws IllegalArgumentException if the URI does not represent a file path
    */
-  def pathOf(uri: URI): Path = {
+  def filePathOf(uri: URI): Path = {
     require(!uri.isAbsolute || uri.getScheme == UriScheme.File)
 
     if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.getPath)
-  }
-
-  /**
-   * Parses a string as a URI. The string can either be an absolute URI or a local path.
-   *
-   * @param uriString string to parse
-   * @return URI for the given string
-   */
-  def parseUri(uriString: String): Option[URI] =
-    Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map(_.toUri)
-
-  /**
-   * Parses a string as a base URI. The string can either be an absolute URI or a local path. The resulting URI must
-   * be a folder that is used a base URI.
-   *
-   * @param uriString string to parse
-   * @return URI for the given string
-   */
-  def parseBaseUri(uriString: String): Option[URI] = {
-    parseUri(uriString).map { uri =>
-      val pathString = uri.getPath
-      // Sometimes Java removes the trailing slash from the Path object
-      if (pathString.endsWith("/")) uri else new URI(s"file://$pathString/")
-    }
   }
 }

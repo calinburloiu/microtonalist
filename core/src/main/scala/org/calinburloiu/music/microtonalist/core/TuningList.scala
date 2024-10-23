@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.core
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.intonation.{Interval, RealInterval}
 
 import scala.annotation.tailrec
 
@@ -37,47 +36,11 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 
 object TuningList extends StrictLogging {
 
-  def fromScaleList(scaleList: ScaleList): TuningList = {
-    val globalFillScale = scaleList.globalFill.scale
-    val globalFillTuning = scaleList.globalFill.tuningMapper.mapScale(globalFillScale, scaleList.tuningRef)
-    val partialTunings = createPartialTunings(RealInterval.Unison, Vector.empty,
-      scaleList.modulations, scaleList.tuningRef)
+  def fromComposition(composition: Composition): TuningList = {
+    val globalFillTuning = composition.globalFill.map(_.tuningFor(composition.tuningRef))
+      .getOrElse(PartialTuning.StandardTuningOctave)
+    val partialTunings = composition.tuningSpecs.map(_.tuningFor(composition.tuningRef))
 
-    scaleList.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
-  }
-
-  @tailrec
-  private[this] def createPartialTunings(cumulativeTransposition: Interval,
-                                         partialTuningsAcc: Seq[PartialTuning],
-                                         modulations: Seq[Modulation],
-                                         tuningRef: TuningRef): Seq[PartialTuning] = {
-    if (modulations.isEmpty) {
-      partialTuningsAcc
-    } else {
-      val crtTransposition = modulations.head.transposition
-      // TODO Not sure why I've put an if here in the past. I think I should remove it only use the else part.
-      val newCumulativeTransposition = if (cumulativeTransposition.normalize.isUnison) {
-        crtTransposition.normalize
-      } else {
-        (cumulativeTransposition + crtTransposition).normalize
-      }
-      val partialTuning = createPartialTuning(
-        newCumulativeTransposition, modulations.head, tuningRef)
-
-      createPartialTunings(newCumulativeTransposition, partialTuningsAcc :+ partialTuning,
-        modulations.tail, tuningRef)
-    }
-  }
-
-  private[this] def createPartialTuning(cumulativeTransposition: Interval,
-                                        modulation: Modulation,
-                                        tuningRef: TuningRef): PartialTuning = {
-    val scaleName = modulation.scaleMapping.scale.name
-
-    val extensionTuning = modulation.extension.map(_.tuningFor(cumulativeTransposition, tuningRef))
-      .getOrElse(PartialTuning.EmptyOctave)
-
-    val tuning = modulation.scaleMapping.tuningFor(cumulativeTransposition, tuningRef).overwrite(extensionTuning)
-    tuning.copy(name = scaleName)
+    composition.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
   }
 }

@@ -39,7 +39,7 @@ import scala.util.{Failure, Success}
 class HttpScaleRepo(httpClient: HttpClient,
                     scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
 
-  override def read(uri: URI): Scale[Interval] = {
+  override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
     checkReadRequirements(uri)
 
     logger.info(s"Reading scale from $uri via HTTP...")
@@ -51,7 +51,7 @@ class HttpScaleRepo(httpClient: HttpClient,
     result
   }
 
-  override def readAsync(uri: URI): Future[Scale[Interval]] = {
+  override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] = {
     checkReadRequirements(uri)
 
     logger.info(s"Reading scale from $uri via HTTP...")
@@ -86,7 +86,7 @@ class HttpScaleRepo(httpClient: HttpClient,
       val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
         .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
-      scaleFormat.read(response.body(), Some(baseUriOf(uri)))
+      scaleFormat.read(response.body(), Some(uri))
     case 404 => throw new ScaleNotFoundException(uri)
     case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
       Some(s"HTTP request to $uri returned status code $status"))
@@ -95,7 +95,13 @@ class HttpScaleRepo(httpClient: HttpClient,
     case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
   }
 
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
+  override def write(scale: Scale[Interval],
+                     uri: URI,
+                     mediaType: Option[MediaType],
+                     context: Option[ScaleFormatContext] = None): Unit = ???
 
-  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] = ???
+  override def writeAsync(scale: Scale[Interval],
+                          uri: URI,
+                          mediaType: Option[MediaType],
+                          context: Option[ScaleFormatContext] = None): Future[Unit] = ???
 }

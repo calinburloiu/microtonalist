@@ -25,7 +25,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyChecks {
 
-  test("changing interval class does not alter quarter tones mapping when using halfTolerance") {
+  test("changing interval class does not alter quarter tones mapping when using quarterToneTolerance") {
     val scaleCents = CentsScale(0.0, 150.0, 300.0, 500.0, 700.0, 850.0, 1000.0)
 
     // Change the interval class from CentsInterval to an Interval by using the realValue.
@@ -35,10 +35,10 @@ class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyCh
     }
     val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail: _*)
 
-    val autoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = true, halfTolerance = 0.5e-2)
+    val autoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.5e-2)
     val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningRef(PitchClass.C))
 
-    // When setting halfTolerance to 0.0, the quarter tones are mapped to D and A, instead of
+    // When setting quarterToneTolerance to 0.0, the quarter tones are mapped to D and A, instead of
     // D flat and A flat, respectively.
     tuning.c should not be empty
     tuning.dFlat should not be empty

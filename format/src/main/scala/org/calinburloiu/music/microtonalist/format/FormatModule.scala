@@ -32,7 +32,7 @@ class FormatModule(libraryUri: URI,
   lazy val jsonPreprocessorHttpRefLoader: JsonPreprocessorHttpRefLoader = new JsonPreprocessorHttpRefLoader(httpClient)
 
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  lazy val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(jsonPreprocessor)
+  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor)
 
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
@@ -43,14 +43,16 @@ class FormatModule(libraryUri: URI,
     libraryUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
-    fileScaleRepo, httpScaleRepo, microtonalistLibraryScaleRepo)
+    Some(fileScaleRepo), Some(httpScaleRepo), Some(microtonalistLibraryScaleRepo))
 
-  lazy val scaleListFormat: ScaleListFormat = new JsonScaleListFormat(
-    defaultScaleRepo, jsonPreprocessor, synchronousAwaitTimeout)
+  lazy val compositionFormat: CompositionFormat = new JsonCompositionFormat(
+    defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
 
-  lazy val fileScaleListRepo: FileScaleListRepo = new FileScaleListRepo(scaleListFormat, synchronousAwaitTimeout)
-  lazy val httpScaleListRepo: HttpScaleListRepo = new HttpScaleListRepo(
-    httpClient, scaleListFormat, synchronousAwaitTimeout)
+  lazy val fileCompositionRepo: FileCompositionRepo = new FileCompositionRepo(compositionFormat,
+    synchronousAwaitTimeout)
+  lazy val httpCompositionRepo: HttpCompositionRepo = new HttpCompositionRepo(
+    httpClient, compositionFormat, synchronousAwaitTimeout)
 
-  lazy val defaultScaleListRepo: ScaleListRepo = new DefaultScaleListRepo(fileScaleListRepo, httpScaleListRepo)
+  lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(Some(fileCompositionRepo),
+    Some(httpCompositionRepo))
 }

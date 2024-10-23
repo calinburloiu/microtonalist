@@ -21,21 +21,22 @@ import org.calinburloiu.music.scmidi.PitchClass
 
 /**
  * A [[TuningMapper]] that maps scales to a tuning, with deviations for some of the pitch classes, by using a
- * user-provided mapping, from pitch classes to scale degrees.
+ * user-provided mapping, from pitch classes to scale pitch indexes.
  *
- * @param keyboardMapping user-provided mapping from pitch classes to scale degrees
+ * @param keyboardMapping user-provided mapping from pitch classes to scale pitch indexes
  */
 case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
 
   import ManualTuningMapper._
 
-  override def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+  override def mapScale(scale: Scale[Interval], transposition: Interval, ref: TuningRef): PartialTuning = {
+    val processedScale = scale.transpose(transposition)
     val partialTuningValues = keyboardMapping.values.map { pair =>
-      val maybeScaleDegree = pair._2
-      maybeScaleDegree match {
-        case Some(scaleDegree) =>
+      val maybeScalePitchIndex = pair._2
+      maybeScalePitchIndex match {
+        case Some(scalePitchIndex) =>
           val pitchClass = PitchClass.fromInt(pair._1)
-          val interval = scale(scaleDegree)
+          val interval = processedScale(scalePitchIndex)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
           if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {
@@ -51,7 +52,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
       }
     }
 
-    PartialTuning(partialTuningValues, scale.name)
+    PartialTuning(partialTuningValues, processedScale.name)
   }
 }
 
@@ -63,7 +64,7 @@ object ManualTuningMapper {
    * Computes the deviation from 12-EDO for the given pitch class.
    *
    * @param totalCentsInterval a normalized total number of cents counted from a 12-EDO C which contains absolute
-   *                           scale intervals (with summed modulation transpositions)
+   *                           scale intervals
    * @param pitchClass         pitch class from which the deviation is computed
    * @return a deviation in cents
    */

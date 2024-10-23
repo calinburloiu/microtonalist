@@ -144,7 +144,7 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
           }
           nestedRefContext.visitedRefs += uri.normalize
 
-          val preprocessedObj = preprocessObject(obj, pathContext, Some(baseUriOf(uri)), nestedRefContext).value
+          val preprocessedObj = preprocessObject(obj, pathContext, Some(uri), nestedRefContext).value
 
           return Some(preprocessedObj)
 

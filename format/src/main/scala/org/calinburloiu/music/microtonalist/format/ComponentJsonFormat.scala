@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.format
 
 import play.api.libs.json.{
-  Format, JsError, JsObject, JsPath, JsResult, JsString, JsValue, Json, JsonValidationError,
-  OWrites, Writes, __
+  Format, JsError, JsObject, JsPath, JsResult, JsString, JsSuccess, JsValue, Json,
+  JsonValidationError, OWrites, Writes, __
 }
 import play.api.libs.functional.syntax._
 
@@ -36,7 +36,7 @@ import play.api.libs.functional.syntax._
  * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
 class ComponentJsonFormat[F](val familyName: String,
-                             specs: Seq[ComponentJsonFormat.TypeSpec[_ <: F]],
+                             specs: ComponentJsonFormat.SpecsSeqType[F],
                              defaultTypeName: Option[String] = None) extends Format[F] {
 
   import ComponentJsonFormat._
@@ -59,9 +59,10 @@ class ComponentJsonFormat[F](val familyName: String,
       typeNameOpt match {
         case Some(typeName) =>
           componentSpecsByType.get(typeName) match {
-            case Some(spec) =>
+            case Some(spec) if spec.formatOrComponentValue.isLeft =>
               val mergedSettings = spec.defaultSettings ++ globalSettingsOf(typeName) ++ localSettings
               spec.format.reads(mergedSettings)
+            case Some(spec) if spec.formatOrComponentValue.isRight => JsSuccess(spec.componentValue)
             case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
           }
         case None => JsError(Seq(JsPath -> Seq(MissingTypeError)))
@@ -82,22 +83,70 @@ class ComponentJsonFormat[F](val familyName: String,
     .validate[JsObject].getOrElse(Json.obj())
 
   override def writes(component: F): JsValue = componentSpecsByClass.get(component.getClass) match {
-    case Some(spec) => writesWithTypeFor(spec.format.asInstanceOf[Format[F]], spec.typeName).writes(component)
-    case None => throw new Error(s"Unregistered scale list sub-component class ${component.getClass.getName}")
+    case Some(spec) if spec.formatOrComponentValue.isLeft =>
+      writesWithTypeFor(spec.format.asInstanceOf[Format[F]], spec.typeName).writes(component)
+    case Some(spec) if spec.formatOrComponentValue.isRight => JsString(spec.typeName)
+    case None => throw new Error(s"Unregistered composition sub-component class ${component.getClass.getName}")
   }
 }
 
-private object ComponentJsonFormat {
-  val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
-  val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
-  val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
+object ComponentJsonFormat {
+  type SpecsSeqType[F] = Seq[ComponentJsonFormat.TypeSpec[_ <: F]]
+
+  private[format] val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
+  private[format] val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
+  private[format] val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
 
   private val PropertyNameType = "type"
 
+  /**
+   * Specification object for serializing/deserializing a component a given type.
+   *
+   * @param typeName               The given component type name.
+   * @param javaClass              The Java [[Class]] used for the deserialized component that is used when doing
+   *                               serialization
+   *                               for
+   *                               identification.
+   * @param formatOrComponentValue Either a [[Left]] with [[Format]] used for serializing/deserializing the
+   *                               component type settings
+   *                               in/from JSON, or a [[Right]] with the singleton component type value when the
+   *                               component has no settings and is only defined by its type name.
+   * @param defaultSettings        Default settings values in JSON object format that should be used when not
+   *                               provided in a
+   *                               serialized JSON.
+   * @tparam T Scala type used for the component type.
+   */
   case class TypeSpec[T](typeName: String,
+                         formatOrComponentValue: Either[Format[T], T],
                          javaClass: Class[T],
-                         format: Format[T],
-                         defaultSettings: JsObject = Json.obj())
+                         defaultSettings: JsObject = Json.obj()) {
+    def format: Format[T] = formatOrComponentValue.swap.getOrElse(
+      throw new IllegalArgumentException("TypeSpec that not contain a format!"))
+
+    def componentValue: T = formatOrComponentValue.getOrElse(
+      throw new IllegalArgumentException("TypeSpec that not contain a component value!")
+    )
+  }
+
+  object TypeSpec {
+    /**
+     * Factory method for a component type that has one or more settings.
+     */
+    def withSettings[T](typeName: String,
+                        format: Format[T],
+                        javaClass: Class[T],
+                        defaultSettings: JsObject = Json.obj()): TypeSpec[T] =
+      TypeSpec[T](typeName, Left(format), javaClass, defaultSettings)
+
+    /**
+     * Factory method for a component type that has no settings and is only defined by its type name.
+     *
+     * Note that in this case the [[TypeSpec]] does not need a [[Format]].
+     */
+    def withoutSettings[T <: Object](typeName: String, componentValue: T): TypeSpec[T] = {
+      TypeSpec[T](typeName, Right(componentValue), componentValue.getClass.asInstanceOf[Class[T]])
+    }
+  }
 
   private def writesWithTypeFor[A](writes: Writes[A], typeName: String): OWrites[A] = {
     //@formatter:off

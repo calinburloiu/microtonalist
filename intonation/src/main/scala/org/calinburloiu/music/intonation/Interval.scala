@@ -105,12 +105,11 @@ sealed trait Interval extends Ordered[Interval] {
   def invert: Interval
 
   /**
-   * Computes the interval corresponding to the string ratio needed to achieve `this` musical interval on a vibrating
-   * string. That interval is the inverse of `this`' fraction, i.e. `1.0 / realValue`.
+   * Makes a negative interval positive and vice versa.
    *
-   * @return the interval of the string length ratio
+   * @return a new interval in the reverse direction.
    */
-  def toStringLengthInterval: Interval
+  def reverse: Interval
 
   /**
    * @return true if `this` interval is a unison or false otherwise
@@ -126,9 +125,22 @@ sealed trait Interval extends Ordered[Interval] {
    * Converts `this` interval to a [[CentsInterval]].
    */
   def toCentsInterval: CentsInterval = CentsInterval(cents)
+
+  def toEdoInterval(edo: Int): EdoInterval = EdoInterval(edo, (cents * edo / 1200.0).round.toInt)
 }
 
 object Interval {
+  def fromRatioString(intervalValue: String): Option[Interval] = {
+    val ratioArray = intervalValue.split("/")
+    val maybeNumerator = Try(ratioArray(0).toInt).toOption
+    val maybeDenominator = if (ratioArray.size == 1) Some(1) else Try(ratioArray(1).toInt).toOption
+
+    for {
+      numerator <- maybeNumerator if numerator > 0
+      denominator <- maybeDenominator if denominator > 0
+    } yield RatioInterval(numerator, denominator)
+  }
+
   /**
    * Parses an interval expressed in the format present in Scala application tuning files (`*.scl`).
    *
@@ -148,14 +160,7 @@ object Interval {
 
       maybeCents.map(CentsInterval.apply)
     } else {
-      val ratioArray = intervalValue.split("/")
-      val maybeNumerator = Try(ratioArray(0).toInt).toOption
-      val maybeDenominator = if (ratioArray.size == 1) Some(1) else Try(ratioArray(1).toInt).toOption
-
-      for {
-        numerator <- maybeNumerator
-        denominator <- maybeDenominator
-      } yield RatioInterval(numerator, denominator)
+      fromRatioString(intervalValue)
     }
   }
 }
@@ -214,7 +219,7 @@ case class RealInterval(override val realValue: Double) extends Interval {
     RealInterval.Octave - this
   }
 
-  override def toStringLengthInterval: RealInterval = RealInterval(1.0 / this.realValue)
+  override def reverse: RealInterval = RealInterval(1.0 / this.realValue)
 
   override def isUnison: Boolean = realValue == 1.0
 
@@ -240,7 +245,8 @@ object RealInterval {
  */
 case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
   require(numerator > 0, s"Expecting a positive value for the numerator, but got $numerator")
-  require(denominator > 0, s"Expecting a positive value for the denominator, but got $denominator")
+  require(denominator > 0, s"Expecting a positive value for the denominator, but got " +
+    s"$denominator")
 
   override def realValue: Double = numerator.toDouble / denominator
 
@@ -309,7 +315,7 @@ case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
     RatioInterval.Octave - this
   }
 
-  override def toStringLengthInterval: Interval = RatioInterval(this.denominator, this.numerator)
+  override def reverse: Interval = RatioInterval(this.denominator, this.numerator)
 
   override def isUnison: Boolean = numerator == 1 && denominator == 1
 
@@ -331,6 +337,7 @@ object RatioInterval {
 
   /**
    * Create a series of intervals that correspond with the harmonics that match for a set of ratio intervals.
+   *
    * @param intervals ratio intervals
    * @return a sequence of harmonics in ascending order
    */
@@ -410,7 +417,7 @@ case class CentsInterval(override val cents: Double) extends Interval {
     CentsInterval.Octave - this
   }
 
-  override def toStringLengthInterval: CentsInterval = CentsInterval(-cents)
+  override def reverse: CentsInterval = CentsInterval(-cents)
 
   override def isUnison: Boolean = cents == 0.0
 
@@ -464,7 +471,10 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
    * @param that the interval to add to `this`
    * @return the sum interval
    */
-  def +(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count + that.count)
+  def +(that: EdoInterval): EdoInterval = {
+    require(edo == that.edo)
+    EdoInterval(edo, this.count + that.count)
+  }
 
   override def +(that: Interval): Interval = that match {
     case edoInterval: EdoInterval => this + edoInterval
@@ -478,7 +488,10 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
    * @param that the interval to subtract from `this`
    * @return the difference interval
    */
-  def -(that: EdoInterval): EdoInterval = EdoInterval(edo, this.count - that.count)
+  def -(that: EdoInterval): EdoInterval = {
+    require(edo == that.edo)
+    EdoInterval(edo, this.count - that.count)
+  }
 
   override def -(that: Interval): Interval = that match {
     case edoInterval: EdoInterval => this - edoInterval
@@ -495,13 +508,26 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
     EdoInterval.octaveFor(edo) - this
   }
 
-  override def toStringLengthInterval: EdoInterval = EdoInterval(edo, -count)
+  override def reverse: EdoInterval = EdoInterval(edo, -count)
 
   override def isUnison: Boolean = count == 0
 
   override def compare(that: Interval): Int = that match {
     case EdoInterval(`edo`, thatCount) => this.count.compareTo(thatCount)
     case interval: Interval => this.realValue.compareTo(interval.realValue)
+  }
+
+  /**
+   * @return a pair of integers where the first is the number of 12-EDO semitones approximated
+   *         in this EDO (by rounding, 0.5 goes up), and the second is the deviation in
+   *         divisions (in this EDO) from the approximated semitone.
+   */
+  def countRelativeToStandard: (Int, Int) = {
+    val factor = edo / 12.0
+    val semitones = Math.round(count / factor).toInt
+    val deviation = Math.round(count - factor * semitones).toInt
+
+    (semitones, deviation)
   }
 }
 

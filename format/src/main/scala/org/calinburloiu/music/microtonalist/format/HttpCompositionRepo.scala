@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.core.ScaleList
+import org.calinburloiu.music.microtonalist.core.Composition
 
 import java.io.InputStream
 import java.net.URI
@@ -30,32 +30,32 @@ import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.{Failure, Success}
 
 /**
- * Scale repository implementation that retrieves and persists scale lists remotely by using HTTP.
+ * Scale repository implementation that retrieves and persists compositions remotely by using HTTP.
  *
- * @param httpClient      HTTP client configured to access scale lists
- * @param scaleListFormat format implementation responsible for (de)serialization.
+ * @param httpClient      HTTP client configured to access compositions
+ * @param compositionFormat format implementation responsible for (de)serialization.
  */
-class HttpScaleListRepo(httpClient: HttpClient,
-                        scaleListFormat: ScaleListFormat,
-                        synchronousAwaitTimeout: FiniteDuration = 1 minute)
-  extends ScaleListRepo with StrictLogging {
+class HttpCompositionRepo(httpClient: HttpClient,
+                          compositionFormat: CompositionFormat,
+                          synchronousAwaitTimeout: FiniteDuration = 1 minute)
+  extends CompositionRepo with StrictLogging {
 
-  override def read(uri: URI): ScaleList = {
+  override def read(uri: URI): Composition = {
     checkRequirements(uri)
 
-    logger.info(s"Reading scale list from $uri via HTTP...")
+    logger.info(s"Reading composition from $uri via HTTP...")
     val request = createReadRequest(uri)
     val response = httpClient.send(request, BodyHandlers.ofInputStream())
 
     val result = Await.result(handleReadResponse(uri, response), synchronousAwaitTimeout)
-    logger.info(s"Successfully read scale list from $uri via HTTP")
+    logger.info(s"Successfully read composition from $uri via HTTP")
     result
   }
 
-  override def readAsync(uri: URI): Future[ScaleList] = {
+  override def readAsync(uri: URI): Future[Composition] = {
     checkRequirements(uri)
 
-    logger.info(s"Reading scale list from $uri via HTTP...")
+    logger.info(s"Reading composition from $uri via HTTP...")
     val request = createReadRequest(uri)
     val futureResponse: Future[HttpResponse[InputStream]] = httpClient
       .sendAsync(request, BodyHandlers.ofInputStream())
@@ -64,8 +64,8 @@ class HttpScaleListRepo(httpClient: HttpClient,
     futureResponse
       .flatMap { response => handleReadResponse(uri, response) }
       .andThen {
-        case Success(_) => logger.info(s"Successfully read scale list from $uri via HTTP")
-        case Failure(exception) => logger.error(s"Failed to read scale list from $uri via HTTP!",
+        case Success(_) => logger.info(s"Successfully read composition from $uri via HTTP")
+        case Failure(exception) => logger.error(s"Failed to read composition from $uri via HTTP!",
           exception)
       }
   }
@@ -80,22 +80,22 @@ class HttpScaleListRepo(httpClient: HttpClient,
     .build()
 
   private def handleReadResponse(uri: URI,
-                                 response: HttpResponse[InputStream]): Future[ScaleList] = {
+                                 response: HttpResponse[InputStream]): Future[Composition] = {
     response.statusCode() match {
       case 200 =>
-        scaleListFormat.readAsync(response.body(), Some(baseUriOf(uri)))
+        compositionFormat.readAsync(response.body(), Some(uri))
       case 404 =>
-        throw new ScaleListNotFoundException(uri)
+        throw new CompositionNotFoundException(uri)
       case status if status >= 400 && status < 500 =>
-        throw new BadScaleListRequestException(uri, Some(s"HTTP request to $uri returned status code $status"))
+        throw new BadCompositionRequestException(uri, Some(s"HTTP request to $uri returned status code $status"))
       case status if status >= 500 && status < 600 =>
-        throw new ScaleListReadFailureException(uri, s"HTTP request to $uri returned status code $status")
+        throw new CompositionReadFailureException(uri, s"HTTP request to $uri returned status code $status")
       case status =>
-        throw new ScaleListReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
+        throw new CompositionReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
     }
   }
 
-  override def write(scaleList: ScaleList, uri: URI): Unit = ???
+  override def write(composition: Composition, uri: URI): Unit = ???
 
-  override def writeAsync(scaleList: ScaleList, uri: URI): Future[Unit] = ???
+  override def writeAsync(composition: Composition, uri: URI): Future[Unit] = ???
 }

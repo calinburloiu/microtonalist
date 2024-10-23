@@ -30,7 +30,7 @@ class JsonPreprocessorFileRefLoader extends JsonPreprocessorRefLoader {
     if (uri.isAbsolute && uri.getScheme != UriScheme.File) {
       None
     } else {
-      val path = pathOf(uri)
+      val path = filePathOf(uri)
       val inputStream = Try {
         new FileInputStream(path.toString)
       }.recover {

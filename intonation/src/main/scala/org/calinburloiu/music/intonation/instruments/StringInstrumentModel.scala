@@ -21,6 +21,6 @@ import org.calinburloiu.music.intonation.Interval
 class StringInstrumentModel(stringLength: Double) {
 
   def fretSize(base: Interval, intervalFromBase: Interval): Double = {
-    base.toStringLengthInterval.realValue * (1.0 - intervalFromBase.toStringLengthInterval.realValue) * stringLength
+    base.reverse.realValue * (1.0 - intervalFromBase.reverse.realValue) * stringLength
   }
 }

@@ -37,7 +37,6 @@
             }
         }
     ],
-    "required": ["type"],
     "unevaluatedProperties": false,
     "$defs": {
         "standardSettings": {
@@ -49,6 +48,11 @@
                     "description": "The integer number (0-11) that identifies the pitch class on the keyboard to be used for the base pitch. 0 is C, 1 is C♯/D♭, ..., 11 is B.",
                     "minimum": 0,
                     "maximum": 11
+                },
+                "baseDeviation": {
+                    "type": "number",
+                    "title": "Base Deviation",
+                    "description": "Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning."
                 }
             }
         },

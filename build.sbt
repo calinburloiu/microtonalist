@@ -1,7 +1,7 @@
 import Dependencies._
 
 ThisBuild / scalaVersion := "2.13.14"
-ThisBuild / version := "0.3.0-SNAPSHOT"
+ThisBuild / version := "1.0.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
 // # Projects
@@ -89,6 +89,9 @@ lazy val core = (project in file("core"))
   .settings(
     name := "microtonalist-core",
     commonSettings,
+    libraryDependencies ++= Seq(
+      enumeratum,
+    ),
   )
 
 lazy val tuner = (project in file("tuner"))
@@ -137,6 +140,30 @@ lazy val scMidi = (project in file("sc-midi"))
     commonSettings,
     libraryDependencies ++= Seq(
       coreMidi4j,
+    ),
+  )
+
+lazy val experiments = (project in file("experiments"))
+  .dependsOn(
+    core,
+    intonation,
+    format,
+    scMidi,
+    sync,
+    tuner,
+  )
+  .settings(
+    name := "microtonalist-app",
+    commonSettings,
+    assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
+    libraryDependencies ++= Seq(
+      coreMidi4j,
+      enumeratum,
+      ficus,
+      guava,
+      playJson,
+      scalaMock % Test,
     ),
   )
 

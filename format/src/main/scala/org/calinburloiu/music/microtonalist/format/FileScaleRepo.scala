@@ -32,8 +32,8 @@ import scala.util.Try
  * @param scaleFormatRegistry registry responsible for choosing the scale format
  */
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
-  override def read(uri: URI): Scale[Interval] = {
-    val scalePath = pathOf(uri)
+  override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
+    val scalePath = filePathOf(uri)
     val inputStream = Try {
       new FileInputStream(scalePath.toString)
     }.recover {
@@ -44,12 +44,19 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
       .getOrElse(throw new BadScaleRequestException(uri, None))
 
     logger.info(s"Reading scale from path \"$scalePath\"...")
-    scaleFormat.read(inputStream, Some(baseUriOf(uri)))
+    scaleFormat.read(inputStream, Some(uri))
   }
 
-  override def readAsync(uri: URI): Future[Scale[Interval]] = Future { read(uri) }
+  override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] =
+    Future { read(uri) }
 
-  override def write(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Unit = ???
+  override def write(scale: Scale[Interval],
+                     uri: URI,
+                     mediaType: Option[MediaType],
+                     context: Option[ScaleFormatContext] = None): Unit = ???
 
-  override def writeAsync(scale: Scale[Interval], uri: URI, mediaType: Option[MediaType]): Future[Unit] = ???
+  override def writeAsync(scale: Scale[Interval],
+                          uri: URI,
+                          mediaType: Option[MediaType],
+                          context: Option[ScaleFormatContext] = None): Future[Unit] = ???
 }

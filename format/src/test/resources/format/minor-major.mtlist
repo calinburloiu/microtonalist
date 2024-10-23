@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "Minor & Major",
+    "altName": "minor-major",
+    "composerName": "Călin-Andrei Burloiu",
+    "composerSortName": "Burloiu, Călin-Andrei",
+    "authorName": "John Doe",
+    "authorSortName": "Doe, John",
+    "compositionYear": 2024
+  },
+  "intonationStandard": "justIntonation",
+  "tuningReference": {
+    "basePitchClass": 2
+  },
+  "baseUri": "scales/",
+  "tunings": [
+    {
+      "transposition": "1",
+      "scale": "minor-just.jscl",
+      "tuningMapper": "auto"
+    },
+    {
+      "transposition": "6/5",
+      "scale": "major.scl"
+    },
+    {
+      "transposition": "1/1",
+      "name": "Romanian Minor",
+      "scale": ["9/8", "6/5", "7/5", "3/2", "27/16", "16/9", "2"]
+    }
+  ],
+  "tuningReducer": "merge",
+  "globalFill": {
+    "transposition": "1/1",
+    "scale": "chromatic.scl"
+  },
+  "config": {
+    "shouldMapQuarterTonesLow": true
+  }
+}

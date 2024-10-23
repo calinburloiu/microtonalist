@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.calinburloiu.music.intonation.{CentsInterval, Interval, RatioInterval, Scale}
+import org.calinburloiu.music.intonation._
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
@@ -36,60 +36,119 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata(
     "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType, MediaType.JSON_UTF_8))
 
-  override def read(inputStream: InputStream, baseUri: Option[URI] = None): Scale[Interval] = {
+  override def read(inputStream: InputStream,
+                    baseUri: Option[URI] = None,
+                    context: Option[ScaleFormatContext] = None): Scale[Interval] = {
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    read(preprocessedJson)
+    read(preprocessedJson, context)
   }
 
-  def read(inputJson: JsValue): Scale[Interval] = inputJson.validate(jsonAllScaleReads) match {
-    case JsSuccess(scale: Scale[Interval], _) => scale
-    case error: JsError => throw new InvalidJsonScaleException(JsError.toJson(error).toString)
+  /**
+   * Reads a scale from a raw JSON object.
+   *
+   * This overloaded method does not use the preprocessor as the other stream-based one uses.
+   *
+   * @see [[read]]
+   */
+  def read(inputJson: JsValue,
+           context: Option[ScaleFormatContext]): Scale[Interval] = {
+    scaleReadsWith(context).reads(inputJson) match {
+      case JsSuccess(scale, _) => scale
+      case error: JsError if error.errors.flatMap(_._2).exists(_.message == ErrorMissingContext) =>
+        throw new MissingContextScaleFormatException
+      case error: JsError => throw new InvalidJsonScaleException(error)
+    }
   }
 
-  override def write(scale: Scale[Interval], outputStream: OutputStream): Unit = {
+  override def write(scale: Scale[Interval],
+                     outputStream: OutputStream,
+                     context: Option[ScaleFormatContext] = None): Unit = {
     val json = writeAsJsValue(scale)
     val writer = new PrintWriter(outputStream)
     writer.write(json.toString)
   }
 
-  def writeAsJsValue(scale: Scale[Interval]): JsValue = Json.toJson(scale)(jsonVerboseScaleFormat)
+  def writeAsJsValue(scale: Scale[Interval], context: Option[ScaleFormatContext] = None): JsValue = {
+    val scaleSelfContext = ScaleFormatContext(
+      name = if (scale.name.trim.isBlank) None else Some(scale.name),
+      intonationStandard = scale.intonationStandard
+    )
+    val intonationStandard = scale.intonationStandard.orElse(context.flatMap(_.intonationStandard))
+      .getOrElse(throw new MissingContextScaleFormatException)
+    // Making sure that the intonation standard that we output is still consistent with the intervals
+    val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.scale.intervals).getOrElse {
+      throw new IncompatibleIntervalsScaleFormatException
+    }
+
+    val contextJson = Json.toJson(scaleSelfContext)(contextFormatWith(fallbackContext = context)).asInstanceOf[JsObject]
+    val pitchesJson = Json.toJson(intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
+
+    contextJson ++ pitchesJson
+  }
+
+  def scaleReadsWith(fallbackContext: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
+    Reads { jsValue =>
+      contextFormatWith(fallbackContext)
+        .reads(jsValue)
+        .flatMap {
+          case ScaleFormatContext(Some(name), Some(intonationStandard)) =>
+            pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals => Scale.create(name, intervals) }
+          case _ => JsError(ErrorMissingContext)
+        }
+    }
+  }
+
+  private[format] def contextFormatWith(fallbackContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
+    lazy val fallbackName = fallbackContext.flatMap(_.name)
+    lazy val fallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
+
+    //@formatter:off
+    (
+      (__ \ "name").formatNullableWithDefault[String](fallbackName) and
+      (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
+    )(
+      { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
+      { context: ScaleFormatContext =>
+        // There's a play-json bug on write, so we need to apply the fallback manually here
+        (context.name.orElse(fallbackName), context.intonationStandard.orElse(fallbackIntonationStandard))
+      }
+    )
+    //@formatter:on
+  }
 }
 
 object JsonScaleFormat {
 
-  val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist-scale")
+  val JsonScaleMediaType: MediaType = MediaType.parse("application/vnd.microtonalist.scale+json")
 
-  private[format] implicit val intervalReads: Reads[Interval] = Reads.StringReads.collect(
-    JsonValidationError("error.expecting.ScalaAppScalePitch")
-  )(
-    Function.unlift(Interval.fromScalaTuningInterval)
-  ).orElse {
-    Reads.JsNumberReads.map { jsNumber =>
-      CentsInterval(jsNumber.value.doubleValue)
-    }
+  val ErrorMissingContext: String = "error.scale.missingContext"
+
+  private[JsonScaleFormat] implicit val intonationStandardComponentFormat: Format[IntonationStandard] =
+    IntonationStandardComponentFormat.componentJsonFormat
+
+  private[format] def pitchIntervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = {
+    val intervalFormat: Format[Interval] = JsonIntervalFormat.formatFor(intonationStandard)
+    val intervalReads: Reads[Interval] = intervalFormat
+    val intervalWrites: Writes[Interval] = intervalFormat
+
+    Format(intervalReads orElse (__ \ "interval").read[Interval](intervalReads), intervalWrites)
   }
 
-  private[format] implicit val intervalWrites: Writes[Interval] = Writes {
-    case RatioInterval(numerator, denominator) => JsString(s"$numerator/$denominator")
-    case interval: Interval => JsNumber(interval.cents)
+  private[format] def pitchesFormatFor(intonationStandard: IntonationStandard): Format[Seq[Interval]] = {
+    val pitchIntervalFormat: Format[Interval] = pitchIntervalFormatFor(intonationStandard)
+    implicit val pitchIntervalSeqFormat: Format[Seq[Interval]] = Format(
+      Reads.seq[Interval](pitchIntervalFormat), Writes.seq[Interval](pitchIntervalFormat)
+    )
+    val pitchesPropertyFormat: Format[Seq[Interval]] = (__ \ "pitches").format[Seq[Interval]]
+
+    Format(pitchesPropertyFormat orElse __.format[Seq[Interval]], pitchesPropertyFormat)
   }
-
-  private[format] val jsonVerboseScaleFormat: Format[Scale[Interval]] = (
-    (__ \ "intervals").format[Seq[Interval]] and
-      (__ \ "name").formatNullable[String]
-    ) ({ (pitches: Seq[Interval], name: Option[String]) =>
-    Scale.create(name.getOrElse(""), pitches)
-  }, { scale =>
-    (scale.intervals, Some(scale.name))
-  })
-
-  private[format] val jsonConciseScaleReads: Reads[Scale[Interval]] = __.read[Seq[Interval]]
-    .map { pitches => Scale.create("", pitches) }
-
-  private[format] val jsonAllScaleReads: Reads[Scale[Interval]] = jsonVerboseScaleFormat orElse jsonConciseScaleReads
 }
 
 class InvalidJsonScaleException(message: String, cause: Throwable = null)
-  extends InvalidScaleFormatException(message, cause)
+  extends InvalidScaleFormatException(message, cause) {
+
+  def this(jsError: JsError) = this(JsError.toJson(jsError).toString)
+}

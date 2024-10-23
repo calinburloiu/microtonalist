@@ -1,0 +1,30 @@
+{
+  "intonationStandard": "justIntonation",
+  "tuningReference": {
+    "basePitchClass": 2
+  },
+  "config": {
+    "$ref": "common-config.json"
+  },
+  "globalFill": {
+    "transposition": "1/1",
+    "scale": "scales/chromatic.scl"
+  },
+  "tuningReducer": "merge",
+  "tunings": [
+    {
+      "transposition": "1",
+      "scale": "scales/minor-just.jscl",
+      "tuningMapper": "auto"
+    },
+    {
+      "transposition": "6/5",
+      "scale": "microtonalist:///scales/major.scl"
+    },
+    {
+      "transposition": "1/1",
+      "name": "Romanian Minor",
+      "scale": ["9/8", "6/5", "7/5", "3/2", "27/16", "16/9", "2"]
+    }
+  ]
+}

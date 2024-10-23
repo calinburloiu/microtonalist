@@ -18,22 +18,23 @@ package org.calinburloiu.music.microtonalist
 
 import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
 import org.calinburloiu.music.microtonalist.core.TuningList
-import org.calinburloiu.music.microtonalist.format.{FormatModule, ScaleListFormatTestUtils}
+import org.calinburloiu.music.microtonalist.format.{FormatModule, FormatTestUtils}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
-  private val formatModule = new FormatModule(ScaleListFormatTestUtils.uriOfResource("app/"))
+  private val formatModule = new FormatModule(FormatTestUtils.uriOfResource("app/"))
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  it should "successfully create a tuning list out of 'minor_major.scalist' file" in {
-    val scaleListResource = "app/minor_major.scalist"
-    val scaleList = ScaleListFormatTestUtils.readScaleListFromResources(scaleListResource, formatModule.defaultScaleListRepo)
-    val tuningList = TuningList.fromScaleList(scaleList)
+  it should "successfully create a tuning list out of 'minor-major.mtlist' file" in {
+    val compositionResource = "app/minor-major.mtlist"
+    val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
+      .defaultCompositionRepo)
+    val tuningList = TuningList.fromComposition(composition)
 
     val justMinorThirdDeviation = 15.64 // cents
 

@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.core
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.intonation.{Interval, RealInterval, Scale}
+import org.calinburloiu.music.scmidi.PitchClass
 
 /**
  * Maps a [[Scale]] to a [[PartialTuning]], by choosing the right keys to be used. Keys not used in the partial tuning
@@ -26,24 +27,48 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
  * This results in throwing a [[TuningMapperConflictException]].
  */
 trait TuningMapper {
-  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning
+  /**
+   * Maps a scale to a tuning.
+   *
+   * @param scale Scale to map.
+   * @param transposition Interval by which the scale should be transposed before mapping it.
+   * @param ref Tuning reference.
+   * @return a partial tuning for the given scale.
+   */
+  def mapScale(scale: Scale[Interval], transposition: Interval, ref: TuningRef): PartialTuning
+
+  /**
+   * Maps a scale to a tuning.
+   *
+   * The scale is not transposed before mapping.
+   *
+   * @param scale Scale to map.
+   * @param ref Tuning reference.
+   * @return a partial tuning for the given scale.
+   */
+  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+    val unison = scale.intonationStandard.map(_.unison).getOrElse(RealInterval.Unison)
+    mapScale(scale, unison, ref)
+  }
 }
 
 object TuningMapper {
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */
-  val Default: AutoTuningMapper = AutoTuningMapper(mapQuarterTonesLow = false)
+  val Default: AutoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = false)
 }
 
 // TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?
+
 /**
  * Exception thrown if a conflict occurs while mapping a scale to a partial tuning.
  *
  * @see [[TuningMapper]]
  */
-class TuningMapperConflictException(message: String, cause: Throwable = null)
-  extends RuntimeException(message, cause)
+class TuningMapperConflictException(scale: Scale[Interval], conflicts: Map[PitchClass, Seq[TuningPitch]])
+  extends RuntimeException(s"Cannot tune automatically scale \"${scale.name}\", some pitch classes" +
+    s" have conflicts: $conflicts")
 
 /**
  * Exception thrown if the deviation for a pitch class exceeds the allowed values, typically greater or equal than

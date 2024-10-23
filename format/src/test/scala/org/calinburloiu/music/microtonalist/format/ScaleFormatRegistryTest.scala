@@ -29,7 +29,7 @@ class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
 
   def assertResult(actualResult: Option[ScaleFormat], expectedResult: ScaleFormat): Unit = {
     actualResult should not be empty
-    actualResult.get shouldBe theSameInstanceAs (expectedResult)
+    actualResult.get shouldBe theSameInstanceAs(expectedResult)
   }
 
   "getByExtension" should "return the ScaleFormat by file extension" in {

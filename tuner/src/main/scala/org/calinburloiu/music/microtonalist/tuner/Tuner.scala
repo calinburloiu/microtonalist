@@ -41,7 +41,7 @@ trait LoggerTuner extends Tuner with StrictLogging {
   import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
 
   abstract override def tune(tuning: OctaveTuning): Unit = {
-    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
+    logger.info(s"Tuning to \"${tuning.toPianoKeyboardString}\"")
 
     super.tune(tuning)
   }
