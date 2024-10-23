@@ -196,7 +196,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
         Some(PitchClass.nameOf(index))
       case _ => None
     }.filter(_.nonEmpty).map(_.get)
-    s"\"$name\" (${pitches.mkString(", ")})"
+    s"\"$name\": ${pitches.mkString(", ")}"
   }
 }
 

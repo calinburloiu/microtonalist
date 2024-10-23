@@ -86,6 +86,7 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
+                            // TODO #76 This causes a conflict in the just intonation version of Ciresar by Burloiu
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
                             // TODO It should default to Off after adding this to JSON
                             softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Strict,
