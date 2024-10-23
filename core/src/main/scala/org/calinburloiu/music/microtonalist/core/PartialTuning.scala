@@ -60,15 +60,15 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
   def completedCount: Int = deviations.map(d => if (d.isDefined) 1 else 0).sum
 
   /**
-   * Attempts to create a [[OctaveTuning]] from this partial tuning if is complete (see [[isComplete]]).
+   * Creates an [[OctaveTuning]] from this partial tuning.
    *
-   * @return maybe a new [[OctaveTuning]]
+   * If it is incomplete (see [[isComplete]]), then, pitch classes without a value are mapped to the standard 12-EDO
+   * tuning.
+   *
+   * @return a new [[OctaveTuning]].
    * @see [[isComplete]]
    */
-  def resolve: Option[OctaveTuning] = if (isComplete)
-    Some(OctaveTuning(name, deviations.map(_.get)))
-  else
-    None
+  def resolve: OctaveTuning = OctaveTuning(name, deviations.map(_.getOrElse(0.0)))
 
   /**
    * Fills each key with empty deviations from `this` with corresponding non-empty
@@ -179,6 +179,24 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
       case (Some(d1), Some(d2)) => DoubleMath.fuzzyEquals(d1, d2, centsTolerance)
       case _ => false
     }
+  }
+
+  override def toString: String = {
+    val pitches = deviations.zipWithIndex.map {
+      case (Some(deviation), index) =>
+        Some(String.format(java.util.Locale.US, "%s = %.2f", PitchClass.nameOf(index) + " = " + deviation))
+      case _ => None
+    }.filter(_.nonEmpty).map(_.get)
+    s"$name: ${pitches.mkString(", ")}"
+  }
+
+  def unfilledPitchClassesString: String = {
+    val pitches = deviations.zipWithIndex.map {
+      case (None, index) =>
+        Some(PitchClass.nameOf(index))
+      case _ => None
+    }.filter(_.nonEmpty).map(_.get)
+    s"\"$name\": ${pitches.mkString(", ")}"
   }
 }
 

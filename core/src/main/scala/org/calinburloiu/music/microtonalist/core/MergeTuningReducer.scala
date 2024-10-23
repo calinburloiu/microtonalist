@@ -48,23 +48,17 @@ case class MergeTuningReducer(tolerance: Double = DefaultCentsTolerance) extends
     }
 
     val tuningSize = partialTunings.head.size
-    val reducedPartialTunings =
-      collect(partialTunings, PartialTuning.empty(tuningSize), tuningSize)
-    val maybeTunings = reducedPartialTunings.map { partialTuning =>
-      val enrichedPartialTuning = Seq(
-        partialTuning,
-        globalFillTuning
-      ).reduce(_ fill _)
+    val reducedPartialTunings = collect(partialTunings, PartialTuning.empty(tuningSize), tuningSize)
+    val tunings = reducedPartialTunings.map { partialTuning =>
+      val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
+      if (!enrichedPartialTuning.isComplete) {
+        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.unfilledPitchClassesString}")
+      }
 
       enrichedPartialTuning.resolve
     }
 
-    if (maybeTunings.forall(_.nonEmpty)) {
-      TuningList(maybeTunings.map(_.get))
-    } else {
-      // TODO Consider not throwing here, but instead returning a special object
-      throw new IncompleteTuningsException(s"Some tunings are not complete: $maybeTunings")
-    }
+    TuningList(tunings)
   }
 
   private[this] def collect(partialTunings: Seq[PartialTuning],

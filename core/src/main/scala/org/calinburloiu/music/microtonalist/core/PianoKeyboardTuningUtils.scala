@@ -21,8 +21,7 @@ object PianoKeyboardTuningUtils {
 
   val tuningSize: Int = 12
 
-  val noteNames =
-    Seq("C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B")
+  val noteNames: Seq[String] = Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
 
   val minDeviation: Int = -64
   val maxDeviation: Int = 63

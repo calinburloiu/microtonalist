@@ -20,8 +20,7 @@ package org.calinburloiu.music.microtonalist.core
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
  * musician must perform while playing.
  *
- * The final tuning list must contain [[OctaveTuning]] objects, not [[PartialTuning]], so they must be complete. If some
- * tunings will be incomplete after the reduce process a [[IncompleteTuningsException]] is thrown.
+ * The final tuning list must contain [[OctaveTuning]] objects, not [[PartialTuning]], so they must be complete.
  */
 trait TuningReducer {
   def reduceTunings(tunings: Seq[PartialTuning],
@@ -32,9 +31,3 @@ object TuningReducer {
   /** A [[MergeTuningReducer]]. */
   val Default: MergeTuningReducer = MergeTuningReducer()
 }
-
-/**
- * Exception thrown by [[TuningReducer]] if the final tuning list has some tunings that are incomplete.
- */
-class IncompleteTuningsException(message: String, cause: Throwable = null)
-  extends RuntimeException(message, cause)

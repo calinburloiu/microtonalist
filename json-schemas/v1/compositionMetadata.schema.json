@@ -14,6 +14,11 @@
             "title": "Alternative Name",
             "description": "Alternative name that may include information like opus number."
         },
+        "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Short description of the composition or tuning list."
+        },
         "composerName": {
             "type": "string",
             "title": "Composer Name",
@@ -55,5 +60,6 @@
             "title": "Copyright",
             "description": "Copyright information, if any."
         }
-    }
+    },
+    "unevaluatedProperties": false
 }
