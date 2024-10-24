@@ -183,24 +183,27 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    */
   private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Map[Int, TuningPitch] = {
     val mutablePitchesInfo = mutable.Map[Int, TuningPitch]()
+    val intervals: Seq[(Interval, Int)] = scale.intervals.zipWithIndex.map {
+      case (interval, pitchIndex) => (interval.normalize, pitchIndex)
+    }.sortBy(_._1)
     // We add an extra degree to the range and then use modulo to also cover the quarter-tone between the last and
     // the first degree. This was a fix for https://github.com/calinburloiu/microtonalist/issues/76.
-    val scaleIntervals = scale.intervals.map(_.normalize).sorted.distinct
-    val scalePitchIndexRange = if (shouldMapQuarterTonesLow) {
-      0 to scaleIntervals.size
+    val iterationRange = if (shouldMapQuarterTonesLow) {
+      0 to intervals.size
     } else {
-      scaleIntervals.size to 0 by -1
+      intervals.size to 0 by -1
     }
     var lastPitchClassNumber = -1
 
-    for (i <- scalePitchIndexRange) {
-      val scalePitchIndex = i % scaleIntervals.size
-      val currInterval = scaleIntervals(scalePitchIndex)
-      var tuningPitch = mapInterval(currInterval, ref)
+    for (iterationIndex <- iterationRange) {
+      val intervalIndex = iterationIndex % intervals.size
+      val interval = intervals(intervalIndex)._1
+      val scalePitchIndex = intervals(intervalIndex)._2
+      var tuningPitch = mapInterval(interval, ref)
+
       if (tuningPitch.pitchClass.number == lastPitchClassNumber) {
-        // Conflict detected! Attempting to remap to interval with the quarter-tone in the opposite direction, in
-        // case the current interval is a quarter-tone.
-        tuningPitch = mapInterval(currInterval, ref, Some(!shouldMapQuarterTonesLow))
+        // Conflict detected! Attempting to remap the quarter-tone interval in the opposite direction.
+        tuningPitch = mapInterval(interval, ref, Some(!shouldMapQuarterTonesLow))
       }
 
       mutablePitchesInfo.update(scalePitchIndex, tuningPitch)

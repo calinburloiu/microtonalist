@@ -532,6 +532,40 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     partialTuning.c should contain(-5.87)
   }
 
+  it should "avoid conflict with manually mapped pitches" in {
+    // Given
+    val scale = RatiosScale(1 /: 1, 88 /: 81, 12 /: 11, 32 /: 27, 4 /: 3)
+    val tuningRef = StandardTuningRef(PitchClass.D)
+    val overrideKeyboardMapping = KeyboardMapping(e = Some(1))
+    val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13.0,
+      overrideKeyboardMapping = overrideKeyboardMapping)
+
+    // When
+    val partialTuning = mapper.mapScale(scale, tuningRef)
+
+    // Then
+    partialTuning.completedCount shouldEqual 5
+    partialTuning.eFlat should contain(50.64)
+    partialTuning.e should contain(-56.50)
+  }
+
+  // Test for bugfix https://github.com/calinburloiu/microtonalist/issues/76
+  it should "map just Cireșar scale" in {
+    // Given
+    val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
+    val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
+
+    // When
+    val partialTuning = mapper.mapScale(ciresar, cTuningRef)
+
+    // Then
+    partialTuning.completedCount shouldEqual 8
+    partialTuning.eFlat should contain(15.64)
+    partialTuning.e should contain(35.08)
+    partialTuning.bFlat should contain(17.6)
+    partialTuning.b should contain(37.04)
+  }
+
   behavior of "mapInterval"
 
   it should "map an interval to a pitch class with a deviation in cents" in {
