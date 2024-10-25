@@ -69,8 +69,8 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
   it should "map a large scale that can't be automatically mapped" in {
     // Given
     val scale = RatiosScale(
-      1 /: 1, 81 /: 80, 10 /: 9, 9 /: 8, 5 /: 4, 81 /: 64, 4 /: 3, 27 /: 20, 40 /: 27, 3 /: 2, 128 /: 81, 8 /: 5, 15
-        /: 8, 243 /: 128)
+      1 /: 1, 81 /: 80, 10 /: 9, 9 /: 8, 5 /: 4, 81 /: 64, 4 /: 3, 27 /: 20, 40 /: 27, 3 /: 2, 128 /: 81, 8 /: 5,
+      15 /: 8, 243 /: 128)
     val keyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
       gSharpOrAFlat = Some(11), b = Some(12))
     val mapper = ManualTuningMapper(keyboardMapping)
