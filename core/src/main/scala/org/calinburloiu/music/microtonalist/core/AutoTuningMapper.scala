@@ -187,17 +187,20 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
       val intervalIndex = iterationIndex % intervals.size
       val interval = intervals(intervalIndex)._1
       val scalePitchIndex = intervals(intervalIndex)._2
-      var tuningPitch = mapInterval(interval, ref)
 
-      if (tuningPitch.pitchClass.number == lastPitchClassNumber) {
-        // Conflict detected! Attempting to remap the quarter-tone interval in the opposite direction.
-        tuningPitch = mapInterval(interval, ref, Some(!shouldMapQuarterTonesLow))
+      if (!scalePitchIndexesMappedManually.contains(scalePitchIndex)) {
+        var tuningPitch = mapInterval(interval, ref)
+        val pitchClass = tuningPitch.pitchClass
+
+        if (pitchClass.number == lastPitchClassNumber || overrideKeyboardMapping(pitchClass).isDefined) {
+          // Conflict detected! Attempting to remap the quarter-tone interval in the opposite direction.
+          tuningPitch = mapInterval(interval, ref, Some(!shouldMapQuarterTonesLow))
+        }
+
+        mutablePitchesInfo.update(scalePitchIndex, tuningPitch)
+        lastPitchClassNumber = pitchClass
       }
-
-      mutablePitchesInfo.update(scalePitchIndex, tuningPitch)
-      lastPitchClassNumber = tuningPitch.pitchClass.number
     }
-
     val pitchesInfo = mutablePitchesInfo.toMap
 
     // Check if there are conflicts
@@ -205,16 +208,11 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
 
-    if (conflicts.isEmpty) {
-      // Return the result
-      val result = pitchesInfo.filter { case (scalePitchIndex, _) =>
-        !scalePitchIndexesMappedManually.contains(scalePitchIndex)
-      }
-
-      applySoftChromaticGenusMapping(result, scale, ref)
-    } else {
+    if (conflicts.nonEmpty) {
       throw new TuningMapperConflictException(scale, conflicts)
     }
+
+    applySoftChromaticGenusMapping(pitchesInfo, scale, ref)
   }
 
   /**
@@ -311,11 +309,11 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     autoPartialTuning
   }
 
-  private def getManualPartialTuning(processedScale: Scale[Interval], ref: TuningRef) = {
+  private def getManualPartialTuning(scale: Scale[Interval], ref: TuningRef) = {
     val manualPartialTuning = manualTuningMapper match {
       case Some(manualTuningMapper) =>
         // Clearing the scale name to avoid name merging
-        manualTuningMapper.mapScale(processedScale.rename(""), ref)
+        manualTuningMapper.mapScale(scale.rename(""), ref)
       case None => PartialTuning.empty(12)
     }
 
