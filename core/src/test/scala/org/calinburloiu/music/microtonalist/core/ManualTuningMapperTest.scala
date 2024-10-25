@@ -90,14 +90,26 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     partialTuning.b should contain(-11.73)
   }
 
-  it should "fail if a deviation overflows" in {
+  it should "fail to map a scale if a deviation overflows" in {
     // Given
-    val scale = CentsScale(0.0, 200.0, 400.0, 500.0)
-    val mapping = KeyboardMapping(c = Some(0), cSharpOrDFlat = Some(1), e = Some(3), f = Some(4))
+    val scale = CentsScale(0.0, 233.33, 400.0, 500.0)
+    val mapping = KeyboardMapping(c = Some(0), cSharpOrDFlat = Some(1), e = Some(2), f = Some(3))
     val mapper = ManualTuningMapper(mapping)
     val tuningRef = StandardTuningRef(PitchClass.C)
     // Then
     assertThrows[TuningMapperOverflowException] {
+      mapper.mapScale(scale, tuningRef)
+    }
+  }
+
+  it should "fail to map scale if the mapping scale pitches indexes are out of bounds" in {
+    // Given
+    val scale = CentsScale(0.0, 200.0, 383.33, 500.0)
+    val mapping = KeyboardMapping(c = Some(0), g = Some(4))
+    val mapper = ManualTuningMapper(mapping)
+    val tuningRef = StandardTuningRef(PitchClass.C)
+    // Then
+    assertThrows[IllegalArgumentException] {
       mapper.mapScale(scale, tuningRef)
     }
   }

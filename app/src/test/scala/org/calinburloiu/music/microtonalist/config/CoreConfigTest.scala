@@ -23,7 +23,7 @@ class CoreConfigTest extends SubConfigTest[CoreConfig, CoreConfigManager] {
   override lazy val subConfigManager: CoreConfigManager = mainConfigManager.coreConfigManager
 
   override lazy val expectedSubConfigRead: CoreConfig = CoreConfig(
-    libraryUri = new URI("file:///Users/johnny/Music/microtonalist/lib/scales/"),
+    libraryUri = new URI("file:///Users/johnny/Music/microtonalist/lib/scales"),
     metaConfig = MetaConfig(
       saveIntervalMillis = 2000,
       saveOnExit = false
