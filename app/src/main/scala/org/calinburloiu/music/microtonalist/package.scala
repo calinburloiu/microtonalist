@@ -17,7 +17,7 @@
 package org.calinburloiu.music
 
 import java.net.URI
-import java.nio.file.Paths
+import java.nio.file.{Files, Path, Paths}
 import scala.util.Try
 
 package object microtonalist {
@@ -29,5 +29,21 @@ package object microtonalist {
    * @return URI for the given string
    */
   def parseUri(uriString: String): Option[URI] =
-    Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map(_.toUri)
+    Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map { path =>
+      mapPathToUri(path, uriString)
+    }
+
+  /**
+   * The convention in Microtonalist is that a directory path URI must end in "/", but the Java Path API tends to
+   * eliminate that final slash. This method is a workaround for that.
+   */
+  private def mapPathToUri(path: Path, uriString: String): URI = {
+    var result = path.toUri
+    if ((Files.isDirectory(path) || PlatformUtils.isWindows && uriString.endsWith("\\") || uriString.endsWith("/"))
+      && !result.toString.endsWith("/")) {
+      result = new URI(result.toString + "/")
+    }
+
+    result
+  }
 }

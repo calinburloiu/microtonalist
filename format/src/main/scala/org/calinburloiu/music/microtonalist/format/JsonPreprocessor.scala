@@ -140,7 +140,7 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
           val normalizedUri = uri.normalize
           if (nestedRefContext.visitedRefs.contains(normalizedUri)) {
             throw new JsonPreprocessorRefLoadException(uri, pathContext,
-              s"JSON preprocessor encountered nested references that from a cycle: $uri was already loaded")
+              s"JSON preprocessor encountered nested references that form a cycle: $uri was already loaded")
           }
           nestedRefContext.visitedRefs += uri.normalize
 
