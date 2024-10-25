@@ -96,7 +96,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     result.f should contain(0.0)
 
     // When
-    result = autoTuningMapperWithHighQuarterTones.mapScale(maj4, EdoInterval(72, (5, 0)), cTuningRef)
+    result = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, EdoInterval(72, (5, 0)))
     // Then
     result.completedCount shouldEqual 4
     result.f should contain(0.0)
@@ -115,12 +115,12 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     tuning.name shouldEqual "C maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, 3 /: 2)
     // Then
     tuning.name shouldEqual "G maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 6 /: 5, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, 6 /: 5)
     // Then
     tuning.name shouldEqual "D♯/E♭ maj-4"
   }
@@ -135,7 +135,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     tuning.name shouldEqual "maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, 3 /: 2)
     tuning.name shouldEqual "maj-4"
   }
 
