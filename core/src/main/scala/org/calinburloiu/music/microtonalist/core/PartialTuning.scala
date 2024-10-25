@@ -184,7 +184,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
   override def toString: String = {
     val pitches = deviations.zipWithIndex.map {
       case (Some(deviation), index) =>
-        Some(String.format(java.util.Locale.US, "%s = %.2f", PitchClass.nameOf(index) + " = " + deviation))
+        Some(String.format(java.util.Locale.US, "%s = %.2f", PitchClass.nameOf(index), deviation))
       case _ => None
     }.filter(_.nonEmpty).map(_.get)
     s"$name: ${pitches.mkString(", ")}"

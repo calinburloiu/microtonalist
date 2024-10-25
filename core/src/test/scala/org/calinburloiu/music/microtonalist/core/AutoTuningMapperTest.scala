@@ -96,7 +96,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     result.f should contain(0.0)
 
     // When
-    result = autoTuningMapperWithHighQuarterTones.mapScale(maj4, EdoInterval(72, (5, 0)), cTuningRef)
+    result = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, EdoInterval(72, (5, 0)))
     // Then
     result.completedCount shouldEqual 4
     result.f should contain(0.0)
@@ -115,12 +115,12 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     tuning.name shouldEqual "C maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, 3 /: 2)
     // Then
     tuning.name shouldEqual "G maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 6 /: 5, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, 6 /: 5)
     // Then
     tuning.name shouldEqual "D♯/E♭ maj-4"
   }
@@ -135,7 +135,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     tuning.name shouldEqual "maj-4"
 
     // When
-    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, 3 /: 2, cTuningRef)
+    tuning = autoTuningMapperWithHighQuarterTones.mapScale(maj4, cTuningRef, 3 /: 2)
     tuning.name shouldEqual "maj-4"
   }
 
@@ -530,6 +530,40 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     partialTuning.a should contain(0.0)
     partialTuning.bFlat should contain(38.57)
     partialTuning.c should contain(-5.87)
+  }
+
+  it should "avoid conflict with manually mapped pitches" in {
+    // Given
+    val scale = RatiosScale(1 /: 1, 88 /: 81, 12 /: 11, 32 /: 27, 4 /: 3)
+    val tuningRef = StandardTuningRef(PitchClass.D)
+    val overrideKeyboardMapping = KeyboardMapping(e = Some(1))
+    val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13.0,
+      overrideKeyboardMapping = overrideKeyboardMapping)
+
+    // When
+    val partialTuning = mapper.mapScale(scale, tuningRef)
+
+    // Then
+    partialTuning.completedCount shouldEqual 5
+    partialTuning.eFlat should contain(50.64)
+    partialTuning.e should contain(-56.50)
+  }
+
+  // Test for bugfix https://github.com/calinburloiu/microtonalist/issues/76
+  it should "map just Cireșar scale" in {
+    // Given
+    val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
+    val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
+
+    // When
+    val partialTuning = mapper.mapScale(ciresar, cTuningRef)
+
+    // Then
+    partialTuning.completedCount shouldEqual 8
+    partialTuning.eFlat should contain(15.64)
+    partialTuning.e should contain(35.08)
+    partialTuning.bFlat should contain(17.6)
+    partialTuning.b should contain(37.04)
   }
 
   behavior of "mapInterval"

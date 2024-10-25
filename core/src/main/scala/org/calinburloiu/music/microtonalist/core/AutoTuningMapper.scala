@@ -86,12 +86,13 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
-                            // TODO #76 This causes a conflict in the just intonation version of Ciresar by Burloiu
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
                             // TODO It should default to Off after adding this to JSON
                             softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Strict,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
+  private type PitchesInfo = Map[Int, TuningPitch]
+
   private val SoftChromaticSmallInterval = 150.0
   private val SoftChromaticMaxAug2Interval = 300.0
 
@@ -101,30 +102,14 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     else Some(ManualTuningMapper(overrideKeyboardMapping))
   }
 
-  override def mapScale(scale: Scale[Interval], transposition: Interval, ref: TuningRef): PartialTuning = {
-    val processedScale = scale.transpose(transposition)
-    val pitchesInfo = mapScaleToPitchesInfo(processedScale, ref)
+  override def mapScale(scale: Scale[Interval], ref: TuningRef, transposition: Interval): PartialTuning = {
+    val transposedScale = scale.transpose(transposition)
 
-    // TODO #34 Temporary workaround to add the base pitch class in the tuning name before taking it from lineage
-    val indexOfUnison = scale.indexOfUnison
-    val baseTuningPitch = pitchesInfo.get(indexOfUnison)
-    val tuningNamePrefix = baseTuningPitch.map { tuningPitch => s"${tuningPitch.pitchClass} " }.getOrElse("")
-    val tuningName = tuningNamePrefix + processedScale.name
+    val pitchesInfo = mapScaleToPitchesInfo(transposedScale, ref)
+    val tuningName = computeTuningName(scale, pitchesInfo)
+    val autoPartialTuning: PartialTuning = createPartialTuning(pitchesInfo, tuningName)
 
-    val deviationsByPitchClass = pitchesInfo
-      .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
-      .toMap
-    val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
-      deviationsByPitchClass.get(PitchClass.fromInt(pitchClassNum))
-    }
-    val autoPartialTuning = PartialTuning(partialTuningValues, tuningName)
-
-    val manualPartialTuning = manualTuningMapper match {
-      case Some(manualTuningMapper) =>
-        // Clearing the scale name to avoid name merging
-        manualTuningMapper.mapScale(processedScale.rename(""), ref)
-      case None => PartialTuning.empty(12)
-    }
+    val manualPartialTuning: PartialTuning = getManualPartialTuning(transposedScale, ref)
 
     val resultPartialTuning = autoPartialTuning.merge(manualPartialTuning, tolerance)
     assert(resultPartialTuning.isDefined,
@@ -135,8 +120,10 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
   /**
    * Automatically maps an interval to a pitch class on the keyboard.
    *
-   * @param interval interval to be mapped
-   * @param ref      reference taken when mapping the interval
+   * @param interval                         interval to be mapped
+   * @param ref                              reference taken when mapping the interval
+   * @param overrideShouldMapQuarterTonesLow if defined, it is used instead of the class member
+   *                                         [[shouldMapQuarterTonesLow]]
    * @return a pitch class with its deviation from 12-EDO
    */
   def mapInterval(interval: Interval,
@@ -162,7 +149,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
      *                slightly in deviation (due to precision errors) and have different scale pitch index.
      * @return The min scale pitch index to use for all those pitches.
      */
-    def extractScalePitchIndex(pitches: Map[Int, TuningPitch]): Int = {
+    def extractScalePitchIndex(pitches: PitchesInfo): Int = {
       pitches.min((a: (Int, TuningPitch), b: (Int, TuningPitch)) => a._1.compare(b._1))._1
     }
 
@@ -182,28 +169,38 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
    * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale pitch index, with the
    *         pitches mentioned in `overrideKeyboardMapping` excluded.
    */
-  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): Map[Int, TuningPitch] = {
+  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): PitchesInfo = {
     val mutablePitchesInfo = mutable.Map[Int, TuningPitch]()
-    val scalePitchIndexRange = if (shouldMapQuarterTonesLow) {
-      0 until scale.size
+    val intervals: Seq[(Interval, Int)] = scale.intervals.zipWithIndex.map {
+      case (interval, pitchIndex) => (interval.normalize, pitchIndex)
+    }.sortBy(_._1)
+    // We add an extra degree to the range and then use modulo to also cover the quarter-tone between the last and
+    // the first degree. This was a fix for https://github.com/calinburloiu/microtonalist/issues/76.
+    val iterationRange = if (shouldMapQuarterTonesLow) {
+      0 to intervals.size
     } else {
-      (scale.size - 1) to 0 by -1
+      intervals.size to 0 by -1
     }
     var lastPitchClassNumber = -1
 
-    for (scalePitchIndex <- scalePitchIndexRange) {
-      val currInterval = scale(scalePitchIndex)
-      var tuningPitch = mapInterval(currInterval, ref)
-      if (tuningPitch.pitchClass.number == lastPitchClassNumber) {
-        // Conflict detected! Attempting to remap to interval with the quarter-tone in the opposite direction, in
-        // case the current interval is a quarter-tone.
-        tuningPitch = mapInterval(currInterval, ref, Some(!shouldMapQuarterTonesLow))
+    for (iterationIndex <- iterationRange) {
+      val intervalIndex = iterationIndex % intervals.size
+      val interval = intervals(intervalIndex)._1
+      val scalePitchIndex = intervals(intervalIndex)._2
+
+      if (!scalePitchIndexesMappedManually.contains(scalePitchIndex)) {
+        var tuningPitch = mapInterval(interval, ref)
+        val pitchClass = tuningPitch.pitchClass
+
+        if (pitchClass.number == lastPitchClassNumber || overrideKeyboardMapping(pitchClass).isDefined) {
+          // Conflict detected! Attempting to remap the quarter-tone interval in the opposite direction.
+          tuningPitch = mapInterval(interval, ref, Some(!shouldMapQuarterTonesLow))
+        }
+
+        mutablePitchesInfo.update(scalePitchIndex, tuningPitch)
+        lastPitchClassNumber = pitchClass
       }
-
-      mutablePitchesInfo.update(scalePitchIndex, tuningPitch)
-      lastPitchClassNumber = tuningPitch.pitchClass.number
     }
-
     val pitchesInfo = mutablePitchesInfo.toMap
 
     // Check if there are conflicts
@@ -211,16 +208,11 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     val groupedTuningPitches = tuningPitches.groupBy(_.pitchClass)
     val conflicts = groupedTuningPitches.filter(item => filterConflicts(item._2))
 
-    if (conflicts.isEmpty) {
-      // Return the result
-      val result = pitchesInfo.filter { case (scalePitchIndex, _) =>
-        !scalePitchIndexesMappedManually.contains(scalePitchIndex)
-      }
-
-      applySoftChromaticGenusMapping(result, scale, ref)
-    } else {
+    if (conflicts.nonEmpty) {
       throw new TuningMapperConflictException(scale, conflicts)
     }
+
+    applySoftChromaticGenusMapping(pitchesInfo, scale, ref)
   }
 
   /**
@@ -236,9 +228,9 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     }
   }
 
-  private def applySoftChromaticGenusMapping(pitchesInfo: Map[Int, TuningPitch],
+  private def applySoftChromaticGenusMapping(pitchesInfo: PitchesInfo,
                                              scale: Scale[Interval],
-                                             ref: TuningRef): Map[Int, TuningPitch] = {
+                                             ref: TuningRef): PitchesInfo = {
     val aug2Threshold = softChromaticGenusMapping.aug2Threshold
 
     def detect2ndDegreeOfSoftHijaz(intervalBelow: Double, intervalAbove: Double,
@@ -295,5 +287,36 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
         }
       }
     }
+  }
+
+  private def computeTuningName(scale: Scale[Interval], pitchesInfo: PitchesInfo): String = {
+    // TODO #34 Temporary workaround to add the base pitch class in the tuning name before taking it from lineage
+    val indexOfUnison = scale.indexOfUnison
+    val baseTuningPitch = pitchesInfo.get(indexOfUnison)
+    val tuningNamePrefix = baseTuningPitch.map { tuningPitch => s"${tuningPitch.pitchClass} " }.getOrElse("")
+
+    tuningNamePrefix + scale.name
+  }
+
+  private def createPartialTuning(pitchesInfo: PitchesInfo, tuningName: String) = {
+    val deviationsByPitchClass = pitchesInfo
+      .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
+      .toMap
+    val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
+      deviationsByPitchClass.get(PitchClass.fromInt(pitchClassNum))
+    }
+    val autoPartialTuning = PartialTuning(partialTuningValues, tuningName)
+    autoPartialTuning
+  }
+
+  private def getManualPartialTuning(scale: Scale[Interval], ref: TuningRef) = {
+    val manualPartialTuning = manualTuningMapper match {
+      case Some(manualTuningMapper) =>
+        // Clearing the scale name to avoid name merging
+        manualTuningMapper.mapScale(scale.rename(""), ref)
+      case None => PartialTuning.empty(12)
+    }
+
+    manualPartialTuning
   }
 }

@@ -63,14 +63,20 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
     incompletePartialTuning.isComplete shouldEqual false
   }
 
-  "resolve" should "return some Tuning if this PartialTuning isComplete and None otherwise" in {
-    emptyPartialTuning.resolve should be(empty)
-    completePartialTuning.resolve should contain(OctaveTuning("foo",
+  "resolve" should "return a Tuning if this PartialTuning isComplete and None otherwise" in {
+    val standardTuning = OctaveTuning("", Seq.fill(12)(0.0))
+    emptyPartialTuning.resolve shouldEqual standardTuning
+    completePartialTuning.resolve shouldEqual OctaveTuning("foo",
       100.0, 200.0, 300.0,
       400.0, 500.0, 600.0,
       700.0, 800.0, 900.0,
-      1000.0, 1100.0, 1200.0))
-    incompletePartialTuning.resolve should be(empty)
+      1000.0, 1100.0, 1200.0)
+    incompletePartialTuning.resolve shouldEqual OctaveTuning("",
+      0.0, 0.0, 270.0,
+      400.0, 500.0, 600.0,
+      700.0, 800.0, 900.0,
+      1000.0, 1100.0, 1200.0
+    )
   }
 
   "enrich" should "correctly do a best effort combine of PartialTunings" in {

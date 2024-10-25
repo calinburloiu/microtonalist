@@ -49,7 +49,7 @@ case class TuningSpec(transposition: Interval,
                       tuningMapper: TuningMapper) {
 
   def tuningFor(ref: TuningRef): PartialTuning = {
-    tuningMapper.mapScale(scale, transposition, ref)
+    tuningMapper.mapScale(scale, ref, transposition)
   }
 }
 
