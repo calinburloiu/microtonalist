@@ -16,12 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard,
-  JustIntonationStandard}
+import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard, JustIntonationStandard}
 import play.api.libs.json.Json
 
-object IntonationStandardComponentFormat {
-  val ComponentFamilyName = "intonationStandard"
+object IntonationStandardComponentFormat extends ComponentJsonFormatFactory[IntonationStandard] {
+  override val familyName = "intonationStandard"
 
   private val specs: ComponentJsonFormat.SpecsSeqType[IntonationStandard] = Seq(
     ComponentJsonFormat.TypeSpec.withoutSettings(CentsIntonationStandard.typeName, CentsIntonationStandard),
@@ -36,8 +35,8 @@ object IntonationStandardComponentFormat {
     )
   )
 
-  lazy val componentJsonFormat: ComponentJsonFormat[IntonationStandard] = new ComponentJsonFormat(
-    ComponentFamilyName,
+  override lazy val componentJsonFormat: ComponentJsonFormat[IntonationStandard] = new ComponentJsonFormat(
+    familyName,
     specs,
     Some(CentsIntonationStandard.typeName)
   )

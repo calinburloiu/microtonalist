@@ -87,7 +87,7 @@ object JsonIntervalFormat {
     writes
   )
 
-  // TODO #4 Remove
+  // TODO #62 Remove
   @deprecated
   private val legacyIntervalReads: Reads[Interval] = Reads.StringReads.collect(
     JsonValidationError("error.expecting.HuygensFokkerScalaScalePitch")
@@ -99,7 +99,7 @@ object JsonIntervalFormat {
     }
   }
 
-  // TODO #4 Remove
+  // TODO #62 Remove
   @deprecated
   private[format] implicit val legacyIntervalFormat: Format[Interval] = Format(legacyIntervalReads, writes)
 }

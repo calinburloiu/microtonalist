@@ -151,7 +151,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
 
           // Conflict, stop!
           case _ =>
-            logger.debug(s"Conflict for pitch class ${PitchClass.fromInt(index)} in PartialTunings ${
+            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in PartialTunings ${
               this
                 .toNoteNamesString
             } and ${that.toNoteNamesString}")

@@ -34,8 +34,8 @@ class MidiNoteTest extends AnyFlatSpec with Matchers {
     MidiNote(PitchClass.C, 9).number shouldEqual 120
     MidiNote(PitchClass.G, 9).number shouldEqual 127
 
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.fromInt(-1), 4) }
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.fromInt(12), 4) }
+    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.fromNumber(-1), 4) }
+    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.fromNumber(12), 4) }
     assertThrows[IllegalArgumentException] { MidiNote(PitchClass.D, -2) }
     assertThrows[IllegalArgumentException] { MidiNote(PitchClass.GSharp, 9) }
     assertThrows[IllegalArgumentException] { MidiNote(PitchClass.B, 9) }

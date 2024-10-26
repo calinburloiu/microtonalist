@@ -43,7 +43,7 @@ import scala.collection.{immutable, mutable}
  * @param name          The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
-sealed abstract class SoftChromaticGenusMapping(val name: String,
+sealed abstract class SoftChromaticGenusMapping(override val entryName: String,
                                                 val aug2Threshold: Double) extends EnumEntry
 
 object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
@@ -87,8 +87,7 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
-                            // TODO It should default to Off after adding this to JSON
-                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Strict,
+                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Off,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
   private type PitchesInfo = Map[Int, TuningPitch]
@@ -135,7 +134,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     val deviation = totalCents - 100 * totalSemitones
     val pitchClassNumber = IntMath.mod(totalSemitones, 12)
 
-    TuningPitch(PitchClass.fromInt(pitchClassNumber), deviation)
+    TuningPitch(PitchClass.fromNumber(pitchClassNumber), deviation)
   }
 
   /**
@@ -159,7 +158,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
       .toMap
     val overriddenScalePitchIndexesByPitchClass = scalePitchIndexesByPitchClass ++ overrideKeyboardMapping.toMap
     val keyboardMappingScalePitchIndexes = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
-      overriddenScalePitchIndexesByPitchClass.get(PitchClass.fromInt(pitchClass))
+      overriddenScalePitchIndexesByPitchClass.get(PitchClass.fromNumber(pitchClass))
     }
 
     KeyboardMapping(keyboardMappingScalePitchIndexes)
@@ -303,7 +302,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
       .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
       .toMap
     val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
-      deviationsByPitchClass.get(PitchClass.fromInt(pitchClassNum))
+      deviationsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
     }
     val autoPartialTuning = PartialTuning(partialTuningValues, tuningName)
     autoPartialTuning

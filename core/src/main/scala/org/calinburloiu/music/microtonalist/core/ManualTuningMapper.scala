@@ -37,7 +37,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
       val maybeScalePitchIndex = pair._2
       maybeScalePitchIndex match {
         case Some(scalePitchIndex) =>
-          val pitchClass = PitchClass.fromInt(pair._1)
+          val pitchClass = PitchClass.fromNumber(pair._1)
           val interval = processedScale(scalePitchIndex)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
           val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)

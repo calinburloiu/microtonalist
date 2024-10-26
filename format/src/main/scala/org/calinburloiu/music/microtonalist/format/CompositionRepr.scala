@@ -99,5 +99,5 @@ object CompositionConfigRepr {
 
 // TODO #61
 @deprecated("To be replaced with TuningMapper component JSON format")
-case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
-                                quarterToneTolerance: Option[Double] = None)
+case class AutoTuningMapperReprOld(shouldMapQuarterTonesLow: Boolean = false,
+                                   quarterToneTolerance: Option[Double] = None)

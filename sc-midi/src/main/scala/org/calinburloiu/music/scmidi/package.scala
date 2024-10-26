@@ -31,7 +31,7 @@ package object scmidi {
      */
     def assertValid(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
 
-    def pitchClass: PitchClass = PitchClass.fromInt(number % 12)
+    def pitchClass: PitchClass = PitchClass.fromNumber(number % 12)
 
     def octave: Int = number / 12 - 1
 
