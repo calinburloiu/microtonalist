@@ -17,10 +17,11 @@
 package org.calinburloiu.music.microtonalist.format
 
 /**
- * Factory that creates a [[ComponentJsonFormat]] instance.
+ * Factory that creates a [[JsonFormatComponent]] instance.
+ *
  * @tparam A type of the component.
  */
-trait ComponentJsonFormatFactory[A] {
+trait JsonFormatComponentFactory[A] {
   val familyName: String
-  def componentJsonFormat: ComponentJsonFormat[A]
+  def jsonFormatComponent: JsonFormatComponent[A]
 }

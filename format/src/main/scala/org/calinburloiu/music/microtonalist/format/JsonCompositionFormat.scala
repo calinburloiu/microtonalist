@@ -128,7 +128,7 @@ object JsonCompositionFormat {
   private val DefaultScaleName: String = ""
 
   private[JsonCompositionFormat] implicit val intonationStandardReads: Reads[IntonationStandard] =
-    IntonationStandardComponentFormat.componentJsonFormat
+    IntonationStandardFormatComponent.jsonFormatComponent
   private[JsonCompositionFormat] implicit val contextReads: Reads[CompositionFormatContext] =
     Json.using[Json.WithDefaultValues].reads[CompositionFormatContext]
 
@@ -137,7 +137,7 @@ object JsonCompositionFormat {
     Json.using[Json.WithDefaultValues].reads[CompositionConfigRepr]
 
   private[JsonCompositionFormat] implicit val tuningMapperComponentFormat: Format[TuningMapper] =
-    TuningMapperComponentFormat.componentJsonFormat
+    TuningMapperFormatComponent.jsonFormatComponent
   private[JsonCompositionFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
     TuningReducerPlayJsonFormat
 

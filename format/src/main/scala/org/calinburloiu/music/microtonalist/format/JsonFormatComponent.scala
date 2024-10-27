@@ -35,11 +35,11 @@ import play.api.libs.functional.syntax._
  * omit them. Settings values per family/type can also be set globally by the user per composition file in the
  * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
-class ComponentJsonFormat[F](val familyName: String,
-                             specs: ComponentJsonFormat.SpecsSeqType[F],
+class JsonFormatComponent[F](val familyName: String,
+                             specs: JsonFormatComponent.SpecsSeqType[F],
                              defaultTypeName: Option[String] = None) extends Format[F] {
 
-  import ComponentJsonFormat._
+  import JsonFormatComponent._
 
   private var _rootGlobalSettings: JsObject = Json.obj()
 
@@ -90,8 +90,8 @@ class ComponentJsonFormat[F](val familyName: String,
   }
 }
 
-object ComponentJsonFormat {
-  type SpecsSeqType[F] = Seq[ComponentJsonFormat.TypeSpec[_ <: F]]
+object JsonFormatComponent {
+  type SpecsSeqType[F] = Seq[JsonFormatComponent.TypeSpec[_ <: F]]
 
   private[format] val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
   private[format] val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")

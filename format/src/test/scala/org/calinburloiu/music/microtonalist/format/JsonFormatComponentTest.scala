@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import play.api.libs.json.{JsNull, JsString, Json}
 
-object ComponentJsonFormatTest {
+object JsonFormatComponentTest {
   sealed trait Animals
 
   case class Domestic(cat: String, dog: String) extends Animals
@@ -30,9 +30,9 @@ object ComponentJsonFormatTest {
   case object Sea extends Animals
 }
 
-class ComponentJsonFormatTest extends JsonFormatTestUtils {
+class JsonFormatComponentTest extends JsonFormatTestUtils {
 
-  import ComponentJsonFormatTest._
+  import JsonFormatComponentTest._
 
   private val FamilyNameAnimals = "animals"
   private val TypeNameDomestic = "domestic"
@@ -40,7 +40,7 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   private val TypeNameJungle = "jungle"
   private val TypeNameSea = "sea"
 
-  val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
+  val format: JsonFormatComponent[Animals] = createFormat(Some(TypeNameDomestic))
   format.rootGlobalSettings = Json.obj(
     "animals" -> Json.obj(
       "domestic" -> Json.obj(
@@ -54,20 +54,20 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
     )
   )
 
-  private def createFormat(defaultTypeName: Option[String]): ComponentJsonFormat[Animals] = new ComponentJsonFormat(
+  private def createFormat(defaultTypeName: Option[String]): JsonFormatComponent[Animals] = new JsonFormatComponent(
     FamilyNameAnimals,
     Seq(
-      ComponentJsonFormat.TypeSpec.withSettings[Domestic](TypeNameDomestic, Json.format[Domestic], classOf[Domestic]),
-      ComponentJsonFormat.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest], Json.obj(
+      JsonFormatComponent.TypeSpec.withSettings[Domestic](TypeNameDomestic, Json.format[Domestic], classOf[Domestic]),
+      JsonFormatComponent.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest], Json.obj(
         "rabbit" -> "Bugs Bunny",
         "squirrel" -> "Nutz",
         "wolf" -> "White Fang"
       )),
-      ComponentJsonFormat.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle], Json.obj(
+      JsonFormatComponent.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle], Json.obj(
         "lion" -> "King",
         "snake" -> "Monty"
       )),
-      ComponentJsonFormat.TypeSpec.withoutSettings(TypeNameSea, Sea)
+      JsonFormatComponent.TypeSpec.withoutSettings(TypeNameSea, Sea)
     ),
     defaultTypeName
   )
@@ -91,7 +91,7 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   it should "fail to parse a component without a type property when the format does not provide a default type" in {
     val format2 = createFormat(defaultTypeName = None)
     val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReadsFailure(format2, json, ComponentJsonFormat.MissingTypeError)
+    assertReadsFailure(format2, json, JsonFormatComponent.MissingTypeError)
   }
 
   it should "parse a component expressed as a type string when all settings have defaults" in {
@@ -103,8 +103,8 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse components with unknown type" in {
-    assertReadsFailure(format, Json.toJson("foo"), ComponentJsonFormat.UnrecognizedTypeError)
-    assertReadsFailure(format, Json.obj("type" -> "bar", "x" -> 3), ComponentJsonFormat.UnrecognizedTypeError)
+    assertReadsFailure(format, Json.toJson("foo"), JsonFormatComponent.UnrecognizedTypeError)
+    assertReadsFailure(format, Json.obj("type" -> "bar", "x" -> 3), JsonFormatComponent.UnrecognizedTypeError)
   }
 
   it should "parse components whose missing settings are taken from defaults or global settings" in {
@@ -133,9 +133,9 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse a component that is not a type name string or valid object" in {
-    assertReadsFailure(format, Json.toJson(3), ComponentJsonFormat.InvalidError)
-    assertReadsFailure(format, JsNull, ComponentJsonFormat.InvalidError)
-    assertReadsFailure(format, Json.arr(1, 2), ComponentJsonFormat.InvalidError)
+    assertReadsFailure(format, Json.toJson(3), JsonFormatComponent.InvalidError)
+    assertReadsFailure(format, JsNull, JsonFormatComponent.InvalidError)
+    assertReadsFailure(format, Json.arr(1, 2), JsonFormatComponent.InvalidError)
   }
 
   it should "parse a component with no settings" in {

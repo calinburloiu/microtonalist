@@ -20,14 +20,14 @@ import org.calinburloiu.music.microtonalist.core._
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
-object TuningMapperComponentFormat extends ComponentJsonFormatFactory[TuningMapper] {
+object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapper] {
 
   override val familyName: String = "tuningMapper"
 
   val AutoTypeName: String = "auto"
   val ManualTypeName: String = "manual"
 
-  override def componentJsonFormat: ComponentJsonFormat[TuningMapper] = new ComponentJsonFormat[TuningMapper](
+  override def jsonFormatComponent: JsonFormatComponent[TuningMapper] = new JsonFormatComponent[TuningMapper](
     familyName = familyName,
     specs = specs,
     defaultTypeName = Some(AutoTypeName)
@@ -94,13 +94,13 @@ object TuningMapperComponentFormat extends ComponentJsonFormatFactory[TuningMapp
     }
   )
 
-  private val specs: ComponentJsonFormat.SpecsSeqType[TuningMapper] = Seq(
-    ComponentJsonFormat.TypeSpec.withSettings[ManualTuningMapper](
+  private val specs: JsonFormatComponent.SpecsSeqType[TuningMapper] = Seq(
+    JsonFormatComponent.TypeSpec.withSettings[ManualTuningMapper](
       typeName = ManualTypeName,
       format = manualTuningMapperFormat,
       javaClass = classOf[ManualTuningMapper]
     ),
-    ComponentJsonFormat.TypeSpec.withSettings[AutoTuningMapper](
+    JsonFormatComponent.TypeSpec.withSettings[AutoTuningMapper](
       typeName = AutoTypeName,
       format = autoTuningMapperFormat,
       javaClass = classOf[AutoTuningMapper]
