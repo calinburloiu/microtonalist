@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist
 
 import java.net.URI
 import java.nio.file.{Path, Paths}
-import scala.util.Try
 
 package object format {
 
@@ -31,5 +30,14 @@ package object format {
     require(!uri.isAbsolute || uri.getScheme == UriScheme.File)
 
     if (uri.isAbsolute) Paths.get(uri) else Paths.get(uri.getPath)
+  }
+
+  def resolveBaseUriWithOverride(baseUri: Option[URI], overrideBaseUri: Option[URI]): Option[URI] = {
+    (baseUri, overrideBaseUri) match {
+      case (Some(baseUriValue), Some(overrideBaseUriValue)) => Some(baseUriValue.resolve(overrideBaseUriValue))
+      case (Some(baseUriValue), None) => Some(baseUriValue)
+      case (None, Some(overrideBaseUriValue)) => Some(overrideBaseUriValue)
+      case (None, None) => None
+    }
   }
 }

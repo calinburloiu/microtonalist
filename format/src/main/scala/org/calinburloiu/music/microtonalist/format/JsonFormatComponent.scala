@@ -16,16 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import play.api.libs.json.{
-  Format, JsError, JsObject, JsPath, JsResult, JsString, JsSuccess, JsValue, Json,
-  JsonValidationError, OWrites, Writes, __
-}
 import play.api.libs.functional.syntax._
+import play.api.libs.json._
 
 /**
  * Instances of this class are used for parsing a _family_ of JSON component objects by using Play JSON Format.
  *
- * A _JSON component_ is an object with a particular _type_ that is part of a _family_. The family is used in a
+ * A _JSON format component_ is an object with a particular _type_ that is part of a _family_. The family is used in a
  * certain context (e.g. tuning mapper, tuning reduces, scale etc.). For each family there can be one or more types.
  * The type is identified in the JSON object by the `type` property (which might be implicit for a default type).
  * Each type may have its own specific properties called _settings_.
@@ -35,32 +32,27 @@ import play.api.libs.functional.syntax._
  * omit them. Settings values per family/type can also be set globally by the user per composition file in the
  * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
-class JsonFormatComponent[F](val familyName: String,
-                             specs: JsonFormatComponent.SpecsSeqType[F],
-                             defaultTypeName: Option[String] = None) extends Format[F] {
+class JsonFormatComponent[A](val familyName: String,
+                             specs: JsonFormatComponent.SpecsSeqType[A],
+                             defaultTypeName: Option[String] = None) {
 
   import JsonFormatComponent._
 
-  private var _rootGlobalSettings: JsObject = Json.obj()
+  //  private var _rootGlobalSettings: JsObject = Json.obj()
 
-  private val componentSpecsByType: Map[String, TypeSpec[_ <: F]] = specs
+  private val componentSpecsByType: Map[String, TypeSpec[_ <: A]] = specs
     .map { spec => spec.typeName -> spec }.toMap
-  private val componentSpecsByClass: Map[Class[_ <: F], TypeSpec[_ <: F]] = specs
+  private val componentSpecsByClass: Map[Class[_ <: A], TypeSpec[_ <: A]] = specs
     .map { spec => spec.javaClass -> spec }.toMap
 
-  def rootGlobalSettings: JsObject = _rootGlobalSettings
-
-  def rootGlobalSettings_=(newValue: JsObject): Unit = {
-    _rootGlobalSettings = newValue
-  }
-
-  override def reads(componentJson: JsValue): JsResult[F] = {
-    def doRead(typeNameOpt: Option[String], localSettings: JsObject): JsResult[F] = {
+  def readsWithRootGlobalSettings(rootGlobalSettings: JsObject): Reads[A] = {
+    def doRead(typeNameOpt: Option[String], localSettings: JsObject): JsResult[A] = {
       typeNameOpt match {
         case Some(typeName) =>
           componentSpecsByType.get(typeName) match {
             case Some(spec) if spec.formatOrComponentValue.isLeft =>
-              val mergedSettings = spec.defaultSettings ++ globalSettingsOf(typeName) ++ localSettings
+              val globalSettings = globalSettingsOf(rootGlobalSettings, typeName)
+              val mergedSettings = spec.defaultSettings ++ globalSettings ++ localSettings
               spec.format.reads(mergedSettings)
             case Some(spec) if spec.formatOrComponentValue.isRight => JsSuccess(spec.componentValue)
             case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
@@ -69,7 +61,7 @@ class JsonFormatComponent[F](val familyName: String,
       }
     }
 
-    componentJson match {
+    Reads {
       case typeName: JsString => doRead(Some(typeName.value), Json.obj())
       case componentObj: JsObject =>
         val typeNameOpt = (componentObj \ PropertyNameType).asOpt[String].orElse(defaultTypeName)
@@ -78,16 +70,38 @@ class JsonFormatComponent[F](val familyName: String,
     }
   }
 
-  private def globalSettingsOf(typeName: String): JsObject = (_rootGlobalSettings \ familyName \ typeName)
-    // Non-object entries are ignored, i.e. replaced with an empty object
-    .validate[JsObject].getOrElse(Json.obj())
+  lazy val reads: Reads[A] = readsWithRootGlobalSettings(Json.obj())
 
-  override def writes(component: F): JsValue = componentSpecsByClass.get(component.getClass) match {
-    case Some(spec) if spec.formatOrComponentValue.isLeft =>
-      writesWithTypeFor(spec.format.asInstanceOf[Format[F]], spec.typeName).writes(component)
-    case Some(spec) if spec.formatOrComponentValue.isRight => JsString(spec.typeName)
-    case None => throw new Error(s"Unregistered composition sub-component class ${component.getClass.getName}")
+  lazy val writes: Writes[A] = Writes { component =>
+    componentSpecsByClass.get(component.getClass) match {
+      case Some(spec) if spec.formatOrComponentValue.isLeft =>
+        writesWithTypeFor(spec.format.asInstanceOf[Format[A]], spec.typeName).writes(component)
+      case Some(spec) if spec.formatOrComponentValue.isRight => JsString(spec.typeName)
+      case None => throw new Error(s"Unregistered composition sub-component class ${component.getClass.getName}")
+    }
   }
+
+  def formatWithRootGlobalSettings(rootGlobalSettings: JsObject): Format[A] = Format(
+    readsWithRootGlobalSettings(rootGlobalSettings),
+    writes
+  )
+
+  lazy val format: Format[A] = formatWithRootGlobalSettings(Json.obj())
+
+  def readDefaultComponent(rootGlobalSettings: JsObject): Option[A] = {
+    val reads = readsWithRootGlobalSettings(rootGlobalSettings)
+
+    for (
+      defaultTypeNameValue <- defaultTypeName;
+      localSettings <- (rootGlobalSettings \ familyName \ defaultTypeNameValue).asOpt[JsObject];
+      defaultComponent <- localSettings.asOpt(reads)
+    ) yield defaultComponent
+  }
+
+  private def globalSettingsOf(rootGlobalSettings: JsObject, typeName: String): JsObject =
+    (rootGlobalSettings \ familyName \ typeName)
+      // Non-object entries are ignored, i.e. replaced with an empty object
+      .validate[JsObject].getOrElse(Json.obj())
 }
 
 object JsonFormatComponent {
@@ -95,7 +109,8 @@ object JsonFormatComponent {
 
   private[format] val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
   private[format] val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")
-  private[format] val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type.unrecognized")
+  private[format] val UnrecognizedTypeError: JsonValidationError = JsonValidationError("error.component.type" +
+    ".unrecognized")
 
   private val PropertyNameType = "type"
 

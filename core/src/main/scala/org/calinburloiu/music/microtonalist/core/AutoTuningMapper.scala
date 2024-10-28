@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.core
 import com.google.common.math.{DoubleMath, IntMath}
 import enumeratum.{Enum, EnumEntry}
 import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtonalist.core.AutoTuningMapper.DefaultShouldMapQuarterTonesLow
 import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.collection.{immutable, mutable}
@@ -47,6 +48,8 @@ sealed abstract class SoftChromaticGenusMapping(override val entryName: String,
                                                 val aug2Threshold: Double) extends EnumEntry
 
 object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
+  val Default: SoftChromaticGenusMapping = Off
+
   override val values: immutable.IndexedSeq[SoftChromaticGenusMapping] = findValues
 
   /** The special mapping of the soft chromatic genus is disabled. */
@@ -85,9 +88,9 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  * @param tolerance                 Error in cents that should be tolerated when comparing corresponding pitch class
  *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
-case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
+case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMapQuarterTonesLow,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
-                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Off,
+                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Default,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
   private type PitchesInfo = Map[Int, TuningPitch]
@@ -318,4 +321,10 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
 
     manualPartialTuning
   }
+}
+
+object AutoTuningMapper {
+  val DefaultShouldMapQuarterTonesLow: Boolean = false
+
+  lazy val Default: AutoTuningMapper = AutoTuningMapper()
 }
