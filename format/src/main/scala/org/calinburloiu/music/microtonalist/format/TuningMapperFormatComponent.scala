@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.core._
-import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapper] {
@@ -34,35 +33,9 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
   )
 
   private[format] val InvalidPitchClassError: String = "error.tuningMapper.pitchClass.invalid"
-  private[format] val InvalidKeyboardMapping: String = "error.tuningMapper.keyboardMapping.invalid"
 
-  private val denseKeyboardMappingReads: Reads[KeyboardMapping] = {
-    Reads.seq[Option[Int]](Reads.optionWithNull[Int]).map { seq =>
-      KeyboardMapping(seq)
-    }
-  }
-  private val sparseKeyboardMappingReads: Reads[KeyboardMapping] =
-    Reads.map[Int].flatMapResult { mappingRepr =>
-      val parsedMapping = mappingRepr.map {
-        case (pitchClassString, scalePitchIndex) => (PitchClass.parse(pitchClassString), scalePitchIndex)
-      }
-      if (parsedMapping.forall(_._1.isDefined)) {
-        val sparseMapping: Map[Int, Option[Int]] = parsedMapping.map {
-          case (maybePitchClass, scalePitchIndex) => (maybePitchClass.get.number, Some(scalePitchIndex))
-        }.withDefault(_ => None)
-        val indexesInScale = (0 until 12).map { pitchClassNumber => sparseMapping(pitchClassNumber) }
-        JsSuccess(KeyboardMapping(indexesInScale))
-      } else {
-        JsError(InvalidPitchClassError)
-      }
-    }
-  private val keyboardMappingReads: Reads[KeyboardMapping] =
-    denseKeyboardMappingReads orElse sparseKeyboardMappingReads orElse Reads.failed(InvalidKeyboardMapping)
-  private val keyboardMappingWrites: Writes[KeyboardMapping] = Writes { keyboardMapping: KeyboardMapping =>
-    Writes.seq[Option[Int]](Writes.optionWithNull[Int]).writes(keyboardMapping.indexesInScale)
-  }
-  private implicit val keyboardMappingFormat: Format[KeyboardMapping] = Format(keyboardMappingReads,
-    keyboardMappingWrites)
+  private implicit val keyboardMappingFormat: Format[KeyboardMapping] = KeyboardMappingFormat.format
+
   private val manualTuningMapperReprFormat: Format[ManualTuningMapperRepr] = Json.format[ManualTuningMapperRepr]
   private val manualTuningMapperFormat: Format[ManualTuningMapper] = Format(
     manualTuningMapperReprFormat.map { repr => ManualTuningMapper(repr.keyboardMapping) },
