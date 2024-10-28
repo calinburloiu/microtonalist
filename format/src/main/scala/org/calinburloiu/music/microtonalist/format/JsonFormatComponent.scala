@@ -38,8 +38,6 @@ class JsonFormatComponent[A](val familyName: String,
 
   import JsonFormatComponent._
 
-  //  private var _rootGlobalSettings: JsObject = Json.obj()
-
   private val componentSpecsByType: Map[String, TypeSpec[_ <: A]] = specs
     .map { spec => spec.typeName -> spec }.toMap
   private val componentSpecsByClass: Map[Class[_ <: A], TypeSpec[_ <: A]] = specs

@@ -39,4 +39,27 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
       filePathOf(new URI("https://example.org/path/to/file.scl"))
     }
   }
+
+  it should "resolve an override base URI against an initial base URI" in {
+    def uri(str: String) = Some(new URI(str))
+
+    resolveBaseUriWithOverride(
+      uri("http://example.org/compositions/semai.mtlist"),
+      uri("scales/")
+    ) shouldEqual uri("http://example.org/compositions/scales/")
+
+    resolveBaseUriWithOverride(
+      uri("http://example.org/compositions/semai.mtlist"),
+      uri("files:///Users/john/Scales/")
+    ) shouldEqual uri("files:///Users/john/Scales/")
+
+    resolveBaseUriWithOverride(
+      uri("http://example.org/compositions/semai.mtlist"),
+      None
+    ) shouldEqual uri("http://example.org/compositions/semai.mtlist")
+
+    resolveBaseUriWithOverride(None, uri("scales/")) shouldEqual uri("scales/")
+
+    resolveBaseUriWithOverride(None, None) shouldEqual None
+  }
 }
