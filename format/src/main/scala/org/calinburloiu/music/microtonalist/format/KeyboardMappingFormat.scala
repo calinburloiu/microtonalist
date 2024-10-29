@@ -19,15 +19,20 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core.KeyboardMapping
 import org.calinburloiu.music.microtonalist.format.TuningMapperFormatComponent.InvalidPitchClassError
 import org.calinburloiu.music.scmidi.PitchClass
-import play.api.libs.json.{Format, JsError, JsSuccess, Reads, Writes}
+import play.api.libs.json._
+
+import scala.util.{Failure, Success, Try}
 
 object KeyboardMappingFormat {
 
   private[format] val InvalidKeyboardMapping: String = "error.tuningMapper.keyboardMapping.invalid"
 
   private val denseKeyboardMappingReads: Reads[KeyboardMapping] = {
-    Reads.seq[Option[Int]](Reads.optionWithNull[Int]).map { seq =>
-      KeyboardMapping(seq)
+    Reads.seq[Option[Int]](Reads.optionWithNull[Int]).flatMapResult { seq =>
+      Try { KeyboardMapping(seq) } match {
+        case Success(keyboardMapping) => JsSuccess(keyboardMapping)
+        case Failure(_) => JsError(InvalidKeyboardMapping)
+      }
     }
   }
   private val sparseKeyboardMappingReads: Reads[KeyboardMapping] =
@@ -40,7 +45,11 @@ object KeyboardMappingFormat {
           case (maybePitchClass, scalePitchIndex) => (maybePitchClass.get.number, Some(scalePitchIndex))
         }.withDefault(_ => None)
         val indexesInScale = (0 until 12).map { pitchClassNumber => sparseMapping(pitchClassNumber) }
-        JsSuccess(KeyboardMapping(indexesInScale))
+
+        Try { KeyboardMapping(indexesInScale) } match {
+          case Success(keyboardMapping) => JsSuccess(keyboardMapping)
+          case Failure(_) => JsError(InvalidKeyboardMapping)
+        }
       } else {
         JsError(InvalidPitchClassError)
       }

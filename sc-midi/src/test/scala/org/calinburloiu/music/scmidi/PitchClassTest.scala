@@ -23,7 +23,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class PitchClassTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
 
   //@formatter:off
-  val pitchClassNamesTables = Table[String, PitchClass](
+  private val pitchClassNamesTables = Table[String, PitchClass](
     ("Name",    "PitchClass"),
     ("C",       PitchClass.C),
     ("B♯",      PitchClass.C),
@@ -32,10 +32,12 @@ class PitchClassTest extends AnyFlatSpec with TableDrivenPropertyChecks with Mat
     ("C♯",      PitchClass.CSharp),
     ("D♭",      PitchClass.DFlat),
     ("C♯/D♭",   PitchClass.CSharp),
+    ("D♭/C♯",   PitchClass.CSharp),
     ("1",       PitchClass.CSharp),
     ("d",       PitchClass.D),
     ("2",       PitchClass.D),
     ("D#/Eb",   PitchClass.EFlat),
+    ("Eb/D#",   PitchClass.EFlat),
     ("d#",      PitchClass.EFlat),
     ("eb",      PitchClass.EFlat),
     ("3",       PitchClass.DSharp),
@@ -46,12 +48,14 @@ class PitchClassTest extends AnyFlatSpec with TableDrivenPropertyChecks with Mat
     ("E♯",      PitchClass.F),
     ("5",       PitchClass.F),
     ("F♯/Gb",   PitchClass.FSharp),
+    ("Gb/F♯",   PitchClass.FSharp),
     ("F♯",      PitchClass.GFlat),
     ("G♭",      PitchClass.GFlat),
     ("6",       PitchClass.GFlat),
     ("G",       PitchClass.G),
     ("7",       PitchClass.G),
     ("g♯/Ab",   PitchClass.GSharp),
+    ("Ab/g♯",   PitchClass.GSharp),
     ("A♭",      PitchClass.AFlat),
     ("g♯",      PitchClass.GSharp),
     ("8",       PitchClass.AFlat),
@@ -60,6 +64,7 @@ class PitchClassTest extends AnyFlatSpec with TableDrivenPropertyChecks with Mat
     ("B♭",      PitchClass.BFlat),
     ("a♯",      PitchClass.ASharp),
     ("A♯/B♭",   PitchClass.BFlat),
+    ("B♭/A♯",   PitchClass.BFlat),
     ("10",      PitchClass.BFlat),
     ("B",       PitchClass.B),
     ("C♭",      PitchClass.B),

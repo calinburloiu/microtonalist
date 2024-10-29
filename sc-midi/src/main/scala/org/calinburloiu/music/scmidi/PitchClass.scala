@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi
 import scala.language.implicitConversions
 import scala.util.Try
 
-case class PitchClass private (number: Int) extends AnyVal {
+case class PitchClass private(number: Int) extends AnyVal {
   /**
    * Call this method after creating an instance.
    *
@@ -55,7 +55,8 @@ object PitchClass {
     Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
   private val noteNameToNumber: Map[String, Int] = outputNoteNames.zipWithIndex.toMap ++ Map(
     ("B♯", 0), ("C♯", 1), ("D♭", 1), ("D♯", 3), ("E♭", 3), ("F♭", 4), ("E♯", 5), ("F♯", 6), ("G♭", 6),
-    ("G♯", 8), ("A♭", 8), ("A♯", 10), ("B♭", 10), ("C♭", 11)
+    ("G♯", 8), ("A♭", 8), ("A♯", 10), ("B♭", 10), ("C♭", 11),
+    ("D♭/C♯", 1), ("E♭/D♯", 3), ("G♭/F♯", 6), ("A♭/G♯", 8), ("B♭/A♯", 10)
   )
 
   def fromNumber(n: Int): PitchClass = {
