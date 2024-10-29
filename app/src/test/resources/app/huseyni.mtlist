@@ -1,0 +1,16 @@
+{
+  "baseUri": "refs/",
+  "$ref": "common.json",
+  "tunings": [
+    {
+      "scale": "../scales/huseyni-just.jscl"
+    }
+  ],
+  "settings": {
+    "tuningMapper": {
+      "auto": {
+        "shouldMapQuarterTonesLow": true
+      }
+    }
+  }
+}

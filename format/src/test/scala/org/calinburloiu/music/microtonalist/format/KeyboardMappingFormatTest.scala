@@ -22,12 +22,12 @@ import play.api.libs.json.{JsNull, JsNumber, JsString, Json}
 class KeyboardMappingFormatTest extends JsonFormatTestUtils {
   private val sampleKeyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
     gSharpOrAFlat = Some(11), b = Some(12))
-  private val sampleSparseJsonKeyboardMapping = Json.arr(0, JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12)
+  private val sampleDenseJsonKeyboardMapping = Json.arr(0, JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12)
 
   "reads" should "deserialize a dense KeyboardMapping" in {
     assertReads(
       KeyboardMappingFormat.reads,
-      sampleSparseJsonKeyboardMapping,
+      sampleDenseJsonKeyboardMapping,
       sampleKeyboardMapping
     )
   }
@@ -62,6 +62,6 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
   }
 
   "writes" should "serialize a KeyboardMapper in sparse format" in {
-    KeyboardMappingFormat.writes.writes(sampleKeyboardMapping) shouldEqual sampleSparseJsonKeyboardMapping
+    KeyboardMappingFormat.writes.writes(sampleKeyboardMapping) shouldEqual sampleDenseJsonKeyboardMapping
   }
 }
