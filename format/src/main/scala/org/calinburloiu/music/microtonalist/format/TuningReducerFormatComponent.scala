@@ -26,13 +26,9 @@ object TuningReducerFormatComponent extends JsonFormatComponentFactory[TuningRed
   val DirectTypeName: String = "direct"
   val MergeTypeName: String = "merge"
 
-  override def jsonFormatComponent: JsonFormatComponent[TuningReducer] = new JsonFormatComponent[TuningReducer](
-    familyName,
-    specs,
-    defaultTypeName = Some(MergeTypeName)
-  )
+  override val defaultTypeName: Option[String] = Some(MergeTypeName)
 
-  private val specs: JsonFormatComponent.TypeSpecs[TuningReducer] = Seq(
+  override val specs: JsonFormatComponent.TypeSpecs[TuningReducer] = Seq(
     JsonFormatComponent.TypeSpec.withoutSettings(DirectTypeName, DirectTuningReducer),
     JsonFormatComponent.TypeSpec.withSettings(MergeTypeName,
       Json.using[Json.WithDefaultValues].format[MergeTuningReducer], classOf[MergeTuningReducer])

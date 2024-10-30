@@ -43,11 +43,13 @@
             "type": "object",
             "properties": {
                 "basePitchClass": {
-                    "type": "integer",
-                    "title": "Base Pitch Class",
-                    "description": "The integer number (0-11) that identifies the pitch class on the keyboard to be used for the base pitch. 0 is C, 1 is C♯/D♭, ..., 11 is B.",
-                    "minimum": 0,
-                    "maximum": 11
+                    "allOf": [
+                        { "$ref": "pitchClass.schema.json" },
+                        {
+                            "title": "Base Pitch Class",
+                            "description": "An identifier of the pitch class on the keyboard instrument to be used for the base pitch.\nA pitch class may be a string with an integer or a note name as seen on the keyboard. If it is an integer it must be between 0 and 11, where 0 is C, 1 is C♯/D♭, ..., 11 is B. If it is a note name as seen on the keyboard is expressed as the note letter (from A to G), followed by an optional accidental, # or ♯ for sharp, or b or ♭ for flat. The note name nation notation may also use both enharmonically equivalent notes separated by a slash (e.g \"C♯/D♭\", \"B♭/A♯\")."
+                        }
+                    ]
                 },
                 "baseDeviation": {
                     "type": "number",

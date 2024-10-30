@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.core.{CompositionMetadata, TuningMapper, TuningReducer}
+import org.calinburloiu.music.microtonalist.core.{CompositionMetadata, TuningMapper, TuningReducer, TuningReference}
 import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 
 import java.net.URI
@@ -29,7 +29,7 @@ import scala.concurrent.Future
  * Class used as a representation for the JSON format of a Microtonalist composition file.
  */
 case class CompositionRepr(metadata: Option[CompositionMetadata],
-                           tuningReference: OriginRepr,
+                           tuningReference: TuningReference,
                            tunings: Seq[TuningSpecRepr],
                            tuningReducer: Option[TuningReducer] = None,
                            globalFill: Option[TuningSpecRepr]) {
@@ -73,11 +73,6 @@ class CompositionFormatContext {
   var intonationStandard: IntonationStandard = CentsIntonationStandard
   var settings: JsObject = Json.obj()
 }
-
-// TODO #62 Use a tuning reference component format
-
-@deprecated("To be replaced with tuning reference component format")
-case class OriginRepr(basePitchClass: Int)
 
 case class TuningSpecRepr(name: Option[String],
                           transposition: Option[Interval],

@@ -25,7 +25,10 @@ case class PitchClass private(number: Int) extends AnyVal {
    *
    * Context: Scala value classes do not allow constructor validation.
    */
-  def assertValid(): Unit = require(number >= 0 && number < 12, "0 <= pitchClass < 12")
+  def assertValid(): this.type = {
+    require(number >= 0 && number < 12, "0 <= pitchClass < 12")
+    this
+  }
 
   override def toString: String = PitchClass.nameOf(number)
 }

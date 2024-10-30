@@ -26,13 +26,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
   val AutoTypeName: String = "auto"
   val ManualTypeName: String = "manual"
 
-  override def jsonFormatComponent: JsonFormatComponent[TuningMapper] = new JsonFormatComponent[TuningMapper](
-    familyName,
-    specs,
-    defaultTypeName = Some(AutoTypeName)
-  )
-
-  private[format] val InvalidPitchClassError: String = "error.tuningMapper.pitchClass.invalid"
+  override val defaultTypeName: Option[String] = Some(AutoTypeName)
 
   private implicit val keyboardMappingFormat: Format[KeyboardMapping] = KeyboardMappingFormat.format
 
@@ -67,7 +61,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
     }
   )
 
-  private val specs: JsonFormatComponent.TypeSpecs[TuningMapper] = Seq(
+  override val specs: JsonFormatComponent.TypeSpecs[TuningMapper] = Seq(
     JsonFormatComponent.TypeSpec.withSettings[ManualTuningMapper](
       typeName = ManualTypeName,
       format = manualTuningMapperFormat,

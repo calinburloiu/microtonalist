@@ -73,6 +73,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     }.flatMap { intonationStandard =>
       context.intonationStandard = intonationStandard
 
+      implicit val tuningReferenceReads: Reads[TuningReference] = TuningReferenceFormatComponent(intonationStandard)
+        .jsonFormatComponent.readsWithRootGlobalSettings(context.settings)
       implicit val tuningSpecReprReads: Reads[TuningSpecRepr] =
         tuningSpecReprReadsFor(context.intonationStandard, context.settings)
       implicit val tuningReducerReads: Reads[TuningReducer] = TuningReducerFormatComponent.jsonFormatComponent
@@ -146,8 +148,6 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
 object JsonCompositionFormat {
   private val DefaultScaleName: String = ""
-
-  private[JsonCompositionFormat] implicit val tuningRefReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
 
   private[JsonCompositionFormat] implicit val metadataReads: Reads[CompositionMetadata] =
     Json.reads[CompositionMetadata]

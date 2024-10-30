@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.core.KeyboardMapping
-import org.calinburloiu.music.microtonalist.format.TuningMapperFormatComponent.InvalidPitchClassError
+import org.calinburloiu.music.microtonalist.format.PitchClassFormat.InvalidPitchClassError
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
