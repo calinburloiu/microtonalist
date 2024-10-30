@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import play.api.libs.json.{JsNull, JsString, Json}
+import play.api.libs.json._
 
-object ComponentJsonFormatTest {
+object JsonFormatComponentTest {
   sealed trait Animals
 
   case class Domestic(cat: String, dog: String) extends Animals
@@ -30,9 +30,9 @@ object ComponentJsonFormatTest {
   case object Sea extends Animals
 }
 
-class ComponentJsonFormatTest extends JsonFormatTestUtils {
+class JsonFormatComponentTest extends JsonFormatTestUtils {
 
-  import ComponentJsonFormatTest._
+  import JsonFormatComponentTest._
 
   private val FamilyNameAnimals = "animals"
   private val TypeNameDomestic = "domestic"
@@ -40,8 +40,7 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   private val TypeNameJungle = "jungle"
   private val TypeNameSea = "sea"
 
-  val format: ComponentJsonFormat[Animals] = createFormat(Some(TypeNameDomestic))
-  format.rootGlobalSettings = Json.obj(
+  private val rootGlobalSettings: JsObject = Json.obj(
     "animals" -> Json.obj(
       "domestic" -> Json.obj(
         "dog" -> "Scooby"
@@ -53,26 +52,31 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
       )
     )
   )
+  private val jsonFormatComponent: JsonFormatComponent[Animals] = createJsonFormatComponent(Some(TypeNameDomestic))
+  private val format: Format[Animals] = jsonFormatComponent.formatWithRootGlobalSettings(rootGlobalSettings)
 
-  private def createFormat(defaultTypeName: Option[String]): ComponentJsonFormat[Animals] = new ComponentJsonFormat(
-    FamilyNameAnimals,
-    Seq(
-      ComponentJsonFormat.TypeSpec.withSettings[Domestic](TypeNameDomestic, Json.format[Domestic], classOf[Domestic]),
-      ComponentJsonFormat.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest], Json.obj(
-        "rabbit" -> "Bugs Bunny",
-        "squirrel" -> "Nutz",
-        "wolf" -> "White Fang"
-      )),
-      ComponentJsonFormat.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle], Json.obj(
-        "lion" -> "King",
-        "snake" -> "Monty"
-      )),
-      ComponentJsonFormat.TypeSpec.withoutSettings(TypeNameSea, Sea)
-    ),
-    defaultTypeName
-  )
+  private def createJsonFormatComponent(defaultTypeName: Option[String]): JsonFormatComponent[Animals] =
+    new JsonFormatComponent(
+      FamilyNameAnimals,
+      Seq(
+        JsonFormatComponent.TypeSpec.withSettings[Domestic](TypeNameDomestic, Json.format[Domestic], classOf[Domestic]),
+        JsonFormatComponent.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest], Json
+          .obj(
+            "rabbit" -> "Bugs Bunny",
+            "squirrel" -> "Nutz",
+            "wolf" -> "White Fang"
+          )),
+        JsonFormatComponent.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle], Json
+          .obj(
+            "lion" -> "King",
+            "snake" -> "Monty"
+          )),
+        JsonFormatComponent.TypeSpec.withoutSettings(TypeNameSea, Sea)
+      ),
+      defaultTypeName
+    )
 
-  "reads" should "parse a component with type property and all properties given" in {
+  "reading" should "parse a component with type property and all properties given" in {
     val json = Json.obj(
       "type" -> TypeNameForest,
       "fox" -> "Lady",
@@ -89,9 +93,9 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse a component without a type property when the format does not provide a default type" in {
-    val format2 = createFormat(defaultTypeName = None)
+    val format2 = createJsonFormatComponent(defaultTypeName = None).format
     val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReadsFailure(format2, json, ComponentJsonFormat.MissingTypeError)
+    assertReadsFailure(format2, json, JsonFormatComponent.MissingTypeError)
   }
 
   it should "parse a component expressed as a type string when all settings have defaults" in {
@@ -103,8 +107,8 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse components with unknown type" in {
-    assertReadsFailure(format, Json.toJson("foo"), ComponentJsonFormat.UnrecognizedTypeError)
-    assertReadsFailure(format, Json.obj("type" -> "bar", "x" -> 3), ComponentJsonFormat.UnrecognizedTypeError)
+    assertReadsFailure(format, Json.toJson("foo"), JsonFormatComponent.UnrecognizedTypeError)
+    assertReadsFailure(format, Json.obj("type" -> "bar", "x" -> 3), JsonFormatComponent.UnrecognizedTypeError)
   }
 
   it should "parse components whose missing settings are taken from defaults or global settings" in {
@@ -133,9 +137,9 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse a component that is not a type name string or valid object" in {
-    assertReadsFailure(format, Json.toJson(3), ComponentJsonFormat.InvalidError)
-    assertReadsFailure(format, JsNull, ComponentJsonFormat.InvalidError)
-    assertReadsFailure(format, Json.arr(1, 2), ComponentJsonFormat.InvalidError)
+    assertReadsFailure(format, Json.toJson(3), JsonFormatComponent.InvalidError)
+    assertReadsFailure(format, JsNull, JsonFormatComponent.InvalidError)
+    assertReadsFailure(format, Json.arr(1, 2), JsonFormatComponent.InvalidError)
   }
 
   it should "parse a component with no settings" in {
@@ -143,7 +147,7 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
     assertReads(format, Json.obj("type" -> TypeNameSea), Sea)
   }
 
-  "writes" should "serialize as JSON Scala component objects" in {
+  "writing" should "serialize as JSON Scala component objects" in {
     val domestic = Domestic("Tom", "Scooby")
     format.writes(domestic) shouldEqual Json.obj(
       "type" -> TypeNameDomestic,
@@ -152,5 +156,22 @@ class ComponentJsonFormatTest extends JsonFormatTestUtils {
     )
 
     format.writes(Sea) shouldEqual JsString(TypeNameSea)
+  }
+
+  "readDefaultComponent" should "deserialize a default component from the global settings" in {
+    jsonFormatComponent.readDefaultComponent(rootGlobalSettings) shouldBe empty
+
+    val rootGlobalSettings2: JsObject = Json.obj(
+      "animals" -> Json.obj(
+        "domestic" -> Json.obj(
+          "cat" -> "Felix",
+          "dog" -> "Scrappy"
+        )
+      )
+    )
+    jsonFormatComponent.readDefaultComponent(rootGlobalSettings2) should contain(JsonFormatComponentTest.Domestic(
+      cat = "Felix",
+      dog = "Scrappy"
+    ))
   }
 }

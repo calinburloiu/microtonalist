@@ -16,28 +16,27 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard,
-  JustIntonationStandard}
+import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard, JustIntonationStandard}
 import play.api.libs.json.Json
 
-object IntonationStandardComponentFormat {
-  val ComponentFamilyName = "intonationStandard"
+object IntonationStandardFormatComponent extends JsonFormatComponentFactory[IntonationStandard] {
+  override val familyName = "intonationStandard"
 
-  private val specs: ComponentJsonFormat.SpecsSeqType[IntonationStandard] = Seq(
-    ComponentJsonFormat.TypeSpec.withoutSettings(CentsIntonationStandard.typeName, CentsIntonationStandard),
-    ComponentJsonFormat.TypeSpec.withoutSettings(
+  private val specs: JsonFormatComponent.SpecsSeqType[IntonationStandard] = Seq(
+    JsonFormatComponent.TypeSpec.withoutSettings(CentsIntonationStandard.typeName, CentsIntonationStandard),
+    JsonFormatComponent.TypeSpec.withoutSettings(
       JustIntonationStandard.typeName,
       JustIntonationStandard
     ),
-    ComponentJsonFormat.TypeSpec.withSettings[EdoIntonationStandard](
+    JsonFormatComponent.TypeSpec.withSettings[EdoIntonationStandard](
       EdoIntonationStandard.typeName,
       Json.format[EdoIntonationStandard],
       classOf[EdoIntonationStandard]
     )
   )
 
-  lazy val componentJsonFormat: ComponentJsonFormat[IntonationStandard] = new ComponentJsonFormat(
-    ComponentFamilyName,
+  override lazy val jsonFormatComponent: JsonFormatComponent[IntonationStandard] = new JsonFormatComponent(
+    familyName,
     specs,
     Some(CentsIntonationStandard.typeName)
   )

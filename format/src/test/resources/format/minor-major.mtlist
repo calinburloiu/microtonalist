@@ -33,8 +33,5 @@
   "globalFill": {
     "transposition": "1/1",
     "scale": "chromatic.scl"
-  },
-  "config": {
-    "shouldMapQuarterTonesLow": true
   }
 }

@@ -497,7 +497,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     }
 
     for (basePitchClass <- 0 until 12) {
-      val tuningRef: TuningRef = StandardTuningRef(PitchClass.fromInt(basePitchClass))
+      val tuningRef: TuningRef = StandardTuningRef(PitchClass.fromNumber(basePitchClass))
       val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(tetrachord, tuningRef)
 
       testScale(basePitchClass, resultWithLowQuarterTones,

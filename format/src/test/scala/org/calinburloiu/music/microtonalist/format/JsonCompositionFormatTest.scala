@@ -19,7 +19,6 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.core._
-import org.calinburloiu.music.microtonalist.format.ComponentPlayJsonFormat.SubComponentSpec
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -219,64 +218,6 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     TuningReducerPlayJsonFormat.writes(DirectTuningReducer()) shouldEqual JsString("direct")
     TuningReducerPlayJsonFormat.writes(MergeTuningReducer()) shouldEqual JsString("merge")
     a[Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
-  }
-
-  "TuningMapperPlayJsonFormat" should "deserialize JSON object containing type auto and its params" in {
-    val autoJsonWithParams = Json.obj(
-      "type" -> "auto",
-      "shouldMapQuarterTonesLow" -> true,
-      "quarterToneTolerance" -> 0.02
-    )
-    inside(TuningMapperPlayJsonFormat.reads(autoJsonWithParams)) {
-      case JsSuccess(tuningMapper, _) =>
-        tuningMapper shouldBe a[AutoTuningMapper]
-        val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper.shouldMapQuarterTonesLow shouldBe true
-        autoTuningMapper.quarterToneTolerance shouldEqual 0.02
-    }
-
-    val autoJsonWithDefaultParams = Json.obj("type" -> "auto")
-    inside(TuningMapperPlayJsonFormat.reads(autoJsonWithDefaultParams)) {
-      case JsSuccess(tuningMapper, _) =>
-        tuningMapper shouldBe a[AutoTuningMapper]
-        val autoTuningMapper = tuningMapper.asInstanceOf[AutoTuningMapper]
-        autoTuningMapper shouldEqual TuningMapper.Default
-    }
-  }
-
-  it should "serialize JSON object for type auto" in {
-    val actual = TuningMapperPlayJsonFormat.writes(AutoTuningMapper(shouldMapQuarterTonesLow = true,
-      quarterToneTolerance = 0.1))
-    val expected = Json.obj(
-      "type" -> "auto",
-      "shouldMapQuarterTonesLow" -> true,
-      "quarterToneTolerance" -> 0.1
-    )
-    actual shouldEqual expected
-  }
-
-  "a ComponentPlayJsonFormat with mandatory params" should "fail when deserializing JSON without params" in {
-    implicit val subComponentFormat: Format[SubComponent] = Json.format[SubComponent]
-    val stubFormat = new ComponentPlayJsonFormat[Stub] {
-      override val subComponentSpecs: Seq[ComponentPlayJsonFormat.SubComponentSpec[_ <: Stub]] = Seq(
-        SubComponentSpec("foo", classOf[SubComponent], Some(subComponentFormat), None)
-      )
-    }
-
-    val stubJsonStr = JsString("foo")
-    val stubJsonObj = Json.obj("type" -> "foo")
-    for (js <- Seq(stubJsonStr, stubJsonObj)) {
-      inside(stubFormat.reads(js)) {
-        case JsError(Seq((_, Seq(JsonValidationError(Seq(message)))))) =>
-          message shouldEqual "error.component.params.missing"
-      }
-    }
-
-    val invalidJs = JsNumber(3)
-    inside(stubFormat.reads(invalidJs)) {
-      case JsError(Seq((_, Seq(JsonValidationError(Seq(message)))))) =>
-        message shouldEqual "error.component.invalid"
-    }
   }
 }
 

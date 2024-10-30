@@ -17,8 +17,9 @@
 package org.calinburloiu.music.scmidi
 
 import scala.language.implicitConversions
+import scala.util.Try
 
-case class PitchClass private (number: Int) extends AnyVal {
+case class PitchClass private(number: Int) extends AnyVal {
   /**
    * Call this method after creating an instance.
    *
@@ -30,35 +31,55 @@ case class PitchClass private (number: Int) extends AnyVal {
 }
 
 object PitchClass {
-  val C: PitchClass = fromInt(0)
-  val CSharp: PitchClass = fromInt(1)
-  val DFlat: PitchClass = fromInt(1)
-  val D: PitchClass = fromInt(2)
-  val DSharp: PitchClass = fromInt(3)
-  val EFlat: PitchClass = fromInt(3)
-  val E: PitchClass = fromInt(4)
-  val F: PitchClass = fromInt(5)
-  val FSharp: PitchClass = fromInt(6)
-  val GFlat: PitchClass = fromInt(6)
-  val G: PitchClass = fromInt(7)
-  val GSharp: PitchClass = fromInt(8)
-  val AFlat: PitchClass = fromInt(8)
-  val A: PitchClass = fromInt(9)
-  val ASharp: PitchClass = fromInt(10)
-  val BFlat: PitchClass = fromInt(10)
-  val B: PitchClass = fromInt(11)
+  val C: PitchClass = fromNumber(0)
+  val CSharp: PitchClass = fromNumber(1)
+  val DFlat: PitchClass = fromNumber(1)
+  val D: PitchClass = fromNumber(2)
+  val DSharp: PitchClass = fromNumber(3)
+  val EFlat: PitchClass = fromNumber(3)
+  val E: PitchClass = fromNumber(4)
+  val F: PitchClass = fromNumber(5)
+  val FSharp: PitchClass = fromNumber(6)
+  val GFlat: PitchClass = fromNumber(6)
+  val G: PitchClass = fromNumber(7)
+  val GSharp: PitchClass = fromNumber(8)
+  val AFlat: PitchClass = fromNumber(8)
+  val A: PitchClass = fromNumber(9)
+  val ASharp: PitchClass = fromNumber(10)
+  val BFlat: PitchClass = fromNumber(10)
+  val B: PitchClass = fromNumber(11)
 
   val values: Seq[PitchClass] = Seq(C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B)
 
-  private val noteNames: Seq[String] = Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
+  private val outputNoteNames: Seq[String] =
+    Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
+  private val noteNameToNumber: Map[String, Int] = outputNoteNames.zipWithIndex.toMap ++ Map(
+    ("B♯", 0), ("C♯", 1), ("D♭", 1), ("D♯", 3), ("E♭", 3), ("F♭", 4), ("E♯", 5), ("F♯", 6), ("G♭", 6),
+    ("G♯", 8), ("A♭", 8), ("A♯", 10), ("B♭", 10), ("C♭", 11),
+    ("D♭/C♯", 1), ("E♭/D♯", 3), ("G♭/F♯", 6), ("A♭/G♯", 8), ("B♭/A♯", 10)
+  )
 
-  def fromInt(n: Int): PitchClass = {
+  def fromNumber(n: Int): PitchClass = {
     val result = PitchClass(n)
     result.assertValid()
     result
   }
 
-  implicit def toInt(pitchClass: PitchClass): Int = pitchClass.number
+  implicit def toNumber(pitchClass: PitchClass): Int = pitchClass.number
 
-  def nameOf(n: Int): String = noteNames(n)
+  def fromName(name: String): Option[PitchClass] = {
+    val canonicalName = name.replace('#', '♯').replaceAll("([A-Ga-g])(b)", "$1♭").toUpperCase
+    noteNameToNumber.get(canonicalName).map(fromNumber)
+  }
+
+  def parse(string: String): Option[PitchClass] = {
+    val parsedFromNumberString = for (
+      number <- Try(Integer.parseInt(string)).toOption;
+      pitchClass <- Try(fromNumber(number)).toOption
+    ) yield pitchClass
+
+    parsedFromNumberString orElse fromName(string)
+  }
+
+  def nameOf(n: Int): String = outputNoteNames(n)
 }

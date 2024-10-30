@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.core
 import com.google.common.math.{DoubleMath, IntMath}
 import enumeratum.{Enum, EnumEntry}
 import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtonalist.core.AutoTuningMapper.DefaultShouldMapQuarterTonesLow
 import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.collection.{immutable, mutable}
@@ -43,10 +44,12 @@ import scala.collection.{immutable, mutable}
  * @param name          The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
-sealed abstract class SoftChromaticGenusMapping(val name: String,
+sealed abstract class SoftChromaticGenusMapping(override val entryName: String,
                                                 val aug2Threshold: Double) extends EnumEntry
 
 object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
+  val Default: SoftChromaticGenusMapping = Off
+
   override val values: immutable.IndexedSeq[SoftChromaticGenusMapping] = findValues
 
   /** The special mapping of the soft chromatic genus is disabled. */
@@ -85,10 +88,9 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
  * @param tolerance                 Error in cents that should be tolerated when comparing corresponding pitch class
  *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
  */
-case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
+case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMapQuarterTonesLow,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
-                            // TODO It should default to Off after adding this to JSON
-                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Strict,
+                            softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Default,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
   private type PitchesInfo = Map[Int, TuningPitch]
@@ -135,7 +137,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
     val deviation = totalCents - 100 * totalSemitones
     val pitchClassNumber = IntMath.mod(totalSemitones, 12)
 
-    TuningPitch(PitchClass.fromInt(pitchClassNumber), deviation)
+    TuningPitch(PitchClass.fromNumber(pitchClassNumber), deviation)
   }
 
   /**
@@ -159,7 +161,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
       .toMap
     val overriddenScalePitchIndexesByPitchClass = scalePitchIndexesByPitchClass ++ overrideKeyboardMapping.toMap
     val keyboardMappingScalePitchIndexes = (PitchClass.C.number to PitchClass.B.number).map { pitchClass =>
-      overriddenScalePitchIndexesByPitchClass.get(PitchClass.fromInt(pitchClass))
+      overriddenScalePitchIndexesByPitchClass.get(PitchClass.fromNumber(pitchClass))
     }
 
     KeyboardMapping(keyboardMappingScalePitchIndexes)
@@ -303,7 +305,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
       .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
       .toMap
     val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
-      deviationsByPitchClass.get(PitchClass.fromInt(pitchClassNum))
+      deviationsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
     }
     val autoPartialTuning = PartialTuning(partialTuningValues, tuningName)
     autoPartialTuning
@@ -319,4 +321,10 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean,
 
     manualPartialTuning
   }
+}
+
+object AutoTuningMapper {
+  val DefaultShouldMapQuarterTonesLow: Boolean = false
+
+  lazy val Default: AutoTuningMapper = AutoTuningMapper()
 }

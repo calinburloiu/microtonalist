@@ -16,12 +16,16 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard,
-  JustIntonationStandard}
-import play.api.libs.json.{JsString, Json}
+import org.calinburloiu.music.intonation.{
+  CentsIntonationStandard, EdoIntonationStandard, IntonationStandard,
+  JustIntonationStandard
+}
+import play.api.libs.json.{Format, JsString, Json}
 
-class IntonationStandardComponentFormatTest extends JsonFormatTestUtils {
-  val format: ComponentJsonFormat[IntonationStandard] = IntonationStandardComponentFormat.componentJsonFormat
+class IntonationStandardFormatComponentTest extends JsonFormatTestUtils {
+  val jsonFormatComponent: JsonFormatComponent[IntonationStandard] = IntonationStandardFormatComponent
+    .jsonFormatComponent
+  val format: Format[IntonationStandard] = jsonFormatComponent.format
 
   "reads" should "deserialize a cents component" in {
     assertReads(format, JsString("cents"), CentsIntonationStandard)

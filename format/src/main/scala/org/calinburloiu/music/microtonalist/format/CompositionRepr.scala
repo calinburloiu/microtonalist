@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core.{CompositionMetadata, TuningMapper, TuningReducer}
-import play.api.libs.json.JsObject
+import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 
 import java.net.URI
 import scala.collection.mutable
@@ -32,22 +32,15 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
                            tuningReference: OriginRepr,
                            tunings: Seq[TuningSpecRepr],
                            tuningReducer: Option[TuningReducer] = None,
-                           globalFill: Option[TuningSpecRepr],
-                           config: Option[CompositionConfigRepr]) {
+                           globalFill: Option[TuningSpecRepr]) {
 
-  var context: CompositionFormatContext = CompositionFormatContext()
+  var context: CompositionFormatContext = _
 
-  def loadDeferredData(scaleRepo: ScaleRepo, baseUri: Option[URI]): Future[this.type] = {
-    val actualBaseUri = (baseUri, context.baseUri) match {
-      case (Some(baseUriValue), Some(contextBaseUriValue)) => Some(baseUriValue.resolve(contextBaseUriValue))
-      case (Some(baseUriValue), None) => Some(baseUriValue)
-      case (None, Some(contextBaseUriValue)) => Some(contextBaseUriValue)
-      case (None, None) => None
-    }
+  def loadDeferredData(scaleRepo: ScaleRepo): Future[this.type] = {
     val localScaleCache = mutable.Map[URI, Future[Scale[Interval]]]()
 
     def scaleLoader(uri: URI): Future[Scale[Interval]] = {
-      val resolvedUri = actualBaseUri.map(_.resolve(uri)).getOrElse(uri)
+      val resolvedUri = context.baseUri.map(_.resolve(uri)).getOrElse(uri)
 
       localScaleCache.get(resolvedUri) match {
         case None =>
@@ -74,9 +67,12 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
 
 case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], URI]] = Map())
 
-case class CompositionFormatContext(intonationStandard: IntonationStandard = CentsIntonationStandard,
-                                    baseUri: Option[URI] = None,
-                                    settings: Map[String, Map[String, JsObject]] = Map())
+class CompositionFormatContext {
+  var baseUri: Option[URI] = None
+  var preprocessedJson: JsValue = JsNull
+  var intonationStandard: IntonationStandard = CentsIntonationStandard
+  var settings: JsObject = Json.obj()
+}
 
 // TODO #62 Use a tuning reference component format
 
@@ -87,17 +83,3 @@ case class TuningSpecRepr(name: Option[String],
                           transposition: Option[Interval],
                           scale: Option[DeferrableRead[Scale[Interval], URI]],
                           tuningMapper: Option[TuningMapper])
-
-// TODO #61
-@deprecated("To be replaced to config with settings")
-case class CompositionConfigRepr(shouldMapQuarterTonesLow: Boolean = false)
-
-object CompositionConfigRepr {
-
-  val Default: CompositionConfigRepr = CompositionConfigRepr()
-}
-
-// TODO #61
-@deprecated("To be replaced with TuningMapper component JSON format")
-case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
-                                quarterToneTolerance: Option[Double] = None)

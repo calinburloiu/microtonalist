@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist
 
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
+import org.calinburloiu.music.intonation.{JustIntonationStandard, RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
 import org.calinburloiu.music.microtonalist.core.TuningList
 import org.calinburloiu.music.microtonalist.format.{FormatModule, FormatTestUtils}
@@ -93,5 +95,30 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
       romanianMinorTuning.g shouldEqual 19.55
       romanianMinorTuning.bFlat shouldEqual 13.69
     }
+  }
+
+  it should "successfully create a tuning list for a a composition with global settings, baseUri and a $ref" in {
+    val composition = FormatTestUtils.readCompositionFromResources("app/huseyni.mtlist",
+      formatModule.defaultCompositionRepo)
+
+    composition.intonationStandard shouldEqual JustIntonationStandard
+    composition.tuningRef.basePitchClass.number shouldEqual 2
+
+    composition.tuningSpecs.head.scale shouldEqual RatiosScale("Hüseyni",
+      1 /: 1, 12 /: 11, 32 /: 27, 4 /: 3, 3 /: 2, 18 /: 11, 16 /: 9, 2 /: 1)
+    composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
+
+    val tuningList = TuningList.fromComposition(composition)
+
+    tuningList.size shouldEqual 1
+
+    val huseyni = tuningList.head
+    huseyni.d shouldEqual 0.0
+    huseyni.eFlat shouldEqual 50.64
+    huseyni.f shouldEqual -5.87
+    huseyni.g shouldEqual -1.96
+    huseyni.a shouldEqual 1.96
+    huseyni.bFlat shouldEqual 52.59
+    huseyni.c shouldEqual -3.91
   }
 }

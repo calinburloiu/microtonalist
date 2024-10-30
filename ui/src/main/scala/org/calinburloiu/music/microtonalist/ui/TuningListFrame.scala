@@ -86,7 +86,7 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
   setSize(480, 640)
 
   @Subscribe
-  def handleTuningChanged(tuningChangedEvent: TuningChangedEvent): Unit = {
+  def onTuningChanged(tuningChangedEvent: TuningChangedEvent): Unit = {
     val TuningChangedEvent(tuningIndex, oldTuningIndex) = tuningChangedEvent
     logger.debug(this.getClass.getSimpleName +
       s" received tuning change event from tuning index $oldTuningIndex to $tuningIndex")
