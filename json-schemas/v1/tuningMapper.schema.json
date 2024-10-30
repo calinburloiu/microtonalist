@@ -9,21 +9,10 @@
     ],
     "default": "auto",
     "$defs": {
-        "keyboardMapping": {
-            "type": "array",
-            "title": "Keyboard Mapping",
-            "description": "A mapping between a keyboard instrument pitch classes and the a scale's pitches, expressed as an array with 12 values, one for each pitch class of the keyboard instrument starting from C (the first is for C, the second is for C♯/D♭, ..., the twelfth is B), and each value representing the scale pitch index starting from 0. The array values of the pitch classes from the keyboard that do not use any scale pitch must have a null value.",
-            "items": {
-                "type": ["integer", "null"],
-                "minimum": 0
-            },
-            "minItems": 12,
-            "maxItems": 12
-        },
         "manualSettings": {
             "type": "object",
             "properties": {
-                "keyboardMapping": { "$ref": "#/$defs/keyboardMapping" }
+                "keyboardMapping": { "$ref": "keyboardMapping.schema.json" }
             }
         },
         "autoSettings": {
@@ -49,10 +38,9 @@
                 "overrideKeyboardMapping": {
                     "allOf": [
                         {
-                            "title": "Override Keyboard Mapping",
-                            "description": "Similar to the keyboardMapping setting of the \"manual\" tuning mapper type, this setting can provide a mapping between a keyboard instrument pitch classes and the a scale's pitches. But unlike that, this setting is meant as an override which only specifies pitches that should be mapped manually, in a custom way, instead of relying on the automatic mapping. Similar to keyboardMapping it is expressed as an array with 12 values, one for each pitch class of the keyboard instrument starting from C (the first is for C, the second is for C♯/D♭, ..., the twelfth is B), and each value representing the scale pitch index starting from 0. Scale pitches that are not included in the array will be mapped automatically. The array values for pitch classes from the keyboard that do not use any scale pitch must have null value and can be used by the automatic mapping."
+                            "title": "Override Keyboard Mapping"
                         },
-                        { "$ref": "#/$defs/keyboardMapping" }
+                        { "$ref": "keyboardMapping.schema.json" }
                     ]
                 }
             }

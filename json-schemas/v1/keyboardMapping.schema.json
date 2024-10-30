@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Keyboard Mapping",
+    "description": "A mapping between a keyboard instrument pitch classes and a scale's pitches If it's used for an auto tuningMapper as an overrideKeyboardMapping, then it specifies scale pitches and keyboard instrument pitch classes that are not mapped automatically and are manually mapped by the user in a custom way. A keyboard mapping may be expressed in two possible ways:\n- In dense notation, if most pitch classes of the keyboard instrument need to be mapped to some scale pitch. The notation uses an array with 12 values, one for each pitch class of the keyboard instrument starting from C (the first is for C, the second is for C♯/D♭, ..., the twelfth is B), and each value representing the scale pitch index starting from 0. The array values of the pitch classes from the keyboard that do not use any scale pitch must have a null value.\n- In sparse notation, typically used when just a few of the keyboard instrument pitch classes need to be mapped to a scale pitch. The notation uses as an object where each object key represents the pitch class of the keyboard instrument and each value is an integer representing the scale pitch index starting from 0. A pitch class from the object key may be a string with an integer or a note name as seen on the keyboard. If it is an integer it must be between 0 and 11, where 0 is C, 1 is C♯/D♭, ..., 11 is B. If it is a note name as seen on the keyboard is expressed as the note letter (from A to G), followed by an optional accidental, # or ♯ for sharp, or b or ♭ for flat. The note name nation notation may also use both enharmonically equivalent notes separated by a slash (e.g \"C♯/D♭\", \"B♭/A♯\").\nWARNING! Remember that a scale may omit the unison, but that unison will be counted when specifying the scale pitch index. If the scale does not have negative intervals (below its base/unison) and it is in ascending order, the unison always has index 0. But some scales may have negative intervals or be in descending order, and in this case the unison does not have index 0. Remember that scales are always ordered.",
+    "type": ["array", "object"],
+    "oneOf": [
+        { "$ref": "#/$defs/dense" },
+        { "$ref": "#/$defs/sparse" }
+    ],
+    "$defs": {
+        "dense": {
+            "type": "array",
+            "items": {
+                "type": ["integer", "null"],
+                "minimum": 0
+            },
+            "minItems": 12,
+            "maxItems": 12
+        },
+        "sparse": {
+            "type": "object",
+            "patternProperties": {
+                "(^[0-9]+$)|(^[A-Ga-g][#♯b♭]{0,1}(/[A-Ga-g][#♯b♭]{0,1}){0,1}$)": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            },
+            "unevaluatedProperties": false
+        }
+    }
+}
