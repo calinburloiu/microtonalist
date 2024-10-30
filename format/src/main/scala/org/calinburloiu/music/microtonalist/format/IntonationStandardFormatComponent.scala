@@ -22,7 +22,7 @@ import play.api.libs.json.Json
 object IntonationStandardFormatComponent extends JsonFormatComponentFactory[IntonationStandard] {
   override val familyName = "intonationStandard"
 
-  private val specs: JsonFormatComponent.SpecsSeqType[IntonationStandard] = Seq(
+  private val specs: JsonFormatComponent.TypeSpecs[IntonationStandard] = Seq(
     JsonFormatComponent.TypeSpec.withoutSettings(CentsIntonationStandard.typeName, CentsIntonationStandard),
     JsonFormatComponent.TypeSpec.withoutSettings(
       JustIntonationStandard.typeName,

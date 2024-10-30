@@ -75,6 +75,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
       implicit val tuningSpecReprReads: Reads[TuningSpecRepr] =
         tuningSpecReprReadsFor(context.intonationStandard, context.settings)
+      implicit val tuningReducerReads: Reads[TuningReducer] = TuningReducerFormatComponent.jsonFormatComponent
+        .readsWithRootGlobalSettings(context.settings)
       implicit val compositionReprReads: Reads[CompositionRepr] = Json.using[Json.WithDefaultValues]
         .reads[CompositionRepr]
 
@@ -147,19 +149,6 @@ object JsonCompositionFormat {
 
   private[JsonCompositionFormat] implicit val tuningRefReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
 
-  private[JsonCompositionFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
-    TuningReducerPlayJsonFormat
-
   private[JsonCompositionFormat] implicit val metadataReads: Reads[CompositionMetadata] =
     Json.reads[CompositionMetadata]
-
-  private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
-
-    import ComponentPlayJsonFormat._
-
-    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
-      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
-      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
-    )
-  }
 }

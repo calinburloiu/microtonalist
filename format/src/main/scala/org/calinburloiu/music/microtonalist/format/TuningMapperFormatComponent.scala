@@ -27,8 +27,8 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
   val ManualTypeName: String = "manual"
 
   override def jsonFormatComponent: JsonFormatComponent[TuningMapper] = new JsonFormatComponent[TuningMapper](
-    familyName = familyName,
-    specs = specs,
+    familyName,
+    specs,
     defaultTypeName = Some(AutoTypeName)
   )
 
@@ -67,7 +67,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
     }
   )
 
-  private val specs: JsonFormatComponent.SpecsSeqType[TuningMapper] = Seq(
+  private val specs: JsonFormatComponent.TypeSpecs[TuningMapper] = Seq(
     JsonFormatComponent.TypeSpec.withSettings[ManualTuningMapper](
       typeName = ManualTypeName,
       format = manualTuningMapperFormat,
