@@ -55,7 +55,7 @@ object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
   /** The special mapping of the soft chromatic genus is disabled. */
   case object Off extends SoftChromaticGenusMapping("off", Double.PositiveInfinity)
 
-  /** The augmented second is a slightly larger than a whole tone. */
+  /** The augmented second is slightly larger than a whole tone. */
   case object Strict extends SoftChromaticGenusMapping("strict", 210.0)
 
   /**
