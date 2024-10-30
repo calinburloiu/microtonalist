@@ -36,16 +36,16 @@ trait TuningMapper {
    * @param transposition Interval by which the scale should be transposed before mapping it.
    * @return a partial tuning for the given scale.
    */
-  def mapScale(scale: Scale[Interval], ref: TuningRef, transposition: Interval): PartialTuning
+  def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): PartialTuning
 
   /**
    * Maps a scale to a tuning.
    *
-   * @param scale         Scale to map.
-   * @param ref           Tuning reference.
+   * @param scale Scale to map.
+   * @param ref   Tuning reference.
    * @return a partial tuning for the given scale.
    */
-  def mapScale(scale: Scale[Interval], ref: TuningRef): PartialTuning = {
+  def mapScale(scale: Scale[Interval], ref: TuningReference): PartialTuning = {
     val unison = scale.intonationStandard.map(_.unison).getOrElse(RealInterval.Unison)
     mapScale(scale, ref, unison)
   }

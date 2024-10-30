@@ -22,7 +22,7 @@ import org.calinburloiu.music.intonation._
  * A collection of scales to be mapped to tunings.
  *
  * @param intonationStandard Specifies how intervals from the composition are expressed or interpreted.
- * @param tuningRef          Establishes the relation between the composition base pitch and a pitch class from the
+ * @param tuningReference    Establishes the relation between the composition base pitch and a pitch class from the
  *                           keyboard instrument.
  * @param tuningSpecs        A sequence of specifications that defines each tuning based on scales.
  * @param tuningReducer      Strategy for reducing the number of tunings by merging them together.
@@ -31,7 +31,7 @@ import org.calinburloiu.music.intonation._
  * @param metadata           Additional information about the composition.
  */
 case class Composition(intonationStandard: IntonationStandard,
-                       tuningRef: TuningRef,
+                       tuningReference: TuningReference,
                        tuningSpecs: Seq[TuningSpec],
                        tuningReducer: TuningReducer,
                        globalFill: Option[TuningSpec] = None,
@@ -48,7 +48,7 @@ case class TuningSpec(transposition: Interval,
                       scale: Scale[Interval],
                       tuningMapper: TuningMapper) {
 
-  def tuningFor(ref: TuningRef): PartialTuning = {
+  def tuningFor(ref: TuningReference): PartialTuning = {
     tuningMapper.mapScale(scale, ref, transposition)
   }
 }

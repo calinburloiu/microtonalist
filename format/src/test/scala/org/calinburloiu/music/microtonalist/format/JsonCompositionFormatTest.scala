@@ -23,7 +23,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, Inside}
-import play.api.libs.json.Json
 
 import java.net.URI
 import scala.collection.mutable
@@ -87,7 +86,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs.head.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
 
-    // TODO #62 Also test tuningRef intervals
+    // TODO #62 Also test tuningReference intervals
   }
 
   // TODO #68
@@ -98,7 +97,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tuningSpecs(1).scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
   }
 
-  // TODO #62 Also test tuningRef intervals
+  // TODO #62 Also test tuningReference intervals
   ignore should "successfully interpret concertPitchToBaseInterval from tuningReference in 72-EDO intonation " +
     "standard" in {
   }
@@ -114,7 +113,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     composition.globalFill.map(_.scale) should contain(chromaticScale)
     composition.globalFill.map(_.transposition) should contain(1 /: 1)
-    composition.tuningRef.basePitchClass.number shouldEqual 2
+    composition.tuningReference.basePitchClass.number shouldEqual 2
 
     composition.tuningSpecs.head.scale shouldEqual naturalMinorScale
     composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)

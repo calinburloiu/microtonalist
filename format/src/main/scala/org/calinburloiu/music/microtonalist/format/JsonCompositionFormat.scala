@@ -110,14 +110,14 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       TuningSpec(transposition, scale, tuningMapper)
     }
 
-    val tuningRef = StandardTuningRef(PitchClass.fromNumber(compositionRepr.tuningReference.basePitchClass))
+    val tuningReference = StandardTuningReference(PitchClass.fromNumber(compositionRepr.tuningReference.basePitchClass))
     val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
     val globalFill = compositionRepr.globalFill.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
 
     Composition(
       intonationStandard = context.intonationStandard,
-      tuningRef = tuningRef,
+      tuningReference = tuningReference,
       tuningSpecs = tuningSpecs,
       tuningReducer = tuningReducer,
       globalFill = globalFill,
