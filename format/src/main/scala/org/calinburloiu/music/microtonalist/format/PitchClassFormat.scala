@@ -24,7 +24,7 @@ import scala.util.Try
 
 object PitchClassFormat extends Format[PitchClass] {
 
-  val InvalidPitchClassError: String = "error.tuningMapper.pitchClass.invalid"
+  val InvalidPitchClassError: String = "error.pitchClass.invalid"
 
   override def reads(json: JsValue): JsResult[PitchClass] = json match {
     case _: JsNumber => JsPath.read[Int](Reads.min(0) keepAnd Reads.max(11))
