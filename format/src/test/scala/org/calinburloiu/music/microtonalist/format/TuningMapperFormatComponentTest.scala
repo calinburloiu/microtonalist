@@ -40,7 +40,7 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "fail to deserialize a manual type component without mandatory settings" in {
-    assertReadsFailure(format, JsString("manual"), "error.path.missing")
+    assertReadsSingleFailure(format, JsString("manual"), "error.path.missing")
   }
 
   it should "serialize a ManualTuningMapper instance" in {
@@ -125,7 +125,7 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "fail to deserialize when some settings is invalid" in {
-    assertReadsFailure(
+    assertReadsSingleFailure(
       format,
       Json.obj(
         "type" -> "auto",
@@ -141,6 +141,6 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
         )
       )
     ))
-    assertReadsFailure(formatWithGlobalSettings, JsString("auto"), "error.expected.jsnumber")
+    assertReadsSingleFailure(formatWithGlobalSettings, JsString("auto"), "error.expected.jsnumber")
   }
 }

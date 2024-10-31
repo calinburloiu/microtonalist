@@ -31,10 +31,10 @@ import play.api.libs.json.{Format, JsError, JsNumber, JsString, JsSuccess, Json,
  * be interpreted as cents because for them the same JSON number type is used).
  */
 object JsonIntervalFormat {
-  private[format] val ErrorExpectingIntervalFor: Map[String, String] = Map(
-    CentsIntonationStandard.typeName -> "error.expecting.intervalForCentsIntonationStandard",
-    JustIntonationStandard.typeName -> "error.expecting.intervalForJustIntonationStandard",
-    EdoIntonationStandard.typeName -> "error.expecting.intervalForEdoIntonationStandard"
+  private[format] val ErrorExpectedIntervalFor: Map[String, String] = Map(
+    CentsIntonationStandard.typeName -> "error.expected.intervalForCentsIntonationStandard",
+    JustIntonationStandard.typeName -> "error.expected.intervalForJustIntonationStandard",
+    EdoIntonationStandard.typeName -> "error.expected.intervalForEdoIntonationStandard"
   )
 
   def readsFor(intonationStandard: IntonationStandard): Reads[Interval] = {
@@ -42,15 +42,15 @@ object JsonIntervalFormat {
       CentsInterval(jsNumber.value.doubleValue)
     }
     lazy val ratioReads: Reads[Interval] = Reads.StringReads
-      .collect(JsonValidationError(ErrorExpectingIntervalFor(JustIntonationStandard.typeName)))(
+      .collect(JsonValidationError(ErrorExpectedIntervalFor(JustIntonationStandard.typeName)))(
         Function.unlift(Interval.fromRatioString)
       )
 
     intonationStandard match {
       case CentsIntonationStandard => centsReads orElse ratioReads orElse
-        Reads.failed(ErrorExpectingIntervalFor(CentsIntonationStandard.typeName))
+        Reads.failed(ErrorExpectedIntervalFor(CentsIntonationStandard.typeName))
       case JustIntonationStandard => ratioReads orElse
-        Reads.failed(ErrorExpectingIntervalFor(JustIntonationStandard.typeName))
+        Reads.failed(ErrorExpectedIntervalFor(JustIntonationStandard.typeName))
       case EdoIntonationStandard(countPerOctave) => Reads.JsNumberReads.map { jsNumber =>
         EdoInterval(countPerOctave, jsNumber.value.intValue).asInstanceOf[Interval]
       } orElse Reads.JsArrayReads.flatMapResult { jsArr =>
@@ -68,7 +68,7 @@ object JsonIntervalFormat {
           // See the comment above for the other JsError.
           JsError()
         }
-      } orElse ratioReads orElse Reads.failed(ErrorExpectingIntervalFor(EdoIntonationStandard.typeName))
+      } orElse ratioReads orElse Reads.failed(ErrorExpectedIntervalFor(EdoIntonationStandard.typeName))
     }
   }
 

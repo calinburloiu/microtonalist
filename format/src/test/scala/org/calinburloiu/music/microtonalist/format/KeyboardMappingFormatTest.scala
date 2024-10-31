@@ -53,7 +53,7 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
     )
 
     for (invalidInput <- invalidInputs) {
-      assertReadsFailure(
+      assertReadsSingleFailure(
         KeyboardMappingFormat.reads,
         invalidInput,
         KeyboardMappingFormat.InvalidKeyboardMapping

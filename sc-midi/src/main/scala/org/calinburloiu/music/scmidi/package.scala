@@ -39,6 +39,8 @@ package object scmidi {
     def octave: Int = number / 12 - 1
 
     def freq: Double = DefaultConcertPitchFreq * Math.pow(2, (number - MidiNote.ConcertPitch) / 12.0)
+
+    override def toString: String = s"MidiNote($number)"
   }
 
   object MidiNote {

@@ -25,14 +25,14 @@ import play.api.libs.json._
 case class TuningReferenceFormatComponent(intonationStandard: IntonationStandard) extends
   JsonFormatComponentFactory[TuningReference] {
 
+  import TuningReferenceFormatComponent._
+
   override val familyName: String = "tuningReference"
 
   val StandardTypeName: String = "standard"
   val ConcertPitchTypeName: String = "concertPitch"
 
   override val defaultTypeName: Option[String] = Some(StandardTypeName)
-
-  private[format] val ConcertPitchFreqRangeError = "error.concertPitchFrequency.range"
 
   private implicit val intervalFormat: Format[Interval] = JsonIntervalFormat.formatFor(intonationStandard)
 
@@ -69,4 +69,8 @@ case class TuningReferenceFormatComponent(intonationStandard: IntonationStandard
       javaClass = classOf[ConcertPitchTuningReference]
     )
   )
+}
+
+object TuningReferenceFormatComponent {
+  private[format] val ConcertPitchFreqRangeError = "error.concertPitchFrequency.range"
 }
