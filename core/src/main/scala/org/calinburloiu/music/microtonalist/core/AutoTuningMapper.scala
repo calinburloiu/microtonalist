@@ -50,8 +50,11 @@ sealed abstract class SoftChromaticGenusMapping(override val typeName: String,
 }
 
 object SoftChromaticGenusMapping {
+  val familyName: String = "softChromaticGenusMapping"
 
   val Default: SoftChromaticGenusMapping = Off
+
+  val All: Seq[SoftChromaticGenusMapping] = Seq(Off, Strict, PseudoChromatic)
 
   /** The special mapping of the soft chromatic genus is disabled. */
   case object Off extends SoftChromaticGenusMapping("off", Double.PositiveInfinity)

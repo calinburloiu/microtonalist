@@ -17,11 +17,11 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.core._
-import play.api.libs.json.{JsNull, JsString, Json}
+import play.api.libs.json.{JsNull, JsString, Json, __}
 
-class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
-  private val jsonFormatComponent: JsonFormatComponent[TuningMapper] = TuningMapperFormatComponent.jsonFormatComponent
-  private val format = jsonFormatComponent.format
+class JsonTuningMapperPluginFormatTest extends JsonFormatTestUtils {
+  private val jsonPluginFormat: JsonPluginFormat[TuningMapper] = JsonTuningMapperPluginFormat
+  private val format = jsonPluginFormat.format
 
   private val sparseJsonKeyboardMapping = Json.obj(
     "C" -> 0, "D" -> 3, "E" -> 4, "F" -> 6, "G" -> 9, "Ab" -> 11, "B" -> 12)
@@ -29,9 +29,9 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
   private val keyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
     gSharpOrAFlat = Some(11), b = Some(12))
 
-  behavior of "ManualTuningMapper JSON format component"
+  behavior of "ManualTuningMapper JSON plugin format"
 
-  it should "deserialize a manual type component" in {
+  it should "deserialize a manual type plugin" in {
     assertReads(
       format,
       Json.obj("type" -> "manual", "keyboardMapping" -> sparseJsonKeyboardMapping),
@@ -39,7 +39,7 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
     )
   }
 
-  it should "fail to deserialize a manual type component without mandatory settings" in {
+  it should "fail to deserialize a manual type plugin without mandatory settings" in {
     assertReadsSingleFailure(format, JsString("manual"), "error.path.missing")
   }
 
@@ -50,9 +50,9 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
     )
   }
 
-  behavior of "AutoTuningMapper JSON format component"
+  behavior of "AutoTuningMapper JSON plugin format"
 
-  it should "deserialize an auto type component without global settings" in {
+  it should "deserialize an auto type plugin without global settings" in {
     assertReads(
       format,
       Json.obj(
@@ -71,8 +71,8 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
     )
   }
 
-  it should "deserialize an auto type component with some settings defined globally" in {
-    val formatWithGlobalSettings = jsonFormatComponent.formatWithRootGlobalSettings(Json.obj(
+  it should "deserialize an auto type plugin with some settings defined globally" in {
+    val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
       "tuningMapper" -> Json.obj(
         "auto" -> Json.obj(
           "shouldMapQuarterTonesLow" -> true,
@@ -99,8 +99,28 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
     )
   }
 
-  it should "deserialize an auto type component with all settings defined globally" in {
-    val formatWithGlobalSettings = jsonFormatComponent.formatWithRootGlobalSettings(Json.obj(
+  it should "fail to deserialize an auto type plugin when a setting defined globally is invalid" in {
+    val readsWithGlobalSettings = jsonPluginFormat.readsWithRootGlobalSettings(Json.obj(
+      "tuningMapper" -> Json.obj(
+        "auto" -> Json.obj(
+          "shouldMapQuarterTonesLow" -> true,
+          "quarterToneTolerance" -> 4.0,
+          // has typo
+          "softChromaticGenusMapping" -> "pseudoChromaticc"
+        )
+      )
+    ))
+
+    assertReadsFailure(
+      readsWithGlobalSettings,
+      JsString("auto"),
+      __ \ "softChromaticGenusMapping",
+      "error.plugin.type.unrecognized"
+    )
+  }
+
+  it should "deserialize an auto type plugin with all settings defined globally" in {
+    val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
       "tuningMapper" -> Json.obj(
         "auto" -> Json.obj(
           "quarterToneTolerance" -> 5.0,
@@ -120,7 +140,7 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
     )
   }
 
-  it should "use the default instance when deserializing an auto type component without any settings" in {
+  it should "use the default instance when deserializing an auto type plugin without any settings" in {
     assertReads(format, JsString("auto"), AutoTuningMapper.Default)
   }
 
@@ -134,7 +154,7 @@ class TuningMapperFormatComponentTest extends JsonFormatTestUtils {
       "error.expected.jsboolean"
     )
 
-    val formatWithGlobalSettings = jsonFormatComponent.formatWithRootGlobalSettings(Json.obj(
+    val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
       "tuningMapper" -> Json.obj(
         "auto" -> Json.obj(
           "quarterToneTolerance" -> "blah"

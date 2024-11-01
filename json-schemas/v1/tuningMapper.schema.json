@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Mapper",
-    "description": "A tuning mapper is a format component that maps a scale to a tuning by providing a mapping between the scale pitch and the tuning pitch class (keyboard key).\nAs any format component it can be defined as an object with a \"type\" property that identifies the tuning mapper to be used. Check the documentation for that property for details about what tuning mappers are supported.",
+    "description": "A tuning mapper is a plugin that maps a scale to a tuning by providing a mapping between the scale pitch and the tuning pitch class (keyboard key).\nAs any plugin it can be defined as an object with a \"type\" property that identifies the tuning mapper to be used. Check the documentation for that property for details about what tuning mappers are supported.",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },

@@ -28,7 +28,7 @@ import org.calinburloiu.music.scmidi.PitchClass
  */
 trait TuningMapper extends Plugin {
 
-  override val familyName: String = "tuningMapper"
+  override val familyName: String = TuningMapper.familyName
 
   /**
    * Maps a scale to a tuning.
@@ -54,6 +54,9 @@ trait TuningMapper extends Plugin {
 }
 
 object TuningMapper {
+
+  val familyName: String = "tuningMapper"
+
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */

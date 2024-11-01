@@ -21,14 +21,14 @@ import org.calinburloiu.music.microtonalist.core.{ConcertPitchTuningReference, S
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
-class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
+class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
 
   import JsonFormatTestUtils._
 
-  private val jsonFormatComponent = TuningReferenceFormatComponent(CentsIntonationStandard).jsonFormatComponent
-  private val reads: Reads[TuningReference] = jsonFormatComponent.reads
+  private val jsonPluginFormat = JsonTuningReferencePluginFormat(CentsIntonationStandard)
+  private val reads: Reads[TuningReference] = jsonPluginFormat.reads
 
-  behavior of "StandardTuningReference JSON format component"
+  behavior of "StandardTuningReference JSON plugin format"
 
   private val standardTypeJson = Json.obj(
     "basePitchClass" -> "Bb",
@@ -61,14 +61,14 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "serialize a StandardTuningReference" in {
-    jsonFormatComponent.writes.writes(standardType) shouldEqual Json.obj(
+    jsonPluginFormat.writes.writes(standardType) shouldEqual Json.obj(
       "type" -> "standard",
       "basePitchClass" -> 10,
       "baseDeviation" -> -5.0
     )
   }
 
-  behavior of "ConcertPitchTuningReference JSON format component"
+  behavior of "ConcertPitchTuningReference JSON plugin format"
 
   private val concertPitchTypeJson = Json.obj(
     "type" -> "concertPitch",
@@ -107,6 +107,6 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "serialize a ConcertPitchTuningReference" in {
-    jsonFormatComponent.writes.writes(concertPitchType) shouldEqual concertPitchTypeJson
+    jsonPluginFormat.writes.writes(concertPitchType) shouldEqual concertPitchTypeJson
   }
 }

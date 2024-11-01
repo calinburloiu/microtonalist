@@ -19,38 +19,38 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core.SoftChromaticGenusMapping
 import play.api.libs.json.{JsString, Reads}
 
-class SoftChromaticGenusMappingFormatComponentTest extends JsonFormatTestUtils {
+class JsonSoftChromaticGenusMappingPluginFormatTest extends JsonFormatTestUtils {
 
-  private val jsonFormatComponent = SoftChromaticGenusMappingFormatComponent.jsonFormatComponent
-  private val reads: Reads[SoftChromaticGenusMapping] = jsonFormatComponent.reads
+  private val jsonPluginFormat = JsonSoftChromaticGenusMappingPluginFormat
+  private val reads: Reads[SoftChromaticGenusMapping] = jsonPluginFormat.reads
 
-  behavior of "SoftChromaticGenusMapping.Off JSON format component"
+  behavior of "SoftChromaticGenusMapping.Off JSON plugin format"
 
   it should "deserialize SoftChromaticGenusMapping.Off" in {
     assertReads(reads, JsString("off"), SoftChromaticGenusMapping.Off)
   }
 
   it should "serialize SoftChromaticGenusMapping.Off" in {
-    jsonFormatComponent.writes.writes(SoftChromaticGenusMapping.Off) shouldEqual JsString("off")
+    jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.Off) shouldEqual JsString("off")
   }
 
-  behavior of "SoftChromaticGenusMapping.Strict JSON format component"
+  behavior of "SoftChromaticGenusMapping.Strict JSON plugin format"
 
   it should "deserialize SoftChromaticGenusMapping.Strict" in {
     assertReads(reads, JsString("strict"), SoftChromaticGenusMapping.Strict)
   }
 
   it should "serialize SoftChromaticGenusMapping.Strict" in {
-    jsonFormatComponent.writes.writes(SoftChromaticGenusMapping.Strict) shouldEqual JsString("strict")
+    jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.Strict) shouldEqual JsString("strict")
   }
 
-  behavior of "SoftChromaticGenusMapping.PseudoChromatic JSON format component"
+  behavior of "SoftChromaticGenusMapping.PseudoChromatic JSON plugin format"
 
   it should "deserialize SoftChromaticGenusMapping.PseudoChromatic" in {
     assertReads(reads, JsString("pseudoChromatic"), SoftChromaticGenusMapping.PseudoChromatic)
   }
 
   it should "serialize SoftChromaticGenusMapping.PseudoChromatic" in {
-    jsonFormatComponent.writes.writes(SoftChromaticGenusMapping.PseudoChromatic) shouldEqual JsString("pseudoChromatic")
+    jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.PseudoChromatic) shouldEqual JsString("pseudoChromatic")
   }
 }

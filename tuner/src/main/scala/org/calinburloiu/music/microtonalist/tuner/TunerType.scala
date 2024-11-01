@@ -20,7 +20,7 @@ import enumeratum.{Enum, EnumEntry}
 
 sealed trait TunerType extends EnumEntry
 
-// TODO #64 Migrate this to format component
+// TODO #64 Migrate this to plugin
 /**
  * Tuner type to be used based on input/output device capabilities.
  */

@@ -16,23 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-/**
- * Factory that creates a [[JsonFormatComponent]] instance.
- *
- * @tparam A type of the component.
- */
-trait JsonFormatComponentFactory[A] {
+import org.calinburloiu.music.microtonalist.core.{Plugin, SoftChromaticGenusMapping}
 
-  val familyName: String
+object JsonSoftChromaticGenusMappingPluginFormat extends JsonPluginFormat[SoftChromaticGenusMapping] {
 
-  val specs: JsonFormatComponent.TypeSpecs[A]
+  override val familyName: String = SoftChromaticGenusMapping.familyName
 
-  val defaultTypeName: Option[String]
+  override val specs: JsonPluginFormat.TypeSpecs[SoftChromaticGenusMapping] = SoftChromaticGenusMapping.All
+    .map { plugin: SoftChromaticGenusMapping => JsonPluginFormat.TypeSpec.withoutSettings(plugin) }
 
-  lazy val jsonFormatComponent: JsonFormatComponent[A] = {
-    require(defaultTypeName.forall { typeName => specs.exists(_.typeName == typeName) },
-      "defaultTypeName must exist in specs!")
-
-    new JsonFormatComponent[A](familyName, specs, defaultTypeName)
-  }
+  override val defaultTypeName: Option[String] = Some(SoftChromaticGenusMapping.Off.typeName)
 }

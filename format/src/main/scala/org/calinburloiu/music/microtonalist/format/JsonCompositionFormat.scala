@@ -65,18 +65,18 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     }.flatMap { settings =>
       context.settings = settings
 
-      implicit val intonationStandardReads: Reads[IntonationStandard] = IntonationStandardFormatComponent
-        .jsonFormatComponent.readsWithRootGlobalSettings(settings)
+      implicit val intonationStandardReads: Reads[IntonationStandard] = JsonIntonationStandardPluginFormat
+        .readsWithRootGlobalSettings(settings)
       (context.preprocessedJson \ "intonationStandard").validateOpt[IntonationStandard]
         .map(_.getOrElse(CentsIntonationStandard))
     }.flatMap { intonationStandard =>
       context.intonationStandard = intonationStandard
 
-      implicit val tuningReferenceReads: Reads[TuningReference] = TuningReferenceFormatComponent(intonationStandard)
-        .jsonFormatComponent.readsWithRootGlobalSettings(context.settings)
+      implicit val tuningReferenceReads: Reads[TuningReference] = JsonTuningReferencePluginFormat(intonationStandard)
+        .readsWithRootGlobalSettings(context.settings)
       implicit val tuningSpecReprReads: Reads[TuningSpecRepr] =
         tuningSpecReprReadsFor(context.intonationStandard, context.settings)
-      implicit val tuningReducerReads: Reads[TuningReducer] = TuningReducerFormatComponent.jsonFormatComponent
+      implicit val tuningReducerReads: Reads[TuningReducer] = JsonTuningReducerPluginFormat
         .readsWithRootGlobalSettings(context.settings)
       implicit val compositionReprReads: Reads[CompositionRepr] = Json.using[Json.WithDefaultValues]
         .reads[CompositionRepr]
@@ -97,8 +97,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
    */
   private def fromReprToDomain(compositionRepr: CompositionRepr): Composition = {
     val context = compositionRepr.context
-    val defaultTuningMapper = TuningMapperFormatComponent.jsonFormatComponent
-      .readDefaultComponent(context.settings).getOrElse(AutoTuningMapper.Default)
+    val defaultTuningMapper = JsonTuningMapperPluginFormat
+      // TODO getOrElse here is bad, it silently ignores errors and overrides with a default mapper
+      .readDefaultPlugin(context.settings).getOrElse(AutoTuningMapper.Default)
 
     def convertTuningSpec(tuningSpecRepr: TuningSpecRepr): TuningSpec = {
       val transposition = tuningSpecRepr.transposition.getOrElse(context.intonationStandard.unison)
@@ -137,8 +138,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(scaleFormatContext)
       implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], URI]] =
         DeferrableRead.reads(scaleReads, Reads.uriReads)
-      implicit val tuningMapperComponentReads: Reads[TuningMapper] = TuningMapperFormatComponent
-        .jsonFormatComponent.readsWithRootGlobalSettings(rootGlobalSettings)
+      implicit val tuningMapperReads: Reads[TuningMapper] = JsonTuningMapperPluginFormat
+        .readsWithRootGlobalSettings(rootGlobalSettings)
 
       Json.using[Json.WithDefaultValues].reads[TuningSpecRepr]
     }

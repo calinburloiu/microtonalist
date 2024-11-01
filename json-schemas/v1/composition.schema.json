@@ -65,12 +65,12 @@
         "settings": {
             "type": "object",
             "title": "Settings",
-            "description": "Composition settings allow configuring defaults at the composition level for various settings of the format components. A format component (such as the tuningMapper) may omit some settings and in this case the values of from this section will be used.\nFor example, every tuning specifications can be configured with a tuningMapper. If all of them prefer to set shouldMapQuarterTonesLow to true, the setting can be set here and omit the property at the tuning specification level.",
+            "description": "Composition settings allow configuring defaults at the composition level for various settings of the plugins. A plugin (such as the tuningMapper) may omit some settings and in this case the values of from this section will be used.\nFor example, every tuning specifications can be configured with a tuningMapper. If all of them prefer to set shouldMapQuarterTonesLow to true, the setting can be set here and omit the property at the tuning specification level.",
             "properties": {
                 "tuningReference": {
                     "type": "object",
                     "title": "Tuning Reference Settings",
-                    "description": "Default settings for the tuning reference format component.",
+                    "description": "Default settings for the tuning reference plugin.",
                     "properties": {
                         "standard": {
                             "$ref": "tuningReference.schema.json#/$defs/standardSettings",
@@ -86,7 +86,7 @@
                 "intonationStandard": {
                     "type": "object",
                     "title": "Intonation Standard Settings",
-                    "description": "Default settings for the intonation standard format component.",
+                    "description": "Default settings for the intonation standard plugin.",
                     "properties": {
                         "edo": {
                             "$ref": "intonationStandard.schema.json#/$defs/edoSettings",
@@ -98,7 +98,7 @@
                 "tuningMapper": {
                     "type": "object",
                     "title": "Tuning Mapper Settings",
-                    "description": "Default settings for the tuning mapper format components.",
+                    "description": "Default settings for the tuning mapper plugin.",
                     "properties": {
                         "manual": {
                             "$ref": "tuningMapper.schema.json#/$defs/manualSettings",
@@ -114,7 +114,7 @@
                 "tuningReducer": {
                     "type": "object",
                     "title": "Tuning Reducer Settings",
-                    "description": "Default setting for the tuning reducer format components.",
+                    "description": "Default setting for the tuning reducer plugin.",
                     "properties": {
                         "merge": {
                             "$ref": "tuningReducer.schema.json#/$defs/mergeSettings",

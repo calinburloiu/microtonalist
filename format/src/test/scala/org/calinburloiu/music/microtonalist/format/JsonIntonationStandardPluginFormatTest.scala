@@ -22,34 +22,33 @@ import org.calinburloiu.music.intonation.{
 }
 import play.api.libs.json.{Format, JsString, Json}
 
-class IntonationStandardFormatComponentTest extends JsonFormatTestUtils {
-  val jsonFormatComponent: JsonFormatComponent[IntonationStandard] = IntonationStandardFormatComponent
-    .jsonFormatComponent
-  val format: Format[IntonationStandard] = jsonFormatComponent.format
+class JsonIntonationStandardPluginFormatTest extends JsonFormatTestUtils {
+  val jsonPluginFormat: JsonPluginFormat[IntonationStandard] = JsonIntonationStandardPluginFormat
+  val format: Format[IntonationStandard] = jsonPluginFormat.format
 
-  "reads" should "deserialize a cents component" in {
+  "reads" should "deserialize a cents plugin" in {
     assertReads(format, JsString("cents"), CentsIntonationStandard)
     assertReads(format, Json.obj("type" -> "cents"), CentsIntonationStandard)
   }
 
-  it should "deserialize a justIntonation component" in {
+  it should "deserialize a justIntonation plugin" in {
     assertReads(format, JsString("justIntonation"), JustIntonationStandard)
     assertReads(format, Json.obj("type" -> "justIntonation"), JustIntonationStandard)
   }
 
-  it should "deserialize an edo component" in {
+  it should "deserialize an edo plugin" in {
     assertReads(format, Json.obj("type" -> "edo", "countPerOctave" -> 31), EdoIntonationStandard(31))
   }
 
-  "writes" should "serialize a cents component" in {
+  "writes" should "serialize a cents plugin" in {
     format.writes(CentsIntonationStandard) shouldEqual JsString("cents")
   }
 
-  it should "serialize a justIntonation component" in {
+  it should "serialize a justIntonation plugin" in {
     format.writes(JustIntonationStandard) shouldEqual JsString("justIntonation")
   }
 
-  it should "serialize an edo component" in {
+  it should "serialize an edo plugin" in {
     format.writes(EdoIntonationStandard(72)) shouldEqual Json.obj("type" -> "edo", "countPerOctave" -> 72)
   }
 }

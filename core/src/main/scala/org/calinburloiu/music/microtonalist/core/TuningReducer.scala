@@ -31,6 +31,8 @@ trait TuningReducer extends Plugin {
 }
 
 object TuningReducer {
+  val familyName: String = "tuningReducer"
+
   /** A [[MergeTuningReducer]]. */
   val Default: MergeTuningReducer = MergeTuningReducer()
 }

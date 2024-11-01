@@ -125,8 +125,8 @@ object JsonScaleFormat {
 
   val ErrorMissingContext: String = "error.scale.missingContext"
 
-  private[JsonScaleFormat] implicit val intonationStandardComponentFormat: Format[IntonationStandard] =
-    IntonationStandardFormatComponent.jsonFormatComponent.format
+  private[JsonScaleFormat] implicit val intonationStandardFormat: Format[IntonationStandard] =
+    JsonIntonationStandardPluginFormat.format
 
   private[format] def pitchIntervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = {
     val intervalFormat: Format[Interval] = JsonIntervalFormat.formatFor(intonationStandard)

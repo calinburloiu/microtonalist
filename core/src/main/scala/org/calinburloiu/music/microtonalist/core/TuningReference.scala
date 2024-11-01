@@ -25,7 +25,7 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
  */
 trait TuningReference extends Plugin {
 
-  override val familyName: String = "tuningReference"
+  override val familyName: String = TuningReference.familyName
 
   /**
    * @return a [[TuningPitch]] for the base pitch of the composition
@@ -41,6 +41,10 @@ trait TuningReference extends Plugin {
    * @return the deviation from 12-EDO in cents of the `basePitchClass`
    */
   def baseDeviation: Double
+}
+
+object TuningReference {
+  val familyName: String = "tuningReference"
 }
 
 /**
