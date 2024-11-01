@@ -97,9 +97,13 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
    */
   private def fromReprToDomain(compositionRepr: CompositionRepr): Composition = {
     val context = compositionRepr.context
-    val defaultTuningMapper = JsonTuningMapperPluginFormat
-      // TODO getOrElse here is bad, it silently ignores errors and overrides with a default mapper
-      .readDefaultPlugin(context.settings).getOrElse(AutoTuningMapper.Default)
+    val defaultTuningMapper = if (JsonTuningMapperPluginFormat.hasGlobalSettingsForDefaultType(context.settings)) {
+      JsonTuningMapperPluginFormat.readDefaultPlugin(context.settings).getOrElse {
+        throw new InvalidCompositionFormatException("AutoTuningMapper from settings is invalid!")
+      }
+    } else {
+      AutoTuningMapper.Default
+    }
 
     def convertTuningSpec(tuningSpecRepr: TuningSpecRepr): TuningSpec = {
       val transposition = tuningSpecRepr.transposition.getOrElse(context.intonationStandard.unison)

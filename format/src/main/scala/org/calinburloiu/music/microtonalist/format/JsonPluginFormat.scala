@@ -135,15 +135,22 @@ trait JsonPluginFormat[P] {
    *         there are mandatory settings that are missing.
    */
   def readDefaultPlugin(rootGlobalSettings: JsObject): Option[P] = {
-    // TODO We can skip global settings, we already add them below
-    val reads = readsWithRootGlobalSettings(rootGlobalSettings)
-
     for (
       defaultTypeNameValue <- defaultTypeName;
       localSettings <- (rootGlobalSettings \ familyName \ defaultTypeNameValue).asOpt[JsObject];
       defaultPlugin <- localSettings.asOpt(reads)
     ) yield defaultPlugin
   }
+
+  /**
+   * @param rootGlobalSettings The JSON of the settings property branch from a composition file.
+   * @return true if there are global settings defined for the default plugin, or false otherwise.
+   */
+  def hasGlobalSettingsForDefaultType(rootGlobalSettings: JsObject): Boolean = defaultTypeName match {
+    case Some(defaultTypeNameValue) => (rootGlobalSettings \ familyName \ defaultTypeNameValue).isDefined
+    case None => false
+  }
+
 
   private def globalSettingsOf(rootGlobalSettings: JsObject, typeName: String): JsObject =
     (rootGlobalSettings \ familyName \ typeName)
