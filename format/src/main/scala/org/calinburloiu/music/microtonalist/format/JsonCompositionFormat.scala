@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core._
-import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
