@@ -19,18 +19,18 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard, JustIntonationStandard}
 import play.api.libs.json.Json
 
-object IntonationStandardFormatComponent extends JsonFormatComponentFactory[IntonationStandard] {
+object JsonIntonationStandardPluginFormat extends JsonPluginFormat[IntonationStandard] {
   override val familyName = "intonationStandard"
 
   override val defaultTypeName: Option[String] = Some(CentsIntonationStandard.typeName)
 
-  override val specs: JsonFormatComponent.TypeSpecs[IntonationStandard] = Seq(
-    JsonFormatComponent.TypeSpec.withoutSettings(CentsIntonationStandard.typeName, CentsIntonationStandard),
-    JsonFormatComponent.TypeSpec.withoutSettings(
+  override val specs: JsonPluginFormat.TypeSpecs[IntonationStandard] = Seq(
+    JsonPluginFormat.TypeSpec.withoutSettings(CentsIntonationStandard.typeName, CentsIntonationStandard),
+    JsonPluginFormat.TypeSpec.withoutSettings(
       JustIntonationStandard.typeName,
       JustIntonationStandard
     ),
-    JsonFormatComponent.TypeSpec.withSettings[EdoIntonationStandard](
+    JsonPluginFormat.TypeSpec.withSettings[EdoIntonationStandard](
       EdoIntonationStandard.typeName,
       Json.format[EdoIntonationStandard],
       classOf[EdoIntonationStandard]

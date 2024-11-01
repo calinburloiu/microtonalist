@@ -44,12 +44,17 @@ import scala.collection.{immutable, mutable}
  * @param typeName          The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
-sealed abstract class SoftChromaticGenusMapping(val typeName: String,
-                                                val aug2Threshold: Double)
+sealed abstract class SoftChromaticGenusMapping(override val typeName: String,
+                                                val aug2Threshold: Double) extends Plugin {
+  override val familyName: String = "softChromaticGenusMapping"
+}
 
 object SoftChromaticGenusMapping {
+  val familyName: String = "softChromaticGenusMapping"
 
   val Default: SoftChromaticGenusMapping = Off
+
+  val All: Seq[SoftChromaticGenusMapping] = Seq(Off, Strict, PseudoChromatic)
 
   /** The special mapping of the soft chromatic genus is disabled. */
   case object Off extends SoftChromaticGenusMapping("off", Double.PositiveInfinity)
@@ -92,6 +97,8 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
                             softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Default,
                             overrideKeyboardMapping: KeyboardMapping = KeyboardMapping.empty,
                             tolerance: Double = DefaultCentsTolerance) extends TuningMapper {
+  override val typeName: String = AutoTuningMapper.typeName
+
   private type PitchesInfo = Map[Int, TuningPitch]
 
   private val SoftChromaticSmallInterval = 150.0
@@ -323,6 +330,8 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 }
 
 object AutoTuningMapper {
+  val typeName: String = "auto"
+
   val DefaultShouldMapQuarterTonesLow: Boolean = false
 
   lazy val Default: AutoTuningMapper = AutoTuningMapper()

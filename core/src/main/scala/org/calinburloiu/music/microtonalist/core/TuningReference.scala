@@ -23,7 +23,9 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
  * Tuning reference tells what pitch class from the keyboard instrument must be used for the base pitch of a
  * composition and what tuning deviation should have with respect to standard tuning (12-EDO).
  */
-trait TuningReference {
+trait TuningReference extends Plugin {
+
+  override val familyName: String = TuningReference.familyName
 
   /**
    * @return a [[TuningPitch]] for the base pitch of the composition
@@ -41,6 +43,10 @@ trait TuningReference {
   def baseDeviation: Double
 }
 
+object TuningReference {
+  val familyName: String = "tuningReference"
+}
+
 /**
  * Tuning reference relative standard tuning (12-EDO).
  *
@@ -50,7 +56,13 @@ trait TuningReference {
 case class StandardTuningReference(override val basePitchClass: PitchClass,
                                    override val baseDeviation: Double = 0.0) extends TuningReference {
 
+  override val typeName: String = StandardTuningReference.typeName
+
   override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
+}
+
+object StandardTuningReference {
+  val typeName: String = "standard"
 }
 
 /**
@@ -67,6 +79,8 @@ case class ConcertPitchTuningReference(concertPitchToBaseInterval: Interval,
   require(concertPitchFreq > 0, "concertPitchFreq > 0")
   baseMidiNote.assertValid()
 
+  override val typeName: String = ConcertPitchTuningReference.typeName
+
   override def basePitchClass: PitchClass = baseMidiNote.pitchClass
 
   override val baseDeviation: Double = {
@@ -75,6 +89,10 @@ case class ConcertPitchTuningReference(concertPitchToBaseInterval: Interval,
   }
 
   override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
+}
+
+object ConcertPitchTuningReference {
+  val typeName: String = "concertPitch"
 }
 
 // TODO Add support for Scala-app-style implementation; also look at Ableton Live 12 (https://www.ableton

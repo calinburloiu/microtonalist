@@ -42,6 +42,8 @@ import scala.annotation.tailrec
 case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance) extends TuningReducer with
   StrictLogging {
 
+  override val typeName: String = MergeTuningReducer.typeName
+
   override def reduceTunings(partialTunings: Seq[PartialTuning],
                              globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
     if (partialTunings.isEmpty) {
@@ -94,4 +96,8 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
       case None => (acc, partialTunings)
     }
   }
+}
+
+object MergeTuningReducer {
+  val typeName: String = "merge"
 }

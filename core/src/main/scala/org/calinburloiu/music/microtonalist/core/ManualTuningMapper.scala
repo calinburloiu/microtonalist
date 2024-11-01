@@ -29,6 +29,8 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
 
   import ManualTuningMapper._
 
+  override val typeName: String = ManualTuningMapper.typeName
+
   override def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): PartialTuning = {
     require(keyboardMapping.indexesInScale.flatten.max < scale.size)
 
@@ -59,6 +61,8 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
 }
 
 object ManualTuningMapper {
+  val typeName: String = "manual"
+
   val MinExclusiveDeviation: Double = -100.0
   val MaxExclusiveDeviation: Double = 100.0
 

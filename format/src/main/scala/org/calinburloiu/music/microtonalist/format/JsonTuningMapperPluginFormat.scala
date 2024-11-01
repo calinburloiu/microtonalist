@@ -19,12 +19,12 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core._
 import play.api.libs.json._
 
-object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapper] {
+object JsonTuningMapperPluginFormat extends JsonPluginFormat[TuningMapper] {
 
-  override val familyName: String = "tuningMapper"
+  override val familyName: String = TuningMapper.familyName
 
-  val AutoTypeName: String = "auto"
-  val ManualTypeName: String = "manual"
+  val AutoTypeName: String = AutoTuningMapper.typeName
+  val ManualTypeName: String = ManualTuningMapper.typeName
 
   override val defaultTypeName: Option[String] = Some(AutoTypeName)
 
@@ -40,7 +40,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
   )
 
   private implicit val softChromaticGenusMappingFormat: Format[SoftChromaticGenusMapping] =
-    SoftChromaticGenusMappingFormatComponent.jsonFormatComponent.format
+    JsonSoftChromaticGenusMappingPluginFormat.format
   private val autoTuningMapperReprFormat: Format[AutoTuningMapperRepr] = Json.using[Json.WithDefaultValues]
     .format[AutoTuningMapperRepr]
   private val autoTuningMapperFormat: Format[AutoTuningMapper] = Format(
@@ -63,16 +63,21 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
     }
   )
 
-  override val specs: JsonFormatComponent.TypeSpecs[TuningMapper] = Seq(
-    JsonFormatComponent.TypeSpec.withSettings[ManualTuningMapper](
+  override val specs: JsonPluginFormat.TypeSpecs[TuningMapper] = Seq(
+    JsonPluginFormat.TypeSpec.withSettings[ManualTuningMapper](
       typeName = ManualTypeName,
       format = manualTuningMapperFormat,
       javaClass = classOf[ManualTuningMapper]
     ),
-    JsonFormatComponent.TypeSpec.withSettings[AutoTuningMapper](
+    JsonPluginFormat.TypeSpec.withSettings[AutoTuningMapper](
       typeName = AutoTypeName,
       format = autoTuningMapperFormat,
-      javaClass = classOf[AutoTuningMapper]
+      javaClass = classOf[AutoTuningMapper],
+      defaultSettings = Json.obj(
+        "shouldMapQuarterTonesLow" -> false,
+        "quarterToneTolerance" -> DefaultQuarterToneTolerance,
+        "softChromaticGenusMapping" -> SoftChromaticGenusMapping.Off.typeName
+      )
     )
   )
 }
@@ -81,5 +86,6 @@ private case class ManualTuningMapperRepr(keyboardMapping: KeyboardMapping)
 
 private case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
                                         quarterToneTolerance: Option[Double] = None,
-                                        softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Off,
+                                        softChromaticGenusMapping: SoftChromaticGenusMapping =
+                                        SoftChromaticGenusMapping.Off,
                                         overrideKeyboardMapping: Option[KeyboardMapping] = None)

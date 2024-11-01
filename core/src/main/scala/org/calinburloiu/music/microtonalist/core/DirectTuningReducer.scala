@@ -24,6 +24,8 @@ import com.typesafe.scalalogging.StrictLogging
  */
 object DirectTuningReducer extends TuningReducer with StrictLogging {
 
+  override val typeName: String = "direct"
+
   override def reduceTunings(partialTunings: Seq[PartialTuning],
                              globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
     val tunings = partialTunings.map { partialTuning =>

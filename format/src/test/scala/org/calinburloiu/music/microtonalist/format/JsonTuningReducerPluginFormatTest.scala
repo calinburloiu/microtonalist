@@ -19,24 +19,24 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.core.{DirectTuningReducer, MergeTuningReducer, TuningReducer}
 import play.api.libs.json._
 
-class TuningReducerFormatComponentTest extends JsonFormatTestUtils {
+class JsonTuningReducerPluginFormatTest extends JsonFormatTestUtils {
 
   import JsonFormatTestUtils._
 
-  private val jsonFormatComponent = TuningReducerFormatComponent.jsonFormatComponent
-  private val reads: Reads[TuningReducer] = jsonFormatComponent.reads
+  private val jsonPluginFormat = JsonTuningReducerPluginFormat
+  private val reads: Reads[TuningReducer] = jsonPluginFormat.reads
 
-  behavior of "DirectTuningReducer JSON format component"
+  behavior of "DirectTuningReducer JSON plugin format"
 
   it should "deserialize DirectTuningReducer" in {
     assertReads(reads, JsString("direct"), DirectTuningReducer)
   }
 
   it should "serialize DirectTuningReducer" in {
-    jsonFormatComponent.writes.writes(DirectTuningReducer) shouldEqual JsString("direct")
+    jsonPluginFormat.writes.writes(DirectTuningReducer) shouldEqual JsString("direct")
   }
 
-  behavior of "MergeTuningReducer JSON format component"
+  behavior of "MergeTuningReducer JSON plugin format"
 
   private val mergeTypeJson = Json.obj(
     "type" -> "merge",
@@ -60,6 +60,6 @@ class TuningReducerFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "serialize a MergeTuningReducer" in {
-    jsonFormatComponent.writes.writes(mergeType) shouldEqual mergeTypeJson
+    jsonPluginFormat.writes.writes(mergeType) shouldEqual mergeTypeJson
   }
 }

@@ -26,7 +26,9 @@ import org.calinburloiu.music.scmidi.PitchClass
  * It is said that a _conflict_ occurs on a tuning key if two scale pitches attempt to map to the same tuning key.
  * This results in throwing a [[TuningMapperConflictException]].
  */
-trait TuningMapper {
+trait TuningMapper extends Plugin {
+
+  override val familyName: String = TuningMapper.familyName
 
   /**
    * Maps a scale to a tuning.
@@ -52,6 +54,9 @@ trait TuningMapper {
 }
 
 object TuningMapper {
+
+  val familyName: String = "tuningMapper"
+
   /**
    * A [[AutoTuningMapper]] that does not map quarter tones low (e.g. E half-flat is mapped to E on a piano).
    */
