@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, RatioInterval}
-import org.calinburloiu.music.microtonalist.core.{ConcertPitchTuningReference, StandardTuningReference}
+import org.calinburloiu.music.microtonalist.core.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
@@ -26,7 +26,9 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
   import JsonFormatTestUtils._
 
   private val jsonFormatComponent = TuningReferenceFormatComponent(CentsIntonationStandard).jsonFormatComponent
-  private val reads = jsonFormatComponent.reads
+  private val reads: Reads[TuningReference] = jsonFormatComponent.reads
+
+  behavior of "StandardTuningReference JSON format component"
 
   private val standardTypeJson = Json.obj(
     "basePitchClass" -> "Bb",
@@ -45,8 +47,6 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
     (__ \ "baseDeviation", DisallowedValues(JsNumber(-51)), "error.min"),
     (__ \ "baseDeviation", DisallowedValues(JsNumber(51)), "error.max"),
   )
-
-  behavior of "StandardTuningReference JSON format component"
 
   it should "deserialize a StandardTuningReference" in {
     assertReads(reads, standardTypeJson, standardType)
@@ -68,6 +68,8 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
     )
   }
 
+  behavior of "ConcertPitchTuningReference JSON format component"
+
   private val concertPitchTypeJson = Json.obj(
     "type" -> "concertPitch",
     "concertPitchToBaseInterval" -> "2/3",
@@ -78,11 +80,10 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
 
   private val concertPitchTypeFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("path", "check", "expected JsonValidationError"),
-    (__ \ "concertPitchToBaseInterval", AllowedTypes(JsonNumberType, JsonStringType), "error.expected" +
-      ".intervalForCentsIntonationStandard"),
-    (__ \ "concertPitchToBaseInterval", DisallowedValues(JsString("bla")), "error.expected" +
-      ".intervalForCentsIntonationStandard"),
-
+    (__ \ "concertPitchToBaseInterval", AllowedTypes(JsonNumberType, JsonStringType),
+      "error.expected.intervalForCentsIntonationStandard"),
+    (__ \ "concertPitchToBaseInterval", DisallowedValues(JsString("bla")),
+      "error.expected.intervalForCentsIntonationStandard"),
 
     (__ \ "baseMidiNote", AllowedTypes(JsonNumberType), "error.expected.jsnumber"),
     (__ \ "baseMidiNote", DisallowedValues(JsNumber(-1)), "error.min"),
@@ -92,8 +93,6 @@ class TuningReferenceFormatComponentTest extends JsonFormatTestUtils {
     (__ \ "concertPitchFrequency", DisallowedValues(JsNumber(-10.0), JsNumber(0.0)), "error.exclusiveMin"),
     (__ \ "concertPitchFrequency", DisallowedValues(JsNumber(20000.1)), "error.max")
   )
-
-  behavior of "ConcertPitchTuningReference JSON format component"
 
   it should "deserialize a ConcertPitchTuningReference" in {
     assertReads(reads, concertPitchTypeJson, concertPitchType)

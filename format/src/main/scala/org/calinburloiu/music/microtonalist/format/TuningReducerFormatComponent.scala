@@ -16,8 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.{DirectTuningReducer, MergeTuningReducer, TuningReducer}
-import play.api.libs.json.Json
+import org.calinburloiu.music.microtonalist.core.{DefaultCentsTolerance, DirectTuningReducer, MergeTuningReducer, TuningReducer}
+import play.api.libs.functional.syntax.toApplicativeOps
+import play.api.libs.json.Reads.{max, min}
+import play.api.libs.json.{Format, Writes, __}
 
 object TuningReducerFormatComponent extends JsonFormatComponentFactory[TuningReducer] {
 
@@ -26,11 +28,22 @@ object TuningReducerFormatComponent extends JsonFormatComponentFactory[TuningRed
   val DirectTypeName: String = "direct"
   val MergeTypeName: String = "merge"
 
-  override val defaultTypeName: Option[String] = Some(MergeTypeName)
+  private val mergeTypeFormat: Format[MergeTuningReducer] = {
+    val path = __ \ "equalityTolerance"
+    val reads =
+      path.readWithDefault[Double](DefaultCentsTolerance)(min(-50.0) keepAnd max(50.0))
+        .map { equalityTolerance => MergeTuningReducer(equalityTolerance) }
+    val writes = Writes[MergeTuningReducer] { mergeTuningReducer =>
+      path.write[Double].writes(mergeTuningReducer.equalityTolerance)
+    }
+
+    Format(reads, writes)
+  }
 
   override val specs: JsonFormatComponent.TypeSpecs[TuningReducer] = Seq(
     JsonFormatComponent.TypeSpec.withoutSettings(DirectTypeName, DirectTuningReducer),
-    JsonFormatComponent.TypeSpec.withSettings(MergeTypeName,
-      Json.using[Json.WithDefaultValues].format[MergeTuningReducer], classOf[MergeTuningReducer])
+    JsonFormatComponent.TypeSpec.withSettings(MergeTypeName, mergeTypeFormat, classOf[MergeTuningReducer])
   )
+
+  override val defaultTypeName: Option[String] = Some(MergeTypeName)
 }
