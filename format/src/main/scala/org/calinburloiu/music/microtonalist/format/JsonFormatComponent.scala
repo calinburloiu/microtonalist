@@ -33,7 +33,7 @@ import play.api.libs.json._
  * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
 class JsonFormatComponent[A](val familyName: String,
-                             specs: JsonFormatComponent.SpecsSeqType[A],
+                             specs: JsonFormatComponent.TypeSpecs[A],
                              defaultTypeName: Option[String] = None) {
 
   import JsonFormatComponent._
@@ -103,7 +103,7 @@ class JsonFormatComponent[A](val familyName: String,
 }
 
 object JsonFormatComponent {
-  type SpecsSeqType[F] = Seq[JsonFormatComponent.TypeSpec[_ <: F]]
+  type TypeSpecs[F] = Seq[JsonFormatComponent.TypeSpec[_ <: F]]
 
   private[format] val InvalidError: JsonValidationError = JsonValidationError("error.component.invalid")
   private[format] val MissingTypeError: JsonValidationError = JsonValidationError("error.component.type.missing")

@@ -26,13 +26,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
   val AutoTypeName: String = "auto"
   val ManualTypeName: String = "manual"
 
-  override def jsonFormatComponent: JsonFormatComponent[TuningMapper] = new JsonFormatComponent[TuningMapper](
-    familyName = familyName,
-    specs = specs,
-    defaultTypeName = Some(AutoTypeName)
-  )
-
-  private[format] val InvalidPitchClassError: String = "error.tuningMapper.pitchClass.invalid"
+  override val defaultTypeName: Option[String] = Some(AutoTypeName)
 
   private implicit val keyboardMappingFormat: Format[KeyboardMapping] = KeyboardMappingFormat.format
 
@@ -45,6 +39,8 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
     }
   )
 
+  private implicit val softChromaticGenusMappingFormat: Format[SoftChromaticGenusMapping] =
+    SoftChromaticGenusMappingFormatComponent.jsonFormatComponent.format
   private val autoTuningMapperReprFormat: Format[AutoTuningMapperRepr] = Json.using[Json.WithDefaultValues]
     .format[AutoTuningMapperRepr]
   private val autoTuningMapperFormat: Format[AutoTuningMapper] = Format(
@@ -52,7 +48,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
       AutoTuningMapper(
         shouldMapQuarterTonesLow = repr.shouldMapQuarterTonesLow,
         quarterToneTolerance = repr.quarterToneTolerance.getOrElse(DefaultQuarterToneTolerance),
-        softChromaticGenusMapping = SoftChromaticGenusMapping.withName(repr.softChromaticGenusMapping),
+        softChromaticGenusMapping = repr.softChromaticGenusMapping,
         overrideKeyboardMapping = repr.overrideKeyboardMapping.getOrElse(KeyboardMapping.empty)
       )
     },
@@ -60,14 +56,14 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
       val repr = AutoTuningMapperRepr(
         shouldMapQuarterTonesLow = autoTuningMapper.shouldMapQuarterTonesLow,
         quarterToneTolerance = Some(autoTuningMapper.quarterToneTolerance),
-        softChromaticGenusMapping = autoTuningMapper.softChromaticGenusMapping.entryName,
+        softChromaticGenusMapping = autoTuningMapper.softChromaticGenusMapping,
         overrideKeyboardMapping = Some(autoTuningMapper.overrideKeyboardMapping)
       )
       autoTuningMapperReprFormat.writes(repr)
     }
   )
 
-  private val specs: JsonFormatComponent.SpecsSeqType[TuningMapper] = Seq(
+  override val specs: JsonFormatComponent.TypeSpecs[TuningMapper] = Seq(
     JsonFormatComponent.TypeSpec.withSettings[ManualTuningMapper](
       typeName = ManualTypeName,
       format = manualTuningMapperFormat,
@@ -85,5 +81,5 @@ private case class ManualTuningMapperRepr(keyboardMapping: KeyboardMapping)
 
 private case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
                                         quarterToneTolerance: Option[Double] = None,
-                                        softChromaticGenusMapping: String = SoftChromaticGenusMapping.Off.entryName,
+                                        softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Off,
                                         overrideKeyboardMapping: Option[KeyboardMapping] = None)

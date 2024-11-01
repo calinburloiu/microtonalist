@@ -16,23 +16,23 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-/**
- * Factory that creates a [[JsonFormatComponent]] instance.
- *
- * @tparam A type of the component.
- */
-trait JsonFormatComponentFactory[A] {
+import play.api.libs.json.{JsonValidationError, Reads}
 
-  val familyName: String
+object JsonConstraints {
 
-  val specs: JsonFormatComponent.TypeSpecs[A]
+  /**
+   * Defines an exclusively minimum value for a Reads.
+   *
+   * @see [[Reads#min]]
+   */
+  def exclusiveMin[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]) =
+    Reads.filterNot[O](JsonValidationError("error.exclusiveMin", m))(ord.lteq(_, m))(reads)
 
-  val defaultTypeName: Option[String]
-
-  lazy val jsonFormatComponent: JsonFormatComponent[A] = {
-    require(defaultTypeName.forall { typeName => specs.exists(_.typeName == typeName) },
-      "defaultTypeName must exist in specs!")
-
-    new JsonFormatComponent[A](familyName, specs, defaultTypeName)
-  }
+  /**
+   * Defines an exclusively maximum value for a Reads.
+   *
+   * @see [[Reads#max]]
+   */
+  def exclusiveMax[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]) =
+    Reads.filterNot[O](JsonValidationError("error.exclusiveMax", m))(ord.gteq(_, m))(reads)
 }

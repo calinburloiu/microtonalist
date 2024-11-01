@@ -23,7 +23,7 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
  * Tuning reference tells what pitch class from the keyboard instrument must be used for the base pitch of a
  * composition and what tuning deviation should have with respect to standard tuning (12-EDO).
  */
-trait TuningRef {
+trait TuningReference {
 
   /**
    * @return a [[TuningPitch]] for the base pitch of the composition
@@ -47,8 +47,8 @@ trait TuningRef {
  * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
  * @param baseDeviation  Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.
  */
-case class StandardTuningRef(override val basePitchClass: PitchClass,
-                             override val baseDeviation: Double = 0.0) extends TuningRef {
+case class StandardTuningReference(override val basePitchClass: PitchClass,
+                                   override val baseDeviation: Double = 0.0) extends TuningReference {
 
   override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
 }
@@ -61,9 +61,9 @@ case class StandardTuningRef(override val basePitchClass: PitchClass,
  *                                   tuned.
  * @param concertPitchFreq           Reference frequency in Hz, typically known as concert pitch and set to `440.0` Hz.
  */
-case class ConcertPitchTuningRef(concertPitchToBaseInterval: Interval,
-                                 baseMidiNote: MidiNote,
-                                 concertPitchFreq: Double = ConcertPitchFreq) extends TuningRef {
+case class ConcertPitchTuningReference(concertPitchToBaseInterval: Interval,
+                                       baseMidiNote: MidiNote,
+                                       concertPitchFreq: Double = ConcertPitchFreq) extends TuningReference {
   require(concertPitchFreq > 0, "concertPitchFreq > 0")
   baseMidiNote.assertValid()
 

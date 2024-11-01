@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Pitch Class",
+    "description": "Pitch class here refers to the set of all keys of a keyboard instrument that are a whole number of octaves apart.\nA pitch class may be a string with an integer or a note name as seen on the keyboard. If it is an integer it must be between 0 and 11, where 0 is C, 1 is C♯/D♭, ..., 11 is B. If it is a note name as seen on the keyboard is expressed as the note letter (from A to G), followed by an optional accidental, # or ♯ for sharp, or b or ♭ for flat. The note name nation notation may also use both enharmonically equivalent notes separated by a slash (e.g \"C♯/D♭\", \"B♭/A♯\").",
+    "type": ["integer", "string"],
+    "oneOf": [
+        {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 11
+        },
+        {
+            "type": "string",
+            "pattern": "(^[A-Ga-g][#♯b♭]{0,1}(/[A-Ga-g][#♯b♭]{0,1}){0,1}$)"
+        }
+    ]
+}

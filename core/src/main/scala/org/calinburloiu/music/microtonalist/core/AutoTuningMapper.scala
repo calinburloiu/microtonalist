@@ -41,21 +41,20 @@ import scala.collection.{immutable, mutable}
  * `shouldMapQuarterTonesLow` is set to false this tetrachord would be mapped on the C key to C, D, E and F keys.
  * However, one would expect a chromatic tetrachord to be mapped to C, Db, E and F. This feature allows that.
  *
- * @param name          The identified of the mapping method.
+ * @param typeName          The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
-sealed abstract class SoftChromaticGenusMapping(override val entryName: String,
-                                                val aug2Threshold: Double) extends EnumEntry
+sealed abstract class SoftChromaticGenusMapping(val typeName: String,
+                                                val aug2Threshold: Double)
 
-object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
+object SoftChromaticGenusMapping {
+
   val Default: SoftChromaticGenusMapping = Off
-
-  override val values: immutable.IndexedSeq[SoftChromaticGenusMapping] = findValues
 
   /** The special mapping of the soft chromatic genus is disabled. */
   case object Off extends SoftChromaticGenusMapping("off", Double.PositiveInfinity)
 
-  /** The augmented second is a slightly larger than a whole tone. */
+  /** The augmented second is slightly larger than a whole tone. */
   case object Strict extends SoftChromaticGenusMapping("strict", 210.0)
 
   /**
@@ -104,7 +103,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     else Some(ManualTuningMapper(overrideKeyboardMapping))
   }
 
-  override def mapScale(scale: Scale[Interval], ref: TuningRef, transposition: Interval): PartialTuning = {
+  override def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): PartialTuning = {
     val transposedScale = scale.transpose(transposition)
 
     val pitchesInfo = mapScaleToPitchesInfo(transposedScale, ref)
@@ -129,7 +128,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
    * @return a pitch class with its deviation from 12-EDO
    */
   def mapInterval(interval: Interval,
-                  ref: TuningRef,
+                  ref: TuningReference,
                   overrideShouldMapQuarterTonesLow: Option[Boolean] = None): TuningPitch = {
     val totalCents = ref.baseTuningPitch.cents + interval.cents
     val halfDown = overrideShouldMapQuarterTonesLow.getOrElse(shouldMapQuarterTonesLow)
@@ -143,7 +142,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
   /**
    * @return the [[KeyboardMapping]] found by the mapper for the given scale and reference
    */
-  def keyboardMappingOf(scale: Scale[Interval], ref: TuningRef): KeyboardMapping = {
+  def keyboardMappingOf(scale: Scale[Interval], ref: TuningReference): KeyboardMapping = {
     val pitchesInfo = mapScaleToPitchesInfo(scale, ref)
 
     /**
@@ -171,7 +170,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
    * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale pitch index, with the
    *         pitches mentioned in `overrideKeyboardMapping` excluded.
    */
-  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningRef): PitchesInfo = {
+  private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningReference): PitchesInfo = {
     val mutablePitchesInfo = mutable.Map[Int, TuningPitch]()
     val intervals: Seq[(Interval, Int)] = scale.intervals.zipWithIndex.map {
       case (interval, pitchIndex) => (interval.normalize, pitchIndex)
@@ -232,7 +231,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 
   private def applySoftChromaticGenusMapping(pitchesInfo: PitchesInfo,
                                              scale: Scale[Interval],
-                                             ref: TuningRef): PitchesInfo = {
+                                             ref: TuningReference): PitchesInfo = {
     val aug2Threshold = softChromaticGenusMapping.aug2Threshold
 
     def detect2ndDegreeOfSoftHijaz(intervalBelow: Double, intervalAbove: Double,
@@ -311,7 +310,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     autoPartialTuning
   }
 
-  private def getManualPartialTuning(scale: Scale[Interval], ref: TuningRef) = {
+  private def getManualPartialTuning(scale: Scale[Interval], ref: TuningReference) = {
     val manualPartialTuning = manualTuningMapper match {
       case Some(manualTuningMapper) =>
         // Clearing the scale name to avoid name merging

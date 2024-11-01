@@ -20,6 +20,7 @@ import enumeratum.{Enum, EnumEntry}
 
 import scala.collection.immutable
 
+// TODO #64 Remove and make each format a unique TunerType. All MTS TunerTypes must extend an abstract MtsTunerType.
 sealed abstract class MtsTuningFormat(val messageGenerator: MidiTuningMessageGenerator) extends EnumEntry
 
 object MtsTuningFormat extends Enum[MtsTuningFormat] {

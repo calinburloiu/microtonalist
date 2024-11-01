@@ -16,23 +16,16 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-/**
- * Factory that creates a [[JsonFormatComponent]] instance.
- *
- * @tparam A type of the component.
- */
-trait JsonFormatComponentFactory[A] {
+import org.calinburloiu.music.scmidi.MidiNote
+import play.api.libs.functional.syntax.toApplicativeOps
+import play.api.libs.json.Reads.{max, min}
+import play.api.libs.json._
 
-  val familyName: String
+object MidiNoteFormat extends Format[MidiNote] {
 
-  val specs: JsonFormatComponent.TypeSpecs[A]
+  override def reads(json: JsValue): JsResult[MidiNote] = JsPath.read[Int](min(0) keepAnd max(127))
+    .map(MidiNote)
+    .reads(json)
 
-  val defaultTypeName: Option[String]
-
-  lazy val jsonFormatComponent: JsonFormatComponent[A] = {
-    require(defaultTypeName.forall { typeName => specs.exists(_.typeName == typeName) },
-      "defaultTypeName must exist in specs!")
-
-    new JsonFormatComponent[A](familyName, specs, defaultTypeName)
-  }
+  override def writes(midiNote: MidiNote): JsValue = JsNumber(midiNote.number)
 }

@@ -21,7 +21,7 @@ import scala.language.implicitConversions
 
 package object scmidi {
   /** Concert pitch frequency in Hz for central A4. */
-  val ConcertPitchFreq: Double = 440.0
+  val DefaultConcertPitchFreq: Double = 440.0
 
   implicit class MidiNote(val number: Int) extends AnyVal {
     /**
@@ -29,13 +29,18 @@ package object scmidi {
      *
      * Context: Scala value classes do not allow constructor validation.
      */
-    def assertValid(): Unit = MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
+    def assertValid(): this.type = {
+      MidiRequirements.requireUnsigned7BitValue("MidiNote#number", number)
+      this
+    }
 
     def pitchClass: PitchClass = PitchClass.fromNumber(number % 12)
 
     def octave: Int = number / 12 - 1
 
-    def freq: Double = ConcertPitchFreq * Math.pow(2, (number - MidiNote.ConcertPitch) / 12.0)
+    def freq: Double = DefaultConcertPitchFreq * Math.pow(2, (number - MidiNote.ConcertPitch) / 12.0)
+
+    override def toString: String = s"MidiNote($number)"
   }
 
   object MidiNote {

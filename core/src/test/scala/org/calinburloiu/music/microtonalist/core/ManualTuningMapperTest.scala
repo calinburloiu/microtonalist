@@ -50,10 +50,10 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     val keyboardMapping = KeyboardMapping(c = Some(6), d = Some(0), e = Some(1), f = Some(2), g = Some(3),
       a = Some(4), aSharpOrBFlat = Some(5))
     val mapper = ManualTuningMapper(keyboardMapping)
-    val tuningRef = ConcertPitchTuningRef(2 /: 3, MidiNote.D4)
+    val tuningReference = ConcertPitchTuningReference(2 /: 3, MidiNote.D4)
 
     // When
-    val partialTuning = mapper.mapScale(scale, tuningRef)
+    val partialTuning = mapper.mapScale(scale, tuningReference)
 
     // Then
     partialTuning.completedCount shouldEqual 7
@@ -74,10 +74,10 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     val keyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
       gSharpOrAFlat = Some(11), b = Some(12))
     val mapper = ManualTuningMapper(keyboardMapping)
-    val tuningRef = StandardTuningRef(PitchClass.C)
+    val tuningReference = StandardTuningReference(PitchClass.C)
 
     // When
-    val partialTuning = mapper.mapScale(scale, tuningRef)
+    val partialTuning = mapper.mapScale(scale, tuningReference)
 
     // Then
     partialTuning.completedCount shouldEqual 7
@@ -95,10 +95,10 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     val scale = CentsScale(0.0, 233.33, 400.0, 500.0)
     val mapping = KeyboardMapping(c = Some(0), cSharpOrDFlat = Some(1), e = Some(2), f = Some(3))
     val mapper = ManualTuningMapper(mapping)
-    val tuningRef = StandardTuningRef(PitchClass.C)
+    val tuningReference = StandardTuningReference(PitchClass.C)
     // Then
     assertThrows[TuningMapperOverflowException] {
-      mapper.mapScale(scale, tuningRef)
+      mapper.mapScale(scale, tuningReference)
     }
   }
 
@@ -107,10 +107,10 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     val scale = CentsScale(0.0, 200.0, 383.33, 500.0)
     val mapping = KeyboardMapping(c = Some(0), g = Some(4))
     val mapper = ManualTuningMapper(mapping)
-    val tuningRef = StandardTuningRef(PitchClass.C)
+    val tuningReference = StandardTuningReference(PitchClass.C)
     // Then
     assertThrows[IllegalArgumentException] {
-      mapper.mapScale(scale, tuningRef)
+      mapper.mapScale(scale, tuningReference)
     }
   }
 }

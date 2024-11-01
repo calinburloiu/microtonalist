@@ -95,7 +95,7 @@ class JsonFormatComponentTest extends JsonFormatTestUtils {
   it should "fail to parse a component without a type property when the format does not provide a default type" in {
     val format2 = createJsonFormatComponent(defaultTypeName = None).format
     val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReadsFailure(format2, json, JsonFormatComponent.MissingTypeError)
+    assertReadsSingleFailure(format2, json, JsonFormatComponent.MissingTypeError)
   }
 
   it should "parse a component expressed as a type string when all settings have defaults" in {
@@ -107,8 +107,8 @@ class JsonFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse components with unknown type" in {
-    assertReadsFailure(format, Json.toJson("foo"), JsonFormatComponent.UnrecognizedTypeError)
-    assertReadsFailure(format, Json.obj("type" -> "bar", "x" -> 3), JsonFormatComponent.UnrecognizedTypeError)
+    assertReadsSingleFailure(format, Json.toJson("foo"), JsonFormatComponent.UnrecognizedTypeError)
+    assertReadsSingleFailure(format, Json.obj("type" -> "bar", "x" -> 3), JsonFormatComponent.UnrecognizedTypeError)
   }
 
   it should "parse components whose missing settings are taken from defaults or global settings" in {
@@ -137,14 +137,19 @@ class JsonFormatComponentTest extends JsonFormatTestUtils {
   }
 
   it should "fail to parse a component that is not a type name string or valid object" in {
-    assertReadsFailure(format, Json.toJson(3), JsonFormatComponent.InvalidError)
-    assertReadsFailure(format, JsNull, JsonFormatComponent.InvalidError)
-    assertReadsFailure(format, Json.arr(1, 2), JsonFormatComponent.InvalidError)
+    assertReadsSingleFailure(format, Json.toJson(3), JsonFormatComponent.InvalidError)
+    assertReadsSingleFailure(format, JsNull, JsonFormatComponent.InvalidError)
+    assertReadsSingleFailure(format, Json.arr(1, 2), JsonFormatComponent.InvalidError)
   }
 
   it should "parse a component with no settings" in {
     assertReads(format, JsString(TypeNameSea), Sea)
     assertReads(format, Json.obj("type" -> TypeNameSea), Sea)
+  }
+
+  // TODO Fix
+  ignore should "fail to parse a component with an invalid settings in global settings" in {
+    ???
   }
 
   "writing" should "serialize as JSON Scala component objects" in {

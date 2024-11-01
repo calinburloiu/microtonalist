@@ -102,7 +102,7 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
       formatModule.defaultCompositionRepo)
 
     composition.intonationStandard shouldEqual JustIntonationStandard
-    composition.tuningRef.basePitchClass.number shouldEqual 2
+    composition.tuningReference.basePitchClass.number shouldEqual 2
 
     composition.tuningSpecs.head.scale shouldEqual RatiosScale("Hüseyni",
       1 /: 1, 12 /: 11, 32 /: 27, 4 /: 3, 3 /: 2, 18 /: 11, 16 /: 9, 2 /: 1)

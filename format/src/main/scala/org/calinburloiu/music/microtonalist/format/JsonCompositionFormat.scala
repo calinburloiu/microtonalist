@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core._
-import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
@@ -73,8 +72,12 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     }.flatMap { intonationStandard =>
       context.intonationStandard = intonationStandard
 
+      implicit val tuningReferenceReads: Reads[TuningReference] = TuningReferenceFormatComponent(intonationStandard)
+        .jsonFormatComponent.readsWithRootGlobalSettings(context.settings)
       implicit val tuningSpecReprReads: Reads[TuningSpecRepr] =
         tuningSpecReprReadsFor(context.intonationStandard, context.settings)
+      implicit val tuningReducerReads: Reads[TuningReducer] = TuningReducerFormatComponent.jsonFormatComponent
+        .readsWithRootGlobalSettings(context.settings)
       implicit val compositionReprReads: Reads[CompositionRepr] = Json.using[Json.WithDefaultValues]
         .reads[CompositionRepr]
 
@@ -108,14 +111,14 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       TuningSpec(transposition, scale, tuningMapper)
     }
 
-    val tuningRef = StandardTuningRef(PitchClass.fromNumber(compositionRepr.tuningReference.basePitchClass))
+    val tuningReference = compositionRepr.tuningReference
     val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
     val globalFill = compositionRepr.globalFill.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
 
     Composition(
       intonationStandard = context.intonationStandard,
-      tuningRef = tuningRef,
+      tuningReference = tuningReference,
       tuningSpecs = tuningSpecs,
       tuningReducer = tuningReducer,
       globalFill = globalFill,
@@ -145,21 +148,6 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 object JsonCompositionFormat {
   private val DefaultScaleName: String = ""
 
-  private[JsonCompositionFormat] implicit val tuningRefReprReads: Reads[OriginRepr] = Json.reads[OriginRepr]
-
-  private[JsonCompositionFormat] implicit val tuningReducerPlayJsonFormat: Format[TuningReducer] =
-    TuningReducerPlayJsonFormat
-
   private[JsonCompositionFormat] implicit val metadataReads: Reads[CompositionMetadata] =
     Json.reads[CompositionMetadata]
-
-  private[format] object TuningReducerPlayJsonFormat extends ComponentPlayJsonFormat[TuningReducer] {
-
-    import ComponentPlayJsonFormat._
-
-    override val subComponentSpecs: Seq[SubComponentSpec[_ <: TuningReducer]] = Seq(
-      SubComponentSpec("direct", classOf[DirectTuningReducer], None, Some(() => DirectTuningReducer())),
-      SubComponentSpec("merge", classOf[MergeTuningReducer], None, Some(() => MergeTuningReducer())),
-    )
-  }
 }

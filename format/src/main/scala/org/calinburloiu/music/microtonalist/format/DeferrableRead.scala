@@ -157,7 +157,7 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] with 
       case None =>
         lock.writeLock.lock()
         try {
-          // We need to read the value again because it might has changed since we released the read lock above
+          // We need to read the value again because it might have changed since we released the read lock above
           _futureValue match {
             case Some(v) =>
               logger.warn(s"The value $v was already concurrently loaded!")

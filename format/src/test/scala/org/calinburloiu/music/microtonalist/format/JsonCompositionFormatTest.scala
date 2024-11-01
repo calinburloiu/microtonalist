@@ -23,7 +23,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, Inside}
-import play.api.libs.json._
 
 import java.net.URI
 import scala.collection.mutable
@@ -32,7 +31,6 @@ import scala.concurrent.Future
 class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with BeforeAndAfter with MockFactory {
 
   import FormatTestUtils.readCompositionFromResources
-  import JsonCompositionFormat._
 
   private val urisOfReadScales: mutable.ArrayBuffer[URI] = mutable.ArrayBuffer()
 
@@ -88,7 +86,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs.head.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
 
-    // TODO #62 Also test tuningRef intervals
+    // TODO #62 Also test tuningReference intervals
   }
 
   // TODO #68
@@ -99,7 +97,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tuningSpecs(1).scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
   }
 
-  // TODO #62 Also test tuningRef intervals
+  // TODO #62 Also test tuningReference intervals
   ignore should "successfully interpret concertPitchToBaseInterval from tuningReference in 72-EDO intonation " +
     "standard" in {
   }
@@ -115,7 +113,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     composition.globalFill.map(_.scale) should contain(chromaticScale)
     composition.globalFill.map(_.transposition) should contain(1 /: 1)
-    composition.tuningRef.basePitchClass.number shouldEqual 2
+    composition.tuningReference.basePitchClass.number shouldEqual 2
 
     composition.tuningSpecs.head.scale shouldEqual naturalMinorScale
     composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
@@ -185,42 +183,4 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     urisOfReadScales should have length 1
     urisOfReadScales.head.toString should endWith("scales/major.scl")
   }
-
-  "TuningReducerPlayJsonFormat" should "deserialize JSON string containing type" in {
-    inside(TuningReducerPlayJsonFormat.reads(JsString("direct"))) {
-      case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
-    }
-    inside(TuningReducerPlayJsonFormat.reads(JsString("merge"))) {
-      case JsSuccess(value, _) => value shouldBe a[MergeTuningReducer]
-    }
-    TuningReducerPlayJsonFormat.reads(JsString("bogus")) shouldBe a[JsError]
-  }
-
-  it should "deserialize JSON object only containing type by using default factory" in {
-    val directTuningReducerJson = Json.obj("type" -> "direct")
-    inside(TuningReducerPlayJsonFormat.reads(directTuningReducerJson)) {
-      case JsSuccess(value, _) => value shouldBe a[DirectTuningReducer]
-    }
-
-    val mergeTuningReducerJson = Json.obj("type" -> "merge")
-    inside(TuningReducerPlayJsonFormat.reads(mergeTuningReducerJson)) {
-      case JsSuccess(value, _) => value shouldBe a[MergeTuningReducer]
-    }
-
-    val bogusTuningReducerJson = Json.obj("type" -> "bogus")
-    TuningReducerPlayJsonFormat.reads(bogusTuningReducerJson) shouldBe a[JsError]
-
-    val invalidJson = Json.obj("typ" -> "direct")
-    TuningReducerPlayJsonFormat.reads(invalidJson) shouldBe a[JsError]
-  }
-
-  it should "serialize JSON string containing types of direct and merge" in {
-    TuningReducerPlayJsonFormat.writes(DirectTuningReducer()) shouldEqual JsString("direct")
-    TuningReducerPlayJsonFormat.writes(MergeTuningReducer()) shouldEqual JsString("merge")
-    a[Error] should be thrownBy TuningReducerPlayJsonFormat.writes(mock[TuningReducer])
-  }
 }
-
-trait Stub
-
-case class SubComponent(bar: Int, baz: Int) extends Stub

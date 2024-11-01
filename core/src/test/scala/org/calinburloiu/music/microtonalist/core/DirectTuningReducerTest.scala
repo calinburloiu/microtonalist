@@ -21,7 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
-  private val reducer: TuningReducer = DirectTuningReducer()
+  private val reducer: TuningReducer = DirectTuningReducer
 
   it should "return an empty tuning list with no partial tunings" in {
     val tuningList = reducer.reduceTunings(Seq.empty)

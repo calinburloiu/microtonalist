@@ -27,7 +27,9 @@
                 "quarterToneTolerance": {
                     "type": "number",
                     "title": "Quarter Tone Tolerance",
-                    "description": "As explained for setting shouldMapQuarterTonesLow, a quarter tone tuning value may be equally close to the standard 12-EDO tuning of two adjacent pitch classes from a keyboard. A perfect quarter tone, will have its cents value ending in 50 cents and is equally close to either of those pitch classes. This tolerance value allows the quarter tone to deviate from that perfect value with a desired value in cents.\nFor example, consider a scale starting from C with a pitch that has the ratio 13/12 (138.6 cents). If quarterToneTolerance is set to 15 cents, then, quarter tone values are allowed within the range of 135 and 165 cents and 13/12, will be considered a quarter tone. This allows it to be tuned to D with a tuning of -61.4 cents with respect to the standard 12-EDO tuning."
+                    "description": "As explained for setting shouldMapQuarterTonesLow, a quarter tone tuning value may be equally close to the standard 12-EDO tuning of two adjacent pitch classes from a keyboard. A perfect quarter tone, will have its cents value ending in 50 cents and is equally close to either of those pitch classes. This tolerance value allows the quarter tone to deviate from that perfect value with a desired value in cents.\nFor example, consider a scale starting from C with a pitch that has the ratio 13/12 (138.6 cents). If quarterToneTolerance is set to 15 cents, then, quarter tone values are allowed within the range of 135 and 165 cents and 13/12, will be considered a quarter tone. This allows it to be tuned to D with a tuning of -61.4 cents with respect to the standard 12-EDO tuning.",
+                    "minimum": -50,
+                    "maximum": 50
                 },
                 "softChromaticGenusMapping": {
                     "type": "string",

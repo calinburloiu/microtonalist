@@ -19,8 +19,6 @@ package org.calinburloiu.music.microtonalist.core
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
 
-import scala.annotation.tailrec
-
 case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning] {
 
   def apply(index: Int): OctaveTuning = {
@@ -37,9 +35,9 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 object TuningList extends StrictLogging {
 
   def fromComposition(composition: Composition): TuningList = {
-    val globalFillTuning = composition.globalFill.map(_.tuningFor(composition.tuningRef))
+    val globalFillTuning = composition.globalFill.map(_.tuningFor(composition.tuningReference))
       .getOrElse(PartialTuning.StandardTuningOctave)
-    val partialTunings = composition.tuningSpecs.map(_.tuningFor(composition.tuningRef))
+    val partialTunings = composition.tuningSpecs.map(_.tuningFor(composition.tuningReference))
 
     composition.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
   }
