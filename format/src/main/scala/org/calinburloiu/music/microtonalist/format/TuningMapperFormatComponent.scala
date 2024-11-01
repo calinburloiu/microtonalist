@@ -39,6 +39,8 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
     }
   )
 
+  private implicit val softChromaticGenusMappingFormat: Format[SoftChromaticGenusMapping] =
+    SoftChromaticGenusMappingFormatComponent.jsonFormatComponent.format
   private val autoTuningMapperReprFormat: Format[AutoTuningMapperRepr] = Json.using[Json.WithDefaultValues]
     .format[AutoTuningMapperRepr]
   private val autoTuningMapperFormat: Format[AutoTuningMapper] = Format(
@@ -46,7 +48,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
       AutoTuningMapper(
         shouldMapQuarterTonesLow = repr.shouldMapQuarterTonesLow,
         quarterToneTolerance = repr.quarterToneTolerance.getOrElse(DefaultQuarterToneTolerance),
-        softChromaticGenusMapping = SoftChromaticGenusMapping.withName(repr.softChromaticGenusMapping),
+        softChromaticGenusMapping = repr.softChromaticGenusMapping,
         overrideKeyboardMapping = repr.overrideKeyboardMapping.getOrElse(KeyboardMapping.empty)
       )
     },
@@ -54,7 +56,7 @@ object TuningMapperFormatComponent extends JsonFormatComponentFactory[TuningMapp
       val repr = AutoTuningMapperRepr(
         shouldMapQuarterTonesLow = autoTuningMapper.shouldMapQuarterTonesLow,
         quarterToneTolerance = Some(autoTuningMapper.quarterToneTolerance),
-        softChromaticGenusMapping = autoTuningMapper.softChromaticGenusMapping.entryName,
+        softChromaticGenusMapping = autoTuningMapper.softChromaticGenusMapping,
         overrideKeyboardMapping = Some(autoTuningMapper.overrideKeyboardMapping)
       )
       autoTuningMapperReprFormat.writes(repr)
@@ -79,5 +81,5 @@ private case class ManualTuningMapperRepr(keyboardMapping: KeyboardMapping)
 
 private case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
                                         quarterToneTolerance: Option[Double] = None,
-                                        softChromaticGenusMapping: String = SoftChromaticGenusMapping.Off.entryName,
+                                        softChromaticGenusMapping: SoftChromaticGenusMapping = SoftChromaticGenusMapping.Off,
                                         overrideKeyboardMapping: Option[KeyboardMapping] = None)

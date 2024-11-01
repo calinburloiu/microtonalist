@@ -41,16 +41,15 @@ import scala.collection.{immutable, mutable}
  * `shouldMapQuarterTonesLow` is set to false this tetrachord would be mapped on the C key to C, D, E and F keys.
  * However, one would expect a chromatic tetrachord to be mapped to C, Db, E and F. This feature allows that.
  *
- * @param name          The identified of the mapping method.
+ * @param typeName          The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
-sealed abstract class SoftChromaticGenusMapping(override val entryName: String,
-                                                val aug2Threshold: Double) extends EnumEntry
+sealed abstract class SoftChromaticGenusMapping(val typeName: String,
+                                                val aug2Threshold: Double)
 
-object SoftChromaticGenusMapping extends Enum[SoftChromaticGenusMapping] {
+object SoftChromaticGenusMapping {
+
   val Default: SoftChromaticGenusMapping = Off
-
-  override val values: immutable.IndexedSeq[SoftChromaticGenusMapping] = findValues
 
   /** The special mapping of the soft chromatic genus is disabled. */
   case object Off extends SoftChromaticGenusMapping("off", Double.PositiveInfinity)
