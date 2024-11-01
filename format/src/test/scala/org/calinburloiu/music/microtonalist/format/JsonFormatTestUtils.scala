@@ -74,15 +74,33 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
           jsError.errors.exists {
             case (currPath, currJsonValidationErrors) =>
               currPath == path && currJsonValidationErrors.exists(_.messages.contains(errorMessage))
+            case _ => false
           } shouldBe true
         }
       case jsSuccess: JsSuccess[_] => fail(s"($path, $errorMessage) does not match ($json, $jsSuccess)")
     }
   }
 
-  def assertFailureTable[A](reads: Reads[A],
-                            baselineJson: JsObject,
-                            table: TableFor3[JsPath, JsonPropertyCheck, String]): Unit = {
+  /**
+   * Method that can be used for testing error handling at property level by using a table to check errors returned
+   * when invalid values are passed to various properties.
+   *
+   * @param reads        JSON deserializer.
+   * @param baselineJson A JSON that should be successfully deserialized as it is which will be modified according to
+   *                     the second column of the table at the [[JsPath]] of the first column.
+   * @param table        A test table with the following columns:
+   *               - Path where `baselineJson` will be modified to be invalid.
+   *               - Check to be performed which will produce various failures at the given path.
+   *               - Expected error message.
+   * @tparam A Type to be deserialized.
+   */
+  def assertReadsFailureTable[A](reads: Reads[A],
+                                 baselineJson: JsObject,
+                                 table: TableFor3[JsPath, JsonFailureCheck, String]): Unit = {
+    withClue("Precondition: baselineJson deserialization should be successful") {
+      baselineJson.validate[A](reads).isSuccess shouldBe true
+    }
+
     def updateJson(path: JsPath, value: JsValue): JsValue = {
       val update = __.json.update(path.json.put(value))
       baselineJson.transform(update).get
@@ -110,7 +128,12 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
 }
 
 object JsonFormatTestUtils {
-  sealed class JsonType(val sample: JsValue)
+
+  /**
+   * Base class for identifiers for JSON types, each with a sample value, that will be used by
+   * [[JsonFormatTestUtils#assertReadsFailureTable]].
+   */
+  sealed abstract class JsonType(val sample: JsValue)
 
   case object JsonNullType extends JsonType(JsNull)
 
@@ -127,9 +150,23 @@ object JsonFormatTestUtils {
   val AllJsonTypes: Seq[JsonType] =
     Seq(JsonNullType, JsonNumberType, JsonBooleanType, JsonStringType, JsonArrayType, JsonObjectType)
 
-  sealed trait JsonPropertyCheck
+  /**
+   * Trait for checks to be performed which will produce various failures at the given path by the
+   * [[JsonFormatTestUtils#assertReadsFailureTable]] method.
+   */
+  sealed trait JsonFailureCheck
 
-  case class DisallowedValues(values: JsValue*) extends JsonPropertyCheck
+  /**
+   * Invalid values at a given path in a JSON that are expected to produce an error when deserializing with [[Reads]].
+   *
+   * @param values A sequence of invalid value for the given path.
+   */
+  case class DisallowedValues(values: JsValue*) extends JsonFailureCheck
 
-  case class AllowedTypes(jsonTypes: JsonType*) extends JsonPropertyCheck
+  /**
+   * All JSON types not listed here will be used as invalid values at a given path.
+   *
+   * @param jsonTypes A sequence of acceptable types that be avoided to produce a failure.
+   */
+  case class AllowedTypes(jsonTypes: JsonType*) extends JsonFailureCheck
 }

@@ -53,12 +53,12 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
     }
 
     val futures: mutable.ArrayBuffer[Future[Any]] = mutable.ArrayBuffer()
-    for (tuningSpec <- tunings; scale <- tuningSpec.scale) {
-      futures += scale.load(scaleLoader)
+    for (tuningSpec <- tunings; deferredScale <- tuningSpec.scale) {
+      futures += deferredScale.load(scaleLoader)
     }
 
-    for (globalFillValue <- globalFill; scale <- globalFillValue.scale) {
-      futures += scale.load(scaleLoader)
+    for (globalFillValue <- globalFill; deferredScale <- globalFillValue.scale) {
+      futures += deferredScale.load(scaleLoader)
     }
 
     Future.sequence(futures).map(_ => this)

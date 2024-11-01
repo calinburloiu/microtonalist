@@ -147,6 +147,11 @@ class JsonFormatComponentTest extends JsonFormatTestUtils {
     assertReads(format, Json.obj("type" -> TypeNameSea), Sea)
   }
 
+  // TODO Fix
+  ignore should "fail to parse a component with an invalid settings in global settings" in {
+    ???
+  }
+
   "writing" should "serialize as JSON Scala component objects" in {
     val domestic = Domestic("Tom", "Scooby")
     format.writes(domestic) shouldEqual Json.obj(

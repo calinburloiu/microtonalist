@@ -18,14 +18,14 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{Interval, IntonationStandard}
 import org.calinburloiu.music.microtonalist.core.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
+import org.calinburloiu.music.microtonalist.format.JsonConstraints.exclusiveMin
 import org.calinburloiu.music.scmidi.{DefaultConcertPitchFreq, MidiNote, PitchClass}
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
+import play.api.libs.json.Reads.{min, max}
 import play.api.libs.json._
 
 case class TuningReferenceFormatComponent(intonationStandard: IntonationStandard) extends
   JsonFormatComponentFactory[TuningReference] {
-
-  import TuningReferenceFormatComponent._
 
   override val familyName: String = "tuningReference"
 
@@ -39,22 +39,15 @@ case class TuningReferenceFormatComponent(intonationStandard: IntonationStandard
   //@formatter:off
   private val standardTypeFormat: Format[StandardTuningReference] = (
     (__ \ "basePitchClass").format[PitchClass](PitchClassFormat) and
-    (__ \ "baseDeviation").formatWithDefault[Double](0.0)
+    (__ \ "baseDeviation").formatWithDefault[Double](0.0)(
+      Format(min(-50.0) keepAnd max(50.0), Writes.DoubleWrites))
   )(StandardTuningReference.apply, unlift(StandardTuningReference.unapply))
-
-  private val concertPitchTypeReads: Reads[ConcertPitchTuningReference] = (
-    (__ \ "concertPitchToBaseInterval").read[Interval] and
-    (__ \ "baseMidiNote").read[MidiNote](MidiNoteFormat) and
-    (__ \ "concertPitchFrequency").readWithDefault[Double](DefaultConcertPitchFreq)(
-      Reads.filter(JsonValidationError(ConcertPitchFreqRangeError)) { v: Double => v > 0.0 && v <= 20000 })
-  )(ConcertPitchTuningReference.apply _)
-  private val concertPitchTypeWrites: Writes[ConcertPitchTuningReference] = (
-    (__ \ "concertPitchToBaseInterval").write[Interval] and
-    (__ \ "baseMidiNote").write[MidiNote](MidiNoteFormat) and
-    (__ \ "concertPitchFrequency").write[Double]
-  )(unlift(ConcertPitchTuningReference.unapply))
-  private val concertPitchTypeFormat: Format[ConcertPitchTuningReference] = Format(
-    concertPitchTypeReads, concertPitchTypeWrites)
+  private val concertPitchTypeFormat: Format[ConcertPitchTuningReference] = (
+    (__ \ "concertPitchToBaseInterval").format[Interval] and
+    (__ \ "baseMidiNote").format[MidiNote](MidiNoteFormat) and
+    (__ \ "concertPitchFrequency").formatWithDefault[Double](DefaultConcertPitchFreq)(
+      Format(exclusiveMin(0.0) keepAnd max(20000.0), Writes.DoubleWrites))
+  )(ConcertPitchTuningReference.apply, unlift(ConcertPitchTuningReference.unapply))
   //@formatter:on
 
   override val specs: JsonFormatComponent.TypeSpecs[TuningReference] = Seq(

@@ -37,6 +37,7 @@ object PitchClassFormat extends Format[PitchClass] {
           case None => JsError(InvalidPitchClassError)
         }
       }.reads(json)
+    case _ => JsError(InvalidPitchClassError)
   }
 
   override def writes(pitchClass: PitchClass): JsValue = JsNumber(pitchClass.number)

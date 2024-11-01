@@ -15,7 +15,9 @@
                 "equalityTolerance": {
                     "type": "number",
                     "title": "Equality Tolerance",
-                    "description": "Maximum error allowed when checking if two tuning values are equal.\nWhen two corresponding tuning values of the same pitch class of two consecutive tunings are not equal within this tolerance, it is said that there is a conflict between them which blocks merging of those tunings."
+                    "description": "Maximum error allowed when checking if two tuning values are equal.\nWhen two corresponding tuning values of the same pitch class of two consecutive tunings are not equal within this tolerance, it is said that there is a conflict between them which blocks merging of those tunings.",
+                    "minimum": -50,
+                    "maximum": 50
                 }
             }
         },

@@ -16,16 +16,23 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.scmidi.MidiNote
-import play.api.libs.functional.syntax.toApplicativeOps
-import play.api.libs.json.Reads.{max, min}
-import play.api.libs.json._
+import play.api.libs.json.{JsonValidationError, Reads}
 
-object MidiNoteFormat extends Format[MidiNote] {
+object JsonConstraints {
 
-  override def reads(json: JsValue): JsResult[MidiNote] = JsPath.read[Int](min(0) keepAnd max(127))
-    .map(MidiNote)
-    .reads(json)
+  /**
+   * Defines an exclusively minimum value for a Reads.
+   *
+   * @see [[Reads#min]]
+   */
+  def exclusiveMin[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]) =
+    Reads.filterNot[O](JsonValidationError("error.exclusiveMin", m))(ord.lteq(_, m))(reads)
 
-  override def writes(midiNote: MidiNote): JsValue = JsNumber(midiNote.number)
+  /**
+   * Defines an exclusively maximum value for a Reads.
+   *
+   * @see [[Reads#max]]
+   */
+  def exclusiveMax[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]) =
+    Reads.filterNot[O](JsonValidationError("error.exclusiveMax", m))(ord.gteq(_, m))(reads)
 }
