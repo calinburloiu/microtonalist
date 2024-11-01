@@ -22,7 +22,10 @@ package org.calinburloiu.music.microtonalist.core
  *
  * The final tuning list must contain [[OctaveTuning]] objects, not [[PartialTuning]], so they must be complete.
  */
-trait TuningReducer {
+trait TuningReducer extends Plugin {
+
+  override val familyName: String = "tuningReducer"
+
   def reduceTunings(tunings: Seq[PartialTuning],
                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
 }
