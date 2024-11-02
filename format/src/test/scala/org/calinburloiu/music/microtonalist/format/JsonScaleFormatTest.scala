@@ -87,7 +87,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
       )
     )
 
-    for (jsIntervalValue <- Seq(JsString("xxx"), JsString("5:4"), Json.arr(2), Json.obj())) {
+    for (jsIntervalValue <- Seq(JsString("xxx"), JsString("5:4"), Json.arr(2), JsObject.empty)) {
       assertThrows[InvalidJsonScaleException] {
         scaleFormat.read(createJsonScale(jsIntervalValue), None)
       }
@@ -141,7 +141,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
   }
 
   it should "fail if some intervals are invalid" in {
-    for (jsIntervalValue <- Seq(JsString("xxx"), JsString("5:4"), Json.arr(2), Json.obj())) {
+    for (jsIntervalValue <- Seq(JsString("xxx"), JsString("5:4"), Json.arr(2), JsObject.empty)) {
       assertThrows[InvalidJsonScaleException] {
         scaleFormat.read(createJustJsonScaleWithBadInterval(jsIntervalValue), None)
       }
@@ -218,7 +218,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
       )
     )
 
-    for (jsIntervalValue <- Seq(JsString("xxx"), JsString("5:4"), Json.arr(2), Json.obj())) {
+    for (jsIntervalValue <- Seq(JsString("xxx"), JsString("5:4"), Json.arr(2), JsObject.empty)) {
       assertThrows[InvalidJsonScaleException] {
         scaleFormat.read(createJsonScale(jsIntervalValue), None)
       }

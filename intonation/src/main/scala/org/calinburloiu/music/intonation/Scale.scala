@@ -278,6 +278,9 @@ object Scale {
     }
   }
 
+  def createUnisonScale(name: String, intonationStandard: IntonationStandard): Scale[Interval] =
+    Scale.create(name, Seq(intonationStandard.unison), intonationStandard)
+
   private def processIntervals[I <: Interval](intervals: Seq[Interval], unison: I): Seq[I] = {
     val intervalsWithUnison = if (!intervals.exists(interval => interval.isUnison)) unison +: intervals else intervals
     intervalsWithUnison.sorted.asInstanceOf[Seq[I]]

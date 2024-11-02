@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core._
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 
 import java.io.{InputStream, OutputStream}
@@ -61,7 +62,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       context.baseUri = actualBaseUri
       context.preprocessedJson = preprocessedJson
 
-      (context.preprocessedJson \ "settings").validateOpt[JsObject].map(_.getOrElse(Json.obj()))
+      (context.preprocessedJson \ "settings").validateOpt[JsObject].map(_.getOrElse(JsObject.empty))
     }.flatMap { settings =>
       context.settings = settings
 
@@ -97,21 +98,11 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
    */
   private def fromReprToDomain(compositionRepr: CompositionRepr): Composition = {
     val context = compositionRepr.context
-    val defaultTuningMapper = if (JsonTuningMapperPluginFormat.hasGlobalSettingsForDefaultType(context.settings)) {
-      JsonTuningMapperPluginFormat.readDefaultPlugin(context.settings).getOrElse {
-        throw new InvalidCompositionFormatException("AutoTuningMapper from settings is invalid!")
-      }
-    } else {
-      AutoTuningMapper.Default
-    }
 
     def convertTuningSpec(tuningSpecRepr: TuningSpecRepr): TuningSpec = {
-      val transposition = tuningSpecRepr.transposition.getOrElse(context.intonationStandard.unison)
-      val name = tuningSpecRepr.name.getOrElse(DefaultScaleName)
-      val intonationStandard = context.intonationStandard
-      val scale = tuningSpecRepr.scale.map(_.value).getOrElse(
-        Scale.create(name, Seq(intonationStandard.unison), intonationStandard))
-      val tuningMapper = tuningSpecRepr.tuningMapper.getOrElse(defaultTuningMapper)
+      val transposition = tuningSpecRepr.transposition
+      val scale = tuningSpecRepr.scale.value
+      val tuningMapper = tuningSpecRepr.tuningMapper
 
       TuningSpec(transposition, scale, tuningMapper)
     }
@@ -133,10 +124,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
   private def tuningSpecReprReadsFor(intonationStandard: IntonationStandard,
                                      rootGlobalSettings: JsObject): Reads[TuningSpecRepr] = {
-    Reads { jsValue =>
-      jsValue.validate[JsObject].flatMap { jsObj => (jsObj \ "name").validateOpt[String] }
-    }.flatMap { name =>
-      val scaleFormatContext = Some(ScaleFormatContext(name.orElse(Some(DefaultScaleName)), Some(intonationStandard)))
+    (__ \ "name").readNullable[String].flatMap { maybeName =>
+      val name = maybeName.getOrElse(DefaultScaleName)
+      val scaleFormatContext = Some(ScaleFormatContext(Some(name), Some(intonationStandard)))
 
       implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(intonationStandard)
       implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(scaleFormatContext)
@@ -145,7 +135,20 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       implicit val tuningMapperReads: Reads[TuningMapper] = JsonTuningMapperPluginFormat
         .readsWithRootGlobalSettings(rootGlobalSettings)
 
-      Json.using[Json.WithDefaultValues].reads[TuningSpecRepr]
+      val createDefaultDeferredScale = () => AlreadyRead[Scale[Interval], URI](
+        Scale.createUnisonScale(name, intonationStandard)
+      )
+      val tuningMapperPath = __ \ "tuningMapper"
+      //@formatter:off
+      (
+        (__ \ "transposition").readWithDefault[Interval](intonationStandard.unison) and
+        (__ \ "scale").readWithDefault[DeferrableRead[Scale[Interval], URI]](createDefaultDeferredScale()) and
+        tuningMapperPath.readNullable[TuningMapper].flatMapResult {
+          case Some(tuningMapper) => JsSuccess(tuningMapper)
+          case None => JsonTuningMapperPluginFormat.readDefaultPlugin(rootGlobalSettings).repath(tuningMapperPath)
+        }
+      )(TuningSpecRepr.apply _)
+      //@formatter:on
     }
   }
 }

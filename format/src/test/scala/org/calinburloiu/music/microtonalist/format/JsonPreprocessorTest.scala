@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import play.api.libs.json.{JsPath, Json, __}
+import play.api.libs.json.{JsObject, JsPath, Json, __}
 
 import java.net.URI
 import scala.collection.mutable
@@ -113,7 +113,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val input = Json.obj("$ref" -> "company/employees/john.json")
     val mockLoader = stub[JsonPreprocessorRefLoader]
-    mockLoader.load _ when(*, *) returns Some(Json.obj())
+    mockLoader.load _ when(*, *) returns Some(JsObject.empty)
     val loaders: RefLoaders = Seq(mockLoader)
     val preprocessor = new JsonPreprocessor(loaders)
     // When
@@ -131,20 +131,20 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
         "bar" -> Json.obj(
           "$ref" -> "https://example.org/3",
           "items" -> Json.arr(
-            Json.obj(),
+            JsObject.empty,
             Json.obj(
               "$ref" -> "https://example.org/4",
               "detail" -> Json.obj(
                 "$ref" -> "https://example.org/5"
               )
             ),
-            Json.obj()
+            JsObject.empty
           )
         )
       )
     )
     val mockLoader = stub[JsonPreprocessorRefLoader]
-    mockLoader.load _ when(*, *) returns Some(Json.obj())
+    mockLoader.load _ when(*, *) returns Some(JsObject.empty)
     val loaders: RefLoaders = Seq(mockLoader)
     val preprocessor = new JsonPreprocessor(loaders)
     // When
