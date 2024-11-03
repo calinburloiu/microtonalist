@@ -125,6 +125,18 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
   private def tuningSpecReprReadsFor(intonationStandard: IntonationStandard,
                                      rootGlobalSettings: JsObject): Reads[TuningSpecRepr] = {
     (__ \ "name").readNullable[String].flatMap { maybeName =>
+      def createDefaultDeferredScale() = AlreadyRead[Scale[Interval], URI](
+        Scale.createUnisonScale(name, intonationStandard)
+      )
+
+      def createDefaultTuningMapper() = {
+        if (JsonTuningMapperPluginFormat.hasGlobalSettingsForDefaultType(rootGlobalSettings)) {
+          JsonTuningMapperPluginFormat.readDefaultPlugin(rootGlobalSettings)
+        } else {
+          JsSuccess(AutoTuningMapper.Default)
+        }
+      }
+
       val name = maybeName.getOrElse(DefaultScaleName)
       val scaleFormatContext = Some(ScaleFormatContext(Some(name), Some(intonationStandard)))
 
@@ -135,24 +147,15 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       implicit val tuningMapperReads: Reads[TuningMapper] = JsonTuningMapperPluginFormat
         .readsWithRootGlobalSettings(rootGlobalSettings)
 
-      val createDefaultDeferredScale = () => AlreadyRead[Scale[Interval], URI](
-        Scale.createUnisonScale(name, intonationStandard)
-      )
       val tuningMapperPath = __ \ "tuningMapper"
+
       //@formatter:off
       (
         (__ \ "transposition").readWithDefault[Interval](intonationStandard.unison) and
         (__ \ "scale").readWithDefault[DeferrableRead[Scale[Interval], URI]](createDefaultDeferredScale()) and
         tuningMapperPath.readNullable[TuningMapper].flatMapResult {
           case Some(tuningMapper) => JsSuccess(tuningMapper)
-          case None =>
-            val defaultTuningMapper = if (JsonTuningMapperPluginFormat.hasGlobalSettingsForDefaultType(rootGlobalSettings)) {
-              JsonTuningMapperPluginFormat.readDefaultPlugin(rootGlobalSettings)
-            } else {
-              JsSuccess(AutoTuningMapper.Default)
-            }
-
-            defaultTuningMapper.repath(tuningMapperPath)
+          case None => createDefaultTuningMapper().repath(tuningMapperPath)
         }
       )(TuningSpecRepr.apply _)
       //@formatter:on
