@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.core._
+import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -83,10 +84,13 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   it should "successfully read 72-EDO intervals in 72-EDO intonation standard" in {
     val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
 
+    composition.tuningReference shouldBe a[ConcertPitchTuningReference]
+    val concertPitchTuningReference = composition.tuningReference.asInstanceOf[ConcertPitchTuningReference]
+    concertPitchTuningReference.concertPitchToBaseInterval shouldEqual EdoInterval(72, -53)
+    concertPitchTuningReference.baseMidiNote shouldEqual MidiNote(60)
+
     composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs.head.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
-
-    // TODO #62 Also test tuningReference intervals
   }
 
   // TODO #68
@@ -95,11 +99,6 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     composition.tuningSpecs(1).transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs(1).scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
-  }
-
-  // TODO #62 Also test tuningReference intervals
-  ignore should "successfully interpret concertPitchToBaseInterval from tuningReference in 72-EDO intonation " +
-    "standard" in {
   }
 
   it should "fail to interpret EDO intervals in just intonation standard" in {
@@ -182,5 +181,24 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     urisOfReadScales should have length 1
     urisOfReadScales.head.toString should endWith("scales/major.scl")
+  }
+
+  it should "read a default TuningMapper from settings if omitted in TuningSpec" in {
+    val composition = readCompositionFromResources("format/default-tuningMapper-from-settings.mtlist", compositionRepo)
+
+    composition.intonationStandard shouldEqual EdoIntonationStandard(72)
+    composition.tuningReference shouldEqual StandardTuningReference(PitchClass.C)
+
+    composition.tuningSpecs.size shouldEqual 1
+
+    val tuningSpec = composition.tuningSpecs.head
+    tuningSpec.transposition shouldEqual EdoInterval(72, (2, 0))
+    tuningSpec.scale shouldEqual EdoScale("Soft Karcığar", 72,
+      (0, 0), (2, -3), (3, 0), (5, 0), (6, 3), (9, -3), (10, 0))
+    tuningSpec.tuningMapper shouldEqual AutoTuningMapper(
+      shouldMapQuarterTonesLow = true,
+      quarterToneTolerance = 17.0,
+      softChromaticGenusMapping = SoftChromaticGenusMapping.PseudoChromatic
+    )
   }
 }

@@ -145,7 +145,14 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
         (__ \ "scale").readWithDefault[DeferrableRead[Scale[Interval], URI]](createDefaultDeferredScale()) and
         tuningMapperPath.readNullable[TuningMapper].flatMapResult {
           case Some(tuningMapper) => JsSuccess(tuningMapper)
-          case None => JsonTuningMapperPluginFormat.readDefaultPlugin(rootGlobalSettings).repath(tuningMapperPath)
+          case None =>
+            val defaultTuningMapper = if (JsonTuningMapperPluginFormat.hasGlobalSettingsForDefaultType(rootGlobalSettings)) {
+              JsonTuningMapperPluginFormat.readDefaultPlugin(rootGlobalSettings)
+            } else {
+              JsSuccess(AutoTuningMapper.Default)
+            }
+
+            defaultTuningMapper.repath(tuningMapperPath)
         }
       )(TuningSpecRepr.apply _)
       //@formatter:on

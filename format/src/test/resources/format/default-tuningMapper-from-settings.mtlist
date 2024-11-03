@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/composition.schema.json",
+  "intonationStandard": "edo",
+  "tuningReference": {
+    "basePitchClass": "C"
+  },
+  "tunings": [
+    {
+      "name": "Soft Karcığar",
+      "transposition": [2, 0],
+      "scale": [[2, -3], [3, 0], [5, 0], [6, 3], [9, -3], [10, 0]]
+    }
+  ],
+  "settings": {
+    "intonationStandard": {
+      "edo": {
+        "countPerOctave": 72
+      }
+    },
+    "tuningMapper": {
+      "auto": {
+        "shouldMapQuarterTonesLow": true,
+        "quarterToneTolerance": 17,
+        "softChromaticGenusMapping": "pseudoChromatic"
+      }
+    }
+  }
+}
