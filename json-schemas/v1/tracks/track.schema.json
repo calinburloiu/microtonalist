@@ -6,7 +6,7 @@
     "properties": {
         "input": { "$ref": "trackInput.schema.json" },
         "tuningSwitcher": { "$ref": "tuningSwitcher.schema.json" },
-        "tuner": { "$ref": "trackInput.schema.json" },
+        "tuner": { "$ref": "tuner.schema.json" },
         "output": { "$ref": "trackOutput.schema.json" }
     },
     "unevaluatedProperties": false
