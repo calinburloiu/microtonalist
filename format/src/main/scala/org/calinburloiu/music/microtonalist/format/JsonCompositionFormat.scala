@@ -125,6 +125,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
   private def tuningSpecReprReadsFor(intonationStandard: IntonationStandard,
                                      rootGlobalSettings: JsObject): Reads[TuningSpecRepr] = {
     (__ \ "name").readNullable[String].flatMap { maybeName =>
+      val name = maybeName.getOrElse(DefaultScaleName)
+      val scaleFormatContext = Some(ScaleFormatContext(Some(name), Some(intonationStandard)))
+
       def createDefaultDeferredScale() = AlreadyRead[Scale[Interval], URI](
         Scale.createUnisonScale(name, intonationStandard)
       )
@@ -136,9 +139,6 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
           JsSuccess(AutoTuningMapper.Default)
         }
       }
-
-      val name = maybeName.getOrElse(DefaultScaleName)
-      val scaleFormatContext = Some(ScaleFormatContext(Some(name), Some(intonationStandard)))
 
       implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(intonationStandard)
       implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(scaleFormatContext)
