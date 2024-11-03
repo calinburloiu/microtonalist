@@ -26,7 +26,7 @@
                 "type": "string"
             }
         },
-        "intonationStandard": { "$ref": "intonationStandard.schema.json" },
+        "intonationStandard": { "$ref": "../common/intonationStandard.schema.json" },
         "pitches": {
             "type": "array",
             "title": "Pitches",

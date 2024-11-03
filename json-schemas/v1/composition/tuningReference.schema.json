@@ -69,7 +69,7 @@
                             "title": "Concert Pitch to Base Pitch Interval",
                             "description": "Interval between the concert pitch (reference frequency) and composition's base pitch."
                         },
-                        { "$ref": "interval-any.schema.json" }
+                        { "$ref": "../common/interval-any.schema.json" }
                     ]
                 },
                 "baseMidiNote": {
