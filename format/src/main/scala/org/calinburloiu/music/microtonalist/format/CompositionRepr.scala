@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.core.{CompositionMetadata, TuningMapper, TuningReducer, TuningReference}
-import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
+import play.api.libs.json.{JsNull, JsObject, JsValue}
 
 import java.net.URI
 import scala.collection.mutable
@@ -53,12 +53,12 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
     }
 
     val futures: mutable.ArrayBuffer[Future[Any]] = mutable.ArrayBuffer()
-    for (tuningSpec <- tunings; deferredScale <- tuningSpec.scale) {
-      futures += deferredScale.load(scaleLoader)
+    for (tuningSpec <- tunings) {
+      futures += tuningSpec.scale.load(scaleLoader)
     }
 
-    for (globalFillValue <- globalFill; deferredScale <- globalFillValue.scale) {
-      futures += deferredScale.load(scaleLoader)
+    for (globalFillValue <- globalFill) {
+      futures += globalFillValue.scale.load(scaleLoader)
     }
 
     Future.sequence(futures).map(_ => this)
@@ -71,10 +71,9 @@ class CompositionFormatContext {
   var baseUri: Option[URI] = None
   var preprocessedJson: JsValue = JsNull
   var intonationStandard: IntonationStandard = CentsIntonationStandard
-  var settings: JsObject = Json.obj()
+  var settings: JsObject = JsObject.empty
 }
 
-case class TuningSpecRepr(name: Option[String],
-                          transposition: Option[Interval],
-                          scale: Option[DeferrableRead[Scale[Interval], URI]],
-                          tuningMapper: Option[TuningMapper])
+case class TuningSpecRepr(transposition: Interval,
+                          scale: DeferrableRead[Scale[Interval], URI],
+                          tuningMapper: TuningMapper)

@@ -78,25 +78,25 @@ trait JsonPluginFormat[P] {
               spec.format.reads(mergedSettings)
             case Some(spec) if spec.formatOrPlugin.isRight => JsSuccess(spec.plugin)
             case Some(_) => throw new IllegalStateException("Unreachable!")
-            case None => JsError(Seq(JsPath -> Seq(UnrecognizedTypeError)))
+            case None => JsError(UnrecognizedTypeError)
           }
-        case None => JsError(Seq(JsPath -> Seq(MissingTypeError)))
+        case None => JsError(MissingTypeError)
       }
     }
 
     Reads {
-      case typeName: JsString => doRead(Some(typeName.value), Json.obj())
+      case typeName: JsString => doRead(Some(typeName.value), JsObject.empty)
       case pluginObj: JsObject =>
         val typeNameOpt = (pluginObj \ PropertyNameType).asOpt[String].orElse(defaultTypeName)
         doRead(typeNameOpt, pluginObj - PropertyNameType)
-      case _ => JsError(Seq(JsPath -> Seq(InvalidError)))
+      case _ => JsError(InvalidError)
     }
   }
 
   /**
    * Returns a JSON deserializer that does not use the global settings from a composition file.
    */
-  lazy val reads: Reads[P] = readsWithRootGlobalSettings(Json.obj())
+  lazy val reads: Reads[P] = readsWithRootGlobalSettings(JsObject.empty)
 
   /**
    * Returns a JSON serializer.
@@ -125,7 +125,7 @@ trait JsonPluginFormat[P] {
   /**
    * Returns a JSON (de)serializer that does not use the global settings from a composition file.
    */
-  lazy val format: Format[P] = formatWithRootGlobalSettings(Json.obj())
+  lazy val format: Format[P] = formatWithRootGlobalSettings(JsObject.empty)
 
   /**
    * Attempts to read a plugin from the global settings of a composition file.
@@ -134,12 +134,14 @@ trait JsonPluginFormat[P] {
    * @return [[Some]] plugin instance if the deserialization from global settings was successful, or [[None]] if
    *         there are mandatory settings that are missing.
    */
-  def readDefaultPlugin(rootGlobalSettings: JsObject): Option[P] = {
-    for (
+  def readDefaultPlugin(rootGlobalSettings: JsObject): JsResult[P] = {
+    (for (
       defaultTypeNameValue <- defaultTypeName;
-      localSettings <- (rootGlobalSettings \ familyName \ defaultTypeNameValue).asOpt[JsObject];
-      defaultPlugin <- localSettings.asOpt(reads)
-    ) yield defaultPlugin
+      settings <- (rootGlobalSettings \ familyName \ defaultTypeNameValue).asOpt[JsObject]
+    ) yield settings) match {
+      case Some(settings) => settings.validate[P](reads)
+      case None => JsError(MissingError)
+    }
   }
 
   /**
@@ -151,11 +153,10 @@ trait JsonPluginFormat[P] {
     case None => false
   }
 
-
   private def globalSettingsOf(rootGlobalSettings: JsObject, typeName: String): JsObject =
     (rootGlobalSettings \ familyName \ typeName)
       // Non-object entries are ignored, i.e. replaced with an empty object
-      .validate[JsObject].getOrElse(Json.obj())
+      .validate[JsObject].getOrElse(JsObject.empty)
 }
 
 object JsonPluginFormat {
@@ -172,10 +173,10 @@ object JsonPluginFormat {
     override val defaultTypeName: Option[String] = _defaultTypeName
   }
 
-  private[format] val InvalidError: JsonValidationError = JsonValidationError("error.plugin.invalid")
-  private[format] val MissingTypeError: JsonValidationError = JsonValidationError("error.plugin.type.missing")
-  private[format] val UnrecognizedTypeError: JsonValidationError = JsonValidationError(
-    "error.plugin.type.unrecognized")
+  private[format] val MissingError: String = "error.plugin.missing"
+  private[format] val InvalidError: String = "error.plugin.invalid"
+  private[format] val MissingTypeError: String = "error.plugin.type.missing"
+  private[format] val UnrecognizedTypeError: String = "error.plugin.type.unrecognized"
 
   private val PropertyNameType = "type"
 
@@ -195,7 +196,7 @@ object JsonPluginFormat {
   case class TypeSpec[P](typeName: String,
                          formatOrPlugin: Either[Format[P], P],
                          javaClass: Class[P],
-                         defaultSettings: JsObject = Json.obj()) {
+                         defaultSettings: JsObject = JsObject.empty) {
     def format: Format[P] = formatOrPlugin.swap.getOrElse(
       throw new IllegalArgumentException("TypeSpec that not contain a format!"))
 
@@ -211,7 +212,7 @@ object JsonPluginFormat {
     def withSettings[P](typeName: String,
                         format: Format[P],
                         javaClass: Class[P],
-                        defaultSettings: JsObject = Json.obj()): TypeSpec[P] =
+                        defaultSettings: JsObject = JsObject.empty): TypeSpec[P] =
       TypeSpec[P](typeName, Left(format), javaClass, defaultSettings)
 
     /**

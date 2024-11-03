@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.core.KeyboardMapping
-import play.api.libs.json.{JsNull, JsNumber, JsString, Json}
+import play.api.libs.json._
 
 class KeyboardMappingFormatTest extends JsonFormatTestUtils {
   private val sampleKeyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
@@ -42,7 +42,7 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
 
   it should "fail to deserialize an invalid KeyboardMapping" in {
     val invalidInputs = Seq(
-      Json.arr(), Json.arr(0, 1),
+      JsArray.empty, Json.arr(0, 1),
       Json.arr("0", JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12),
       Json.obj("X#" -> 2),
       Json.obj("9" -> -2),

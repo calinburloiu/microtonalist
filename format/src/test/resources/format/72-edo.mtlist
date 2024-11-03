@@ -4,7 +4,9 @@
     "countPerOctave": 72
   },
   "tuningReference": {
-    "basePitchClass": 0
+    "type": "concertPitch",
+    "concertPitchToBaseInterval": [-9, 1],
+    "baseMidiNote": 60
   },
   "tunings": [
     {

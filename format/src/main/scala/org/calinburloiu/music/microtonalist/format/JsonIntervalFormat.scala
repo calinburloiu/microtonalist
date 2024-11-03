@@ -16,11 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{
-  CentsInterval, CentsIntonationStandard, EdoInterval, EdoIntonationStandard,
-  Interval, IntonationStandard, JustIntonationStandard, RatioInterval
-}
-import play.api.libs.json.{Format, JsError, JsNumber, JsString, JsSuccess, Json, JsonValidationError, Reads, Writes}
+import org.calinburloiu.music.intonation._
+import play.api.libs.json._
 
 /**
  * Object that contains format utilities for reading intervals in JSON format.
@@ -86,20 +83,4 @@ object JsonIntervalFormat {
     readsFor(intonationStandard),
     writes
   )
-
-  // TODO #62 Remove
-  @deprecated
-  private val legacyIntervalReads: Reads[Interval] = Reads.StringReads.collect(
-    JsonValidationError("error.expecting.HuygensFokkerScalaScalePitch")
-  )(
-    Function.unlift(Interval.fromScalaTuningInterval)
-  ).orElse {
-    Reads.JsNumberReads.map { jsNumber =>
-      CentsInterval(jsNumber.value.doubleValue)
-    }
-  }
-
-  // TODO #62 Remove
-  @deprecated
-  private[format] implicit val legacyIntervalFormat: Format[Interval] = Format(legacyIntervalReads, writes)
 }

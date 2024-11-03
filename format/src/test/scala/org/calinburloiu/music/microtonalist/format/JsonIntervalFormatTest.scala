@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.format.JsonIntervalFormat.ErrorExpectedIntervalFor
-import play.api.libs.json.{Format, JsNumber, JsString, Json}
+import play.api.libs.json._
 
 class JsonIntervalFormatTest extends JsonFormatTestUtils {
   "formatFor" should "read cents and ratio intervals in CentsIntonationStandard" in {
@@ -88,7 +88,7 @@ class JsonIntervalFormatTest extends JsonFormatTestUtils {
     assertReadsSingleFailure(format, JsString("0/4"), error)
     assertReadsSingleFailure(format, JsString("4/0"), error)
 
-    assertReadsSingleFailure(format, Json.arr(), error)
+    assertReadsSingleFailure(format, JsArray.empty, error)
     assertReadsSingleFailure(format, Json.arr(1), error)
     assertReadsSingleFailure(format, Json.arr(1, 2, 3), error)
     assertReadsSingleFailure(format, Json.arr("1", "2"), error)
