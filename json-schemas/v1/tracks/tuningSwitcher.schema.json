@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Switcher",
+    "description": "TODO",
+    "type": "object",
+    "properties": {
+
+    },
+    "unevaluatedProperties": false,
+    "$defs": {
+        "type": {
+            "type": "string",
+            "enum": ["cc", "note"]
+        }
+    }
+}
