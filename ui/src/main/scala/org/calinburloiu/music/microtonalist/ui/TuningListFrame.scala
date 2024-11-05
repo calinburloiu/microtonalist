@@ -16,8 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.ui
 
-import com.google.common.eventbus.Subscribe
+import com.google.common.eventbus.{EventBus, Subscribe}
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.core.ReloadEvent
 import org.calinburloiu.music.microtonalist.tuner.{TuningChangedEvent, TuningSwitcher}
 
 import java.awt.BorderLayout
@@ -25,9 +26,7 @@ import java.awt.event.{KeyEvent, KeyListener}
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
 
-class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner") with StrictLogging {
-
-  private[this] val tuningList = tuningSwitch.tuningList
+class TuningListFrame(eventBus: EventBus, tuningSwitcher: TuningSwitcher) extends JFrame("Microtuner") with StrictLogging {
 
   private[this] val panel = new JPanel(new BorderLayout())
 
@@ -44,7 +43,7 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
     val index = listSelectionEvent.getSource.asInstanceOf[JList[String]].getSelectedIndex
 
     if (!listSelectionEvent.getValueIsAdjusting && index != -1) {
-      tuningSwitch(index)
+      tuningSwitcher(index)
     }
   }
   listComponent.setSelectedIndex(0)
@@ -64,6 +63,9 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
             keyEvent.consume()
             listComponent.setSelectedIndex(0)
           }
+
+        // TODO #84 We should probably handle this and other shortcuts at the JFrame level
+        case KeyEvent.VK_R => reload()
 
         case key if key >= KeyEvent.VK_1 && key <= KeyEvent.VK_9 =>
           val number = key - KeyEvent.VK_1
@@ -93,4 +95,12 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
 
     listComponent.setSelectedIndex(tuningIndex)
   }
+
+  def reload(): Unit = {
+    eventBus.post(ReloadEvent)
+    tuningSwitcher.tune()
+    repaint()
+  }
+
+  private def tuningList = tuningSwitcher.tuningList
 }

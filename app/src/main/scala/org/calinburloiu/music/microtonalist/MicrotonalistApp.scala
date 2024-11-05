@@ -18,8 +18,10 @@ package org.calinburloiu.music.microtonalist
 
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
+import io.methvin.watcher.DirectoryChangeEvent.EventType
+import io.methvin.watcher.DirectoryWatcher
 import org.calinburloiu.music.microtonalist.config._
-import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
+import org.calinburloiu.music.microtonalist.core.{CompositionSession, OctaveTuning}
 import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
@@ -96,10 +98,10 @@ object MicrotonalistApp extends StrictLogging {
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
 
     // # Microtuner
-    val composition = formatModule.defaultCompositionRepo.read(inputUri)
-    val tuningList = TuningList.fromComposition(composition)
+    val compositionSession = CompositionSession(inputUri, formatModule.defaultCompositionRepo)
+    eventBus.register(compositionSession)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
-    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
+    val tuningSwitcher = new TuningSwitcher(Seq(tuner), compositionSession, eventBus)
     val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
     val track = new Track(Some(tuningSwitchProcessor), tuner, receiver, midiOutputConfig.ccParams)
     maybeTransmitter.foreach { transmitter =>
@@ -110,9 +112,25 @@ object MicrotonalistApp extends StrictLogging {
 
     // # GUI
     logger.info("Initializing GUI...")
-    val tuningListFrame = new TuningListFrame(tuningSwitcher)
-    eventBus.register(tuningListFrame)
-    tuningListFrame.setVisible(true)
+    val appFrame = new TuningListFrame(eventBus, tuningSwitcher)
+    eventBus.register(appFrame)
+    appFrame.setVisible(true)
+
+    // TODO #84 We should watch individual files, not the whole directory
+    // # File watching
+    if (inputUri.getScheme == "file") {
+      val dir = Paths.get(inputUri).getParent
+      val directoryWatcher = DirectoryWatcher.builder()
+        .path(dir)
+        .listener { event =>
+          event.eventType match {
+            case EventType.MODIFY => appFrame.reload()
+            case _ => // Do nothing
+          }
+        }
+        .build()
+      directoryWatcher.watchAsync()
+    }
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {

@@ -19,16 +19,17 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
+import org.calinburloiu.music.microtonalist.core.{CompositionSession, OctaveTuning, TuningList}
 
+// TODO #88 Is this a controller? Should we rename it?
 /**
  * Class responsible to switch between tunings.
  * @param tuners Tuners for various output instruments called when the tuning is changed.
- * @param tuningList List of tunings for the current musical composition.
+ * @param compositionSession
  * @param eventBus Event bus for sending events.
  */
 class TuningSwitcher(val tuners: Seq[Tuner],
-                     val tuningList: TuningList,
+                     val compositionSession: CompositionSession,
                      eventBus: EventBus) extends LazyLogging {
   require(tuners.nonEmpty, "there should be at least one tuner")
 
@@ -72,4 +73,6 @@ class TuningSwitcher(val tuners: Seq[Tuner],
       case e: IllegalStateException => logger.error("Failed to switch tuning: " + e.getMessage)
     }
   }
+
+  def tuningList: TuningList = compositionSession.composition.tuningList
 }

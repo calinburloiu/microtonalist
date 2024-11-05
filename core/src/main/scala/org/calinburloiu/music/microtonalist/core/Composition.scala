@@ -35,7 +35,19 @@ case class Composition(intonationStandard: IntonationStandard,
                        tuningSpecs: Seq[TuningSpec],
                        tuningReducer: TuningReducer,
                        globalFill: Option[TuningSpec] = None,
-                       metadata: Option[CompositionMetadata] = None)
+                       metadata: Option[CompositionMetadata] = None) {
+
+  // TODO #88 We should probably remove TuningList and just have Seq[Tuning]
+  /** The [[TuningList]] that results from processing this [[Composition]]. */
+  lazy val tuningList: TuningList = {
+    def toTuning = (tuningSpec: TuningSpec) => tuningSpec.tuningFor(tuningReference)
+
+    val globalFillTuning = globalFill.map(toTuning).getOrElse(PartialTuning.StandardTuningOctave)
+    val partialTunings = tuningSpecs.map(toTuning)
+
+    tuningReducer.reduceTunings(partialTunings, globalFillTuning)
+  }
+}
 
 /**
  * Defines a tuning based on a scale.

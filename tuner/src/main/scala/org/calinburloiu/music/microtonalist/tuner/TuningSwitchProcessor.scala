@@ -18,4 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiProcessor
 
+// TODO #88 The interface and implementation should reflect its purpose:
+//  - A method should take a MIDI message and return a tuning decision: nextBy / newIndex.
+//  - send should automatically call the above method.
+//  - It might not be necessary for implementations to depend on the current `TuningSwitcher`.
 trait TuningSwitchProcessor extends MidiProcessor {}

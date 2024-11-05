@@ -84,13 +84,15 @@ lazy val core = (project in file("core"))
   .dependsOn(
     intonation,
     scMidi,
+    sync
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-core",
     commonSettings,
     libraryDependencies ++= Seq(
-      enumeratum,
+      directoryWatcher,
+      enumeratum
     ),
   )
 

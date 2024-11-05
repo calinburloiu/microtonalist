@@ -31,14 +31,3 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 
   override def iterator: Iterator[OctaveTuning] = tunings.iterator
 }
-
-object TuningList extends StrictLogging {
-
-  def fromComposition(composition: Composition): TuningList = {
-    val globalFillTuning = composition.globalFill.map(_.tuningFor(composition.tuningReference))
-      .getOrElse(PartialTuning.StandardTuningOctave)
-    val partialTunings = composition.tuningSpecs.map(_.tuningFor(composition.tuningReference))
-
-    composition.tuningReducer.reduceTunings(partialTunings, globalFillTuning)
-  }
-}

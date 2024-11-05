@@ -19,6 +19,7 @@ import sbt._
 object Dependencies {
   // # Versions
   val coreMidi4jVersion = "1.6"
+  val directoryWatcherVersion = "0.18.0"
   val enumeratumVersion = "1.7.0"
   val ficusVersion = "1.5.1"
   val guavaVersion = "31.0.1-jre"
@@ -30,6 +31,7 @@ object Dependencies {
 
   // # Dependency definitions
   val coreMidi4j = "uk.co.xfactory-librarians" % "coremidi4j" % coreMidi4jVersion
+  val directoryWatcher = "io.methvin" % "directory-watcher" % "0.18.0"
   val enumeratum = "com.beachape" %% "enumeratum" % enumeratumVersion
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion

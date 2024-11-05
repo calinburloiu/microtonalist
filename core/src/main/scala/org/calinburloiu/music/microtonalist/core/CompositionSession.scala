@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2024 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,8 +14,30 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.core
 
+import com.google.common.eventbus.Subscribe
 import org.calinburloiu.music.microtonalist.sync.MicrotonalistEvent
 
-case class TuningChangedEvent(tuningIndex: Int, oldTuningIndex: Int) extends MicrotonalistEvent
+import java.net.URI
+
+case object ReloadEvent extends MicrotonalistEvent
+
+case class CompositionSession(uri: URI, compositionRepo: CompositionRepo) {
+  load()
+
+  private var _composition: Composition = _
+
+  private def load(): Unit = {
+    _composition = compositionRepo.read(uri)
+  }
+
+  def composition: Composition = _composition
+
+  def reload(): Unit = load()
+
+  @Subscribe
+  def onReload(event: ReloadEvent.type): Unit = {
+    reload()
+  }
+}
