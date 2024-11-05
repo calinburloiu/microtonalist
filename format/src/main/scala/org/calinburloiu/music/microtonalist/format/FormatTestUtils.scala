@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{Interval, Scale}
-import org.calinburloiu.music.microtonalist.core.Composition
+import org.calinburloiu.music.microtonalist.core.{Composition, CompositionRepo}
 
 import java.net.URI
 

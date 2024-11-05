@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2024 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
-
-import org.calinburloiu.music.microtonalist.core.Composition
+package org.calinburloiu.music.microtonalist.core
 
 import java.net.URI
 import scala.concurrent.Future

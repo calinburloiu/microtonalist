@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.core.Composition
+import org.calinburloiu.music.microtonalist.core.{BadCompositionRequestException, Composition, CompositionNotFoundException, CompositionReadFailureException, CompositionRepo}
 
 import java.io.InputStream
 import java.net.URI

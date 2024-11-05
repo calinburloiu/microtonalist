@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.microtonalist.core.CompositionRepo
+
 import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}

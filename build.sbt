@@ -84,6 +84,7 @@ lazy val core = (project in file("core"))
   .dependsOn(
     intonation,
     scMidi,
+    sync
   )
   .disablePlugins(AssemblyPlugin)
   .settings(

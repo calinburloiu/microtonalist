@@ -159,7 +159,10 @@ class JsonPluginFormatTest extends JsonFormatTestUtils {
   }
 
   "readDefaultPlugin" should "deserialize a default plugin from the global settings" in {
-    val defaultReads = Reads { case jsObject: JsObject => jsonPluginFormat.readDefaultPlugin(jsObject) }
+    val defaultReads = Reads {
+      case jsObject: JsObject => jsonPluginFormat.readDefaultPlugin(jsObject)
+      case _ => fail("Expecting JsObject!")
+    }
 
     assertReadsFailure(defaultReads, rootGlobalSettings, __ \ "cat", "error.path.missing")
 

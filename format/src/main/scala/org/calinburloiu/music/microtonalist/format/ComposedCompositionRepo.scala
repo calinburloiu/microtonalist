@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.Composition
+import org.calinburloiu.music.microtonalist.core.{BadCompositionRequestException, Composition, CompositionRepo}
 
 import java.net.URI
 import scala.concurrent.Future

@@ -36,7 +36,7 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
     val compositionResource = "app/minor-major.mtlist"
     val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
       .defaultCompositionRepo)
-    val tuningList = TuningList.fromComposition(composition)
+    val tuningList = composition.tuningList
 
     val justMinorThirdDeviation = 15.64 // cents
 
@@ -108,7 +108,7 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
       1 /: 1, 12 /: 11, 32 /: 27, 4 /: 3, 3 /: 2, 18 /: 11, 16 /: 9, 2 /: 1)
     composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
 
-    val tuningList = TuningList.fromComposition(composition)
+    val tuningList = composition.tuningList
 
     tuningList.size shouldEqual 1
 
