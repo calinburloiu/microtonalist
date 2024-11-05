@@ -91,7 +91,8 @@ lazy val core = (project in file("core"))
     name := "microtonalist-core",
     commonSettings,
     libraryDependencies ++= Seq(
-      enumeratum,
+      directoryWatcher,
+      enumeratum
     ),
   )
 

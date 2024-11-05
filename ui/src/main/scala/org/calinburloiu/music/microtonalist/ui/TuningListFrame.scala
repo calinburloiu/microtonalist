@@ -65,10 +65,7 @@ class TuningListFrame(eventBus: EventBus, tuningSwitcher: TuningSwitcher) extend
           }
 
         // TODO #84 We should probably handle this and other shortcuts at the JFrame level
-        case KeyEvent.VK_R =>
-          eventBus.post(ReloadEvent)
-          tuningSwitcher.tune()
-          repaint()
+        case KeyEvent.VK_R => reload()
 
         case key if key >= KeyEvent.VK_1 && key <= KeyEvent.VK_9 =>
           val number = key - KeyEvent.VK_1
@@ -97,6 +94,12 @@ class TuningListFrame(eventBus: EventBus, tuningSwitcher: TuningSwitcher) extend
       s" received tuning change event from tuning index $oldTuningIndex to $tuningIndex")
 
     listComponent.setSelectedIndex(tuningIndex)
+  }
+
+  def reload(): Unit = {
+    eventBus.post(ReloadEvent)
+    tuningSwitcher.tune()
+    repaint()
   }
 
   private def tuningList = tuningSwitcher.tuningList

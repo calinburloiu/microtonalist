@@ -18,6 +18,8 @@ package org.calinburloiu.music.microtonalist
 
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
+import io.methvin.watcher.DirectoryChangeEvent.EventType
+import io.methvin.watcher.DirectoryWatcher
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.core.{CompositionSession, OctaveTuning}
 import org.calinburloiu.music.microtonalist.format.FormatModule
@@ -110,9 +112,25 @@ object MicrotonalistApp extends StrictLogging {
 
     // # GUI
     logger.info("Initializing GUI...")
-    val tuningListFrame = new TuningListFrame(eventBus, tuningSwitcher)
-    eventBus.register(tuningListFrame)
-    tuningListFrame.setVisible(true)
+    val appFrame = new TuningListFrame(eventBus, tuningSwitcher)
+    eventBus.register(appFrame)
+    appFrame.setVisible(true)
+
+    // TODO #84 We should watch individual files, not the whole directory
+    // # File watching
+    if (inputUri.getScheme == "file") {
+      val dir = Paths.get(inputUri).getParent
+      val directoryWatcher = DirectoryWatcher.builder()
+        .path(dir)
+        .listener { event =>
+          event.eventType match {
+            case EventType.MODIFY => appFrame.reload()
+            case _ => // Do nothing
+          }
+        }
+        .build()
+      directoryWatcher.watchAsync()
+    }
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {

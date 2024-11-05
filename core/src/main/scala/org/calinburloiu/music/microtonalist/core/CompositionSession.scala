@@ -37,8 +37,7 @@ case class CompositionSession(uri: URI, compositionRepo: CompositionRepo) {
   def reload(): Unit = load()
 
   @Subscribe
-  def onReload(event: ReloadEvent.type): Unit ={
+  def onReload(event: ReloadEvent.type): Unit = {
     reload()
-    // TODO #84 We should also retune
   }
 }
