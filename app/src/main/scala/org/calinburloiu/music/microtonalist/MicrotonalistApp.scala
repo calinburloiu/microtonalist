@@ -45,6 +45,8 @@ object MicrotonalistApp extends StrictLogging {
   case class AppConfigException(message: String) extends AppException(message, 3)
 
   def main(args: Array[String]): Unit = Try {
+    logger.info(s"Welcome to Microtonalist ${BuildInfo.version}!")
+
     args match {
       case Array(inputUriString: String) =>
         run(parseUriArg(inputUriString))

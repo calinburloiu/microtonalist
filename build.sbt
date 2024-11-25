@@ -34,11 +34,14 @@ lazy val app = (project in file("app"))
     tuner,
     ui,
   )
+  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "microtonalist-app",
     commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       coreMidi4j,
       enumeratum,
