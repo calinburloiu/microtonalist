@@ -18,19 +18,29 @@ package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.MidiDevice
 
-// TODO #88 Only use name and vendor. Remove version.
 case class MidiDeviceId(name: String,
-                        vendor: String,
-                        version: String) {
-  def sanitizedName: String = name.replaceFirst("^CoreMIDI4J - ", "").trim
+                        vendor: String) {
+  /**
+   * The app does not use the Java MIDI implementation and instead uses CoreMidi4J, which causes all device names to
+   * have a certain prefix. This method removes that prefix.
+   *
+   * Use this name instead of the actual name in user interfaces.
+   *
+   * @return a user-friendly name of the device.
+   */
+  def sanitizedName: String = {
+    name.replaceFirst(s"^${MidiDeviceId.CoreMidi4JDeviceNamePrefix}", "").trim
+  }
 
   override def toString: String = {
     val vendorSuffix = if (vendor.trim.nonEmpty) s" ($vendor)" else ""
-    sanitizedName + vendorSuffix
+    s""""$name"$vendorSuffix"""
   }
 }
 
 object MidiDeviceId {
+  private val CoreMidi4JDeviceNamePrefix: String = "CoreMIDI4J - "
+
   def apply(midiDeviceInfo: MidiDevice.Info): MidiDeviceId =
-    MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor, midiDeviceInfo.getVersion)
+    MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor)
 }

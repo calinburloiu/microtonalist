@@ -66,10 +66,10 @@ class MidiManager extends AutoCloseable with StrictLogging {
       disappearedOpenedDeviceIds.foreach { deviceId =>
         val device = openedDevices(deviceId).device
         Try(device.close()).recover {
-          case exception => logger.warn(s"Failed to close disappeared device \"$deviceId\"!", exception)
+          case exception => logger.warn(s"Failed to close disappeared device $deviceId!", exception)
         }
         openedDevices.remove(deviceId)
-        logger.info(s"Previously opened device \"$deviceId\" disappeared; it was probably disconnected.")
+        logger.info(s"Previously opened device $deviceId disappeared; it was probably disconnected.")
       }
     }
 
@@ -87,13 +87,13 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
       device.open()
       openedInputDevices.update(deviceId, OpenedInputDevice(device, transmitter))
-      logger.info(s"Successfully opened input device \"$deviceId\".")
+      logger.info(s"Successfully opened input device $deviceId.")
 
       transmitter
     }
 
     result.recover {
-      case _: NoSuchElementException => logger.warn(s"Input device \"$deviceId\" is not available.")
+      case _: NoSuchElementException => logger.warn(s"Input device $deviceId is not available.")
       case exception => logErrorOpenDevice(deviceId, DeviceEndpoint.Input, exception)
     }
     result
@@ -122,13 +122,13 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
       device.open()
       openedOutputDevices.update(deviceId, OpenedOutputDevice(device, receiver))
-      logger.info(s"Successfully opened output device \"$deviceId\".")
+      logger.info(s"Successfully opened output device $deviceId.")
 
       receiver
     }
 
     result.recover {
-      case _: NoSuchElementException => logger.warn(s"Output device \"$deviceId\" not available.")
+      case _: NoSuchElementException => logger.warn(s"Output device $deviceId not available.")
       case exception => logErrorOpenDevice(deviceId, DeviceEndpoint.Output, exception)
     }
     result
@@ -151,12 +151,12 @@ class MidiManager extends AutoCloseable with StrictLogging {
     logger.info(s"Closing ${getClass.getSimpleName}...")
     openedInputDevices.keys.foreach { deviceId =>
       closeDevice(deviceId, openedInputDevices).recover {
-        case exception => logger.error(s"Failed to close input device \"$deviceId\"!", exception)
+        case exception => logger.error(s"Failed to close input device $deviceId!", exception)
       }
     }
     openedOutputDevices.keys.foreach { deviceId =>
       closeDevice(deviceId, openedOutputDevices).recover {
-        case exception => logger.error(s"Failed to close output device \"$deviceId\"!", exception)
+        case exception => logger.error(s"Failed to close output device $deviceId!", exception)
       }
     }
     logger.info(s"Finished closing ${getClass.getSimpleName}.")
@@ -168,7 +168,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
                                        openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
     deviceIds.to(LazyList)
       .map { deviceId =>
-        logger.info(s"Attempting to open $deviceEndpoint device \"$deviceId\"...")
+        logger.info(s"Attempting to open $deviceEndpoint device $deviceId...")
         (deviceId, openFunc(deviceId))
       }
       .find(_._2.isSuccess)
@@ -182,10 +182,10 @@ class MidiManager extends AutoCloseable with StrictLogging {
   private def closeDevice[D <: OpenedDevice](deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D])
   : Try[Unit] = Try {
     val openedDevice = openedDevices(deviceId)
-    logger.info(s"Closing ${openedDevice.deviceEndpoint} device \"$deviceId\"...")
+    logger.info(s"Closing ${openedDevice.deviceEndpoint} device $deviceId...")
     openedDevice.device.close()
     openedDevices.remove(deviceId)
-    logger.info(s"Successfully closed ${openedDevice.deviceEndpoint} device \"$deviceId\".")
+    logger.info(s"Successfully closed ${openedDevice.deviceEndpoint} device $deviceId.")
   }
 
   @inline
@@ -193,13 +193,13 @@ class MidiManager extends AutoCloseable with StrictLogging {
     logger.debug {
       val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
       val handlerType = if (deviceEndpoint == DeviceEndpoint.Input) "transmitters" else "receivers"
-      s"Detected $deviceEndpoint device \"$deviceId\" with $maxHandlersStr $handlerType."
+      s"Detected $deviceEndpoint device $deviceId with $maxHandlersStr $handlerType."
     }
   }
 
   @inline
   private def logErrorOpenDevice(deviceId: MidiDeviceId, deviceEndpoint: DeviceEndpoint, exception: Throwable): Unit = {
-    logger.error(s"Failed to open $deviceEndpoint device \"$deviceId\".", exception)
+    logger.error(s"Failed to open $deviceEndpoint device $deviceId.", exception)
   }
 }
 

@@ -136,8 +136,7 @@ object MidiConfigSerDe {
   private[config] implicit val midiDeviceIdValueReader: ValueReader[MidiDeviceId] = ValueReader.relative { hc =>
     MidiDeviceId(
       name = hc.as[String]("name"),
-      vendor = hc.as[String]("vendor"),
-      version = hc.as[String]("version"))
+      vendor = hc.as[String]("vendor"))
   }
 
   private[config] implicit val triggersValueReader: ValueReader[Triggers] = ValueReader.relative { hc =>
@@ -172,6 +171,6 @@ object MidiConfigSerDe {
   }
 
   def serializeDevices(devices: Seq[MidiDeviceId]): Seq[Map[String, String]] = devices.map { device =>
-    Map("name" -> device.name, "vendor" -> device.vendor, "version" -> device.version)
+    Map("name" -> device.name, "vendor" -> device.vendor)
   }
 }
