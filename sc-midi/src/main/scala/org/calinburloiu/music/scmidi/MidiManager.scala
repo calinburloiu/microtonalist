@@ -24,7 +24,6 @@ import scala.collection.mutable
 import scala.util.Try
 
 class MidiManager extends AutoCloseable with StrictLogging {
-
   import MidiManager._
 
   private val inputDevicesInfo = mutable.Map[MidiDeviceId, MidiDevice.Info]()
@@ -35,9 +34,10 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   refresh()
 
-  def deviceInfo(deviceId: MidiDeviceId): MidiDevice.Info =
+  def deviceInfoOf(deviceId: MidiDeviceId): MidiDevice.Info =
     inputDevicesInfo.getOrElse(deviceId, outputDevicesInfo(deviceId))
 
+  // TODO #88 Improve to allow automatic refresh by using listeners
   def refresh(): Unit = {
     // Alternative to `javax.sound.midi.MidiSystem.getMidiDeviceInfo()` to make Java MIDI work on Mac.
     // This should also work on Windows.
@@ -47,31 +47,29 @@ class MidiManager extends AutoCloseable with StrictLogging {
     devices.foreach { device =>
       val deviceInfo = device.getDeviceInfo
       val deviceId = MidiDeviceId(deviceInfo)
-      val maxTransmitters = device.getMaxTransmitters
-      val maxReceivers = device.getMaxReceivers
 
-      if (maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0) {
+      if (isInputDevice(device)) {
         inputDevicesInfo.update(deviceId, deviceInfo)
-        logDebugDetectedDevice(deviceId, "input", "transmitters", maxTransmitters)
+        logDebugDetectedDevice(deviceId, DeviceEndpoint.Input, device.getMaxTransmitters)
       }
 
-      if (maxReceivers == -1 /* unlimited */ || maxReceivers > 0) {
+      if (isOutputDevice(device)) {
         outputDevicesInfo.update(deviceId, deviceInfo)
-        logDebugDetectedDevice(deviceId, "output", "receivers", maxReceivers)
+        logDebugDetectedDevice(deviceId, DeviceEndpoint.Output, device.getMaxReceivers)
       }
     }
 
-    // Remove opened devices that were previously opened but now they don't appear anymore
+    /** Remove opened devices that were previously opened, but now they don't appear anymore. */
     def removeDisappearedOpenedDevices[D <: OpenedDevice](openedDevices: mutable.Map[MidiDeviceId, D],
                                                           deviceIds: scala.collection.Set[MidiDeviceId]): Unit = {
       val disappearedOpenedDeviceIds = openedDevices.keySet diff deviceIds
       disappearedOpenedDeviceIds.foreach { deviceId =>
         val device = openedDevices(deviceId).device
         Try(device.close()).recover {
-          case exception => logger.error(s"Failed to close disappeared device $deviceId", exception)
+          case exception => logger.warn(s"Failed to close disappeared device \"$deviceId\"!", exception)
         }
         openedDevices.remove(deviceId)
-        logger.info(s"Previously opened device $deviceId disappeared; it was probably disconnected")
+        logger.info(s"Previously opened device \"$deviceId\" disappeared; it was probably disconnected.")
       }
     }
 
@@ -89,20 +87,22 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
       device.open()
       openedInputDevices.update(deviceId, OpenedInputDevice(device, transmitter))
-      logger.info(s"Successfully opened input device $deviceId")
+      logger.info(s"Successfully opened input device \"$deviceId\".")
 
       transmitter
     }
 
     result.recover {
-      case _: NoSuchElementException => logger.info(s"Input device $deviceId is not available")
-      case exception => logErrorOpenDevice(deviceId, "input", exception)
+      case _: NoSuchElementException => logger.warn(s"Input device \"$deviceId\" is not available.")
+      case exception => logErrorOpenDevice(deviceId, DeviceEndpoint.Input, exception)
     }
     result
   }
 
+  // TODO #64 To be removed when support for tracks files is added
+  @deprecated
   def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
-    openFirstAvailableDevice(deviceIds, "input", openInput)
+    openFirstAvailableDevice(deviceIds, DeviceEndpoint.Input, openInput)
 
   def isInputOpened(deviceId: MidiDeviceId): Boolean = isDeviceOpened(deviceId, openedInputDevices)
 
@@ -110,7 +110,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def inputDevice(deviceId: MidiDeviceId): MidiDevice = openedInputDevices(deviceId).device
 
-  def closeInput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedInputDevices, logger)
+  def closeInput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedInputDevices)
 
   def outputDeviceIds: Seq[MidiDeviceId] = outputDevicesInfo.keys.toSeq
 
@@ -122,20 +122,22 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
       device.open()
       openedOutputDevices.update(deviceId, OpenedOutputDevice(device, receiver))
-      logger.info(s"Successfully opened output device $deviceId")
+      logger.info(s"Successfully opened output device \"$deviceId\".")
 
       receiver
     }
 
     result.recover {
-      case _: NoSuchElementException => logger.info(s"Output device $deviceId not available")
-      case exception => logErrorOpenDevice(deviceId, "output", exception)
+      case _: NoSuchElementException => logger.warn(s"Output device \"$deviceId\" not available.")
+      case exception => logErrorOpenDevice(deviceId, DeviceEndpoint.Output, exception)
     }
     result
   }
 
+  // TODO #64 To be removed when support for tracks files is added
+  @deprecated
   def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
-    openFirstAvailableDevice(deviceIds, "output", openOutput)
+    openFirstAvailableDevice(deviceIds, DeviceEndpoint.Output, openOutput)
 
   def isOutputOpened(deviceId: MidiDeviceId): Boolean = isDeviceOpened(deviceId, openedOutputDevices)
 
@@ -143,76 +145,96 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
   def outputDevice(deviceId: MidiDeviceId): MidiDevice = openedOutputDevices(deviceId).device
 
-  def closeOutput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedOutputDevices, logger)
+  def closeOutput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedOutputDevices)
 
   override def close(): Unit = {
     logger.info(s"Closing ${getClass.getSimpleName}...")
     openedInputDevices.keys.foreach { deviceId =>
-      closeDevice(deviceId, openedInputDevices, logger).recover {
-        case exception => logger.error(s"Failed to close input device $deviceId", exception)
+      closeDevice(deviceId, openedInputDevices).recover {
+        case exception => logger.error(s"Failed to close input device \"$deviceId\"!", exception)
       }
     }
     openedOutputDevices.keys.foreach { deviceId =>
-      closeDevice(deviceId, openedOutputDevices, logger).recover {
-        case exception => logger.error(s"Failed to close output device $deviceId", exception)
+      closeDevice(deviceId, openedOutputDevices).recover {
+        case exception => logger.error(s"Failed to close output device \"$deviceId\"!", exception)
       }
     }
-    logger.info(s"Finished closing ${getClass.getSimpleName}")
+    logger.info(s"Finished closing ${getClass.getSimpleName}.")
   }
 
-  private def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId], deviceType: String,
+  // TODO #64 To be removed when support for tracks files is added
+  @deprecated
+  private def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId], deviceEndpoint: DeviceEndpoint,
                                        openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
     deviceIds.to(LazyList)
       .map { deviceId =>
-        logger.info(s"Attempting to open $deviceType device $deviceId...")
+        logger.info(s"Attempting to open $deviceEndpoint device \"$deviceId\"...")
         (deviceId, openFunc(deviceId))
       }
       .find(_._2.isSuccess)
       .map(_._1)
   }
 
-  @inline
-  private def logDebugDetectedDevice(deviceId: MidiDeviceId, deviceType: String,
-                                     handlerType: String, maxHandlers: Int): Unit = {
-    logger.debug {
-      val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
-      s"Detected $deviceType device $deviceId with $maxHandlersStr $handlerType"
-    }
-  }
-
-  @inline
-  def logErrorOpenDevice(deviceId: MidiDeviceId, deviceType: String, exception: Throwable): Unit = {
-    logger.error(s"Failed to open $deviceType device $deviceId", exception)
-  }
-}
-
-object MidiManager {
-
   private def isDeviceOpened[D <: OpenedDevice](deviceId: MidiDeviceId,
                                                 openedDevices: mutable.Map[MidiDeviceId, D]): Boolean =
     openedDevices.get(deviceId).exists(_.device.isOpen)
 
-  private def closeDevice[D <: OpenedDevice](deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D],
-                                             logger: Logger): Try[Unit] = Try {
+  private def closeDevice[D <: OpenedDevice](deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D])
+  : Try[Unit] = Try {
     val openedDevice = openedDevices(deviceId)
-    logger.info(s"Closing ${openedDevice.deviceType} device $deviceId...")
+    logger.info(s"Closing ${openedDevice.deviceEndpoint} device \"$deviceId\"...")
     openedDevice.device.close()
     openedDevices.remove(deviceId)
-    logger.info(s"Successfully closed ${openedDevice.deviceType} device $deviceId")
+    logger.info(s"Successfully closed ${openedDevice.deviceEndpoint} device \"$deviceId\".")
+  }
+
+  @inline
+  private def logDebugDetectedDevice(deviceId: MidiDeviceId, deviceEndpoint: DeviceEndpoint, maxHandlers: Int): Unit = {
+    logger.debug {
+      val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
+      val handlerType = if (deviceEndpoint == DeviceEndpoint.Input) "transmitters" else "receivers"
+      s"Detected $deviceEndpoint device \"$deviceId\" with $maxHandlersStr $handlerType."
+    }
+  }
+
+  @inline
+  private def logErrorOpenDevice(deviceId: MidiDeviceId, deviceEndpoint: DeviceEndpoint, exception: Throwable): Unit = {
+    logger.error(s"Failed to open $deviceEndpoint device \"$deviceId\".", exception)
   }
 }
 
+object MidiManager {
+  def isInputDevice(device: MidiDevice): Boolean = {
+    val maxTransmitters = device.getMaxTransmitters
+    maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0
+  }
+
+  def isOutputDevice(device: MidiDevice): Boolean = {
+    val maxReceivers = device.getMaxReceivers
+    maxReceivers == -1 /* unlimited */ || maxReceivers > 0
+  }
+}
+
+sealed abstract class DeviceEndpoint(protected val name: String) {
+  override def toString: String = name
+}
+
+object DeviceEndpoint {
+  case object Input extends DeviceEndpoint("input")
+
+  case object Output extends DeviceEndpoint("output")
+}
 
 sealed trait OpenedDevice {
   val device: MidiDevice
 
-  def deviceType: String
+  def deviceEndpoint: DeviceEndpoint
 }
 
 case class OpenedInputDevice(override val device: MidiDevice, transmitter: Transmitter) extends OpenedDevice {
-  override def deviceType: String = "input"
+  override def deviceEndpoint: DeviceEndpoint = DeviceEndpoint.Input
 }
 
 case class OpenedOutputDevice(override val device: MidiDevice, receiver: Receiver) extends OpenedDevice {
-  override def deviceType: String = "output"
+  override def deviceEndpoint: DeviceEndpoint = DeviceEndpoint.Output
 }

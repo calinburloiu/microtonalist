@@ -18,12 +18,15 @@ package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.MidiDevice
 
+// TODO #88 Only use name and vendor. Remove version.
 case class MidiDeviceId(name: String,
                         vendor: String,
                         version: String) {
+  def sanitizedName: String = name.replaceFirst("^CoreMIDI4J - ", "").trim
+
   override def toString: String = {
-    Seq(vendor, "\"" + name.replaceFirst("^CoreMIDI4J - ", "") + "\"", version)
-      .filter(_.trim.nonEmpty).mkString(" ")
+    val vendorSuffix = if (vendor.trim.nonEmpty) s" ($vendor)" else ""
+    sanitizedName + vendorSuffix
   }
 }
 

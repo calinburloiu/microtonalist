@@ -36,7 +36,7 @@ object MicrotonalistToolApp {
 
     def printMidiDevicesByType(deviceIds: Seq[MidiDeviceId], printHandler: MidiDeviceId => Unit): Unit = {
       deviceIds.foreach { deviceId =>
-        val deviceInfo = midiManager.deviceInfo(deviceId)
+        val deviceInfo = midiManager.deviceInfoOf(deviceId)
         println(
           s"""Name: ${deviceInfo.getName}
              |Vendor: ${deviceInfo.getVendor}
