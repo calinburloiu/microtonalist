@@ -18,4 +18,6 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.sync.MicrotunerEvent
 
+// TODO #90 Migrate to business-sync
+@deprecated
 case class TuningChangedEvent(tuningIndex: Int, oldTuningIndex: Int) extends MicrotunerEvent
