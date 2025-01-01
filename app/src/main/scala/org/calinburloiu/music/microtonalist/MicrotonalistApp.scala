@@ -135,7 +135,7 @@ object MicrotonalistApp extends StrictLogging {
     })
   }
 
-  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): TunerProcessor = {
+  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
     logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
     midiOutputConfig.tunerType match {
       case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
