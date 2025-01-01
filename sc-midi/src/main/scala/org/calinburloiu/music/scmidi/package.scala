@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music
 
-import javax.sound.midi.{MidiMessage, ShortMessage}
+import javax.sound.midi.{MidiDevice, MidiMessage, ShortMessage}
 import scala.language.implicitConversions
 
 package object scmidi {
@@ -78,8 +78,19 @@ package object scmidi {
     implicit def toInt(midiNote: MidiNote): Int = midiNote.number
   }
 
+  def isInputDevice(device: MidiDevice): Boolean = {
+    val maxTransmitters = device.getMaxTransmitters
+    maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0
+  }
+
+  def isOutputDevice(device: MidiDevice): Boolean = {
+    val maxReceivers = device.getMaxReceivers
+    maxReceivers == -1 /* unlimited */ || maxReceivers > 0
+  }
+
   def mapShortMessageChannel(shortMessage: ShortMessage, map: Int => Int): ShortMessage = {
-    new ShortMessage(shortMessage.getCommand, map(shortMessage.getChannel), shortMessage.getData1, shortMessage.getData2)
+    new ShortMessage(shortMessage.getCommand, map(shortMessage.getChannel), shortMessage.getData1, shortMessage
+      .getData2)
   }
 
   def mapShortMessageChannel(message: MidiMessage, map: Int => Int): MidiMessage = message match {

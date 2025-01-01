@@ -18,6 +18,8 @@ package org.calinburloiu.music.microtonalist.cli
 
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager}
 
+import javax.sound.midi.MidiSystem
+
 object MicrotonalistToolApp {
 
   def main(args: Array[String]): Unit = {
@@ -51,9 +53,9 @@ object MicrotonalistToolApp {
     println("=== Input Devices ===\n")
 
     def printTransmitters(deviceId: MidiDeviceId): Unit = {
-      midiManager.openInput(deviceId)
-      val device = midiManager.inputDevice(deviceId)
-      println(s"Max. Transmitters: ${fromHandlerCountToString(device.getMaxTransmitters)}")
+      val deviceInfo = midiManager.deviceInfoOf(deviceId)
+      val midiDevice = MidiSystem.getMidiDevice(deviceInfo)
+      println(s"Max. Transmitters: ${fromHandlerCountToString(midiDevice.getMaxTransmitters)}")
     }
 
     printMidiDevicesByType(midiManager.inputDeviceIds, printTransmitters)
@@ -61,9 +63,9 @@ object MicrotonalistToolApp {
     println("\n=== Output Devices ===\n")
 
     def printReceivers(deviceId: MidiDeviceId): Unit = {
-      midiManager.openOutput(deviceId)
-      val device = midiManager.outputDevice(deviceId)
-      println(s"Max. Receivers: ${fromHandlerCountToString(device.getMaxReceivers)}")
+      val deviceInfo = midiManager.deviceInfoOf(deviceId)
+      val midiDevice = MidiSystem.getMidiDevice(deviceInfo)
+      println(s"Max. Receivers: ${fromHandlerCountToString(midiDevice.getMaxReceivers)}")
     }
 
     printMidiDevicesByType(midiManager.outputDeviceIds, printReceivers)
