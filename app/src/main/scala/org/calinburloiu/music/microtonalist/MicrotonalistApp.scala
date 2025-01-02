@@ -81,18 +81,19 @@ object MicrotonalistApp extends StrictLogging {
     val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
     val midiInputConfig = midiInputConfigManager.config
     val maybeTransmitter = if (midiInputConfig.enabled && midiInputConfig.triggers.cc.enabled) {
-      val maybeInputDeviceId = midiManager.openFirstAvailableInput(midiInputConfig.devices)
-      maybeInputDeviceId.map(midiManager.inputTransmitter)
+      val maybeDeviceHandle = midiManager.openFirstAvailableInput(midiInputConfig.devices)
+      maybeDeviceHandle.map(_.transmitter)
     } else {
       None
     }
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-    val outputDeviceId = midiManager.openFirstAvailableOutput(midiOutputConfig.devices).getOrElse {
-      throw NoDeviceAvailableException
-    }
-    val receiver = midiManager.outputReceiver(outputDeviceId)
+    val outputDeviceHandle = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
+      .getOrElse {
+        throw NoDeviceAvailableException
+      }
+    val receiver = outputDeviceHandle.receiver
 
     // # I/O
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
@@ -135,7 +136,7 @@ object MicrotonalistApp extends StrictLogging {
     })
   }
 
-  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): TunerProcessor = {
+  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
     logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
     midiOutputConfig.tunerType match {
       case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
