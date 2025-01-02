@@ -21,11 +21,17 @@ import org.calinburloiu.music.scmidi
 import javax.sound.midi.{MidiDevice, Receiver, Transmitter}
 
 case class MidiDeviceHandle(midiDevice: MidiDevice) {
-  def midiDeviceId: MidiDeviceId = MidiDeviceId(midiDevice.getDeviceInfo)
+  def id: MidiDeviceId = MidiDeviceId(midiDevice.getDeviceInfo)
+
+  def info: MidiDevice.Info = midiDevice.getDeviceInfo
 
   def isInputDevice: Boolean = scmidi.isInputDevice(midiDevice)
 
   def isOutputDevice: Boolean = scmidi.isOutputDevice(midiDevice)
+
+  def open(): Unit = midiDevice.open()
+
+  def close(): Unit = midiDevice.close()
 
   def isOpen: Boolean = midiDevice.isOpen
 

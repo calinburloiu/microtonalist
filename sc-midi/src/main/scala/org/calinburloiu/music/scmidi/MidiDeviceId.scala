@@ -18,6 +18,15 @@ package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.MidiDevice
 
+/**
+ * Unique identifier of a device.
+ *
+ * Note that a physical device will have a unique [[MidiDeviceId]] but its [[MidiDevice]] (or [[MidiDeviceHandle]])
+ * will be different is it's used as input or as output.
+ *
+ * @param name Name of the MIDI device.
+ * @param vendor The name of the company who supplies the device.
+ */
 case class MidiDeviceId(name: String,
                         vendor: String) {
   /**

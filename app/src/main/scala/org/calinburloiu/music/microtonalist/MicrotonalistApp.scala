@@ -81,7 +81,7 @@ object MicrotonalistApp extends StrictLogging {
     val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
     val midiInputConfig = midiInputConfigManager.config
     val maybeTransmitter = if (midiInputConfig.enabled && midiInputConfig.triggers.cc.enabled) {
-      val maybeDeviceHandle = midiManager.openFirstAvailableDevice(midiInputConfig.devices, _.isInputDevice)
+      val maybeDeviceHandle = midiManager.openFirstAvailableInput(midiInputConfig.devices)
       maybeDeviceHandle.map(_.transmitter)
     } else {
       None
@@ -89,10 +89,10 @@ object MicrotonalistApp extends StrictLogging {
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-    val outputDeviceHandle = midiManager.openFirstAvailableDevice(midiOutputConfig.devices, _.isOutputDevice)
+    val outputDeviceHandle = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
       .getOrElse {
-      throw NoDeviceAvailableException
-    }
+        throw NoDeviceAvailableException
+      }
     val receiver = outputDeviceHandle.receiver
 
     // # I/O
