@@ -17,11 +17,11 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{Interval, IntonationStandard}
-import org.calinburloiu.music.microtonalist.core.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
+import org.calinburloiu.music.microtonalist.composition.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
 import org.calinburloiu.music.microtonalist.format.JsonConstraints.exclusiveMin
 import org.calinburloiu.music.scmidi.{DefaultConcertPitchFreq, MidiNote, PitchClass}
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
-import play.api.libs.json.Reads.{min, max}
+import play.api.libs.json.Reads.{max, min}
 import play.api.libs.json._
 
 case class JsonTuningReferencePluginFormat(intonationStandard: IntonationStandard) extends

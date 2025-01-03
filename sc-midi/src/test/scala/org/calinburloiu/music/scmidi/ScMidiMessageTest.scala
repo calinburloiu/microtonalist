@@ -39,7 +39,8 @@ class ScNoteMidiMessageTest extends AnyFlatSpec with Matchers {
   }
 
   it should "be converted to a MidiMessage" in {
-    ScNoteOnMidiMessage(channel, noteNumber, velocity).javaMidiMessage.getMessage should equal(javaNoteOnMessage.getMessage)
+    ScNoteOnMidiMessage(channel, noteNumber, velocity).javaMidiMessage.getMessage should equal(javaNoteOnMessage
+      .getMessage)
   }
 
   behavior of "ScNoteOffMidiMessage"
@@ -51,7 +52,8 @@ class ScNoteMidiMessageTest extends AnyFlatSpec with Matchers {
   }
 
   it should "be converted to a MidiMessage" in {
-    ScNoteOffMidiMessage(channel, noteNumber, velocity).javaMidiMessage.getMessage should equal(javaNoteOffMessage.getMessage)
+    ScNoteOffMidiMessage(channel, noteNumber, velocity).javaMidiMessage.getMessage should equal(javaNoteOffMessage
+      .getMessage)
   }
 }
 
@@ -88,7 +90,8 @@ class ScCcMidiMessageTest extends AnyFlatSpec with Matchers {
   private val channel = 15
   private val number = 67
   private val pitchBendValue = 64
-  private val javaMidiMessage: MidiMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number, pitchBendValue)
+  private val javaMidiMessage: MidiMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number,
+    pitchBendValue)
 
   behavior of "ScCcMidiMessage"
 

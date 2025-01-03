@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{JustIntonationStandard, RatioInterval, RatiosScale}
-import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
-import org.calinburloiu.music.microtonalist.core.TuningList
+import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils._
+import org.calinburloiu.music.microtonalist.composition.TuningList
 import org.calinburloiu.music.microtonalist.format.{FormatModule, FormatTestUtils}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.SoftChromaticGenusMapping
+import org.calinburloiu.music.microtonalist.composition.SoftChromaticGenusMapping
 import play.api.libs.json.{JsString, Reads}
 
 class JsonSoftChromaticGenusMappingPluginFormatTest extends JsonFormatTestUtils {

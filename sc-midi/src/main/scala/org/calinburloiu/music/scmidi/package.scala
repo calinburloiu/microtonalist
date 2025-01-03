@@ -79,7 +79,8 @@ package object scmidi {
   }
 
   def mapShortMessageChannel(shortMessage: ShortMessage, map: Int => Int): ShortMessage = {
-    new ShortMessage(shortMessage.getCommand, map(shortMessage.getChannel), shortMessage.getData1, shortMessage.getData2)
+    new ShortMessage(shortMessage.getCommand, map(shortMessage.getChannel), shortMessage.getData1, shortMessage
+      .getData2)
   }
 
   def mapShortMessageChannel(message: MidiMessage, map: Int => Int): MidiMessage = message match {

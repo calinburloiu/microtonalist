@@ -9,10 +9,10 @@ ThisBuild / organization := "org.calinburloiu.music"
 lazy val root = (project in file("."))
   .aggregate(
     app,
+    businessync,
     cli,
     ui,
-    sync,
-    core,
+    composition,
     tuner,
     format,
     intonation,
@@ -26,11 +26,11 @@ lazy val root = (project in file("."))
 
 lazy val app = (project in file("app"))
   .dependsOn(
-    core,
+    businessync,
+    composition,
     intonation,
     format,
     scMidi,
-    sync,
     tuner,
     ui,
   )
@@ -73,24 +73,35 @@ lazy val ui = (project in file("ui"))
     commonSettings,
   )
 
-lazy val sync = (project in file("sync"))
+lazy val common = (project in file("common"))
   .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-sync",
+    name := "microtonalist-common",
     commonSettings,
     libraryDependencies ++= Seq(
       guava,
     ),
   )
 
-lazy val core = (project in file("core"))
+lazy val businessync = (project in file("businessync"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-businessync",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+    ),
+  )
+
+lazy val composition = (project in file("composition"))
   .dependsOn(
+    common,
     intonation,
     scMidi,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-core",
+    name := "microtonalist-composition",
     commonSettings,
     libraryDependencies ++= Seq(
       enumeratum,
@@ -99,9 +110,9 @@ lazy val core = (project in file("core"))
 
 lazy val tuner = (project in file("tuner"))
   .dependsOn(
-    core,
+    businessync,
+    composition,
     scMidi,
-    sync,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -114,7 +125,7 @@ lazy val tuner = (project in file("tuner"))
 
 lazy val format = (project in file("format"))
   .dependsOn(
-    core,
+    composition,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -148,11 +159,11 @@ lazy val scMidi = (project in file("sc-midi"))
 
 lazy val experiments = (project in file("experiments"))
   .dependsOn(
-    core,
+    businessync,
+    composition,
     intonation,
     format,
     scMidi,
-    sync,
     tuner,
   )
   .settings(

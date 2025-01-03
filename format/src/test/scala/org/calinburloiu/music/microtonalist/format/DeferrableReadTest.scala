@@ -28,7 +28,9 @@ import scala.util.{Failure, Success}
 
 class DeferrableReadTest extends AsyncFlatSpec with Matchers {
   case class Person(name: String, age: Int)
+
   case class Import(`import`: String)
+
   case class Profile(id: String,
                      person: DeferrableRead[Person, Import],
                      friends: Seq[DeferrableRead[Person, Import]])
@@ -130,7 +132,7 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
       .flatMap { person =>
         person shouldEqual mary
         actualProfile.friends(1).futureValue
-      }.map { person => person shouldEqual mary}
+      }.map { person => person shouldEqual mary }
 
     // Immediately fail to load data
     val exception = intercept[RuntimeException] {
@@ -142,12 +144,16 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     exception.getMessage shouldEqual "epic failure"
 
     actualProfile.friends(2).status shouldEqual DeferrableReadStatus.Unloaded
-    assertThrows[NoSuchElementException] { actualProfile.friends(2).value }
+    assertThrows[NoSuchElementException] {
+      actualProfile.friends(2).value
+    }
 
     // Eventually fail to load data
     futures += actualProfile.friends(2).load { placeholder =>
       placeholder.`import` shouldEqual "https://example.org/persons/paul"
-      Future { throw new RuntimeException("another epic failure") }
+      Future {
+        throw new RuntimeException("another epic failure")
+      }
     }.transform {
       case Failure(exception) => Success(exception.getMessage shouldEqual "another epic failure")
       case _ => fail("expected a failure")
@@ -160,10 +166,14 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
       actualProfile.friends(1).value shouldEqual mary
       actualProfile.friends(1).status shouldEqual DeferrableReadStatus.Loaded
 
-      val exception = intercept[RuntimeException] { actualProfile.friends(2).value }
+      val exception = intercept[RuntimeException] {
+        actualProfile.friends(2).value
+      }
       actualProfile.friends(2).status shouldEqual DeferrableReadStatus.FailedLoad(exception)
 
-      val exception2 = intercept[RuntimeException] { actualProfile.friends.head.value }
+      val exception2 = intercept[RuntimeException] {
+        actualProfile.friends.head.value
+      }
       actualProfile.friends.head.status shouldEqual DeferrableReadStatus.FailedLoad(exception2)
 
       v.head
@@ -183,7 +193,9 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
       Future(john)
     }
 
-    val value = Future { actualProfile.person.futureValue }.flatten
+    val value = Future {
+      actualProfile.person.futureValue
+    }.flatten
     value.isCompleted shouldBe false
 
     lock.unlock()

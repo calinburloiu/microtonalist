@@ -38,11 +38,14 @@ trait MidiProcessor extends Transmitter with Receiver {
 
   /**
    * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.
+   *
    * @see [[javax.sound.midi.Transmitter#getReceiver()]]
    */
   final def receiver: Receiver = getReceiver
+
   /**
    * Scala idiomatic version of [[Transmitter]]'s `setReceiver` method.
+   *
    * @see [[javax.sound.midi.Transmitter#setReceiver()]]
    */
   final def receiver_=(receiver: Receiver): Unit = setReceiver(receiver)

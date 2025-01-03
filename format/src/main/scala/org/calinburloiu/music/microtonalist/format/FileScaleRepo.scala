@@ -48,7 +48,9 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] =
-    Future { read(uri) }
+    Future {
+      read(uri)
+    }
 
   override def write(scale: Scale[Interval],
                      uri: URI,

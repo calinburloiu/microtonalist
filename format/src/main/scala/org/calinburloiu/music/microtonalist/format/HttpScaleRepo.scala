@@ -90,7 +90,7 @@ class HttpScaleRepo(httpClient: HttpClient,
     case 404 => throw new ScaleNotFoundException(uri)
     case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
       Some(s"HTTP request to $uri returned status code $status"))
-    case status if status  >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
+    case status if status >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
       s"HTTP request to $uri returned status code $status")
     case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
   }

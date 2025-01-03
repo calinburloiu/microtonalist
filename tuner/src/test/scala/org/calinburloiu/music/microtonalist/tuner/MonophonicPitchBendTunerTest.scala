@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.core.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi._
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside
@@ -50,7 +50,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   private val customTuning2 = OctaveTuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
-    noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4 until MidiNote.C5
+  noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4 until MidiNote.C5
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
@@ -58,7 +58,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   /** Default fixture that auto connects. Create a custom one for other cases. */
   private trait Fixture extends MidiProcessorFixture[MonophonicPitchBendTuner] {
-    override val midiProcessor: MonophonicPitchBendTuner = new MonophonicPitchBendTuner(outputChannel, pitchBendSensitivity)
+    override val midiProcessor: MonophonicPitchBendTuner = new MonophonicPitchBendTuner(outputChannel,
+      pitchBendSensitivity)
 
     /** Alias for `midiProcessor` for better test readability. */
     val tuner: MonophonicPitchBendTuner = midiProcessor
@@ -85,7 +86,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   private def collectCcMessages(midiMessages: Seq[MidiMessage]): Seq[(Int, Int)] = {
     midiMessages.collect {
       case ScCcMidiMessage(channel, number, value) =>
-        channel should equal (outputChannel)
+        channel should equal(outputChannel)
         (number, value)
     }
   }
@@ -103,7 +104,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output should not be empty
 
     val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
-    ccMessages should contain inOrderOnly (
+    ccMessages should contain inOrderOnly(
       (ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
       (ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
       (ScCcMidiMessage.DataEntryMsb, customPitchBendSensitivity.semitones),
@@ -130,10 +131,10 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
         (ScCcMidiMessage.DataEntryLsb, PitchBendSensitivity.Default.cents),
         (ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
         (ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-      )) should be (true)
+      )) should be(true)
 
       val pitchBendValues: Seq[Int] = shortMessageOutput.collect { case ScPitchBendMidiMessage(_, value) => value }
-      pitchBendValues should equal (Seq(0))
+      pitchBendValues should equal(Seq(0))
     }
 
   behavior of "MonophonicPitchBendTuner after initialization"
@@ -181,10 +182,10 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val result: Seq[ScPitchBendMidiMessage] = pitchBendOutput
     result should have size 3
-    result.map(_.value) should equal (Seq(
-      Math.round(-16.67/100 * 8192),
-      Math.round(-33.33/100 * 8192),
-      Math.round(16.67/100 * 8191)
+    result.map(_.value) should equal(Seq(
+      Math.round(-16.67 / 100 * 8192),
+      Math.round(-33.33 / 100 * 8192),
+      Math.round(16.67 / 100 * 8191)
     ))
   }
 
@@ -211,7 +212,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should not be empty
     pitchBendOutput should not be empty
-    shortMessageOutput.map(_.getChannel).forall(_ == outputChannel) should be (true)
+    shortMessageOutput.map(_.getChannel).forall(_ == outputChannel) should be(true)
   }
 
   behavior of "MonophonicPitchBendTuner when the tuning is changed"
@@ -243,7 +244,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should have size 1
     inside(output.head) {
-      case ScPitchBendMidiMessage(`outputChannel`, value) => value should equal (Math.round(-45.0/100 * 8192))
+      case ScPitchBendMidiMessage(`outputChannel`, value) => value should equal(Math.round(-45.0 / 100 * 8192))
     }
   }
 
@@ -277,10 +278,12 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     outputNotes should have size 5
     inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, 48) => note.number shouldEqual noteC4 }
     inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, `lastNoteOffVelocity`) =>
-      note.number shouldEqual noteC4 }
+      note.number shouldEqual noteC4
+    }
     inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, 64) => note.number shouldEqual noteDSharp4 }
     inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, `lastNoteOffVelocity`) =>
-      note.number shouldEqual noteDSharp4 }
+      note.number shouldEqual noteDSharp4
+    }
     inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, 96) => note.number shouldEqual noteE4 }
   }
 
@@ -310,22 +313,22 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   it should "tune reverted notes when holding a non-microtonal note while playing a microtonal one and lifting it" in
     new Fixture {
-    tuner.tune(customTuning)
-    resetOutput()
+      tuner.tune(customTuning)
+      resetOutput()
 
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteG4))
-    tuner.send(ScNoteOnMidiMessage(inputChannel, noteAb4))
-    tuner.send(ScNoteOffMidiMessage(inputChannel, noteAb4))
+      tuner.send(ScNoteOnMidiMessage(inputChannel, noteG4))
+      tuner.send(ScNoteOnMidiMessage(inputChannel, noteAb4))
+      tuner.send(ScNoteOffMidiMessage(inputChannel, noteAb4))
 
-    output should have size 7
-    inside(output.head) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal (noteG4) }
-    inside(output(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal (noteG4) }
-    inside(output(2)) { case ScPitchBendMidiMessage(_, value) => value should be > 0 }
-    inside(output(3)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal (noteAb4) }
-    inside(output(4)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal (noteAb4) }
-    inside(output(5)) { case ScPitchBendMidiMessage(_, value) => value should be (0) }
-    inside(output(6)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal (noteG4) }
-  }
+      output should have size 7
+      inside(output.head) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal(noteG4) }
+      inside(output(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal(noteG4) }
+      inside(output(2)) { case ScPitchBendMidiMessage(_, value) => value should be > 0 }
+      inside(output(3)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal(noteAb4) }
+      inside(output(4)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal(noteAb4) }
+      inside(output(5)) { case ScPitchBendMidiMessage(_, value) => value should be(0) }
+      inside(output(6)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal(noteG4) }
+    }
 
   behavior of "MonophonicPitchBendTuner when it receives pitch bend messages"
 
@@ -337,7 +340,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should have size 1
     pitchBendOutput should have size 1
-    pitchBendOutput.head.value should equal (-2020)
+    pitchBendOutput.head.value should equal(-2020)
   }
 
   it should "add the pitch bend received to the one computed for tuning a microtonal note" in new Fixture {
@@ -352,7 +355,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should have size 1
     pitchBendOutput should have size 1
-    ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal (
+    ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal(
       customTuning(4) + expressionPitchBendCents)
   }
 
@@ -369,7 +372,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
       output should have size 1
       pitchBendOutput should have size 1
-      ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal (
+      ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal(
         customTuning(4) + expressionPitchBendCents)
     }
 
@@ -393,7 +396,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     val expectedCentsResults: Seq[Double] = Seq(customTuning(3), customTuning(0), customTuning(4))
       .map(_ + expressionPitchBendCents)
     // Using a for because tolerance does not work with sequences
-    (0 until 3).foreach { i => centResults(i) should equal (expectedCentsResults(i)) }
+    (0 until 3).foreach { i => centResults(i) should equal(expectedCentsResults(i)) }
   }
 
   it should "clamp the pitch bend to min/max value if adding received pitch bend to tuning pitch bend " +
@@ -404,14 +407,14 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.send(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MaxValue - 1))
     sendNote(tuner, noteDFlat4)
     pitchBendOutput should have size 2
-    pitchBendOutput(1).value should equal (ScPitchBendMidiMessage.MaxValue)
+    pitchBendOutput(1).value should equal(ScPitchBendMidiMessage.MaxValue)
 
     resetOutput()
 
     tuner.send(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MinValue + 1))
     sendNote(tuner, noteA4)
     pitchBendOutput should have size 2
-    pitchBendOutput(1).value should equal (ScPitchBendMidiMessage.MinValue)
+    pitchBendOutput(1).value should equal(ScPitchBendMidiMessage.MinValue)
   }
 
   behavior of "MonophonicPitchBendTuner when non-tuning-related MIDI messages are received"
@@ -518,10 +521,10 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
     outputNotes should have size 5
-    inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4  }
-    inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteBb4  }
-    inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteA4  }
-    inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteA4  }
-    inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4  }
+    inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
+    inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
+    inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
+    inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
+    inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
   }
 }
