@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.core._
+import org.calinburloiu.music.microtonalist.composition._
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 
@@ -92,9 +92,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       case error: JsError => throw new InvalidCompositionFormatException(JsError.toJson(error).toString)
     }
   }
-
   /**
-   * Converts the objects used for JSON representation into core / domain model objects.
+   * Converts the objects used for JSON representation into domain model objects.
    */
   private def fromReprToDomain(compositionRepr: CompositionRepr): Composition = {
     val context = compositionRepr.context

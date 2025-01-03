@@ -17,7 +17,8 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.core.{CompositionMetadata, TuningMapper, TuningReducer, TuningReference}
+import org.calinburloiu.music.microtonalist.composition.{CompositionMetadata, TuningMapper, TuningReducer,
+  TuningReference}
 import play.api.libs.json.{JsNull, JsObject, JsValue}
 
 import java.net.URI
