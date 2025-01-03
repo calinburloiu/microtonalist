@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import com.typesafe.scalalogging.StrictLogging
-import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
+import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import scala.collection.mutable
@@ -30,9 +30,20 @@ class MidiManager extends AutoCloseable with StrictLogging {
   private val inputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Input)
   private val outputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Output)
 
-  refresh()
+  private val onMidiNotification: CoreMidiNotification = () => {
+    logger.info("The MIDI environment has changed.")
+    refresh()
+  }
 
-  // TODO #88 Improve to allow automatic refresh by using listeners
+  init()
+
+  private def init(): Unit = {
+    refresh()
+
+    // Automatically refresh when the MIDI environment has changed
+    CoreMidiDeviceProvider.addNotificationListener(onMidiNotification)
+  }
+
   def refresh(): Unit = {
     inputEndpoint.clearDevices()
     outputEndpoint.clearDevices()
@@ -61,6 +72,7 @@ class MidiManager extends AutoCloseable with StrictLogging {
     logger.info(s"Closing ${getClass.getSimpleName}...")
     inputEndpoint.close()
     outputEndpoint.close()
+    CoreMidiDeviceProvider.removeNotificationListener(onMidiNotification)
     logger.info(s"Finished closing ${getClass.getSimpleName}.")
   }
 
