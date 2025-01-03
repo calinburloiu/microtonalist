@@ -92,6 +92,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       case error: JsError => throw new InvalidCompositionFormatException(JsError.toJson(error).toString)
     }
   }
+
   /**
    * Converts the objects used for JSON representation into domain model objects.
    */

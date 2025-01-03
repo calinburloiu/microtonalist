@@ -22,6 +22,7 @@ import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
 
 // TODO #64 Rename to MtsMessageGenerator. Each MtsTunerType implementation must provide a generator.
+
 /**
  * @see [[MtsTuningFormat]]
  */

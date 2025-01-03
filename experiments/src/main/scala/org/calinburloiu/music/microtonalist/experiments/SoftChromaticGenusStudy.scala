@@ -24,7 +24,7 @@ class SoftChromaticGenusStudy {
   private val lim11SoftHicaz: RatiosScale = RatiosScale("11-limit Soft Hicaz", 1 /: 1, 88 /: 81, 27 /: 22, 4 /: 3)
   private val lim11SofterHicaz: RatiosScale = RatiosScale("11-limit Softer Hicaz", 1 /: 1, 12 /: 11, 27 /: 22, 4 /: 3)
 
-  private val goodEdos: Seq[Int] =  Seq(12, 19, 22, 27, 31, 34, 41, 46, 53, 58, 60, 65, 68, 72, 77, 80, 84, 87, 94, 99)
+  private val goodEdos: Seq[Int] = Seq(12, 19, 22, 27, 31, 34, 41, 46, 53, 58, 60, 65, 68, 72, 77, 80, 84, 87, 94, 99)
 
   private val strictAug2Threshold: Double = 210.0
   private val pseudoChromaticAug2Threshold: Double = 190.0
@@ -38,6 +38,7 @@ class SoftChromaticGenusStudy {
 
     def checkThresholds(recurrentIntervals: Seq[Interval]): (Boolean, Boolean, Boolean) = {
       val Seq(i1, i2, i3) = recurrentIntervals
+
       def checkQuarterTone(interval: Interval) = interval.cents <= 163.0
 
       (checkQuarterTone(i1), i2.cents >= aug2Threshold, checkQuarterTone(i3))
@@ -63,6 +64,7 @@ class SoftChromaticGenusStudy {
 
 object SoftChromaticGenusStudy extends App {
   private val study = new SoftChromaticGenusStudy
+
   import study._
 
   println("== Just Intonation ==")

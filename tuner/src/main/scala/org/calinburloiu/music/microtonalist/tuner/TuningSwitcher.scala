@@ -23,9 +23,10 @@ import org.calinburloiu.music.microtonalist.composition.{OctaveTuning, TuningLis
 
 /**
  * Class responsible to switch between tunings.
- * @param tuners Tuners for various output instruments called when the tuning is changed.
+ *
+ * @param tuners     Tuners for various output instruments called when the tuning is changed.
  * @param tuningList List of tunings for the current musical composition.
- * @param eventBus Event bus for sending events.
+ * @param eventBus   Event bus for sending events.
  */
 class TuningSwitcher(val tuners: Seq[Tuner],
                      val tuningList: TuningList,

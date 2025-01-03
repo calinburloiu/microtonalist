@@ -16,10 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{
-  CentsIntonationStandard, EdoIntonationStandard, IntonationStandard,
-  JustIntonationStandard
-}
+import org.calinburloiu.music.intonation.{CentsIntonationStandard, EdoIntonationStandard, IntonationStandard, JustIntonationStandard}
 import play.api.libs.json.{Format, JsString, Json}
 
 class JsonIntonationStandardPluginFormatTest extends JsonFormatTestUtils {

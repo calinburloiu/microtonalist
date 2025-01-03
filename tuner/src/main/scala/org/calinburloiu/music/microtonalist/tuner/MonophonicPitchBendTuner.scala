@@ -27,7 +27,7 @@ import scala.collection.mutable
  * Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent
  * on, this tuner only supports and enforces monophonic playing.
  *
- * @param outputChannel Output MIDI channel on which all output is sent, regardless on the input channels used.
+ * @param outputChannel        Output MIDI channel on which all output is sent, regardless on the input channels used.
  * @param pitchBendSensitivity Pitch bend range that will be configured via Pitch Bend Sensitivity MIDI RPN.
  */
 class MonophonicPitchBendTuner(private val outputChannel: Int,

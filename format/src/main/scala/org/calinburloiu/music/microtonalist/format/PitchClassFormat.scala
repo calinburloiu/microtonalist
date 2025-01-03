@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.functional.syntax.toApplicativeOps
-import play.api.libs.json.{Format, JsError, JsNumber, JsPath, JsResult, JsString, JsSuccess, JsValue, JsonValidationError, Reads}
+import play.api.libs.json._
 
 import scala.util.Try
 

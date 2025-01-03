@@ -15,6 +15,7 @@
  */
 
 package org.calinburloiu.music.microtonalist.format
+
 import com.typesafe.scalalogging.StrictLogging
 import play.api.libs.json.{JsObject, JsPath, Json}
 

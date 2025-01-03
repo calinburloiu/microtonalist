@@ -25,8 +25,9 @@ import javax.sound.midi.MidiMessage
  * MIDI Tuning Standard (MTS) `Tuner` implementation.
  *
  * @param tuningFormat One of the MTS formats supported.
- * @param thru Whether to redirect input messages to the output. Note that this can be false because MTS sends SysEx
- *             MIDI messages that change the tuning for a batch of notes.
+ * @param thru         Whether to redirect input messages to the output. Note that this can be false because MTS
+ *                     sends SysEx
+ *                     MIDI messages that change the tuning for a batch of notes.
  */
 class MtsTuner(val tuningFormat: MtsTuningFormat,
                val thru: Boolean) extends TunerProcessor with StrictLogging {

@@ -42,7 +42,8 @@ class ScaleFormatRegistry(val scaleFormats: Seq[ScaleFormat]) {
   /**
    * Attempts to get the format by media type and if not provided it extracts the file extension from the URI's path
    * and gets the format by that extension.
-   * @param uri scale file URI
+   *
+   * @param uri       scale file URI
    * @param mediaType media type for the scale
    */
   def get(uri: URI, mediaType: Option[MediaType]): Option[ScaleFormat] = {
