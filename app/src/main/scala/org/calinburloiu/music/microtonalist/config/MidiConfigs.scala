@@ -31,6 +31,7 @@ case class MidiOutputConfig(devices: Seq[MidiDeviceId],
 
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
+
   import MidiConfigSerDe._
   import MidiOutputConfigManager._
   import org.calinburloiu.music.microtonalist.config.ConfigSerDe._

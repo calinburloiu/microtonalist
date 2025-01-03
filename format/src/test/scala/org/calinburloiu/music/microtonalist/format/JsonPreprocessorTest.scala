@@ -108,7 +108,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     output shouldEqual expectedOutput
   }
-  
+
   it should "pass resolved URIs to JsonPreprocessorRefLoaders" in {
     // Given
     val input = Json.obj("$ref" -> "company/employees/john.json")
@@ -119,7 +119,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     preprocessor.preprocess(input, Some(new URI("https://example.org/")))
     // Then
-    mockLoader.load _ verify (new URI("https://example.org/company/employees/john.json"), __)
+    mockLoader.load _ verify(new URI("https://example.org/company/employees/john.json"), __)
   }
 
   it should "pass the correct JsonPath context to JsonPreprocessorRefLoaders" in {
@@ -150,11 +150,11 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     preprocessor.preprocess(input, None)
     // Then
-    mockLoader.load _ verify (new URI("https://example.org/1"), __)
-    mockLoader.load _ verify (new URI("https://example.org/2"), __ \ "foo")
-    mockLoader.load _ verify (new URI("https://example.org/3"), __ \ "foo" \ "bar")
-    mockLoader.load _ verify (new URI("https://example.org/4"), __ \ "foo" \ "bar" \ "items" \ 1)
-    mockLoader.load _ verify (new URI("https://example.org/5"), __ \ "foo" \ "bar" \ "items" \ 1 \ "detail")
+    mockLoader.load _ verify(new URI("https://example.org/1"), __)
+    mockLoader.load _ verify(new URI("https://example.org/2"), __ \ "foo")
+    mockLoader.load _ verify(new URI("https://example.org/3"), __ \ "foo" \ "bar")
+    mockLoader.load _ verify(new URI("https://example.org/4"), __ \ "foo" \ "bar" \ "items" \ 1)
+    mockLoader.load _ verify(new URI("https://example.org/5"), __ \ "foo" \ "bar" \ "items" \ 1 \ "detail")
   }
 
   it should "leave a JSON as it is if it does not have references" in {
@@ -165,7 +165,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val output = preprocessor.preprocess(input, None)
     // Then
     output shouldEqual input
-    output shouldBe theSameInstanceAs (input)
+    output shouldBe theSameInstanceAs(input)
   }
 
   it should "leave a JSON as it is there are no reference loaders" in {
@@ -176,7 +176,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val output = preprocessor.preprocess(input, None)
     // Then
     output shouldEqual input
-    output shouldBe theSameInstanceAs (input)
+    output shouldBe theSameInstanceAs(input)
   }
 
   it should "fail if a reference can't be loaded by any JsonRefLoader" in {
@@ -197,7 +197,8 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
   it should "fail if an error occurs while loading a reference" in {
     // Given
     val input = Json.obj("$ref" -> "https://example.org/1")
-    val loaders: RefLoaders = Seq((_, _) => None, (uri, path) => throw new JsonPreprocessorRefLoadException(uri, path, "Boom!"))
+    val loaders: RefLoaders = Seq((_, _) => None, (uri, path) => throw new JsonPreprocessorRefLoadException(uri,
+      path, "Boom!"))
     val preprocessor = new JsonPreprocessor(loaders)
     // Then
     assertThrows[JsonPreprocessorRefLoadException] {
@@ -266,7 +267,7 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
           case "https://example.org/data/pets/pamela.json" => Some(Json.obj(
             "animal" -> "dog",
             "details" -> Json.obj(
-            "$ref" -> "details/countryside.json"
+              "$ref" -> "details/countryside.json"
             )
           ))
           case "https://example.org/data/pets/details/countryside.json" => Some(Json.obj(

@@ -18,8 +18,6 @@ package org.calinburloiu.music
 
 import com.google.common.math.{DoubleMath, IntMath}
 
-import scala.annotation.tailrec
-
 package object intonation {
   /** Concert pitch frequency in Hz for central A4. */
   val ConcertPitchFreq: Double = 440.0

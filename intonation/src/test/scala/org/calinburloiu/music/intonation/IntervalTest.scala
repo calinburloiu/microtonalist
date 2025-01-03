@@ -139,7 +139,7 @@ class RealIntervalTest extends AnyFlatSpec with Matchers with TableDrivenPropert
 
   "toRealInterval" should "convert the interval to a RealInterval" in {
     val interval = RealInterval(1.5)
-    interval.toRealInterval shouldBe theSameInstanceAs (interval)
+    interval.toRealInterval shouldBe theSameInstanceAs(interval)
   }
 
   "toCentsInterval" should "convert the interval to a CentsInterval" in {
@@ -286,12 +286,12 @@ class RatioIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
 
   "harmonicSeriesOf" should "create a series with the harmonics that match for a set of ratio intervals" in {
     assertThrows[IllegalArgumentException](RatioInterval.harmonicSeriesOf())
-    RatioInterval.harmonicSeriesOf(1/:1, 5/:4, 3/:2) shouldEqual Seq(4, 5, 6)
-    RatioInterval.harmonicSeriesOf(1/:1, 4/:3, 3/:2) shouldEqual Seq(6, 8, 9)
-    RatioInterval.harmonicSeriesOf(1/:1, 11/:8, 3/:2) shouldEqual Seq(8, 11, 12)
-    RatioInterval.harmonicSeriesOf(1/:1, 4/:3, 11/:6) shouldEqual Seq(6, 8, 11)
-    RatioInterval.harmonicSeriesOf(1/:1, 11/:8, 11/:6) shouldEqual Seq(24, 33, 44)
-    RatioInterval.harmonicSeriesOf(1/:1, 5/:4, 3/:2, 7/:4) shouldEqual Seq(4, 5, 6, 7)
+    RatioInterval.harmonicSeriesOf(1 /: 1, 5 /: 4, 3 /: 2) shouldEqual Seq(4, 5, 6)
+    RatioInterval.harmonicSeriesOf(1 /: 1, 4 /: 3, 3 /: 2) shouldEqual Seq(6, 8, 9)
+    RatioInterval.harmonicSeriesOf(1 /: 1, 11 /: 8, 3 /: 2) shouldEqual Seq(8, 11, 12)
+    RatioInterval.harmonicSeriesOf(1 /: 1, 4 /: 3, 11 /: 6) shouldEqual Seq(6, 8, 11)
+    RatioInterval.harmonicSeriesOf(1 /: 1, 11 /: 8, 11 /: 6) shouldEqual Seq(24, 33, 44)
+    RatioInterval.harmonicSeriesOf(1 /: 1, 5 /: 4, 3 /: 2, 7 /: 4) shouldEqual Seq(4, 5, 6, 7)
   }
 }
 
@@ -406,7 +406,7 @@ class CentsIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProper
 
   "toCentsInterval" should "convert the same CentsInterval instance" in {
     val interval = CentsInterval(383.33)
-    interval.toCentsInterval shouldBe theSameInstanceAs (interval)
+    interval.toCentsInterval shouldBe theSameInstanceAs(interval)
   }
 }
 
@@ -436,16 +436,16 @@ class EdoIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProperty
   }
 
   "countRelativeToStandard" should "return a pair of an approximation of semitones and the deviation" in {
-    EdoInterval(72, (7, 0)).countRelativeToStandard shouldEqual (7, 0)
-    EdoInterval(72, (4, -1)).countRelativeToStandard shouldEqual (4, -1)
-    EdoInterval(72, (3, +1)).countRelativeToStandard shouldEqual (3, +1)
+    EdoInterval(72, (7, 0)).countRelativeToStandard shouldEqual(7, 0)
+    EdoInterval(72, (4, -1)).countRelativeToStandard shouldEqual(4, -1)
+    EdoInterval(72, (3, +1)).countRelativeToStandard shouldEqual(3, +1)
 
-    EdoInterval(31, 10).countRelativeToStandard shouldEqual (4, 0)
-    EdoInterval(31, 7).countRelativeToStandard shouldEqual (3, -1)
+    EdoInterval(31, 10).countRelativeToStandard shouldEqual(4, 0)
+    EdoInterval(31, 7).countRelativeToStandard shouldEqual(3, -1)
 
-    EdoInterval(53, (7, 0)).countRelativeToStandard shouldEqual (7, 0)
-    EdoInterval(53, (4, -1)).countRelativeToStandard shouldEqual (4, -1)
-    EdoInterval(53, (3, +1)).countRelativeToStandard shouldEqual (3, +1)
+    EdoInterval(53, (7, 0)).countRelativeToStandard shouldEqual(7, 0)
+    EdoInterval(53, (4, -1)).countRelativeToStandard shouldEqual(4, -1)
+    EdoInterval(53, (3, +1)).countRelativeToStandard shouldEqual(3, +1)
   }
 
   "1200-EDO intervals" should "give cents values equal to their counts" in {

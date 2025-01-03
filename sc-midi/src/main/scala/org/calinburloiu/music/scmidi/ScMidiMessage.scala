@@ -72,7 +72,9 @@ object ScNoteOffMidiMessage {
 }
 
 case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessage {
+
   import ScPitchBendMidiMessage._
+
   MidiRequirements.requireChannel(channel)
   MidiRequirements.requireSigned14BitValue("value", value)
 
@@ -87,7 +89,7 @@ object ScPitchBendMidiMessage {
   val NoPitchBendValue: Int = 0
   val MaxValue: Int = MidiRequirements.MaxSigned14BitValue
 
-  def unapply(message: MidiMessage): Option[(Int,Int)] = message match {
+  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PITCH_BEND =>
       Some((shortMessage.getChannel, convertDataBytesToValue(shortMessage.getData1, shortMessage.getData2)))
     case _ => None
@@ -136,7 +138,7 @@ object ScPitchBendMidiMessage {
       0
     } else if (value < 0) {
       -Math.abs(value.toDouble / MinValue) * pitchBendSensitivity.totalCents
-    } else {  // if (value > 0)
+    } else { // if (value > 0)
       Math.abs(value.toDouble / MaxValue) * pitchBendSensitivity.totalCents
     }
   }
@@ -147,7 +149,8 @@ case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidi
   MidiRequirements.requireUnsigned7BitValue("number", number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number, value)
+  override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number,
+    value)
 }
 
 object ScCcMidiMessage {

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.Plugin
+import org.calinburloiu.music.microtonalist.common.Plugin
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
@@ -40,7 +40,7 @@ trait JsonPluginFormat[P] {
   /**
    * Plugin family name.
    *
-   * @see [[org.calinburloiu.music.microtonalist.core.Plugin]]
+   * @see [[Plugin]]
    */
   val familyName: String
 

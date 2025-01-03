@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, RatioInterval}
-import org.calinburloiu.music.microtonalist.core.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
+import org.calinburloiu.music.microtonalist.composition.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
 

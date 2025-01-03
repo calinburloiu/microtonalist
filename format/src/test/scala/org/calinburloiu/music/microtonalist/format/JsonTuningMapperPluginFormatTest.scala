@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core._
+import org.calinburloiu.music.microtonalist.composition._
 import play.api.libs.json.{JsNull, JsString, Json, __}
 
 class JsonTuningMapperPluginFormatTest extends JsonFormatTestUtils {

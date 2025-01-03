@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation._
-import org.calinburloiu.music.microtonalist.core._
+import org.calinburloiu.music.microtonalist.composition._
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

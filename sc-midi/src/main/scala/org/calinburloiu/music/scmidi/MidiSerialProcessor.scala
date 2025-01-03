@@ -22,6 +22,7 @@ import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
  * A [[MidiProcessor]] that can execute a chain of other [[MidiProcessor]]s.
+ *
  * @param processors [[MidiProcessor]]s to execute in sequence
  */
 class MidiSerialProcessor(processors: Seq[MidiProcessor])

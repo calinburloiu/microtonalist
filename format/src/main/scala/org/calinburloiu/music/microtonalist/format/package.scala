@@ -41,7 +41,7 @@ package object format {
    * as simply "scales/rast.jscl". But this relative URI can be further simplified by defining an override URI
    * "scales/". Then, the same scale may be referenced as simply "rast.jscl".
    *
-   * @param baseUri The base URI of the resource being loaded.
+   * @param baseUri         The base URI of the resource being loaded.
    * @param overrideBaseUri The override base URI to be used for internal resources of the resource being loaded.
    * @return an override base URI resolved against the initial base URI.
    */
