@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.sync
+package org.calinburloiu.businessync
 
 /**
  * Base interface for events passed via Guava `EventBus`.
  */
-trait MicrotunerEvent {
+abstract class BusinessyncEvent {
   def name: String = this.getClass.getSimpleName
 }

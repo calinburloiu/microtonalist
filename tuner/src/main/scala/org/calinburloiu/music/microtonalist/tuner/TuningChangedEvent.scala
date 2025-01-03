@@ -16,6 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.sync.MicrotunerEvent
+import org.calinburloiu.businessync.BusinessyncEvent
 
-case class TuningChangedEvent(tuningIndex: Int, oldTuningIndex: Int) extends MicrotunerEvent
+case class TuningChangedEvent(tuningIndex: Int, oldTuningIndex: Int) extends BusinessyncEvent
