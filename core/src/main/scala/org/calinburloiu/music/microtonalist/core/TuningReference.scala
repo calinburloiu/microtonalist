@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.core
 
 import org.calinburloiu.music.intonation.{ConcertPitchFreq, Interval, RealInterval}
+import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
 /**

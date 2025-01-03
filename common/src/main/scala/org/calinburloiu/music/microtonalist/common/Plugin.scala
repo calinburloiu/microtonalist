@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.core
+package org.calinburloiu.music.microtonalist.common
 
 /**
  * Instances of this trait are pluggable components that allow users to choose between multiple options identifies by
  * [[typeName]] withing a certain context identified by [[familyName]].
  *
- * E.g. [[TuningMapper]] is the ''family'' of the plugin with `familyName` `tuningMapper` and [[AutoTuningMapper]] is
+ * E.g. `TuningMapper` is the ''family'' of the plugin with [[familyName]] `tuningMapper` and `AutoTuningMapper` is
  * the ''type'' of the plugin with `typeName` `"auto"`. The user may choose another type of the same family, such as
- * [[ManualTuningMapper]].
+ * `ManualTuningMapper`.
  */
 trait Plugin {
   val familyName: String

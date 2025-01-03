@@ -17,12 +17,12 @@
 package org.calinburloiu.music.microtonalist.core
 
 import com.google.common.math.{DoubleMath, IntMath}
-import enumeratum.{Enum, EnumEntry}
 import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.microtonalist.core.AutoTuningMapper.DefaultShouldMapQuarterTonesLow
 import org.calinburloiu.music.scmidi.PitchClass
 
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 
 /**
  * Enum type for the method used to detect the soft chromatic genus pattern between scale's intervals to allow mapping
@@ -41,7 +41,7 @@ import scala.collection.{immutable, mutable}
  * `shouldMapQuarterTonesLow` is set to false this tetrachord would be mapped on the C key to C, D, E and F keys.
  * However, one would expect a chromatic tetrachord to be mapped to C, Db, E and F. This feature allows that.
  *
- * @param typeName          The identified of the mapping method.
+ * @param typeName      The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
 sealed abstract class SoftChromaticGenusMapping(override val typeName: String,

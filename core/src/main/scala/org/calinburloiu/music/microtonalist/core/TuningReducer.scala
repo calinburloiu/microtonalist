@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.core
 
+import org.calinburloiu.music.microtonalist.common.Plugin
+
 /**
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
  * musician must perform while playing.

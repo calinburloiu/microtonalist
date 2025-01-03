@@ -73,6 +73,16 @@ lazy val ui = (project in file("ui"))
     commonSettings,
   )
 
+lazy val common = (project in file("common"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-common",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+    ),
+  )
+
 lazy val sync = (project in file("sync"))
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -85,6 +95,7 @@ lazy val sync = (project in file("sync"))
 
 lazy val core = (project in file("core"))
   .dependsOn(
+    common,
     intonation,
     scMidi,
   )
