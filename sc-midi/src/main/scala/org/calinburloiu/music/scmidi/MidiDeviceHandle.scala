@@ -20,6 +20,10 @@ import org.calinburloiu.music.scmidi
 
 import javax.sound.midi.{MidiDevice, Receiver, Transmitter}
 
+/**
+ * Idiomatic Scala wrapper around [[MidiDevice]] which provides extra convenience methods like [[isInputDevice]] and
+ * [[isOutputDevice]].
+ */
 case class MidiDeviceHandle(midiDevice: MidiDevice) {
   def id: MidiDeviceId = MidiDeviceId(midiDevice.getDeviceInfo)
 
@@ -35,11 +39,25 @@ case class MidiDeviceHandle(midiDevice: MidiDevice) {
 
   def isOpen: Boolean = midiDevice.isOpen
 
+  /**
+   * @return [[Some]] [[Receiver]] if there is one, or [[None]] otherwise.
+   */
   def receiverOption: Option[Receiver] = Option(midiDevice.getReceiver)
 
+  /**
+   * @return the [[Receiver]] if there is one, or throws [[NoSuchElementException]] otherwise.
+   * @throws NoSuchElementException if there is no receiver.
+   */
   def receiver: Receiver = receiverOption.get
 
+  /**
+   * @return [[Some]] [[Transmitter]] if there is one, or [[None]] otherwise.
+   */
   def transmitterOption: Option[Transmitter] = Option(midiDevice.getTransmitter)
 
+  /**
+   * @return the [[Transmitter]] if there is one, or throws [[NoSuchElementException]] otherwise.
+   * @throws NoSuchElementException if there is no transmitter.
+   */
   def transmitter: Transmitter = transmitterOption.get
 }

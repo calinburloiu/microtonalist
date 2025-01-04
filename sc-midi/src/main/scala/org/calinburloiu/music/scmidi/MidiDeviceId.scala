@@ -21,10 +21,10 @@ import javax.sound.midi.MidiDevice
 /**
  * Unique identifier of a device.
  *
- * Note that a physical device will have a unique [[MidiDeviceId]] but its [[MidiDevice]] (or [[MidiDeviceHandle]])
- * will be different is it's used as input or as output.
+ * Note that a physical device that works as both input and output will have a unique [[MidiDeviceId]] but
+ * different instances for input and output for [[MidiDevice]] (or [[MidiDeviceHandle]]) and [[MidiDevice.Info]].
  *
- * @param name Name of the MIDI device.
+ * @param name   Name of the MIDI device.
  * @param vendor The name of the company who supplies the device.
  */
 case class MidiDeviceId(name: String,
