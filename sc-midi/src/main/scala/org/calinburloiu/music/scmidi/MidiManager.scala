@@ -180,7 +180,8 @@ object MidiManager {
         val device = openedDevices(deviceId).midiDevice
 
         Try(device.close()).recover {
-          case exception => logger.info(s"${endpointType.toString.capitalize} device $deviceId is already closed.", exception)
+          case exception => logger.info(s"${endpointType.toString.capitalize} device $deviceId is already closed.",
+            exception)
         }
 
         openedDevices.remove(deviceId)
@@ -208,7 +209,8 @@ object MidiManager {
       }
 
       result.recover {
-        case _: NoSuchElementException => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not available.")
+        case _: NoSuchElementException => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not " +
+          s"available.")
         case exception => logger.error(s"Failed to open $endpointType device $deviceId.", exception)
       }
 
