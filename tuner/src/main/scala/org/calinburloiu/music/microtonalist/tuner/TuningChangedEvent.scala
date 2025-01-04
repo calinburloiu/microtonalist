@@ -18,4 +18,6 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.BusinessyncEvent
 
+// TODO #90 Migrate to business-sync
+@deprecated
 case class TuningChangedEvent(tuningIndex: Int, oldTuningIndex: Int) extends BusinessyncEvent

@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist
 
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.composition.{OctaveTuning, TuningList}
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.format.FormatModule
@@ -30,6 +31,7 @@ import java.nio.file.{InvalidPathException, Path, Paths}
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
+
   sealed abstract class AppException(message: String, val statusCode: Int, cause: Throwable = null)
     extends RuntimeException(message, cause) {
     def exitWithMessage(): Unit = {
@@ -72,27 +74,29 @@ object MicrotonalistApp extends StrictLogging {
   def run(inputUri: URI, maybeConfigPath: Option[Path] = None): Unit = {
     val configPath = maybeConfigPath.getOrElse(MainConfigManager.defaultConfigFile)
     val eventBus: EventBus = new EventBus
+    val businessync = new Businessync(eventBus)
     val mainConfigManager = MainConfigManager(configPath)
 
     // # MIDI
     logger.info("Initializing MIDI...")
-    val midiManager = new MidiManager
+    val midiManager = new MidiManager(businessync)
 
     val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
     val midiInputConfig = midiInputConfigManager.config
     val maybeTransmitter = if (midiInputConfig.enabled && midiInputConfig.triggers.cc.enabled) {
-      val maybeInputDeviceId = midiManager.openFirstAvailableInput(midiInputConfig.devices)
-      maybeInputDeviceId.map(midiManager.inputTransmitter)
+      val maybeDeviceHandle = midiManager.openFirstAvailableInput(midiInputConfig.devices)
+      maybeDeviceHandle.map(_.transmitter)
     } else {
       None
     }
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-    val outputDeviceId = midiManager.openFirstAvailableOutput(midiOutputConfig.devices).getOrElse {
-      throw NoDeviceAvailableException
-    }
-    val receiver = midiManager.outputReceiver(outputDeviceId)
+    val outputDeviceHandle = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
+      .getOrElse {
+        throw NoDeviceAvailableException
+      }
+    val receiver = outputDeviceHandle.receiver
 
     // # I/O
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
@@ -135,7 +139,7 @@ object MicrotonalistApp extends StrictLogging {
     })
   }
 
-  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): TunerProcessor = {
+  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
     logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
     midiOutputConfig.tunerType match {
       case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner

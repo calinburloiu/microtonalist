@@ -21,16 +21,11 @@ import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi.MidiProcessor
 
 /**
- * Trait that can be implemented for tuning an output instrument based on specific protocol.
+ * Trait that can be implemented for tuning an output instrument based on a specific protocol.
  */
-trait Tuner {
+trait Tuner extends MidiProcessor {
   def tune(tuning: OctaveTuning): Unit
 }
-
-/**
- * [[Tuner]] variant to be used for implementation that use the standard Java MIDI library.
- */
-trait TunerProcessor extends Tuner with MidiProcessor
 
 class TunerException(cause: Throwable) extends RuntimeException(
   "Failed to send tune message to device! Did you disconnect the device?", cause)

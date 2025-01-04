@@ -72,7 +72,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     }
   }
 
-  private def sendNote(tuner: TunerProcessor, note: MidiNote, channel: Int = inputChannel): Unit = {
+  private def sendNote(tuner: Tuner, note: MidiNote, channel: Int = inputChannel): Unit = {
     tuner.send(ScNoteOnMidiMessage(channel, note))
     tuner.send(ScNoteOffMidiMessage(channel, note))
   }

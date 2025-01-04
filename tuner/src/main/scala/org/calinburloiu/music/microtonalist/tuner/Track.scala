@@ -30,7 +30,7 @@ import javax.sound.midi.{MidiMessage, Receiver}
  * @param ccParams              Map of CC parameters to be set during initialization.
  */
 class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
-            tuner: TunerProcessor,
+            tuner: Tuner,
             outputReceiver: Receiver,
             ccParams: Map[Int, Int] = Map.empty) extends Receiver with StrictLogging {
   val pipeline: MidiSerialProcessor = new MidiSerialProcessor(

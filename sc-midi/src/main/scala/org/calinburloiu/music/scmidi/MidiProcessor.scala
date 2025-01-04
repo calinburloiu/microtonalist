@@ -19,11 +19,12 @@ package org.calinburloiu.music.scmidi
 import javax.sound.midi.{Receiver, Transmitter}
 
 /**
- * MIDI interceptor that can changes MIDI events that pass through it.
+ * MIDI interceptor that can change MIDI events that pass through it.
  *
  * It can only be used after a receiver is set for it via [[MidiProcessor#setReceiver()]] or [[MidiProcessor#receiver]]
  * setters when it is said that it _connects_. When this happens [[MidiProcessor#onConnect()]] callback is called.
  * When the receiver is changed, it first _disconnects_, so [[MidiProcessor#onDisconnect()]] is called before.
+ * [[MidiProcessor#onDisconnect()]] is also called with the [[MidiProcessor]] is closed.
  */
 trait MidiProcessor extends Transmitter with Receiver {
   private var _receiver: Option[Receiver] = None
@@ -34,14 +35,26 @@ trait MidiProcessor extends Transmitter with Receiver {
     onConnect()
   }
 
-  override def getReceiver: Receiver = _receiver.getOrElse(throw new IllegalStateException("No receiver was set!"))
+  override def getReceiver: Receiver = _receiver.orNull
 
   /**
    * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.
    *
+   * As opposed to the Java version, this method throws [[IllegalStateException]] is a [[Receiver]] was not
+   * previously set.
+   *
+   * @return the current receiver. If no receiver is currently set, [[IllegalStateException]] is thrown.
+   * @throws IllegalStateException if no receiver is currently set.
    * @see [[javax.sound.midi.Transmitter#getReceiver()]]
    */
-  final def receiver: Receiver = getReceiver
+  final def receiver: Receiver = {
+    val result = getReceiver
+    if (result == null) {
+      throw new IllegalStateException("No receiver was set!")
+    }
+
+    result
+  }
 
   /**
    * Scala idiomatic version of [[Transmitter]]'s `setReceiver` method.

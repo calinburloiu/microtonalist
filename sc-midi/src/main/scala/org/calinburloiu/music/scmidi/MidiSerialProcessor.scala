@@ -38,7 +38,10 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
     processors.head.send(message, timeStamp)
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override def close(): Unit = {
+    super.close()
+    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  }
 
   def size: Int = processors.size
 

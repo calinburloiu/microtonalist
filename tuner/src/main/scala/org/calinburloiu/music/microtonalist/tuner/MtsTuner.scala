@@ -30,7 +30,7 @@ import javax.sound.midi.MidiMessage
  *                     MIDI messages that change the tuning for a batch of notes.
  */
 class MtsTuner(val tuningFormat: MtsTuningFormat,
-               val thru: Boolean) extends TunerProcessor with StrictLogging {
+               val thru: Boolean) extends Tuner with StrictLogging {
 
   private val tuningMessageGenerator = tuningFormat.messageGenerator
 

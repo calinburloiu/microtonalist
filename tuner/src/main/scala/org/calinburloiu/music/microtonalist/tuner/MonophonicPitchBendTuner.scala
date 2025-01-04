@@ -32,7 +32,7 @@ import scala.collection.mutable
  */
 class MonophonicPitchBendTuner(private val outputChannel: Int,
                                val pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
-  extends TunerProcessor with StrictLogging {
+  extends Tuner with StrictLogging {
   private[this] var _currTuning: OctaveTuning = OctaveTuning.Edo12
 
   private[this] val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
