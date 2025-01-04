@@ -148,6 +148,9 @@ lazy val intonation = (project in file("intonation"))
   )
 
 lazy val scMidi = (project in file("sc-midi"))
+  .dependsOn(
+    businessync,
+  )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "sc-midi",

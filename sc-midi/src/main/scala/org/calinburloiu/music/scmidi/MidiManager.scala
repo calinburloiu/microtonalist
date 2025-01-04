@@ -17,21 +17,23 @@
 package org.calinburloiu.music.scmidi
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
 import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
 import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
 import scala.collection.mutable
 import scala.util.Try
 
-class MidiManager extends AutoCloseable with StrictLogging {
+class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLogging {
 
   import MidiManager._
 
-  private val inputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Input)
-  private val outputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Output)
+  private val inputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Input, businessync)
+  private val outputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Output, businessync)
 
   private val onMidiNotification: CoreMidiNotification = () => {
     logger.info("The MIDI environment has changed.")
+    businessync.publish(MidiEnvironmentChangedEvent)
     refresh()
   }
 
@@ -45,27 +47,30 @@ class MidiManager extends AutoCloseable with StrictLogging {
   }
 
   def refresh(): Unit = {
-    inputEndpoint.clearDevices()
-    outputEndpoint.clearDevices()
-
     // Alternative to `javax.sound.midi.MidiSystem.getMidiDeviceInfo()` to make Java MIDI work on Mac.
     // This should also work on Windows.
     val deviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
     val devices = deviceInfoArray.map(MidiSystem.getMidiDevice)
 
+    val currentInputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
+    val currentOutputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
+
     devices.foreach { midiDevice =>
       val deviceHandle = MidiDeviceHandle(midiDevice)
 
       if (deviceHandle.isInputDevice) {
-        inputEndpoint.addDevice(deviceHandle)
+        currentInputDevices += deviceHandle
       }
       if (deviceHandle.isOutputDevice) {
-        outputEndpoint.addDevice(deviceHandle)
+        currentOutputDevices += deviceHandle
       }
     }
 
-    inputEndpoint.purgeOpenedDevices()
-    outputEndpoint.purgeOpenedDevices()
+    inputEndpoint.updateDevices(currentInputDevices)
+    outputEndpoint.updateDevices(currentOutputDevices)
+
+    inputEndpoint.purgeDisconnectedDevices()
+    outputEndpoint.purgeDisconnectedDevices()
   }
 
   override def close(): Unit = {
@@ -115,6 +120,17 @@ class MidiManager extends AutoCloseable with StrictLogging {
 
 object MidiManager {
 
+  abstract class MidiEvent extends BusinessyncEvent
+
+  case object MidiEnvironmentChangedEvent extends MidiEvent
+
+  case class MidiDeviceAddedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+  case class MidiDeviceRemovedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+  case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+
   private sealed abstract class MidiEndpointType(name: String) {
     override def toString: String = name
   }
@@ -131,26 +147,36 @@ object MidiManager {
    *
    * @param endpointType whether the devices managed are input or output devices.
    */
-  private class MidiEndpoint(val endpointType: MidiEndpointType) extends AutoCloseable with StrictLogging {
+  private class MidiEndpoint(val endpointType: MidiEndpointType,
+                             businessync: Businessync) extends AutoCloseable with StrictLogging {
 
     private val devicesIdToInfo = mutable.Map[MidiDeviceId, MidiDevice.Info]()
     private val openedDevices = mutable.Map[MidiDeviceId, MidiDeviceHandle]()
 
-    def clearDevices(): Unit = {
-      devicesIdToInfo.clear()
+    def updateDevices(deviceHandles: Iterable[MidiDeviceHandle]): Unit = {
+      val currentIds = deviceHandles.map(_.id).toSet
+
+      // New devices
+      for (currentDeviceHandle <- deviceHandles; id = currentDeviceHandle.id if !devicesIdToInfo.contains(id)) {
+        devicesIdToInfo.update(id, currentDeviceHandle.info)
+        logDebugDetectedDevice(currentDeviceHandle)
+        businessync.publish(MidiDeviceAddedEvent(id))
+      }
+
+      // Removed devices
+      for (previousId <- devicesIdToInfo.keys if !currentIds.contains(previousId)) {
+        devicesIdToInfo.remove(previousId)
+        logger.info(s"Device $previousId was removed.")
+        businessync.publish(MidiDeviceRemovedEvent(previousId))
+      }
     }
 
-    def addDevice(deviceHandle: MidiDeviceHandle): Unit = {
-      devicesIdToInfo.update(deviceHandle.id, deviceHandle.info)
-      logDebugDetectedDevice(deviceHandle)
-    }
-
-    /** Remove opened devices that were previously opened, but now they don't appear anymore. */
-    def purgeOpenedDevices(): Unit = {
+    /** Remove devices that were previously opened, but now were disconnected. */
+    def purgeDisconnectedDevices(): Unit = {
       val deviceIds = devicesIdToInfo.keySet
-      val disappearedOpenedDeviceIds = openedDevices.keySet diff deviceIds
+      val disconnectedDeviceIds = openedDevices.keySet diff deviceIds
 
-      disappearedOpenedDeviceIds.foreach { deviceId =>
+      disconnectedDeviceIds.foreach { deviceId =>
         val device = openedDevices(deviceId).midiDevice
 
         Try(device.close()).recover {
@@ -159,7 +185,8 @@ object MidiManager {
 
         openedDevices.remove(deviceId)
 
-        logger.info(s"Previously opened device $deviceId disappeared; it was probably disconnected.")
+        logger.info(s"Device $deviceId was disconnected.")
+        businessync.publish(MidiDeviceDisconnectedEvent(deviceId))
       }
     }
 
