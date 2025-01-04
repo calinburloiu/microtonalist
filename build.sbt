@@ -26,10 +26,14 @@ lazy val root = (project in file("."))
 
 lazy val app = (project in file("app"))
   .dependsOn(
+    appConfig,
+    appConfig % "compile->compile;test->test",
     businessync,
+    common % "compile->compile;test->test",
     composition,
     intonation,
     format,
+    format % "compile->compile;test->test",
     scMidi,
     tuner,
     ui,
@@ -45,10 +49,22 @@ lazy val app = (project in file("app"))
     libraryDependencies ++= Seq(
       coreMidi4j,
       enumeratum,
-      ficus,
       guava,
       playJson,
       scalaMock % Test,
+    ),
+  )
+
+lazy val appConfig = (project in file("config"))
+  .dependsOn(
+    common
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-config",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      ficus,
     ),
   )
 
@@ -125,6 +141,7 @@ lazy val tuner = (project in file("tuner"))
 
 lazy val format = (project in file("format"))
   .dependsOn(
+    common % "compile->compile;test->test",
     composition,
   )
   .disablePlugins(AssemblyPlugin)

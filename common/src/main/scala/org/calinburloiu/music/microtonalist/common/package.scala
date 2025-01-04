@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music
+package org.calinburloiu.music.microtonalist
 
 import java.net.URI
 import java.nio.file.{Files, Path, Paths}
 import scala.util.Try
 
-package object microtonalist {
+package object common {
 
   /**
    * Parses a string as a URI. The string can either be an absolute URI or a local path.
@@ -28,7 +28,7 @@ package object microtonalist {
    * @param uriString string to parse
    * @return URI for the given string
    */
-  def parseUri(uriString: String): Option[URI] =
+  def parseUriOrPath(uriString: String): Option[URI] =
     Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map { path =>
       mapPathToUri(path, uriString)
     }

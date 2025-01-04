@@ -17,23 +17,21 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.Composition
-
-import java.net.URI
 
 /**
  * Utilities used for testing the I/O formats.
  */
 object FormatTestUtils {
-  def uriOfResource(pathString: String): URI = getClass.getClassLoader.getResource(pathString).toURI
 
   def readCompositionFromResources(resourcePathString: String, compositionRepo: CompositionRepo): Composition = {
-    compositionRepo.read(uriOfResource(resourcePathString))
+    compositionRepo.read(CommonTestUtils.uriOfResource(resourcePathString))
   }
 
   def readScaleFromResources(resourcePathString: String,
                              scaleRepo: ScaleRepo,
                              context: Option[ScaleFormatContext] = None): Scale[Interval] = {
-    scaleRepo.read(uriOfResource(resourcePathString), context)
+    scaleRepo.read(CommonTestUtils.uriOfResource(resourcePathString), context)
   }
 }

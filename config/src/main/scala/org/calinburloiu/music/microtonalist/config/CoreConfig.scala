@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.config
 import com.typesafe.config.{Config => HoconConfig}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtonalist.{PlatformUtils, parseUri}
+import org.calinburloiu.music.microtonalist.common.{PlatformUtils, parseUriOrPath}
 
 import java.net.URI
 import java.nio.file.Paths
@@ -63,7 +63,7 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
     libraryUri = hoconConfig.getAs[String]("libraryUri")
-      .map(uri => parseUri(uri).getOrElse(throw new ConfigPropertyException(
+      .map(uri => parseUriOrPath(uri).getOrElse(throw new ConfigPropertyException(
         s"$configRootPath.libraryUri", "must be a valid URI or a local path")))
       .getOrElse(CoreConfig.defaultLibraryUri),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
