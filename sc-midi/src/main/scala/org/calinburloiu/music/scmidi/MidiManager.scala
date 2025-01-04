@@ -21,6 +21,7 @@ import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
 import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
 import javax.sound.midi.{MidiDevice, MidiSystem}
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Try
 
@@ -187,8 +188,8 @@ object MidiManager {
   private class MidiEndpoint(val endpointType: MidiEndpointType,
                              businessync: Businessync) extends AutoCloseable with StrictLogging {
 
-    private val devicesIdToInfo = mutable.Map[MidiDeviceId, MidiDevice.Info]()
-    private val openedDevicesMap = mutable.Map[MidiDeviceId, MidiDeviceHandle]()
+    private val devicesIdToInfo = TrieMap[MidiDeviceId, MidiDevice.Info]()
+    private val openedDevicesMap = TrieMap[MidiDeviceId, MidiDeviceHandle]()
 
     def updateDevices(deviceHandles: Iterable[MidiDeviceHandle]): Unit = {
       val currentIds = deviceHandles.map(_.id).toSet
