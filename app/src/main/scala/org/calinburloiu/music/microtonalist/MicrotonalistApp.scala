@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist
 
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.composition.{OctaveTuning, TuningList}
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.format.FormatModule
@@ -30,6 +31,7 @@ import java.nio.file.{InvalidPathException, Path, Paths}
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
+
   sealed abstract class AppException(message: String, val statusCode: Int, cause: Throwable = null)
     extends RuntimeException(message, cause) {
     def exitWithMessage(): Unit = {
@@ -72,11 +74,12 @@ object MicrotonalistApp extends StrictLogging {
   def run(inputUri: URI, maybeConfigPath: Option[Path] = None): Unit = {
     val configPath = maybeConfigPath.getOrElse(MainConfigManager.defaultConfigFile)
     val eventBus: EventBus = new EventBus
+    val businessync = new Businessync(eventBus)
     val mainConfigManager = MainConfigManager(configPath)
 
     // # MIDI
     logger.info("Initializing MIDI...")
-    val midiManager = new MidiManager
+    val midiManager = new MidiManager(businessync)
 
     val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
     val midiInputConfig = midiInputConfigManager.config

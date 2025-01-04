@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.cli
 
+import com.google.common.eventbus.EventBus
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager}
 
 import javax.sound.midi.MidiSystem
@@ -34,7 +36,8 @@ object MicrotonalistToolApp {
   }
 
   def printMidiDevices(): Unit = {
-    val midiManager = new MidiManager
+    val businessync = new Businessync(new EventBus())
+    val midiManager = new MidiManager(businessync)
 
     def printMidiDevicesByType(isInput: Boolean, deviceIds: Seq[MidiDeviceId], printHandler: MidiDeviceId => Unit)
     : Unit = {
