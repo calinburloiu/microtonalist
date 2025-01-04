@@ -166,7 +166,7 @@ object MidiManager {
       // Removed devices
       for (previousId <- devicesIdToInfo.keys if !currentIds.contains(previousId)) {
         devicesIdToInfo.remove(previousId)
-        logger.info(s"Device $previousId was removed.")
+        logger.info(s"${endpointType.toString.capitalize} device $previousId was removed.")
         businessync.publish(MidiDeviceRemovedEvent(previousId))
       }
     }
@@ -180,12 +180,12 @@ object MidiManager {
         val device = openedDevices(deviceId).midiDevice
 
         Try(device.close()).recover {
-          case exception => logger.info(s"Disappeared device $deviceId is already closed.", exception)
+          case exception => logger.info(s"${endpointType.toString.capitalize} device $deviceId is already closed.", exception)
         }
 
         openedDevices.remove(deviceId)
 
-        logger.info(s"Device $deviceId was disconnected.")
+        logger.info(s"${endpointType.toString.capitalize} device $deviceId was disconnected.")
         businessync.publish(MidiDeviceDisconnectedEvent(deviceId))
       }
     }
@@ -202,14 +202,14 @@ object MidiManager {
         val deviceHandle = MidiDeviceHandle(midiDevice)
         deviceHandle.open()
         openedDevices.update(deviceId, deviceHandle)
-        logger.info(s"Successfully opened device $deviceId.")
+        logger.info(s"Successfully opened $endpointType device $deviceId.")
 
         deviceHandle
       }
 
       result.recover {
-        case _: NoSuchElementException => logger.warn(s"Device $deviceId is not available.")
-        case exception => logger.error(s"Failed to open device $deviceId.", exception)
+        case _: NoSuchElementException => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not available.")
+        case exception => logger.error(s"Failed to open $endpointType device $deviceId.", exception)
       }
 
       result.get
@@ -218,7 +218,7 @@ object MidiManager {
     def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] = {
       deviceIds.to(LazyList)
         .map { deviceId =>
-          logger.info(s"Attempting to open device $deviceId...")
+          logger.info(s"Attempting to open $endpointType device $deviceId...")
           Try {
             openDevice(deviceId)
           }
@@ -238,10 +238,10 @@ object MidiManager {
     def closeDevice(deviceId: MidiDeviceId): Unit = {
       val openedDevice = openedDevices(deviceId)
 
-      logger.info(s"Closing device $deviceId...")
+      logger.info(s"Closing $endpointType device $deviceId...")
       openedDevice.midiDevice.close()
       openedDevices.remove(deviceId)
-      logger.info(s"Successfully closed device $deviceId.")
+      logger.info(s"Successfully $endpointType closed device $deviceId.")
     }
 
     override def close(): Unit = {
@@ -249,7 +249,7 @@ object MidiManager {
         Try {
           closeDevice(deviceId)
         }.recover {
-          case exception => logger.error(s"Failed to close device $deviceId!", exception)
+          case exception => logger.error(s"Failed to close $endpointType device $deviceId!", exception)
         }
       }
     }
