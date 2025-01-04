@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist
+package org.calinburloiu.music.microtonalist.common
 
-// TODO Add support for Windows and maybe Linux
+// TODO Add support for Windows and maybe GNU/Linux
 object PlatformUtils {
 
   def isMac: Boolean = true

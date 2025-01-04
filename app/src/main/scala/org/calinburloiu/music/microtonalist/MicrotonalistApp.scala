@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.microtonalist.common.parseUriOrPath
 import org.calinburloiu.music.microtonalist.composition.{OctaveTuning, TuningList}
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.format.FormatModule
@@ -64,7 +65,7 @@ object MicrotonalistApp extends StrictLogging {
   }
 
   private def parseUriArg(uriString: String): URI = {
-    parseUri(uriString).getOrElse(throw AppUsageException)
+    parseUriOrPath(uriString).getOrElse(throw AppUsageException)
   }
 
   private def parsePathArg(fileName: String): Path = Try(Paths.get(fileName)).recover {
