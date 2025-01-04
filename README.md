@@ -18,6 +18,7 @@ The application is composed of the following modules:
   shared between application modules.
 * **`composition`** with package `org.calinburloiu.music.microtonalist.composition`: domain model of the application
   around which other modules revolve.
+* **`config`** with package `org.calinburloiu.music.microtonalist.config`: configuration infrastructure based on [HOCON](https://github.com/lightbend/config/blob/master/HOCON.md).
 * **`tuner`** with package `org.calinburloiu.music.microtonalist.tuner`: module responsible to tune output instruments
   by using standard Java MIDI library.
 * **`format`** with package `org.calinburloiu.music.microtonalist.format`: module responsible for reading / writing
