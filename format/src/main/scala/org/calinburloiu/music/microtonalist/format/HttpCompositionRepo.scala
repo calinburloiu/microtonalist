@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.core.Composition
+import org.calinburloiu.music.microtonalist.composition.Composition
 
 import java.io.InputStream
 import java.net.URI
@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
 /**
  * Scale repository implementation that retrieves and persists compositions remotely by using HTTP.
  *
- * @param httpClient      HTTP client configured to access compositions
+ * @param httpClient        HTTP client configured to access compositions
  * @param compositionFormat format implementation responsible for (de)serialization.
  */
 class HttpCompositionRepo(httpClient: HttpClient,

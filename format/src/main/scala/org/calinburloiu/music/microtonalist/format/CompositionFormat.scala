@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.Composition
+import org.calinburloiu.music.microtonalist.composition.Composition
 
 import java.io.{InputStream, OutputStream}
 import java.net.URI

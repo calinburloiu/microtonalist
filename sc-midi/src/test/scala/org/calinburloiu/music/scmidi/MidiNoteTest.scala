@@ -34,17 +34,33 @@ class MidiNoteTest extends AnyFlatSpec with Matchers {
     MidiNote(PitchClass.C, 9).number shouldEqual 120
     MidiNote(PitchClass.G, 9).number shouldEqual 127
 
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.fromNumber(-1), 4) }
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.fromNumber(12), 4) }
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.D, -2) }
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.GSharp, 9) }
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.B, 9) }
-    assertThrows[IllegalArgumentException] { MidiNote(PitchClass.C, 10) }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(PitchClass.fromNumber(-1), 4)
+    }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(PitchClass.fromNumber(12), 4)
+    }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(PitchClass.D, -2)
+    }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(PitchClass.GSharp, 9)
+    }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(PitchClass.B, 9)
+    }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(PitchClass.C, 10)
+    }
   }
 
   it should "assert if it's invalid" in {
-    assertThrows[IllegalArgumentException] { MidiNote(-1).assertValid() }
-    assertThrows[IllegalArgumentException] { MidiNote(128).assertValid() }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(-1).assertValid()
+    }
+    assertThrows[IllegalArgumentException] {
+      MidiNote(128).assertValid()
+    }
   }
 
   it should "tell its pitch class" in {

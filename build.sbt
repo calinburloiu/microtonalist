@@ -1,7 +1,7 @@
 import Dependencies._
 
 ThisBuild / scalaVersion := "2.13.14"
-ThisBuild / version := "1.0.0-SNAPSHOT"
+ThisBuild / version := "1.1.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
 // # Projects
@@ -9,10 +9,10 @@ ThisBuild / organization := "org.calinburloiu.music"
 lazy val root = (project in file("."))
   .aggregate(
     app,
+    businessync,
     cli,
     ui,
-    sync,
-    core,
+    composition,
     tuner,
     format,
     intonation,
@@ -26,26 +26,45 @@ lazy val root = (project in file("."))
 
 lazy val app = (project in file("app"))
   .dependsOn(
-    core,
+    appConfig,
+    appConfig % "compile->compile;test->test",
+    businessync,
+    common % "compile->compile;test->test",
+    composition,
     intonation,
     format,
+    format % "compile->compile;test->test",
     scMidi,
-    sync,
     tuner,
     ui,
   )
+  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "microtonalist-app",
     commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       coreMidi4j,
       enumeratum,
-      ficus,
       guava,
       playJson,
       scalaMock % Test,
+    ),
+  )
+
+lazy val appConfig = (project in file("config"))
+  .dependsOn(
+    common
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-config",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      ficus,
     ),
   )
 
@@ -70,24 +89,35 @@ lazy val ui = (project in file("ui"))
     commonSettings,
   )
 
-lazy val sync = (project in file("sync"))
+lazy val common = (project in file("common"))
   .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-sync",
+    name := "microtonalist-common",
     commonSettings,
     libraryDependencies ++= Seq(
       guava,
     ),
   )
 
-lazy val core = (project in file("core"))
+lazy val businessync = (project in file("businessync"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-businessync",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+    ),
+  )
+
+lazy val composition = (project in file("composition"))
   .dependsOn(
+    common,
     intonation,
     scMidi,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-core",
+    name := "microtonalist-composition",
     commonSettings,
     libraryDependencies ++= Seq(
       enumeratum,
@@ -96,9 +126,9 @@ lazy val core = (project in file("core"))
 
 lazy val tuner = (project in file("tuner"))
   .dependsOn(
-    core,
+    businessync,
+    composition,
     scMidi,
-    sync,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -111,7 +141,8 @@ lazy val tuner = (project in file("tuner"))
 
 lazy val format = (project in file("format"))
   .dependsOn(
-    core,
+    common % "compile->compile;test->test",
+    composition,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -134,6 +165,9 @@ lazy val intonation = (project in file("intonation"))
   )
 
 lazy val scMidi = (project in file("sc-midi"))
+  .dependsOn(
+    businessync,
+  )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "sc-midi",
@@ -145,11 +179,11 @@ lazy val scMidi = (project in file("sc-midi"))
 
 lazy val experiments = (project in file("experiments"))
   .dependsOn(
-    core,
+    businessync,
+    composition,
     intonation,
     format,
     scMidi,
-    sync,
     tuner,
   )
   .settings(

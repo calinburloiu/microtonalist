@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.KeyboardMapping
+import org.calinburloiu.music.microtonalist.composition.KeyboardMapping
 import org.calinburloiu.music.microtonalist.format.PitchClassFormat.InvalidPitchClassError
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json._
@@ -29,7 +29,9 @@ object KeyboardMappingFormat {
 
   private val denseKeyboardMappingReads: Reads[KeyboardMapping] = {
     Reads.seq[Option[Int]](Reads.optionWithNull[Int]).flatMapResult { seq =>
-      Try { KeyboardMapping(seq) } match {
+      Try {
+        KeyboardMapping(seq)
+      } match {
         case Success(keyboardMapping) => JsSuccess(keyboardMapping)
         case Failure(_) => JsError(InvalidKeyboardMapping)
       }
@@ -46,7 +48,9 @@ object KeyboardMappingFormat {
         }.withDefault(_ => None)
         val indexesInScale = (0 until 12).map { pitchClassNumber => sparseMapping(pitchClassNumber) }
 
-        Try { KeyboardMapping(indexesInScale) } match {
+        Try {
+          KeyboardMapping(indexesInScale)
+        } match {
           case Success(keyboardMapping) => JsSuccess(keyboardMapping)
           case Failure(_) => JsError(InvalidKeyboardMapping)
         }

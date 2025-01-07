@@ -18,16 +18,38 @@ package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.MidiDevice
 
+/**
+ * Unique identifier of a device.
+ *
+ * Note that a physical device that works as both input and output will have a unique [[MidiDeviceId]] but
+ * different instances for input and output for [[MidiDevice]] (or [[MidiDeviceHandle]]) and [[MidiDevice.Info]].
+ *
+ * @param name   Name of the MIDI device.
+ * @param vendor The name of the company who supplies the device.
+ */
 case class MidiDeviceId(name: String,
-                        vendor: String,
-                        version: String) {
+                        vendor: String) {
+  /**
+   * The app does not use the Java MIDI implementation and instead uses CoreMidi4J, which causes all device names to
+   * have a certain prefix. This method removes that prefix.
+   *
+   * Use this name instead of the actual name in user interfaces.
+   *
+   * @return a user-friendly name of the device.
+   */
+  def sanitizedName: String = {
+    name.replaceFirst(s"^${MidiDeviceId.CoreMidi4JDeviceNamePrefix}", "").trim
+  }
+
   override def toString: String = {
-    Seq(vendor, "\"" + name.replaceFirst("^CoreMIDI4J - ", "") + "\"", version)
-      .filter(_.trim.nonEmpty).mkString(" ")
+    val vendorSuffix = if (vendor.trim.nonEmpty) s" ($vendor)" else ""
+    s""""$name"$vendorSuffix"""
   }
 }
 
 object MidiDeviceId {
+  private val CoreMidi4JDeviceNamePrefix: String = "CoreMIDI4J - "
+
   def apply(midiDeviceInfo: MidiDevice.Info): MidiDeviceId =
-    MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor, midiDeviceInfo.getVersion)
+    MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor)
 }

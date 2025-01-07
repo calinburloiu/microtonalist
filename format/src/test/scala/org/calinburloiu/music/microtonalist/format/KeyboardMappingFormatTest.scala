@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.core.KeyboardMapping
+import org.calinburloiu.music.microtonalist.composition.KeyboardMapping
 import play.api.libs.json._
 
 class KeyboardMappingFormatTest extends JsonFormatTestUtils {

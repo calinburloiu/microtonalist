@@ -22,6 +22,7 @@ import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
  * A [[MidiProcessor]] that can execute a chain of other [[MidiProcessor]]s.
+ *
  * @param processors [[MidiProcessor]]s to execute in sequence
  */
 class MidiSerialProcessor(processors: Seq[MidiProcessor])
@@ -37,7 +38,10 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
     processors.head.send(message, timeStamp)
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override def close(): Unit = {
+    super.close()
+    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  }
 
   def size: Int = processors.size
 

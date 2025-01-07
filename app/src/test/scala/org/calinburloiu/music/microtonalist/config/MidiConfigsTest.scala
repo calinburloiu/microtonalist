@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfig
   override lazy val expectedSubConfigRead: MidiInputConfig = MidiInputConfig(
     enabled = true,
     devices = Seq(
-      MidiDeviceId("FP-90", "Roland", "1.0")
+      MidiDeviceId("FP-90", "Roland")
     ),
     thru = true,
     triggers = Triggers(
@@ -43,8 +43,8 @@ class MidiInputConfigTest extends SubConfigTest[MidiInputConfig, MidiInputConfig
     expectedSubConfigRead.copy(
       enabled = false,
       devices = Seq(
-        MidiDeviceId("P-125", "Yamaha", "9.8.7"),
-        MidiDeviceId("blah", "bleh", "1999")
+        MidiDeviceId("P-125", "Yamaha"),
+        MidiDeviceId("blah", "bleh")
       ),
       thru = false,
       triggers = Triggers(
@@ -61,7 +61,7 @@ class MidiInputConfigDefaultsTest extends MidiInputConfigTest {
   override lazy val expectedSubConfigRead: MidiInputConfig = MidiInputConfig(
     enabled = false,
     devices = Seq(
-      MidiDeviceId("FP-90", "Roland", "1.0")
+      MidiDeviceId("FP-90", "Roland")
     ),
     thru = true,
     triggers = Triggers(
@@ -78,8 +78,8 @@ class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputCon
 
   override lazy val expectedSubConfigRead: MidiOutputConfig = MidiOutputConfig(
     devices = Seq(
-      MidiDeviceId("FP-90", "Roland", "1.0"),
-      MidiDeviceId("P-125", "Yamaha", "9.8.7")
+      MidiDeviceId("FP-90", "Roland"),
+      MidiDeviceId("P-125", "Yamaha")
     ),
     tunerType = TunerType.Mts,
     mtsTuningFormat = MtsTuningFormat.NonRealTime1BOctave,
@@ -88,7 +88,7 @@ class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputCon
 
   override lazy val subConfigsToWrite: Seq[MidiOutputConfig] = Seq(
     expectedSubConfigRead.copy(
-      devices = Seq(MidiDeviceId("blah", "bleh", "1999"))
+      devices = Seq(MidiDeviceId("blah", "bleh"))
     )
   )
 }
@@ -104,6 +104,6 @@ class MidiConfigsTest extends AnyFlatSpec with Matchers {
     // When
     val midiDeviceId = MidiDeviceId(midiDeviceInfo)
     // Then
-    midiDeviceId shouldEqual MidiDeviceId("Seaboard", "ROLI", "3.14")
+    midiDeviceId shouldEqual MidiDeviceId("Seaboard", "ROLI")
   }
 }

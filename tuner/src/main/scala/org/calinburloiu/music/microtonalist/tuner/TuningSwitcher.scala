@@ -19,13 +19,14 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.EventBus
 import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.microtonalist.core.{OctaveTuning, TuningList}
+import org.calinburloiu.music.microtonalist.composition.{OctaveTuning, TuningList}
 
 /**
  * Class responsible to switch between tunings.
- * @param tuners Tuners for various output instruments called when the tuning is changed.
+ *
+ * @param tuners     Tuners for various output instruments called when the tuning is changed.
  * @param tuningList List of tunings for the current musical composition.
- * @param eventBus Event bus for sending events.
+ * @param eventBus   Event bus for sending events.
  */
 class TuningSwitcher(val tuners: Seq[Tuner],
                      val tuningList: TuningList,

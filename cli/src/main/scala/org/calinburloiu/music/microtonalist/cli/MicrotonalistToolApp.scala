@@ -16,7 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.cli
 
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager}
+import com.google.common.eventbus.EventBus
+import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.scmidi.MidiManager
+
+import javax.sound.midi.{MidiDevice, MidiSystem}
 
 object MicrotonalistToolApp {
 
@@ -31,48 +35,49 @@ object MicrotonalistToolApp {
     }
   }
 
-  def printMidiDevices(): Unit = {
-    val midiManager = new MidiManager
+  private def printMidiDevices(): Unit = {
+    val businessync = new Businessync(new EventBus())
+    val midiManager = new MidiManager(businessync)
 
-    def printMidiDevicesByType(deviceIds: Seq[MidiDeviceId], printHandler: MidiDeviceId => Unit): Unit = {
-      deviceIds.foreach { deviceId =>
-        val deviceInfo = midiManager.deviceInfo(deviceId)
+    // Endpoint is a term for input or output
+    def printMidiDevicesByEndpoint(devicesInfo: Seq[MidiDevice.Info], printHandler: MidiDevice => Unit)
+    : Unit = {
+      devicesInfo.foreach { deviceInfo =>
+        val midiDevice = MidiSystem.getMidiDevice(deviceInfo)
+
         println(
           s"""Name: ${deviceInfo.getName}
              |Vendor: ${deviceInfo.getVendor}
              |Version: ${deviceInfo.getVersion}
              |Description: ${deviceInfo.getDescription}""".stripMargin
         )
-        printHandler(deviceId)
+        printHandler(midiDevice)
         println()
       }
     }
 
-    println("=== Input Devices ===\n")
-
-    def printTransmitters(deviceId: MidiDeviceId): Unit = {
-      midiManager.openInput(deviceId)
-      val device = midiManager.inputDevice(deviceId)
-      println(s"Max. Transmitters: ${fromHandlerCountToString(device.getMaxTransmitters)}")
+    def printTransmitters(midiDevice: MidiDevice): Unit = {
+      println(s"Max. Transmitters: ${fromHandlerCountToString(midiDevice.getMaxTransmitters)}")
     }
 
-    printMidiDevicesByType(midiManager.inputDeviceIds, printTransmitters)
+    def printReceivers(midiDevice: MidiDevice): Unit = {
+      println(s"Max. Receivers: ${fromHandlerCountToString(midiDevice.getMaxReceivers)}")
+    }
+
+    println("=== Input Devices ===\n")
+    printMidiDevicesByEndpoint(midiManager.inputDevicesInfo, printTransmitters)
 
     println("\n=== Output Devices ===\n")
-
-    def printReceivers(deviceId: MidiDeviceId): Unit = {
-      midiManager.openOutput(deviceId)
-      val device = midiManager.outputDevice(deviceId)
-      println(s"Max. Receivers: ${fromHandlerCountToString(device.getMaxReceivers)}")
-    }
-
-    printMidiDevicesByType(midiManager.outputDeviceIds, printReceivers)
+    printMidiDevicesByEndpoint(midiManager.outputDevicesInfo, printReceivers)
 
     midiManager.close()
   }
 
-  private def fromHandlerCountToString(handlerCount: Int): String = if (handlerCount == -1)
-    "unlimited"
-  else
-    handlerCount.toString
+  private def fromHandlerCountToString(handlerCount: Int): String = {
+    if (handlerCount == -1) {
+      "unlimited"
+    } else {
+      handlerCount.toString
+    }
+  }
 }

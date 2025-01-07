@@ -18,15 +18,16 @@ package org.calinburloiu.music.microtonalist
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{JustIntonationStandard, RatioInterval, RatiosScale}
-import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
-import org.calinburloiu.music.microtonalist.core.TuningList
+import org.calinburloiu.music.microtonalist.common.CommonTestUtils
+import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils._
+import org.calinburloiu.music.microtonalist.composition.TuningList
 import org.calinburloiu.music.microtonalist.format.{FormatModule, FormatTestUtils}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
-  private val formatModule = new FormatModule(FormatTestUtils.uriOfResource("app/"))
+  private val formatModule = new FormatModule(CommonTestUtils.uriOfResource("app/"))
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =

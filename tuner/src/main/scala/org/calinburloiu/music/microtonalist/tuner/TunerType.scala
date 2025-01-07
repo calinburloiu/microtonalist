@@ -21,6 +21,7 @@ import enumeratum.{Enum, EnumEntry}
 sealed trait TunerType extends EnumEntry
 
 // TODO #64 Migrate this to plugin
+
 /**
  * Tuner type to be used based on input/output device capabilities.
  */
@@ -28,6 +29,7 @@ object TunerType extends Enum[TunerType] {
   override def values: IndexedSeq[TunerType] = findValues
 
   // TODO #64 Expand this type to all MTS types/formats
+
   /** Tuner that sends system exclusive MIDI Tuning Standard (MIDI 1.0) messages. */
   case object Mts extends TunerType
 

@@ -17,20 +17,15 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.core.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi.MidiProcessor
 
 /**
- * Trait that can be implemented for tuning an output instrument based on specific protocol.
+ * Trait that can be implemented for tuning an output instrument based on a specific protocol.
  */
-trait Tuner {
+trait Tuner extends MidiProcessor {
   def tune(tuning: OctaveTuning): Unit
 }
-
-/**
- * [[Tuner]] variant to be used for implementation that use the standard Java MIDI library.
- */
-trait TunerProcessor extends Tuner with MidiProcessor
 
 class TunerException(cause: Throwable) extends RuntimeException(
   "Failed to send tune message to device! Did you disconnect the device?", cause)
@@ -38,7 +33,7 @@ class TunerException(cause: Throwable) extends RuntimeException(
 /** Fake [[Tuner]] that can be mixed in with a real tuner to log the current [[OctaveTuning]]. */
 trait LoggerTuner extends Tuner with StrictLogging {
 
-  import org.calinburloiu.music.microtonalist.core.PianoKeyboardTuningUtils._
+  import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils._
 
   abstract override def tune(tuning: OctaveTuning): Unit = {
     logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")

@@ -16,203 +16,298 @@
 
 package org.calinburloiu.music.scmidi
 
-import com.typesafe.scalalogging.{Logger, StrictLogging}
-import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider
+import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
+import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
-import javax.sound.midi.{MidiDevice, MidiSystem, Receiver, Transmitter}
+import javax.sound.midi.{MidiDevice, MidiSystem}
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.Try
 
-class MidiManager extends AutoCloseable with StrictLogging {
+/**
+ * Class that manages connections and gives information about MIDI devices.
+ *
+ * The class has different sets of methods for inputs and outputs, because the Java MIDI API and CoreMIDI4J may
+ * expose two [[MidiDevice]] ([[MidiDeviceHandle]]) instances for the same physical devices, one for input and the
+ * other for output. Note that in this case, there is a single [[MidiDeviceId]].
+ */
+class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLogging {
 
   import MidiManager._
 
-  private val inputDevicesInfo = mutable.Map[MidiDeviceId, MidiDevice.Info]()
-  private val openedInputDevices = mutable.Map[MidiDeviceId, OpenedInputDevice]()
+  private val inputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Input, businessync)
+  private val outputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Output, businessync)
 
-  private val outputDevicesInfo = mutable.Map[MidiDeviceId, MidiDevice.Info]()
-  private val openedOutputDevices = mutable.Map[MidiDeviceId, OpenedOutputDevice]()
+  private val onMidiNotification: CoreMidiNotification = () => {
+    logger.info("The MIDI environment has changed.")
+    businessync.publish(MidiEnvironmentChangedEvent)
+    refresh()
+  }
 
-  refresh()
+  init()
 
-  def deviceInfo(deviceId: MidiDeviceId): MidiDevice.Info =
-    inputDevicesInfo.getOrElse(deviceId, outputDevicesInfo(deviceId))
+  private def init(): Unit = {
+    refresh()
 
+    // Automatically refresh when the MIDI environment has changed
+    CoreMidiDeviceProvider.addNotificationListener(onMidiNotification)
+  }
+
+  /**
+   * Rescans the environment for MIDI device information and updates the class internal state.
+   */
   def refresh(): Unit = {
     // Alternative to `javax.sound.midi.MidiSystem.getMidiDeviceInfo()` to make Java MIDI work on Mac.
     // This should also work on Windows.
     val deviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
     val devices = deviceInfoArray.map(MidiSystem.getMidiDevice)
 
-    devices.foreach { device =>
-      val deviceInfo = device.getDeviceInfo
-      val deviceId = MidiDeviceId(deviceInfo)
-      val maxTransmitters = device.getMaxTransmitters
-      val maxReceivers = device.getMaxReceivers
+    val currentInputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
+    val currentOutputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
 
-      if (maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0) {
-        inputDevicesInfo.update(deviceId, deviceInfo)
-        logDebugDetectedDevice(deviceId, "input", "transmitters", maxTransmitters)
+    devices.foreach { midiDevice =>
+      val deviceHandle = MidiDeviceHandle(midiDevice)
+
+      if (deviceHandle.isInputDevice) {
+        currentInputDevices += deviceHandle
       }
-
-      if (maxReceivers == -1 /* unlimited */ || maxReceivers > 0) {
-        outputDevicesInfo.update(deviceId, deviceInfo)
-        logDebugDetectedDevice(deviceId, "output", "receivers", maxReceivers)
+      if (deviceHandle.isOutputDevice) {
+        currentOutputDevices += deviceHandle
       }
     }
 
-    // Remove opened devices that were previously opened but now they don't appear anymore
-    def removeDisappearedOpenedDevices[D <: OpenedDevice](openedDevices: mutable.Map[MidiDeviceId, D],
-                                                          deviceIds: scala.collection.Set[MidiDeviceId]): Unit = {
-      val disappearedOpenedDeviceIds = openedDevices.keySet diff deviceIds
-      disappearedOpenedDeviceIds.foreach { deviceId =>
-        val device = openedDevices(deviceId).device
-        Try(device.close()).recover {
-          case exception => logger.error(s"Failed to close disappeared device $deviceId", exception)
-        }
-        openedDevices.remove(deviceId)
-        logger.info(s"Previously opened device $deviceId disappeared; it was probably disconnected")
-      }
-    }
+    inputEndpoint.updateDevices(currentInputDevices)
+    outputEndpoint.updateDevices(currentOutputDevices)
 
-    removeDisappearedOpenedDevices(openedInputDevices, inputDevicesInfo.keySet)
-    removeDisappearedOpenedDevices(openedOutputDevices, outputDevicesInfo.keySet)
+    inputEndpoint.purgeDisconnectedDevices()
+    outputEndpoint.purgeDisconnectedDevices()
   }
-
-  def inputDeviceIds: Seq[MidiDeviceId] = inputDevicesInfo.keys.toSeq
-
-  def openInput(deviceId: MidiDeviceId): Try[Transmitter] = {
-    val result = Try {
-      val deviceInfo = inputDevicesInfo(deviceId)
-      val device = MidiSystem.getMidiDevice(deviceInfo)
-      val transmitter = device.getTransmitter
-
-      device.open()
-      openedInputDevices.update(deviceId, OpenedInputDevice(device, transmitter))
-      logger.info(s"Successfully opened input device $deviceId")
-
-      transmitter
-    }
-
-    result.recover {
-      case _: NoSuchElementException => logger.info(s"Input device $deviceId is not available")
-      case exception => logErrorOpenDevice(deviceId, "input", exception)
-    }
-    result
-  }
-
-  def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
-    openFirstAvailableDevice(deviceIds, "input", openInput)
-
-  def isInputOpened(deviceId: MidiDeviceId): Boolean = isDeviceOpened(deviceId, openedInputDevices)
-
-  def inputTransmitter(deviceId: MidiDeviceId): Transmitter = openedInputDevices(deviceId).transmitter
-
-  def inputDevice(deviceId: MidiDeviceId): MidiDevice = openedInputDevices(deviceId).device
-
-  def closeInput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedInputDevices, logger)
-
-  def outputDeviceIds: Seq[MidiDeviceId] = outputDevicesInfo.keys.toSeq
-
-  def openOutput(deviceId: MidiDeviceId): Try[Receiver] = {
-    val result = Try {
-      val deviceInfo = outputDevicesInfo(deviceId)
-      val device = MidiSystem.getMidiDevice(deviceInfo)
-      val receiver = device.getReceiver
-
-      device.open()
-      openedOutputDevices.update(deviceId, OpenedOutputDevice(device, receiver))
-      logger.info(s"Successfully opened output device $deviceId")
-
-      receiver
-    }
-
-    result.recover {
-      case _: NoSuchElementException => logger.info(s"Output device $deviceId not available")
-      case exception => logErrorOpenDevice(deviceId, "output", exception)
-    }
-    result
-  }
-
-  def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceId] =
-    openFirstAvailableDevice(deviceIds, "output", openOutput)
-
-  def isOutputOpened(deviceId: MidiDeviceId): Boolean = isDeviceOpened(deviceId, openedOutputDevices)
-
-  def outputReceiver(deviceId: MidiDeviceId): Receiver = openedOutputDevices(deviceId).receiver
-
-  def outputDevice(deviceId: MidiDeviceId): MidiDevice = openedOutputDevices(deviceId).device
-
-  def closeOutput(deviceId: MidiDeviceId): Try[Unit] = closeDevice(deviceId, openedOutputDevices, logger)
 
   override def close(): Unit = {
     logger.info(s"Closing ${getClass.getSimpleName}...")
-    openedInputDevices.keys.foreach { deviceId =>
-      closeDevice(deviceId, openedInputDevices, logger).recover {
-        case exception => logger.error(s"Failed to close input device $deviceId", exception)
-      }
-    }
-    openedOutputDevices.keys.foreach { deviceId =>
-      closeDevice(deviceId, openedOutputDevices, logger).recover {
-        case exception => logger.error(s"Failed to close output device $deviceId", exception)
-      }
-    }
-    logger.info(s"Finished closing ${getClass.getSimpleName}")
+    inputEndpoint.close()
+    outputEndpoint.close()
+    CoreMidiDeviceProvider.removeNotificationListener(onMidiNotification)
+    logger.info(s"Finished closing ${getClass.getSimpleName}.")
   }
 
-  private def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId], deviceType: String,
-                                       openFunc: MidiDeviceId => Try[_]): Option[MidiDeviceId] = {
-    deviceIds.to(LazyList)
-      .map { deviceId =>
-        logger.info(s"Attempting to open $deviceType device $deviceId...")
-        (deviceId, openFunc(deviceId))
-      }
-      .find(_._2.isSuccess)
-      .map(_._1)
-  }
 
-  @inline
-  private def logDebugDetectedDevice(deviceId: MidiDeviceId, deviceType: String,
-                                     handlerType: String, maxHandlers: Int): Unit = {
-    logger.debug {
-      val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
-      s"Detected $deviceType device $deviceId with $maxHandlersStr $handlerType"
-    }
-  }
+  def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = inputEndpoint.deviceInfoOf(deviceId)
 
-  @inline
-  def logErrorOpenDevice(deviceId: MidiDeviceId, deviceType: String, exception: Throwable): Unit = {
-    logger.error(s"Failed to open $deviceType device $deviceId", exception)
-  }
+  def inputDeviceIds: Seq[MidiDeviceId] = inputEndpoint.deviceIds
+
+  def inputDevicesInfo: Seq[MidiDevice.Info] = inputEndpoint.devicesInfo
+
+  /**
+   * Opens an input connection to a MIDI device based on its unique identifiers.
+   *
+   * @param deviceId Unique identifier of the device.
+   * @return a handle object for the device.
+   */
+  def openInput(deviceId: MidiDeviceId): MidiDeviceHandle = inputEndpoint.openDevice(deviceId)
+
+  /**
+   * Tries to sequentially open a connection with the first output device available from the provided sequence (in
+   * that order).
+   *
+   * @param deviceIds A sequence of unique identifiers of the devices.
+   * @return a handle object for the device that succeeded.
+   */
+  def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] =
+    inputEndpoint.openFirstAvailableDevice(deviceIds)
+
+  def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = inputEndpoint.deviceHandleOf(deviceId)
+
+  def inputOpenedDevices: Seq[MidiDeviceHandle] = inputEndpoint.openedDevices
+
+  def closeInput(deviceId: MidiDeviceId): Unit = inputEndpoint.closeDevice(deviceId)
+
+
+  def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = outputEndpoint.deviceInfoOf(deviceId)
+
+  def outputDeviceIds: Seq[MidiDeviceId] = outputEndpoint.deviceIds
+
+  def outputDevicesInfo: Seq[MidiDevice.Info] = outputEndpoint.devicesInfo
+
+  /**
+   * Opens an output connection to a MIDI device based on its unique identifiers.
+   *
+   * @param deviceId Unique identifier of the device.
+   * @return a handle object for the device.
+   */
+  def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle = outputEndpoint.openDevice(deviceId)
+
+  /**
+   * Tries to sequentially open a connection with the first output device available from the provided sequence (in
+   * that order).
+   *
+   * @param deviceIds A sequence of unique identifiers of the devices.
+   * @return a handle object for the device that succeeded.
+   */
+  def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] =
+    outputEndpoint.openFirstAvailableDevice(deviceIds)
+
+  def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = outputEndpoint.deviceHandleOf(deviceId)
+
+  def outputOpenedDevices: Seq[MidiDeviceHandle] = outputEndpoint.openedDevices
+
+  def closeOutput(deviceId: MidiDeviceId): Unit = outputEndpoint.closeDevice(deviceId)
 }
 
 object MidiManager {
 
-  private def isDeviceOpened[D <: OpenedDevice](deviceId: MidiDeviceId,
-                                                openedDevices: mutable.Map[MidiDeviceId, D]): Boolean =
-    openedDevices.get(deviceId).exists(_.device.isOpen)
+  abstract class MidiEvent extends BusinessyncEvent
 
-  private def closeDevice[D <: OpenedDevice](deviceId: MidiDeviceId, openedDevices: mutable.Map[MidiDeviceId, D],
-                                             logger: Logger): Try[Unit] = Try {
-    val openedDevice = openedDevices(deviceId)
-    logger.info(s"Closing ${openedDevice.deviceType} device $deviceId...")
-    openedDevice.device.close()
-    openedDevices.remove(deviceId)
-    logger.info(s"Successfully closed ${openedDevice.deviceType} device $deviceId")
+  case object MidiEnvironmentChangedEvent extends MidiEvent
+
+  case class MidiDeviceAddedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+  case class MidiDeviceRemovedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+  case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+
+  private sealed abstract class MidiEndpointType(name: String) {
+    override def toString: String = name
   }
-}
 
+  private object MidiEndpointType {
+    case object Input extends MidiEndpointType("input")
 
-sealed trait OpenedDevice {
-  val device: MidiDevice
+    case object Output extends MidiEndpointType("output")
+  }
 
-  def deviceType: String
-}
+  /**
+   * Helper class that manages either input or output MIDI devices. The reason for that is that the Java MIDI API
+   * lists input and output devices separately, so the same physical device may appear twice but with the same
+   * [[MidiDeviceId]].
+   *
+   * @param endpointType whether the devices managed are input or output devices.
+   */
+  private class MidiEndpoint(val endpointType: MidiEndpointType,
+                             businessync: Businessync) extends AutoCloseable with StrictLogging {
 
-case class OpenedInputDevice(override val device: MidiDevice, transmitter: Transmitter) extends OpenedDevice {
-  override def deviceType: String = "input"
-}
+    private val devicesIdToInfo = TrieMap[MidiDeviceId, MidiDevice.Info]()
+    private val openedDevicesMap = TrieMap[MidiDeviceId, MidiDeviceHandle]()
 
-case class OpenedOutputDevice(override val device: MidiDevice, receiver: Receiver) extends OpenedDevice {
-  override def deviceType: String = "output"
+    def updateDevices(deviceHandles: Iterable[MidiDeviceHandle]): Unit = {
+      val currentIds = deviceHandles.map(_.id).toSet
+
+      // New devices
+      for (currentDeviceHandle <- deviceHandles; id = currentDeviceHandle.id if !devicesIdToInfo.contains(id)) {
+        devicesIdToInfo.update(id, currentDeviceHandle.info)
+        logDebugDetectedDevice(currentDeviceHandle)
+        businessync.publish(MidiDeviceAddedEvent(id))
+      }
+
+      // Removed devices
+      for (previousId <- devicesIdToInfo.keys if !currentIds.contains(previousId)) {
+        devicesIdToInfo.remove(previousId)
+        logger.info(s"${endpointType.toString.capitalize} device $previousId was removed.")
+        businessync.publish(MidiDeviceRemovedEvent(previousId))
+      }
+    }
+
+    /** Remove devices that were previously opened, but now were disconnected. */
+    def purgeDisconnectedDevices(): Unit = {
+      val deviceIds = devicesIdToInfo.keySet
+      val disconnectedDeviceIds = openedDevicesMap.keySet diff deviceIds
+
+      disconnectedDeviceIds.foreach { deviceId =>
+        val device = openedDevicesMap(deviceId).midiDevice
+
+        Try(device.close()).recover {
+          case exception => logger.info(s"${endpointType.toString.capitalize} device $deviceId is already closed.",
+            exception)
+        }
+
+        openedDevicesMap.remove(deviceId)
+
+        logger.info(s"${endpointType.toString.capitalize} device $deviceId was disconnected.")
+        businessync.publish(MidiDeviceDisconnectedEvent(deviceId))
+      }
+    }
+
+    def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = devicesIdToInfo.get(deviceId)
+
+    def deviceIds: Seq[MidiDeviceId] = devicesIdToInfo.keys.toSeq
+
+    def devicesInfo: Seq[MidiDevice.Info] = devicesIdToInfo.values.toSeq
+
+    def openDevice(deviceId: MidiDeviceId): MidiDeviceHandle = {
+      val result = Try {
+        val deviceInfo = devicesIdToInfo(deviceId)
+        val midiDevice = MidiSystem.getMidiDevice(deviceInfo)
+
+        val deviceHandle = MidiDeviceHandle(midiDevice)
+        deviceHandle.open()
+        openedDevicesMap.update(deviceId, deviceHandle)
+        logger.info(s"Successfully opened $endpointType device $deviceId.")
+
+        deviceHandle
+      }
+
+      result.recover {
+        case _: NoSuchElementException => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not " +
+          s"available.")
+        case exception => logger.error(s"Failed to open $endpointType device $deviceId.", exception)
+      }
+
+      result.get
+    }
+
+    def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] = {
+      deviceIds.to(LazyList)
+        .map { deviceId =>
+          logger.info(s"Attempting to open $endpointType device $deviceId...")
+          Try {
+            openDevice(deviceId)
+          }
+        }
+        .find(_.isSuccess)
+        .map(_.get)
+    }
+
+    def deviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = openedDevicesMap.get(deviceId)
+
+    def openedDevices: Seq[MidiDeviceHandle] = openedDevicesMap.values.toSeq
+
+    def closeDevice(deviceId: MidiDeviceId): Unit = {
+      openedDevicesMap.get(deviceId) match {
+        case Some(openedDevice) if openedDevice.isOpen =>
+          logger.info(s"Closing $endpointType device $deviceId...")
+          openedDevice.midiDevice.close()
+          openedDevicesMap.remove(deviceId)
+          logger.info(s"Successfully $endpointType closed device $deviceId.")
+        case _ => // Do nothing
+      }
+    }
+
+    override def close(): Unit = {
+      openedDevicesMap.keys.foreach { deviceId =>
+        Try {
+          closeDevice(deviceId)
+        }.recover {
+          case exception => logger.error(s"Failed to close $endpointType device $deviceId!", exception)
+        }
+      }
+    }
+
+    @inline
+    private def logDebugDetectedDevice(deviceHandle: MidiDeviceHandle): Unit = {
+      logger.whenDebugEnabled {
+        val deviceId = deviceHandle.id
+        val midiDevice = deviceHandle.midiDevice
+        val (handlerType, maxHandlers) = if (endpointType == MidiEndpointType.Input) {
+          ("transmitters", midiDevice.getMaxTransmitters)
+        } else {
+          ("receivers", midiDevice.getMaxReceivers)
+        }
+        val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
+
+        logger.debug(s"Detected $endpointType device $deviceId with $maxHandlersStr $handlerType.")
+      }
+    }
+  }
 }
