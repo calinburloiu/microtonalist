@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuning Changer",
+    "description": "TODO",
+    "type": "object",
+    "properties": {
+        "$comment": "TODO We probably need an optional output for MTS tuning messages that will be useful for in-DAW VST support.",
+        "triggersThru" : {
+            "type": "boolean",
+            "title": "Triggers Thru",
+            "description": "Set to true if tuning change MIDI trigger messages should pass through to the output, or false if they should be filtered out."
+        }
+    },
+    "unevaluatedProperties": false,
+    "$defs": {
+        "type": {
+            "type": "string",
+            "enum": ["cc", "pedal"]
+        }
+    }
+}

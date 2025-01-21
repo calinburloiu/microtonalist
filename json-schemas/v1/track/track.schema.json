@@ -5,7 +5,7 @@
     "type": "object",
     "properties": {
         "input": { "$ref": "trackInput.schema.json" },
-        "tuningSwitcher": { "$ref": "tuningSwitcher.schema.json" },
+        "tuningChanger": { "$ref": "tuningChanger.schema.json" },
         "tuner": { "$ref": "tuner.schema.json" },
         "output": { "$ref": "trackOutput.schema.json" }
     },
