@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,12 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.businessync.BusinessyncEvent
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.businessync.Businessync
 
-case class TuningChangedEvent(tuning: OctaveTuning, tuningIndex: Int, oldTuningIndex: Int) extends BusinessyncEvent
+// TODO #97 Migrate all module init here.
+class TunerModule(businessync: Businessync) {
+
+  lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
+
+  lazy val tuningSession: TuningSession = new TuningSession(businessync)
+}

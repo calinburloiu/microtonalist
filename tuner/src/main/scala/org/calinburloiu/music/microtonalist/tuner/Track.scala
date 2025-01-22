@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
 import javax.sound.midi.{MidiMessage, Receiver}
@@ -33,7 +34,7 @@ class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
             tuner: Tuner,
             outputReceiver: Receiver,
             ccParams: Map[Int, Int] = Map.empty) extends Receiver with StrictLogging {
-  val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
+  private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
     Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
 
   initCcParams()
@@ -41,6 +42,8 @@ class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     pipeline.send(message, timeStamp)
   }
+
+  def tune(tuning: OctaveTuning): Unit = tuner.tune(tuning)
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
 

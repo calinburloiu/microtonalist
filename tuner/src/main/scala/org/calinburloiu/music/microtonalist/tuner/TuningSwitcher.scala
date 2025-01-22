@@ -43,7 +43,7 @@ class TuningSwitcher(val tuners: Seq[Tuner],
       _tuningIndex = index
 
       tune()
-      eventBus.post(TuningChangedEvent(tuningIndex, oldTuningIndex))
+      eventBus.post(TuningChangedEvent(tuningList(tuningIndex), tuningIndex, oldTuningIndex))
     }
   }
 

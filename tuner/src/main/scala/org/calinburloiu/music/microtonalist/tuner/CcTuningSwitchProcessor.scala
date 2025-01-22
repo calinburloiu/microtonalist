@@ -50,10 +50,11 @@ class CcTuningSwitchProcessor(tuningSwitcher: TuningSwitcher,
       if (command == ShortMessage.CONTROL_CHANGE && ccDepressed.contains(cc)) {
         if (!ccDepressed(cc) && ccValue > ccTriggerThreshold) {
           ccDepressed(cc) = true
-          if (cc == ccPrev)
+          if (cc == ccPrev) {
             tuningSwitcher.prev()
-          else
+          } else if (cc == ccNext) {
             tuningSwitcher.next()
+          }
         } else if (ccDepressed(cc) && ccValue <= ccTriggerThreshold) {
           ccDepressed(cc) = false
         }

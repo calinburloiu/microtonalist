@@ -103,22 +103,38 @@ object MicrotonalistApp extends StrictLogging {
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
 
     // # Microtuner
+    val tunerModule = new TunerModule(businessync)
+    val tuningService = tunerModule.tuningService
+
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
-    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
-    val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
-    val track = new Track(Some(tuningSwitchProcessor), tuner, receiver, midiOutputConfig.ccParams)
+
+    //    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
+    //    val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
+    val ccTriggers = midiInputConfig.triggers.cc
+    val tuningChanger = CcTuningChanger(ccTriggers.prevTuningCc, ccTriggers.nextTuningCc, ccTriggers.ccThreshold)
+    val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger, !ccTriggers.isFilteringThru)
+
+    val track = new Track(Some(tuningChangeProcessor), tuner, receiver, midiOutputConfig.ccParams)
+    val trackManager = new TrackManager(Seq(track))
+    businessync.register(trackManager)
+
     maybeTransmitter.foreach { transmitter =>
       transmitter.setReceiver(track)
       logger.info("Using CC tuning switcher")
     }
-    tuningSwitcher.tune()
+    //    tuningSwitcher.tune()
+    // TODO #90 For some reason this does not trigger a Tuner#tune() with Guava EventBus. Make sure it works with
+    //  businessync. Below we are calling the handler as a workaround which should be removed.
+    val tuningSession = tunerModule.tuningSession
+    tuningSession.tunings = tuningList.tunings
+    trackManager.onTuningChanged(TuningChangedEvent(tuningSession.currentTuning, tuningSession.tuningIndex, 0))
 
     // # GUI
     logger.info("Initializing GUI...")
-    val tuningListFrame = new TuningListFrame(tuningSwitcher)
-    eventBus.register(tuningListFrame)
+    val tuningListFrame = new TuningListFrame(tuningService)
+    businessync.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
