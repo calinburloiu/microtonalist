@@ -110,8 +110,6 @@ object MicrotonalistApp extends StrictLogging {
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
 
-    //    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
-    //    val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
     val ccTriggers = midiInputConfig.triggers.cc
     val tuningChanger = CcTuningChanger(ccTriggers.prevTuningCc, ccTriggers.nextTuningCc, ccTriggers.ccThreshold)
     val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger, !ccTriggers.isFilteringThru)
@@ -124,7 +122,6 @@ object MicrotonalistApp extends StrictLogging {
       transmitter.setReceiver(track)
       logger.info("Using CC tuning switcher")
     }
-    //    tuningSwitcher.tune()
     // TODO #90 For some reason this does not trigger a Tuner#tune() with Guava EventBus. Make sure it works with
     //  businessync. Below we are calling the handler as a workaround which should be removed.
     val tuningSession = tunerModule.tuningSession

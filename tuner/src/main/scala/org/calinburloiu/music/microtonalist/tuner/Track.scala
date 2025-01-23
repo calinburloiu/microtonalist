@@ -25,17 +25,17 @@ import javax.sound.midi.{MidiMessage, Receiver}
 /**
  * MIDI route for tuning an output device.
  *
- * @param tuningSwitchProcessor Interceptor used for detecting MIDI messages that change the tuning.
+ * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
  * @param tuner                 Class responsible for tuning the output instrument based on specific protocol.
  * @param outputReceiver        MIDI [[Receiver]] of the output instrument.
  * @param ccParams              Map of CC parameters to be set during initialization.
  */
-class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
+class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
             tuner: Tuner,
             outputReceiver: Receiver,
             ccParams: Map[Int, Int] = Map.empty) extends Receiver with StrictLogging {
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
+    Seq(tuningChangeProcessor, Some(tuner)).flatten, outputReceiver)
 
   initCcParams()
 
