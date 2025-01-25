@@ -122,11 +122,7 @@ object MicrotonalistApp extends StrictLogging {
       transmitter.setReceiver(track)
       logger.info("Using CC tuning switcher")
     }
-    // TODO #90 For some reason this does not trigger a Tuner#tune() with Guava EventBus. Make sure it works with
-    //  businessync. Below we are calling the handler as a workaround which should be removed.
-    val tuningSession = tunerModule.tuningSession
-    tuningSession.tunings = tuningList.tunings
-    trackManager.onTuningChanged(TuningChangedEvent(tuningSession.currentTuning, tuningSession.tuningIndex, 0))
+    tunerModule.tuningSession.tunings = tuningList.tunings
 
     // # GUI
     logger.info("Initializing GUI...")
