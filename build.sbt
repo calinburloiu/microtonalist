@@ -136,6 +136,7 @@ lazy val tuner = (project in file("tuner"))
     commonSettings,
     libraryDependencies ++= Seq(
       enumeratum,
+      scalaMock % Test,
     ),
   )
 
