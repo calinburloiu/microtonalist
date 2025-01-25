@@ -90,6 +90,10 @@ class Businessync(@deprecated eventBus: EventBus) {
    */
   def run(fn: () => Unit): Unit = fn()
 
+  def runIf(condition: => Boolean)(fn: () => Unit): Unit = if (condition) {
+    fn()
+  }
+
   /**
    * Runs the given function on the UI Thread.
    *
