@@ -43,6 +43,11 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
     pipeline.send(message, timeStamp)
   }
 
+  /**
+   * Tunes the output instrument using the provided tuning.
+   *
+   * @param tuning The tuning to be applied.
+   */
   def tune(tuning: OctaveTuning): Unit = tuner.tune(tuning)
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")

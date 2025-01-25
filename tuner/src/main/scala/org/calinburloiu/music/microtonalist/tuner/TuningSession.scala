@@ -26,11 +26,11 @@ class TuningSession(businessync: Businessync) {
 
   def tunings: Seq[OctaveTuning] = _tunings
 
-  def tunings_=(value: Seq[OctaveTuning]): Unit = {
+  def tunings_=(value: Seq[OctaveTuning]): Unit = if (_tunings != value) {
     _tunings = value
 
     val oldTuningIndex = _tuningIndex
-    _tuningIndex = Math.min(_tuningIndex, value.size - 1)
+    _tuningIndex = Math.max(Math.min(_tuningIndex, value.size - 1), 0)
 
     publish(oldTuningIndex)
   }
@@ -38,9 +38,9 @@ class TuningSession(businessync: Businessync) {
   def tuningIndex: Int = _tuningIndex
 
   def tuningIndex_=(index: Int): Unit = {
-    if (index < 0 || index > _tunings.size - 1) {
-      throw new IllegalArgumentException(s"Expecting tuning index to be between 0 and ${_tunings.size - 1}!")
-    } else if (index != _tuningIndex) {
+    require(0 <= index && index < _tunings.size, s"Expecting tuning index to be between 0 and ${_tunings.size - 1}!")
+
+    if (index != _tuningIndex) {
       val oldTuningIndex = _tuningIndex
       _tuningIndex = index
 
@@ -65,7 +65,7 @@ class TuningSession(businessync: Businessync) {
     _tuningIndex
   }
 
-  private def publish(oldTuningIndex: Int): Unit = if (tuningIndex != oldTuningIndex) {
-    businessync.publish(TuningChangedEvent(tunings(tuningIndex), tuningIndex, oldTuningIndex))
+  private def publish(oldTuningIndex: Int): Unit = {
+    businessync.publish(TuningChangedEvent(currentTuning, tuningIndex, oldTuningIndex))
   }
 }
