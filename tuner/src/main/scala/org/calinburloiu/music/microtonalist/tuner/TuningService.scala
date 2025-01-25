@@ -19,22 +19,33 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 
+/**
+ * Service that exposes tuning capabilities to the application layer by allowing things like setting the list of
+ * tunings and the current tuning from that list.
+ *
+ * The service makes sure that all operations are executed on the business thread.
+ *
+ * @param session     Object where all mutable operations are performed.
+ * @param businessync Provides the thread communication.
+ */
 class TuningService(session: TuningSession, businessync: Businessync) {
 
   // TODO #99 No need to expose this after publishing messages from domain model to GUI.
   @deprecated
   def tunings: Seq[OctaveTuning] = session.tunings
 
-  def changeTuning(tuningChange: TuningChange): Unit = {
-    if (tuningChange.isChanging) {
-      businessync.run { () =>
-        tuningChange match {
-          case PreviousTuningChange => session.previousTuning()
-          case NextTuningChange => session.nextTuning()
-          case IndexTuningChange(index) => session.tuningIndex = index
-          case NoTuningChange => // Unreachable, see above. Added to make the match exhaustive.
-        }
-      }
+  /**
+   * Changes the current tuning with the given operation object by selecting one of the tunings from the tuning list
+   * stored in the session.
+   *
+   * @param tuningChange An operation object that describes how the tuning should be changed.
+   */
+  def changeTuning(tuningChange: TuningChange): Unit = businessync.runIf(tuningChange.isChanging) { () =>
+    tuningChange match {
+      case PreviousTuningChange => session.previousTuning()
+      case NextTuningChange => session.nextTuning()
+      case IndexTuningChange(index) => session.tuningIndex = index
+      case NoTuningChange => // Unreachable, see condition above. Added to make the match exhaustive.
     }
   }
 }
