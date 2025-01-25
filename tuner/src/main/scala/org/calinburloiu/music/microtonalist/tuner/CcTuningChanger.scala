@@ -21,8 +21,8 @@ import com.typesafe.scalalogging.LazyLogging
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
 
-class CcTuningChanger(val previousTuningCc: Int = 67,
-                      val nextTuningCc: Int = 66,
+class CcTuningChanger(val previousTuningCc: Int,
+                      val nextTuningCc: Int,
                       val threshold: Int = 0) extends TuningChanger with LazyLogging {
   override val typeName: String = "cc"
 
