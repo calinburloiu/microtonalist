@@ -101,7 +101,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     // When
     tuningSession.tuningIndex = 0 // Setting the same index
     // Then
-    businessyncStub.publish _ verify * once
+    (businessyncStub.publish _).verify(*).once()
   }
 
   "tunings" should "set tunings and adjust tuningIndex if necessary" in {
@@ -141,7 +141,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     // Setting it twice with the same tunings, only publishes one event
     tuningSession.tunings = Seq(majTuning, rastTuning)
     // Then
-    businessyncStub.publish _ verify TuningsUpdatedEvent(Seq(majTuning, rastTuning), 0) once
+    (businessyncStub.publish _).verify(TuningsUpdatedEvent(Seq(majTuning, rastTuning), 0)).once()
   }
 
   "previousTuning, nextTuning and nextBy" should "cycle to the previous and next tunings correctly" in {
