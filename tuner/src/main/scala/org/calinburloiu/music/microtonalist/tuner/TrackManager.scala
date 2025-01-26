@@ -22,7 +22,7 @@ import com.google.common.eventbus.Subscribe
 class TrackManager(private val tracks: Seq[Track]) {
   // TODO #90 Remove @Subscribe after implementing to businessync.
   @Subscribe
-  def onTuningChanged(event: TuningChangedEvent): Unit = for (track <- tracks) {
-    track.tune(event.tuning)
+  def onTuningChanged(event: TuningIndexUpdatedEvent): Unit = for (track <- tracks) {
+    track.tune(event.currentTuning)
   }
 }

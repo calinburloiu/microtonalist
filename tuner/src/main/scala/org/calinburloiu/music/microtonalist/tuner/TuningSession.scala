@@ -26,25 +26,24 @@ class TuningSession(businessync: Businessync) {
 
   def tunings: Seq[OctaveTuning] = _tunings
 
-  def tunings_=(value: Seq[OctaveTuning]): Unit = if (_tunings != value) {
-    _tunings = value
+  def tunings_=(newTunings: Seq[OctaveTuning]): Unit = if (_tunings != newTunings) {
+    _tunings = newTunings
+    // Modifying _tuningIndex without calling its setter to avoid publishing a redundant TuningIndexUpdatedEvent
+    _tuningIndex = Math.max(Math.min(_tuningIndex, newTunings.size - 1), 0)
 
-    val oldTuningIndex = _tuningIndex
-    _tuningIndex = Math.max(Math.min(_tuningIndex, value.size - 1), 0)
-
-    publish(oldTuningIndex)
+    businessync publish TuningsUpdatedEvent(newTunings, _tuningIndex)
   }
 
   def tuningIndex: Int = _tuningIndex
 
-  def tuningIndex_=(index: Int): Unit = {
-    require(0 <= index && index < _tunings.size, s"Expecting tuning index to be between 0 and ${_tunings.size - 1}!")
+  def tuningIndex_=(newIndex: Int): Unit = {
+    require(0 <= newIndex && newIndex < _tunings.size,
+      s"Tuning index $newIndex is out of bounds for tunings of size ${_tunings.size}!")
 
-    if (index != _tuningIndex) {
-      val oldTuningIndex = _tuningIndex
-      _tuningIndex = index
+    if (newIndex != _tuningIndex) {
+      _tuningIndex = newIndex
 
-      publish(oldTuningIndex)
+      businessync publish TuningIndexUpdatedEvent(newIndex, currentTuning)
     }
   }
 
@@ -63,9 +62,5 @@ class TuningSession(businessync: Businessync) {
   def nextBy(step: Int): Int = {
     tuningIndex = IntMath.mod(tuningIndex + step, tuningCount)
     _tuningIndex
-  }
-
-  private def publish(oldTuningIndex: Int): Unit = {
-    businessync.publish(TuningChangedEvent(currentTuning, tuningIndex, oldTuningIndex))
   }
 }

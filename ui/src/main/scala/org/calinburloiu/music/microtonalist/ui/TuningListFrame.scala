@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.ui
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, TuningChangedEvent, TuningService}
+import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, TuningIndexUpdatedEvent, TuningService}
 
 import java.awt.BorderLayout
 import java.awt.event.{KeyEvent, KeyListener}
@@ -87,10 +87,9 @@ class TuningListFrame(tuningService: TuningService) extends JFrame("Microtuner")
 
   // TODO #90 Remove @Subscribe after implementing to businessync.
   @Subscribe
-  def onTuningChanged(tuningChangedEvent: TuningChangedEvent): Unit = {
-    val TuningChangedEvent(_, tuningIndex, oldTuningIndex) = tuningChangedEvent
-    logger.debug(this.getClass.getSimpleName +
-      s" received tuning change event from tuning index $oldTuningIndex to $tuningIndex")
+  def onTuningChanged(tuningIndexUpdatedEvent: TuningIndexUpdatedEvent): Unit = {
+    val TuningIndexUpdatedEvent(tuningIndex, _) = tuningIndexUpdatedEvent
+    logger.debug(s"Tuning changed to index $tuningIndex.")
 
     listComponent.setSelectedIndex(tuningIndex)
   }
