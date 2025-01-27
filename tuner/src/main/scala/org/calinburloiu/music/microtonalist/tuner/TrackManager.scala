@@ -19,10 +19,19 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.Subscribe
 
 // TODO #95 Logic to update tracks.
+
+/**
+ * Manages a collection of MIDI tracks and updates their tuning based on external events.
+ */
 class TrackManager(private val tracks: Seq[Track]) {
+  /**
+   * Handles changes in tuning by applying the updated tuning to all managed tracks.
+   *
+   * @param event The tuning session event containing the current tuning to be applied to the tracks.
+   */
   // TODO #90 Remove @Subscribe after implementing to businessync.
   @Subscribe
-  def onTuningChanged(event: TuningIndexUpdatedEvent): Unit = for (track <- tracks) {
+  def onTuningChanged(event: TuningSessionEvent): Unit = for (track <- tracks) {
     track.tune(event.currentTuning)
   }
 }
