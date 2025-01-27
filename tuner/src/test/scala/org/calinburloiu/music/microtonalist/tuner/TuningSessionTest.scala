@@ -19,37 +19,31 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter with MockFactory {
+class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
-  private var tuningSession: TuningSession = _
-
-  // Mocks for dependencies
-  private val businessyncStub: Businessync = stub[Businessync]
-
-  private val majTuning = OctaveTuning("Just C Major",
+  val majTuning: OctaveTuning = OctaveTuning("Just C Major",
     Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, -15.64, 0.0, -11.73))
-  private val rastTuning = OctaveTuning("C Rast",
+  val rastTuning: OctaveTuning = OctaveTuning("C Rast",
     Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, 5.87, -3.91, -11.73))
-  // TODO #95
-  private val ussakTuning = OctaveTuning("D Ussak",
+  val ussakTuning: OctaveTuning = OctaveTuning("D Ussak",
     Seq(0.0, 0.0, 3.91, 0.0, -45.45, -1.96, 0.0, 1.96, 0.0, 5.87, -3.91, 0))
 
-  before {
-    tuningSession = new TuningSession(businessyncStub)
+  trait Fixture {
+    val businessyncStub: Businessync = stub[Businessync]
+    val tuningSession: TuningSession = new TuningSession(businessyncStub)
   }
 
-  "constructor" should "initialize with empty tunings and tuningIndex set to 0" in {
+  "constructor" should "initialize with empty tunings and tuningIndex set to 0" in new Fixture {
     tuningSession.tunings shouldBe empty
     tuningSession.tuningIndex shouldBe 0
     tuningSession.tuningCount shouldBe 0
     tuningSession.currentTuning shouldBe OctaveTuning.Edo12
   }
 
-  "tunings" should "set tunings" in {
+  "tunings" should "set tunings" in new Fixture {
     // When
     tuningSession.tunings = Seq(majTuning, rastTuning)
     // Then
@@ -63,7 +57,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     tuningSession.tuningCount shouldBe 0
   }
 
-  "tuningIndex" should "throw an exception when setting an invalid tuningIndex" in {
+  "tuningIndex" should "throw an exception when setting an invalid tuningIndex" in new Fixture {
     // When
     tuningSession.tunings = Seq(majTuning, rastTuning)
     // Then
@@ -76,7 +70,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     }
   }
 
-  it should "allow setting a valid tuningIndex" in {
+  it should "allow setting a valid tuningIndex" in new Fixture {
     // When
     tuningSession.tunings = Seq(majTuning, rastTuning, ussakTuning)
     // Then
@@ -85,17 +79,16 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     tuningSession.currentTuning shouldBe rastTuning
   }
 
-  it should "publish TuningIndexUpdatedEvent when tuningIndex changes" in {
+  it should "publish TuningIndexUpdatedEvent when tuningIndex changes" in new Fixture {
     // Given
     tuningSession.tunings = Seq(majTuning, rastTuning)
-    val oldTuningIndex = tuningSession.tuningIndex
     // When
     tuningSession.tuningIndex = 1 // Set a new index
     // Then
     businessyncStub.publish _ verify TuningIndexUpdatedEvent(1, rastTuning)
   }
 
-  it should "not publish TuningIndexUpdatedEvent when tuningIndex remains the same" in {
+  it should "not publish TuningIndexUpdatedEvent when tuningIndex remains the same" in new Fixture {
     // Given
     tuningSession.tunings = Seq(majTuning, rastTuning)
     // When
@@ -104,7 +97,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     (businessyncStub.publish _).verify(*).once()
   }
 
-  "tunings" should "set tunings and adjust tuningIndex if necessary" in {
+  "tunings" should "set tunings and adjust tuningIndex if necessary" in new Fixture {
     // When
     tuningSession.tunings = Seq(majTuning, rastTuning)
     // Then
@@ -135,7 +128,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     tuningSession.currentTuning shouldBe OctaveTuning.Edo12
   }
 
-  it should "publish TuningsUpdatedEvent when tunings are set" in {
+  it should "publish TuningsUpdatedEvent when tunings are set" in new Fixture {
     // When
     tuningSession.tunings = Seq(majTuning, rastTuning)
     // Setting it twice with the same tunings, only publishes one event
@@ -144,7 +137,17 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with BeforeAndAfter wi
     (businessyncStub.publish _).verify(TuningsUpdatedEvent(Seq(majTuning, rastTuning), 0)).once()
   }
 
-  "previousTuning, nextTuning and nextBy" should "cycle to the previous and next tunings correctly" in {
+  it should "not publish TuningsUpdatedEvent when the same tunings is set" in new Fixture {
+    // Given
+    val tunings = Seq(majTuning, rastTuning)
+    tuningSession.tunings = tunings
+    // When
+    tuningSession.tunings = tunings
+    // Then
+    (businessyncStub.publish _).verify(TuningsUpdatedEvent(Seq(majTuning, rastTuning), 0)).once()
+  }
+
+  "previousTuning, nextTuning and nextBy" should "cycle to the previous and next tunings correctly" in new Fixture {
     tuningSession.tunings = Seq(majTuning, rastTuning, ussakTuning)
     tuningSession.tuningIndex = 0
 
