@@ -20,6 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
+import java.util.UUID
 import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
@@ -33,11 +34,20 @@ import javax.sound.midi.{MidiMessage, Receiver}
 class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
             tuner: Tuner,
             outputReceiver: Receiver,
-            ccParams: Map[Int, Int] = Map.empty) extends Receiver with StrictLogging {
+            ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
+
+  // TODO #97 Reading Tracks from a file requires assigning this value from the constructor.
+  val id: String = UUID.randomUUID().toString
+
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
     Seq(tuningChangeProcessor, Some(tuner)).flatten, outputReceiver)
 
   initCcParams()
+
+  // TODO #97 Implement Track#run
+  override def run(): Unit = {
+    logger.warn("Track#run is not yet implemented!")
+  }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     pipeline.send(message, timeStamp)
