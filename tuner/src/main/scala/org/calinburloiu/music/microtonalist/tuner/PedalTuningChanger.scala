@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.ScCcMidiMessage
 
+// TODO #95 Doc
 class PedalTuningChanger(threshold: Int)
   extends CcTuningChanger(ScCcMidiMessage.SoftPedal, ScCcMidiMessage.SostenutoPedal, threshold) {
   override val typeName: String = "pedal"
