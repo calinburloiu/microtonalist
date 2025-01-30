@@ -41,6 +41,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     processor.receiver = receiverStub
   }
 
+  // TODO #95 Separate tests that check the decision and the service call
+
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
