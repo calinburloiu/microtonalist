@@ -24,7 +24,7 @@ package org.calinburloiu.music.microtonalist.tuner
  */
 sealed trait TuningChange {
   /**
-   * @return whether this operation object has any effective effect on the current tuning.
+   * @return whether this operation object is an effective tuning change which produces an effect, or not.
    * @see [[NoTuningChange]] as an example of operation with no effect.
    */
   def isChanging: Boolean
