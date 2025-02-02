@@ -25,57 +25,71 @@ import javax.sound.midi.{MidiMessage, Receiver}
 
 class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
-  val nonTriggerMidiMessage: MidiMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
-  val triggerMidiMessage: MidiMessage = ScCcMidiMessage(1, ScCcMidiMessage.SostenutoPedal, 32).javaMidiMessage
+  val noteTriggerMidiMessage: MidiMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
+  val ccTriggerMidiMessage: MidiMessage = ScCcMidiMessage(1, ScCcMidiMessage.SostenutoPedal, 32).javaMidiMessage
+  val nonTriggerMidiMessage1: MidiMessage = ScCcMidiMessage(1, ScCcMidiMessage.Modulation, 96).javaMidiMessage
+  val nonTriggerMidiMessage2: MidiMessage = ScNoteOnMidiMessage(1, MidiNote.B4, 16).javaMidiMessage
 
-  abstract class Fixture(triggersThru: Boolean) {
-    val tuningServiceStub: TuningService = stub[TuningService]
+  abstract class Fixture(triggersThru: Boolean = false) {
+    val tuningServiceStub: TuningService = stub[TuningService]("tuningService")
 
-    val tuningChangerStub: TuningChanger = stub[TuningChanger]
-    (tuningChangerStub.decide _).when(triggerMidiMessage).returns(NextTuningChange)
-    (tuningChangerStub.decide _).when(*).returns(NoTuningChange)
+    val noteTuningChangerStub: TuningChanger = stub[TuningChanger]("noteTuningChanger")
+    (noteTuningChangerStub.decide _).when(noteTriggerMidiMessage).returns(IndexTuningChange(2)).anyNumberOfTimes()
+    (noteTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
 
-    val processor: TuningChangeProcessor = new TuningChangeProcessor(tuningServiceStub, tuningChangerStub, triggersThru)
+    val ccTuningChangerStub: TuningChanger = stub[TuningChanger]("ccTuningChanger")
+    (ccTuningChangerStub.decide _).when(ccTriggerMidiMessage).returns(NextTuningChange).anyNumberOfTimes()
+    (ccTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
+
+    val processor: TuningChangeProcessor = new TuningChangeProcessor(
+      tuningServiceStub, Seq(noteTuningChangerStub, ccTuningChangerStub), triggersThru)
 
     val receiverStub: Receiver = stub[Receiver]
     processor.receiver = receiverStub
   }
 
-  // TODO #95 Separate tests that check the decision and the service call
+  it should "inform the TuningService about the tuning decision taken" in new Fixture {
+    // When
+    processor.send(ccTriggerMidiMessage, 1)
+    processor.send(noteTriggerMidiMessage, 2)
+    processor.send(nonTriggerMidiMessage2, 3)
+    processor.send(nonTriggerMidiMessage1, 4)
+
+    // Then
+    (tuningServiceStub.changeTuning _).verify(IndexTuningChange(2))
+    (tuningServiceStub.changeTuning _).verify(NextTuningChange)
+    (tuningServiceStub.changeTuning _).verify(NoTuningChange).repeated(2)
+  }
 
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
-    processor.send(nonTriggerMidiMessage, 1)
+    processor.send(nonTriggerMidiMessage1, 1)
     // Then
-    (tuningServiceStub.changeTuning _).verify(NoTuningChange)
-    (receiverStub.send _).verify(nonTriggerMidiMessage, 1)
+    (receiverStub.send _).verify(nonTriggerMidiMessage1, 1)
   }
 
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is false" in new Fixture(triggersThru = false) {
     // When
-    processor.send(nonTriggerMidiMessage, 1)
+    processor.send(nonTriggerMidiMessage1, 1)
     // Then
-    (tuningServiceStub.changeTuning _).verify(NoTuningChange)
-    (receiverStub.send _).verify(nonTriggerMidiMessage, 1)
+    (receiverStub.send _).verify(nonTriggerMidiMessage1, 1)
   }
 
   it should "forward MIDI messages that are tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
-    processor.send(triggerMidiMessage, 1)
+    processor.send(ccTriggerMidiMessage, 1)
     // Then
-    (tuningServiceStub.changeTuning _).verify(NextTuningChange)
-    (receiverStub.send _).verify(triggerMidiMessage, 1)
+    (receiverStub.send _).verify(ccTriggerMidiMessage, 1)
   }
 
   it should "not forward MIDI messages that are tuning change triggers " +
     "when triggersThru is false" in new Fixture(triggersThru = false) {
     // When
-    processor.send(triggerMidiMessage, 1)
+    processor.send(ccTriggerMidiMessage, 1)
     // Then
-    (tuningServiceStub.changeTuning _).verify(NextTuningChange)
     (receiverStub.send _).verify(*, *).never()
   }
 }
