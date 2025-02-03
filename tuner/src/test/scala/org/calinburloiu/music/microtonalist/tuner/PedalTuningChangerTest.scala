@@ -20,14 +20,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
-  val threshold: Int = 16
-  val tuningChanger: PedalTuningChanger = new PedalTuningChanger(threshold)
-
-  it should "instantiate a class that extends CcTuningChanger with the correct parameters" in {
-    tuningChanger shouldBe a[CcTuningChanger]
+  "PedalTuningChanger.apply" should "instantiate a class the default parameters" in {
+    val tuningChanger = PedalTuningChanger()
+    tuningChanger shouldBe a[TuningChanger]
     tuningChanger.previousTuningCc shouldEqual 67
     tuningChanger.nextTuningCc shouldEqual 66
-    tuningChanger.threshold shouldBe threshold
+    tuningChanger.threshold shouldBe 0
     tuningChanger.familyName shouldEqual TuningChanger.familyName
     tuningChanger.typeName shouldEqual "pedal"
   }
