@@ -90,7 +90,7 @@ class Businessync(@deprecated eventBus: EventBus) {
    */
   def run(fn: () => Unit): Unit = fn()
 
-  def runIf(condition: => Boolean)(fn: () => Unit): Unit = if (condition) {
+  def runIf(condition: Boolean)(fn: () => Unit): Unit = if (condition) {
     fn()
   }
 

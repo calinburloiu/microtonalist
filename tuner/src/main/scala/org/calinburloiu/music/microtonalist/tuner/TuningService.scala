@@ -30,8 +30,11 @@ import org.calinburloiu.music.microtonalist.composition.OctaveTuning
  */
 class TuningService(session: TuningSession, businessync: Businessync) {
 
-  // TODO #99 No need to expose this after publishing messages from domain model to GUI.
-  @deprecated
+  /**
+   * Retrieves the sequence of tunings currently set in the tuning session.
+   *
+   * @return a sequence of tuning objects representing the available tunings.
+   */
   def tunings: Seq[OctaveTuning] = session.tunings
 
   /**
