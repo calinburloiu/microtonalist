@@ -23,7 +23,7 @@ import play.api.libs.json.{Format, Json, Writes, __}
 
 object JsonTuningReducerPluginFormat extends JsonPluginFormat[TuningReducer] {
 
-  override val familyName: String = TuningReducer.familyName
+  override val familyName: String = TuningReducer.FamilyName
 
   val DirectTypeName: String = DirectTuningReducer.typeName
   val MergeTypeName: String = MergeTuningReducer.typeName

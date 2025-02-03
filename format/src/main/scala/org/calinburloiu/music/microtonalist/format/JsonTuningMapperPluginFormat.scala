@@ -21,7 +21,7 @@ import play.api.libs.json._
 
 object JsonTuningMapperPluginFormat extends JsonPluginFormat[TuningMapper] {
 
-  override val familyName: String = TuningMapper.familyName
+  override val familyName: String = TuningMapper.FamilyName
 
   val AutoTypeName: String = AutoTuningMapper.typeName
   val ManualTypeName: String = ManualTuningMapper.typeName

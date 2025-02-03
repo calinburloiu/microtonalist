@@ -21,11 +21,11 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 import javax.sound.midi.MidiMessage
 
 abstract class TuningChanger extends Plugin {
-  override val familyName: String = TuningChanger.familyName
+  override val familyName: String = TuningChanger.FamilyName
 
   def decide(message: MidiMessage): TuningChange
 }
 
 object TuningChanger {
-  val familyName: String = "tuningChanger"
+  val FamilyName: String = "tuningChanger"
 }

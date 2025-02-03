@@ -26,7 +26,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     tuningChanger.previousTuningCc shouldEqual 67
     tuningChanger.nextTuningCc shouldEqual 66
     tuningChanger.threshold shouldBe 0
-    tuningChanger.familyName shouldEqual TuningChanger.familyName
+    tuningChanger.familyName shouldEqual TuningChanger.FamilyName
     tuningChanger.typeName shouldEqual "pedal"
   }
 }
