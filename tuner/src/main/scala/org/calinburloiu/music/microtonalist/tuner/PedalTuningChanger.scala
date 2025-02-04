@@ -88,7 +88,6 @@ class PedalTuningChanger private(val triggers: TuningChangeTriggers[Cc],
         } else if (ccDepressed(cc) && ccValue <= threshold) {
           release(cc)
         } else {
-          logger.warn(s"Illegal state: ccDepressed($cc)=${ccDepressed(cc)}, ccValue=$ccValue, threshold=$threshold")
           NoTuningChange
         }
       } else {
@@ -99,6 +98,20 @@ class PedalTuningChanger private(val triggers: TuningChangeTriggers[Cc],
       // No trigger detected; ignoring.
       NoTuningChange
   }
+
+  override def reset(): Unit = {
+    for ((cc, _) <- ccDepressed) {
+      ccDepressed(cc) = false
+    }
+  }
+
+  /**
+   * Determines whether the pedal for the specified Control Change (CC) is currently pressed.
+   *
+   * @param cc The Control Change (CC) number to check.
+   * @return true if the specified CC is pressed, false otherwise.
+   */
+  def isPressed(cc: Int): Boolean = ccDepressed(cc)
 
   private def press(cc: Int): TuningChange = {
     ccDepressed(cc) = true
@@ -127,9 +140,9 @@ object PedalTuningChanger {
     new PedalTuningChanger(triggers, threshold)
   }
 
-  def apply(previousTuningCc: Int = ScCcMidiMessage.SoftPedal,
-            nextTuningCc: Int = ScCcMidiMessage.SostenutoPedal,
+  def apply(previousTuningCcTrigger: Int = ScCcMidiMessage.SoftPedal,
+            nextTuningCcTrigger: Int = ScCcMidiMessage.SostenutoPedal,
             threshold: Int = 0): PedalTuningChanger = {
-    new PedalTuningChanger(previousTuningCc, nextTuningCc, threshold)
+    new PedalTuningChanger(previousTuningCcTrigger, nextTuningCcTrigger, threshold)
   }
 }

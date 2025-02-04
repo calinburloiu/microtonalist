@@ -20,10 +20,26 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 
 import javax.sound.midi.MidiMessage
 
+/**
+ * `TuningChanger` is an abstract class representing a pluggable component for determining a [[TuningChange]]
+ * operation based on incoming MIDI messages. It is part of the `"tuningChanger"` plugin family and is responsible for
+ * deciding how the tuning of an instrument should be modified.
+ */
 abstract class TuningChanger extends Plugin {
   override val familyName: String = TuningChanger.FamilyName
 
+  /**
+   * Determines the appropriate [[TuningChange]] operation based on the provided MIDI message.
+   *
+   * @param message The MIDI message to be processed for deciding the tuning change.
+   * @return a [[TuningChange]] operation representing the operation to be performed
+   */
   def decide(message: MidiMessage): TuningChange
+
+  /**
+   * Resets the internal state of the `TuningChanger` to its default/initial configuration.
+   */
+  def reset(): Unit
 }
 
 object TuningChanger {
