@@ -23,10 +23,32 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   "PedalTuningChanger.apply" should "instantiate a class the default parameters" in {
     val tuningChanger = PedalTuningChanger()
     tuningChanger shouldBe a[TuningChanger]
-    tuningChanger.previousTuningCc shouldEqual 67
-    tuningChanger.nextTuningCc shouldEqual 66
+    tuningChanger.previousTuningCcTrigger should contain(67)
+    tuningChanger.nextTuningCcTrigger should contain(66)
     tuningChanger.threshold shouldBe 0
     tuningChanger.familyName shouldEqual TuningChanger.FamilyName
     tuningChanger.typeName shouldEqual "pedal"
+  }
+
+  val customPreviousTuningCcTrigger = 60
+  val customNextTuningCcTrigger = 61
+  val customThreshold = 16
+
+  for ((label, cc) <- Seq(("previous", customPreviousTuningCcTrigger), ("next", customNextTuningCcTrigger))) {
+    "decide" should s"not trigger a $label tuning change if CC value is below or equal to the threshold" in {
+
+    }
+
+    it should s"trigger a single $label tuning change when CC value increases above the threshold" in {
+
+    }
+
+    it should s"trigger a double $label tuning change when CC value increases above the threshold twice" in {
+
+    }
+
+    it should s"correctly trigger $label tuning changes when threshold is 0" in {
+
+    }
   }
 }
