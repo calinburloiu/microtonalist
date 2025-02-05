@@ -20,8 +20,8 @@ import com.google.common.eventbus.EventBus
 
 import scala.concurrent.Future
 
-case class BusinessyncGuiHandler(run: () => Unit,
-                                 isGuiThread: () => Boolean)
+case class BusinessyncUiHandler(run: () => Unit,
+                                isUiThread: () => Boolean)
 
 class Businessync(@deprecated eventBus: EventBus) {
   /**

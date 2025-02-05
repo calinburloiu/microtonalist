@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.common.Plugin
 
+import javax.annotation.concurrent.NotThreadSafe
 import javax.sound.midi.MidiMessage
 
 /**
@@ -25,6 +26,7 @@ import javax.sound.midi.MidiMessage
  * operation based on incoming MIDI messages. It is part of the `"tuningChanger"` plugin family and is responsible for
  * deciding how the tuning of an instrument should be modified.
  */
+@NotThreadSafe
 abstract class TuningChanger extends Plugin {
   override val familyName: String = TuningChanger.FamilyName
 

@@ -26,7 +26,7 @@ import javax.sound.midi.ShortMessage
 
 class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
 
-  "PedalTuningChanger.apply" should "instantiate a class the default parameters" in {
+  "constructor" should "instantiate the class with default parameters" in {
     val defaultPedalTuningChanger: PedalTuningChanger = PedalTuningChanger()
     defaultPedalTuningChanger shouldBe a[TuningChanger]
     defaultPedalTuningChanger.previousTuningCcTrigger should contain(67)
@@ -93,7 +93,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  "decide" should "return NoTuningChange for a note on MIDI message" in {
+  "decide" should "return NoTuningChange for a Note On MIDI message" in {
     val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
     tuningChanger.decide(noteOnMessage) shouldEqual NoTuningChange
   }

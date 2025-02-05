@@ -64,6 +64,7 @@ case class TuningChangeTriggers[T](previous: Option[T] = None,
    * @param trigger The trigger whose tuning index is to be determined.
    * @return The tuning index of the trigger.
    * @throws NoSuchElementException if there is no tuning index configured for the given trigger.
+   * @see [[hasIndexWithTrigger]] for avoiding the exception.
    */
   def indexOfTrigger(trigger: T): Int = invertedIndex(trigger)
 

@@ -19,15 +19,18 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 
+import javax.annotation.concurrent.ThreadSafe
+
 /**
- * Service that exposes tuning capabilities to the application layer by allowing things like setting the list of
- * tunings and the current tuning from that list.
+ * Service that exposes tuning capabilities to the application layer by allowing things like setting the sequence of
+ * tunings and the current tuning from that sequence.
  *
  * The service makes sure that all operations are executed on the business thread.
  *
  * @param session     Object where all mutable operations are performed.
  * @param businessync Provides the thread communication.
  */
+@ThreadSafe
 class TuningService(session: TuningSession, businessync: Businessync) {
 
   /**
@@ -38,7 +41,7 @@ class TuningService(session: TuningSession, businessync: Businessync) {
   def tunings: Seq[OctaveTuning] = session.tunings
 
   /**
-   * Changes the current tuning with the given operation object by selecting one of the tunings from the tuning list
+   * Changes the current tuning with the given operation object by selecting one of the tunings from the tuning sequence
    * stored in the session.
    *
    * @param tuningChange An operation object that describes how the tuning should be changed.

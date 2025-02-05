@@ -25,7 +25,7 @@ import scala.collection.mutable
 
 /**
  * PedalTuningChanger is responsible for deciding tuning changes based on MIDI pedal-like CC (Control Change) inputs,
- * similar to those of the piano pedals which returns to their initial position after they are pressed.
+ * similar to those of the piano pedals which return to their initial position after they are pressed.
  *
  * It uses a set of MIDI Control Change (CC) messages as triggers to effect specific tuning changes. Triggers can be
  * configured for each [[TuningChange]].
@@ -43,23 +43,23 @@ import scala.collection.mutable
  *                  while values below or equal indicate a released state. Tuning changes are
  *                  only triggered when the state transitions from released to pressed.
  */
-class PedalTuningChanger private(val triggers: TuningChangeTriggers[Cc],
-                                 val threshold: Int) extends TuningChanger with LazyLogging {
+case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
+                              threshold: Int) extends TuningChanger with LazyLogging {
   override val typeName: String = "pedal"
 
   /**
-   * @return the previous tuning CC (Control Change) trigger, if available.
+   * @return the CC trigger, if available, that effects a change to the next tuning.
    */
   def previousTuningCcTrigger: Option[Cc] = triggers.previous
 
   /**
-   * @return the next tuning CC (Control Change) trigger, if available.
+   * @return the CC trigger, if available, that effects a change to the previous tuning.
    */
   def nextTuningCcTrigger: Option[Cc] = triggers.next
 
   /**
-   * A mutable map that tracks whether certain MIDI control change (CC) messages
-   * is in a pressed state, `true`, or released state, `false`.
+   * A mutable map that tracks the state of pedals, corresponding MIDI control change (CC) messages. A pedal may be
+   * in a pressed state, `true` value, or released state, `false` value.
    */
   private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map
     .newBuilder[Int, Boolean]
@@ -69,12 +69,6 @@ class PedalTuningChanger private(val triggers: TuningChangeTriggers[Cc],
     )
     .result()
 
-  def this(previousTuningCcTrigger: Int = ScCcMidiMessage.SoftPedal,
-           nextTuningCcTrigger: Int = ScCcMidiMessage.SostenutoPedal,
-           threshold: Int = 0) = {
-    this(TuningChangeTriggers(next = Some(nextTuningCcTrigger), previous = Some(previousTuningCcTrigger)), threshold)
-  }
-
   override def decide(message: MidiMessage): TuningChange = message match {
     case shortMessage: ShortMessage =>
       val command = shortMessage.getCommand
@@ -83,11 +77,13 @@ class PedalTuningChanger private(val triggers: TuningChangeTriggers[Cc],
 
       // Capture Control Change messages used for triggering a tuning change
       if (command == ShortMessage.CONTROL_CHANGE && ccDepressed.contains(cc)) {
-        if (!ccDepressed(cc) && ccValue > threshold) {
+        val isCcPressed = isPressed(cc)
+        if (!isCcPressed && ccValue > threshold) {
           press(cc)
-        } else if (ccDepressed(cc) && ccValue <= threshold) {
+        } else if (isCcPressed && ccValue <= threshold) {
           release(cc)
         } else {
+          // Intermediary CC value with no state transition
           NoTuningChange
         }
       } else {
@@ -135,14 +131,24 @@ object PedalTuningChanger {
     next = Some(ScCcMidiMessage.SostenutoPedal)
   )
 
-  def apply(triggers: TuningChangeTriggers[Cc],
-            threshold: Int): PedalTuningChanger = {
-    new PedalTuningChanger(triggers, threshold)
-  }
-
+  /**
+   * Convenience factory that creates an instance of `PedalTuningChanger` with specified MIDI Control Change (CC)
+   * triggers for previous and next tuning changes, and a threshold to determine pedal press or release.
+   *
+   * @param previousTuningCcTrigger The MIDI CC number that triggers a change to the previous tuning.
+   *                                Defaults to `ScCcMidiMessage.SoftPedal`.
+   * @param nextTuningCcTrigger     The MIDI CC number that triggers a change to the next tuning.
+   *                                Defaults to `ScCcMidiMessage.SostenutoPedal`.
+   * @param threshold               The threshold value for determining whether the CC value
+   *                                represents a pedal press or release. Defaults to `0`.
+   * @return An instance of `PedalTuningChanger` configured with the specified parameters.
+   */
   def apply(previousTuningCcTrigger: Int = ScCcMidiMessage.SoftPedal,
             nextTuningCcTrigger: Int = ScCcMidiMessage.SostenutoPedal,
             threshold: Int = 0): PedalTuningChanger = {
-    new PedalTuningChanger(previousTuningCcTrigger, nextTuningCcTrigger, threshold)
+    new PedalTuningChanger(
+      TuningChangeTriggers(next = Some(nextTuningCcTrigger), previous = Some(previousTuningCcTrigger)),
+      threshold
+    )
   }
 }

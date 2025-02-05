@@ -18,12 +18,13 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiProcessor
 
+import javax.annotation.concurrent.NotThreadSafe
 import javax.sound.midi.MidiMessage
 import scala.annotation.tailrec
 
 /**
- * Processes incoming messages and decides whether to trigger a tuning change or not based on the given
- * [[TuningChanger]] plugins.
+ * Processes incoming messages and decides whether to trigger a tuning change or not based on the incoming MIDI
+ * messages and the given [[TuningChanger]] plugins.
  *
  * @param tuningService  The service to trigger the actual tuning change.
  * @param tuningChangers A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
@@ -33,9 +34,10 @@ import scala.annotation.tailrec
  * @param triggersThru   Whether tuning change MIDI trigger messages should pass through to the output or if they
  *                       should be filtered out.
  */
+@NotThreadSafe
 class TuningChangeProcessor(tuningService: TuningService,
-                            tuningChangers: Seq[TuningChanger],
-                            triggersThru: Boolean) extends MidiProcessor {
+                            val tuningChangers: Seq[TuningChanger],
+                            val triggersThru: Boolean) extends MidiProcessor {
   require(tuningChangers.nonEmpty, "There should be at least one TuningChanger!")
 
   /**

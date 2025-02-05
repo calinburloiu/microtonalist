@@ -20,11 +20,14 @@ import com.google.common.math.IntMath
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 
+import javax.annotation.concurrent.NotThreadSafe
+
 /**
  * Manages the sequence of tunings and provides functionality to select one of them.
  *
  * @param businessync An instance of `Businessync` responsible for handling event publication.
  */
+@NotThreadSafe
 class TuningSession(businessync: Businessync) {
   private var _tunings: Seq[OctaveTuning] = Seq()
   private var _tuningIndex: Int = 0
@@ -40,7 +43,7 @@ class TuningSession(businessync: Businessync) {
    * Updates the sequence of tunings and ensures the [[tuningIndex]] remains valid within the new tunings.
    * If the sequence of tunings changes, a `TuningsUpdatedEvent` is published.
    *
-   * @param newTunings the new sequence of `OctaveTuning` objects to replace the current tunings.
+   * @param newTunings the new sequence of tuning objects to replace the current tunings.
    */
   def tunings_=(newTunings: Seq[OctaveTuning]): Unit = if (_tunings != newTunings) {
     _tunings = newTunings
@@ -51,7 +54,7 @@ class TuningSession(businessync: Businessync) {
   }
 
   /**
-   * Retrieves the current tuning index, which indicates the position of the
+   * Retrieves the current tuning index (0-based), which indicates the position of the
    * currently selected tuning within the sequence of tunings.
    *
    * @return the current tuning index.
@@ -59,8 +62,8 @@ class TuningSession(businessync: Businessync) {
   def tuningIndex: Int = _tuningIndex
 
   /**
-   * Sets the current tuning index to the specified value and publishing a `TuningIndexUpdatedEvent` if the index
-   * changes.
+   * Sets the current tuning index (0-based) to the specified value and publishing a [[TuningIndexUpdatedEvent]] if the
+   * index changes.
    *
    * @param newIndex the new tuning index to set; must be within the range `[0, tunings.size)`.
    */
@@ -111,9 +114,8 @@ class TuningSession(businessync: Businessync) {
   }
 
   /**
-   * Calculates and updates the tuning index by adding a specified step to the
-   * current tuning index and wrapping it within the valid range of available tunings. Values may be negative to go
-   * backwards.
+   * Calculates and updates the tuning index by adding a specified step to the current tuning index and wrapping it
+   * within the valid range of available tunings. Values may be negative to go backwards.
    *
    * @param step the number of steps to move the tuning index forward or backward.
    *             Positive values move forward, negative values move backward.

@@ -18,9 +18,9 @@ package org.calinburloiu.music.microtonalist.tuner
 
 /**
  * An object describing an operation that controls to which [[org.calinburloiu.music.microtonalist.composition.Tuning]]
- * from the tuning list should the [[Tuner]] tune.
+ * from the tuning sequence should the [[Tuner]] tune.
  *
- * @see [[TuningChanger]] which return such an object as a decision based on the input MIDI received.
+ * @see [[TuningChanger]] which returns such an object as a decision based on the input MIDI received.
  */
 sealed trait TuningChange {
   /**
@@ -38,7 +38,7 @@ case object NoTuningChange extends TuningChange {
 }
 
 /**
- * Describes an operation that changes to the previous tuning from the tuning list.
+ * Describes an operation that changes to the previous tuning from the tuning sequence.
  */
 case object PreviousTuningChange extends TuningChange {
   override def isChanging: Boolean = true
@@ -46,7 +46,7 @@ case object PreviousTuningChange extends TuningChange {
 
 
 /**
- * Describes an operation that changes to the next tuning from the tuning list.
+ * Describes an operation that changes to the next tuning from the tuning sequence.
  */
 case object NextTuningChange extends TuningChange {
   override def isChanging: Boolean = true
@@ -54,9 +54,9 @@ case object NextTuningChange extends TuningChange {
 
 
 /**
- * Describes an operation that changes to a specific tuning index from the tuning list.
+ * Describes an operation that changes to a specific tuning index from the tuning sequence.
  *
- * @param index the index of the tuning in the tuning list to switch to. Must be >= 0.
+ * @param index the index of the tuning in the tuning sequence to switch to. Must be >= 0.
  * @throws IllegalArgumentException if the index is less than 0.
  */
 case class IndexTuningChange(index: Int) extends TuningChange {

@@ -20,12 +20,14 @@ import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.LazyLogging
 
 import java.util.concurrent._
+import javax.annotation.concurrent.NotThreadSafe
 
-// TODO #95 Logic to update tracks.
+// TODO #97 Logic to update tracks.
 
 /**
  * Manages a collection of MIDI tracks and updates their tuning based on external events.
  */
+@NotThreadSafe
 class TrackManager(private val tracks: Seq[Track],
                    private val executorService: ExecutorService = TrackManager.createExecutorService()) {
 
@@ -34,10 +36,12 @@ class TrackManager(private val tracks: Seq[Track],
    *
    * @param event The tuning session event containing the current tuning to be applied to the tracks.
    */
-  // TODO #90 Remove @Subscribe after implementing to businessync.
+  // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
-  def onTuningChanged(event: TuningSessionEvent): Unit = for (track <- tracks) {
-    track.tune(event.currentTuning)
+  def onTuningChanged(event: TuningSessionEvent): Unit = {
+    for (track <- tracks) {
+      track.tune(event.currentTuning)
+    }
   }
 }
 

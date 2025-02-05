@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-// TODO #98 Include this into the proposed SimpleTuning class
+// TODO #98 Include this into the newly proposed Tuning class
 object PianoKeyboardTuningUtils {
 
   val tuningSize: Int = 12

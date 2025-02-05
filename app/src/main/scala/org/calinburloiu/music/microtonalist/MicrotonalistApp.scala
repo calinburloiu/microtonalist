@@ -110,9 +110,13 @@ object MicrotonalistApp extends StrictLogging {
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
 
-    val ccTriggers = midiInputConfig.triggers.cc
-    val tuningChanger = PedalTuningChanger(ccTriggers.prevTuningCc, ccTriggers.nextTuningCc, ccTriggers.ccThreshold)
-    val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger, !ccTriggers.isFilteringThru)
+    val triggersConfig = midiInputConfig.triggers.cc
+    val tuningChangeTriggers = TuningChangeTriggers(
+      Some(triggersConfig.prevTuningCc),
+      Some(triggersConfig.nextTuningCc)
+    )
+    val tuningChanger = PedalTuningChanger(tuningChangeTriggers, triggersConfig.ccThreshold)
+    val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger, !triggersConfig.isFilteringThru)
 
     val track = new Track(Some(tuningChangeProcessor), tuner, receiver, midiOutputConfig.ccParams)
     val trackManager = new TrackManager(Seq(track))

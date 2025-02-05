@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import org.calinburloiu.music.microtonalist.composition.OctaveTuning
  */
 sealed abstract class TuningSessionEvent extends BusinessyncEvent {
   /**
-   * Identifier representing the index within the sequence of tunings related to the tuning session.
+   * Identifier representing the index (0-based) within the sequence of tunings related to the tuning session.
    */
   val tuningIndex: Int
 
@@ -48,7 +48,7 @@ case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
 /**
  * Event representing an update in the sequence of tunings during a tuning session.
  *
- * Note that updating tuning list might also affect the index when the new list is smaller that the index.
+ * Note that updating tuning sequence might also affect the index when the new list is smaller that the index.
  *
  * This event is emitted to notify listeners of changes in the available tunings as part of a tuning session.
  * The `tuningIndex` must be within the bounds of the provided `tunings` sequence if the sequence is non-empty.

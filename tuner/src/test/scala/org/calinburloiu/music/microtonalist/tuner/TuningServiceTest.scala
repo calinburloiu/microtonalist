@@ -30,7 +30,7 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     val businessyncStub: Businessync = stub[Businessync]
     val tunings: Seq[OctaveTuning] = Seq(majTuning, rastTuning)
 
-    (sessionStub.tunings _).when().returns(tunings)
+    (() => sessionStub.tunings).when().returns(tunings)
 
     (businessyncStub.runIf(_: Boolean)(_: () => Unit)).when(*, *).onCall { (condition: Boolean, fn: () => Unit) =>
       if (condition) fn()

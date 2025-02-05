@@ -85,7 +85,7 @@ class TuningListFrame(tuningService: TuningService) extends JFrame("Microtuner")
   setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
   setSize(480, 640)
 
-  // TODO #90 Remove @Subscribe after implementing to businessync.
+  // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
   def onTuningChanged(tuningIndexUpdatedEvent: TuningIndexUpdatedEvent): Unit = {
     val TuningIndexUpdatedEvent(tuningIndex, _) = tuningIndexUpdatedEvent
