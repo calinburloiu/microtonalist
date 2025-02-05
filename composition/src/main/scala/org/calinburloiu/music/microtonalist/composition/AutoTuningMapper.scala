@@ -50,7 +50,7 @@ sealed abstract class SoftChromaticGenusMapping(override val typeName: String,
 }
 
 object SoftChromaticGenusMapping {
-  val familyName: String = "softChromaticGenusMapping"
+  val FamilyName: String = "softChromaticGenusMapping"
 
   val Default: SoftChromaticGenusMapping = Off
 

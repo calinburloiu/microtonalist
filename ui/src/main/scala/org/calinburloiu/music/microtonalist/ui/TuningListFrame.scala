@@ -18,23 +18,23 @@ package org.calinburloiu.music.microtonalist.ui
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.{TuningChangedEvent, TuningSwitcher}
+import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, TuningIndexUpdatedEvent, TuningService}
 
 import java.awt.BorderLayout
 import java.awt.event.{KeyEvent, KeyListener}
 import javax.swing._
 import javax.swing.event.ListSelectionEvent
 
-class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner") with StrictLogging {
+class TuningListFrame(tuningService: TuningService) extends JFrame("Microtuner") with StrictLogging {
 
-  private[this] val tuningList = tuningSwitch.tuningList
+  private[this] val tunings = tuningService.tunings
 
   private[this] val panel = new JPanel(new BorderLayout())
 
   private[this] val listModel = new AbstractListModel[String] {
-    override def getSize: Int = tuningList.tunings.size
+    override def getSize: Int = tunings.size
 
-    override def getElementAt(index: Int): String = tuningList.tunings(index).name
+    override def getElementAt(index: Int): String = tunings(index).name
   }
 
   private[this] val listComponent: JList[String] = new JList[String](listModel)
@@ -44,7 +44,7 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
     val index = listSelectionEvent.getSource.asInstanceOf[JList[String]].getSelectedIndex
 
     if (!listSelectionEvent.getValueIsAdjusting && index != -1) {
-      tuningSwitch(index)
+      tuningService.changeTuning(IndexTuningChange(index))
     }
   }
   listComponent.setSelectedIndex(0)
@@ -85,11 +85,11 @@ class TuningListFrame(tuningSwitch: TuningSwitcher) extends JFrame("Microtuner")
   setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
   setSize(480, 640)
 
+  // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
-  def onTuningChanged(tuningChangedEvent: TuningChangedEvent): Unit = {
-    val TuningChangedEvent(tuningIndex, oldTuningIndex) = tuningChangedEvent
-    logger.debug(this.getClass.getSimpleName +
-      s" received tuning change event from tuning index $oldTuningIndex to $tuningIndex")
+  def onTuningChanged(tuningIndexUpdatedEvent: TuningIndexUpdatedEvent): Unit = {
+    val TuningIndexUpdatedEvent(tuningIndex, _) = tuningIndexUpdatedEvent
+    logger.debug(s"Tuning changed to index $tuningIndex.")
 
     listComponent.setSelectedIndex(tuningIndex)
   }

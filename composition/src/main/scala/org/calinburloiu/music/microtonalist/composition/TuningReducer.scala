@@ -26,14 +26,14 @@ import org.calinburloiu.music.microtonalist.common.Plugin
  */
 trait TuningReducer extends Plugin {
 
-  override val familyName: String = "tuningReducer"
+  override val familyName: String = TuningReducer.FamilyName
 
   def reduceTunings(tunings: Seq[PartialTuning],
                     globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
 }
 
 object TuningReducer {
-  val familyName: String = "tuningReducer"
+  val FamilyName: String = "tuningReducer"
 
   /** A [[MergeTuningReducer]]. */
   val Default: MergeTuningReducer = MergeTuningReducer()

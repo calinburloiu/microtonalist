@@ -27,7 +27,7 @@ import play.api.libs.json._
 case class JsonTuningReferencePluginFormat(intonationStandard: IntonationStandard) extends
   JsonPluginFormat[TuningReference] {
 
-  override val familyName: String = TuningReference.familyName
+  override val familyName: String = TuningReference.FamilyName
 
   val StandardTypeName: String = StandardTuningReference.typeName
   val ConcertPitchTypeName: String = ConcertPitchTuningReference.typeName

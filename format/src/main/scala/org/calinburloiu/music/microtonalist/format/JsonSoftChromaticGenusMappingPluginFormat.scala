@@ -20,7 +20,7 @@ import org.calinburloiu.music.microtonalist.composition.SoftChromaticGenusMappin
 
 object JsonSoftChromaticGenusMappingPluginFormat extends JsonPluginFormat[SoftChromaticGenusMapping] {
 
-  override val familyName: String = SoftChromaticGenusMapping.familyName
+  override val familyName: String = SoftChromaticGenusMapping.FamilyName
 
   override val specs: JsonPluginFormat.TypeSpecs[SoftChromaticGenusMapping] = SoftChromaticGenusMapping.All
     .map { plugin: SoftChromaticGenusMapping => JsonPluginFormat.TypeSpec.withoutSettings(plugin) }

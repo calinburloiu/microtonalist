@@ -103,22 +103,35 @@ object MicrotonalistApp extends StrictLogging {
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
 
     // # Microtuner
+    val tunerModule = new TunerModule(businessync)
+    val tuningService = tunerModule.tuningService
+
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
-    val tuningSwitcher = new TuningSwitcher(Seq(tuner), tuningList, eventBus)
-    val tuningSwitchProcessor = new CcTuningSwitchProcessor(tuningSwitcher, midiInputConfig.triggers.cc)
-    val track = new Track(Some(tuningSwitchProcessor), tuner, receiver, midiOutputConfig.ccParams)
+
+    val triggersConfig = midiInputConfig.triggers.cc
+    val tuningChangeTriggers = TuningChangeTriggers(
+      Some(triggersConfig.prevTuningCc),
+      Some(triggersConfig.nextTuningCc)
+    )
+    val tuningChanger = PedalTuningChanger(tuningChangeTriggers, triggersConfig.ccThreshold)
+    val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger, !triggersConfig.isFilteringThru)
+
+    val track = new Track(Some(tuningChangeProcessor), tuner, receiver, midiOutputConfig.ccParams)
+    val trackManager = new TrackManager(Seq(track))
+    businessync.register(trackManager)
+
     maybeTransmitter.foreach { transmitter =>
       transmitter.setReceiver(track)
       logger.info("Using CC tuning switcher")
     }
-    tuningSwitcher.tune()
+    tunerModule.tuningSession.tunings = tuningList.tunings
 
     // # GUI
     logger.info("Initializing GUI...")
-    val tuningListFrame = new TuningListFrame(tuningSwitcher)
-    eventBus.register(tuningListFrame)
+    val tuningListFrame = new TuningListFrame(tuningService)
+    businessync.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {

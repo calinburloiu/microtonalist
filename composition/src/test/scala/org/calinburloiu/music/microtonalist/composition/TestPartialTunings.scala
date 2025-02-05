@@ -117,7 +117,7 @@ object TestPartialTunings {
     fSharpOrGFlat = None,
     g = Some(1.96),
     gSharpOrAFlat = None,
-    a = Some(15.64),
+    a = Some(-15.64),
     aSharpOrBFlat = None,
     b = Some(-11.73)
   )

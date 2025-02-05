@@ -20,6 +20,9 @@ import com.google.common.eventbus.EventBus
 
 import scala.concurrent.Future
 
+case class BusinessyncUiHandler(run: () => Unit,
+                                isUiThread: () => Boolean)
+
 class Businessync(@deprecated eventBus: EventBus) {
   /**
    * Publishes an event to its subscribers and delivers it on either the Business or the UI Thread based on which
@@ -85,7 +88,11 @@ class Businessync(@deprecated eventBus: EventBus) {
    *
    * @param fn
    */
-  def run(fn: () => Unit): Unit = ???
+  def run(fn: () => Unit): Unit = fn()
+
+  def runIf(condition: Boolean)(fn: () => Unit): Unit = if (condition) {
+    fn()
+  }
 
   /**
    * Runs the given function on the UI Thread.
