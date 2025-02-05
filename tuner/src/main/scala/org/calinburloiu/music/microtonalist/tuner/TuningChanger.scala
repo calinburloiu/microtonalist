@@ -39,6 +39,21 @@ abstract class TuningChanger extends Plugin {
   def decide(message: MidiMessage): TuningChange
 
   /**
+   * Determines whether the given MIDI message has the potential to be a trigger for a tuning change.
+   *
+   * Note that the final decision belongs to the [[decide]]. There may be situations when for a MIDI message this
+   * method returns true, but for [[decide]] it returns [[NoTuningChange]]. This typically happens when a stream of
+   * messages should follow a certain pattern and only when the pattern is matched the effective [[TuningChange]] is
+   * triggered. For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous
+   * stream of CC messages, but only for one of them a tuning change is triggered. This method is important for
+   * `TuningChangeProcessor#triggersThru`.
+   *
+   * @param message The MIDI message to be evaluated as a potential trigger for a tuning change.
+   * @return true if the trigger has the potential to trigger a tuning change, or false otherwise.
+   */
+  def mayTrigger(message: MidiMessage): Boolean
+
+  /**
    * Resets the internal state of the `TuningChanger` to its default/initial configuration.
    */
   def reset(): Unit

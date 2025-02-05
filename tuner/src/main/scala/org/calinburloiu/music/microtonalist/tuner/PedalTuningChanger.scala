@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.scmidi.ScCcMidiMessage
 
-import javax.sound.midi.{MidiMessage, ShortMessage}
+import javax.sound.midi.MidiMessage
 import scala.collection.mutable
 
 /**
@@ -70,29 +70,25 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
     .result()
 
   override def decide(message: MidiMessage): TuningChange = message match {
-    case shortMessage: ShortMessage =>
-      val command = shortMessage.getCommand
-      val cc = shortMessage.getData1
-      val ccValue = shortMessage.getData2
-
+    case ScCcMidiMessage(_, cc, ccValue) if ccDepressed.contains(cc) =>
       // Capture Control Change messages used for triggering a tuning change
-      if (command == ShortMessage.CONTROL_CHANGE && ccDepressed.contains(cc)) {
-        val isCcPressed = isPressed(cc)
-        if (!isCcPressed && ccValue > threshold) {
-          press(cc)
-        } else if (isCcPressed && ccValue <= threshold) {
-          release(cc)
-        } else {
-          // Intermediary CC value with no state transition
-          NoTuningChange
-        }
+      val isCcPressed = isPressed(cc)
+      if (!isCcPressed && ccValue > threshold) {
+        press(cc)
+      } else if (isCcPressed && ccValue <= threshold) {
+        release(cc)
       } else {
-        // No trigger detected; ignoring.
+        // Intermediary CC value with no state transition
         NoTuningChange
       }
     case _ =>
       // No trigger detected; ignoring.
       NoTuningChange
+  }
+
+  override def mayTrigger(message: MidiMessage): Boolean = message match {
+    case ScCcMidiMessage(_, cc, _) => triggers.hasTrigger(cc)
+    case _ => false
   }
 
   override def reset(): Unit = {

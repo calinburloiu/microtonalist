@@ -55,12 +55,14 @@ class TuningChangeProcessor(tuningService: TuningService,
     tuningService.changeTuning(tuningChange)
 
     // Forward message if:
-    //   - It's not a tuning change trigger;
-    //   - triggersThru is set.
-    if (!tuningChange.isChanging || triggersThru) {
+    //   - triggersThru is set;
+    //   - It's not a potential trigger for a tuning change.
+    if (triggersThru || !mayTrigger(message)) {
       receiver.send(message, timeStamp)
     }
   }
+
+  private def mayTrigger(message: MidiMessage): Boolean = tuningChangers.exists(_.mayTrigger(message))
 }
 
 object TuningChangeProcessor {

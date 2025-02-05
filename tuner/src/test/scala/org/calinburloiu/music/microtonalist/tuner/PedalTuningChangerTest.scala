@@ -103,6 +103,16 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
   }
 
+  "mayTrigger" should "return true for a CC MIDI message" in {
+    val ccMidiMessage = ScCcMidiMessage(1, customNextTuningCcTrigger, 127).javaMidiMessage
+    tuningChanger.mayTrigger(ccMidiMessage) shouldEqual true
+  }
+
+  it should "return false for a Note On MIDI message" in {
+    val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
+    tuningChanger.mayTrigger(noteOnMessage) shouldEqual false
+  }
+
   def createCcMessageForNext(value: Int): ShortMessage =
     ScCcMidiMessage(1, customNextTuningCcTrigger, value).javaMidiMessage
 
