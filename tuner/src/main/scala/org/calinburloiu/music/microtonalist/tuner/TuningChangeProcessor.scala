@@ -50,7 +50,11 @@ class TuningChangeProcessor(tuningService: TuningService,
     val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
       message, tuningChangers.toList)
 
-    tuningService.changeTuning(tuningChange)
+    // Change the tuning if the tuning change decision is effective
+    tuningChange match {
+      case effectiveTuningChange: EffectiveTuningChange => tuningService.changeTuning(effectiveTuningChange)
+      case _ => // No effect on tuning
+    }
 
     // Forward message if:
     //   - It's not a potential trigger for a tuning change;
@@ -67,7 +71,8 @@ object TuningChangeProcessor {
    * [[TuningChange#isChanging]] true) for the given MIDI message and returns it. If there is none,
    * [[NoTuningChange]] is returned.
    *
-   * @return a pair of the tuning changer index from the given list and the [[TuningChange]] decision taken.
+   * @return a pair of the [[TuningChange]] decision taken and the corresponding tuning changer that produced it, if
+   *         any.
    */
   @tailrec
   private def computeTuningChange(message: MidiMessage,

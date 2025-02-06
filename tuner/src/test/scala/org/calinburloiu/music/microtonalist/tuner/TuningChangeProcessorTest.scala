@@ -37,13 +37,13 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     (noteTuningChangerStub.decide _).when(noteTriggerMidiMessage).returns(IndexTuningChange(2))
     (noteTuningChangerStub.decide _).when(noteTriggerMidiMessage).returns(MayTriggerTuningChange)
     (noteTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
-    (noteTuningChangerStub.triggersThru _).when().returns(triggersThru)
+    (() => noteTuningChangerStub.triggersThru).when().returns(triggersThru)
 
     val ccTuningChangerStub: TuningChanger = stub[TuningChanger]("ccTuningChanger")
     (ccTuningChangerStub.decide _).when(ccTriggerMidiMessage).returns(NextTuningChange)
     (ccTuningChangerStub.decide _).when(ccTriggerMidiMessage).returns(MayTriggerTuningChange)
     (ccTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
-    (ccTuningChangerStub.triggersThru _).when().returns(triggersThru)
+    (() => ccTuningChangerStub.triggersThru).when().returns(triggersThru)
 
     val processor: TuningChangeProcessor = new TuningChangeProcessor(
       tuningServiceStub, Seq(noteTuningChangerStub, ccTuningChangerStub))
@@ -62,7 +62,6 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     // Then
     (tuningServiceStub.changeTuning _).verify(IndexTuningChange(2))
     (tuningServiceStub.changeTuning _).verify(NextTuningChange)
-    (tuningServiceStub.changeTuning _).verify(NoTuningChange).repeated(2)
   }
 
   it should "forward MIDI messages that are not tuning change triggers " +
