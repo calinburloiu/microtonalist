@@ -30,6 +30,10 @@ import javax.sound.midi.MidiMessage
 abstract class TuningChanger extends Plugin {
   override val familyName: String = TuningChanger.FamilyName
 
+  /**
+   * @return whether tuning change MIDI trigger messages should pass through to the output or if they should be
+   *         filtered out.
+   */
   def triggersThru: Boolean
 
   /**
