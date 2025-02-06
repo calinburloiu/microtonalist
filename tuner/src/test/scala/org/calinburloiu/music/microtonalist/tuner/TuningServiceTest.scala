@@ -65,16 +65,4 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     (sessionStub.tuningIndex_= _).verify(newIndex).once()
   }
-
-  it should "not perform any action for NoTuningChange" in {
-    val sessionStub = stub[TuningSession]
-    val businessyncStub = stub[Businessync]
-
-    (businessyncStub.runIf(_: Boolean)(_: () => Unit)).when(*, *).onCall { (condition: Boolean, _: () => Unit) =>
-      if (condition) fail("No code should be executed for NoTuningChange")
-    }
-
-    val tuningService = new TuningService(sessionStub, businessyncStub)
-    tuningService.changeTuning(NoTuningChange)
-  }
 }

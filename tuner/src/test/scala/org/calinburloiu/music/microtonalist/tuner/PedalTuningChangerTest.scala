@@ -32,6 +32,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     defaultPedalTuningChanger.previousTuningCcTrigger should contain(67)
     defaultPedalTuningChanger.nextTuningCcTrigger should contain(66)
     defaultPedalTuningChanger.threshold shouldBe 0
+    defaultPedalTuningChanger.triggersThru shouldBe false
     defaultPedalTuningChanger.familyName shouldEqual TuningChanger.FamilyName
     defaultPedalTuningChanger.typeName shouldEqual "pedal"
   }
@@ -46,7 +47,8 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     next = Some(customNextTuningCcTrigger),
     index = Map(1 -> customIndex1TuningCcTrigger, 2 -> customIndex2TuningCcTrigger)
   )
-  val tuningChanger: PedalTuningChanger = PedalTuningChanger(customTuningChangeTriggers, customThreshold)
+  val tuningChanger: PedalTuningChanger = PedalTuningChanger(customTuningChangeTriggers, customThreshold,
+    triggersThru = false)
 
   val testCases: Seq[(TuningChange, Cc)] = Seq(
     (PreviousTuningChange, customPreviousTuningCcTrigger),
@@ -58,38 +60,38 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     def createCcMessage(value: Int): ShortMessage = ScCcMidiMessage(1, cc, value).javaMidiMessage
 
     "decide" should s"not trigger a $tuningChange if CC value is below or equal to the threshold" in {
-      tuningChanger.decide(createCcMessage(0)) shouldEqual NoTuningChange
-      tuningChanger.decide(createCcMessage(customThreshold - 1)) shouldEqual NoTuningChange
-      tuningChanger.decide(createCcMessage(customThreshold)) shouldEqual NoTuningChange
+      tuningChanger.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold - 1)) shouldEqual MayTriggerTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold)) shouldEqual MayTriggerTuningChange
 
     }
 
     it should s"trigger a single $tuningChange tuning change when CC value increases above the threshold" in {
-      tuningChanger.decide(createCcMessage(customThreshold - 1)) shouldEqual NoTuningChange
-      tuningChanger.decide(createCcMessage(customThreshold)) shouldEqual NoTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold - 1)) shouldEqual MayTriggerTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold)) shouldEqual MayTriggerTuningChange
       tuningChanger.decide(createCcMessage(customThreshold + 1)) shouldEqual tuningChange
-      tuningChanger.decide(createCcMessage(customThreshold + 2)) shouldEqual NoTuningChange
-      tuningChanger.decide(createCcMessage(127)) shouldEqual NoTuningChange
-      tuningChanger.decide(createCcMessage(customThreshold + 1)) shouldEqual NoTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold + 2)) shouldEqual MayTriggerTuningChange
+      tuningChanger.decide(createCcMessage(127)) shouldEqual MayTriggerTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold + 1)) shouldEqual MayTriggerTuningChange
     }
 
     it should s"trigger a double $tuningChange tuning change when CC value increases above the threshold twice" in {
-      tuningChanger.decide(createCcMessage(customThreshold - 1)) shouldEqual NoTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold - 1)) shouldEqual MayTriggerTuningChange
       tuningChanger.decide(createCcMessage(customThreshold + 1)) shouldEqual tuningChange
-      tuningChanger.decide(createCcMessage(customThreshold)) shouldEqual NoTuningChange
+      tuningChanger.decide(createCcMessage(customThreshold)) shouldEqual MayTriggerTuningChange
       tuningChanger.decide(createCcMessage(customThreshold + 2)) shouldEqual tuningChange
     }
 
     it should s"correctly trigger $tuningChange tuning changes when threshold is 0" in {
-      val pedalTuningChangerWith0Threshold = PedalTuningChanger(customTuningChangeTriggers, 0)
+      val pedalTuningChangerWith0Threshold = PedalTuningChanger(customTuningChangeTriggers, 0, triggersThru = false)
 
-      pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual NoTuningChange
+      pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
       pedalTuningChangerWith0Threshold.decide(createCcMessage(1)) shouldEqual tuningChange
-      pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual NoTuningChange
+      pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
       pedalTuningChangerWith0Threshold.decide(createCcMessage(2)) shouldEqual tuningChange
-      pedalTuningChangerWith0Threshold.decide(createCcMessage(127)) shouldEqual NoTuningChange
-      pedalTuningChangerWith0Threshold.decide(createCcMessage(3)) shouldEqual NoTuningChange
-      pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual NoTuningChange
+      pedalTuningChangerWith0Threshold.decide(createCcMessage(127)) shouldEqual MayTriggerTuningChange
+      pedalTuningChangerWith0Threshold.decide(createCcMessage(3)) shouldEqual MayTriggerTuningChange
+      pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
     }
   }
 
@@ -101,16 +103,6 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   it should "return NoTuningChange for a SysEx MIDI message" in {
     val sysExMessage = MtsTuningFormat.NonRealTime1BOctave.messageGenerator.generate(OctaveTuning.Edo12)
     tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
-  }
-
-  "mayTrigger" should "return true for a CC MIDI message" in {
-    val ccMidiMessage = ScCcMidiMessage(1, customNextTuningCcTrigger, 127).javaMidiMessage
-    tuningChanger.mayTrigger(ccMidiMessage) shouldEqual true
-  }
-
-  it should "return false for a Note On MIDI message" in {
-    val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
-    tuningChanger.mayTrigger(noteOnMessage) shouldEqual false
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =

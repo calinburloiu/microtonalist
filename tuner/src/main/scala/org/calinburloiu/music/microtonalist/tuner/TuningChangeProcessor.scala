@@ -31,13 +31,10 @@ import scala.annotation.tailrec
  *                       not. The decision is of the first one that returns an effective [[TuningChange]], so this
  *                       class acts like an OR operator. Note that if none decides to trigger a change, no change
  *                       will be performed.
- * @param triggersThru   Whether tuning change MIDI trigger messages should pass through to the output or if they
- *                       should be filtered out.
  */
 @NotThreadSafe
 class TuningChangeProcessor(tuningService: TuningService,
-                            val tuningChangers: Seq[TuningChanger],
-                            val triggersThru: Boolean) extends MidiProcessor {
+                            val tuningChangers: Seq[TuningChanger]) extends MidiProcessor {
   require(tuningChangers.nonEmpty, "There should be at least one TuningChanger!")
 
   /**
@@ -45,24 +42,27 @@ class TuningChangeProcessor(tuningService: TuningService,
    *
    * @see the main constructor for details.
    */
-  def this(tuningService: TuningService, tuningChanger: TuningChanger, triggersThru: Boolean) = {
-    this(tuningService, Seq(tuningChanger), triggersThru)
+  def this(tuningService: TuningService, tuningChanger: TuningChanger) = {
+    this(tuningService, Seq(tuningChanger))
   }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    val tuningChange = TuningChangeProcessor.computeTuningChange(message, tuningChangers.toList)
+    val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
+      message, tuningChangers.toList)
 
-    tuningService.changeTuning(tuningChange)
+    // Change the tuning if the tuning change decision is effective
+    tuningChange match {
+      case effectiveTuningChange: EffectiveTuningChange => tuningService.changeTuning(effectiveTuningChange)
+      case _ => // No effect on tuning
+    }
 
     // Forward message if:
-    //   - triggersThru is set;
-    //   - It's not a potential trigger for a tuning change.
-    if (triggersThru || !mayTrigger(message)) {
+    //   - It's not a potential trigger for a tuning change;
+    //   - triggersThru is set on the effective tuning changer.
+    if (!tuningChange.mayTrigger || effectiveTuningChanger.forall(_.triggersThru)) {
       receiver.send(message, timeStamp)
     }
   }
-
-  private def mayTrigger(message: MidiMessage): Boolean = tuningChangers.exists(_.mayTrigger(message))
 }
 
 object TuningChangeProcessor {
@@ -70,16 +70,20 @@ object TuningChangeProcessor {
    * Chooses the first [[TuningChanger]] from the given list that returns an effective [[TuningChange]] (which has
    * [[TuningChange#isChanging]] true) for the given MIDI message and returns it. If there is none,
    * [[NoTuningChange]] is returned.
+   *
+   * @return a pair of the [[TuningChange]] decision taken and the corresponding tuning changer that produced it, if
+   *         any.
    */
   @tailrec
-  private def computeTuningChange(message: MidiMessage, tuningChangers: List[TuningChanger]): TuningChange = {
+  private def computeTuningChange(message: MidiMessage,
+                                  tuningChangers: List[TuningChanger]): (TuningChange, Option[TuningChanger]) = {
     if (tuningChangers.isEmpty) {
-      NoTuningChange
+      (NoTuningChange, None)
     } else {
       val tuningChanger = tuningChangers.head
       val tuningChange = tuningChanger.decide(message)
-      if (tuningChange.isChanging) {
-        tuningChange
+      if (tuningChange.mayTrigger) {
+        (tuningChange, Some(tuningChanger))
       } else {
         computeTuningChange(message, tuningChangers.tail)
       }
