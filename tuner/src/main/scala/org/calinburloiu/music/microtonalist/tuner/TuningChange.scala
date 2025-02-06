@@ -38,10 +38,16 @@ sealed trait TuningChange {
   def mayTrigger: Boolean = isTriggering
 }
 
+/**
+ * A tuning change operation that can trigger an actual tuning change.
+ */
 sealed trait EffectiveTuningChange extends TuningChange {
   override def isTriggering: Boolean = true
 }
 
+/**
+ * Trait for all tuning change operations that cannot produce an effect on the tuning.
+ */
 sealed trait IneffectiveTuningChange extends TuningChange {
   override def isTriggering: Boolean = false
 }
@@ -58,7 +64,7 @@ case object NoTuningChange extends IneffectiveTuningChange
  * series/pattern that may eventually trigger an effective tuning change.
  *
  * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous
- * stream of CC messages, but only for one of them a tuning change is triggered.
+ * stream of CC messages, but only for one of them a tuning change is triggered, for the rest this operation is emitted.
  */
 case object MayTriggerTuningChange extends IneffectiveTuningChange {
   override def mayTrigger: Boolean = true
