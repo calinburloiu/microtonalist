@@ -38,12 +38,18 @@ sealed trait TuningChange {
   def mayTrigger: Boolean = isTriggering
 }
 
+sealed trait EffectiveTuningChange extends TuningChange {
+  override def isTriggering: Boolean = true
+}
+
+sealed trait IneffectiveTuningChange extends TuningChange {
+  override def isTriggering: Boolean = false
+}
+
 /**
  * Describes an operation that does not change the tuning (NO-OP).
  */
-case object NoTuningChange extends TuningChange {
-  override def isTriggering: Boolean = false
-}
+case object NoTuningChange extends IneffectiveTuningChange
 
 /**
  * Describes an operation that does not trigger a tuning change, but the MIDI message that caused the production of
@@ -54,26 +60,20 @@ case object NoTuningChange extends TuningChange {
  * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous
  * stream of CC messages, but only for one of them a tuning change is triggered.
  */
-case object MayTriggerTuningChange extends TuningChange {
-  override def isTriggering: Boolean = false
-
+case object MayTriggerTuningChange extends IneffectiveTuningChange {
   override def mayTrigger: Boolean = true
 }
 
 /**
  * Describes an operation that changes to the previous tuning from the tuning sequence.
  */
-case object PreviousTuningChange extends TuningChange {
-  override def isTriggering: Boolean = true
-}
+case object PreviousTuningChange extends EffectiveTuningChange
 
 
 /**
  * Describes an operation that changes to the next tuning from the tuning sequence.
  */
-case object NextTuningChange extends TuningChange {
-  override def isTriggering: Boolean = true
-}
+case object NextTuningChange extends EffectiveTuningChange
 
 
 /**
@@ -82,8 +82,6 @@ case object NextTuningChange extends TuningChange {
  * @param index the index of the tuning in the tuning sequence to switch to. Must be >= 0.
  * @throws IllegalArgumentException if the index is less than 0.
  */
-case class IndexTuningChange(index: Int) extends TuningChange {
+case class IndexTuningChange(index: Int) extends EffectiveTuningChange {
   require(index >= 0, "Tuning index must be equal or greater than 0!")
-
-  override def isTriggering: Boolean = true
 }
