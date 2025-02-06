@@ -82,7 +82,7 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
         release(cc)
       } else {
         // Intermediary CC value with no state transition
-        NoTuningChange
+        MayTriggerTuningChange
       }
     case _ =>
       // No trigger detected; ignoring.
@@ -110,7 +110,7 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
 
   private def release(cc: Int): TuningChange = {
     ccDepressed(cc) = false
-    NoTuningChange
+    MayTriggerTuningChange
   }
 }
 
