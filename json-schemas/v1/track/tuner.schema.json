@@ -10,6 +10,7 @@
     "$defs": {
         "type": {
             "type": "string",
+            "$comment": "TODO We probably need an optional output for MTS tuning messages that will be useful for in-DAW VST support.",
             "enum": ["monophonicPitchBend", "mtsOctave1BNonRealTime", "mpe", "TODO"]
         }
     }

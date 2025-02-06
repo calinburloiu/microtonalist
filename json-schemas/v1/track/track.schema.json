@@ -9,5 +9,6 @@
         "tuner": { "$ref": "tuner.schema.json" },
         "output": { "$ref": "trackOutput.schema.json" }
     },
+    "required": ["tuner", "output"],
     "unevaluatedProperties": false
 }
