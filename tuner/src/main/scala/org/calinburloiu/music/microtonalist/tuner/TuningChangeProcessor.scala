@@ -77,7 +77,7 @@ object TuningChangeProcessor {
     } else {
       val tuningChanger = tuningChangers.head
       val tuningChange = tuningChanger.decide(message)
-      if (tuningChange.isTriggering) {
+      if (tuningChange.mayTrigger) {
         (tuningChange, Some(tuningChanger))
       } else {
         computeTuningChange(message, tuningChangers.tail)
