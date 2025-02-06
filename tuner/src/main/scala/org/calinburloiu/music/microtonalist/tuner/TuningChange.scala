@@ -27,21 +27,44 @@ sealed trait TuningChange {
    * @return whether this operation object is an effective tuning change which produces an effect, or not.
    * @see [[NoTuningChange]] as an example of operation with no effect.
    */
-  def isChanging: Boolean
+  def isTriggering: Boolean
+
+  /**
+   * Tells whether this operation object has the potential to trigger a tuning change but may not necessarily do so.
+   * See [[isTriggering]] which tells for certain.
+   *
+   * @return whether this operation object has the potential to trigger a tuning change, or not.
+   */
+  def mayTrigger: Boolean = isTriggering
 }
 
 /**
  * Describes an operation that does not change the tuning (NO-OP).
  */
 case object NoTuningChange extends TuningChange {
-  override def isChanging: Boolean = false
+  override def isTriggering: Boolean = false
+}
+
+/**
+ * Describes an operation that does not trigger a tuning change, but the MIDI message that caused the production of
+ * this operation via
+ * [[org.calinburloiu.music.microtonalist.tuner.TuningChanger#decide(javax.sound.midi.MidiMessage)]] it part of a
+ * series/pattern that may eventually trigger an effective tuning change.
+ *
+ * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous
+ * stream of CC messages, but only for one of them a tuning change is triggered.
+ */
+case object MayTriggerTuningChange extends TuningChange {
+  override def isTriggering: Boolean = false
+
+  override def mayTrigger: Boolean = true
 }
 
 /**
  * Describes an operation that changes to the previous tuning from the tuning sequence.
  */
 case object PreviousTuningChange extends TuningChange {
-  override def isChanging: Boolean = true
+  override def isTriggering: Boolean = true
 }
 
 
@@ -49,7 +72,7 @@ case object PreviousTuningChange extends TuningChange {
  * Describes an operation that changes to the next tuning from the tuning sequence.
  */
 case object NextTuningChange extends TuningChange {
-  override def isChanging: Boolean = true
+  override def isTriggering: Boolean = true
 }
 
 
@@ -62,5 +85,5 @@ case object NextTuningChange extends TuningChange {
 case class IndexTuningChange(index: Int) extends TuningChange {
   require(index >= 0, "Tuning index must be equal or greater than 0!")
 
-  override def isChanging: Boolean = true
+  override def isTriggering: Boolean = true
 }

@@ -46,7 +46,8 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     next = Some(customNextTuningCcTrigger),
     index = Map(1 -> customIndex1TuningCcTrigger, 2 -> customIndex2TuningCcTrigger)
   )
-  val tuningChanger: PedalTuningChanger = PedalTuningChanger(customTuningChangeTriggers, customThreshold)
+  val tuningChanger: PedalTuningChanger = PedalTuningChanger(customTuningChangeTriggers, customThreshold,
+    triggersThru = false)
 
   val testCases: Seq[(TuningChange, Cc)] = Seq(
     (PreviousTuningChange, customPreviousTuningCcTrigger),
@@ -81,7 +82,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     }
 
     it should s"correctly trigger $tuningChange tuning changes when threshold is 0" in {
-      val pedalTuningChangerWith0Threshold = PedalTuningChanger(customTuningChangeTriggers, 0)
+      val pedalTuningChangerWith0Threshold = PedalTuningChanger(customTuningChangeTriggers, 0, triggersThru = false)
 
       pedalTuningChangerWith0Threshold.decide(createCcMessage(0)) shouldEqual NoTuningChange
       pedalTuningChangerWith0Threshold.decide(createCcMessage(1)) shouldEqual tuningChange
@@ -101,16 +102,6 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   it should "return NoTuningChange for a SysEx MIDI message" in {
     val sysExMessage = MtsTuningFormat.NonRealTime1BOctave.messageGenerator.generate(OctaveTuning.Edo12)
     tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
-  }
-
-  "mayTrigger" should "return true for a CC MIDI message" in {
-    val ccMidiMessage = ScCcMidiMessage(1, customNextTuningCcTrigger, 127).javaMidiMessage
-    tuningChanger.mayTrigger(ccMidiMessage) shouldEqual true
-  }
-
-  it should "return false for a Note On MIDI message" in {
-    val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
-    tuningChanger.mayTrigger(noteOnMessage) shouldEqual false
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =

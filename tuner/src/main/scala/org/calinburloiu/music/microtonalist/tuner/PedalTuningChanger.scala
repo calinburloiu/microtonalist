@@ -35,16 +35,19 @@ import scala.collection.mutable
  * state). After the CC value drops to the threshold value or below (released state), a new increase over the threshold
  * (pressed state) will trigger the change again.
  *
- * @param triggers  The configuration of MIDI CC triggers that determine tuning changes.
- *                  These can include triggers for previous, next tuning changes,
- *                  or specific index-based tuning changes.
- * @param threshold The threshold value for the pedal input to determine if a pedal is pressed
- *                  or released. Values above this threshold indicate a pressed state,
- *                  while values below or equal indicate a released state. Tuning changes are
- *                  only triggered when the state transitions from released to pressed.
+ * @param triggers     The configuration of MIDI CC triggers that determine tuning changes.
+ *                     These can include triggers for previous, next tuning changes,
+ *                     or specific index-based tuning changes.
+ * @param threshold    The threshold value for the pedal input to determine if a pedal is pressed
+ *                     or released. Values above this threshold indicate a pressed state,
+ *                     while values below or equal indicate a released state. Tuning changes are
+ *                     only triggered when the state transitions from released to pressed.
+ * @param triggersThru Whether tuning change MIDI trigger messages should pass through to the output or
+ *                     if they should be filtered out.
  */
 case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
-                              threshold: Int) extends TuningChanger with LazyLogging {
+                              threshold: Int,
+                              override val triggersThru: Boolean) extends TuningChanger with LazyLogging {
   override val typeName: String = "pedal"
 
   /**
@@ -84,11 +87,6 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
     case _ =>
       // No trigger detected; ignoring.
       NoTuningChange
-  }
-
-  override def mayTrigger(message: MidiMessage): Boolean = message match {
-    case ScCcMidiMessage(_, cc, _) => triggers.hasTrigger(cc)
-    case _ => false
   }
 
   override def reset(): Unit = {
@@ -137,14 +135,17 @@ object PedalTuningChanger {
    *                                Defaults to `ScCcMidiMessage.SostenutoPedal`.
    * @param threshold               The threshold value for determining whether the CC value
    *                                represents a pedal press or release. Defaults to `0`.
+   * @param triggersThru            Whether tuning change MIDI trigger messages should pass through to the output or
+   *                                if they should be filtered out.
    * @return An instance of `PedalTuningChanger` configured with the specified parameters.
    */
   def apply(previousTuningCcTrigger: Int = ScCcMidiMessage.SoftPedal,
             nextTuningCcTrigger: Int = ScCcMidiMessage.SostenutoPedal,
-            threshold: Int = 0): PedalTuningChanger = {
+            threshold: Int = 0,
+            triggersThru: Boolean = false): PedalTuningChanger = {
     new PedalTuningChanger(
       TuningChangeTriggers(next = Some(nextTuningCcTrigger), previous = Some(previousTuningCcTrigger)),
-      threshold
+      threshold, triggersThru
     )
   }
 }

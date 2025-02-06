@@ -46,7 +46,7 @@ class TuningService(session: TuningSession, businessync: Businessync) {
    *
    * @param tuningChange An operation object that describes how the tuning should be changed.
    */
-  def changeTuning(tuningChange: TuningChange): Unit = businessync.runIf(tuningChange.isChanging) { () =>
+  def changeTuning(tuningChange: TuningChange): Unit = businessync.runIf(tuningChange.isTriggering) { () =>
     tuningChange match {
       case PreviousTuningChange => session.previousTuning()
       case NextTuningChange => session.nextTuning()
