@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.config
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtonalist.tuner.{CcTriggers, MtsTuningFormat, TunerType}
+import org.calinburloiu.music.microtonalist.tuner.{MtsTuningFormat, TunerType}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
@@ -122,6 +122,16 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
 
 object MidiInputConfigManager {
   val configRootPath = "input.midi"
+}
+
+case class CcTriggers(enabled: Boolean = false,
+                      prevTuningCc: Int = 67,
+                      nextTuningCc: Int = 66,
+                      ccThreshold: Int = 0,
+                      isFilteringThru: Boolean = true)
+
+object CcTriggers {
+  val default: CcTriggers = CcTriggers()
 }
 
 case class Triggers(cc: CcTriggers)

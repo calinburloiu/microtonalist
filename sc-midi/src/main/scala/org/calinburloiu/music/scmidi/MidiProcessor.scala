@@ -75,7 +75,7 @@ trait MidiProcessor extends Transmitter with Receiver {
    *
    * @see [[MidiProcessor#setReceiver()]]
    */
-  protected def onConnect(): Unit
+  protected def onConnect(): Unit = {}
 
   /**
    * Callback called before a new receiver is set to let the receiver being replaced in a consistent state.
@@ -86,5 +86,5 @@ trait MidiProcessor extends Transmitter with Receiver {
    *
    * @see [[MidiProcessor#setReceiver()]]
    */
-  protected def onDisconnect(): Unit
+  protected def onDisconnect(): Unit = {}
 }

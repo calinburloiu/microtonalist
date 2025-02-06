@@ -44,7 +44,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
       fSharpOrGFlat = 0.0,
       g = 1.96,
       gSharpOrAFlat = 0.0,
-      a = 15.64,
+      a = -15.64,
       aSharpOrBFlat = 0.0,
       b = -11.73
     )
@@ -64,7 +64,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
       fSharpOrGFlat = 7.0,
       g = 1.96,
       gSharpOrAFlat = 9.0,
-      a = 15.64,
+      a = -15.64,
       aSharpOrBFlat = 11.0,
       b = -11.73
     )

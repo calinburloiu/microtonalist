@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,8 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.businessync.BusinessyncEvent
+import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 
-// TODO #90 Migrate to business-sync
-@deprecated
-case class TuningChangedEvent(tuningIndex: Int, oldTuningIndex: Int) extends BusinessyncEvent
+object TunerTestUtils {
+  val majTuning: OctaveTuning = OctaveTuning("Just C Major",
+    Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, -15.64, 0.0, -11.73))
+  val rastTuning: OctaveTuning = OctaveTuning("C Rast",
+    Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, 5.87, -3.91, -11.73))
+  val ussakTuning: OctaveTuning = OctaveTuning("D Ussak",
+    Seq(0.0, 0.0, 3.91, 0.0, -45.45, -1.96, 0.0, 1.96, 0.0, 5.87, -3.91, 0))
+}

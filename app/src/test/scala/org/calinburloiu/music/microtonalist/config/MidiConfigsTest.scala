@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import org.calinburloiu.music.microtonalist.tuner.{CcTriggers, MtsTuningFormat, TunerType}
+import org.calinburloiu.music.microtonalist.tuner.{MtsTuningFormat, TunerType}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

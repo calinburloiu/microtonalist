@@ -17,30 +17,48 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
+import java.util.UUID
 import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
  * MIDI route for tuning an output device.
  *
- * @param tuningSwitchProcessor Interceptor used for detecting MIDI messages that change the tuning.
+ * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
  * @param tuner                 Class responsible for tuning the output instrument based on specific protocol.
  * @param outputReceiver        MIDI [[Receiver]] of the output instrument.
  * @param ccParams              Map of CC parameters to be set during initialization.
  */
-class Track(tuningSwitchProcessor: Option[TuningSwitchProcessor],
+class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
             tuner: Tuner,
             outputReceiver: Receiver,
-            ccParams: Map[Int, Int] = Map.empty) extends Receiver with StrictLogging {
-  val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningSwitchProcessor, Some(tuner)).flatten, outputReceiver)
+            ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
+
+  // TODO #97 Reading Tracks from a file requires assigning this value from the constructor.
+  val id: String = UUID.randomUUID().toString
+
+  private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
+    Seq(tuningChangeProcessor, Some(tuner)).flatten, outputReceiver)
 
   initCcParams()
+
+  // TODO #97 Implement Track#run
+  override def run(): Unit = {
+    logger.warn("Track#run is not yet implemented!")
+  }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
     pipeline.send(message, timeStamp)
   }
+
+  /**
+   * Tunes the output instrument using the provided tuning.
+   *
+   * @param tuning The tuning to be applied.
+   */
+  def tune(tuning: OctaveTuning): Unit = tuner.tune(tuning)
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
 
