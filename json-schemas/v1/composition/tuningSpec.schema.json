@@ -31,7 +31,7 @@
                 {
                     "description": "Scale to be mapped to a keyboard tuning."
                 },
-                { "$ref": "../common/scale-inContext.schema.json" }
+                { "$ref": "../scale/scale-inContext.schema.json" }
             ]
         },
         "tuningMapper": { "$ref": "tuningMapper.schema.json" }

@@ -30,7 +30,7 @@
                     "title": "Scale Definitions",
                     "description": "Key-value pairs, where keys are scale identifiers to be referenced in other sections of the composition file, and values are scale definitions which include both inline scale or an external URI for the scale. Keys should only use basic Latin letters, numbers, hyphens and underscores.",
                     "patternProperties": {
-                        "^[\\w\\-_]+$": { "$ref": "../common/scale-inContext.schema.json" }
+                        "^[\\w\\-_]+$": { "$ref": "../scale/scale-inContext.schema.json" }
                     },
                     "unevaluatedProperties": false
                 },
