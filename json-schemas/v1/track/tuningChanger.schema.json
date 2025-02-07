@@ -1,44 +1,68 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Changer",
-    "description": "TODO",
+    "description": "A tuning changer is a plugin that triggers a tuning change based on the input MIDI messages. Currently, there are three kinds of tuning change operations that can be triggered by this plugin:\n- \"previous\": Changes to the next tuning from the sequence. If the current tuning is the first one, it wraps around to the last tuning.\n- \"next\": Changes to the next tuning from the sequence. If the current tuning is the last one, it wraps around to the first tuning.\n- \"index\": Changes to the tuning with the specified index in the sequence, starting the count from 0. If the index exceeds the last tuning, a change to the last tuning is triggered.\nAs any plugin it can be defined as an object with a \"type\" property that identifies the tuning changer to be used. Check the documentation for that property for details about what tuning changer are supported.",
     "type": ["object", "string"],
     "oneOf": [
         { "$ref": "#/$defs/object" },
         { "$ref": "#/$defs/type" }
     ],
     "$defs": {
+        "uint7": {
+            "$comment": "An unsigned integer of 7 bits with values between 0 and 127, inclusive.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+        },
         "pedalSettings": {
             "type": "object",
             "properties": {
                 "triggers": {
                     "type": "object",
                     "title": "Triggers",
-                    "description": "TODO",
+                    "description": "The configuration of MIDI CC (Control Change) triggers that determine tuning changes. These can include triggers for previous, next tuning changes, or specific index-based tuning changes.",
                     "properties": {
                         "previous": {
-                            "type": "integer",
-                            "title": "Previous",
-                            "description": "TODO",
-                            "minimum": 0,
-                            "maximum": 127
+                            "allOf": [
+                                {
+                                    "title": "Previous Tuning Trigger",
+                                    "description": "Configures the MIDI CC that triggers a tuning change to the previous tuning."
+                                },
+                                { "$ref": "#/$defs/uint7" }
+                            ]
                         },
                         "next": {
-                            "type": "integer",
-                            "title": "Next",
-                            "description": "TODO",
-                            "minimum": 0,
-                            "maximum": 127
+                            "allOf": [
+                                {
+                                    "title": "Next Tuning Trigger",
+                                    "description": "Configures the MIDI CC that triggers a tuning change to the next tuning."
+                                },
+                                { "$ref": "#/$defs/uint7" }
+                            ]
                         },
                         "index": {
-                            "$comment": "TODO"
+                            "type": "object",
+                            "title": "Change Tuning to Index Triggers",
+                            "description": "Configures the MIDI CCs that trigger a tuning change to various tuning indexes.",
+                            "patternProperties": {
+                                "^[0-9]+$": {
+                                    "allOf": [
+                                        {
+                                            "title": "Change Tuning to Index Trigger",
+                                            "description": "The value configures the MIDI CC that triggers a tuning change to the tuning index from the key."
+                                        },
+                                        { "$ref": "#/$defs/uint7" }
+                                    ]
+                                }
+                            },
+                            "unevaluatedProperties": false
                         }
                     }
                 },
                 "threshold": {
                     "type": "integer",
                     "title": "Threshold",
-                    "description": "TODO",
+                    "description": "The threshold value for the pedal CC value input to determine if a pedal is pressed or released. Values above this threshold indicate a pressed state, while values below or equal indicate a released state. Tuning changes are only triggered when the state transitions from released to pressed.",
                     "minimum": 0,
                     "maximum": 126
                 },
@@ -55,7 +79,29 @@
             "enum": ["pedal"]
         },
         "object": {
-
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "title": "Tuning Changer Type",
+                    "description": "Name that serves as a unique identifier of the Tuning Changer Type. The following values are allowed:\n- \"pedal\": allows triggering tuning changes via MIDI CC messages that are typically controlled by piano-like pedals which return to their initial position after they are pressed. It is configured by default for digital pianos with three pedals, such that the left-most pedal triggers a previous tuning change and the center pedal a next tuning change. But this can be configured, including index-based triggers which aren't enabled by default.",
+                    "enum": ["pedal"]
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "pedal" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/pedalSettings"
+                    }
+                }
+            ],
+            "unevaluatedProperties": false
         }
     }
 }
