@@ -71,13 +71,15 @@ case object MayTriggerTuningChange extends IneffectiveTuningChange {
 }
 
 /**
- * Describes an operation that changes to the previous tuning from the tuning sequence.
+ * Describes an operation that changes to the previous tuning from the tuning sequence. If the current tuning is the
+ * first one, it wraps around to the last tuning.
  */
 case object PreviousTuningChange extends EffectiveTuningChange
 
 
 /**
- * Describes an operation that changes to the next tuning from the tuning sequence.
+ * Describes an operation that changes to the next tuning from the tuning sequence. If the current tuning is the last
+ * one, it wraps around to the first tuning.
  */
 case object NextTuningChange extends EffectiveTuningChange
 
