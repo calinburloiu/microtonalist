@@ -1,0 +1,14 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Track",
+    "description": "TODO",
+    "type": "object",
+    "properties": {
+        "input": { "$ref": "trackInput.schema.json" },
+        "tuningChanger": { "$ref": "tuningChanger.schema.json" },
+        "tuner": { "$ref": "tuner.schema.json" },
+        "output": { "$ref": "trackOutput.schema.json" }
+    },
+    "required": ["tuner", "output"],
+    "unevaluatedProperties": false
+}

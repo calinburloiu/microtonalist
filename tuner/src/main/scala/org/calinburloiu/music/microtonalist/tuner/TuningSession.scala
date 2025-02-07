@@ -68,13 +68,14 @@ class TuningSession(businessync: Businessync) {
    * @param newIndex the new tuning index to set; must be within the range `[0, tunings.size)`.
    */
   def tuningIndex_=(newIndex: Int): Unit = {
-    require(0 <= newIndex && newIndex < _tunings.size,
-      s"Tuning index $newIndex is out of bounds for tunings of size ${_tunings.size}!")
+    require(newIndex >= 0, s"Tuning index must be positive, but got $newIndex!")
 
-    if (newIndex != _tuningIndex) {
-      _tuningIndex = newIndex
+    val sanitizedIndex = Math.min(newIndex, tunings.size - 1)
 
-      businessync publish TuningIndexUpdatedEvent(newIndex, currentTuning)
+    if (sanitizedIndex != _tuningIndex) {
+      _tuningIndex = sanitizedIndex
+
+      businessync publish TuningIndexUpdatedEvent(sanitizedIndex, currentTuning)
     }
   }
 

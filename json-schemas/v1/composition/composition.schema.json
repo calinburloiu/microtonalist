@@ -1,5 +1,5 @@
 {
-    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/composition.schema.json",
+    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/composition/composition.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Composition",
     "description": "File format that defines a collection of tunings to be used in a musical composition. The player is expected to switch between tunings while playing the composition.",
@@ -12,7 +12,7 @@
             "format": "uri-reference"
         },
         "metadata": { "$ref": "compositionMetadata.schema.json" },
-        "intonationStandard": { "$ref": "intonationStandard.schema.json" },
+        "intonationStandard": { "$ref": "../common/intonationStandard.schema.json" },
         "tuningReference": { "$ref": "tuningReference.schema.json" },
         "baseUri": {
             "type": "string",
@@ -30,7 +30,7 @@
                     "title": "Scale Definitions",
                     "description": "Key-value pairs, where keys are scale identifiers to be referenced in other sections of the composition file, and values are scale definitions which include both inline scale or an external URI for the scale. Keys should only use basic Latin letters, numbers, hyphens and underscores.",
                     "patternProperties": {
-                        "^[\\w\\-_]+$": { "$ref": "scale-inContext.schema.json" }
+                        "^[\\w\\-_]+$": { "$ref": "../common/scale-inContext.schema.json" }
                     },
                     "unevaluatedProperties": false
                 },
@@ -89,7 +89,7 @@
                     "description": "Default settings for the intonation standard plugin.",
                     "properties": {
                         "edo": {
-                            "$ref": "intonationStandard.schema.json#/$defs/edoSettings",
+                            "$ref": "../common/intonationStandard.schema.json#/$defs/edoSettings",
                             "unevaluatedProperties": false
                         }
                     },

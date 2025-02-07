@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tuner",
+    "description": "TODO",
+    "type": "object",
+    "properties": {
+
+    },
+    "unevaluatedProperties": false,
+    "$defs": {
+        "type": {
+            "type": "string",
+            "$comment": "TODO We probably need an optional output for MTS tuning messages that will be useful for in-DAW VST support.",
+            "enum": ["monophonicPitchBend", "mtsOctave1BNonRealTime", "mpe", "TODO"]
+        }
+    }
+}
