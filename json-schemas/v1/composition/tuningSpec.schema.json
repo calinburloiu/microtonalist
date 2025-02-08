@@ -11,7 +11,7 @@
                     "description": "Interval used for transposing a scale before mapping it to a tuning.",
                     "default": "1/1"
                 },
-                { "$ref": "interval-any.schema.json" }
+                { "$ref": "../common/interval-any.schema.json" }
             ]
         },
         "transpositionIntervalNumber": {
@@ -31,7 +31,7 @@
                 {
                     "description": "Scale to be mapped to a keyboard tuning."
                 },
-                { "$ref": "scale-inContext.schema.json" }
+                { "$ref": "../scale/scale-inContext.schema.json" }
             ]
         },
         "tuningMapper": { "$ref": "tuningMapper.schema.json" }

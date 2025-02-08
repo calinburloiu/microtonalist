@@ -58,19 +58,26 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     assertThrows[IllegalArgumentException] {
       tuningSession.tuningIndex = -1
     }
-    assertThrows[IllegalArgumentException] {
-      // Invalid index since we have only 2 tunings (0 and 1)
-      tuningSession.tuningIndex = 2
-    }
   }
 
   it should "allow setting a valid tuningIndex" in new Fixture {
-    // When
+    // Given
     tuningSession.tunings = Seq(majTuning, rastTuning, ussakTuning)
-    // Then
+    // When
     tuningSession.tuningIndex = 1
+    // Then
     tuningSession.tuningIndex shouldBe 1
     tuningSession.currentTuning shouldBe rastTuning
+  }
+
+  it should "allow setting a value >= the sequence size and set it to the last index" in new Fixture {
+    // Given
+    tuningSession.tunings = Seq(majTuning, rastTuning, ussakTuning)
+    // When
+    tuningSession.tuningIndex = 4
+    // Then
+    tuningSession.tuningIndex shouldBe 2
+    tuningSession.currentTuning shouldBe ussakTuning
   }
 
   it should "publish TuningIndexUpdatedEvent when tuningIndex changes" in new Fixture {

@@ -4,7 +4,7 @@
     "description": "Pitch used for forming a scale.",
     "type": ["string", "number", "array", "object"],
     "oneOf": [
-        { "$ref": "interval-any.schema.json" },
+        { "$ref": "../common/interval-any.schema.json" },
         { "$ref": "#/$defs/pitchObject" }
     ],
     "$defs": {
@@ -30,7 +30,7 @@
                             "title": "Interval",
                             "description": "Interval of the pitch in relation to the main scale degree (tonic)."
                         },
-                        { "$ref": "interval-any.schema.json" }
+                        { "$ref": "../common/interval-any.schema.json" }
                     ]
                 },
                 "degree": {

@@ -1,0 +1,16 @@
+{
+    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/tracks/tracks.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Tracks Configuration",
+    "description": "TODO",
+    "type": "object",
+    "properties": {
+        "tracks": {
+            "type": "array",
+            "title": "Tracks",
+            "description": "TODO",
+            "items": { "$ref": "track.schema.json" }
+        }
+    },
+    "unevaluatedProperties": false
+}
