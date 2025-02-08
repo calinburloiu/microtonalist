@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import play.api.libs.json.{JsError, JsNumber, JsSuccess}
 
 import java.net.URI
 import java.nio.file.Paths
@@ -61,5 +62,20 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     resolveBaseUriWithOverride(None, uri("scales/")) shouldEqual uri("scales/")
 
     resolveBaseUriWithOverride(None, None) shouldEqual None
+  }
+
+  "uint7Format" should "read an unsigned integer of 7 bits (between 0 and 127)" in {
+    uint7Format.reads(JsNumber(0)) shouldEqual JsSuccess(0)
+    uint7Format.reads(JsNumber(19)) shouldEqual JsSuccess(19)
+    uint7Format.reads(JsNumber(127)) shouldEqual JsSuccess(127)
+    uint7Format.reads(JsNumber(128)) shouldEqual JsError("error.expected.uint7")
+    uint7Format.reads(JsNumber(-1)) shouldEqual JsError("error.expected.uint7")
+  }
+
+  it should "write an integer" in {
+    uint7Format.writes(0) shouldEqual JsNumber(0)
+    uint7Format.writes(19) shouldEqual JsNumber(19)
+    uint7Format.writes(127) shouldEqual JsNumber(127)
+    // No validation on write
   }
 }

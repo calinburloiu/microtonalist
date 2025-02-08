@@ -144,6 +144,7 @@ lazy val format = (project in file("format"))
   .dependsOn(
     common % "compile->compile;test->test",
     composition,
+    tuner,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(

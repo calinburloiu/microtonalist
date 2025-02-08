@@ -25,7 +25,7 @@ object JsonConstraints {
    *
    * @see [[Reads#min]]
    */
-  def exclusiveMin[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]) =
+  def exclusiveMin[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]): Reads[O] =
     Reads.filterNot[O](JsonValidationError("error.exclusiveMin", m))(ord.lteq(_, m))(reads)
 
   /**
@@ -33,6 +33,6 @@ object JsonConstraints {
    *
    * @see [[Reads#max]]
    */
-  def exclusiveMax[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]) =
+  def exclusiveMax[O](m: O)(implicit reads: Reads[O], ord: Ordering[O]): Reads[O] =
     Reads.filterNot[O](JsonValidationError("error.exclusiveMax", m))(ord.gteq(_, m))(reads)
 }
