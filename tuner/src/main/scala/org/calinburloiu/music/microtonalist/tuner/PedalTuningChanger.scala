@@ -48,7 +48,7 @@ import scala.collection.mutable
 case class PedalTuningChanger(triggers: TuningChangeTriggers[Cc],
                               threshold: Int,
                               override val triggersThru: Boolean) extends TuningChanger with LazyLogging {
-  override val typeName: String = "pedal"
+  override val typeName: String = PedalTuningChanger.TypeName
 
   /**
    * @return the CC trigger, if available, that effects a change to the next tuning.
@@ -120,10 +120,14 @@ object PedalTuningChanger {
    */
   type Cc = Int
 
+  val TypeName: String = "pedal"
+
   val DefaultTuningChangeTriggers: TuningChangeTriggers[Cc] = TuningChangeTriggers(
     previous = Some(ScCcMidiMessage.SoftPedal),
     next = Some(ScCcMidiMessage.SostenutoPedal)
   )
+  val DefaultThreshold: Int = 0
+  val DefaultTriggersThru: Boolean = false
 
   /**
    * Convenience factory that creates an instance of `PedalTuningChanger` with specified MIDI Control Change (CC)
@@ -141,8 +145,8 @@ object PedalTuningChanger {
    */
   def apply(previousTuningCcTrigger: Int = ScCcMidiMessage.SoftPedal,
             nextTuningCcTrigger: Int = ScCcMidiMessage.SostenutoPedal,
-            threshold: Int = 0,
-            triggersThru: Boolean = false): PedalTuningChanger = {
+            threshold: Int = DefaultThreshold,
+            triggersThru: Boolean = DefaultTriggersThru): PedalTuningChanger = {
     new PedalTuningChanger(
       TuningChangeTriggers(next = Some(nextTuningCcTrigger), previous = Some(previousTuningCcTrigger)),
       threshold, triggersThru

@@ -16,6 +16,10 @@
 
 package org.calinburloiu.music.microtonalist
 
+import play.api.libs.functional.syntax.toApplicativeOps
+import play.api.libs.json.Reads.{max, min}
+import play.api.libs.json.{Format, Reads, Writes, __}
+
 import java.net.URI
 import java.nio.file.{Path, Paths}
 
@@ -52,5 +56,10 @@ package object format {
       case (None, Some(overrideBaseUriValue)) => Some(overrideBaseUriValue)
       case (None, None) => None
     }
+  }
+
+  lazy val uint7Format: Format[Int] = {
+    val reads = __.read[Int](min(0) keepAnd max(127)) orElse Reads.failed("error.expected.uint7")
+    Format(reads, Writes.IntWrites)
   }
 }

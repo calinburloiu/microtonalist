@@ -57,12 +57,17 @@
                             },
                             "unevaluatedProperties": false
                         }
+                    },
+                    "default": {
+                        "previous": 67,
+                        "next": 66
                     }
                 },
                 "threshold": {
                     "type": "integer",
                     "title": "Threshold",
                     "description": "The threshold value for the pedal CC value input to determine if a pedal is pressed or released. Values above this threshold indicate a pressed state, while values below or equal indicate a released state. Tuning changes are only triggered when the state transitions from released to pressed.",
+                    "default": 0,
                     "minimum": 0,
                     "maximum": 126
                 },
