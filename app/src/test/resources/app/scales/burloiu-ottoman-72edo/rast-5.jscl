@@ -1,0 +1,15 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale/scale.schema.json",
+    "name": "rast-5",
+    "altNames": ["Rast Pentachord"],
+    "intonationStandard": { "type": "edo", "countPerOctave": 72 },
+    "pitches": [
+        { "name": "rast", "interval": [0, 0], "degree": 1, "role": "primary" },
+        { "name": "dügâh", "interval": [2, 0], "degree": 2 },
+        { "name": "segâh", "interval": [4, -1], "degree": 3 },
+        { "name": "çargâh", "interval": [5, 0], "degree": 4 },
+        { "name": "neva", "interval": [7, 0], "degree": 5, "role": "secondary" }
+    ],
+    "authorName": "Călin-Andrei Burloiu",
+    "authorSortName": "Burloiu, Călin-Andrei"
+}

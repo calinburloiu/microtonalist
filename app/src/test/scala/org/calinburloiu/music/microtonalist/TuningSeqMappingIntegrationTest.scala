@@ -26,14 +26,14 @@ import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
+class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
   private val formatModule = new FormatModule(CommonTestUtils.uriOfResource("app/"))
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  it should "successfully create a tuning list out of 'minor-major.mtlist' file" in {
+  it should "successfully create a tuning sequence out of 'minor-major.mtlist' file" in {
     val compositionResource = "app/minor-major.mtlist"
     val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
       .defaultCompositionRepo)
@@ -98,7 +98,61 @@ class TuningListMappingIntegrationTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "successfully create a tuning list for a a composition with global settings, baseUri and a $ref" in {
+  it should "successfully create a tuning sequence out of \"La Cornu\" composition  file" in {
+    val compositionResource = "app/La-Cornu--Calin-Andrei-Burloiu--72edo.mtlist"
+    val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
+      .defaultCompositionRepo)
+    val tunings = TuningList.fromComposition(composition).tunings
+
+    tunings.size shouldEqual 3
+
+    var tuning = tunings.head
+    tuning.name shouldEqual "B Segâh + B Acemli Segâh + G rast-5 + C buselik-3"
+    tuning(0) shouldEqual 0.0
+    tuning(1) shouldEqual 16.67
+    tuning(2) shouldEqual 0.0
+    tuning(3) shouldEqual 0.0
+    tuning(4) shouldEqual -16.67
+    tuning(5) shouldEqual 0.0
+    tuning(6) shouldEqual -16.67
+    tuning(7) shouldEqual 0.0
+    tuning(8) shouldEqual 50.0
+    tuning(9) shouldEqual 0.0
+    tuning(10) shouldEqual -33.33
+    tuning(11) shouldEqual -16.67
+
+    tuning = tunings(1)
+    tuning.name shouldEqual "E Segâh + E Acemli Segâh + E Hüzzam"
+    tuning(0) shouldEqual 0.0
+    tuning(1) shouldEqual 16.67
+    tuning(2) shouldEqual 0.0
+    tuning(3) shouldEqual -33.33
+    tuning(4) shouldEqual -16.67
+    tuning(5) shouldEqual 0.0
+    tuning(6) shouldEqual -16.67
+    tuning(7) shouldEqual 0.0
+    tuning(8) shouldEqual 50.0
+    tuning(9) shouldEqual -16.67
+    tuning(10) shouldEqual 0.0
+    tuning(11) shouldEqual -16.67
+
+    tuning = tunings(2)
+    tuning.name shouldEqual "B Zirgüleli Hicaz"
+    tuning(0) shouldEqual 0.0
+    tuning(1) shouldEqual 16.67
+    tuning(2) shouldEqual 0.0
+    tuning(3) shouldEqual -33.33
+    tuning(4) shouldEqual -16.67
+    tuning(5) shouldEqual 0.0
+    tuning(6) shouldEqual -16.67
+    tuning(7) shouldEqual 0.0
+    tuning(8) shouldEqual 50.0
+    tuning(9) shouldEqual -16.67
+    tuning(10) shouldEqual -33.33
+    tuning(11) shouldEqual -16.67
+  }
+
+  it should "successfully create a tuning sequence for a a composition with global settings, baseUri and a $ref" in {
     val composition = FormatTestUtils.readCompositionFromResources("app/huseyni.mtlist",
       formatModule.defaultCompositionRepo)
 

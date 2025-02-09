@@ -1,0 +1,66 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/composition/composition.schema.json",
+    "metadata": {
+        "name": "La Cornu",
+        "composerName": "Călin-Andrei Burloiu",
+        "composerSortName": "Burloiu, Călin-Andrei",
+        "authorName": "Călin-Andrei Burloiu",
+        "authorSortName": "Burloiu, Călin-Andrei",
+        "compositionYear": 2011,
+        "copyright": "2011 Călin-Andrei Burloiu"
+    },
+    "intonationStandard": {
+        "type": "edo",
+        "countPerOctave": 72
+    },
+    "tuningReference": {
+        "basePitchClass": 0
+    },
+    "baseUri": "scales/burloiu-ottoman-72edo/",
+    "tunings": [
+        {
+            "transposition": [11, -1],
+            "scale": "Segah.jscl"
+        },
+        {
+            "transposition": [11, -1],
+            "scale": "Segah-acemli.jscl"
+        },
+        {
+            "transposition": [7, 0],
+            "scale": "rast-5.jscl"
+        },
+        {
+            "transposition": [0, 0],
+            "scale": "buselik-3.jscl"
+        },
+        {
+            "transposition": [4, -1],
+            "scale": "Segah.jscl"
+        },
+        {
+            "transposition": [4, -1],
+            "scale": "Segah-acemli.jscl"
+        },
+        {
+            "transposition": [4, -1],
+            "scale": "Huzzam.jscl"
+        },
+        {
+            "transposition": [11, -1],
+            "scale": "Hicaz-zirguleli.jscl"
+        }
+    ],
+    "fill": {
+        "global": {
+            "scale": [[1, 1]]
+        }
+    },
+    "settings": {
+        "tuningMapper": {
+            "auto": {
+                "softChromaticGenusMapping": "strict"
+            }
+        }
+    }
+}

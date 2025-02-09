@@ -1,0 +1,17 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale/scale.schema.json",
+    "name": "Zirgüleli Hicaz",
+    "sortName": "Hicaz, Zirgüleli",
+    "intonationStandard": { "type": "edo", "countPerOctave": 72 },
+    "pitches": [
+        { "name": "dügâh", "interval": [0, 0], "degree": 1, "role": "primary" },
+        { "name": "segâh", "interval": [1, 1], "degree": 2 },
+        { "name": "hicaz", "interval": [4, -1], "degree": 3 },
+        { "name": "neva", "interval": [5, 0], "degree": 4 },
+        { "name": "hüseyni", "interval": [7, 0], "degree": 5, "role": "secondary" },
+        { "name": "eviç", "interval": [8, 1], "degree": 6 },
+        { "name": "şehnaz", "interval": [11, -1], "degree": 7, "role": "leading" }
+    ],
+    "authorName": "Călin-Andrei Burloiu",
+    "authorSortName": "Burloiu, Călin-Andrei"
+}

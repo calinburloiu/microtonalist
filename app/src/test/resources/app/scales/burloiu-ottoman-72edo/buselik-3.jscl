@@ -1,0 +1,13 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale/scale.schema.json",
+    "name": "buselik-3",
+    "altNames": ["Buselik Trichord"],
+    "intonationStandard": { "type": "edo", "countPerOctave": 72 },
+    "pitches": [
+        { "name": "dügâh", "interval": [0, 0], "degree": 1, "role": "primary" },
+        { "name": "buselik", "interval": [2, 0], "degree": 2 },
+        { "name": "çargâh", "interval": [3, 0], "degree": 3, "role": "secondary" }
+    ],
+    "authorName": "Călin-Andrei Burloiu",
+    "authorSortName": "Burloiu, Călin-Andrei"
+}

@@ -1,0 +1,16 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/scale/scale.schema.json",
+    "name": "Hüzzam",
+    "intonationStandard": { "type": "edo", "countPerOctave": 72 },
+    "pitches": [
+        { "name": "rast", "interval": [-4, 1], "degree": 6 },
+        { "name": "tetimme-i segâh", "interval": [-1, -1], "degree": 7, "role": "leading" },
+        { "name": "segâh", "interval": [0, 0], "degree": 1, "role": "primary" },
+        { "name": "çargâh", "interval": [1, 1], "degree": 2 },
+        { "name": "neva", "interval": [3, 1], "degree": 3, "role": "secondary" },
+        { "name": "hüzzam", "interval": [5, -2], "degree": 4 },
+        { "name": "eviç", "interval": [7, 0], "degree": 5 }
+    ],
+    "authorName": "Călin-Andrei Burloiu",
+    "authorSortName": "Burloiu, Călin-Andrei"
+}
