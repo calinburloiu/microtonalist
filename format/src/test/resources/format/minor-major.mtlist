@@ -30,8 +30,10 @@
     }
   ],
   "tuningReducer": "merge",
-  "globalFill": {
-    "transposition": "1/1",
-    "scale": "chromatic.scl"
+  "fill": {
+    "global": {
+      "transposition": "1/1",
+      "scale": "chromatic.scl"
+    }
   }
 }
