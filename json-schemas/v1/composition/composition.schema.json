@@ -52,15 +52,7 @@
             "description": "An array of tuning specifications, where each one allows a scale to be mapped to a keyboard tuning.",
             "items": { "$ref": "#/$defs/tuningSpec" }
         },
-        "globalFill": {
-            "allOf": [
-                {
-                    "title": "Global Fill",
-                    "description": "Fallback tuning to be used for unused keyboard keys.\nIt is applied globally, for all tunings that have unused keys, by using the tuning values. If this fallback itself, does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with a deviation of 0 cents). If the defaultFill is not provided, unused keys will use the standard 12-EDO tuning."
-                },
-                { "$ref": "#/$defs/tuningSpec" }
-            ]
-        },
+        "fill": { "$ref": "#/$defs/fill" },
         "tuningReducer": { "$ref": "tuningReducer.schema.json" },
         "settings": {
             "type": "object",
@@ -139,6 +131,49 @@
                     "pattern": "^#[\\w\\-_]+$"
                 }
             ]
+        },
+        "fill": {
+            "type": "object",
+            "title": "Fill",
+            "description": "The fill controls the way missing pitch class tuning values are filled in cases where they are not explicitly provided by scales. There are multiple kinds of fills:\n- \"Local fill\": applies tuning values from tunings in spatial or temporal proximity. Spatial proximity refers to tunings that are close in the sequence, while temporal proximity to tunings that were recently applied. There are multiple kinds/strategies of local fill:\n    - \"Back-fill\": applies tuning values spatially that come from preceding tunings from the sequence.\n    - \"Fore-fill\": applies tuning values spatially that come from succeeding tunings from the sequence.\n    - \"Memory-fill\": applies tuning values temporally that come from recently tuned tunings.\n- \"Global fill\": is applied in the end after all other local fill strategies have been applied and attempts to fill the gaps with a custom tuning from a given global fill scale.",
+            "properties": {
+                "local": {
+                    "type": "object",
+                    "title": "Local Fill",
+                    "description": "Local fill applies tuning values from tunings in spatial or temporal proximity.",
+                    "properties": {
+                        "backFillEnabled": {
+                            "type": "boolean",
+                            "title": "Back-fill Enabled",
+                            "description": "Indicates whether local back-fill is enabled, which applies tuning values spatially that come from preceding tunings from the sequence.",
+                            "default": true
+                        },
+                        "foreFillEnabled": {
+                            "type": "boolean",
+                            "title": "Fore-fill Enabled",
+                            "description": "Indicates whether local fore-fill is enabled, which applies tuning values spatially that come from succeeding tunings from the sequence.",
+                            "default": true
+                        },
+                        "memoryFillEnabled": {
+                            "type": "boolean",
+                            "title": "Memory-fill Enabled",
+                            "description": "Indicates whether local memory-fill is enabled, which applies tuning values temporally that come from recently tuned tunings.",
+                            "default": false
+                        }
+                    },
+                    "unevaluatedProperties": false
+                },
+                "global": {
+                    "allOf": [
+                        { "$ref": "#/$defs/tuningSpec" },
+                        {
+                            "title": "Global Fill",
+                            "description": "A tuning spec for the global fill, which is applied in the end after all other local fill strategies have been applied and attempts to fill the gaps with a custom tuning from a given global fill scale. If this tuning spec does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with a deviation of 0 cents). If the global fill is not provided, unused keys will use the standard 12-EDO tuning."
+                        }
+                    ]
+                }
+            },
+            "unevaluatedProperties": false
         }
     }
 }

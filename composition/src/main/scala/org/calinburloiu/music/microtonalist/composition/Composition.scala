@@ -57,28 +57,30 @@ case class TuningSpec(transposition: Interval,
 /**
  * Specifies the configuration for local fill strategies in tuning sequence.
  *
- * @param foreFillEnabled   Indicates whether local fore-fill is enabled. Defaults to `true`.
  * @param backFillEnabled   Indicates whether local back-fill functionality is enabled. Defaults to `true`.
+ * @param foreFillEnabled   Indicates whether local fore-fill is enabled. Defaults to `true`.
  * @param memoryFillEnabled Indicates whether local memory-fill functionality is enabled. Defaults to `false`.
  * @see [[FillSpec]] for details about filling in general or local filling strategies in particular.
  */
-case class LocalFillSpec(foreFillEnabled: Boolean = true,
-                         backFillEnabled: Boolean = true,
+case class LocalFillSpec(backFillEnabled: Boolean = true,
+                         foreFillEnabled: Boolean = true,
                          memoryFillEnabled: Boolean = false)
 
 /**
  * Specifies filling configuration for the tunings used in the composition.
  *
- * Global and local specifications control the way missing tunings, values are filled in cases where they are not
- * explicitly provided by scales.
+ * The fill controls the way missing tuning values are filled in cases where they are not explicitly provided by scales.
+ *
+ * There are multiple kinds of fills:
  *
  *   - ''Local fill'': applies tuning values from tunings in spatial or temporal proximity. Spatial proximity refers to
- *     tunings that are close in the sequence, while temporal proximity to tunings that were recently applied. There are multiple kinds/strategies of local fill:
+ *     tunings that are close in the sequence, while temporal proximity to tunings that were recently applied. There
+ *     are multiple kinds/strategies of local fill:
  *       1. ''Back-fill'': applies tuning values spatially that come from preceding tunings from the sequence.
  *       1. ''Fore-fill'': applies tuning values spatially that come from succeeding tunings from the sequence.
- *       1. ''Memory fill'': applies tuning values temporally that come from recently tuned tunings.
- *   - ''Global fill'': is applied in the end after all other local strategies has been applied and attempts to fill
- *   the gaps with a custom tuning from a given global fill scale.
+ *       1. ''Memory-fill'': applies tuning values temporally that come from recently tuned tunings.
+ *   - ''Global fill'': is applied in the end after all other local strategies have been applied and attempts to fill
+ *     the gaps with a custom tuning from a given global fill scale.
  *
  * Filling Attempts to minimize the number of notes retuned when switching to another tuning. When one plays a
  * piano with sustain pedal and the tuning is changed, a large number of notes retuned could result in an unwanted
