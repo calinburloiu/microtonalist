@@ -26,16 +26,16 @@ import org.calinburloiu.music.intonation._
  *                           keyboard instrument.
  * @param tuningSpecs        A sequence of specifications that defines each tuning based on scales.
  * @param tuningReducer      Strategy for reducing the number of tunings by merging them together.
- * @param globalFill         Specification for a tuning that should be used as a fallback for the unused pitch
- *                           classes of the keyboard instrument.
+ * @param fill               Specifies filling configuration for the tunings used in the composition.
  * @param metadata           Additional information about the composition.
  */
 case class Composition(intonationStandard: IntonationStandard,
                        tuningReference: TuningReference,
                        tuningSpecs: Seq[TuningSpec],
                        tuningReducer: TuningReducer,
-                       globalFill: Option[TuningSpec] = None,
+                       fill: FillSpec = FillSpec(),
                        metadata: Option[CompositionMetadata] = None)
+
 
 /**
  * Defines a tuning based on a scale.
@@ -52,6 +52,46 @@ case class TuningSpec(transposition: Interval,
     tuningMapper.mapScale(scale, ref, transposition)
   }
 }
+
+
+/**
+ * Specifies the configuration for local fill strategies in tuning sequence.
+ *
+ * @param foreFillEnabled   Indicates whether local fore-fill is enabled. Defaults to `true`.
+ * @param backFillEnabled   Indicates whether local back-fill functionality is enabled. Defaults to `true`.
+ * @param memoryFillEnabled Indicates whether local memory-fill functionality is enabled. Defaults to `false`.
+ * @see [[FillSpec]] for details about filling in general or local filling strategies in particular.
+ */
+case class LocalFillSpec(foreFillEnabled: Boolean = true,
+                         backFillEnabled: Boolean = true,
+                         memoryFillEnabled: Boolean = false)
+
+/**
+ * Specifies filling configuration for the tunings used in the composition.
+ *
+ * Global and local specifications control the way missing tunings, values are filled in cases where they are not
+ * explicitly provided by scales.
+ *
+ *   - ''Local fill'': applies tuning values from tunings in spatial or temporal proximity. Spatial proximity refers to
+ *     tunings that are close in the sequence, while temporal proximity to tunings that were recently applied. There are multiple kinds/strategies of local fill:
+ *       1. ''Back-fill'': applies tuning values spatially that come from preceding tunings from the sequence.
+ *       1. ''Fore-fill'': applies tuning values spatially that come from succeeding tunings from the sequence.
+ *       1. ''Memory fill'': applies tuning values temporally that come from recently tuned tunings.
+ *   - ''Global fill'': is applied in the end after all other local strategies has been applied and attempts to fill
+ *   the gaps with a custom tuning from a given global fill scale.
+ *
+ * Filling Attempts to minimize the number of notes retuned when switching to another tuning. When one plays a
+ * piano with sustain pedal and the tuning is changed, a large number of notes retuned could result in an unwanted
+ * effect.
+ *
+ * @param global Specification for a tuning that should be used as a final fallback for the unused pitch classes of
+ *               the keyboard instrument for all tunings from the sequence.
+ * @param local  A configuration that specifies local filling strategies, such as enabling or disabling fore-fill,
+ *               back-fill, or memory-based fill.
+ */
+case class FillSpec(local: LocalFillSpec = LocalFillSpec(),
+                    global: Option[TuningSpec] = None)
+
 
 /**
  * Metadata object used for additional information about a Microtonalist app composition file.
