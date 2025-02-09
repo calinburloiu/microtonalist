@@ -78,7 +78,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tuningSpecs.head.scale shouldEqual CentsScale("maj-5", 0, 204, 386, 498, 702)
 
     // Uses a default name when no name is in context for an inline scale
-    composition.globalFill.map(_.scale.name) should contain("")
+    composition.fill.global.map(_.scale.name) should contain("")
   }
 
   it should "successfully read 72-EDO intervals in 72-EDO intonation standard" in {
@@ -110,8 +110,8 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   it should "successfully read a valid composition file" in {
     val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
 
-    composition.globalFill.map(_.scale) should contain(chromaticScale)
-    composition.globalFill.map(_.transposition) should contain(1 /: 1)
+    composition.fill.global.map(_.scale) should contain(chromaticScale)
+    composition.fill.global.map(_.transposition) should contain(1 /: 1)
     composition.tuningReference.basePitchClass.number shouldEqual 2
 
     composition.tuningSpecs.head.scale shouldEqual naturalMinorScale

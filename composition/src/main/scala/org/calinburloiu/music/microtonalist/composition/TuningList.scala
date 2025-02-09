@@ -35,7 +35,7 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 object TuningList extends StrictLogging {
 
   def fromComposition(composition: Composition): TuningList = {
-    val globalFillTuning = composition.globalFill.map(_.tuningFor(composition.tuningReference))
+    val globalFillTuning = composition.fill.global.map(_.tuningFor(composition.tuningReference))
       .getOrElse(PartialTuning.StandardTuningOctave)
     val partialTunings = composition.tuningSpecs.map(_.tuningFor(composition.tuningReference))
 

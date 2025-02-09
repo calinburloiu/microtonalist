@@ -79,6 +79,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
         tuningSpecReprReadsFor(context.intonationStandard, context.settings)
       implicit val tuningReducerReads: Reads[TuningReducer] = JsonTuningReducerPluginFormat
         .readsWithRootGlobalSettings(context.settings)
+      implicit val localFillSpecReprReads: Reads[LocalFillSpecRepr] = Json.using[Json.WithDefaultValues]
+        .reads[LocalFillSpecRepr]
+      implicit val fillSpecReprReads: Reads[FillSpecRepr] = Json.using[Json.WithDefaultValues].reads[FillSpecRepr]
       implicit val compositionReprReads: Reads[CompositionRepr] = Json.using[Json.WithDefaultValues]
         .reads[CompositionRepr]
 
@@ -107,17 +110,29 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       TuningSpec(transposition, scale, tuningMapper)
     }
 
+    def convertFillSpec(fillSpecRepr: FillSpecRepr): FillSpec = {
+      val globalFillTuningSpec = fillSpecRepr.global.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
+
+      val localFillSpec = LocalFillSpec(
+        fillSpecRepr.local.foreFillEnabled,
+        fillSpecRepr.local.backFillEnabled,
+        fillSpecRepr.local.memoryFillEnabled,
+      )
+
+      FillSpec(localFillSpec, globalFillTuningSpec)
+    }
+
     val tuningReference = compositionRepr.tuningReference
     val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
-    val globalFill = compositionRepr.globalFill.map { globalFillRepr => convertTuningSpec(globalFillRepr) }
+    val fillSpec = convertFillSpec(compositionRepr.fill)
 
     Composition(
       intonationStandard = context.intonationStandard,
       tuningReference = tuningReference,
       tuningSpecs = tuningSpecs,
       tuningReducer = tuningReducer,
-      globalFill = globalFill,
+      fill = fillSpec,
       metadata = compositionRepr.metadata
     )
   }
@@ -166,6 +181,6 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 object JsonCompositionFormat {
   private val DefaultScaleName: String = ""
 
-  private[JsonCompositionFormat] implicit val metadataReads: Reads[CompositionMetadata] =
+  private implicit val metadataReads: Reads[CompositionMetadata] =
     Json.reads[CompositionMetadata]
 }

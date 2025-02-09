@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.composition.{CompositionMetadata, TuningMapper, TuningReducer, TuningReference}
+import org.calinburloiu.music.microtonalist.composition._
 import play.api.libs.json.{JsNull, JsObject, JsValue}
 
 import java.net.URI
@@ -32,7 +32,7 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
                            tuningReference: TuningReference,
                            tunings: Seq[TuningSpecRepr],
                            tuningReducer: Option[TuningReducer] = None,
-                           globalFill: Option[TuningSpecRepr]) {
+                           fill: FillSpecRepr = FillSpecRepr()) {
 
   var context: CompositionFormatContext = _
 
@@ -57,13 +57,24 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
       futures += tuningSpec.scale.load(scaleLoader)
     }
 
-    for (globalFillValue <- globalFill) {
+    for (globalFillValue <- fill.global) {
       futures += globalFillValue.scale.load(scaleLoader)
     }
 
     Future.sequence(futures).map(_ => this)
   }
 }
+
+case class LocalFillSpecRepr(foreFillEnabled: Boolean = true,
+                             backFillEnabled: Boolean = true,
+                             memoryFillEnabled: Boolean = false) {
+  if (!foreFillEnabled || !backFillEnabled || memoryFillEnabled) {
+    throw new NotImplementedError("foreFillEnabled, backFillEnabled and memoryFillEnabled are not supported yet!")
+  }
+}
+
+case class FillSpecRepr(local: LocalFillSpecRepr = LocalFillSpecRepr(),
+                        global: Option[TuningSpecRepr] = None)
 
 case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], URI]] = Map())
 

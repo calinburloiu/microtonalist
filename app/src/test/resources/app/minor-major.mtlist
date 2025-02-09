@@ -3,9 +3,11 @@
   "tuningReference": {
     "basePitchClass": 2
   },
-  "globalFill": {
-    "transposition": "1/1",
-    "scale": "scales/chromatic.scl"
+  "fill": {
+    "global": {
+      "transposition": "1/1",
+      "scale": "scales/chromatic.scl"
+    }
   },
   "tuningReducer": "merge",
   "tunings": [
