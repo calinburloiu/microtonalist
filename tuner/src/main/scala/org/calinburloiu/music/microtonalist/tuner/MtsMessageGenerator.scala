@@ -27,39 +27,82 @@ sealed trait MtsMessageGenerator {
 
 abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
                                          val isIn2ByteForm: Boolean) extends MtsMessageGenerator {
-  val minTuningValue: Int = if (isIn2ByteForm) -8192 else -64
-  val maxTuningValue: Int = if (isIn2ByteForm) 8191 else 63
+
+  import MtsMessageGenerator._
+
+  private val minTuningOutputValue: Int = if (isIn2ByteForm) -8192 else -64
+  private val maxTuningOutputValue: Int = if (isIn2ByteForm) 8191 else 63
+
+  private val realTimeByte: Byte = if (isRealTime) 0x7F.toByte else 0x7E.toByte
+  private val deviceId: Byte = HeaderByte_AllDevices
+  private val form: Byte = if (isIn2ByteForm) 0x09.toByte else 0x08.toByte
+  private val byteCount = if (isIn2ByteForm) 33 else 21
+  private val putTuningValue: (ByteBuffer, Double) => Unit = if (isIn2ByteForm) {
+    put2ByteTuningValue
+  } else {
+    put1ByteTuningValue
+  }
+
+  private val headerBytes: Array[Byte] = Array(
+    SysexMessage.SYSTEM_EXCLUSIVE.toByte,
+    realTimeByte,
+    deviceId,
+    HeaderByte_Mts,
+    form
+  )
+
+  override def generate(tuning: OctaveTuning): SysexMessage = {
+    val buffer = ByteBuffer.allocate(byteCount)
+
+    // # Header
+    buffer.put(headerBytes)
+    buffer.put(MtsOctaveMessageGenerator.HeaderBytes_AllChannels)
+
+    // # Tuning Values
+    for (tuningValue <- tuning.deviations) {
+      putTuningValue(buffer, tuningValue)
+    }
+
+    // # Footer
+    buffer.put(ShortMessage.END_OF_EXCLUSIVE.toByte)
+
+    val data = buffer.array()
+    val sysexMessage = new SysexMessage(data, data.length)
+
+    sysexMessage
+  }
+
+  private[tuner] def put1ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
+    val nTuningValue = Math.min(Math.max(minTuningOutputValue, tuningValue.round.toInt), maxTuningOutputValue)
+    // Subtracting the min value to make the byte value 0 for it
+    val tuningValueByte = (nTuningValue - minTuningOutputValue).toByte
+
+    buffer.put(tuningValueByte)
+  }
+
+  private[tuner] def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
+    ???
+  }
+}
+
+private[tuner] object MtsOctaveMessageGenerator {
+  private val HeaderBytes_AllChannels: Array[Byte] = Array(0x03.toByte, 0x7F.toByte, 0x7F.toByte)
 }
 
 object MtsMessageGenerator {
 
-  case object Octave1ByteNonRealTime extends MtsOctaveMessageGenerator(
-    isRealTime = false, isIn2ByteForm = false) {
+  private[tuner] val HeaderByte_AllDevices: Byte = 0x7F.toByte
+  private[tuner] val HeaderByte_Mts: Byte = 0x08.toByte
 
-    private val headerBytes: Array[Byte] = Array(SysexMessage.SYSTEM_EXCLUSIVE.toByte, 0x7E, 0x7F, 0x08, 0x08)
-      .map(_.toByte)
-    private val allChannelsBytes: Array[Byte] = Array(0x03, 0x7F, 0x7F).map(_.toByte)
+  case object Octave1ByteNonRealTime
+    extends MtsOctaveMessageGenerator(isRealTime = false, isIn2ByteForm = false)
 
-    override def generate(tuning: OctaveTuning): SysexMessage = {
-      val tuningValuesBytes: Array[Byte] = tuning.deviations.map { noteTuning =>
-        val nNoteTuning = Math.min(Math.max(minTuningValue, noteTuning.round.toInt), maxTuningValue)
+  case object Octave2ByteNonRealTime
+    extends MtsOctaveMessageGenerator(isRealTime = false, isIn2ByteForm = true)
 
-        // Subtracting the min value to make the byte value 0 for it
-        (nNoteTuning - minTuningValue).toByte
-      }.toArray
+  case object Octave1ByteRealTime
+    extends MtsOctaveMessageGenerator(isRealTime = true, isIn2ByteForm = false)
 
-      val buffer = ByteBuffer.allocate(21)
-
-      buffer.put(headerBytes)
-      buffer.put(allChannelsBytes)
-      buffer.put(tuningValuesBytes)
-      buffer.put(ShortMessage.END_OF_EXCLUSIVE.toByte)
-
-      val data = buffer.array()
-
-      val sysexMessage = new SysexMessage(data, data.length)
-
-      sysexMessage
-    }
-  }
+  case object Octave2ByteRealTime
+    extends MtsOctaveMessageGenerator(isRealTime = true, isIn2ByteForm = true)
 }
