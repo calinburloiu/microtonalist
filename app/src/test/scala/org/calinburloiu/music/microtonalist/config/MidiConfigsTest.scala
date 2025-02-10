@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import org.calinburloiu.music.microtonalist.tuner.{MtsTuningFormat, TunerType}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -81,8 +80,7 @@ class MidiOutputConfigTest extends SubConfigTest[MidiOutputConfig, MidiOutputCon
       MidiDeviceId("FP-90", "Roland"),
       MidiDeviceId("P-125", "Yamaha")
     ),
-    tunerType = TunerType.Mts,
-    mtsTuningFormat = MtsTuningFormat.NonRealTime1BOctave,
+    tunerType = TunerType.MtsOctave1ByteNonRealTime,
     pitchBendSensitivity = PitchBendSensitivity.Default
   )
 

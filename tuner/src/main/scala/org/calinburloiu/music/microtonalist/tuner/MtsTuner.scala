@@ -18,25 +18,24 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.tuner.MtsTuner.DefaultThru
 
 import javax.sound.midi.MidiMessage
 
 /**
  * MIDI Tuning Standard (MTS) `Tuner` implementation.
  *
- * @param tuningFormat One of the MTS formats supported.
+ * @param mtsMessageGenerator Used for generating SysEx MIDI message for MTS
  * @param thru         Whether to redirect input messages to the output. Note that this can be false because MTS
  *                     sends SysEx
  *                     MIDI messages that change the tuning for a batch of notes.
  */
-class MtsTuner(val tuningFormat: MtsTuningFormat,
-               val thru: Boolean) extends Tuner with StrictLogging {
-
-  private val tuningMessageGenerator = tuningFormat.messageGenerator
+abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
+                        val thru: Boolean = DefaultThru) extends Tuner with StrictLogging {
 
   @throws[TunerException]
   override def tune(tuning: OctaveTuning): Unit = {
-    val sysexMessage = tuningMessageGenerator.generate(tuning)
+    val sysexMessage = mtsMessageGenerator.generate(tuning)
     // TODO Handle the try differently
     try {
       receiver.send(sysexMessage, -1)
@@ -68,4 +67,15 @@ class MtsTuner(val tuningFormat: MtsTuningFormat,
     tune(OctaveTuning.Edo12)
     logger.info("Disconnected the MTS tuner.")
   }
+}
+
+object MtsTuner {
+  val DefaultThru: Boolean = false
+}
+
+
+case class MtsOctave1ByteNonRealTimeTuner(override val thru: Boolean = DefaultThru)
+  extends MtsTuner(MtsMessageGenerator.Octave1ByteNonRealTime, thru) {
+
+  override val typeName: String = "mtsOctave1ByteNonRealTimeTuner"
 }

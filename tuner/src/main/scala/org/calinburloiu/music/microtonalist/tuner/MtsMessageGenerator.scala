@@ -21,18 +21,20 @@ import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
 
-// TODO #64 Rename to MtsMessageGenerator. Each MtsTunerType implementation must provide a generator.
-
-/**
- * @see [[MtsTuningFormat]]
- */
-sealed trait MidiTuningMessageGenerator {
+sealed trait MtsMessageGenerator {
   def generate(tuning: OctaveTuning): SysexMessage
 }
 
-object MidiTuningMessageGenerator {
+abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
+                                         val isIn2ByteForm: Boolean) extends MtsMessageGenerator {
+  val minTuningValue: Int = if (isIn2ByteForm) -8192 else -64
+  val maxTuningValue: Int = if (isIn2ByteForm) 8191 else 63
+}
 
-  case object NonRealTime1BOctave extends MidiTuningMessageGenerator {
+object MtsMessageGenerator {
+
+  case object Octave1ByteNonRealTime extends MtsOctaveMessageGenerator(
+    isRealTime = false, isIn2ByteForm = false) {
 
     private val headerBytes: Array[Byte] = Array(SysexMessage.SYSTEM_EXCLUSIVE.toByte, 0x7E, 0x7F, 0x08, 0x08)
       .map(_.toByte)
@@ -40,9 +42,10 @@ object MidiTuningMessageGenerator {
 
     override def generate(tuning: OctaveTuning): SysexMessage = {
       val tuningValuesBytes: Array[Byte] = tuning.deviations.map { noteTuning =>
-        val nNoteTuning = Math.min(Math.max(-64, noteTuning.round.toInt), 63)
+        val nNoteTuning = Math.min(Math.max(minTuningValue, noteTuning.round.toInt), maxTuningValue)
 
-        (0x40 + nNoteTuning).toByte
+        // Subtracting the min value to make the byte value 0 for it
+        (nNoteTuning - minTuningValue).toByte
       }.toArray
 
       val buffer = ByteBuffer.allocate(21)
@@ -59,5 +62,4 @@ object MidiTuningMessageGenerator {
       sysexMessage
     }
   }
-
 }

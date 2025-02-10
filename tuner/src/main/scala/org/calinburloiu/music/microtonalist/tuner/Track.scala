@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils.TuningExtension
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
 import java.util.UUID
@@ -58,7 +59,10 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
    *
    * @param tuning The tuning to be applied.
    */
-  def tune(tuning: OctaveTuning): Unit = tuner.tune(tuning)
+  def tune(tuning: OctaveTuning): Unit = {
+    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
+    tuner.tune(tuning)
+  }
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
 

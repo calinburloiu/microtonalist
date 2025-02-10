@@ -157,9 +157,9 @@ object MicrotonalistApp extends StrictLogging {
   private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
     logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
     midiOutputConfig.tunerType match {
-      case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
-      case TunerType.MonophonicPitchBend => new MonophonicPitchBendTuner(
-        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity) with LoggerTuner
+      case TunerType.MtsOctave1ByteNonRealTime => MtsOctave1ByteNonRealTimeTuner(midiInputConfig.thru)
+      case TunerType.MonophonicPitchBend => MonophonicPitchBendTuner(
+        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity)
       case _ => throw AppConfigException(s"Invalid tunerType ${midiOutputConfig.tunerType} in config!")
     }
   }

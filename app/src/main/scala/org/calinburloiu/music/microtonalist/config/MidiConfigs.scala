@@ -19,12 +19,10 @@ package org.calinburloiu.music.microtonalist.config
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.microtonalist.tuner.{MtsTuningFormat, TunerType}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
                             tunerType: TunerType,
-                            mtsTuningFormat: MtsTuningFormat,
                             pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default,
                             ccParams: Map[Int, Int] = Map.empty)
   extends Configured
@@ -48,15 +46,13 @@ class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
     hoconConfig
       .withAnyRefValue(PropDevices, devices)
       .withAnyRefValue(PropTunerType, config.tunerType.toString)
-      .withAnyRefValue(PropMtsTuningFormat, config.mtsTuningFormat.toString)
       .withAnyRefValue(PropPitchBendSensitivity, pitchBendSensitivity)
       .withAnyRefValue(PropCcParams, ccParams)
   }
 
   override protected def deserialize(hoconConfig: Config): MidiOutputConfig = MidiOutputConfig(
     devices = hoconConfig.as[Seq[MidiDeviceId]](PropDevices),
-    tunerType = TunerType.withNameInsensitive(hoconConfig.as[String](PropTunerType)),
-    mtsTuningFormat = MtsTuningFormat.withNameInsensitive(hoconConfig.as[String](PropMtsTuningFormat)),
+    tunerType = TunerType.withName(hoconConfig.as[String](PropTunerType)),
     pitchBendSensitivity = hoconConfig.getAs[PitchBendSensitivity](PropPitchBendSensitivity)
       .getOrElse(PitchBendSensitivity.Default),
     ccParams = CcParam.toMap(hoconConfig.getAs[Seq[CcParam]](PropCcParams).getOrElse(Seq.empty))
@@ -68,7 +64,6 @@ object MidiOutputConfigManager {
 
   val PropDevices = "devices"
   val PropTunerType = "tunerType"
-  val PropMtsTuningFormat = "mtsTuningFormat"
   val PropPitchBendSensitivity = "pitchBendSensitivity"
   val PropCcParams = "ccParams"
 }
@@ -122,6 +117,28 @@ class MidiInputConfigManager(mainConfigManager: MainConfigManager)
 
 object MidiInputConfigManager {
   val configRootPath = "input.midi"
+}
+
+@deprecated("To be removed with MIDI HOCON config support")
+sealed trait TunerType
+
+/**
+ * Tuner type to be used based on input/output device capabilities.
+ */
+object TunerType {
+  /** Tuner that sends system exclusive MIDI Tuning Standard (MIDI 1.0) messages. */
+  case object MtsOctave1ByteNonRealTime extends TunerType
+
+  /** Tuner that only allows monophonic playing by sending pitch bend values to tune notes. */
+  case object MonophonicPitchBend extends TunerType
+
+  def withName(name: String): TunerType = {
+    name match {
+      case "MtsOctave1ByteNonRealTime" => MtsOctave1ByteNonRealTime
+      case "MonophonicPitchBend" => MonophonicPitchBend
+      case _ => throw new IllegalArgumentException(s"Unknown tuner type: $name")
+    }
+  }
 }
 
 case class CcTriggers(enabled: Boolean = false,

@@ -30,9 +30,12 @@ import scala.collection.mutable
  * @param outputChannel        Output MIDI channel on which all output is sent, regardless on the input channels used.
  * @param pitchBendSensitivity Pitch bend range that will be configured via Pitch Bend Sensitivity MIDI RPN.
  */
-class MonophonicPitchBendTuner(private val outputChannel: Int,
-                               val pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
+case class MonophonicPitchBendTuner(outputChannel: Int,
+                                    pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
   extends Tuner with StrictLogging {
+
+  override val typeName: String = "monophonicPitchBendTuner"
+
   private[this] var _currTuning: OctaveTuning = OctaveTuning.Edo12
 
   private[this] val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
