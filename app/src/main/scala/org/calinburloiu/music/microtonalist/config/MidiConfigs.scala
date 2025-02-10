@@ -129,13 +129,22 @@ object TunerType {
   /** Tuner that sends system exclusive MIDI Tuning Standard (MIDI 1.0) messages. */
   case object MtsOctave1ByteNonRealTime extends TunerType
 
+  case object MtsOctave2ByteNonRealTime extends TunerType
+
+  case object MtsOctave1ByteRealTime extends TunerType
+
+  case object MtsOctave2ByteRealTime extends TunerType
+
   /** Tuner that only allows monophonic playing by sending pitch bend values to tune notes. */
   case object MonophonicPitchBend extends TunerType
 
   def withName(name: String): TunerType = {
     name match {
-      case "MtsOctave1ByteNonRealTime" => MtsOctave1ByteNonRealTime
-      case "MonophonicPitchBend" => MonophonicPitchBend
+      case "MtsOctave1ByteNonRealTime" => TunerType.MtsOctave1ByteNonRealTime
+      case "MtsOctave2ByteNonRealTime" => TunerType.MtsOctave2ByteNonRealTime
+      case "MtsOctave1ByteRealTime" => TunerType.MtsOctave1ByteRealTime
+      case "MtsOctave2ByteRealTime" => TunerType.MtsOctave2ByteRealTime
+      case "MonophonicPitchBend" => TunerType.MonophonicPitchBend
       case _ => throw new IllegalArgumentException(s"Unknown tuner type: $name")
     }
   }

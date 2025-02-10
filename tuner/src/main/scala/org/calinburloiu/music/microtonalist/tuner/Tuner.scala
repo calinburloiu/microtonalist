@@ -27,9 +27,30 @@ import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiProcessor}
 trait Tuner extends Plugin with MidiProcessor {
   override val familyName: String = FamilyName
 
-  val alternativeTuningOutputDevice: Option[MidiDeviceId] = None
+  /**
+   * Optional MIDI output identifier for an alternative MIDI output device designated for sending the MIDI tuning
+   * messages.
+   *
+   * If specified, this device will be used exclusively for tuning operations instead of the actual MIDI output. If
+   * not, the actual MIDI output will be used.
+   *
+   * Note that there are [[Tuner]]s for which setting this to [[Some]] value doesn't make sense, because in their
+   * case tuning values alone do not have any effect without the other messages. This is the case for tuners that use
+   * pitch bend.
+   */
+  val altTuningOutput: Option[MidiDeviceId] = None
 
+  /**
+   * Tunes the output instrument using the specified octave tuning.
+   *
+   * @param tuning The tuning instance that specifies the name and deviation in cents for each
+   *               of the 12 pitch classes in the octave.
+   */
   def tune(tuning: OctaveTuning): Unit
+
+  override protected def onDisconnect(): Unit = {
+    tune(OctaveTuning.Edo12)
+  }
 }
 
 object Tuner {

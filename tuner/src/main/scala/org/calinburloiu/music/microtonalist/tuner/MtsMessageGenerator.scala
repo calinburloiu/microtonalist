@@ -32,7 +32,6 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
 
   private val minTuningOutputValue: Int = if (isIn2ByteForm) -8192 else -64
   private val maxTuningOutputValue: Int = if (isIn2ByteForm) 8191 else 63
-
   private val realTimeByte: Byte = if (isRealTime) 0x7F.toByte else 0x7E.toByte
   private val deviceId: Byte = HeaderByte_AllDevices
   private val form: Byte = if (isIn2ByteForm) 0x09.toByte else 0x08.toByte
@@ -72,7 +71,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     sysexMessage
   }
 
-  private[tuner] def put1ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
+  private def put1ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
     val nTuningValue = Math.min(Math.max(minTuningOutputValue, tuningValue.round.toInt), maxTuningOutputValue)
     // Subtracting the min value to make the output value 0 for it
     val tuningValueByte = (nTuningValue - minTuningOutputValue).toByte
@@ -80,7 +79,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     buffer.put(tuningValueByte)
   }
 
-  private[tuner] def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
+  private def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
     val scaledTuningValue = -minTuningOutputValue / 100.0 * tuningValue
     val nScaledTuningValue = Math.min(
       Math.max(minTuningOutputValue, scaledTuningValue.round.toInt), maxTuningOutputValue)
