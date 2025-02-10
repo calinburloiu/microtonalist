@@ -18,10 +18,10 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.sun.media.sound.SoftTuning
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-import javax.sound.midi.SysexMessage
 import scala.language.implicitConversions
 
 /**
@@ -36,22 +36,38 @@ import scala.language.implicitConversions
  */
 class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
 
-  def getTuning(sysexMessage: SysexMessage): Array[Double] = {
+  private val tuning = OctaveTuning("Just 12",
+    Seq(0.1, 11.73, 3.91, 15.64, -13.69, -1.96, -17.49, 1.96, 13.69, -15.64, -31.18, -11.73))
+  private val expected1ByteDeviations: Seq[Double] = Array(
+    0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, 14.0, -16.0, -31.0, -12.0)
+
+  private val epsilon: Double = 2e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
+  def assertTuning(messageGenerator: MtsMessageGenerator, expectedDeviations: Seq[Double]): Unit = {
+    val sysexMessage = messageGenerator.generate(tuning)
     val data = sysexMessage.getMessage
     val softTuning = new SoftTuning(data)
+    val tuningValues = softTuning.getTuning
 
-    softTuning.getTuning
+    for (i <- tuningValues.indices) {
+      (tuningValues(i) - 100 * i) shouldEqual expectedDeviations(i % 12)
+    }
   }
 
   test("Octave1ByteNonRealTime") {
-    val tuning = OctaveTuning("t", 0.1, 0.9, 2.4, 3.0, 4.2, 4.6, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0)
-    val expectedTuning = OctaveTuning("t", 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0)
-    val messageGenerator = MtsMessageGenerator.Octave1ByteNonRealTime
-    messageGenerator should be theSameInstanceAs MtsMessageGenerator.Octave1ByteNonRealTime
+    assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteDeviations)
+  }
 
-    val tuningValues = getTuning(messageGenerator.generate(tuning))
-    for (i <- tuningValues.indices) {
-      assert(tuningValues(i) - 100 * i === expectedTuning.deviations(i % 12))
-    }
+  test("Octave2ByteNonRealTime") {
+    assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.deviations)
+  }
+
+  test("Octave1ByteRealTime") {
+    assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteDeviations)
+  }
+
+  test("Octave2ByteRealTime") {
+    assertTuning(MtsMessageGenerator.Octave2ByteRealTime, tuning.deviations)
   }
 }

@@ -74,14 +74,23 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
 
   private[tuner] def put1ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
     val nTuningValue = Math.min(Math.max(minTuningOutputValue, tuningValue.round.toInt), maxTuningOutputValue)
-    // Subtracting the min value to make the byte value 0 for it
+    // Subtracting the min value to make the output value 0 for it
     val tuningValueByte = (nTuningValue - minTuningOutputValue).toByte
 
     buffer.put(tuningValueByte)
   }
 
   private[tuner] def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
-    ???
+    val scaledTuningValue = -minTuningOutputValue / 100.0 * tuningValue
+    val nScaledTuningValue = Math.min(
+      Math.max(minTuningOutputValue, scaledTuningValue.round.toInt), maxTuningOutputValue)
+    // Subtracting the min value to make the output value 0 for it
+    val nTuningOutputValue = nScaledTuningValue - minTuningOutputValue
+    val byte1 = (nTuningOutputValue >> 7).toByte
+    val byte2 = (nTuningOutputValue & 0x7F).toByte
+
+    buffer.put(byte1)
+    buffer.put(byte2)
   }
 }
 
