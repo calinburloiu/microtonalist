@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
 
-sealed trait MtsMessageGenerator {
+trait MtsMessageGenerator {
   def generate(tuning: OctaveTuning): SysexMessage
 }
 
