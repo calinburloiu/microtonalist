@@ -22,47 +22,40 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import javax.sound.midi.{MidiMessage, Receiver, SysexMessage}
+import javax.sound.midi.{MidiMessage, SysexMessage}
 
 class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
-    val receiver: Receiver = stub[Receiver]("Receiver")
     val sysexMessage: SysexMessage = stub[SysexMessage]("SysexMessage")
     val tuner: MtsTuner = new MtsTuner(mtsMessageGenerator, thru) {
       override val typeName: String = "test"
     }
 
     (mtsMessageGenerator.generate _).when(*).returns(sysexMessage)
-
-    tuner.receiver = receiver
   }
 
-  "MtsTuner" should "tune by sending the generated SysEx MTS message to the receiver" in new Fixture {
+  "MtsTuner#tune" should "return the generated SysEx MTS message" in new Fixture {
     // When
-    tuner.tune(majTuning)
+    val result: Seq[MidiMessage] = tuner.tune(majTuning)
     // Then
     (mtsMessageGenerator.generate _).verify(majTuning).once()
-    (receiver.send _).verify(sysexMessage, *).once()
+    result shouldEqual Seq(sysexMessage)
   }
 
-  it should "forward received MIDI messages to the receiver if thru is true" in new Fixture(thru = true) {
+  "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
     // Given
     val message: MidiMessage = ScNoteOnMidiMessage(0, MidiNote.A4).javaMidiMessage
-    // When
-    tuner.send(message, 3)
     // Then
-    (receiver.send _).verify(message, 3).once()
+    tuner.process(message) shouldEqual Seq(message)
   }
 
-  it should "not forward received MIDI messages to the receiver if thru is false" in new Fixture(thru = false) {
+  it should "return the received MIDI message if thru is false" in new Fixture(thru = false) {
     // Given
     val message: MidiMessage = ScNoteOnMidiMessage(0, MidiNote.A4).javaMidiMessage
-    // When
-    tuner.send(message, 3)
     // Then
-    (receiver.send _).verify(*, *).never()
+    tuner.process(message) shouldBe empty
   }
 
   "MtsOctave1ByteNonRealTimeTuner" should "use MtsMessageGenerator.Octave1ByteNonRealTime" in {

@@ -19,12 +19,16 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.microtonalist.tuner.Tuner.FamilyName
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiProcessor}
+import org.calinburloiu.music.scmidi.MidiDeviceId
+
+import javax.annotation.concurrent.NotThreadSafe
+import javax.sound.midi.MidiMessage
 
 /**
  * Trait that can be implemented for tuning an output instrument based on a specific protocol.
  */
-trait Tuner extends Plugin with MidiProcessor {
+@NotThreadSafe
+trait Tuner extends Plugin {
   override val familyName: String = FamilyName
 
   /**
@@ -40,22 +44,27 @@ trait Tuner extends Plugin with MidiProcessor {
    */
   val altTuningOutput: Option[MidiDeviceId] = None
 
+  def init: Seq[MidiMessage] = Seq.empty
+
   /**
    * Tunes the output instrument using the specified octave tuning.
    *
    * @param tuning The tuning instance that specifies the name and deviation in cents for each
    *               of the 12 pitch classes in the octave.
    */
-  def tune(tuning: OctaveTuning): Unit
+  def tune(tuning: OctaveTuning): Seq[MidiMessage]
 
-  override protected def onDisconnect(): Unit = {
-    tune(OctaveTuning.Edo12)
-  }
+  def process(message: MidiMessage): Seq[MidiMessage]
+
+  /**
+   * Resets the internal state of the tuner to its default/initial configuration.
+   *
+   * Note that it should not attempt to reset a targeting MIDI device by sending any messages, this method only
+   * refers to the internal state of this instance.
+   */
+  def reset(): Unit
 }
 
 object Tuner {
   val FamilyName: String = "tuner"
 }
-
-class TunerException(cause: Throwable) extends RuntimeException(
-  "Failed to send tune message to device! Did you disconnect the device?", cause)

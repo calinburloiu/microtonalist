@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, clampValue, mapShortMessageChannel}
 
-import javax.sound.midi.MidiMessage
+import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
 
 /**
@@ -53,65 +53,65 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private[this] var _sustainPedal: Int = 0
   private[this] var _sostenutoPedal: Int = 0
 
-  override def tune(tuning: OctaveTuning): Unit = {
-    currTuning = tuning
-    // Update pitch bend for the current sounding note
-    if (isNoteOn) {
-      sendPitchBend()
-    }
+  override def init: Seq[MidiMessage] = {
+    logger.info(s"Connected the monophonic pitch bend tuner.")
+
+    applyPitchSensitivity(pitchBendSensitivity)
   }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    val forwardedMessage = mapShortMessageChannel(message, _ => outputChannel)
+  override def tune(tuning: OctaveTuning): Seq[MidiMessage] = {
+    currTuning = tuning
+
+    // Update pitch bend for the current sounding note
+    if (isAnyNoteOn) applyPitchBend().toSeq else Seq.empty
+  }
+
+  override def process(message: MidiMessage): Seq[MidiMessage] = {
+    val forwardMessage = () => mapShortMessageChannel(message, _ => outputChannel)
+
+    val buffer = mutable.Buffer[MidiMessage]()
 
     message match {
       case ScNoteOnMidiMessage(_, note, 0) =>
-        turnNoteOff(note, 0)
+        turnNoteOff(buffer, note, 0)
       case ScNoteOnMidiMessage(_, note, velocity) =>
         // Only monophonic playing is allowed, if a note is on, turn it off
-        if (isNoteOn) {
-          sendNoteOff(lastNote, _lastNoteOffVelocity)
+        if (isAnyNoteOn) {
+          applyNoteOff(buffer, lastNote, _lastNoteOffVelocity)
         }
-        turnNoteOn(note, velocity)
+        turnNoteOn(buffer, note, velocity)
       case ScNoteOffMidiMessage(_, note, velocity) =>
-        turnNoteOff(note, velocity)
+        turnNoteOff(buffer, note, velocity)
       case ScPitchBendMidiMessage(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
-        sendPitchBend()
+        applyPitchBend(buffer)
       case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, value) =>
         _sustainPedal = value
-        receiver.send(forwardedMessage, -1)
+        buffer += forwardMessage()
       case ScCcMidiMessage(_, ScCcMidiMessage.SostenutoPedal, value) =>
         _sostenutoPedal = value
-        receiver.send(forwardedMessage, -1)
+        buffer += forwardMessage()
       case _ =>
-        receiver.send(forwardedMessage, -1)
+        buffer += forwardMessage()
     }
+
+    buffer.toSeq
   }
 
-  override protected def onConnect(): Unit = {
-    sendPitchSensitivity(pitchBendSensitivity)
-
-    logger.info(s"Connected the monophonic pitch bend tuner.")
+  override def reset(): Unit = {
+    _currTuning = OctaveTuning.Edo12
+    noteStack.clear()
+    _lastSingleNote = 0
+    _currExpressionPitchBend = 0
+    _currTuningPitchBend = 0
+    _unsentPitchBend = false
+    _lastNoteOnVelocity = ScNoteOnMidiMessage.DefaultVelocity
+    _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
+    _sustainPedal = 0
+    _sostenutoPedal = 0
   }
 
-  override protected def onDisconnect(): Unit = {
-    // Unset the pitch bend
-    val noPitchBendMessage = ScPitchBendMidiMessage(outputChannel, ScPitchBendMidiMessage.NoPitchBendValue)
-    receiver.send(noPitchBendMessage.javaMidiMessage, -1)
-
-    // Reset pitch bend sensitivity to the default value
-    sendPitchSensitivity(PitchBendSensitivity.Default)
-
-    logger.info(s"Disconnected the monophonic pitch bend tuner.")
-  }
-
-  override def close(): Unit = {
-    super.close()
-    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
-  }
-
-  private def sendPitchSensitivity(pitchBendSensitivity: PitchBendSensitivity): Unit = {
+  private def applyPitchSensitivity(pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
     Seq(
       ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
       ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
@@ -120,7 +120,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       // Setting the parameter number to Null to prevent accidental changes of values
       ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
       ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-    ).foreach { scMessage => receiver.send(scMessage.javaMidiMessage, -1) }
+    ).map(_.javaMidiMessage)
   }
 
   private def currTuning: OctaveTuning = _currTuning
@@ -137,58 +137,61 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private def lastNote: MidiNote = noteStack.headOption.getOrElse(_lastSingleNote)
 
-  private def isNoteOn: Boolean = noteStack.nonEmpty
+  private def isAnyNoteOn: Boolean = noteStack.nonEmpty
 
-  private def sendNoteOn(note: MidiNote, velocity: Int): Unit = {
-    receiver.send(ScNoteOnMidiMessage(outputChannel, note, velocity).javaMidiMessage, -1)
+  private def applyNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     _lastNoteOnVelocity = velocity
+
+    buffer += ScNoteOnMidiMessage(outputChannel, note, velocity).javaMidiMessage
   }
 
-  private def turnNoteOn(note: MidiNote, velocity: Int): Unit = {
+  private def turnNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     // Update currTuningPitchBend
     val newDeviation = currTuning(note.pitchClass)
     if (currTuning(lastNote.pitchClass) != newDeviation) {
       currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
     }
 
-    interruptPedals()
-    sendPitchBend()
-    sendNoteOn(note, velocity)
+    interruptPedals(buffer)
+    applyPitchBend(buffer)
+    applyNoteOn(buffer, note, velocity)
 
     noteStack.push(note)
   }
 
-  private def sendNoteOff(note: MidiNote, velocity: Int): Unit = {
+  private def applyNoteOff(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     if (velocity > 0) {
-      receiver.send(ScNoteOffMidiMessage(outputChannel, note, velocity).javaMidiMessage, -1)
       _lastNoteOffVelocity = velocity
+
+      buffer += ScNoteOffMidiMessage(outputChannel, note, velocity).javaMidiMessage
     } else {
-      receiver.send(ScNoteOnMidiMessage(outputChannel, note, 0).javaMidiMessage, -1)
       _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
+
+      buffer += ScNoteOnMidiMessage(outputChannel, note, 0).javaMidiMessage
     }
   }
 
-  private def turnNoteOff(note: MidiNote, velocity: Int): Unit = {
-    if (!isNoteOn) {
+  private def turnNoteOff(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
+    if (!isAnyNoteOn) {
       // Unexpected note off message! According to the internal state no note is known to be on.
       return
     }
 
     if (note == noteStack.head) {
-      sendNoteOff(note, velocity)
+      applyNoteOff(buffer, note, velocity)
 
       val oldDeviation = currTuning(lastNote.pitchClass)
       noteStack.pop()
       // Play the next note from the top of the stack if available
-      if (isNoteOn) {
+      if (isAnyNoteOn) {
         val newDeviation = currTuning(lastNote.pitchClass)
         if (oldDeviation != newDeviation) {
           currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
         }
 
-        interruptPedals()
-        sendPitchBend()
-        sendNoteOn(lastNote, _lastNoteOnVelocity)
+        interruptPedals(buffer)
+        applyPitchBend(buffer)
+        applyNoteOn(buffer, lastNote, _lastNoteOnVelocity)
       } else {
         _lastSingleNote = note
       }
@@ -202,15 +205,17 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    * Turns off and, depending on the pedal, potentially back on the pedals depressed in order to not violate monophony,
    * by stopping the sustained notes.
    */
-  private def interruptPedals(): Unit = {
+  private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
     if (_sustainPedal > 0) {
-      receiver.send(ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, 0).javaMidiMessage, -1)
-      receiver.send(ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, _sustainPedal).javaMidiMessage, -1)
+      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, 0).javaMidiMessage
+      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, _sustainPedal).javaMidiMessage
     }
+
     if (_sostenutoPedal > 0) {
       // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
-      receiver.send(ScCcMidiMessage(outputChannel, ScCcMidiMessage.SostenutoPedal, 0).javaMidiMessage, -1)
       _sostenutoPedal = 0
+
+      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SostenutoPedal, 0).javaMidiMessage
     }
   }
 
@@ -234,11 +239,24 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     ScPitchBendMidiMessage.MaxValue
   )
 
-  private def sendPitchBend(): Unit = {
+  /**
+   * Generates a pitch bend MIDI message if the pitch bend value has changed since the last call.
+   *
+   * @return An `Option` containing the newly generated `ShortMessage` with pitch bend if the pitch bend value has
+   *         changed, or `None` if there is no change.
+   */
+  private def applyPitchBend(): Option[ShortMessage] = {
     // Only send the pitch bend value if it changed since the last call
     if (_unsentPitchBend) {
-      receiver.send(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMidiMessage, -1)
       _unsentPitchBend = false
+
+      Some(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMidiMessage)
+    } else {
+      None
     }
+  }
+
+  private def applyPitchBend(buffer: mutable.Buffer[MidiMessage]): Unit = {
+    buffer ++= applyPitchBend()
   }
 }

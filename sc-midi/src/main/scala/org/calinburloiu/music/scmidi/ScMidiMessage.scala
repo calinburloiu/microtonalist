@@ -31,7 +31,7 @@ abstract class ScNoteMidiMessage(val channel: Int,
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
 
-  override def javaMidiMessage: MidiMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
+  override def javaMidiMessage: ShortMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
 
   protected val midiCommand: Int
 }

@@ -34,40 +34,12 @@ import javax.sound.midi.MidiMessage
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
                         val thru: Boolean = DefaultThru) extends Tuner with StrictLogging {
 
-  @throws[TunerException]
-  override def tune(tuning: OctaveTuning): Unit = {
-    val sysexMessage = mtsMessageGenerator.generate(tuning)
-    // TODO #64 Handle the try differently
-    try {
-      receiver.send(sysexMessage, -1)
-    } catch {
-      case e: IllegalStateException => throw new TunerException(e)
-    }
-  }
+  override def tune(tuning: OctaveTuning): Seq[MidiMessage] = Seq(mtsMessageGenerator.generate(tuning))
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    if (thru) {
-      try {
-        receiver.send(message, timeStamp)
-      } catch {
-        case e: IllegalStateException => throw new TunerException(e)
-      }
-    }
-  }
+  override def process(message: MidiMessage): Seq[MidiMessage] = if (thru) Seq(message) else Seq.empty
 
-  override def close(): Unit = {
-    super.close()
-    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
-  }
-
-  override protected def onConnect(): Unit = {
-    super.onConnect()
-    logger.info(s"Connected the MTS tuner.")
-  }
-
-  override protected def onDisconnect(): Unit = {
-    super.onDisconnect()
-    logger.info("Disconnected the MTS tuner.")
+  override def reset(): Unit = {
+    // MTS tuners do not have a mutable internal state, so there's noting to reset
   }
 }
 
