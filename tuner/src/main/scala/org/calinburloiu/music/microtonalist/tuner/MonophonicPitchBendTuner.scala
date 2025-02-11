@@ -53,11 +53,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private[this] var _sustainPedal: Int = 0
   private[this] var _sostenutoPedal: Int = 0
 
-  override def init: Seq[MidiMessage] = {
-    logger.info(s"Connected the monophonic pitch bend tuner.")
-
-    applyPitchSensitivity(pitchBendSensitivity)
-  }
+  override def init: Seq[MidiMessage] = applyPitchSensitivity(pitchBendSensitivity)
 
   override def tune(tuning: OctaveTuning): Seq[MidiMessage] = {
     currTuning = tuning

@@ -36,11 +36,8 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
   private val deviceId: Byte = HeaderByte_AllDevices
   private val form: Byte = if (isIn2ByteForm) 0x09.toByte else 0x08.toByte
   private val byteCount = if (isIn2ByteForm) 33 else 21
-  private val putTuningValue: (ByteBuffer, Double) => Unit = if (isIn2ByteForm) {
-    put2ByteTuningValue
-  } else {
-    put1ByteTuningValue
-  }
+  private val putTuningValue: (ByteBuffer, Double) => Unit =
+    if (isIn2ByteForm) put2ByteTuningValue else put1ByteTuningValue
 
   private val headerBytes: Array[Byte] = Array(
     SysexMessage.SYSTEM_EXCLUSIVE.toByte,
