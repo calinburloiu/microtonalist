@@ -44,7 +44,7 @@ trait Tuner extends Plugin {
    */
   val altTuningOutput: Option[MidiDeviceId] = None
 
-  def init: Seq[MidiMessage] = Seq.empty
+  def init(): Seq[MidiMessage] = Seq.empty
 
   /**
    * Tunes the output instrument using the specified octave tuning.

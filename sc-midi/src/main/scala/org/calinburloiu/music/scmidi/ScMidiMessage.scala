@@ -82,6 +82,8 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
     val (data1, data2) = convertValueToDataBytes(value)
     new ShortMessage(ShortMessage.PITCH_BEND, channel, data1, data2)
   }
+
+  def centsFor(pitchBendSensitivity: PitchBendSensitivity): Double = convertValueToCents(value, pitchBendSensitivity)
 }
 
 object ScPitchBendMidiMessage {
@@ -141,6 +143,11 @@ object ScPitchBendMidiMessage {
     } else { // if (value > 0)
       Math.abs(value.toDouble / MaxValue) * pitchBendSensitivity.totalCents
     }
+  }
+
+  def convertCentsDeviationToDataBytes(cents: Double, pitchBendSensitivity: PitchBendSensitivity): (Int, Int) = {
+    val value = convertCentsToValue(cents, pitchBendSensitivity)
+    convertValueToDataBytes(value)
   }
 }
 

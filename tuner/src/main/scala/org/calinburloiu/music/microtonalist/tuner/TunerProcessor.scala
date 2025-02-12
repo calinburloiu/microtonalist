@@ -39,7 +39,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   override protected def onConnect(): Unit = {
     super.onConnect()
 
-    val initMessages = tuner.init
+    val initMessages = tuner.init()
     sendToReceiver(initMessages, -1)
 
     logger.info(s"Connected the processor for tuner $tuner.")

@@ -35,9 +35,9 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
   val processMessage1: MidiMessage = ScNoteOnMidiMessage(0, 60, 64).javaMidiMessage
   val processMessage2: MidiMessage = ScPitchBendMidiMessage(0, 101).javaMidiMessage
 
-  trait Fixture {
+  abstract class Fixture(shouldConnect: Boolean = true) {
     val tuner: Tuner = stub[Tuner]
-    (() => tuner.init).when().returns(Seq(initMessage))
+    (() => tuner.init()).when().returns(Seq(initMessage))
     (tuner.tune _).when(majTuning).returns(Seq(tuneMessage1))
     (tuner.tune _).when(OctaveTuning.Edo12).returns(Seq(tuneMessage2))
     (tuner.process _).when(processMessage1).returns(Seq(processMessage1, processMessage2))
@@ -45,11 +45,20 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val receiver: Receiver = stub[Receiver]
     val processor: TunerProcessor = new TunerProcessor(tuner)
 
-    processor.receiver = receiver
+    if (shouldConnect) {
+      processor.receiver = receiver
+    }
   }
 
-  "onConnect" should "send init message" in new Fixture {
-    (receiver.send _).verify(initMessage, -1)
+  "onConnect" should "send init message after connecting" in new Fixture(shouldConnect = false) {
+    // When
+    processor.receiver = receiver
+    // Then
+    (receiver.send _).verify(initMessage, -1).once()
+  }
+
+  it should "not send init message before connecting" in new Fixture(shouldConnect = false) {
+    (receiver.send _).verify(*, *).never()
   }
 
   "tune" should "send the tune messages returned by the tuner" in new Fixture {

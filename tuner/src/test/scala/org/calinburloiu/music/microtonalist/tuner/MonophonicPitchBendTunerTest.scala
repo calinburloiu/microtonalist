@@ -29,7 +29,8 @@ import scala.collection.mutable
 class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside {
   private val inputChannel = 2
   private val outputChannel = 3
-  private val pitchBendSensitivity = PitchBendSensitivity(1)
+  private val semitonePitchBendSensitivity = PitchBendSensitivity(1)
+  private val tonePitchBendSensitivity = PitchBendSensitivity(2)
 
   //@formatter:off
   private val customTuning = OctaveTuning(
@@ -37,7 +38,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     0.0,    // C
     16.67,  // Db (~16/15 from C)
     0.0,    // D
-    -33.33, // D# (~7/6 from C
+    -33.33, // D# (~7/6 from C)
     -16.67, // E  (~5/4 from C)
     0.0,    // F
     -16.67, // F# (~7/5 from C)
@@ -57,7 +58,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   private implicit val doubleEquality: Equality[Double] =
     TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  private trait Fixture {
+  private abstract class Fixture(val pitchBendSensitivity: PitchBendSensitivity = semitonePitchBendSensitivity) {
     val tuner: MonophonicPitchBendTuner = MonophonicPitchBendTuner(outputChannel, pitchBendSensitivity)
 
     val output: mutable.Buffer[MidiMessage] = mutable.Buffer.empty
@@ -98,7 +99,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     val customPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(3, 37)
     val tuner: MonophonicPitchBendTuner = MonophonicPitchBendTuner(outputChannel, customPitchBendSensitivity)
 
-    val output = tuner.init
+    val output = tuner.init()
     output should not be empty
 
     val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
@@ -157,11 +158,12 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val result: Seq[ScPitchBendMidiMessage] = pitchBendOutput
     result should have size 3
-    result.map(_.value) should equal(Seq(
-      Math.round(-16.67 / 100 * 8192),
-      Math.round(-33.33 / 100 * 8192),
-      Math.round(16.67 / 100 * 8191)
-    ))
+
+    val expectedTuningValues: Seq[Double] = Seq(-16.67, -33.33, 16.67)
+    val tuningValues: Seq[Double] = result.map(_.centsFor(pitchBendSensitivity))
+    for (i <- tuningValues.indices) {
+      tuningValues(i) shouldEqual expectedTuningValues(i)
+    }
   }
 
   it should "not send pitch bend for consecutive notes with the same tuning" in new Fixture {
@@ -219,7 +221,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should have size 1
     inside(output.head) {
-      case ScPitchBendMidiMessage(`outputChannel`, value) => value should equal(Math.round(-45.0 / 100 * 8192))
+      case ScPitchBendMidiMessage(`outputChannel`, value) =>
+        value shouldEqual ScPitchBendMidiMessage.convertCentsToValue(-45.0, pitchBendSensitivity)
     }
   }
 
@@ -325,12 +328,12 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val expressionPitchBendCents: Double = 50
     val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
-      expressionPitchBendCents, pitchBendSensitivity)
+      expressionPitchBendCents, semitonePitchBendSensitivity)
     output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMidiMessage)
 
     output should have size 1
     pitchBendOutput should have size 1
-    ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal(
+    ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, semitonePitchBendSensitivity) should equal(
       customTuning(4) + expressionPitchBendCents)
   }
 
@@ -342,19 +345,19 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
       val expressionPitchBendCents: Double = 50
       val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
-        expressionPitchBendCents, pitchBendSensitivity)
+        expressionPitchBendCents, semitonePitchBendSensitivity)
       output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMidiMessage)
 
       output should have size 1
       pitchBendOutput should have size 1
-      ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) should equal(
+      ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, semitonePitchBendSensitivity) should equal(
         customTuning(4) + expressionPitchBendCents)
     }
 
   it should "continue adding the last pitch bend received to the one for notes of different tunings" in new Fixture {
     val expressionPitchBendCents: Double = -25
     val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
-      expressionPitchBendCents, pitchBendSensitivity)
+      expressionPitchBendCents, semitonePitchBendSensitivity)
     output ++= tuner.tune(customTuning)
     output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMidiMessage)
     output.clear()
@@ -366,7 +369,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     pitchBendOutput should have size 3
 
     val centResults: Seq[Double] = pitchBendOutput.map { message =>
-      ScPitchBendMidiMessage.convertValueToCents(message.value, pitchBendSensitivity)
+      ScPitchBendMidiMessage.convertValueToCents(message.value, semitonePitchBendSensitivity)
     }
     val expectedCentsResults: Seq[Double] = Seq(customTuning(3), customTuning(0), customTuning(4))
       .map(_ + expressionPitchBendCents)
@@ -501,5 +504,31 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
     inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
     inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
+  }
+
+  it should "work for quarter tone" in new Fixture(pitchBendSensitivity = tonePitchBendSensitivity) {
+    // Given
+    val huzzam: OctaveTuning = OctaveTuning("huzzam",
+      0.0, // C
+      16.67, // Db (~16/15 from C)
+      0.0, // D
+      -33.33, // D# (~7/6 from C
+      -16.67, // E  (~5/4 from C)
+      0.0, // F
+      -16.67, // F# (~7/5 from C)
+      0.0, // G
+      50.0, // Ab
+      -16.67, // A  (~5/3 from C)
+      0.0, // Bb
+      -16.67 // B
+    )
+    tuner.tune(huzzam)
+
+    // When
+    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteAb4).javaMidiMessage)
+
+    // Then
+    pitchBendOutput should have size 1
+    pitchBendOutput.head.centsFor(pitchBendSensitivity) shouldEqual 50.0
   }
 }

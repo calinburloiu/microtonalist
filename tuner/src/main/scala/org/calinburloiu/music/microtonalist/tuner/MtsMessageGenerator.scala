@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.scmidi.{PitchBendSensitivity, ScPitchBendMidiMessage}
 
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
@@ -29,6 +30,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
                                          val isIn2ByteForm: Boolean) extends MtsMessageGenerator {
 
   import MtsMessageGenerator._
+  import MtsOctaveMessageGenerator._
 
   private val minTuningOutputValue: Int = if (isIn2ByteForm) -8192 else -64
   private val maxTuningOutputValue: Int = if (isIn2ByteForm) 8191 else 63
@@ -52,7 +54,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
 
     // # Header
     buffer.put(headerBytes)
-    buffer.put(MtsOctaveMessageGenerator.HeaderBytes_AllChannels)
+    buffer.put(HeaderBytes_AllChannels)
 
     // # Tuning Values
     for (tuningValue <- tuning.deviations) {
@@ -77,21 +79,23 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
   }
 
   private def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
-    val scaledTuningValue = -minTuningOutputValue / 100.0 * tuningValue
-    val nScaledTuningValue = Math.min(
-      Math.max(minTuningOutputValue, scaledTuningValue.round.toInt), maxTuningOutputValue)
-    // Subtracting the min value to make the output value 0 for it
-    val nTuningOutputValue = nScaledTuningValue - minTuningOutputValue
-    val byte1 = (nTuningOutputValue >> 7).toByte
-    val byte2 = (nTuningOutputValue & 0x7F).toByte
+    val (lsb, msb) = convertTuningValueToBytes(tuningValue)
 
-    buffer.put(byte1)
-    buffer.put(byte2)
+    buffer.put(msb)
+    buffer.put(lsb)
   }
 }
 
 private[tuner] object MtsOctaveMessageGenerator {
   private val HeaderBytes_AllChannels: Array[Byte] = Array(0x03.toByte, 0x7F.toByte, 0x7F.toByte)
+
+  private val semitonePitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(semitones = 1)
+
+  @inline
+  private def convertTuningValueToBytes(tuningValue: Double): (Byte, Byte) = {
+    val (lsb, msb) = ScPitchBendMidiMessage.convertCentsDeviationToDataBytes(tuningValue, semitonePitchBendSensitivity)
+    (lsb.toByte, msb.toByte)
+  }
 }
 
 object MtsMessageGenerator {
