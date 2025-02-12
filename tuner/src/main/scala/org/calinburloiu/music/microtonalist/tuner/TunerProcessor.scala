@@ -49,6 +49,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     super.onDisconnect()
 
     tune(OctaveTuning.Edo12)
+    tuner.reset()
 
     logger.info(s"Disconnected the processor for tuner $tuner.")
   }
