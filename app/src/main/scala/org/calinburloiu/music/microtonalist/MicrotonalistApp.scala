@@ -109,6 +109,7 @@ object MicrotonalistApp extends StrictLogging {
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
+    val tunerProcessor = new TunerProcessor(tuner)
 
     val triggersConfig = midiInputConfig.triggers.cc
     val tuningChangeTriggers = TuningChangeTriggers(
@@ -119,7 +120,7 @@ object MicrotonalistApp extends StrictLogging {
       tuningChangeTriggers, triggersConfig.ccThreshold, !triggersConfig.isFilteringThru)
     val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger)
 
-    val track = new Track(Some(tuningChangeProcessor), tuner, receiver, midiOutputConfig.ccParams)
+    val track = new Track(Some(tuningChangeProcessor), tunerProcessor, receiver, midiOutputConfig.ccParams)
     val trackManager = new TrackManager(Seq(track))
     businessync.register(trackManager)
 
