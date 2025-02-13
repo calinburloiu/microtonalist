@@ -23,9 +23,37 @@ import org.calinburloiu.music.scmidi.MidiProcessor
 import javax.annotation.concurrent.NotThreadSafe
 import javax.sound.midi.MidiMessage
 
+/**
+ * A MIDI processor that integrates with a Tuner to manage MIDI messages and tuning operations.
+ *
+ * This class extends [[MidiProcessor]] and facilitates the application of tunings to the output and to MIDI messages
+ * sent through it. It encapsulates the logic for interacting with the provided [[Tuner]] instance
+ * to perform tuning and processing operations, while ensuring proper connection and disconnection
+ * handling through the lifecycle events of the processor.
+ *
+ * The primary responsibilities of this class include:
+ * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receiver.
+ * - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
+ * - Properly resetting the tuner and sending initialization messages when connected.
+ * - Restoring the default tuning and ensuring a clean state upon disconnection.
+ * - Safeguarding message transmission to the MIDI receiver and handling any transmission errors.
+ *
+ * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures
+ * external synchronization.
+ *
+ * @param tuner The [[Tuner]] instance used to handle tuning operations and modify MIDI messages.
+ */
 @NotThreadSafe
 class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
 
+  /**
+   * Tunes the output instrument using the specified tuning.
+   * The method generates the corresponding MIDI messages, if any, for the given tuning
+   * and sends them to the configured receiver.
+   *
+   * @param tuning The instance that contains the tuning information,
+   *               including the deviation in cents for each of the 12 pitch classes.
+   */
   def tune(tuning: OctaveTuning): Unit = {
     val tuningMessages = tuner.tune(tuning)
     sendToReceiver(tuningMessages, -1)
@@ -48,6 +76,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   override protected def onDisconnect(): Unit = {
     super.onDisconnect()
 
+    // Reset the output instrument to the standard tuning
     tune(OctaveTuning.Edo12)
 
     logger.info(s"Disconnected the processor for tuner $tuner.")
