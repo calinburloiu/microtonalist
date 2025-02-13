@@ -145,7 +145,7 @@ object ScPitchBendMidiMessage {
     }
   }
 
-  def convertCentsDeviationToDataBytes(cents: Double, pitchBendSensitivity: PitchBendSensitivity): (Int, Int) = {
+  def convertCentsToDataBytes(cents: Double, pitchBendSensitivity: PitchBendSensitivity): (Int, Int) = {
     val value = convertCentsToValue(cents, pitchBendSensitivity)
     convertValueToDataBytes(value)
   }

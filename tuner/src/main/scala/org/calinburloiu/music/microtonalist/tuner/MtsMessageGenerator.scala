@@ -22,10 +22,23 @@ import org.calinburloiu.music.scmidi.{PitchBendSensitivity, ScPitchBendMidiMessa
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
 
+/**
+ * Represents a generator for MIDI Tuning Standard (MTS) messages based on a given tuning.
+ *
+ * This trait defines the ability to generate a SysEx (System Exclusive) MIDI message to specify
+ * the tuning for a musical instrument. The tuning is defined in terms of the deviation (in cents)
+ * for each pitch class in an equal-tempered 12-tone scale.
+ */
 trait MtsMessageGenerator {
   def generate(tuning: OctaveTuning): SysexMessage
 }
 
+/**
+ * Abstract class that generates MIDI Tuning Standard (MTS) SysEx messages for octave-based tunings.
+ *
+ * @param isRealTime    Specifies whether the generated SysEx message is real-time or non-real-time.
+ * @param isIn2ByteForm Indicates whether tuning values are encoded using the 2-byte or the 1-byte form.
+ */
 abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
                                          val isIn2ByteForm: Boolean) extends MtsMessageGenerator {
 
@@ -93,25 +106,50 @@ private[tuner] object MtsOctaveMessageGenerator {
 
   @inline
   private def convertTuningValueToBytes(tuningValue: Double): (Byte, Byte) = {
-    val (lsb, msb) = ScPitchBendMidiMessage.convertCentsDeviationToDataBytes(tuningValue, semitonePitchBendSensitivity)
+    val (lsb, msb) = ScPitchBendMidiMessage.convertCentsToDataBytes(tuningValue, semitonePitchBendSensitivity)
     (lsb.toByte, msb.toByte)
   }
 }
 
+/**
+ * An object containing predefined implementations of MIDI Tuning Standard (MTS) message generators.
+ *
+ * This object provides specific generators for creating MTS SysEx messages for octave-based tunings,
+ * with varying configurations such as real-time or non-real-time message type and 1-byte or 2-byte forms for each
+ * tuning value.
+ *
+ * @see [[MtsMessageGenerator]]
+ */
 object MtsMessageGenerator {
 
   private[tuner] val HeaderByte_AllDevices: Byte = 0x7F.toByte
   private[tuner] val HeaderByte_Mts: Byte = 0x08.toByte
 
+  /**
+   * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
+   * where tuning values are encoded using the 1-byte form.
+   */
   case object Octave1ByteNonRealTime
     extends MtsOctaveMessageGenerator(isRealTime = false, isIn2ByteForm = false)
 
+  /**
+   * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
+   * where tuning values are encoded using the 2-byte form.
+   */
   case object Octave2ByteNonRealTime
     extends MtsOctaveMessageGenerator(isRealTime = false, isIn2ByteForm = true)
 
+  /**
+   * Generates a real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
+   * where tuning values are encoded using the 1-byte form.
+   */
   case object Octave1ByteRealTime
     extends MtsOctaveMessageGenerator(isRealTime = true, isIn2ByteForm = false)
 
+  /**
+   * Generates a real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
+   * where tuning values are encoded using the 2-byte form.
+   */
   case object Octave2ByteRealTime
     extends MtsOctaveMessageGenerator(isRealTime = true, isIn2ByteForm = true)
 }
