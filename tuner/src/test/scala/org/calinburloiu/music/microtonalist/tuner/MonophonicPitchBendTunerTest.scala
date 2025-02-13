@@ -43,7 +43,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     0.0,    // F
     -16.67, // F# (~7/5 from C)
     0.0,    // G
-    16.67,  // Ab
+    50.0,  // Ab (quarter-tone)
     -16.67, // A  (~5/3 from C)
     0.0,    // Bb
     -16.67  // B
@@ -70,13 +70,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     def pitchBendOutput: Seq[ScPitchBendMidiMessage] = output.toSeq.collect {
       case ScPitchBendMidiMessage(channel, value) => ScPitchBendMidiMessage(channel, value)
     }
-  }
 
-  private def sendNote(tuner: Tuner, note: MidiNote, channel: Int = inputChannel): Seq[MidiMessage] = {
-    Seq(
-      tuner.process(ScNoteOnMidiMessage(channel, note).javaMidiMessage),
-      tuner.process(ScNoteOffMidiMessage(channel, note).javaMidiMessage)
-    ).flatten
+    def sendNote(note: MidiNote, channel: Int = inputChannel): Seq[MidiMessage] = {
+      Seq(
+        tuner.process(ScNoteOnMidiMessage(channel, note).javaMidiMessage),
+        tuner.process(ScNoteOffMidiMessage(channel, note).javaMidiMessage)
+      ).flatten
+    }
   }
 
   private def filterNotes(shortMessages: Seq[ShortMessage]): Seq[ShortMessage] = {
@@ -117,7 +117,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   it should "tune all notes in 12-EDO by not sending any pitch bend" in new Fixture {
     for (note <- MidiNote.C4 to MidiNote.C5) {
-      output ++= sendNote(tuner, note)
+      output ++= sendNote(note)
     }
 
     pitchBendOutput shouldBe empty
@@ -138,8 +138,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning)
 
     // Send some Cs
-    output ++= sendNote(tuner, MidiNote(PitchClass.C, 4))
-    output ++= sendNote(tuner, MidiNote(PitchClass.C, 3))
+    output ++= sendNote(MidiNote(PitchClass.C, 4))
+    output ++= sendNote(MidiNote(PitchClass.C, 3))
     output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, MidiNote(PitchClass.C, 6)).javaMidiMessage)
     // Send on of the "note off" as a note on with velocity 0
     output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, MidiNote(PitchClass.C, 6), 0).javaMidiMessage)
@@ -150,9 +150,9 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "send pitch bend when playing a note with a different tuning than the previous one" in new Fixture {
     output ++= tuner.tune(customTuning)
 
-    output ++= sendNote(tuner, noteE4)
-    output ++= sendNote(tuner, noteDSharp4)
-    output ++= sendNote(tuner, noteDFlat4)
+    output ++= sendNote(noteE4)
+    output ++= sendNote(noteDSharp4)
+    output ++= sendNote(noteDFlat4)
 
     output should have size 9
 
@@ -168,11 +168,11 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   it should "not send pitch bend for consecutive notes with the same tuning" in new Fixture {
     output ++= tuner.tune(customTuning)
-    output ++= sendNote(tuner, noteE4)
+    output ++= sendNote(noteE4)
     output.clear()
 
-    output ++= sendNote(tuner, noteA4)
-    output ++= sendNote(tuner, noteB4)
+    output ++= sendNote(noteA4)
+    output ++= sendNote(noteB4)
 
     output should have size 4
     pitchBendOutput shouldBe empty
@@ -184,7 +184,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning2)
 
     for (note <- MidiNote.C4 to MidiNote.C5; channel = note % 12) {
-      output ++= sendNote(tuner, note, channel)
+      output ++= sendNote(note, channel)
     }
 
     output should not be empty
@@ -205,7 +205,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   it should "not send pitch bend if there is no note on " +
     "and the tuning of the last note on does not change" in new Fixture {
-    output ++= sendNote(tuner, noteC4)
+    output ++= sendNote(noteC4)
     output.clear()
 
     output ++= tuner.tune(customTuning)
@@ -229,7 +229,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "not send pitch bend if there is no note on " +
     "and the tuning of the last note on changes" in new Fixture {
     // Note: Internally the pitch bend value changes for consistency, but it is not sent
-    output ++= sendNote(tuner, noteE4)
+    output ++= sendNote(noteE4)
     output.clear()
 
     output ++= tuner.tune(customTuning)
@@ -311,7 +311,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   behavior of "MonophonicPitchBendTuner when it receives pitch bend messages"
 
   it should "only add the pitch bend received if the note played is not microtonal" in new Fixture {
-    output ++= sendNote(tuner, noteC4)
+    output ++= sendNote(noteC4)
     output.clear()
 
     output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, -2020).javaMidiMessage)
@@ -340,7 +340,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "add the pitch bend received to the one computed for tuning the last microtonal note (which is off)" in
     new Fixture {
       output ++= tuner.tune(customTuning)
-      output ++= sendNote(tuner, noteE4)
+      output ++= sendNote(noteE4)
       output.clear()
 
       val expressionPitchBendCents: Double = 50
@@ -362,9 +362,9 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMidiMessage)
     output.clear()
 
-    output ++= sendNote(tuner, noteDSharp4)
-    output ++= sendNote(tuner, noteC4)
-    output ++= sendNote(tuner, noteE4)
+    output ++= sendNote(noteDSharp4)
+    output ++= sendNote(noteC4)
+    output ++= sendNote(noteE4)
 
     pitchBendOutput should have size 3
 
@@ -383,14 +383,14 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output.clear()
 
     output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MaxValue - 1).javaMidiMessage)
-    output ++= sendNote(tuner, noteDFlat4)
+    output ++= sendNote(noteDFlat4)
     pitchBendOutput should have size 2
     pitchBendOutput(1).value should equal(ScPitchBendMidiMessage.MaxValue)
 
     output.clear()
 
     output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MinValue + 1).javaMidiMessage)
-    output ++= sendNote(tuner, noteA4)
+    output ++= sendNote(noteA4)
     pitchBendOutput should have size 2
     pitchBendOutput(1).value should equal(ScPitchBendMidiMessage.MinValue)
   }
@@ -486,6 +486,35 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(shortMessageOutput(5)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
   }
 
+  behavior of "MonophonicPitchBendTuner for playing microtonal notes"
+
+  val pitchBendSensitivities: Seq[PitchBendSensitivity] = Seq(
+    semitonePitchBendSensitivity, tonePitchBendSensitivity,
+    PitchBendSensitivity(semitones = 12),
+    PitchBendSensitivity(semitones = 3, cents = 19)
+  )
+
+  def stringOfPitchBendSensitivity(pbs: PitchBendSensitivity): String =
+    s"${pbs.semitones} semitone(s) and ${pbs.cents} cent(s)"
+
+  for (pbs <- pitchBendSensitivities) {
+    val pbsString: String = stringOfPitchBendSensitivity(pbs)
+
+    it should s"play a scale with microtonal notes when pitch bend sensitivity is $pbsString" in new Fixture(pbs) {
+      tuner.tune(customTuning)
+
+      for (note <- MidiNote.C4 until MidiNote.C5) {
+        output ++= sendNote(note)
+      }
+
+      pitchBendOutput should have size 11
+
+      val tuningValues: Seq[Double] = pitchBendOutput.map { message => message.centsFor(pbs).round }
+      val expectedTuningValues: Seq[Double] = customTuning.deviations.tail.map(_.round)
+      tuningValues should contain theSameElementsAs expectedTuningValues
+    }
+  }
+
   behavior of "MonophonicPitchBendTuner bugs"
 
   it should "work for note Bb on, note A on, note Bb off, note Bb on in custom tuning" in new Fixture {
@@ -504,31 +533,5 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
     inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
     inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
-  }
-
-  it should "work for quarter tone" in new Fixture(pitchBendSensitivity = tonePitchBendSensitivity) {
-    // Given
-    val huzzam: OctaveTuning = OctaveTuning("huzzam",
-      0.0, // C
-      16.67, // Db (~16/15 from C)
-      0.0, // D
-      -33.33, // D# (~7/6 from C
-      -16.67, // E  (~5/4 from C)
-      0.0, // F
-      -16.67, // F# (~7/5 from C)
-      0.0, // G
-      50.0, // Ab
-      -16.67, // A  (~5/3 from C)
-      0.0, // Bb
-      -16.67 // B
-    )
-    tuner.tune(huzzam)
-
-    // When
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteAb4).javaMidiMessage)
-
-    // Then
-    pitchBendOutput should have size 1
-    pitchBendOutput.head.centsFor(pitchBendSensitivity) shouldEqual 50.0
   }
 }
