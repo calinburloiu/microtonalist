@@ -31,7 +31,7 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
 
   def this(processors: Seq[MidiProcessor], initialReceiver: Receiver) = {
     this(processors)
-    setReceiver(initialReceiver)
+    receiver = initialReceiver
   }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {

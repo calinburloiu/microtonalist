@@ -84,8 +84,6 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     PartialTuning(resultDeviations, name)
   }
 
-  def fillWithStandardTuning: PartialTuning = PartialTuning(deviations.map(_.orElse(Some(0.0))), name)
-
   /**
    * Overwrites each key from `this` with with corresponding non-empty deviations from `that`.
    */

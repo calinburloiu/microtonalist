@@ -18,54 +18,71 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.tuner.MtsTuner.DefaultThru
+import org.calinburloiu.music.scmidi.MidiDeviceId
 
 import javax.sound.midi.MidiMessage
 
 /**
- * MIDI Tuning Standard (MTS) `Tuner` implementation.
+ * Base class for all MIDI Tuning Standard (MTS) `Tuner` implementations.
  *
- * @param tuningFormat One of the MTS formats supported.
- * @param thru         Whether to redirect input messages to the output. Note that this can be false because MTS
- *                     sends SysEx
- *                     MIDI messages that change the tuning for a batch of notes.
+ * @param mtsMessageGenerator Used for generating SysEx MIDI message for MTS.
+ * @param thru                Whether to redirect input messages to the output. Note that this can be false when the
+ *                            instrument has local control on, and it just needs to receive the MTS SysEx MIDI
+ *                            messages that change the tuning.
  */
-class MtsTuner(val tuningFormat: MtsTuningFormat,
-               val thru: Boolean) extends Tuner with StrictLogging {
+abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
+                        val thru: Boolean = DefaultThru) extends Tuner with StrictLogging {
 
-  private val tuningMessageGenerator = tuningFormat.messageGenerator
+  override def tune(tuning: OctaveTuning): Seq[MidiMessage] = Seq(mtsMessageGenerator.generate(tuning))
 
-  @throws[TunerException]
-  override def tune(tuning: OctaveTuning): Unit = {
-    val sysexMessage = tuningMessageGenerator.generate(tuning)
-    // TODO Handle the try differently
-    try {
-      receiver.send(sysexMessage, -1)
-    } catch {
-      case e: IllegalStateException => throw new TunerException(e)
-    }
-  }
+  override def process(message: MidiMessage): Seq[MidiMessage] = if (thru) Seq(message) else Seq.empty
+}
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    if (thru) {
-      try {
-        receiver.send(message, timeStamp)
-      } catch {
-        case e: IllegalStateException => throw new TunerException(e)
-      }
-    }
-  }
+object MtsTuner {
+  val DefaultThru: Boolean = false
+}
 
-  override def close(): Unit = {
-    super.close()
-    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
-  }
+/**
+ * A case class implementing a MIDI Tuning Standard (MTS) tuner for an octave-based,
+ * 1-byte, non-real-time tuning protocol.
+ */
+case class MtsOctave1ByteNonRealTimeTuner(override val thru: Boolean = DefaultThru,
+                                          override val altTuningOutput: Option[MidiDeviceId] = None)
+  extends MtsTuner(MtsMessageGenerator.Octave1ByteNonRealTime, thru) {
 
-  override protected def onConnect(): Unit = {
-    logger.info(s"Connected the MTS tuner.")
-  }
+  override val typeName: String = "mtsOctave1ByteNonRealTimeTuner"
+}
 
-  override protected def onDisconnect(): Unit = {
-    tune(OctaveTuning.Edo12)
-    logger.info("Disconnected the MTS tuner.")
-  }
+/**
+ * A case class implementing a MIDI Tuning Standard (MTS) tuner for an octave-based,
+ * 2-byte, non-real-time tuning protocol.
+ */
+case class MtsOctave2ByteNonRealTimeTuner(override val thru: Boolean = DefaultThru,
+                                          override val altTuningOutput: Option[MidiDeviceId] = None)
+  extends MtsTuner(MtsMessageGenerator.Octave2ByteNonRealTime, thru) {
+
+  override val typeName: String = "mtsOctave2ByteNonRealTimeTuner"
+}
+
+/**
+ * A case class implementing a MIDI Tuning Standard (MTS) tuner for an octave-based,
+ * 1-byte, real-time tuning protocol.
+ */
+case class MtsOctave1ByteRealTimeTuner(override val thru: Boolean = DefaultThru,
+                                       override val altTuningOutput: Option[MidiDeviceId] = None)
+  extends MtsTuner(MtsMessageGenerator.Octave1ByteRealTime, thru) {
+
+  override val typeName: String = "mtsOctave1ByteRealTimeTuner"
+}
+
+/**
+ * A case class implementing a MIDI Tuning Standard (MTS) tuner for an octave-based,
+ * 2-byte, real-time tuning protocol.
+ */
+case class MtsOctave2ByteRealTimeTuner(override val thru: Boolean = DefaultThru,
+                                       override val altTuningOutput: Option[MidiDeviceId] = None)
+  extends MtsTuner(MtsMessageGenerator.Octave2ByteRealTime, thru) {
+
+  override val typeName: String = "mtsOctave2ByteRealTimeTuner"
 }

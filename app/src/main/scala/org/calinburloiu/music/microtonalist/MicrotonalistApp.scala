@@ -109,6 +109,7 @@ object MicrotonalistApp extends StrictLogging {
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
+    val tunerProcessor = new TunerProcessor(tuner)
 
     val triggersConfig = midiInputConfig.triggers.cc
     val tuningChangeTriggers = TuningChangeTriggers(
@@ -119,7 +120,7 @@ object MicrotonalistApp extends StrictLogging {
       tuningChangeTriggers, triggersConfig.ccThreshold, !triggersConfig.isFilteringThru)
     val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger)
 
-    val track = new Track(Some(tuningChangeProcessor), tuner, receiver, midiOutputConfig.ccParams)
+    val track = new Track(Some(tuningChangeProcessor), tunerProcessor, receiver, midiOutputConfig.ccParams)
     val trackManager = new TrackManager(Seq(track))
     businessync.register(trackManager)
 
@@ -157,9 +158,9 @@ object MicrotonalistApp extends StrictLogging {
   private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
     logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
     midiOutputConfig.tunerType match {
-      case TunerType.Mts => new MtsTuner(midiOutputConfig.mtsTuningFormat, midiInputConfig.thru) with LoggerTuner
-      case TunerType.MonophonicPitchBend => new MonophonicPitchBendTuner(
-        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity) with LoggerTuner
+      case TunerType.MtsOctave1ByteNonRealTime => MtsOctave1ByteNonRealTimeTuner(midiInputConfig.thru)
+      case TunerType.MonophonicPitchBend => MonophonicPitchBendTuner(
+        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity)
       case _ => throw AppConfigException(s"Invalid tunerType ${midiOutputConfig.tunerType} in config!")
     }
   }

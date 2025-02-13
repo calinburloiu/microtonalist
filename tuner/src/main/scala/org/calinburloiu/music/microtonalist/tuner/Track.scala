@@ -18,9 +18,11 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils.TuningExtension
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
 import java.util.UUID
+import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
@@ -31,8 +33,9 @@ import javax.sound.midi.{MidiMessage, Receiver}
  * @param outputReceiver        MIDI [[Receiver]] of the output instrument.
  * @param ccParams              Map of CC parameters to be set during initialization.
  */
+@ThreadSafe
 class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
-            tuner: Tuner,
+            tunerProcessor: TunerProcessor,
             outputReceiver: Receiver,
             ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
 
@@ -40,7 +43,7 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
   val id: String = UUID.randomUUID().toString
 
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, Some(tuner)).flatten, outputReceiver)
+    Seq(tuningChangeProcessor, Some(tunerProcessor)).flatten, outputReceiver)
 
   initCcParams()
 
@@ -58,9 +61,12 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
    *
    * @param tuning The tuning to be applied.
    */
-  def tune(tuning: OctaveTuning): Unit = tuner.tune(tuning)
+  def tune(tuning: OctaveTuning): Unit = {
+    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
+    tunerProcessor.tune(tuning)
+  }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getCanonicalName}...")
+  override def close(): Unit = logger.info(s"Closing ${this.getClass.getName}...")
 
   private def initCcParams(): Unit = {
     for ((number, value) <- ccParams) {
@@ -70,5 +76,7 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
 }
 
 object Track {
+  // TODO #97 Using a default channel is an ugly hack
+  @deprecated
   val DefaultOutputChannel: Int = 0
 }
