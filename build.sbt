@@ -48,7 +48,6 @@ lazy val app = (project in file("app"))
     buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       coreMidi4j,
-      enumeratum,
       guava,
       playJson,
       scalaMock % Test,
@@ -119,9 +118,7 @@ lazy val composition = (project in file("composition"))
   .settings(
     name := "microtonalist-composition",
     commonSettings,
-    libraryDependencies ++= Seq(
-      enumeratum,
-    ),
+    libraryDependencies ++= Seq(),
   )
 
 lazy val tuner = (project in file("tuner"))
@@ -135,7 +132,6 @@ lazy val tuner = (project in file("tuner"))
     name := "microtonalist-tuner",
     commonSettings,
     libraryDependencies ++= Seq(
-      enumeratum,
       scalaMock % Test,
     ),
   )
@@ -195,7 +191,6 @@ lazy val experiments = (project in file("experiments"))
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
     libraryDependencies ++= Seq(
       coreMidi4j,
-      enumeratum,
       ficus,
       guava,
       playJson,

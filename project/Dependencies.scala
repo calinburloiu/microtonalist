@@ -30,7 +30,6 @@ object Dependencies {
 
   // # Dependency definitions
   val coreMidi4j = "uk.co.xfactory-librarians" % "coremidi4j" % coreMidi4jVersion
-  val enumeratum = "com.beachape" %% "enumeratum" % enumeratumVersion
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
