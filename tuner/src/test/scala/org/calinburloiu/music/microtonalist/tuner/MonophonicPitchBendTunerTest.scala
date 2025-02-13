@@ -99,7 +99,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     val customPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(3, 37)
     val tuner: MonophonicPitchBendTuner = MonophonicPitchBendTuner(outputChannel, customPitchBendSensitivity)
 
-    val output = tuner.init()
+    val output = tuner.reset()
     output should not be empty
 
     val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)

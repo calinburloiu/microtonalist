@@ -53,7 +53,25 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private[this] var _sustainPedal: Int = 0
   private[this] var _sostenutoPedal: Int = 0
 
-  override def init: Seq[MidiMessage] = applyPitchSensitivity(pitchBendSensitivity)
+  override def reset(): Seq[MidiMessage] = {
+    this._resetState()
+    this._init()
+  }
+
+  private def _resetState(): Unit = {
+    _currTuning = OctaveTuning.Edo12
+    noteStack.clear()
+    _lastSingleNote = 0
+    _currExpressionPitchBend = 0
+    _currTuningPitchBend = 0
+    _unsentPitchBend = false
+    _lastNoteOnVelocity = ScNoteOnMidiMessage.DefaultVelocity
+    _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
+    _sustainPedal = 0
+    _sostenutoPedal = 0
+  }
+
+  private def _init(): Seq[MidiMessage] = applyPitchSensitivity(pitchBendSensitivity)
 
   override def tune(tuning: OctaveTuning): Seq[MidiMessage] = {
     currTuning = tuning
@@ -92,19 +110,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     }
 
     buffer.toSeq
-  }
-
-  override def reset(): Unit = {
-    _currTuning = OctaveTuning.Edo12
-    noteStack.clear()
-    _lastSingleNote = 0
-    _currExpressionPitchBend = 0
-    _currTuningPitchBend = 0
-    _unsentPitchBend = false
-    _lastNoteOnVelocity = ScNoteOnMidiMessage.DefaultVelocity
-    _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
-    _sustainPedal = 0
-    _sostenutoPedal = 0
   }
 
   private def applyPitchSensitivity(pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {

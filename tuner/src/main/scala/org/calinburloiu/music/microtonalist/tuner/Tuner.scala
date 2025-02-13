@@ -44,7 +44,17 @@ trait Tuner extends Plugin {
    */
   val altTuningOutput: Option[MidiDeviceId] = None
 
-  def init(): Seq[MidiMessage] = Seq.empty
+  /**
+   * Resets the internal state of the tuner to its default / initial configuration and returns the MIDI messages that
+   * should configure / initialize the output device to be usable by this tuner.
+   *
+   * This method ''must'' be called before using the tuner for the first time and the messages returned ''must'' be
+   * sent to the output device to properly work with this tuner. For example, a tuner based on pitch bend requires
+   * the output device to be configured with the correct pitch bend sensitivity.
+   *
+   * @return the MIDI messages that should configure / initialize the output device.
+   */
+  def reset(): Seq[MidiMessage] = Seq.empty
 
   /**
    * Tunes the output instrument using the specified octave tuning.
@@ -55,14 +65,6 @@ trait Tuner extends Plugin {
   def tune(tuning: OctaveTuning): Seq[MidiMessage]
 
   def process(message: MidiMessage): Seq[MidiMessage]
-
-  /**
-   * Resets the internal state of the tuner to its default/initial configuration.
-   *
-   * Note that it should not attempt to reset a targeting MIDI device by sending any messages, this method only
-   * refers to the internal state of this instance.
-   */
-  def reset(): Unit
 }
 
 object Tuner {

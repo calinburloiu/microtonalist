@@ -37,7 +37,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(shouldConnect: Boolean = true) {
     val tuner: Tuner = stub[Tuner]
-    (() => tuner.init()).when().returns(Seq(initMessage))
+    (() => tuner.reset()).when().returns(Seq(initMessage))
     (tuner.tune _).when(majTuning).returns(Seq(tuneMessage1))
     (tuner.tune _).when(OctaveTuning.Edo12).returns(Seq(tuneMessage2))
     (tuner.process _).when(processMessage1).returns(Seq(processMessage1, processMessage2))
@@ -86,7 +86,5 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     (tuner.tune _).verify(OctaveTuning.Edo12).once()
     (receiver.send _).verify(tuneMessage2, -1).once()
-
-    (tuner.reset _).verify().once()
   }
 }
