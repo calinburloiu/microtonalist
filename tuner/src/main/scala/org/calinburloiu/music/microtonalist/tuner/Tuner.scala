@@ -25,7 +25,7 @@ import javax.annotation.concurrent.NotThreadSafe
 import javax.sound.midi.MidiMessage
 
 /**
- * Trait that can be implemented for tuning an output instrument based on a specific protocol.
+ * [[Track]] plugin responsible for tuning an output instrument based on a specific protocol.
  *
  * The interface only provides the means to generate MIDI messages, sending them is outside the scope of this trait.
  *
