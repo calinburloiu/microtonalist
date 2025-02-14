@@ -1,0 +1,7 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "An unsigned integer of 7 bits with values between 0 and 127, inclusive.",
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 127
+}

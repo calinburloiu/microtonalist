@@ -1,0 +1,8 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "MIDI Channel number between 1 and 16.",
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 16,
+    "default": 1
+}

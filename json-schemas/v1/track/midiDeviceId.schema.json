@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "Identifier of a MIDI device.",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the MIDI device."
+        },
+        "vendor": {
+            "type": "string",
+            "title": "Vendor",
+            "description": "The name of the company who supplies the device."
+        }
+    },
+    "required": ["name", "vendor"],
+    "unevaluatedProperties": false
+}

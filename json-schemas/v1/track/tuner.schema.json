@@ -1,17 +1,149 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuner",
-    "description": "TODO",
-    "type": "object",
-    "properties": {
-
-    },
-    "unevaluatedProperties": false,
+    "description": "Plugin responsible for tuning an output instrument based on a specific protocol.\nAs any plugin it can be defined as an object with a \"type\" property that identifies the tuner to be used. Check the documentation for that property for details about what tuners are supported.",
+    "type": ["object", "string"],
+    "oneOf": [
+        { "$ref": "#/$defs/object" },
+        { "$ref": "#/$defs/type" }
+    ],
     "$defs": {
+        "pitchBendSensitivity": {
+            "type": "object",
+            "title": "Pitch Bend Sensitivity",
+            "description": "Configures the Pitch Bend Sensitivity (RPN #0) from the MIDI standard which determines the range of pitch bend changes for a MIDI channel, expressed in semitones and cents.",
+            "properties": {
+                "semitoneCount": {
+                    "allOf": [
+                        { "$ref": "uint7.schema.json" },
+                        {
+                            "title": "Semitone Count",
+                            "description": "The number of semitones for the pitch bend range (0-127). This defines the integer part of the range."
+                        }
+                    ]
+                },
+                "centCount": {
+                    "allOf": [
+                        { "$ref": "uint7.schema.json" },
+                        {
+                            "title": "Cent Count",
+                            "description": "The additional pitch bend range in cents (0-127). This adds fractional precision to the semitone value."
+                        }
+                    ]
+                }
+            },
+            "unevaluatedProperties": false
+        },
+        "monophonicPitchBendSettings": {
+            "type": "object",
+            "properties": {
+                "outputChannel": {
+                    "allOf": [
+                        { "$ref": "midiChannel.schema.json" },
+                        {
+                            "title": "Output Channel",
+                            "description": "The MIDI channel used for tuner output."
+                        }
+                    ]
+                },
+                "pitchBendSensitivity": { "$ref": "#/$defs/pitchBendSensitivity" }
+            }
+        },
+        "mtsSettings": {
+            "type": "object",
+            "properties": {
+                "thru": {
+                    "type": "boolean",
+                    "title": "Thru",
+                    "description": "Whether to redirect input messages to the output or not. Note that this can be false when the instrument has local control on, and it just needs to receive the MTS SysEx MIDI messages that change the tuning.",
+                    "default": false
+                },
+                "altTuningOutput": {
+                    "allOf": [
+                        { "$ref": "midiDeviceId.schema.json" },
+                        {
+                            "title": "Alternative Tuning Output",
+                            "description": "Alternative MIDI output device identifier designated for sending the MIDI tuning messages. If not set, the messages are sent to the normal output."
+                        }
+                    ]
+                }
+            }
+        },
         "type": {
             "type": "string",
-            "$comment": "TODO We probably need an optional output for MTS tuning messages that will be useful for in-DAW VST support.",
-            "enum": ["monophonicPitchBend", "mtsOctave1BNonRealTime", "mpe", "TODO"]
+            "title": "Tuner Type",
+            "description": "Name that serves as a unique identifier of the Tuner Type. The following values are allowed:\n- \"monophonicPitchBend\": Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent on, this tuner only supports and enforces monophonic playing.\n- \"mtsOctave1ByteNonRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 1-byte, non-real-time tuning protocol.\n- \"mtsOctave2ByteNonRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 2-byte, non-real-time tuning protocol.\n- \"mtsOctave1ByteRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 1-byte, real-time tuning protocol.\n- \"mtsOctave2ByteRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 2-byte, real-time tuning protocol.",
+            "enum": [
+                "monophonicPitchBend",
+                "mtsOctave1ByteNonRealTime",
+                "mtsOctave2ByteNonRealTime",
+                "mtsOctave1ByteRealTime",
+                "mtsOctave2ByteRealTime"
+            ]
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": { "$ref": "#/$defs/type" }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "monophonicPitchBend" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/monophonicPitchBendSettings"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "mtsOctave1ByteNonRealTime" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/mtsSettings"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "mtsOctave2ByteNonRealTime" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/mtsSettings"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "mtsOctave1ByteRealTime" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/mtsSettings"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "mtsOctave2ByteRealTime" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/mtsSettings"
+                    }
+                }
+            ],
+            "unevaluatedProperties": false
         }
     }
 }

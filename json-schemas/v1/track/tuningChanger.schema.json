@@ -8,12 +8,6 @@
         { "$ref": "#/$defs/type" }
     ],
     "$defs": {
-        "uint7": {
-            "$comment": "An unsigned integer of 7 bits with values between 0 and 127, inclusive.",
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 127
-        },
         "pedalSettings": {
             "type": "object",
             "properties": {
@@ -28,7 +22,7 @@
                                     "title": "Previous Tuning Trigger",
                                     "description": "Configures the MIDI CC that triggers a tuning change to the previous tuning."
                                 },
-                                { "$ref": "#/$defs/uint7" }
+                                { "$ref": "uint7.schema.json" }
                             ]
                         },
                         "next": {
@@ -37,7 +31,7 @@
                                     "title": "Next Tuning Trigger",
                                     "description": "Configures the MIDI CC that triggers a tuning change to the next tuning."
                                 },
-                                { "$ref": "#/$defs/uint7" }
+                                { "$ref": "uint7.schema.json" }
                             ]
                         },
                         "index": {
@@ -51,7 +45,7 @@
                                             "title": "Change Tuning to Index Trigger",
                                             "description": "The value configures the MIDI CC that triggers a tuning change to the tuning index from the key."
                                         },
-                                        { "$ref": "#/$defs/uint7" }
+                                        { "$ref": "uint7.schema.json" }
                                     ]
                                 }
                             },

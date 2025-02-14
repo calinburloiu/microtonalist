@@ -5,6 +5,12 @@
     "description": "TODO",
     "type": "object",
     "properties": {
+        "$schema": {
+            "$comment": "Property added to allow adding the JSON-Schema for validation inside an editor.",
+            "type": "string",
+            "title": "JSON-Schema",
+            "format": "uri-reference"
+        },
         "tracks": {
             "type": "array",
             "title": "Tracks",
