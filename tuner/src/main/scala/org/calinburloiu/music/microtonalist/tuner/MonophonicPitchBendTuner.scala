@@ -33,6 +33,8 @@ import scala.collection.mutable
 case class MonophonicPitchBendTuner(outputChannel: Int,
                                     pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
   extends Tuner with StrictLogging {
+  require(0 <= outputChannel && outputChannel <= 15,
+    s"Output MIDI channel must be between 0 and 15, but was $outputChannel!")
 
   override val typeName: String = MonophonicPitchBendTuner.TypeName
 

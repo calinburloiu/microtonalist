@@ -33,7 +33,7 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
   private val monophonicPitchBendTuner = MonophonicPitchBendTuner(outputChannel = 3, pitchBendSensitivity)
   private val monophonicPitchBendTunerJson = Json.obj(
     "type" -> "monophonicPitchBend",
-    "outputChannel" -> 3,
+    "outputChannel" -> 4,
     "pitchBendSensitivity" -> Json.obj(
       "semitoneCount" -> 3,
       "centCount" -> 34
@@ -44,8 +44,8 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
     ("path", "check", "expected JsonValidationError"),
 
     (__ \ "outputChannel", AllowedTypes(JsonNumberType), "error.expected.jsnumber"),
-    (__ \ "outputChannel", DisallowedValues(JsNumber(-1)), "error.min"),
-    (__ \ "outputChannel", DisallowedValues(JsNumber(16)), "error.max"),
+    (__ \ "outputChannel", DisallowedValues(JsNumber(0)), "error.min"),
+    (__ \ "outputChannel", DisallowedValues(JsNumber(17)), "error.max"),
 
     (__ \ "pitchBendSensitivity" \ "semitoneCount", AllowedTypes(JsonNumberType), "error.expected.uint7"),
     (__ \ "pitchBendSensitivity" \ "semitoneCount", DisallowedValues(JsNumber(-1)), "error.expected.uint7"),
