@@ -178,7 +178,7 @@ object JsonPluginFormat {
   private[format] val MissingTypeError: String = "error.plugin.type.missing"
   private[format] val UnrecognizedTypeError: String = "error.plugin.type.unrecognized"
 
-  private val PropertyNameType = "type"
+  val PropertyNameType = "type"
 
   /**
    * Specification object for serializing/deserializing a plugin with a given type.

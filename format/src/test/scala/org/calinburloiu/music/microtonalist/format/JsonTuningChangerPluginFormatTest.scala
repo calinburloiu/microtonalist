@@ -57,27 +57,28 @@ class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
 
     (__ \ "triggers" \ "index" \ "2", DisallowedValues(JsNumber(-1), JsNumber(128)), "error.expected.uint7"),
 
-    ((__ \ "threshold"), AllowedTypes(JsonNumberType), "error.expected.jsnumber"),
-    ((__ \ "threshold"), DisallowedValues(JsNumber(-1)), "error.min"),
-    ((__ \ "threshold"), DisallowedValues(JsNumber(127)), "error.max"),
+    (__ \ "threshold", AllowedTypes(JsonNumberType), "error.expected.jsnumber"),
+    (__ \ "threshold", DisallowedValues(JsNumber(-1)), "error.min"),
+    (__ \ "threshold", DisallowedValues(JsNumber(127)), "error.max"),
 
-    ((__ \ "triggersThru"), AllowedTypes(JsonBooleanType), "error.expected.jsboolean")
+    (__ \ "triggersThru", AllowedTypes(JsonBooleanType), "error.expected.jsboolean")
   )
 
-  it should "deserialize a PedalTuningChanger with default value" in {
-    assertReads(reads, JsString("pedal"), PedalTuningChanger())
-    assertReads(reads, Json.obj("type" -> "pedal"), PedalTuningChanger())
+  it should "deserialize with default value" in {
+    val defaultPedalTuningChanger = PedalTuningChanger()
+    assertReads(reads, JsString("pedal"), defaultPedalTuningChanger)
+    assertReads(reads, Json.obj("type" -> "pedal"), defaultPedalTuningChanger)
   }
 
-  it should "deserialize a PedalTuningChanger" in {
+  it should "deserialize" in {
     assertReads(reads, pedalTuningChangerJson, pedalTuningChanger)
   }
 
-  it should "fail to deserialize a MergeTuningReducer from invalid JSON" in {
+  it should "fail to deserialize from invalid JSON" in {
       assertReadsFailureTable(reads, pedalTuningChangerJson, pedalTuningChangerFailureTable)
   }
 
-  it should "serialize a PedalTuningChanger" in {
+  it should "serialize" in {
     jsonPluginFormat.writes.writes(pedalTuningChanger) shouldEqual pedalTuningChangerJson
   }
 }
