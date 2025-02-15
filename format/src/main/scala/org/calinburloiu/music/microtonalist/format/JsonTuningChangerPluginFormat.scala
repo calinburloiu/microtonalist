@@ -34,7 +34,7 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
   private val tuningIndexKeyReads: String => JsResult[Int] = { str =>
     Try(Integer.parseInt(str)).toOption match {
       case Some(tuningIndex) if tuningIndex >= 0 => JsSuccess(tuningIndex)
-      case None => JsError("error.expected.integer.positive")
+      case _ => JsError("error.expected.integer.positive")
     }
   }
   private val indexTriggersReads: Reads[Map[Int, Int]] = Reads.mapReads[Int, Cc](tuningIndexKeyReads)(uint7Format)
