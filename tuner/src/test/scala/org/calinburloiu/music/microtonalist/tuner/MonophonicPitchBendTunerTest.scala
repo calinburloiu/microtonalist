@@ -95,6 +95,11 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   behavior of "MonophonicPitchBendTuner on initialization"
 
+  it should "fail if constructed with out of bounds output channel" in {
+    an[IllegalArgumentException] should be thrownBy MonophonicPitchBendTuner(-1, semitonePitchBendSensitivity)
+    an[IllegalArgumentException] should be thrownBy MonophonicPitchBendTuner(16, semitonePitchBendSensitivity)
+  }
+
   it should "configure the output device" in {
     val customPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(3, 37)
     val tuner: MonophonicPitchBendTuner = MonophonicPitchBendTuner(outputChannel, customPitchBendSensitivity)

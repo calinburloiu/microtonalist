@@ -36,9 +36,16 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   )(PitchBendSensitivity.apply, unlift(PitchBendSensitivity.unapply))
 
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (
-    (__ \ "outputChannel").format[Int](min(0) keepAnd max(15)) and
+    (__ \ "outputChannel").format[Int](min(1) keepAnd max(16)) and
     (__ \ "pitchBendSensitivity").format[PitchBendSensitivity]
-  )(MonophonicPitchBendTuner.apply, unlift(MonophonicPitchBendTuner.unapply))
+  )(
+    { (outputChannel, pitchBendSensitivity) =>
+      MonophonicPitchBendTuner(outputChannel - 1, pitchBendSensitivity)
+    },
+    { tuner =>
+      (tuner.outputChannel + 1, tuner.pitchBendSensitivity)
+    }
+  )
 
   private val mtsTunerCommonFormat: Format[MtsTunerParamsTuple] = (
     (__ \ "thru").format[Boolean] and
@@ -52,7 +59,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
       format = monophonicPitchBendTunerFormat,
       javaClass = classOf[MonophonicPitchBendTuner],
       defaultSettings = Json.obj(
-        "outputChannel" -> 0,
+        "outputChannel" -> 1,
         "pitchBendSensitivity" -> Json.obj(
           "semitoneCount" -> 2,
           "centCount" -> 0
