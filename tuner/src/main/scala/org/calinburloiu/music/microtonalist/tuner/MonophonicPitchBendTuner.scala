@@ -34,7 +34,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
                                     pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
   extends Tuner with StrictLogging {
 
-  override val typeName: String = "monophonicPitchBend"
+  override val typeName: String = MonophonicPitchBendTuner.TypeName
 
   private[this] var _currTuning: OctaveTuning = OctaveTuning.Edo12
 
@@ -260,4 +260,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def applyPitchBend(buffer: mutable.Buffer[MidiMessage]): Unit = {
     buffer ++= applyPitchBend()
   }
+}
+
+object MonophonicPitchBendTuner {
+  val TypeName: String = "monophonicPitchBend"
 }
