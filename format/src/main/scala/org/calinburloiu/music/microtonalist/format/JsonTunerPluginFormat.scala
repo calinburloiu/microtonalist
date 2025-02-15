@@ -27,7 +27,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
   override val familyName: String = Tuner.FamilyName
 
-  private type MtsTunerApplyTuple = (Boolean, Option[MidiDeviceId])
+  private type MtsTunerParamsTuple = (Boolean, Option[MidiDeviceId])
 
   //@formatter:off
   private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = (
@@ -40,7 +40,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
     (__ \ "pitchBendSensitivity").format[PitchBendSensitivity]
   )(MonophonicPitchBendTuner.apply, unlift(MonophonicPitchBendTuner.unapply))
 
-private val mtsTunerCommonFormat: Format[MtsTunerApplyTuple] = (
+  private val mtsTunerCommonFormat: Format[MtsTunerParamsTuple] = (
     (__ \ "thru").format[Boolean] and
     (__ \ "altTuningOutput").formatNullable[MidiDeviceId](JsonMidiDeviceIdFormat.format)
   )(Tuple2.apply, identity)
@@ -87,8 +87,8 @@ private val mtsTunerCommonFormat: Format[MtsTunerApplyTuple] = (
 
   private def makeMtsTunerTypeSpec[T <: MtsTuner](typeName: String,
                                                   javaClass: Class[T],
-                                                  apply: MtsTunerApplyTuple => T,
-                                                  unapply: T => MtsTunerApplyTuple): TypeSpec[T] = {
+                                                  apply: MtsTunerParamsTuple => T,
+                                                  unapply: T => MtsTunerParamsTuple): TypeSpec[T] = {
     val reads: Reads[T] = mtsTunerCommonFormat.map(apply)
     val writes: Writes[T] = Writes { tuner =>
       Json.obj(PropertyNameType -> typeName) ++ mtsTunerCommonFormat.writes(unapply(tuner)).as[JsObject]
