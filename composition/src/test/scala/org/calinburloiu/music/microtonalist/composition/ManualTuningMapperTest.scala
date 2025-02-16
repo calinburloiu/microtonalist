@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{CentsScale, RatiosScale}
-import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils.PartialTuningExtension
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -57,13 +56,13 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
 
     // Then
     partialTuning.completedCount shouldEqual 7
-    partialTuning.d should contain(-1.95)
-    partialTuning.e should contain(-63.38)
-    partialTuning.f should contain(-7.82)
-    partialTuning.g should contain(-3.91)
-    partialTuning.a should contain(0.0)
-    partialTuning.bFlat should contain(38.57)
-    partialTuning.c should contain(-5.87)
+    partialTuning.d shouldEqual -1.95
+    partialTuning.e shouldEqual -63.38
+    partialTuning.f shouldEqual -7.82
+    partialTuning.g shouldEqual -3.91
+    partialTuning.a shouldEqual 0.0
+    partialTuning.bFlat shouldEqual 38.57
+    partialTuning.c shouldEqual -5.87
   }
 
   it should "map a large scale that can't be automatically mapped" in {
@@ -81,13 +80,13 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
 
     // Then
     partialTuning.completedCount shouldEqual 7
-    partialTuning.c should contain(0.0)
-    partialTuning.d should contain(3.91)
-    partialTuning.e should contain(-13.69)
-    partialTuning.f should contain(-1.96)
-    partialTuning.g should contain(1.96)
-    partialTuning.aFlat should contain(13.69)
-    partialTuning.b should contain(-11.73)
+    partialTuning.c shouldEqual 0.0
+    partialTuning.d shouldEqual 3.91
+    partialTuning.e shouldEqual -13.69
+    partialTuning.f shouldEqual -1.96
+    partialTuning.g shouldEqual 1.96
+    partialTuning.aFlat shouldEqual 13.69
+    partialTuning.b shouldEqual -11.73
   }
 
   it should "fail to map a scale if a deviation overflows" in {

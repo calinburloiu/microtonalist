@@ -16,186 +16,125 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-object TestPartialTunings {
-  val evic: PartialTuning = PartialTuning("Evic",
+object TestTunings {
+  val evic: Tuning = Tuning("Evic",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(0.0),
-    dSharpOrEFlat = None,
     e = Some(-16.67),
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
-    gSharpOrAFlat = None,
-    a = None,
     aSharpOrBFlat = Some(-33.33),
     b = Some(-16.67)
   )
 
-  val gMajor: PartialTuning = PartialTuning("G Major",
+  val gMajor: Tuning = Tuning("G Major",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(0.0),
-    dSharpOrEFlat = None,
     e = Some(-16.67),
-    f = None,
     fSharpOrGFlat = Some(-16.67),
     g = Some(0.0),
-    gSharpOrAFlat = None,
     a = Some(0.0),
-    aSharpOrBFlat = None,
     b = Some(-16.67)
   )
 
-  val nihaventPentachord: PartialTuning = PartialTuning("Nihavent Pentachord",
+  val nihaventPentachord: Tuning = Tuning("Nihavent Pentachord",
     c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = None,
+    d = Some(0.0),
     dSharpOrEFlat = Some(0.0),
-    e = None,
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
-    gSharpOrAFlat = None,
-    a = None,
-    aSharpOrBFlat = None,
-    b = None
   )
 
-  val segah: PartialTuning = PartialTuning("Segah",
+  val segah: Tuning = Tuning("Segah",
     c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = None,
     dSharpOrEFlat = Some(-33.33),
     e = Some(-16.67),
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
-    gSharpOrAFlat = None,
     a = Some(-16.67),
-    aSharpOrBFlat = None,
     b = Some(-16.67)
   )
 
-  val segahDesc: PartialTuning = PartialTuning("Segah Descending",
+  val segahDesc: Tuning = Tuning("Segah Descending",
     c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = None,
     dSharpOrEFlat = Some(-33.33),
     e = Some(-16.67),
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
     gSharpOrAFlat = Some(50.0),
     a = Some(-16.67),
     aSharpOrBFlat = Some(0.0),
-    b = None
   )
 
-  val huzzam: PartialTuning = PartialTuning("Huzzam",
+  val huzzam: Tuning = Tuning("Huzzam",
     c = Some(0.0),
-    cSharpOrDFlat = None,
-    d = None,
     dSharpOrEFlat = Some(-33.33),
     e = Some(-16.67),
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
     gSharpOrAFlat = Some(50),
-    a = None,
-    aSharpOrBFlat = None,
     b = Some(-16.67)
   )
 
-  val justCMajor: PartialTuning = PartialTuning("Just C Major",
+  val justCMajor: Tuning = Tuning("Just C Major",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(3.91),
-    dSharpOrEFlat = None,
     e = Some(-13.69),
     f = Some(-1.96),
-    fSharpOrGFlat = None,
     g = Some(1.96),
-    gSharpOrAFlat = None,
     a = Some(-15.64),
-    aSharpOrBFlat = None,
     b = Some(-11.73)
   )
 
-  val rast: PartialTuning = PartialTuning("Rast",
+  val rast: Tuning = Tuning("Rast",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(0.0),
-    dSharpOrEFlat = None,
     e = Some(-16.67),
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
-    gSharpOrAFlat = None,
     a = Some(0.0),
-    aSharpOrBFlat = None,
     b = Some(-16.67)
   )
 
-  val nikriz: PartialTuning = PartialTuning("Nikriz",
+  val nikriz: Tuning = Tuning("Nikriz",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(0.0),
     dSharpOrEFlat = Some(16.67),
-    e = None,
-    f = None,
     fSharpOrGFlat = Some(-16.67),
     g = Some(0.0),
-    gSharpOrAFlat = None,
     a = Some(0.0),
     aSharpOrBFlat = Some(0.0),
-    b = None
   )
 
-  val zengule: PartialTuning = PartialTuning("Zengule",
-    c = None,
+  val zengule: Tuning = Tuning("Zengule",
     cSharpOrDFlat = Some(-16.67),
     d = Some(0.0),
     dSharpOrEFlat = Some(16.67),
-    e = None,
-    f = None,
     fSharpOrGFlat = Some(-16.67),
     g = Some(0.0),
-    gSharpOrAFlat = None,
     a = Some(0.0),
     aSharpOrBFlat = Some(16.67),
-    b = None
   )
 
-  val ussak: PartialTuning = PartialTuning("Ussak",
+  val ussak: Tuning = Tuning("Ussak",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(0.0),
     dSharpOrEFlat = Some(50),
-    e = None,
     f = Some(0.0),
-    fSharpOrGFlat = None,
     g = Some(0.0),
-    gSharpOrAFlat = None,
     a = Some(0.0),
     aSharpOrBFlat = Some(0.0),
-    b = None
   )
 
-  val saba: PartialTuning = PartialTuning("Saba",
+  val saba: Tuning = Tuning("Saba",
     c = Some(0.0),
-    cSharpOrDFlat = None,
     d = Some(0.0),
     dSharpOrEFlat = Some(50),
-    e = None,
     f = Some(0.0),
     fSharpOrGFlat = Some(33.33),
-    g = None,
-    gSharpOrAFlat = None,
     a = Some(0.0),
     aSharpOrBFlat = Some(0.0),
-    b = None
   )
 
-  val customGlobalFill: PartialTuning = PartialTuning((1 to 12).map(Some(_)))
+  val customGlobalFill: Tuning = Tuning((1 to 12).map { v => Some(v.toDouble) })
 }

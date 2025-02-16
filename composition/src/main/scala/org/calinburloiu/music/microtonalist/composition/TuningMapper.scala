@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
- * Maps a [[Scale]] to a [[PartialTuning]], by choosing the right keys to be used. Keys not used in the partial tuning
+ * Maps a [[Scale]] to a [[Tuning]], by choosing the right keys to be used. Keys not used in the partial tuning
  * will have `None` deviations.
  *
  * It is said that a _conflict_ occurs on a tuning key if two scale pitches attempt to map to the same tuning key.
@@ -39,7 +39,7 @@ trait TuningMapper extends Plugin {
    * @param transposition Interval by which the scale should be transposed before mapping it.
    * @return a partial tuning for the given scale.
    */
-  def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): PartialTuning
+  def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): Tuning
 
   /**
    * Maps a scale to a tuning.
@@ -48,7 +48,7 @@ trait TuningMapper extends Plugin {
    * @param ref   Tuning reference.
    * @return a partial tuning for the given scale.
    */
-  def mapScale(scale: Scale[Interval], ref: TuningReference): PartialTuning = {
+  def mapScale(scale: Scale[Interval], ref: TuningReference): Tuning = {
     val unison = scale.intonationStandard.map(_.unison).getOrElse(RealInterval.Unison)
     mapScale(scale, ref, unison)
   }

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.scmidi.MidiProcessor
 
 import javax.annotation.concurrent.NotThreadSafe
@@ -54,7 +54,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
    * @param tuning The instance that contains the tuning information,
    *               including the deviation in cents for each of the 12 pitch classes.
    */
-  def tune(tuning: OctaveTuning): Unit = {
+  def tune(tuning: Tuning): Unit = {
     val tuningMessages = tuner.tune(tuning)
     sendToReceiver(tuningMessages, -1)
   }
@@ -77,7 +77,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     super.onDisconnect()
 
     // Reset the output instrument to the standard tuning
-    tune(OctaveTuning.Edo12)
+    tune(Tuning.Standard)
 
     logger.info(s"Disconnected the processor for tuner $tuner.")
   }

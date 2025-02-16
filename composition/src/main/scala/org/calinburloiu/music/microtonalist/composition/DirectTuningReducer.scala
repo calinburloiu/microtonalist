@@ -26,8 +26,8 @@ object DirectTuningReducer extends TuningReducer with StrictLogging {
 
   override val typeName: String = "direct"
 
-  override def reduceTunings(partialTunings: Seq[PartialTuning],
-                             globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+  override def reduceTunings(partialTunings: Seq[Tuning],
+                             globalFillTuning: Tuning = Tuning.Standard): TuningList = {
     val tunings = partialTunings.map { partialTuning =>
       val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
       if (!enrichedPartialTuning.isComplete) {

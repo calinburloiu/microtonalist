@@ -21,15 +21,13 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 /**
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
  * musician must perform while playing.
- *
- * The final tuning list must contain [[OctaveTuning]] objects, not [[PartialTuning]], so they must be complete.
  */
 trait TuningReducer extends Plugin {
 
   override val familyName: String = TuningReducer.FamilyName
 
-  def reduceTunings(tunings: Seq[PartialTuning],
-                    globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList
+  def reduceTunings(tunings: Seq[Tuning],
+                    globalFillTuning: Tuning = Tuning.Standard): TuningList
 }
 
 object TuningReducer {

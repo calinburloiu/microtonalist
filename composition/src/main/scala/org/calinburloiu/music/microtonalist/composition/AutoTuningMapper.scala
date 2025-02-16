@@ -110,14 +110,14 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     else Some(ManualTuningMapper(overrideKeyboardMapping))
   }
 
-  override def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): PartialTuning = {
+  override def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): Tuning = {
     val transposedScale = scale.transpose(transposition)
 
     val pitchesInfo = mapScaleToPitchesInfo(transposedScale, ref)
     val tuningName = computeTuningName(scale, pitchesInfo)
-    val autoPartialTuning: PartialTuning = createPartialTuning(pitchesInfo, tuningName)
+    val autoPartialTuning: Tuning = createPartialTuning(pitchesInfo, tuningName)
 
-    val manualPartialTuning: PartialTuning = getManualPartialTuning(transposedScale, ref)
+    val manualPartialTuning: Tuning = getManualPartialTuning(transposedScale, ref)
 
     val resultPartialTuning = autoPartialTuning.merge(manualPartialTuning, tolerance)
     assert(resultPartialTuning.isDefined,
@@ -313,7 +313,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
       deviationsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
     }
-    val autoPartialTuning = PartialTuning(partialTuningValues, tuningName)
+    val autoPartialTuning = Tuning(tuningName, partialTuningValues)
     autoPartialTuning
   }
 
@@ -322,7 +322,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
       case Some(manualTuningMapper) =>
         // Clearing the scale name to avoid name merging
         manualTuningMapper.mapScale(scale.rename(""), ref)
-      case None => PartialTuning.empty(12)
+      case None => Tuning.empty(12)
     }
 
     manualPartialTuning

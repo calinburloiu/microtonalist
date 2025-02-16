@@ -20,7 +20,7 @@ import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.parseUriOrPath
-import org.calinburloiu.music.microtonalist.composition.{OctaveTuning, TuningList}
+import org.calinburloiu.music.microtonalist.composition.{Tuning, TuningList}
 import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.calinburloiu.music.microtonalist.tuner._
@@ -141,7 +141,7 @@ object MicrotonalistApp extends StrictLogging {
         logger.info("Preparing to exit...")
         logger.info("Switching back to 12-EDO...")
         try {
-          tuner.tune(OctaveTuning.Edo12)
+          tuner.tune(Tuning.Standard)
         } catch {
           case e: TunerException => logger.error(e.getMessage)
         }

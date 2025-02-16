@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.BusinessyncEvent
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 
 /**
  * Base class for all events published by [[TuningSession]].
@@ -31,7 +31,7 @@ sealed abstract class TuningSessionEvent extends BusinessyncEvent {
   /**
    * The current tuning object describing the tuning that should be applied during this event.
    */
-  val currentTuning: OctaveTuning
+  val currentTuning: Tuning
 }
 
 /**
@@ -43,7 +43,7 @@ sealed abstract class TuningSessionEvent extends BusinessyncEvent {
  *                      the specified musical tuning.
  */
 case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
-                                   override val currentTuning: OctaveTuning) extends TuningSessionEvent
+                                   override val currentTuning: Tuning) extends TuningSessionEvent
 
 /**
  * Event representing an update in the sequence of tunings during a tuning session.
@@ -52,19 +52,19 @@ case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
  *
  * This event is emitted to notify listeners of changes in the available tunings as part of a tuning session.
  * The `tuningIndex` must be within the bounds of the provided `tunings` sequence if the sequence is non-empty.
- * If the sequence is empty, a default value of `OctaveTuning.Edo12` (12-tone equal temperament) will be used as
+ * If the sequence is empty, a default value of `Tuning.Edo12` (12-tone equal temperament) will be used as
  * the `currentTuning`.
  *
  * @param tunings     The new tuning list.
  * @param tuningIndex Index of the currently selected tuning within the `tunings` sequence.
  */
-case class TuningsUpdatedEvent(tunings: Seq[OctaveTuning], override val tuningIndex: Int) extends TuningSessionEvent {
+case class TuningsUpdatedEvent(tunings: Seq[Tuning], override val tuningIndex: Int) extends TuningSessionEvent {
   require(tunings.isEmpty || 0 <= tuningIndex && tuningIndex < tunings.size,
     s"Tuning index $tuningIndex is out of bounds for tunings $tunings!")
 
   /**
    * The current tuning applied in the session. This is determined by the index of the selected tuning
-   * within the `tunings` sequence. If the sequence is empty, the default tuning `OctaveTuning.Edo12` is used instead.
+   * within the `tunings` sequence. If the sequence is empty, the default tuning `Tuning.Edo12` is used instead.
    */
-  override val currentTuning: OctaveTuning = tunings.lift(tuningIndex).getOrElse(OctaveTuning.Edo12)
+  override val currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Standard)
 }

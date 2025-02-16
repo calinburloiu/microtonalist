@@ -54,9 +54,9 @@ object PitchClass {
 
   val values: Seq[PitchClass] = Seq(C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B)
 
-  private val outputNoteNames: Seq[String] =
-    Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
-  private val noteNameToNumber: Map[String, Int] = outputNoteNames.zipWithIndex.toMap ++ Map(
+  val noteNames: Seq[String] = Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
+
+  private val noteNameToNumber: Map[String, Int] = noteNames.zipWithIndex.toMap ++ Map(
     ("B♯", 0), ("C♯", 1), ("D♭", 1), ("D♯", 3), ("E♭", 3), ("F♭", 4), ("E♯", 5), ("F♯", 6), ("G♭", 6),
     ("G♯", 8), ("A♭", 8), ("A♯", 10), ("B♭", 10), ("C♭", 11),
     ("D♭/C♯", 1), ("E♭/D♯", 3), ("G♭/F♯", 6), ("A♭/G♯", 8), ("B♭/A♯", 10)
@@ -84,5 +84,5 @@ object PitchClass {
     parsedFromNumberString orElse fromName(string)
   }
 
-  def nameOf(n: Int): String = outputNoteNames(n)
+  def nameOf(n: Int): String = noteNames(n)
 }

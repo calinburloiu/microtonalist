@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-import org.calinburloiu.music.microtonalist.composition.TestPartialTunings.{customGlobalFill, evic, justCMajor, segah}
+import org.calinburloiu.music.microtonalist.composition.TestTunings.{customGlobalFill, evic, justCMajor, segah}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -34,7 +34,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(justCMajor))
 
     tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
+    tuningList.tunings.head shouldEqual Tuning("Just C Major",
       c = 0.0,
       cSharpOrDFlat = 0.0,
       d = 3.91,
@@ -54,7 +54,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(justCMajor), customGlobalFill)
 
     tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
+    tuningList.tunings.head shouldEqual Tuning("Just C Major",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 3.91,
@@ -74,7 +74,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(segah, evic), customGlobalFill)
 
     tuningList.size shouldEqual 2
-    tuningList.tunings.head shouldEqual OctaveTuning("Segah",
+    tuningList.tunings.head shouldEqual Tuning("Segah",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 3.0,
@@ -88,7 +88,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
       aSharpOrBFlat = 11.0,
       b = -16.67
     )
-    tuningList.tunings(1) shouldEqual OctaveTuning("Evic",
+    tuningList.tunings(1) shouldEqual Tuning("Evic",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 0.0,
