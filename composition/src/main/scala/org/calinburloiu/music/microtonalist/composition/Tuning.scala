@@ -257,9 +257,9 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
         case Some(deviation) => padDeviation(deviation)
         case None => missingKeySpace
       }.mkString("")
-    val whiteKeysString = Seq(get(0), get(2), get(4), get(5), get(7), get(9), get(10)).map(padDeviation).mkString("")
+    val whiteKeysString = Seq(get(0), get(2), get(4), get(5), get(7), get(9), get(11)).map(padDeviation).mkString("")
 
-    s"$missingKeySpace$blackKeysString\n$whiteKeysString"
+    s"\"$name\":\n$missingKeySpace$blackKeysString\n$whiteKeysString"
   }
 
   def unfilledPitchClassesString: String = {
