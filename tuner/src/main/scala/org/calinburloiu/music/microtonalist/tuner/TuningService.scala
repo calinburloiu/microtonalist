@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 
 import javax.annotation.concurrent.ThreadSafe
 
@@ -38,7 +38,7 @@ class TuningService(session: TuningSession, businessync: Businessync) {
    *
    * @return a sequence of tuning objects representing the available tunings.
    */
-  def tunings: Seq[OctaveTuning] = session.tunings
+  def tunings: Seq[Tuning] = session.tunings
 
   /**
    * Changes the current tuning with the given operation object by selecting one of the tunings from the tuning sequence

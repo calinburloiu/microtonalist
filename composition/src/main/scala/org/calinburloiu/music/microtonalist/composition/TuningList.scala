@@ -19,9 +19,9 @@ package org.calinburloiu.music.microtonalist.composition
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
 
-case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning] {
+case class TuningList(tunings: Seq[Tuning]) extends Iterable[Tuning] {
 
-  def apply(index: Int): OctaveTuning = {
+  def apply(index: Int): Tuning = {
     checkElementIndex(index, size)
 
     tunings(index)
@@ -29,7 +29,7 @@ case class TuningList(tunings: Seq[OctaveTuning]) extends Iterable[OctaveTuning]
 
   override def size: Int = tunings.size
 
-  override def iterator: Iterator[OctaveTuning] = tunings.iterator
+  override def iterator: Iterator[Tuning] = tunings.iterator
 }
 
 object TuningList extends StrictLogging {

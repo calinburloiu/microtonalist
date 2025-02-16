@@ -38,7 +38,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(justCMajor))
 
     tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
+    tuningList.tunings.head shouldEqual Tuning("Just C Major",
       c = 0.0,
       cSharpOrDFlat = 0.0,
       d = 3.91,
@@ -58,7 +58,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(justCMajor), customGlobalFill)
 
     tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual OctaveTuning("Just C Major",
+    tuningList.tunings.head shouldEqual Tuning("Just C Major",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 3.91,
@@ -78,7 +78,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(segah, evic), customGlobalFill)
 
     tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual OctaveTuning("Segah + Evic",
+    tuningList.tunings.head shouldEqual Tuning("Segah + Evic",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 0.0,
@@ -99,7 +99,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(segah, gMajor), customGlobalFill)
 
     tuningList.size shouldEqual 2
-    tuningList.tunings.head shouldEqual OctaveTuning("Segah",
+    tuningList.tunings.head shouldEqual Tuning("Segah",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 0.0,
@@ -113,7 +113,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
       aSharpOrBFlat = 11.0,
       b = -16.67
     )
-    tuningList.tunings(1) shouldEqual OctaveTuning("G Major",
+    tuningList.tunings(1) shouldEqual Tuning("G Major",
       c = 0.0,
       cSharpOrDFlat = 2.0,
       d = 0.0,
@@ -133,7 +133,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(evic, gMajor, nihaventPentachord, segah, segahDesc, huzzam))
 
     tuningList.size shouldEqual 2
-    tuningList.tunings.head shouldEqual OctaveTuning("Evic + G Major + Nihavent Pentachord",
+    tuningList.tunings.head shouldEqual Tuning("Evic + G Major + Nihavent Pentachord",
       c = 0.0,
       cSharpOrDFlat = 0.0,
       d = 0.0,
@@ -147,7 +147,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
       aSharpOrBFlat = -33.33,
       b = -16.67
     )
-    tuningList.tunings(1) shouldEqual OctaveTuning("Segah + Segah Descending + Huzzam",
+    tuningList.tunings(1) shouldEqual Tuning("Segah + Segah Descending + Huzzam",
       c = 0.0,
       cSharpOrDFlat = 0.0,
       d = 0.0,
@@ -167,7 +167,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
     val tuningList = reducer.reduceTunings(Seq(rast, nikriz, zengule, ussak, saba), customGlobalFill)
 
     tuningList.size shouldEqual 3
-    tuningList.tunings.head shouldEqual OctaveTuning("Rast + Nikriz",
+    tuningList.tunings.head shouldEqual Tuning("Rast + Nikriz",
       c = 0.0,
       cSharpOrDFlat = -16.67,
       d = 0.0,
@@ -181,7 +181,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
       aSharpOrBFlat = 0.0,
       b = -16.67
     )
-    tuningList.tunings(1) shouldEqual OctaveTuning("Zengule",
+    tuningList.tunings(1) shouldEqual Tuning("Zengule",
       c = 0.0,
       cSharpOrDFlat = -16.67,
       d = 0.0,
@@ -195,7 +195,7 @@ class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
       aSharpOrBFlat = 16.67,
       b = -16.67
     )
-    tuningList.tunings(2) shouldEqual OctaveTuning("Ussak + Saba",
+    tuningList.tunings(2) shouldEqual Tuning("Ussak + Saba",
       c = 0.0,
       cSharpOrDFlat = -16.67,
       d = 0.0,

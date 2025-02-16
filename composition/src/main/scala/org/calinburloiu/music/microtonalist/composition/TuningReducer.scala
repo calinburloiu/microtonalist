@@ -21,8 +21,6 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 /**
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a
  * musician must perform while playing.
- *
- * The final tuning list must contain [[OctaveTuning]] objects, not [[Tuning]], so they must be complete.
  */
 trait TuningReducer extends Plugin {
 

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.scmidi._
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside
@@ -33,7 +33,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   private val tonePitchBendSensitivity = PitchBendSensitivity(2)
 
   //@formatter:off
-  private val customTuning = OctaveTuning(
+  private val customTuning = Tuning(
     "major-ish in 72-EDO",
     0.0,    // C
     16.67,  // Db (~16/15 from C)
@@ -49,7 +49,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     -16.67  // B
   )
   //@formatter:on
-  private val customTuning2 = OctaveTuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
+  private val customTuning2 = Tuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
   noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4 until MidiNote.C5
@@ -515,7 +515,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       pitchBendOutput should have size 11
 
       val tuningValues: Seq[Double] = pitchBendOutput.map { message => message.centsFor(pbs).round.toDouble }
-      val expectedTuningValues: Seq[Double] = customTuning.deviations.tail.map(_.round.toDouble)
+      val expectedTuningValues: Seq[Double] = customTuning.offsets.tail.map(_.round.toDouble)
       tuningValues should contain theSameElementsAs expectedTuningValues
     }
   }

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.common.Plugin
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.microtonalist.tuner.Tuner.FamilyName
 import org.calinburloiu.music.scmidi.MidiDeviceId
 
@@ -82,7 +82,7 @@ trait Tuner extends Plugin {
    * @param tuning The tuning instance that specifies the deviation in cents for each of the 12 pitch classes in the
    *               octave.
    */
-  def tune(tuning: OctaveTuning): Seq[MidiMessage]
+  def tune(tuning: Tuning): Seq[MidiMessage]
 
   /**
    * Method called with every MIDI message of a [[Track]] that uses this tuner. Its purpose is to do any processing

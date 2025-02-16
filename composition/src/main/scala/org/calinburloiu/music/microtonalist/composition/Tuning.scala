@@ -25,16 +25,16 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 
 /**
- * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[OctaveTuning]] for more details.
+ * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[Tuning]] for more details.
  *
  * Partial tunings are typically merged into a final tuning.
  *
- * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
+ * @param offsetOptions `Some` tuning offset in cents for each key or `None` if the key is missing an offset value.
  */
-case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterable[Option[Double]] with
+case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iterable[Option[Double]] with
   LazyLogging {
-  require(deviations.size == 12,
-    s"There should be exactly 12 deviations corresponding to the 12 pitch classes, but found ${deviations.size}!")
+  require(offsetOptions.size == 12,
+    s"There should be exactly 12 deviations corresponding to the 12 pitch classes, but found ${offsetOptions.size}!")
 
   import Tuning._
 
@@ -48,7 +48,7 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
    */
   def apply(pitchClassNumber: Int): Double = {
     checkElementIndex(pitchClassNumber, size)
-    deviations(pitchClassNumber).getOrElse(0.0)
+    offsetOptions(pitchClassNumber).getOrElse(0.0)
   }
 
   /**
@@ -61,70 +61,75 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
    */
   def get(pitchClassNumber: Int): Option[Double] = {
     checkElementIndex(pitchClassNumber, size)
-    deviations(pitchClassNumber)
+    offsetOptions(pitchClassNumber)
   }
 
-  def c: Option[Double] = get(0)
+  def c: Double = apply(0)
 
-  def cSharp: Option[Double] = get(1)
+  def cSharp: Double = apply(1)
 
-  def dFlat: Option[Double] = cSharp
+  def dFlat: Double = cSharp
 
-  def d: Option[Double] = get(2)
+  def d: Double = apply(2)
 
-  def dSharp: Option[Double] = get(3)
+  def dSharp: Double = apply(3)
 
-  def eFlat: Option[Double] = dSharp
+  def eFlat: Double = dSharp
 
-  def e: Option[Double] = get(4)
+  def e: Double = apply(4)
 
-  def f: Option[Double] = get(5)
+  def f: Double = apply(5)
 
-  def fSharp: Option[Double] = get(6)
+  def fSharp: Double = apply(6)
 
-  def gFlat: Option[Double] = fSharp
+  def gFlat: Double = fSharp
 
-  def g: Option[Double] = get(7)
+  def g: Double = apply(7)
 
-  def gSharp: Option[Double] = get(8)
+  def gSharp: Double = apply(8)
 
-  def aFlat: Option[Double] = gSharp
+  def aFlat: Double = gSharp
 
-  def a: Option[Double] = get(9)
+  def a: Double = apply(9)
 
-  def aSharp: Option[Double] = get(10)
+  def aSharp: Double = apply(10)
 
-  def bFlat: Option[Double] = aSharp
+  def bFlat: Double = aSharp
 
-  def b: Option[Double] = get(11)
+  def b: Double = apply(11)
+
+  /**
+   * @return a sequence of tuning offsets in cents for all pitch classes, with missing values defaulted to 0.0.
+   */
+  def offsets: Seq[Double] = offsetOptions.map(_.getOrElse(0.0))
 
   /**
    * @return the size of the incomplete tuning
    */
-  override def size: Int = deviations.size
+  override def size: Int = offsetOptions.size
 
-  override def iterator: Iterator[Option[Double]] = deviations.iterator
+  override def iterator: Iterator[Option[Double]] = offsetOptions.iterator
 
   /**
    * @return `true` if deviations are available for all keys or `false` otherwise
    */
-  def isComplete: Boolean = deviations.forall(_.nonEmpty)
+  def isComplete: Boolean = offsetOptions.forall(_.nonEmpty)
 
   /**
    * @return the number of completed pitch classes which have a deviation defined
    */
-  def completedCount: Int = deviations.map(d => if (d.isDefined) 1 else 0).sum
+  def completedCount: Int = offsetOptions.map(d => if (d.isDefined) 1 else 0).sum
 
   /**
-   * Creates an [[OctaveTuning]] from this partial tuning.
+   * Creates an [[Tuning]] from this partial tuning.
    *
    * If it is incomplete (see [[isComplete]]), then, pitch classes without a value are mapped to the standard 12-EDO
    * tuning.
    *
-   * @return a new [[OctaveTuning]].
+   * @return a new [[Tuning]].
    * @see [[isComplete]]
    */
-  def resolve: OctaveTuning = OctaveTuning(name, deviations.map(_.getOrElse(0.0)))
+  def resolve: Tuning = Tuning(name, offsetOptions.map { v => Some(v.getOrElse(0.0)) })
 
   /**
    * Fills each key with empty deviations from `this` with corresponding non-empty
@@ -133,7 +138,7 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
   def fill(that: Tuning): Tuning = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
-    val resultDeviations = (this.deviations zip that.deviations).map {
+    val resultDeviations = (this.offsetOptions zip that.offsetOptions).map {
       case (thisDeviation, thatDeviation) => thisDeviation.orElse(thatDeviation)
     }
 
@@ -146,7 +151,7 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
   def overwrite(that: Tuning): Tuning = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
-    val resultDeviations = (this.deviations zip that.deviations).map {
+    val resultDeviations = (this.offsetOptions zip that.offsetOptions).map {
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
     }
 
@@ -186,7 +191,7 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
       if (index == size) {
         Some(Tuning(mergeName(this.name, that.name), ArraySeq.unsafeWrapArray(acc)))
       } else {
-        (this.deviations(index), that.deviations(index)) match {
+        (this.offsetOptions(index), that.offsetOptions(index)) match {
           case (None, None) =>
             acc(index) = None
             accMerge(acc, index + 1)
@@ -225,7 +230,7 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
    * @return true if the partial tunings are almost equal, or false otherwise.
    */
   def almostEquals(that: Tuning, centsTolerance: Double): Boolean = {
-    (this.deviations zip that.deviations).forall {
+    (this.offsetOptions zip that.offsetOptions).forall {
       case (None, None) => true
       case (Some(d1), Some(d2)) => DoubleMath.fuzzyEquals(d1, d2, centsTolerance)
       case _ => false
@@ -233,7 +238,7 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
   }
 
   override def toString: String = {
-    val deviationsAsString = deviations.map(fromDeviationToString)
+    val deviationsAsString = offsetOptions.map(fromDeviationToString)
 
     val notesWithDeviations = (PitchClass.noteNames zip deviationsAsString).map {
       case (noteName, deviationString) => s"$noteName = ${deviationString.trim}"
@@ -248,17 +253,17 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
     val missingKeySpace = " " * 6
 
     val blackKeysString =
-      Seq(Some(cSharp), Some(dSharp), None, None, Some(fSharp), Some(gSharp), Some(aSharp)).map {
+      Seq(Some(get(1)), Some(get(3)), None, None, Some(get(6)), Some(get(8)), Some(get(10))).map {
         case Some(deviation) => padDeviation(deviation)
         case None => missingKeySpace
       }.mkString("")
-    val whiteKeysString = Seq(c, d, e, f, g, a, b).map(padDeviation).mkString("")
+    val whiteKeysString = Seq(get(0), get(2), get(4), get(5), get(7), get(9), get(10)).map(padDeviation).mkString("")
 
     s"$missingKeySpace$blackKeysString\n$whiteKeysString"
   }
 
   def unfilledPitchClassesString: String = {
-    val pitches = deviations.zipWithIndex.map {
+    val pitches = offsetOptions.zipWithIndex.map {
       case (None, index) =>
         Some(PitchClass.nameOf(index))
       case _ => None
@@ -268,15 +273,21 @@ case class Tuning(name: String, deviations: Seq[Option[Double]]) extends Iterabl
 }
 
 object Tuning {
+
+  /**
+   * Represents the size of the tuning, referring to the number of pitch classes in an octave.
+   */
+  val Size: Int = 12
+
   /**
    * A [[Tuning]] with 12 keys and no deviations completed.
    */
-  val EmptyOctave: Tuning = empty(PianoKeyboardTuningUtils.tuningSize)
+  val EmptyOctave: Tuning = empty(Size)
 
   /**
    * A [[Tuning]] with 12 keys and all 0 deviations for the standard 12-tone equal temperament.
    */
-  val Edo12: Tuning = fill(0, PianoKeyboardTuningUtils.tuningSize)
+  val Edo12: Tuning = fill(0, Size)
 
   def apply(deviations: Seq[Option[Double]]): Tuning = Tuning("", deviations)
 
@@ -338,6 +349,8 @@ object Tuning {
     Tuning(name, Seq(Some(c), Some(cSharpOrDFlat), Some(d), Some(dSharpOrEFlat), Some(e), Some(f),
       Some(fSharpOrGFlat), Some(g), Some(gSharpOrAFlat), Some(a), Some(aSharpOrBFlat), Some(b)))
   }
+
+  def fromOffsets(name: String, offsets: Seq[Double]): Tuning = Tuning(name, offsets.map(Some(_)))
 
   /**
    * Creates a [[Tuning]] which has no deviation in each of its keys.

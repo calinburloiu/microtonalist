@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.sun.media.sound.SoftTuning
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -36,9 +36,9 @@ import scala.language.implicitConversions
  */
 class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
 
-  private val tuning = OctaveTuning("Just 12",
+  private val tuning = Tuning.fromOffsets("Just 12",
     Seq(0.1, 11.73, 3.91, 15.64, -13.69, -1.96, -17.49, 1.96, 13.69, -15.64, -31.18, -11.73))
-  private val expected1ByteDeviations: Seq[Double] = Array(
+  private val expected1ByteDeviations: Seq[Double] = Seq(
     0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, 14.0, -16.0, -31.0, -12.0)
 
   private val epsilon: Double = 2e-2
@@ -60,7 +60,7 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
   }
 
   test("Octave2ByteNonRealTime") {
-    assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.deviations)
+    assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
   }
 
   test("Octave1ByteRealTime") {
@@ -68,6 +68,6 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
   }
 
   test("Octave2ByteRealTime") {
-    assertTuning(MtsMessageGenerator.Octave2ByteRealTime, tuning.deviations)
+    assertTuning(MtsMessageGenerator.Octave2ByteRealTime, tuning.offsets)
   }
 }

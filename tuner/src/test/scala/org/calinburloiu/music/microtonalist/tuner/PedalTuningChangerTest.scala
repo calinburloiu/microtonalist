@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.scmidi.{MidiNote, ScCcMidiMessage, ScNoteOnMidiMessage}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -101,7 +101,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "return NoTuningChange for a SysEx MIDI message" in {
-    val sysExMessage = MtsMessageGenerator.Octave1ByteNonRealTime.generate(OctaveTuning.Edo12)
+    val sysExMessage = MtsMessageGenerator.Octave1ByteNonRealTime.generate(Tuning.Edo12)
     tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
   }
 

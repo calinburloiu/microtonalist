@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
@@ -38,7 +38,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   override val typeName: String = MonophonicPitchBendTuner.TypeName
 
-  private[this] var _currTuning: OctaveTuning = OctaveTuning.Edo12
+  private[this] var _currTuning: Tuning = Tuning.Edo12
 
   private[this] val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
   private[this] var _lastSingleNote: MidiNote = 0
@@ -61,7 +61,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def _resetState(): Unit = {
-    _currTuning = OctaveTuning.Edo12
+    _currTuning = Tuning.Edo12
     noteStack.clear()
     _lastSingleNote = 0
     _currExpressionPitchBend = 0
@@ -75,7 +75,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private def _init(): Seq[MidiMessage] = applyPitchSensitivity(pitchBendSensitivity)
 
-  override def tune(tuning: OctaveTuning): Seq[MidiMessage] = {
+  override def tune(tuning: Tuning): Seq[MidiMessage] = {
     currTuning = tuning
 
     // Update pitch bend for the current sounding note
@@ -126,9 +126,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     ).map(_.javaMidiMessage)
   }
 
-  private def currTuning: OctaveTuning = _currTuning
+  private def currTuning: Tuning = _currTuning
 
-  private def currTuning_=(newTuning: OctaveTuning): Unit = {
+  private def currTuning_=(newTuning: Tuning): Unit = {
     // Update currTuningPitchBend
     val newDeviation = newTuning(lastNote.pitchClass)
     if (currTuning(lastNote.pitchClass) != newDeviation) {

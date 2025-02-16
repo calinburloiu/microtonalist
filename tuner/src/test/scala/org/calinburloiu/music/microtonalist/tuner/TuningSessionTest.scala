@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.microtonalist.tuner.TunerTestUtils.{majTuning, rastTuning, ussakTuning}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -34,7 +34,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     tuningSession.tunings shouldBe empty
     tuningSession.tuningIndex shouldBe 0
     tuningSession.tuningCount shouldBe 0
-    tuningSession.currentTuning shouldBe OctaveTuning.Edo12
+    tuningSession.currentTuning shouldBe Tuning.Edo12
   }
 
   "tunings" should "set tunings" in new Fixture {
@@ -126,7 +126,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     tuningSession.tuningIndex shouldBe 0
     tuningSession.tuningCount shouldBe 0
-    tuningSession.currentTuning shouldBe OctaveTuning.Edo12
+    tuningSession.currentTuning shouldBe Tuning.Edo12
   }
 
   it should "publish TuningsUpdatedEvent when tunings are set" in new Fixture {
@@ -140,7 +140,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "not publish TuningsUpdatedEvent when the same tunings is set" in new Fixture {
     // Given
-    val tunings: Seq[OctaveTuning] = Seq(majTuning, rastTuning)
+    val tunings: Seq[Tuning] = Seq(majTuning, rastTuning)
     tuningSession.tunings = tunings
     // When
     tuningSession.tunings = tunings

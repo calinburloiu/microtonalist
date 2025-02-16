@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation._
-import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils._
 import org.calinburloiu.music.scmidi.PitchClass
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -40,15 +39,15 @@ class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyCh
 
     // When setting quarterToneTolerance to 0.0, the quarter tones are mapped to D and A, instead of
     // D flat and A flat, respectively.
-    tuning.c should not be empty
-    tuning.dFlat should not be empty
-    tuning.d shouldBe empty
-    tuning.eFlat should not be empty
-    tuning.f should not be empty
-    tuning.g should not be empty
-    tuning.aFlat should not be empty
-    tuning.a shouldBe empty
-    tuning.bFlat should not be empty
+    tuning.get(PitchClass.C) should not be empty
+    tuning.get(PitchClass.DFlat) should not be empty
+    tuning.get(PitchClass.D) shouldBe empty
+    tuning.get(PitchClass.EFlat) should not be empty
+    tuning.get(PitchClass.F) should not be empty
+    tuning.get(PitchClass.G) should not be empty
+    tuning.get(PitchClass.AFlat) should not be empty
+    tuning.get(PitchClass.A) shouldBe empty
+    tuning.get(PitchClass.BFlat) should not be empty
   }
 
   test("roundToInt") {

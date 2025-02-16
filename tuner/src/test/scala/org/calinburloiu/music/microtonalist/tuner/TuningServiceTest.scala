@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.microtonalist.tuner.TunerTestUtils.{majTuning, rastTuning}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -28,7 +28,7 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
   trait Fixture {
     val sessionStub: TuningSession = stub[TuningSession]
     val businessyncStub: Businessync = stub[Businessync]
-    val tunings: Seq[OctaveTuning] = Seq(majTuning, rastTuning)
+    val tunings: Seq[Tuning] = Seq(majTuning, rastTuning)
 
     (() => sessionStub.tunings).when().returns(tunings)
 

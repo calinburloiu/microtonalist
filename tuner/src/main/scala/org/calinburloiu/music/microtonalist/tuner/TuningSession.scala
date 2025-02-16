@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.math.IntMath
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.composition.OctaveTuning
+import org.calinburloiu.music.microtonalist.composition.Tuning
 
 import javax.annotation.concurrent.NotThreadSafe
 
@@ -29,7 +29,7 @@ import javax.annotation.concurrent.NotThreadSafe
  */
 @NotThreadSafe
 class TuningSession(businessync: Businessync) {
-  private var _tunings: Seq[OctaveTuning] = Seq()
+  private var _tunings: Seq[Tuning] = Seq()
   private var _tuningIndex: Int = 0
 
   /**
@@ -37,7 +37,7 @@ class TuningSession(businessync: Businessync) {
    *
    * @return the current sequence of tunings.
    */
-  def tunings: Seq[OctaveTuning] = _tunings
+  def tunings: Seq[Tuning] = _tunings
 
   /**
    * Updates the sequence of tunings and ensures the [[tuningIndex]] remains valid within the new tunings.
@@ -45,7 +45,7 @@ class TuningSession(businessync: Businessync) {
    *
    * @param newTunings the new sequence of tuning objects to replace the current tunings.
    */
-  def tunings_=(newTunings: Seq[OctaveTuning]): Unit = if (_tunings != newTunings) {
+  def tunings_=(newTunings: Seq[Tuning]): Unit = if (_tunings != newTunings) {
     _tunings = newTunings
     // Modifying _tuningIndex without calling its setter to avoid publishing a redundant TuningIndexUpdatedEvent
     _tuningIndex = Math.max(Math.min(_tuningIndex, newTunings.size - 1), 0)
@@ -85,7 +85,7 @@ class TuningSession(businessync: Businessync) {
    *
    * @return the currently selected tuning, or the default `12-EDO` tuning if the index is invalid or out of range.
    */
-  def currentTuning: OctaveTuning = tunings.lift(tuningIndex).getOrElse(OctaveTuning.Edo12)
+  def currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Edo12)
 
   /**
    * Returns the number of tunings currently available in the session.

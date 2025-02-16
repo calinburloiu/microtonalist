@@ -78,18 +78,18 @@ class TuningTest extends AnyFlatSpec with Matchers {
 
     //@formatter:off
     // White keys and flats
-    tuning.c       should contain (0.0)
-    tuning.cSharp  should contain (12.0)
-    tuning.d       should contain (4.0)
-    tuning.dSharp  should contain (16.0)
-    tuning.e       should contain (-14.0)
-    tuning.f       should contain (-2.0)
-    tuning.fSharp  shouldBe empty
-    tuning.g       should contain (2.0)
-    tuning.gSharp  should contain (-16.0)
-    tuning.a       should contain (14.0)
-    tuning.aSharp  should contain (-35.0)
-    tuning.b       should contain (-12.0)
+    tuning.c       shouldEqual 0.0
+    tuning.cSharp  shouldEqual 12.0
+    tuning.d       shouldEqual 4.0
+    tuning.dSharp  shouldEqual 16.0
+    tuning.e       shouldEqual -14.0
+    tuning.f       shouldEqual -2.0
+    tuning.fSharp  shouldEqual 0.0
+    tuning.g       shouldEqual 2.0
+    tuning.gSharp  shouldEqual -16.0
+    tuning.a       shouldEqual 14.0
+    tuning.aSharp  shouldEqual -35.0
+    tuning.b       shouldEqual -12.0
     //@formatter:on
 
     // Enharmonic equivalences for black keys
@@ -107,14 +107,14 @@ class TuningTest extends AnyFlatSpec with Matchers {
   }
 
   "resolve" should "return a Tuning if this PartialTuning isComplete and None otherwise" in {
-    val standardTuning = OctaveTuning("", Seq.fill(12)(0.0))
+    val standardTuning = Tuning.Edo12
     emptyPartialTuning.resolve shouldEqual standardTuning
-    completePartialTuning.resolve shouldEqual OctaveTuning("foo",
+    completePartialTuning.resolve shouldEqual Tuning("foo",
       100.0, 200.0, 300.0,
       400.0, 500.0, 600.0,
       700.0, 800.0, 900.0,
       1000.0, 1100.0, 1200.0)
-    incompletePartialTuning.resolve shouldEqual OctaveTuning("",
+    incompletePartialTuning.resolve shouldEqual Tuning("",
       0.0, 0.0, 270.0,
       400.0, 500.0, 600.0,
       700.0, 800.0, 900.0,
@@ -177,16 +177,16 @@ class TuningTest extends AnyFlatSpec with Matchers {
     val deviations1: Seq[Option[Double]] = Seq.fill[Option[Double]](11)(None) :+ Some(5.0)
     val deviations2: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](11)(None)
     val expectedDeviations: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](10)(None) :+ Some(5.0)
-    val tuningWithName1 = Tuning(name = "Foo", deviations = deviations1)
-    val tuningWithName2 = Tuning(name = "Bar", deviations = deviations2)
+    val tuningWithName1 = Tuning(name = "Foo", offsetOptions = deviations1)
+    val tuningWithName2 = Tuning(name = "Bar", offsetOptions = deviations2)
     val tuningWithoutName = Tuning(deviations = deviations2)
 
     // Then
-    tuningWithName1.merge(tuningWithoutName, mergeTolerance) should contain(Tuning(name = "Foo", deviations =
+    tuningWithName1.merge(tuningWithoutName, mergeTolerance) should contain(Tuning(name = "Foo", offsetOptions =
       expectedDeviations))
-    tuningWithoutName.merge(tuningWithName1, mergeTolerance) should contain(Tuning(name = "Foo", deviations =
+    tuningWithoutName.merge(tuningWithName1, mergeTolerance) should contain(Tuning(name = "Foo", offsetOptions =
       expectedDeviations))
-    tuningWithName1.merge(tuningWithName2, mergeTolerance) should contain(Tuning(name = "Foo + Bar", deviations =
+    tuningWithName1.merge(tuningWithName2, mergeTolerance) should contain(Tuning(name = "Foo + Bar", offsetOptions =
       expectedDeviations))
   }
 }
