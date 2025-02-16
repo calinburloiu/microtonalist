@@ -141,7 +141,7 @@ object MicrotonalistApp extends StrictLogging {
         logger.info("Preparing to exit...")
         logger.info("Switching back to 12-EDO...")
         try {
-          tuner.tune(Tuning.Edo12)
+          tuner.tune(Tuning.Standard)
         } catch {
           case e: TunerException => logger.error(e.getMessage)
         }

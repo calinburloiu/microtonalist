@@ -66,5 +66,5 @@ case class TuningsUpdatedEvent(tunings: Seq[Tuning], override val tuningIndex: I
    * The current tuning applied in the session. This is determined by the index of the selected tuning
    * within the `tunings` sequence. If the sequence is empty, the default tuning `Tuning.Edo12` is used instead.
    */
-  override val currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Edo12)
+  override val currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Standard)
 }

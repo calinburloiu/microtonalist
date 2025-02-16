@@ -282,12 +282,12 @@ object Tuning {
   /**
    * A [[Tuning]] with 12 keys and no deviations completed.
    */
-  val EmptyOctave: Tuning = empty(Size)
+  val Empty: Tuning = empty(Size)
 
   /**
    * A [[Tuning]] with 12 keys and all 0 deviations for the standard 12-tone equal temperament.
    */
-  val Edo12: Tuning = fill(0, Size)
+  val Standard: Tuning = fill(0, Size)
 
   def apply(deviations: Seq[Option[Double]]): Tuning = Tuning("", deviations)
 

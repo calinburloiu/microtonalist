@@ -85,7 +85,7 @@ class TuningSession(businessync: Businessync) {
    *
    * @return the currently selected tuning, or the default `12-EDO` tuning if the index is invalid or out of range.
    */
-  def currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Edo12)
+  def currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Standard)
 
   /**
    * Returns the number of tunings currently available in the session.

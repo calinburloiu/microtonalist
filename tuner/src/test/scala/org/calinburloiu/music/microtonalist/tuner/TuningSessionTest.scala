@@ -34,7 +34,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     tuningSession.tunings shouldBe empty
     tuningSession.tuningIndex shouldBe 0
     tuningSession.tuningCount shouldBe 0
-    tuningSession.currentTuning shouldBe Tuning.Edo12
+    tuningSession.currentTuning shouldBe Tuning.Standard
   }
 
   "tunings" should "set tunings" in new Fixture {
@@ -126,7 +126,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     tuningSession.tuningIndex shouldBe 0
     tuningSession.tuningCount shouldBe 0
-    tuningSession.currentTuning shouldBe Tuning.Edo12
+    tuningSession.currentTuning shouldBe Tuning.Standard
   }
 
   it should "publish TuningsUpdatedEvent when tunings are set" in new Fixture {

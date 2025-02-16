@@ -107,7 +107,7 @@ class TuningTest extends AnyFlatSpec with Matchers {
   }
 
   "resolve" should "return a Tuning if this PartialTuning isComplete and None otherwise" in {
-    val standardTuning = Tuning.Edo12
+    val standardTuning = Tuning.Standard
     emptyPartialTuning.resolve shouldEqual standardTuning
     completePartialTuning.resolve shouldEqual Tuning("foo",
       100.0, 200.0, 300.0,

@@ -27,7 +27,7 @@ trait TuningReducer extends Plugin {
   override val familyName: String = TuningReducer.FamilyName
 
   def reduceTunings(tunings: Seq[Tuning],
-                    globalFillTuning: Tuning = Tuning.Edo12): TuningList
+                    globalFillTuning: Tuning = Tuning.Standard): TuningList
 }
 
 object TuningReducer {

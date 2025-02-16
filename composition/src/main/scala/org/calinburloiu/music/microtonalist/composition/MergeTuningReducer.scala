@@ -45,7 +45,7 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
   override val typeName: String = MergeTuningReducer.typeName
 
   override def reduceTunings(partialTunings: Seq[Tuning],
-                             globalFillTuning: Tuning = Tuning.Edo12): TuningList = {
+                             globalFillTuning: Tuning = Tuning.Standard): TuningList = {
     if (partialTunings.isEmpty) {
       return TuningList(Seq.empty)
     }

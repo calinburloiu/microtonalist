@@ -38,7 +38,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   override val typeName: String = MonophonicPitchBendTuner.TypeName
 
-  private[this] var _currTuning: Tuning = Tuning.Edo12
+  private[this] var _currTuning: Tuning = Tuning.Standard
 
   private[this] val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
   private[this] var _lastSingleNote: MidiNote = 0
@@ -61,7 +61,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def _resetState(): Unit = {
-    _currTuning = Tuning.Edo12
+    _currTuning = Tuning.Standard
     noteStack.clear()
     _lastSingleNote = 0
     _currExpressionPitchBend = 0
