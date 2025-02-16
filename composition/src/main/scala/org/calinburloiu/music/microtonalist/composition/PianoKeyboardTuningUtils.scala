@@ -16,17 +16,17 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
+import org.calinburloiu.music.scmidi.PitchClass
+
 // TODO #98 Include this into the newly proposed Tuning class
 object PianoKeyboardTuningUtils {
 
   val tuningSize: Int = 12
 
-  val noteNames: Seq[String] = Seq("C", "C♯/D♭", "D", "D♯/E♭", "E", "F", "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B")
-
   val minDeviation: Int = -64
   val maxDeviation: Int = 63
 
-  private[PianoKeyboardTuningUtils] abstract class TuningBaseExtension[U](tuningBase: Tuning[U]) {
+  private[PianoKeyboardTuningUtils] abstract class TuningBaseExtension[U](tuningBase: OldTuning[U]) {
 
     private[this] def assertPianoKeyboard(): Unit = require(tuningBase.size == 12,
       s"Expecting 12 deviation values, but found ${tuningBase.size}")
@@ -92,7 +92,7 @@ object PianoKeyboardTuningUtils {
 
       val deviationsAsString = tuningBase.deviations.map(fromDeviationToString)
 
-      val notesWithDeviations = (PianoKeyboardTuningUtils.noteNames zip deviationsAsString).map {
+      val notesWithDeviations = (PitchClass.noteNames zip deviationsAsString).map {
         case (noteName, deviation) => s"$noteName = ${deviation.trim}"
       }.mkString(", ")
 
@@ -111,14 +111,4 @@ object PianoKeyboardTuningUtils {
 
     override protected def fromDeviationToString(deviation: Double) = f"$deviation%+06.2f"
   }
-
-  implicit class PartialTuningExtension(partialTuning: PartialTuning)
-    extends TuningBaseExtension(partialTuning) {
-
-    override protected def fromDeviationToString(deviation: Option[Double]): String =
-      deviation.fold("  --  ") { v =>
-        f"$v%+06.2f"
-      }
-  }
-
 }

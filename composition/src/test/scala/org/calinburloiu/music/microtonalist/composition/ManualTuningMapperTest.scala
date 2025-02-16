@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{CentsScale, RatiosScale}
-import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils.PartialTuningExtension
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec

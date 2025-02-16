@@ -19,7 +19,6 @@ package org.calinburloiu.music.microtonalist.composition
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils._
 import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.annotation.tailrec
@@ -32,15 +31,72 @@ import scala.collection.immutable.ArraySeq
  *
  * @param deviations `Some` deviation in cents for each key or `None` is the key is missing a deviation value
  */
-case class PartialTuning(override val deviations: Seq[Option[Double]],
-                         override val name: String = "") extends Tuning[Option[Double]] with LazyLogging {
+case class PartialTuning(name: String, deviations: Seq[Option[Double]]) extends Iterable[Option[Double]] with
+  LazyLogging {
+  require(deviations.size == 12,
+    s"There should be exactly 12 deviations corresponding to the 12 pitch classes, but found ${deviations.size}!")
+
+  import PartialTuning._
+
+
   /**
-   * Returns the `Some` deviation in cents for a particular key 0-based index or `None` if there isn't one available.
+   * Retrieves the deviation in cents for the specified pitch class number.
+   * If no deviation is defined for the provided pitch class number, returns a default value of 0.0.
+   *
+   * @param pitchClassNumber The 0-based index of the pitch class number whose deviation is to be retrieved.
+   * @return the deviation in cents for the specified pitch class number, or 0.0 if no deviation is defined.
    */
-  def apply(index: Int): Option[Double] = {
-    checkElementIndex(index, size)
-    deviations(index)
+  def apply(pitchClassNumber: Int): Double = {
+    checkElementIndex(pitchClassNumber, size)
+    deviations(pitchClassNumber).getOrElse(0.0)
   }
+
+  /**
+   * Retrieves the deviation in cents for the specified pitch class number as an optional value, returning [[Some]]
+   * value if there is a tuning defined for that pitch class or [[None]] if there isn't.
+   *
+   * @param pitchClassNumber The 0-based index of the pitch class number whose deviation is to be retrieved.
+   * @return a [[Some]] containing the deviation in cents for the specified pitch class number, or `None` if no
+   *         deviation is defined.
+   */
+  def get(pitchClassNumber: Int): Option[Double] = {
+    checkElementIndex(pitchClassNumber, size)
+    deviations(pitchClassNumber)
+  }
+
+  def c: Option[Double] = get(0)
+
+  def cSharp: Option[Double] = get(1)
+
+  def dFlat: Option[Double] = cSharp
+
+  def d: Option[Double] = get(2)
+
+  def dSharp: Option[Double] = get(3)
+
+  def eFlat: Option[Double] = dSharp
+
+  def e: Option[Double] = get(4)
+
+  def f: Option[Double] = get(5)
+
+  def fSharp: Option[Double] = get(6)
+
+  def gFlat: Option[Double] = fSharp
+
+  def g: Option[Double] = get(7)
+
+  def gSharp: Option[Double] = get(8)
+
+  def aFlat: Option[Double] = gSharp
+
+  def a: Option[Double] = get(9)
+
+  def aSharp: Option[Double] = get(10)
+
+  def bFlat: Option[Double] = aSharp
+
+  def b: Option[Double] = get(11)
 
   /**
    * @return the size of the incomplete tuning
@@ -81,7 +137,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
       case (thisDeviation, thatDeviation) => thisDeviation.orElse(thatDeviation)
     }
 
-    PartialTuning(resultDeviations, name)
+    PartialTuning(name, resultDeviations)
   }
 
   /**
@@ -94,7 +150,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
       case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
     }
 
-    PartialTuning(resultDeviations, name)
+    PartialTuning(name, resultDeviations)
   }
 
   /**
@@ -128,7 +184,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
     @tailrec
     def accMerge(acc: Array[Option[Double]], index: Int): Option[PartialTuning] = {
       if (index == size) {
-        Some(PartialTuning(ArraySeq.unsafeWrapArray(acc), mergeName(this.name, that.name)))
+        Some(PartialTuning(mergeName(this.name, that.name), ArraySeq.unsafeWrapArray(acc)))
       } else {
         (this.deviations(index), that.deviations(index)) match {
           case (None, None) =>
@@ -149,10 +205,7 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
 
           // Conflict, stop!
           case _ =>
-            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in PartialTunings ${
-              this
-                .toNoteNamesString
-            } and ${that.toNoteNamesString}")
+            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in PartialTunings $this and $that")
             None
         }
       }
@@ -180,12 +233,28 @@ case class PartialTuning(override val deviations: Seq[Option[Double]],
   }
 
   override def toString: String = {
-    val pitches = deviations.zipWithIndex.map {
-      case (Some(deviation), index) =>
-        Some(String.format(java.util.Locale.US, "%s = %.2f", PitchClass.nameOf(index), deviation))
-      case _ => None
-    }.filter(_.nonEmpty).map(_.get)
-    s"$name: ${pitches.mkString(", ")}"
+    val deviationsAsString = deviations.map(fromDeviationToString)
+
+    val notesWithDeviations = (PitchClass.noteNames zip deviationsAsString).map {
+      case (noteName, deviationString) => s"$noteName = ${deviationString.trim}"
+    }.mkString(", ")
+
+    s""""$name" ($notesWithDeviations)"""
+  }
+
+  def toPianoKeyboardString: String = {
+    def padDeviation(deviation: Option[Double]) = fromDeviationToString(deviation).padTo(12, ' ')
+
+    val missingKeySpace = " " * 6
+
+    val blackKeysString =
+      Seq(Some(cSharp), Some(dSharp), None, None, Some(fSharp), Some(gSharp), Some(aSharp)).map {
+        case Some(deviation) => padDeviation(deviation)
+        case None => missingKeySpace
+      }.mkString("")
+    val whiteKeysString = Seq(c, d, e, f, g, a, b).map(padDeviation).mkString("")
+
+    s"$missingKeySpace$blackKeysString\n$whiteKeysString"
   }
 
   def unfilledPitchClassesString: String = {
@@ -203,10 +272,13 @@ object PartialTuning {
    * A [[PartialTuning]] with 12 keys and no deviations completed.
    */
   val EmptyOctave: PartialTuning = empty(PianoKeyboardTuningUtils.tuningSize)
+
   /**
    * A [[PartialTuning]] with 12 keys and all 0 deviations for the standard 12-tone equal temperament.
    */
   val StandardTuningOctave: PartialTuning = fill(0, PianoKeyboardTuningUtils.tuningSize)
+
+  def apply(deviations: Seq[Option[Double]]): PartialTuning = PartialTuning("", deviations)
 
   /**
    * Creates a named `PartialTuning` for the 12 pitch classes in an octave.
@@ -226,7 +298,7 @@ object PartialTuning {
             b: Option[Double]): PartialTuning = {
     val deviations = Seq(c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g,
       gSharpOrAFlat, a, aSharpOrBFlat, b)
-    PartialTuning(deviations, name)
+    PartialTuning(name, deviations)
   }
 
   /**
@@ -256,4 +328,8 @@ object PartialTuning {
   def empty(size: Int): PartialTuning = PartialTuning(Seq.fill(size)(None))
 
   def fill(deviation: Double, size: Int): PartialTuning = PartialTuning(Seq.fill(size)(Some(deviation)))
+
+  def fromDeviationToString(deviation: Double): String = f"$deviation%+06.2f"
+
+  def fromDeviationToString(deviation: Option[Double]): String = deviation.fold("  --  ")(fromDeviationToString)
 }

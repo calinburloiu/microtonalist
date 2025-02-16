@@ -56,7 +56,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
       }
     }
 
-    PartialTuning(partialTuningValues, processedScale.name)
+    PartialTuning(processedScale.name, partialTuningValues)
   }
 }
 

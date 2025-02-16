@@ -25,7 +25,8 @@ package org.calinburloiu.music.microtonalist.composition
  *
  * @tparam U
  */
-trait Tuning[U] extends Iterable[U] {
+@deprecated
+trait OldTuning[U] extends Iterable[U] {
   require(deviations.nonEmpty, "Expecting a non-empty list of deviations")
 
   def name: String

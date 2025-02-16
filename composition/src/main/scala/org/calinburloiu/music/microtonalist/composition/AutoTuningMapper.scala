@@ -313,7 +313,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
       deviationsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
     }
-    val autoPartialTuning = PartialTuning(partialTuningValues, tuningName)
+    val autoPartialTuning = PartialTuning(tuningName, partialTuningValues)
     autoPartialTuning
   }
 

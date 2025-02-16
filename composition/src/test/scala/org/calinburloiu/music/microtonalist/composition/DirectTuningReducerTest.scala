@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-import org.calinburloiu.music.microtonalist.composition.TestPartialTunings.{customGlobalFill, evic, justCMajor, segah}
+import org.calinburloiu.music.microtonalist.composition.TestTunings.{customGlobalFill, evic, justCMajor, segah}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

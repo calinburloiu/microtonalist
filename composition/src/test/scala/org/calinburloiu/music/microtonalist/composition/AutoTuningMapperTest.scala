@@ -26,8 +26,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
-  import org.calinburloiu.music.microtonalist.composition.PianoKeyboardTuningUtils._
-
   private val cTuningReference = StandardTuningReference(PitchClass.C)
 
   private val quarterToneTolerance = 5
@@ -490,8 +488,8 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
         case (relativePitchClass, expectedCents) =>
           val finalPitchClass = (pitchClassNumber + relativePitchClass) % 12
 
-          withClue(s"Deviation of ${PianoKeyboardTuningUtils.noteNames(finalPitchClass)}") {
-            result(finalPitchClass) should contain(expectedCents)
+          withClue(s"Deviation of ${PitchClass.noteNames(finalPitchClass)}") {
+            result.get(finalPitchClass) should contain(expectedCents)
           }
       }
     }

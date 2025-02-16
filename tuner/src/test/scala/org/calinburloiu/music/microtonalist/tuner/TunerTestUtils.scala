@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.composition.OctaveTuning
 
+// TODO #98 Move these to TestUtils
 object TunerTestUtils {
   val majTuning: OctaveTuning = OctaveTuning("Just C Major",
     Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, -15.64, 0.0, -11.73))

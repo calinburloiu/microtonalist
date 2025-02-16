@@ -26,7 +26,7 @@ import com.google.common.base.Preconditions.checkElementIndex
  * @param deviations deviation in cents for each key
  */
 case class OctaveTuning(override val name: String,
-                        override val deviations: Seq[Double]) extends Tuning[Double] {
+                        override val deviations: Seq[Double]) extends OldTuning[Double] {
   require(deviations.size == 12, "There should be exactly 12 deviations!")
 
   /** Returns the deviation in cents for a particular key 0-based index. */

@@ -21,7 +21,7 @@ import org.scalatest.matchers.should.Matchers
 
 class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
 
-  import TestPartialTunings._
+  import TestTunings._
 
   private val reducer = MergeTuningReducer()
 

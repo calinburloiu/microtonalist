@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-object TestPartialTunings {
+object TestTunings {
   val evic: PartialTuning = PartialTuning("Evic",
     c = Some(0.0),
     cSharpOrDFlat = None,

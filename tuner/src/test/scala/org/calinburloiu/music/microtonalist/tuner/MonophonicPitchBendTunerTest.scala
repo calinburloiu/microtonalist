@@ -514,8 +514,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
       pitchBendOutput should have size 11
 
-      val tuningValues: Seq[Double] = pitchBendOutput.map { message => message.centsFor(pbs).round }
-      val expectedTuningValues: Seq[Double] = customTuning.deviations.tail.map(_.round)
+      val tuningValues: Seq[Double] = pitchBendOutput.map { message => message.centsFor(pbs).round.toDouble }
+      val expectedTuningValues: Seq[Double] = customTuning.deviations.tail.map(_.round.toDouble)
       tuningValues should contain theSameElementsAs expectedTuningValues
     }
   }
