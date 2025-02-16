@@ -48,7 +48,7 @@ case class TuningSpec(transposition: Interval,
                       scale: Scale[Interval],
                       tuningMapper: TuningMapper) {
 
-  def tuningFor(ref: TuningReference): PartialTuning = {
+  def tuningFor(ref: TuningReference): Tuning = {
     tuningMapper.mapScale(scale, ref, transposition)
   }
 }

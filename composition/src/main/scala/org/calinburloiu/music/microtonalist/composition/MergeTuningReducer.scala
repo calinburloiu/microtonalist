@@ -21,7 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.annotation.tailrec
 
 /**
- * Reducing algorithm for a sequence of [[PartialTuning]]s that attempts to merge consecutive `PartialTuning`s that
+ * Reducing algorithm for a sequence of [[Tuning]]s that attempts to merge consecutive `PartialTuning`s that
  * don't have conflicts. The merging is performed in the order of the sequence.
  *
  * Two `PartialTuning`s are said to have conflicts if they have at least one pair corresponding pitch class deviations
@@ -44,14 +44,14 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
 
   override val typeName: String = MergeTuningReducer.typeName
 
-  override def reduceTunings(partialTunings: Seq[PartialTuning],
-                             globalFillTuning: PartialTuning = PartialTuning.StandardTuningOctave): TuningList = {
+  override def reduceTunings(partialTunings: Seq[Tuning],
+                             globalFillTuning: Tuning = Tuning.Edo12): TuningList = {
     if (partialTunings.isEmpty) {
       return TuningList(Seq.empty)
     }
 
     val tuningSize = partialTunings.head.size
-    val reducedPartialTunings = collect(partialTunings, PartialTuning.empty(tuningSize), tuningSize)
+    val reducedPartialTunings = collect(partialTunings, Tuning.empty(tuningSize), tuningSize)
     val tunings = reducedPartialTunings.map { partialTuning =>
       val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
       if (!enrichedPartialTuning.isComplete) {
@@ -64,13 +64,13 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
     TuningList(tunings)
   }
 
-  private[this] def collect(partialTunings: Seq[PartialTuning],
-                            backFill: PartialTuning,
-                            tuningSize: Int): List[PartialTuning] = {
+  private[this] def collect(partialTunings: Seq[Tuning],
+                            backFill: Tuning,
+                            tuningSize: Int): List[Tuning] = {
     if (partialTunings.isEmpty) {
       List.empty
     } else {
-      val (mergedPartialTuning, partialTuningsLeft) = merge(PartialTuning.empty(tuningSize), partialTunings)
+      val (mergedPartialTuning, partialTuningsLeft) = merge(Tuning.empty(tuningSize), partialTunings)
       val mergedPartialTuningWithBackFill = mergedPartialTuning.fill(backFill)
       val forwardResult = collect(partialTuningsLeft, mergedPartialTuningWithBackFill, tuningSize)
       val result = forwardResult.headOption match {
@@ -82,8 +82,8 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
   }
 
   @tailrec
-  private[this] def merge(acc: PartialTuning,
-                          partialTunings: Seq[PartialTuning]): (PartialTuning, Seq[PartialTuning]) = {
+  private[this] def merge(acc: Tuning,
+                          partialTunings: Seq[Tuning]): (Tuning, Seq[Tuning]) = {
     partialTunings.headOption match {
       case Some(nextPartialTuning) =>
         acc.merge(nextPartialTuning, equalityTolerance) match {

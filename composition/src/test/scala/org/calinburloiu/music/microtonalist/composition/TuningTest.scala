@@ -19,25 +19,25 @@ package org.calinburloiu.music.microtonalist.composition
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class PartialTuningTest extends AnyFlatSpec with Matchers {
+class TuningTest extends AnyFlatSpec with Matchers {
   private val mergeTolerance: Double = 0.5e-2
 
-  private val completePartialTuning = PartialTuning("foo",
+  private val completePartialTuning = Tuning("foo",
     Some(100.0), Some(200.0), Some(300.0),
     Some(400.0), Some(500.0), Some(600.0),
     Some(700.0), Some(800.0), Some(900.0),
     Some(1000.0), Some(1100.0), Some(1200.0))
-  private val incompletePartialTuning = PartialTuning(
+  private val incompletePartialTuning = Tuning(
     Some(0.0), None, Some(270.0),
     Some(400.0), Some(500.0), Some(600.0),
     Some(700.0), Some(800.0), Some(900.0),
     Some(1000.0), Some(1100.0), Some(1200.0))
-  private val incompletePartialTuning2 = PartialTuning(
+  private val incompletePartialTuning2 = Tuning(
     None, None, Some(250.0),
     None, None, None,
     None, None, None,
     None, None, None)
-  private val emptyPartialTuning = PartialTuning(
+  private val emptyPartialTuning = Tuning(
     None, None, None,
     None, None, None,
     None, None, None,
@@ -45,13 +45,15 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
 
   "constructor" should "throw IllegalArgumentException when the number of deviations is not 12" in {
     assertThrows[IllegalArgumentException] {
-      PartialTuning(Seq(Some(10.0), Some(20.0), Some(30.0), Some(40.0), Some(50.0), Some(60.0)))
+      Tuning(Seq(Some(10.0), Some(20.0), Some(30.0), Some(40.0), Some(50.0), Some(60.0)))
     }
 
     assertThrows[IllegalArgumentException] {
-      PartialTuning(Seq.fill(13)(Some(10.0)))
+      Tuning(Seq.fill(13)(Some(10.0)))
     }
   }
+
+  Tuning(c = Some(0), d = Some(1), e = Some(2), f = Some(3))
 
   "apply, size and iterator" should "work as an indexed sequence" in {
     incompletePartialTuning.size shouldEqual 12
@@ -67,7 +69,7 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
   }
 
   "note names implicit methods" should "return the correct deviations" in {
-    val tuning = PartialTuning(
+    val tuning = Tuning(
       Some(0.0), Some(12.0), Some(4.0),
       Some(16.0), Some(-14.0), Some(-2.0),
       None, Some(2.0), Some(-16.0),
@@ -124,13 +126,13 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
     incompletePartialTuning fill emptyPartialTuning shouldEqual incompletePartialTuning
 
     incompletePartialTuning fill completePartialTuning shouldEqual
-      PartialTuning(
+      Tuning(
         Some(0.0), Some(200.0), Some(270.0),
         Some(400.0), Some(500.0), Some(600.0),
         Some(700.0), Some(800.0), Some(900.0),
         Some(1000.0), Some(1100.0), Some(1200.0))
 
-    incompletePartialTuning2 fill incompletePartialTuning shouldEqual PartialTuning(
+    incompletePartialTuning2 fill incompletePartialTuning shouldEqual Tuning(
       Some(0.0), None, Some(250.0),
       Some(400.0), Some(500.0), Some(600.0),
       Some(700.0), Some(800.0), Some(900.0),
@@ -138,35 +140,35 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
   }
 
   "merge" should "correctly combine PartialTunings" in {
-    val pt1 = PartialTuning(
+    val tuning1 = Tuning(
       Some(100.0), Some(200.0), Some(300.0),
       Some(400.0), Some(500.0), Some(600.0),
       Some(700.0), Some(800.0), Some(900.0),
       Some(1000.0), Some(1100.0), Some(1200.0))
-    val pt2 = PartialTuning(
+    val tuning2 = Tuning(
       Some(100.0), None, Some(300.0),
       Some(400.0), Some(500.0), Some(600.0),
       Some(700.0), Some(800.0), Some(900.0),
       Some(1000.0), Some(1100.0), Some(1200.0))
-    val pt3 = PartialTuning(
+    val tuning3 = Tuning(
       Some(100.0), Some(200.0), Some(301.1),
       Some(400.0), Some(500.0), Some(600.0),
       Some(700.0), Some(800.0), Some(900.0),
       Some(1000.0), Some(1100.0), Some(1200.0))
 
     withClue("an empty PartialTuning causes no conflicts:") {
-      pt2.merge(emptyPartialTuning, mergeTolerance) should contain(pt2)
-      emptyPartialTuning.merge(pt2, mergeTolerance) should contain(pt2)
+      tuning2.merge(emptyPartialTuning, mergeTolerance) should contain(tuning2)
+      emptyPartialTuning.merge(tuning2, mergeTolerance) should contain(tuning2)
     }
     withClue("an identical PartialTuning has identical deviations, which cause no conflict") {
-      pt1.merge(pt1.copy(), mergeTolerance) should contain(pt1)
+      tuning1.merge(tuning1.copy(), mergeTolerance) should contain(tuning1)
     }
     withClue("identical corresponding deviations cause no conflict") {
-      pt1.merge(pt2, mergeTolerance) should contain(pt1)
+      tuning1.merge(tuning2, mergeTolerance) should contain(tuning1)
     }
     withClue("non-identical corresponding deviation cause a conflict") {
-      pt1.merge(pt3, mergeTolerance) should be(empty)
-      pt2.merge(pt3, mergeTolerance) should be(empty)
+      tuning1.merge(tuning3, mergeTolerance) should be(empty)
+      tuning2.merge(tuning3, mergeTolerance) should be(empty)
     }
   }
 
@@ -175,16 +177,16 @@ class PartialTuningTest extends AnyFlatSpec with Matchers {
     val deviations1: Seq[Option[Double]] = Seq.fill[Option[Double]](11)(None) :+ Some(5.0)
     val deviations2: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](11)(None)
     val expectedDeviations: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](10)(None) :+ Some(5.0)
-    val ptWithName1 = PartialTuning(name = "Foo", deviations = deviations1)
-    val ptWithName2 = PartialTuning(name = "Bar", deviations = deviations2)
-    val ptWithoutName = PartialTuning(deviations = deviations2)
+    val tuningWithName1 = Tuning(name = "Foo", deviations = deviations1)
+    val tuningWithName2 = Tuning(name = "Bar", deviations = deviations2)
+    val tuningWithoutName = Tuning(deviations = deviations2)
 
     // Then
-    ptWithName1.merge(ptWithoutName, mergeTolerance) should contain(PartialTuning(name = "Foo", deviations =
+    tuningWithName1.merge(tuningWithoutName, mergeTolerance) should contain(Tuning(name = "Foo", deviations =
       expectedDeviations))
-    ptWithoutName.merge(ptWithName1, mergeTolerance) should contain(PartialTuning(name = "Foo", deviations =
+    tuningWithoutName.merge(tuningWithName1, mergeTolerance) should contain(Tuning(name = "Foo", deviations =
       expectedDeviations))
-    ptWithName1.merge(ptWithName2, mergeTolerance) should contain(PartialTuning(name = "Foo + Bar", deviations =
+    tuningWithName1.merge(tuningWithName2, mergeTolerance) should contain(Tuning(name = "Foo + Bar", deviations =
       expectedDeviations))
   }
 }

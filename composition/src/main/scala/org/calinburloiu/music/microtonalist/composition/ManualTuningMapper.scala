@@ -31,7 +31,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
 
   override val typeName: String = ManualTuningMapper.typeName
 
-  override def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): PartialTuning = {
+  override def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): Tuning = {
     require(keyboardMapping.indexesInScale.flatten.max < scale.size)
 
     val processedScale = scale.transpose(transposition)
@@ -56,7 +56,7 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
       }
     }
 
-    PartialTuning(processedScale.name, partialTuningValues)
+    Tuning(processedScale.name, partialTuningValues)
   }
 }
 

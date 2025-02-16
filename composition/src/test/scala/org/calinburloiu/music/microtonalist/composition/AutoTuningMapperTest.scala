@@ -483,7 +483,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
   it should "map a scale on different pitch classes based on basePitchClass parameter" in {
     val tetrachord = CentsScale(0.0, 150.0, 301.0, 498.04)
 
-    def testScale(pitchClassNumber: Int, result: PartialTuning, map: Map[Int, Double]): Unit = {
+    def testScale(pitchClassNumber: Int, result: Tuning, map: Map[Int, Double]): Unit = {
       map.foreach {
         case (relativePitchClass, expectedCents) =>
           val finalPitchClass = (pitchClassNumber + relativePitchClass) % 12
