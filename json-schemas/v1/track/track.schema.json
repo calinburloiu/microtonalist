@@ -4,11 +4,25 @@
     "description": "TODO",
     "type": "object",
     "properties": {
+        "id": {
+            "type": "string",
+            "title": "ID",
+            "$comment": "TODO"
+        },
+        "name": {
+            "type": "string",
+            "$comment": "TODO"
+        },
         "input": { "$ref": "trackInput.schema.json" },
         "tuningChanger": { "$ref": "tuningChanger.schema.json" },
         "tuner": { "$ref": "tuner.schema.json" },
-        "output": { "$ref": "trackOutput.schema.json" }
+        "output": { "$ref": "trackOutput.schema.json" },
+        "muted": {
+            "type": "boolean",
+            "$comment": "TODO",
+            "default": false
+        }
     },
-    "required": ["tuner", "output"],
+    "required": ["id", "name", "output"],
     "unevaluatedProperties": false
 }
