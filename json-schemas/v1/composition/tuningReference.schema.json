@@ -51,10 +51,10 @@
                         }
                     ]
                 },
-                "baseDeviation": {
+                "baseOffset": {
                     "type": "number",
-                    "title": "Base Deviation",
-                    "description": "Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.",
+                    "title": "Base Offset",
+                    "description": "Tuning offset in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.",
                     "minimum": -50,
                     "maximum": 50
                 }

@@ -27,7 +27,7 @@ import scala.collection.immutable.ArraySeq
 /**
  * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[Tuning]] for more details.
  *
- * Partial tunings are typically merged into a final tuning.
+ * Tunings are typically merged into a final tuning.
  *
  * @param offsetOptions `Some` tuning offset in cents for each key or `None` if the key is missing an offset value.
  */
@@ -121,17 +121,6 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   def completedCount: Int = offsetOptions.map(d => if (d.isDefined) 1 else 0).sum
 
   /**
-   * Creates an [[Tuning]] from this partial tuning.
-   *
-   * If it is incomplete (see [[isComplete]]), then, pitch classes without a value are mapped to the standard 12-EDO
-   * tuning.
-   *
-   * @return a new [[Tuning]].
-   * @see [[isComplete]]
-   */
-  def resolve: Tuning = Tuning(name, offsetOptions.map { v => Some(v.getOrElse(0.0)) })
-
-  /**
    * Fills each key with empty deviations from `this` with corresponding non-empty
    * deviations from `that`.
    */
@@ -159,7 +148,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   }
 
   /**
-   * Merges `this` partial tuning with another into a new partial tuning by complementing the corresponding keys.
+   * Merges `this` tuning with another into a new tuning by complementing the corresponding keys.
    *
    * The following cases apply:
    *
@@ -169,9 +158,9 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
    *   - If both have deviations for a key, and they are not equal, it is said that there is a ''conflict'' and
    *     `None` is returned.
    *
-   * @param that      other partial tuning used for merging
+   * @param that      other tuning used for merging
    * @param tolerance maximum error tolerance in cents when comparing two correspondent deviations for equality
-   * @return `Some` new partial tuning if the merge was successful, or `None` if there was a conflict.
+   * @return `Some` new tuning if the merge was successful, or `None` if there was a conflict.
    */
   def merge(that: Tuning, tolerance: Double = DefaultCentsTolerance): Option[Tuning] = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
@@ -210,7 +199,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
 
           // Conflict, stop!
           case _ =>
-            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in PartialTunings $this and $that")
+            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in Tunings $this and $that")
             None
         }
       }
@@ -225,9 +214,9 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
    * Checks if this [[Tuning]] has the deviations equal within an error tolerance with the given
    * [[Tuning]]. Other properties are ignored in the comparison.
    *
-   * @param that           The partial tuning to compare with.
+   * @param that           The tuning to compare with.
    * @param centsTolerance Error tolerance in cents.
-   * @return true if the partial tunings are almost equal, or false otherwise.
+   * @return true if the tunings are almost equal, or false otherwise.
    */
   def almostEquals(that: Tuning, centsTolerance: Double): Boolean = {
     (this.offsetOptions zip that.offsetOptions).forall {
@@ -238,7 +227,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   }
 
   override def toString: String = {
-    val deviationsAsString = offsetOptions.map(fromDeviationToString)
+    val deviationsAsString = offsetOptions.map(fromOffsetToString)
 
     val notesWithDeviations = (PitchClass.noteNames zip deviationsAsString).map {
       case (noteName, deviationString) => s"$noteName = ${deviationString.trim}"
@@ -248,7 +237,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   }
 
   def toPianoKeyboardString: String = {
-    def padDeviation(deviation: Option[Double]) = fromDeviationToString(deviation).padTo(12, ' ')
+    def padDeviation(deviation: Option[Double]) = fromOffsetToString(deviation).padTo(12, ' ')
 
     val missingKeySpace = " " * 6
 
@@ -355,14 +344,14 @@ object Tuning {
   /**
    * Creates a [[Tuning]] which has no deviation in each of its keys.
    *
-   * @param size the number of keys in the partial tuning
-   * @return a new partial tuning
+   * @param size the number of keys in the tuning
+   * @return a new tuning
    */
   def empty(size: Int): Tuning = Tuning(Seq.fill(size)(None))
 
   def fill(deviation: Double, size: Int): Tuning = Tuning(Seq.fill(size)(Some(deviation)))
 
-  def fromDeviationToString(deviation: Double): String = f"$deviation%+06.2f"
+  private def fromOffsetToString(deviation: Double): String = f"$deviation%+06.2f"
 
-  def fromDeviationToString(deviation: Option[Double]): String = deviation.fold("  --  ")(fromDeviationToString)
+  private def fromOffsetToString(deviation: Option[Double]): String = deviation.fold("  --  ")(fromOffsetToString)
 }

@@ -52,17 +52,17 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     val tuningReference = ConcertPitchTuningReference(2 /: 3, MidiNote.D4)
 
     // When
-    val partialTuning = mapper.mapScale(scale, tuningReference)
+    val tuning = mapper.mapScale(scale, tuningReference)
 
     // Then
-    partialTuning.completedCount shouldEqual 7
-    partialTuning.d shouldEqual -1.95
-    partialTuning.e shouldEqual -63.38
-    partialTuning.f shouldEqual -7.82
-    partialTuning.g shouldEqual -3.91
-    partialTuning.a shouldEqual 0.0
-    partialTuning.bFlat shouldEqual 38.57
-    partialTuning.c shouldEqual -5.87
+    tuning.completedCount shouldEqual 7
+    tuning.d shouldEqual -1.95
+    tuning.e shouldEqual -63.38
+    tuning.f shouldEqual -7.82
+    tuning.g shouldEqual -3.91
+    tuning.a shouldEqual 0.0
+    tuning.bFlat shouldEqual 38.57
+    tuning.c shouldEqual -5.87
   }
 
   it should "map a large scale that can't be automatically mapped" in {
@@ -76,17 +76,17 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     val tuningReference = StandardTuningReference(PitchClass.C)
 
     // When
-    val partialTuning = mapper.mapScale(scale, tuningReference)
+    val tuning = mapper.mapScale(scale, tuningReference)
 
     // Then
-    partialTuning.completedCount shouldEqual 7
-    partialTuning.c shouldEqual 0.0
-    partialTuning.d shouldEqual 3.91
-    partialTuning.e shouldEqual -13.69
-    partialTuning.f shouldEqual -1.96
-    partialTuning.g shouldEqual 1.96
-    partialTuning.aFlat shouldEqual 13.69
-    partialTuning.b shouldEqual -11.73
+    tuning.completedCount shouldEqual 7
+    tuning.c shouldEqual 0.0
+    tuning.d shouldEqual 3.91
+    tuning.e shouldEqual -13.69
+    tuning.f shouldEqual -1.96
+    tuning.g shouldEqual 1.96
+    tuning.aFlat shouldEqual 13.69
+    tuning.b shouldEqual -11.73
   }
 
   it should "fail to map a scale if a deviation overflows" in {

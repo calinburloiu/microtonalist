@@ -36,18 +36,18 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
     require(keyboardMapping.indexesInScale.flatten.max < scale.size)
 
     val processedScale = scale.transpose(transposition)
-    val partialTuningValues = keyboardMapping.values.map { pair =>
+    val tuningValues = keyboardMapping.values.map { pair =>
       val maybeScalePitchIndex = pair._2
       maybeScalePitchIndex match {
         case Some(scalePitchIndex) =>
           val pitchClass = PitchClass.fromNumber(pair._1)
           val interval = processedScale(scalePitchIndex)
           val totalCentsInterval = (ref.baseTuningPitch.interval + CentsInterval(interval.cents)).normalize
-          val deviation = ManualTuningMapper.computeDeviation(totalCentsInterval, pitchClass)
-          if (deviation <= MinExclusiveDeviation || deviation >= MaxExclusiveDeviation) {
+          val deviation = ManualTuningMapper.computeTuningOffset(totalCentsInterval, pitchClass)
+          if (deviation <= MinExclusiveTuningOffset || deviation >= MaxExclusiveTuningOffset) {
             throw new TuningMapperOverflowException(
-              s"Deviation $deviation for $pitchClass overflowed range ($MinExclusiveDeviation, " +
-                s"$MaxExclusiveDeviation)!")
+              s"Deviation $deviation for $pitchClass overflowed range ($MinExclusiveTuningOffset, " +
+                s"$MaxExclusiveTuningOffset)!")
           }
 
           Some(deviation)
@@ -57,15 +57,15 @@ case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMa
       }
     }
 
-    Tuning(processedScale.name, partialTuningValues)
+    Tuning(processedScale.name, tuningValues)
   }
 }
 
 object ManualTuningMapper {
   val typeName: String = "manual"
 
-  val MinExclusiveDeviation: Double = -100.0
-  val MaxExclusiveDeviation: Double = 100.0
+  val MinExclusiveTuningOffset: Double = -100.0
+  val MaxExclusiveTuningOffset: Double = 100.0
 
   /**
    * Computes the deviation from 12-EDO for the given pitch class.
@@ -75,7 +75,7 @@ object ManualTuningMapper {
    * @param pitchClass         pitch class from which the deviation is computed
    * @return a deviation in cents
    */
-  private def computeDeviation(totalCentsInterval: CentsInterval, pitchClass: PitchClass): Double = {
+  private def computeTuningOffset(totalCentsInterval: CentsInterval, pitchClass: PitchClass): Double = {
     if (pitchClass == PitchClass.C) {
       // Because totalCentsInterval is counted from a 12-EDO C, it can either be close to 0 (but above it) or close
       // to 1200 (but below it). We take the deviation as the one with minimum absolute value.

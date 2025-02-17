@@ -41,7 +41,7 @@ trait TuningReference extends Plugin {
   /**
    * @return the deviation from 12-EDO in cents of the `basePitchClass`
    */
-  def baseDeviation: Double
+  def baseOffset: Double
 }
 
 object TuningReference {
@@ -52,14 +52,14 @@ object TuningReference {
  * Tuning reference relative standard tuning (12-EDO).
  *
  * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
- * @param baseDeviation  Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.
+ * @param baseOffset     Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.
  */
 case class StandardTuningReference(override val basePitchClass: PitchClass,
-                                   override val baseDeviation: Double = 0.0) extends TuningReference {
+                                   override val baseOffset: Double = 0.0) extends TuningReference {
 
   override val typeName: String = StandardTuningReference.typeName
 
-  override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
+  override def baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseOffset)
 }
 
 object StandardTuningReference {
@@ -84,12 +84,12 @@ case class ConcertPitchTuningReference(concertPitchToBaseInterval: Interval,
 
   override def basePitchClass: PitchClass = baseMidiNote.pitchClass
 
-  override val baseDeviation: Double = {
+  override val baseOffset: Double = {
     val concertPitchToBaseMidiNoteInterval = RealInterval(baseMidiNote.freq / concertPitchFreq)
     (concertPitchToBaseInterval - concertPitchToBaseMidiNoteInterval).cents
   }
 
-  override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseDeviation)
+  override val baseTuningPitch: TuningPitch = TuningPitch(basePitchClass, baseOffset)
 }
 
 object ConcertPitchTuningReference {

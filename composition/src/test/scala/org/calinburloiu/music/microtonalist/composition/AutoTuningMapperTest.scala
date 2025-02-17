@@ -40,7 +40,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   behavior of "mapScale"
 
-  it should "map a just major scale with a custom tuning reference to a PartialTuning" in {
+  it should "map a just major scale with a custom tuning reference to a Tuning" in {
     val major = RatiosScale((1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
     val major2 = RatiosScale((1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (27, 16), (15, 8), (2, 1))
     // The "major" scale will be tuned starting from C on the piano. A4 is kept at 440 Hz, but the 5/3 note mapped to
@@ -519,16 +519,16 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 5.0,
       overrideKeyboardMapping = overrideKeyboardMapping)
     // When
-    val partialTuning = mapper.mapScale(scale, tuningReference)
+    val tuning = mapper.mapScale(scale, tuningReference)
     // Then
-    partialTuning.completedCount shouldEqual 7
-    partialTuning.d shouldEqual -1.95
-    partialTuning.eFlat shouldEqual 48.68
-    partialTuning.f shouldEqual -7.82
-    partialTuning.g shouldEqual -3.91
-    partialTuning.a shouldEqual 0.0
-    partialTuning.bFlat shouldEqual 38.57
-    partialTuning.c shouldEqual -5.87
+    tuning.completedCount shouldEqual 7
+    tuning.d shouldEqual -1.95
+    tuning.eFlat shouldEqual 48.68
+    tuning.f shouldEqual -7.82
+    tuning.g shouldEqual -3.91
+    tuning.a shouldEqual 0.0
+    tuning.bFlat shouldEqual 38.57
+    tuning.c shouldEqual -5.87
   }
 
   it should "avoid conflict with manually mapped pitches" in {
@@ -540,12 +540,12 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
       overrideKeyboardMapping = overrideKeyboardMapping)
 
     // When
-    val partialTuning = mapper.mapScale(scale, tuningReference)
+    val tuning = mapper.mapScale(scale, tuningReference)
 
     // Then
-    partialTuning.completedCount shouldEqual 5
-    partialTuning.eFlat shouldEqual 50.64
-    partialTuning.e shouldEqual -56.50
+    tuning.completedCount shouldEqual 5
+    tuning.eFlat shouldEqual 50.64
+    tuning.e shouldEqual -56.50
   }
 
   // Test for bugfix https://github.com/calinburloiu/microtonalist/issues/76
@@ -555,14 +555,14 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
 
     // When
-    val partialTuning = mapper.mapScale(ciresar, cTuningReference)
+    val tuning = mapper.mapScale(ciresar, cTuningReference)
 
     // Then
-    partialTuning.completedCount shouldEqual 8
-    partialTuning.eFlat shouldEqual 15.64
-    partialTuning.e shouldEqual 35.08
-    partialTuning.bFlat shouldEqual 17.6
-    partialTuning.b shouldEqual 37.04
+    tuning.completedCount shouldEqual 8
+    tuning.eFlat shouldEqual 15.64
+    tuning.e shouldEqual 35.08
+    tuning.bFlat shouldEqual 17.6
+    tuning.b shouldEqual 37.04
   }
 
   behavior of "mapInterval"
@@ -609,7 +609,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
     forAll(table) { (inputCents, autoTuningMapper, expectedTuningPitch) =>
       val TuningPitch(pitchClass, deviation) = autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningReference)
       pitchClass should equal(expectedTuningPitch.pitchClass)
-      deviation should equal(expectedTuningPitch.deviation)
+      deviation should equal(expectedTuningPitch.offset)
     }
   }
 

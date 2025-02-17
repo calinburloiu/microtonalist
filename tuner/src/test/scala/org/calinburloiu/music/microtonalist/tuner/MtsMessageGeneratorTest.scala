@@ -37,7 +37,7 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
 
   private val tuning = Tuning.fromOffsets("Just 12",
     Seq(0.1, 11.73, 3.91, 15.64, -13.69, -1.96, -17.49, 1.96, 13.69, -15.64, -31.18, -11.73))
-  private val expected1ByteDeviations: Seq[Double] = Seq(
+  private val expected1ByteOffsets: Seq[Double] = Seq(
     0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, 14.0, -16.0, -31.0, -12.0)
 
   private val epsilon: Double = 2e-2
@@ -55,7 +55,7 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
   }
 
   test("Octave1ByteNonRealTime") {
-    assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteDeviations)
+    assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
   }
 
   test("Octave2ByteNonRealTime") {
@@ -63,7 +63,7 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
   }
 
   test("Octave1ByteRealTime") {
-    assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteDeviations)
+    assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteOffsets)
   }
 
   test("Octave2ByteRealTime") {
