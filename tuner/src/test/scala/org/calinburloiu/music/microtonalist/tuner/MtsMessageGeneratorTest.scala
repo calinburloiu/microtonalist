@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.sun.media.sound.SoftTuning
-import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -38,25 +37,25 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
 
   private val tuning = Tuning.fromOffsets("Just 12",
     Seq(0.1, 11.73, 3.91, 15.64, -13.69, -1.96, -17.49, 1.96, 13.69, -15.64, -31.18, -11.73))
-  private val expected1ByteDeviations: Seq[Double] = Seq(
+  private val expected1ByteOffsets: Seq[Double] = Seq(
     0.0, 12.0, 4.0, 16.0, -14.0, -2.0, -17.0, 2.0, 14.0, -16.0, -31.0, -12.0)
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  def assertTuning(messageGenerator: MtsMessageGenerator, expectedDeviations: Seq[Double]): Unit = {
+  def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double]): Unit = {
     val sysexMessage = messageGenerator.generate(tuning)
     val data = sysexMessage.getMessage
     val softTuning = new SoftTuning(data)
     val tuningValues = softTuning.getTuning
 
     for (i <- tuningValues.indices) {
-      (tuningValues(i) - 100 * i) shouldEqual expectedDeviations(i % 12)
+      (tuningValues(i) - 100 * i) shouldEqual expectedOffsets(i % 12)
     }
   }
 
   test("Octave1ByteNonRealTime") {
-    assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteDeviations)
+    assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
   }
 
   test("Octave2ByteNonRealTime") {
@@ -64,7 +63,7 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
   }
 
   test("Octave1ByteRealTime") {
-    assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteDeviations)
+    assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteOffsets)
   }
 
   test("Octave2ByteRealTime") {

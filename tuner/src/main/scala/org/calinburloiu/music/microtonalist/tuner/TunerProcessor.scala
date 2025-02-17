@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.scmidi.MidiProcessor
 
 import javax.annotation.concurrent.NotThreadSafe
@@ -52,7 +51,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
    * and sends them to the configured receiver.
    *
    * @param tuning The instance that contains the tuning information,
-   *               including the deviation in cents for each of the 12 pitch classes.
+   *               including the offset in cents for each of the 12 pitch classes.
    */
   def tune(tuning: Tuning): Unit = {
     val tuningMessages = tuner.tune(tuning)

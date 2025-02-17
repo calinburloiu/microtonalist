@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.composition
+package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
@@ -25,26 +25,28 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 
 /**
- * An incomplete tuning of a scale, that has missing deviations for some keys. Check [[Tuning]] for more details.
+ * Describes the tuning of a keyed instrument, typically with a piano keyboard, by specifying offsets in cents
+ * for pitch classes. It is allowed to skip tuning values for pitch classes that are not used in the tuning.
  *
- * Partial tunings are typically merged into a final tuning.
+ * A tuning can only be specified for the 12 pitch classes: C, C#\Db, ..., B. It cannot specify different values for
+ * each instance of a pitch class.
  *
  * @param offsetOptions `Some` tuning offset in cents for each key or `None` if the key is missing an offset value.
  */
 case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iterable[Option[Double]] with
   LazyLogging {
   require(offsetOptions.size == 12,
-    s"There should be exactly 12 deviations corresponding to the 12 pitch classes, but found ${offsetOptions.size}!")
+    s"There should be exactly 12 offsets corresponding to the 12 pitch classes, but found ${offsetOptions.size}!")
 
   import Tuning._
 
 
   /**
-   * Retrieves the deviation in cents for the specified pitch class number.
-   * If no deviation is defined for the provided pitch class number, returns a default value of 0.0.
+   * Retrieves the offset in cents for the specified pitch class number.
+   * If no offset is defined for the provided pitch class number, returns a default value of 0.0.
    *
-   * @param pitchClassNumber The 0-based index of the pitch class number whose deviation is to be retrieved.
-   * @return the deviation in cents for the specified pitch class number, or 0.0 if no deviation is defined.
+   * @param pitchClassNumber The 0-based index of the pitch class number whose offset is to be retrieved.
+   * @return the offset in cents for the specified pitch class number, or 0.0 if no offset is defined.
    */
   def apply(pitchClassNumber: Int): Double = {
     checkElementIndex(pitchClassNumber, size)
@@ -52,12 +54,12 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   }
 
   /**
-   * Retrieves the deviation in cents for the specified pitch class number as an optional value, returning [[Some]]
+   * Retrieves the offset in cents for the specified pitch class number as an optional value, returning [[Some]]
    * value if there is a tuning defined for that pitch class or [[None]] if there isn't.
    *
-   * @param pitchClassNumber The 0-based index of the pitch class number whose deviation is to be retrieved.
-   * @return a [[Some]] containing the deviation in cents for the specified pitch class number, or `None` if no
-   *         deviation is defined.
+   * @param pitchClassNumber The 0-based index of the pitch class number whose offset is to be retrieved.
+   * @return a [[Some]] containing the offset in cents for the specified pitch class number, or `None` if no
+   *         offset is defined.
    */
   def get(pitchClassNumber: Int): Option[Double] = {
     checkElementIndex(pitchClassNumber, size)
@@ -111,67 +113,57 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   override def iterator: Iterator[Option[Double]] = offsetOptions.iterator
 
   /**
-   * @return `true` if deviations are available for all keys or `false` otherwise
+   * @return `true` if offsets are available for all keys or `false` otherwise
    */
   def isComplete: Boolean = offsetOptions.forall(_.nonEmpty)
 
   /**
-   * @return the number of completed pitch classes which have a deviation defined
+   * @return the number of completed pitch classes which have an offset defined
    */
   def completedCount: Int = offsetOptions.map(d => if (d.isDefined) 1 else 0).sum
 
   /**
-   * Creates an [[Tuning]] from this partial tuning.
-   *
-   * If it is incomplete (see [[isComplete]]), then, pitch classes without a value are mapped to the standard 12-EDO
-   * tuning.
-   *
-   * @return a new [[Tuning]].
-   * @see [[isComplete]]
-   */
-  def resolve: Tuning = Tuning(name, offsetOptions.map { v => Some(v.getOrElse(0.0)) })
-
-  /**
-   * Fills each key with empty deviations from `this` with corresponding non-empty
-   * deviations from `that`.
+   * Fills each key with empty offsets from `this` with corresponding non-empty
+   * offsets from `that`.
    */
   def fill(that: Tuning): Tuning = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
-    val resultDeviations = (this.offsetOptions zip that.offsetOptions).map {
-      case (thisDeviation, thatDeviation) => thisDeviation.orElse(thatDeviation)
+    val resultOffsets = (this.offsetOptions zip that.offsetOptions).map {
+      case (thisOffset, thatOffset) => thisOffset.orElse(thatOffset)
     }
 
-    Tuning(name, resultDeviations)
+    Tuning(name, resultOffsets)
   }
 
   /**
-   * Overwrites each key from `this` with with corresponding non-empty deviations from `that`.
+   * Overwrites each key from `this` with with corresponding non-empty offsets from `that`.
    */
   def overwrite(that: Tuning): Tuning = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
 
-    val resultDeviations = (this.offsetOptions zip that.offsetOptions).map {
-      case (thisDeviation, thatDeviation) => (thisDeviation ++ thatDeviation).lastOption
+    val resultOffsets = (this.offsetOptions zip that.offsetOptions).map {
+      case (thisOffset, thatOffset) => (thisOffset ++ thatOffset).lastOption
     }
 
-    Tuning(name, resultDeviations)
+    Tuning(name, resultOffsets)
   }
 
   /**
-   * Merges `this` partial tuning with another into a new partial tuning by complementing the corresponding keys.
+   * Merges `this` tuning with another into a new tuning by complementing the corresponding keys.
    *
    * The following cases apply:
    *
-   *   - If one has a deviation and the other does not for a key, the deviation of the former is used.
-   *   - If none have a deviation, the resulting key will continue to be empty.
-   *   - If both have the same deviation for a key (equal within the given tolerance), that key will use that deviation.
-   *   - If both have deviations for a key, and they are not equal, it is said that there is a ''conflict'' and
+   *   - If one has a tuning offset and the other does not for a key, the offset of the former is used.
+   *   - If none have a tuning offset, the resulting key will continue to be empty.
+   *   - If both have the same tuning offset for a key (equal within the given tolerance), that key will use that
+   *     offset.
+   *   - If both have tuning offsets for a key, and they are not equal, it is said that there is a ''conflict'' and
    *     `None` is returned.
    *
-   * @param that      other partial tuning used for merging
-   * @param tolerance maximum error tolerance in cents when comparing two correspondent deviations for equality
-   * @return `Some` new partial tuning if the merge was successful, or `None` if there was a conflict.
+   * @param that      other tuning used for merging
+   * @param tolerance maximum error tolerance in cents when comparing two correspondent tuning offsets for equality
+   * @return `Some` new tuning if the merge was successful, or `None` if there was a conflict.
    */
   def merge(that: Tuning, tolerance: Double = DefaultCentsTolerance): Option[Tuning] = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
@@ -210,7 +202,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
 
           // Conflict, stop!
           case _ =>
-            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in PartialTunings $this and $that")
+            logger.debug(s"Conflict for pitch class ${PitchClass.fromNumber(index)} in Tunings $this and $that")
             None
         }
       }
@@ -222,14 +214,14 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   }
 
   /**
-   * Checks if this [[Tuning]] has the deviations equal within an error tolerance with the given
+   * Checks if this [[Tuning]] has the offsets equal within an error tolerance with the given
    * [[Tuning]]. Other properties are ignored in the comparison.
    *
-   * @param that           The partial tuning to compare with.
+   * @param that           The tuning to compare with.
    * @param centsTolerance Error tolerance in cents.
-   * @return true if the partial tunings are almost equal, or false otherwise.
+   * @return true if the tunings are almost equal, or false otherwise.
    */
-  def almostEquals(that: Tuning, centsTolerance: Double): Boolean = {
+  def almostEquals(that: Tuning, centsTolerance: Double = DefaultCentsTolerance): Boolean = {
     (this.offsetOptions zip that.offsetOptions).forall {
       case (None, None) => true
       case (Some(d1), Some(d2)) => DoubleMath.fuzzyEquals(d1, d2, centsTolerance)
@@ -238,26 +230,26 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
   }
 
   override def toString: String = {
-    val deviationsAsString = offsetOptions.map(fromDeviationToString)
+    val offsetsAsString = offsetOptions.map(fromOffsetToString)
 
-    val notesWithDeviations = (PitchClass.noteNames zip deviationsAsString).map {
-      case (noteName, deviationString) => s"$noteName = ${deviationString.trim}"
+    val notesWithOffsets = (PitchClass.noteNames zip offsetsAsString).map {
+      case (noteName, offsetString) => s"$noteName = ${offsetString.trim}"
     }.mkString(", ")
 
-    s""""$name" ($notesWithDeviations)"""
+    s""""$name" ($notesWithOffsets)"""
   }
 
   def toPianoKeyboardString: String = {
-    def padDeviation(deviation: Option[Double]) = fromDeviationToString(deviation).padTo(12, ' ')
+    def padOffset(offset: Option[Double]) = fromOffsetToString(offset).padTo(12, ' ')
 
     val missingKeySpace = " " * 6
 
     val blackKeysString =
       Seq(Some(get(1)), Some(get(3)), None, None, Some(get(6)), Some(get(8)), Some(get(10))).map {
-        case Some(deviation) => padDeviation(deviation)
+        case Some(offset) => padOffset(offset)
         case None => missingKeySpace
       }.mkString("")
-    val whiteKeysString = Seq(get(0), get(2), get(4), get(5), get(7), get(9), get(11)).map(padDeviation).mkString("")
+    val whiteKeysString = Seq(get(0), get(2), get(4), get(5), get(7), get(9), get(11)).map(padOffset).mkString("")
 
     s"\"$name\":\n$missingKeySpace$blackKeysString\n$whiteKeysString"
   }
@@ -280,16 +272,19 @@ object Tuning {
   val Size: Int = 12
 
   /**
-   * A [[Tuning]] with 12 keys and no deviations completed.
+   * A [[Tuning]] with 12 keys and no offsets completed.
    */
   val Empty: Tuning = empty(Size)
 
   /**
-   * A [[Tuning]] with 12 keys and all 0 deviations for the standard 12-tone equal temperament.
+   * A [[Tuning]] with 12 keys and all 0 offsets for the standard 12-tone equal temperament.
    */
   val Standard: Tuning = fill(0, Size)
 
-  def apply(deviations: Seq[Option[Double]]): Tuning = Tuning("", deviations)
+  /**
+   * Creates a [[Tuning]] for the 12 pitch classes in an octave with an empty name.
+   */
+  def apply(offsets: Seq[Option[Double]]): Tuning = Tuning("", offsets)
 
   /**
    * Creates a named [[Tuning]] for the 12 pitch classes in an octave.
@@ -307,9 +302,9 @@ object Tuning {
             a: Option[Double] = None,
             aSharpOrBFlat: Option[Double] = None,
             b: Option[Double] = None): Tuning = {
-    val deviations = Seq(c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g,
+    val offsets = Seq(c, cSharpOrDFlat, d, dSharpOrEFlat, e, f, fSharpOrGFlat, g,
       gSharpOrAFlat, a, aSharpOrBFlat, b)
-    Tuning(name, deviations)
+    Tuning(name, offsets)
   }
 
   /**
@@ -353,16 +348,23 @@ object Tuning {
   def fromOffsets(name: String, offsets: Seq[Double]): Tuning = Tuning(name, offsets.map(Some(_)))
 
   /**
-   * Creates a [[Tuning]] which has no deviation in each of its keys.
+   * Creates a [[Tuning]] which has no offset in each of its keys.
    *
-   * @param size the number of keys in the partial tuning
-   * @return a new partial tuning
+   * @param size the number of keys in the tuning
+   * @return a new tuning
    */
   def empty(size: Int): Tuning = Tuning(Seq.fill(size)(None))
 
-  def fill(deviation: Double, size: Int): Tuning = Tuning(Seq.fill(size)(Some(deviation)))
+  /**
+   * Creates a Tuning instance where all keys in the tuning have the same offset value.
+   *
+   * @param offset The value to fill each key in the tuning with.
+   * @param size   The number of keys in the tuning.
+   * @return a new Tuning instance filled with the specified offset value across all keys.
+   */
+  def fill(offset: Double, size: Int): Tuning = Tuning(Seq.fill(size)(Some(offset)))
 
-  def fromDeviationToString(deviation: Double): String = f"$deviation%+06.2f"
+  private def fromOffsetToString(offset: Double): String = f"$offset%+06.2f"
 
-  def fromDeviationToString(deviation: Option[Double]): String = deviation.fold("  --  ")(fromDeviationToString)
+  private def fromOffsetToString(offset: Option[Double]): String = offset.fold("  --  ")(fromOffsetToString)
 }

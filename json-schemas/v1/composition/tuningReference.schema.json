@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tuning Reference",
-    "description": "Tuning reference is a plugin that tells what pitch class should be used on the keyboard for the base pitch and what tuning deviation should that have with respect to standard tuning (12-EDO).\nAs any plugin it can be defined as an object with a \"type\" property that identifies the tuning reference to be used. Check the documentation for that property for details about what tuning reference types are supported.",
+    "description": "Tuning reference is a plugin that tells what pitch class should be used on the keyboard for the base pitch and what tuning offset should that have with respect to standard tuning (12-EDO).\nAs any plugin it can be defined as an object with a \"type\" property that identifies the tuning reference to be used. Check the documentation for that property for details about what tuning reference types are supported.",
     "type": "object",
     "properties": {
         "type": {
@@ -51,10 +51,10 @@
                         }
                     ]
                 },
-                "baseDeviation": {
+                "baseOffset": {
                     "type": "number",
-                    "title": "Base Deviation",
-                    "description": "Deviation in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.",
+                    "title": "Base Offset",
+                    "description": "Tuning offset in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.",
                     "minimum": -50,
                     "maximum": 50
                 }

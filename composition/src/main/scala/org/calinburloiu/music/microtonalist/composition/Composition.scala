@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation._
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 /**
  * A collection of scales to be mapped to tunings.

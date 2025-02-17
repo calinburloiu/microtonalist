@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.math.IntMath
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.composition.Tuning
 
 import javax.annotation.concurrent.NotThreadSafe
 

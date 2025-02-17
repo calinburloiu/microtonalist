@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
 import java.util.UUID

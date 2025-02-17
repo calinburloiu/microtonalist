@@ -18,11 +18,12 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation.{Interval, RealInterval, Scale}
 import org.calinburloiu.music.microtonalist.common.Plugin
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
- * Maps a [[Scale]] to a [[Tuning]], by choosing the right keys to be used. Keys not used in the partial tuning
- * will have `None` deviations.
+ * Maps a [[Scale]] to a [[Tuning]], by choosing the right keys to be used. Keys not used in the tuning
+ * will have `None` offsets.
  *
  * It is said that a _conflict_ occurs on a tuning key if two scale pitches attempt to map to the same tuning key.
  * This results in throwing a [[TuningMapperConflictException]].
@@ -37,7 +38,7 @@ trait TuningMapper extends Plugin {
    * @param scale         Scale to map.
    * @param ref           Tuning reference.
    * @param transposition Interval by which the scale should be transposed before mapping it.
-   * @return a partial tuning for the given scale.
+   * @return a tuning for the given scale.
    */
   def mapScale(scale: Scale[Interval], ref: TuningReference, transposition: Interval): Tuning
 
@@ -46,7 +47,7 @@ trait TuningMapper extends Plugin {
    *
    * @param scale Scale to map.
    * @param ref   Tuning reference.
-   * @return a partial tuning for the given scale.
+   * @return a tuning for the given scale.
    */
   def mapScale(scale: Scale[Interval], ref: TuningReference): Tuning = {
     val unison = scale.intonationStandard.map(_.unison).getOrElse(RealInterval.Unison)
@@ -67,7 +68,7 @@ object TuningMapper {
 // TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?
 
 /**
- * Exception thrown if a conflict occurs while mapping a scale to a partial tuning.
+ * Exception thrown if a conflict occurs while mapping a scale to a tuning.
  *
  * @see [[TuningMapper]]
  */
@@ -76,7 +77,7 @@ class TuningMapperConflictException(scale: Scale[Interval], conflicts: Map[Pitch
     s" have conflicts: $conflicts")
 
 /**
- * Exception thrown if the deviation for a pitch class exceeds the allowed values, typically greater or equal than
+ * Exception thrown if the tuning offset for a pitch class exceeds the allowed values, typically greater or equal than
  * 100.
  */
 class TuningMapperOverflowException(message: String, cause: Throwable = null)

@@ -435,7 +435,7 @@ class EdoIntervalTest extends AnyFlatSpec with Matchers with TableDrivenProperty
     EdoInterval(6, (7, 0)) shouldEqual EdoInterval(6, 4)
   }
 
-  "countRelativeToStandard" should "return a pair of an approximation of semitones and the deviation" in {
+  "countRelativeToStandard" should "return a pair of an approximation of semitones and the offset in cents" in {
     EdoInterval(72, (7, 0)).countRelativeToStandard shouldEqual(7, 0)
     EdoInterval(72, (4, -1)).countRelativeToStandard shouldEqual(4, -1)
     EdoInterval(72, (3, +1)).countRelativeToStandard shouldEqual(3, +1)

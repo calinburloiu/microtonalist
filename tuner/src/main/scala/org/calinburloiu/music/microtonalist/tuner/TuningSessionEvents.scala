@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.BusinessyncEvent
-import org.calinburloiu.music.microtonalist.composition.Tuning
 
 /**
  * Base class for all events published by [[TuningSession]].
@@ -39,7 +38,7 @@ sealed abstract class TuningSessionEvent extends BusinessyncEvent {
  * new tuning index and the corresponding tuning that is currently being applied.
  *
  * @param tuningIndex   Identifier representing the index within the sequence of tunings related to the session.
- * @param currentTuning The current tuning object, describing the pitch class deviations in cents for
+ * @param currentTuning The current tuning object, describing the pitch class offsets in cents for
  *                      the specified musical tuning.
  */
 case class TuningIndexUpdatedEvent(override val tuningIndex: Int,

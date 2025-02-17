@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.common.Plugin
-import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.microtonalist.tuner.Tuner.FamilyName
 import org.calinburloiu.music.scmidi.MidiDeviceId
 
@@ -79,7 +78,7 @@ trait Tuner extends Plugin {
    * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be
    * played in that tuning.
    *
-   * @param tuning The tuning instance that specifies the deviation in cents for each of the 12 pitch classes in the
+   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
    */
   def tune(tuning: Tuning): Seq[MidiMessage]
