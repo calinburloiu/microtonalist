@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-import org.calinburloiu.music.microtonalist.composition.TestTunings.{customGlobalFill, evic, justCMajor, segah}
+import org.calinburloiu.music.microtonalist.tuner.TestTunings.{bEvic, customGlobalFill, eSegah, justCMaj}
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,7 +32,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "resolve a single partial tuning into a tuning list with a single tuning" in {
-    val tuningList = reducer.reduceTunings(Seq(justCMajor))
+    val tuningList = reducer.reduceTunings(Seq(justCMaj))
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual Tuning("Just C Major",
@@ -51,7 +52,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "resolve a single partial tuning and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer.reduceTunings(Seq(justCMajor), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(justCMaj), customGlobalFill)
 
     tuningList.size shouldEqual 1
     tuningList.tunings.head shouldEqual Tuning("Just C Major",
@@ -71,7 +72,7 @@ class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "NOT merge two partial tunings and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer.reduceTunings(Seq(segah, evic), customGlobalFill)
+    val tuningList = reducer.reduceTunings(Seq(eSegah, bEvic), customGlobalFill)
 
     tuningList.size shouldEqual 2
     tuningList.tunings.head shouldEqual Tuning("Segah",

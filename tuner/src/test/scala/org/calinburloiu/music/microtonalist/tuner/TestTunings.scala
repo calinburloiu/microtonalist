@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.composition
+package org.calinburloiu.music.microtonalist.tuner
 
 object TestTunings {
-  val evic: Tuning = Tuning("Evic",
+  val bEvic: Tuning = Tuning("Evic",
     c = Some(0.0),
     d = Some(0.0),
     e = Some(-16.67),
@@ -27,7 +27,7 @@ object TestTunings {
     b = Some(-16.67)
   )
 
-  val gMajor: Tuning = Tuning("G Major",
+  val gMaj: Tuning = Tuning("G Major",
     c = Some(0.0),
     d = Some(0.0),
     e = Some(-16.67),
@@ -37,7 +37,7 @@ object TestTunings {
     b = Some(-16.67)
   )
 
-  val nihaventPentachord: Tuning = Tuning("Nihavent Pentachord",
+  val cNihavent5: Tuning = Tuning("Nihavent Pentachord",
     c = Some(0.0),
     d = Some(0.0),
     dSharpOrEFlat = Some(0.0),
@@ -45,7 +45,7 @@ object TestTunings {
     g = Some(0.0),
   )
 
-  val segah: Tuning = Tuning("Segah",
+  val eSegah: Tuning = Tuning("Segah",
     c = Some(0.0),
     dSharpOrEFlat = Some(-33.33),
     e = Some(-16.67),
@@ -55,7 +55,7 @@ object TestTunings {
     b = Some(-16.67)
   )
 
-  val segahDesc: Tuning = Tuning("Segah Descending",
+  val eSegahDesc: Tuning = Tuning("Segah Descending",
     c = Some(0.0),
     dSharpOrEFlat = Some(-33.33),
     e = Some(-16.67),
@@ -66,7 +66,7 @@ object TestTunings {
     aSharpOrBFlat = Some(0.0),
   )
 
-  val huzzam: Tuning = Tuning("Huzzam",
+  val eHuzzam: Tuning = Tuning("Huzzam",
     c = Some(0.0),
     dSharpOrEFlat = Some(-33.33),
     e = Some(-16.67),
@@ -76,7 +76,7 @@ object TestTunings {
     b = Some(-16.67)
   )
 
-  val justCMajor: Tuning = Tuning("Just C Major",
+  val justCMaj: Tuning = Tuning("Just C Major",
     c = Some(0.0),
     d = Some(3.91),
     e = Some(-13.69),
@@ -86,7 +86,28 @@ object TestTunings {
     b = Some(-11.73)
   )
 
-  val rast: Tuning = Tuning("Rast",
+  val justCRast: Tuning = Tuning("Just C Rast",
+    c = Some(0.0),
+    d = Some(3.91),
+    e = Some(-13.69),
+    f = Some(-1.96),
+    g = Some(1.96),
+    a = Some(5.87),
+    aSharpOrBFlat = Some(-3.91),
+    b = Some(-11.73)
+  )
+
+  val justDUssak: Tuning = Tuning("Just D Ussak",
+    d = Some(3.91),
+    e = Some(-45.45),
+    f = Some(-1.96),
+    g = Some(1.96),
+    a = Some(5.87),
+    aSharpOrBFlat = Some(-3.91),
+    c = Some(0.0)
+  )
+
+  val cRast: Tuning = Tuning("Rast",
     c = Some(0.0),
     d = Some(0.0),
     e = Some(-16.67),
@@ -96,7 +117,7 @@ object TestTunings {
     b = Some(-16.67)
   )
 
-  val nikriz: Tuning = Tuning("Nikriz",
+  val cNikriz: Tuning = Tuning("Nikriz",
     c = Some(0.0),
     d = Some(0.0),
     dSharpOrEFlat = Some(16.67),
@@ -106,7 +127,7 @@ object TestTunings {
     aSharpOrBFlat = Some(0.0),
   )
 
-  val zengule: Tuning = Tuning("Zengule",
+  val dZengule: Tuning = Tuning("Zengule",
     cSharpOrDFlat = Some(-16.67),
     d = Some(0.0),
     dSharpOrEFlat = Some(16.67),
@@ -116,7 +137,7 @@ object TestTunings {
     aSharpOrBFlat = Some(16.67),
   )
 
-  val ussak: Tuning = Tuning("Ussak",
+  val dUssak: Tuning = Tuning("Ussak",
     c = Some(0.0),
     d = Some(0.0),
     dSharpOrEFlat = Some(50),
@@ -126,7 +147,7 @@ object TestTunings {
     aSharpOrBFlat = Some(0.0),
   )
 
-  val saba: Tuning = Tuning("Saba",
+  val dSaba: Tuning = Tuning("Saba",
     c = Some(0.0),
     d = Some(0.0),
     dSharpOrEFlat = Some(50),

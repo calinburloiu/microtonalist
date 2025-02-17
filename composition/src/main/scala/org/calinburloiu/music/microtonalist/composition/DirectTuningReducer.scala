@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 /**
  * [[TuningReducer]] algorithm that essentially performs no reduce and attempts to map each partial tuning to a final

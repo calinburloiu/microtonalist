@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

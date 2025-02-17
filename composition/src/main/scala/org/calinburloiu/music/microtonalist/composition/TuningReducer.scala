@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.microtonalist.common.Plugin
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 /**
  * Merges one or more partial tunings into ideally less final tunings, minimizing the number of tuning switches a

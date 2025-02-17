@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.composition.Tuning
 import org.calinburloiu.music.scmidi._
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside

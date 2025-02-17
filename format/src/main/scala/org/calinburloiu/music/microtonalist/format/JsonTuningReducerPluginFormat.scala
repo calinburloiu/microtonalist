@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.composition.{DefaultCentsTolerance, DirectTuningReducer, MergeTuningReducer, TuningReducer}
+import org.calinburloiu.music.microtonalist.composition.{DirectTuningReducer, MergeTuningReducer, TuningReducer}
+import org.calinburloiu.music.microtonalist.tuner.DefaultCentsTolerance
 import play.api.libs.functional.syntax.toApplicativeOps
 import play.api.libs.json.Reads.{max, min}
 import play.api.libs.json.{Format, Json, Writes, __}

@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.BusinessyncEvent
-import org.calinburloiu.music.microtonalist.composition.Tuning
 
 /**
  * Base class for all events published by [[TuningSession]].

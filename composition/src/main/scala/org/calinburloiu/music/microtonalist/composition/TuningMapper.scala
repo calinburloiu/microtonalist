@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation.{Interval, RealInterval, Scale}
 import org.calinburloiu.music.microtonalist.common.Plugin
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.PitchClass
 
 /**
