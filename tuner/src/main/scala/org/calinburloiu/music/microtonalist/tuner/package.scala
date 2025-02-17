@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist
 
 package object tuner {
 
-  // TODO #98 Should various almostEquals functions/methods use this tolerance with a potential different value?
   /** Default difference allowed when comparing cents values to avoid double precision errors. */
   val DefaultCentsTolerance: Double = 0.005
 }
