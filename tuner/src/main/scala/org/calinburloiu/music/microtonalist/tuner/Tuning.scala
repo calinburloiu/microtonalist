@@ -221,7 +221,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iter
    * @param centsTolerance Error tolerance in cents.
    * @return true if the tunings are almost equal, or false otherwise.
    */
-  def almostEquals(that: Tuning, centsTolerance: Double): Boolean = {
+  def almostEquals(that: Tuning, centsTolerance: Double = DefaultCentsTolerance): Boolean = {
     (this.offsetOptions zip that.offsetOptions).forall {
       case (None, None) => true
       case (Some(d1), Some(d2)) => DoubleMath.fuzzyEquals(d1, d2, centsTolerance)
@@ -281,6 +281,9 @@ object Tuning {
    */
   val Standard: Tuning = fill(0, Size)
 
+  /**
+   * Creates a [[Tuning]] for the 12 pitch classes in an octave with an empty name.
+   */
   def apply(offsets: Seq[Option[Double]]): Tuning = Tuning("", offsets)
 
   /**
@@ -352,6 +355,13 @@ object Tuning {
    */
   def empty(size: Int): Tuning = Tuning(Seq.fill(size)(None))
 
+  /**
+   * Creates a Tuning instance where all keys in the tuning have the same offset value.
+   *
+   * @param offset The value to fill each key in the tuning with.
+   * @param size   The number of keys in the tuning.
+   * @return a new Tuning instance filled with the specified offset value across all keys.
+   */
   def fill(offset: Double, size: Int): Tuning = Tuning(Seq.fill(size)(Some(offset)))
 
   private def fromOffsetToString(offset: Double): String = f"$offset%+06.2f"
