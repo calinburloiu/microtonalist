@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.tuner.TunerTestUtils.majTuning
 import org.calinburloiu.music.scmidi.{MidiNote, ScNoteOnMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -38,9 +37,9 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "MtsTuner#tune" should "return the generated SysEx MTS message" in new Fixture {
     // When
-    val result: Seq[MidiMessage] = tuner.tune(majTuning)
+    val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
-    (mtsMessageGenerator.generate _).verify(majTuning).once()
+    (mtsMessageGenerator.generate _).verify(TestTunings.justCMaj).once()
     result shouldEqual Seq(sysexMessage)
   }
 

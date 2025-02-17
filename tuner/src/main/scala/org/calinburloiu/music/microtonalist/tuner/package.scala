@@ -14,16 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist
 
-import org.calinburloiu.music.microtonalist.composition.Tuning
+package object tuner {
 
-// TODO #98 Move these to TestTunings
-object TunerTestUtils {
-  val majTuning: Tuning = Tuning.fromOffsets("Just C Major",
-    Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, -15.64, 0.0, -11.73))
-  val rastTuning: Tuning = Tuning.fromOffsets("C Rast",
-    Seq(0.0, 0.0, 3.91, 0.0, -13.69, -1.96, 0.0, 1.96, 0.0, 5.87, -3.91, -11.73))
-  val ussakTuning: Tuning = Tuning.fromOffsets("D Ussak",
-    Seq(0.0, 0.0, 3.91, 0.0, -45.45, -1.96, 0.0, 1.96, 0.0, 5.87, -3.91, 0))
+  // TODO #98 Should various almostEquals functions/methods use this tolerance with a potential different value?
+  /** Default difference allowed when comparing cents values to avoid double precision errors. */
+  val DefaultCentsTolerance: Double = 0.005
 }

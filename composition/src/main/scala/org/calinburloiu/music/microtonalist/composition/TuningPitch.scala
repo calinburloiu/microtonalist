@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.composition
 
 import com.google.common.math.DoubleMath
 import org.calinburloiu.music.intonation.CentsInterval
+import org.calinburloiu.music.microtonalist.tuner.DefaultCentsTolerance
 import org.calinburloiu.music.scmidi.PitchClass
 
 import scala.language.implicitConversions
@@ -46,7 +47,7 @@ case class TuningPitch(pitchClass: PitchClass, deviation: Double) {
     50.0 - quarterToneTolerance <= absDeviation && absDeviation <= 50.0 + quarterToneTolerance
   }
 
-  def almostEquals(that: TuningPitch, tolerance: Double = 0.02): Boolean = {
+  def almostEquals(that: TuningPitch, tolerance: Double = DefaultCentsTolerance): Boolean = {
     this.pitchClass == that.pitchClass && DoubleMath.fuzzyEquals(this.deviation, that.deviation, tolerance)
   }
 }

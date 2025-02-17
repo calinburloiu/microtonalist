@@ -1,4 +1,4 @@
-import Dependencies._
+import Dependencies.*
 
 ThisBuild / scalaVersion := "2.13.14"
 ThisBuild / version := "1.1.0-SNAPSHOT"
@@ -26,13 +26,11 @@ lazy val root = (project in file("."))
 
 lazy val app = (project in file("app"))
   .dependsOn(
-    appConfig,
     appConfig % "compile->compile;test->test",
     businessync,
     common % "compile->compile;test->test",
     composition,
     intonation,
-    format,
     format % "compile->compile;test->test",
     scMidi,
     tuner,
@@ -50,7 +48,6 @@ lazy val app = (project in file("app"))
       coreMidi4j,
       guava,
       playJson,
-      scalaMock % Test,
     ),
   )
 
@@ -110,9 +107,8 @@ lazy val businessync = (project in file("businessync"))
 
 lazy val composition = (project in file("composition"))
   .dependsOn(
-    common,
     intonation,
-    scMidi,
+    tuner % "compile->compile;test->test",
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -124,16 +120,14 @@ lazy val composition = (project in file("composition"))
 lazy val tuner = (project in file("tuner"))
   .dependsOn(
     businessync,
-    composition,
+    common,
     scMidi,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-tuner",
     commonSettings,
-    libraryDependencies ++= Seq(
-      scalaMock % Test,
-    ),
+    libraryDependencies ++= Seq(),
   )
 
 lazy val format = (project in file("format"))
@@ -148,7 +142,6 @@ lazy val format = (project in file("format"))
     commonSettings,
     libraryDependencies ++= Seq(
       playJson,
-      scalaMock % Test,
     ),
   )
 
@@ -177,25 +170,14 @@ lazy val scMidi = (project in file("sc-midi"))
 
 lazy val experiments = (project in file("experiments"))
   .dependsOn(
-    businessync,
-    composition,
     intonation,
-    format,
-    scMidi,
-    tuner,
   )
   .settings(
     name := "microtonalist-app",
     commonSettings,
     assemblySettings,
-    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
-    libraryDependencies ++= Seq(
-      coreMidi4j,
-      ficus,
-      guava,
-      playJson,
-      scalaMock % Test,
-    ),
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.experiments.SoftChromaticGenusStudy"),
+    libraryDependencies ++= Seq(),
   )
 
 // # Dependencies
@@ -204,6 +186,7 @@ lazy val commonDependencies = Seq(
   logback,
   scalaLogging,
   scalaTest % Test,
+  scalaMock % Test,
 )
 
 // # Settings

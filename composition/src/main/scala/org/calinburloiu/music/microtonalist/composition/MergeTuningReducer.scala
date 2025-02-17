@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.tuner.{DefaultCentsTolerance, Tuning}
 
 import scala.annotation.tailrec
 

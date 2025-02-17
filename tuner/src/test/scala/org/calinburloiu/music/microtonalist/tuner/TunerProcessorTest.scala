@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.composition.Tuning
-import org.calinburloiu.music.microtonalist.tuner.TunerTestUtils.majTuning
 import org.calinburloiu.music.scmidi.{ScCcMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -38,7 +36,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
   abstract class Fixture(shouldConnect: Boolean = true) {
     val tuner: Tuner = stub[Tuner]
     (() => tuner.reset()).when().returns(Seq(initMessage))
-    (tuner.tune _).when(majTuning).returns(Seq(tuneMessage1))
+    (tuner.tune _).when(TestTunings.justCMaj).returns(Seq(tuneMessage1))
     (tuner.tune _).when(Tuning.Standard).returns(Seq(tuneMessage2))
     (tuner.process _).when(processMessage1).returns(Seq(processMessage1, processMessage2))
 
@@ -63,9 +61,9 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "tune" should "send the tune messages returned by the tuner" in new Fixture {
     // When
-    processor.tune(majTuning)
+    processor.tune(TestTunings.justCMaj)
     // Then
-    (tuner.tune _).verify(majTuning).once()
+    (tuner.tune _).verify(TestTunings.justCMaj).once()
     (receiver.send _).verify(tuneMessage1, -1).once()
   }
 

@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.composition
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 case class TuningList(tunings: Seq[Tuning]) extends Iterable[Tuning] {
 
