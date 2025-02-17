@@ -23,7 +23,7 @@ import org.calinburloiu.music.scmidi.PitchClass
 
 /**
  * Maps a [[Scale]] to a [[Tuning]], by choosing the right keys to be used. Keys not used in the tuning
- * will have `None` deviations.
+ * will have `None` offsets.
  *
  * It is said that a _conflict_ occurs on a tuning key if two scale pitches attempt to map to the same tuning key.
  * This results in throwing a [[TuningMapperConflictException]].
@@ -77,7 +77,7 @@ class TuningMapperConflictException(scale: Scale[Interval], conflicts: Map[Pitch
     s" have conflicts: $conflicts")
 
 /**
- * Exception thrown if the deviation for a pitch class exceeds the allowed values, typically greater or equal than
+ * Exception thrown if the tuning offset for a pitch class exceeds the allowed values, typically greater or equal than
  * 100.
  */
 class TuningMapperOverflowException(message: String, cause: Throwable = null)

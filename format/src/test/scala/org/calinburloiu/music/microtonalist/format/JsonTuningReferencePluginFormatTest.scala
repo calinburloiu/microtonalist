@@ -32,7 +32,7 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
 
   private val standardTypeJson = Json.obj(
     "basePitchClass" -> "Bb",
-    "baseDeviation" -> -5.0
+    "baseOffset" -> -5.0
   )
   private val standardType = StandardTuningReference(PitchClass.BFlat, -5)
 
@@ -43,9 +43,9 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
     (__ \ "basePitchClass", DisallowedValues(JsNumber(12)), "error.max"),
     (__ \ "basePitchClass", DisallowedValues(JsNumber(-1)), "error.min"),
 
-    (__ \ "baseDeviation", AllowedTypes(JsonNumberType, JsonNullType), "error.expected.jsnumber"),
-    (__ \ "baseDeviation", DisallowedValues(JsNumber(-51)), "error.min"),
-    (__ \ "baseDeviation", DisallowedValues(JsNumber(51)), "error.max"),
+    (__ \ "baseOffset", AllowedTypes(JsonNumberType, JsonNullType), "error.expected.jsnumber"),
+    (__ \ "baseOffset", DisallowedValues(JsNumber(-51)), "error.min"),
+    (__ \ "baseOffset", DisallowedValues(JsNumber(51)), "error.max"),
   )
 
   it should "deserialize a StandardTuningReference" in {
@@ -64,7 +64,7 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
     jsonPluginFormat.writes.writes(standardType) shouldEqual Json.obj(
       "type" -> "standard",
       "basePitchClass" -> 10,
-      "baseDeviation" -> -5.0
+      "baseOffset" -> -5.0
     )
   }
 

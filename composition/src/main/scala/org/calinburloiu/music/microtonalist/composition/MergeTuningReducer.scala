@@ -25,20 +25,20 @@ import scala.annotation.tailrec
  * Reducing algorithm for a sequence of [[Tuning]]s that attempts to merge consecutive [[Tuning]]s that
  * don't have conflicts. The merging is performed in the order of the sequence.
  *
- * Two [[Tuning]]s are said to have conflicts if they have at least one pair corresponding pitch class deviations
+ * Two [[Tuning]]s are said to have conflicts if they have at least one pair of corresponding pitch class offsets
  * with different values, the rest of them being equal or have close values (see `tolerance`).
  *
  * The algorithm also attempt to apply two kinds _local fill_:
  *
- *   1. **Back-fill:** deviations that come from preceding merged [[Tuning]]s.
- *   1. **Fore-fill:** deviations that come from succeeding merged [[Tuning]]s.
+ *   1. **Back-fill:** tuning offsets that come from preceding merged [[Tuning]]s.
+ *   1. **Fore-fill:** tuning offsets that come from succeeding merged [[Tuning]]s.
  *
  * The local fill applied attempts to minimize the number of notes retuned when switching tunings. When one plays a
  * piano with sustain pedal and the tuning is changed, a large number of notes retuned could result in an unwanted
  * effect.
  *
  * @param equalityTolerance Error in cents that should be tolerated when comparing corresponding pitch class
- *                          deviations of [[Tuning]]s to avoid double precision errors.
+ *                          offsets of [[Tuning]]s to avoid double precision errors.
  */
 case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance) extends TuningReducer with
   StrictLogging {

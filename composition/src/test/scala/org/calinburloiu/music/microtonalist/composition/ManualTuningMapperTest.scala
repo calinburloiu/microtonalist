@@ -89,7 +89,7 @@ class ManualTuningMapperTest extends AnyFlatSpec with Matchers {
     tuning.b shouldEqual -11.73
   }
 
-  it should "fail to map a scale if a deviation overflows" in {
+  it should "fail to map a scale if an offset overflows" in {
     // Given
     val scale = CentsScale(0.0, 233.33, 400.0, 500.0)
     val mapping = KeyboardMapping(c = Some(0), cSharpOrDFlat = Some(1), e = Some(2), f = Some(3))

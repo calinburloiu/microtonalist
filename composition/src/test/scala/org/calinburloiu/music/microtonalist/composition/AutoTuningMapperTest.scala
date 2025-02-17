@@ -489,7 +489,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
         case (relativePitchClass, expectedCents) =>
           val finalPitchClass = (pitchClassNumber + relativePitchClass) % 12
 
-          withClue(s"Deviation of ${PitchClass.noteNames(finalPitchClass)}") {
+          withClue(s"Offset of ${PitchClass.noteNames(finalPitchClass)}") {
             result.get(finalPitchClass) should contain(expectedCents)
           }
       }
@@ -567,7 +567,7 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   behavior of "mapInterval"
 
-  it should "map an interval to a pitch class with a deviation in cents" in {
+  it should "map an interval to a pitch class with an offset in cents" in {
     val tolerance = 10
     val downMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, tolerance)
     val upMapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, tolerance)
@@ -607,9 +607,9 @@ class AutoTuningMapperTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
     val tuningReference = StandardTuningReference(PitchClass.C)
     forAll(table) { (inputCents, autoTuningMapper, expectedTuningPitch) =>
-      val TuningPitch(pitchClass, deviation) = autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningReference)
+      val TuningPitch(pitchClass, offset) = autoTuningMapper.mapInterval(CentsInterval(inputCents), tuningReference)
       pitchClass should equal(expectedTuningPitch.pitchClass)
-      deviation should equal(expectedTuningPitch.offset)
+      offset should equal(expectedTuningPitch.offset)
     }
   }
 

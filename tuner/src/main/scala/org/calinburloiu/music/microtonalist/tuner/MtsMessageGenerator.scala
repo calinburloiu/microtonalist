@@ -25,7 +25,7 @@ import javax.sound.midi.{ShortMessage, SysexMessage}
  * Represents a generator for MIDI Tuning Standard (MTS) messages based on a given tuning.
  *
  * This trait defines the ability to generate a SysEx (System Exclusive) MIDI message to specify
- * the tuning for a musical instrument. The tuning is defined in terms of the deviation (in cents)
+ * the tuning for a musical instrument. The tuning is defined in terms of the offset (in cents)
  * for each pitch class in an equal-tempered 12-tone scale.
  */
 trait MtsMessageGenerator {

@@ -44,7 +44,7 @@ class TuningTest extends AnyFlatSpec with Matchers {
     None, None, None,
     None, None, None)
 
-  "constructor" should "throw IllegalArgumentException when the number of deviations is not 12" in {
+  "constructor" should "throw IllegalArgumentException when the number of offsets is not 12" in {
     assertThrows[IllegalArgumentException] {
       Tuning(Seq(Some(10.0), Some(20.0), Some(30.0), Some(40.0), Some(50.0), Some(60.0)))
     }
@@ -69,7 +69,7 @@ class TuningTest extends AnyFlatSpec with Matchers {
     assertThrows[IndexOutOfBoundsException](incompleteTuning(13))
   }
 
-  "note names implicit methods" should "return the correct deviations" in {
+  "note names implicit methods" should "return the correct offsets" in {
     val tuning = Tuning(
       Some(0.0), Some(12.0), Some(4.0),
       Some(16.0), Some(-14.0), Some(-2.0),
@@ -101,7 +101,7 @@ class TuningTest extends AnyFlatSpec with Matchers {
     tuning.aSharp shouldEqual tuning.bFlat
   }
 
-  "isComplete" should "return true if all deviation are non-empty" in {
+  "isComplete" should "return true if all offset are non-empty" in {
     emptyTuning.isComplete shouldEqual false
     completeTuning.isComplete shouldEqual true
     incompleteTuning.isComplete shouldEqual false
@@ -145,13 +145,13 @@ class TuningTest extends AnyFlatSpec with Matchers {
       tuning2.merge(emptyTuning, mergeTolerance) should contain(tuning2)
       emptyTuning.merge(tuning2, mergeTolerance) should contain(tuning2)
     }
-    withClue("an identical Tuning has identical deviations, which cause no conflict") {
+    withClue("an identical Tuning has identical offsets, which cause no conflict") {
       tuning1.merge(tuning1.copy(), mergeTolerance) should contain(tuning1)
     }
-    withClue("identical corresponding deviations cause no conflict") {
+    withClue("identical corresponding offsets cause no conflict") {
       tuning1.merge(tuning2, mergeTolerance) should contain(tuning1)
     }
-    withClue("non-identical corresponding deviation cause a conflict") {
+    withClue("non-identical corresponding offset cause a conflict") {
       tuning1.merge(tuning3, mergeTolerance) should be(empty)
       tuning2.merge(tuning3, mergeTolerance) should be(empty)
     }
@@ -159,19 +159,19 @@ class TuningTest extends AnyFlatSpec with Matchers {
 
   it should "combine the names" in {
     // Given
-    val deviations1: Seq[Option[Double]] = Seq.fill[Option[Double]](11)(None) :+ Some(5.0)
-    val deviations2: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](11)(None)
-    val expectedDeviations: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](10)(None) :+ Some(5.0)
-    val tuningWithName1 = Tuning(name = "Foo", offsetOptions = deviations1)
-    val tuningWithName2 = Tuning(name = "Bar", offsetOptions = deviations2)
-    val tuningWithoutName = Tuning(deviations = deviations2)
+    val offsets1: Seq[Option[Double]] = Seq.fill[Option[Double]](11)(None) :+ Some(5.0)
+    val offsets2: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](11)(None)
+    val expectedOffsets: Seq[Option[Double]] = Some(-5.0) +: Seq.fill[Option[Double]](10)(None) :+ Some(5.0)
+    val tuningWithName1 = Tuning(name = "Foo", offsetOptions = offsets1)
+    val tuningWithName2 = Tuning(name = "Bar", offsetOptions = offsets2)
+    val tuningWithoutName = Tuning(name = "", offsetOptions = offsets2)
 
     // Then
     tuningWithName1.merge(tuningWithoutName, mergeTolerance) should contain(Tuning(name = "Foo", offsetOptions =
-      expectedDeviations))
+      expectedOffsets))
     tuningWithoutName.merge(tuningWithName1, mergeTolerance) should contain(Tuning(name = "Foo", offsetOptions =
-      expectedDeviations))
+      expectedOffsets))
     tuningWithName1.merge(tuningWithName2, mergeTolerance) should contain(Tuning(name = "Foo + Bar", offsetOptions =
-      expectedDeviations))
+      expectedOffsets))
   }
 }

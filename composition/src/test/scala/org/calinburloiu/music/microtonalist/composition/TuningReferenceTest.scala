@@ -31,7 +31,7 @@ class TuningReferenceTest extends AnyFlatSpec with Matchers {
   behavior of classOf[StandardTuningReference]
     .getSimpleName
 
-  it should "always return a baseDeviation of 0" in {
+  it should "always return a baseOffset of 0" in {
     StandardTuningReference(PitchClass.C).baseOffset shouldEqual 0.0
     StandardTuningReference(PitchClass.FSharp).baseOffset shouldEqual 0.0
   }

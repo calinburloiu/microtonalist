@@ -168,7 +168,7 @@
                         { "$ref": "#/$defs/tuningSpec" },
                         {
                             "title": "Global Fill",
-                            "description": "A tuning spec for the global fill, which is applied in the end after all other local fill strategies have been applied and attempts to fill the gaps with a custom tuning from a given global fill scale. If this tuning spec does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with a deviation of 0 cents). If the global fill is not provided, unused keys will use the standard 12-EDO tuning."
+                          "description": "A tuning spec for the global fill, which is applied in the end after all other local fill strategies have been applied and attempts to fill the gaps with a custom tuning from a given global fill scale. If this tuning spec does not define tuning values for some unused keys, then, the standard 12-EDO tuning values are used for those keys (values with an offset of 0 cents). If the global fill is not provided, unused keys will use the standard 12-EDO tuning."
                         }
                     ]
                 }
