@@ -36,7 +36,7 @@ class TuningPitchTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  "isOverflowing" should "return false if deviation absolute value is less than 100" in {
+  "isOverflowing" should "return false if offset absolute value is less than 100" in {
     TuningPitch(PitchClass.EFlat, 0).isOverflowing shouldBe false
     TuningPitch(PitchClass.EFlat, 34.2).isOverflowing shouldBe false
     TuningPitch(PitchClass.EFlat, 99.99).isOverflowing shouldBe false
@@ -44,14 +44,14 @@ class TuningPitchTest extends AnyFlatSpec with Matchers {
     TuningPitch(PitchClass.EFlat, -99.99).isOverflowing shouldBe false
   }
 
-  it should "return true if deviation absolute value is 100 or more" in {
+  it should "return true if offset absolute value is 100 or more" in {
     TuningPitch(PitchClass.EFlat, 100.0).isOverflowing shouldBe true
     TuningPitch(PitchClass.EFlat, -100.0).isOverflowing shouldBe true
     TuningPitch(PitchClass.EFlat, 103.2).isOverflowing shouldBe true
     TuningPitch(PitchClass.EFlat, -157.9).isOverflowing shouldBe true
   }
 
-  "isQuarterTone" should "tell if a TuningPitch almost between two adjacent TuningPitches with no deviation" in {
+  "isQuarterTone" should "tell if a TuningPitch almost between two adjacent TuningPitches with no offset" in {
     TuningPitch(PitchClass.B, 0).isQuarterTone() shouldBe false
     TuningPitch(PitchClass.C, -30).isQuarterTone() shouldBe false
     TuningPitch(PitchClass.C, 25).isQuarterTone() shouldBe false

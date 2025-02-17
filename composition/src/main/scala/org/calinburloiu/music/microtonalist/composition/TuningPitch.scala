@@ -24,31 +24,31 @@ import org.calinburloiu.music.scmidi.PitchClass
 import scala.language.implicitConversions
 
 /**
- * Class representing the tuning of a single pitch class with its deviation in cents from 12-EDO.
+ * Class representing the tuning of a single pitch class with its offset in cents from 12-EDO.
  *
  * @param pitchClass Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
- * @param deviation  Deviation from the semitone in cents
+ * @param offset     Offset from the semitone in cents
  */
-case class TuningPitch(pitchClass: PitchClass, deviation: Double) {
-  def cents: Double = 100.0 * pitchClass + deviation
+case class TuningPitch(pitchClass: PitchClass, offset: Double) {
+  def cents: Double = 100.0 * pitchClass + offset
 
   def interval: CentsInterval = CentsInterval(cents)
 
   /**
-   * Tells if the instance is overflowing. A `TuningPitch` is said to overflow if its `deviation` absolute
+   * Tells if the instance is overflowing. A `TuningPitch` is said to overflow if its `offset` absolute
    * value exceeds 100 cents causing it to overlap with an another pitch class.
    *
    * @return true if it's overflowing, false otherwise
    */
-  def isOverflowing: Boolean = Math.abs(deviation) >= 100.0
+  def isOverflowing: Boolean = Math.abs(offset) >= 100.0
 
   def isQuarterTone(quarterToneTolerance: Double = DefaultQuarterToneTolerance): Boolean = {
-    val absDeviation = Math.abs(deviation)
-    50.0 - quarterToneTolerance <= absDeviation && absDeviation <= 50.0 + quarterToneTolerance
+    val absOffset = Math.abs(offset)
+    50.0 - quarterToneTolerance <= absOffset && absOffset <= 50.0 + quarterToneTolerance
   }
 
   def almostEquals(that: TuningPitch, tolerance: Double = DefaultCentsTolerance): Boolean = {
-    this.pitchClass == that.pitchClass && DoubleMath.fuzzyEquals(this.deviation, that.deviation, tolerance)
+    this.pitchClass == that.pitchClass && DoubleMath.fuzzyEquals(this.offset, that.offset, tolerance)
   }
 }
 

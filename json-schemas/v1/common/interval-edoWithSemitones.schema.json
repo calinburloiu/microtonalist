@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Semitones and a deviation in divisions from that",
-    "description": "An array with two items, where the first one is the approximate number of 12-EDO semitones and the second one is the deviation from that in divisions.",
+  "title": "Semitones and an offset in divisions from that",
+  "description": "An array with two items, where the first one is the approximate number of 12-EDO semitones and the second one is the offset from that in divisions.",
     "type": "array",
     "prefixItems": [
         {
@@ -11,7 +11,7 @@
         },
         {
             "title": "Divisions",
-            "description": "The deviation from the number of semitones (first item) expressed in divisions of the given EDO.",
+          "description": "The offset from the number of semitones (first item) expressed in divisions of the given EDO.",
             "type": "integer"
         }
     ],

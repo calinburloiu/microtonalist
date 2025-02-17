@@ -72,18 +72,18 @@ object SoftChromaticGenusMapping {
 }
 
 /**
- * A [[TuningMapper]] that attempts to automatically map scales to a tuning with deviations for some of the pitch
+ * A [[TuningMapper]] that attempts to automatically map scales to a tuning with offsets for some of the pitch
  * classes.
  *
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
  * @param shouldMapQuarterTonesLow  'true' if the mapper should attempt to map a quarter tone to the lower pitch class
- *                                  with +50 cents deviation, or `false` if it should attempt to map it to the higher
- *                                  pitch class with -50 cents deviation. Note that in case of a conflict, with
+ *                                  with +50 cents offset, or `false` if it should attempt to map it to the higher
+ *                                  pitch class with -50 cents offset. Note that in case of a conflict, with
  *                                  multiple intervals on the same key pitch class, the mapper will prioritize the
  *                                  conflict resolution and avoid this flag.
- * @param quarterToneTolerance      tolerance value used for deviations when they are close to +50 or -50 cents in
+ * @param quarterToneTolerance      tolerance value used for offsets when they are close to +50 or -50 cents in
  *                                  order to avoid precision errors while mapping a quarter tone to its pitch class
  * @param softChromaticGenusMapping Method used to detect the soft chromatic genus pattern between scale's intervals
  *                                  to allow mapping them on a keyboard by using the characteristic augmented second,
@@ -91,7 +91,7 @@ object SoftChromaticGenusMapping {
  * @param overrideKeyboardMapping   a [[KeyboardMapping]] containing scale pitch index mar ked as exceptions that are
  *                                  going to be manually mapped to a user specified pitch class
  * @param tolerance                 Error in cents that should be tolerated when comparing corresponding pitch class
- *                                  deviations of `PartialTuning`s to avoid floating-point precision errors.
+ * offsets of [[Tuning]] to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMapQuarterTonesLow,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
@@ -116,14 +116,14 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 
     val pitchesInfo = mapScaleToPitchesInfo(transposedScale, ref)
     val tuningName = computeTuningName(scale, pitchesInfo)
-    val autoPartialTuning: Tuning = createPartialTuning(pitchesInfo, tuningName)
+    val autoTuning: Tuning = createTuning(pitchesInfo, tuningName)
 
-    val manualPartialTuning: Tuning = getManualPartialTuning(transposedScale, ref)
+    val manualTuning: Tuning = getManualTuning(transposedScale, ref)
 
-    val resultPartialTuning = autoPartialTuning.merge(manualPartialTuning, tolerance)
-    assert(resultPartialTuning.isDefined,
+    val resultTuning = autoTuning.merge(manualTuning, tolerance)
+    assert(resultTuning.isDefined,
       "Pitch classes from overrideKeyboardMapping shouldn't be automatically mapped!")
-    resultPartialTuning.get
+    resultTuning.get
   }
 
   /**
@@ -133,7 +133,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
    * @param ref                              reference taken when mapping the interval
    * @param overrideShouldMapQuarterTonesLow if defined, it is used instead of the class member
    *                                         [[shouldMapQuarterTonesLow]]
-   * @return a pitch class with its deviation from 12-EDO
+   * @return a pitch class with its offset from 12-EDO in cents.
    */
   def mapInterval(interval: Interval,
                   ref: TuningReference,
@@ -141,10 +141,10 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     val totalCents = ref.baseTuningPitch.cents + interval.cents
     val halfDown = overrideShouldMapQuarterTonesLow.getOrElse(shouldMapQuarterTonesLow)
     val totalSemitones = roundWithTolerance(totalCents / 100, halfDown, quarterToneTolerance / 100)
-    val deviation = totalCents - 100 * totalSemitones
+    val offset = totalCents - 100 * totalSemitones
     val pitchClassNumber = IntMath.mod(totalSemitones, 12)
 
-    TuningPitch(PitchClass.fromNumber(pitchClassNumber), deviation)
+    TuningPitch(PitchClass.fromNumber(pitchClassNumber), offset)
   }
 
   /**
@@ -155,7 +155,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 
     /**
      * @param pitches Duplicated non-conflicting pitches that are mapped to the same pitch class. They might differ
-     *                slightly in deviation (due to precision errors) and have different scale pitch index.
+     *                slightly in tuning offset (due to precision errors) and have different scale pitch index.
      * @return The min scale pitch index to use for all those pitches.
      */
     def extractScalePitchIndex(pitches: PitchesInfo): Int = {
@@ -307,26 +307,26 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
     tuningNamePrefix + scale.name
   }
 
-  private def createPartialTuning(pitchesInfo: PitchesInfo, tuningName: String) = {
-    val deviationsByPitchClass = pitchesInfo
+  private def createTuning(pitchesInfo: PitchesInfo, tuningName: String): Tuning = {
+    val offsetsByPitchClass = pitchesInfo
       .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
       .toMap
-    val partialTuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
-      deviationsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
+    val tuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
+      offsetsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
     }
-    val autoPartialTuning = Tuning(tuningName, partialTuningValues)
-    autoPartialTuning
+    val autoTuning = Tuning(tuningName, tuningValues)
+    autoTuning
   }
 
-  private def getManualPartialTuning(scale: Scale[Interval], ref: TuningReference) = {
-    val manualPartialTuning = manualTuningMapper match {
+  private def getManualTuning(scale: Scale[Interval], ref: TuningReference): Tuning = {
+    val manualTuning = manualTuningMapper match {
       case Some(manualTuningMapper) =>
         // Clearing the scale name to avoid name merging
         manualTuningMapper.mapScale(scale.rename(""), ref)
       case None => Tuning.empty(12)
     }
 
-    manualPartialTuning
+    manualTuning
   }
 }
 

@@ -129,9 +129,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private def currTuning_=(newTuning: Tuning): Unit = {
     // Update currTuningPitchBend
-    val newDeviation = newTuning(lastNote.pitchClass)
-    if (currTuning(lastNote.pitchClass) != newDeviation) {
-      currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
+    val newOffset = newTuning(lastNote.pitchClass)
+    if (currTuning(lastNote.pitchClass) != newOffset) {
+      currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newOffset, pitchBendSensitivity)
     }
 
     _currTuning = newTuning
@@ -149,9 +149,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private def turnNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     // Update currTuningPitchBend
-    val newDeviation = currTuning(note.pitchClass)
-    if (currTuning(lastNote.pitchClass) != newDeviation) {
-      currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
+    val newOffset = currTuning(note.pitchClass)
+    if (currTuning(lastNote.pitchClass) != newOffset) {
+      currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newOffset, pitchBendSensitivity)
     }
 
     interruptPedals(buffer)
@@ -182,13 +182,13 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (note == noteStack.head) {
       applyNoteOff(buffer, note, velocity)
 
-      val oldDeviation = currTuning(lastNote.pitchClass)
+      val oldOffset = currTuning(lastNote.pitchClass)
       noteStack.pop()
       // Play the next note from the top of the stack if available
       if (isAnyNoteOn) {
-        val newDeviation = currTuning(lastNote.pitchClass)
-        if (oldDeviation != newDeviation) {
-          currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newDeviation, pitchBendSensitivity)
+        val newOffset = currTuning(lastNote.pitchClass)
+        if (oldOffset != newOffset) {
+          currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(newOffset, pitchBendSensitivity)
         }
 
         interruptPedals(buffer)

@@ -38,7 +38,7 @@ class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
       .defaultCompositionRepo)
     val tuningList = TuningList.fromComposition(composition)
 
-    val justMinorThirdDeviation = 15.64 // cents
+    val justMinorThirdOffset = 15.64 // cents
 
     tuningList.size shouldEqual 3
 
@@ -62,13 +62,13 @@ class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
 
     val majorTuning = tuningList(1)
     withClue("major tuning scale:") {
-      majorTuning.f - justMinorThirdDeviation shouldEqual 0.00
-      majorTuning.g - justMinorThirdDeviation shouldEqual 3.91
-      majorTuning.a - justMinorThirdDeviation shouldEqual -13.69
-      majorTuning.bFlat - justMinorThirdDeviation shouldEqual -1.96
-      majorTuning.c - justMinorThirdDeviation shouldEqual 1.96
-      majorTuning.d - justMinorThirdDeviation shouldEqual -15.64
-      majorTuning.e - justMinorThirdDeviation shouldEqual -11.73
+      majorTuning.f - justMinorThirdOffset shouldEqual 0.00
+      majorTuning.g - justMinorThirdOffset shouldEqual 3.91
+      majorTuning.a - justMinorThirdOffset shouldEqual -13.69
+      majorTuning.bFlat - justMinorThirdOffset shouldEqual -1.96
+      majorTuning.c - justMinorThirdOffset shouldEqual 1.96
+      majorTuning.d - justMinorThirdOffset shouldEqual -15.64
+      majorTuning.e - justMinorThirdOffset shouldEqual -11.73
     }
     withClue("major tuning global fill") {
       majorTuning.cSharp shouldEqual -11.73

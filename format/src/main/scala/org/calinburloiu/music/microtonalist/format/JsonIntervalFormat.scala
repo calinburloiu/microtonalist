@@ -53,9 +53,9 @@ object JsonIntervalFormat {
       } orElse Reads.JsArrayReads.flatMapResult { jsArr =>
         if (jsArr.value.size == 2) {
           val semitones = jsArr.value.head.asOpt[Int]
-          val deviation = jsArr.value(1).asOpt[Int]
-          if (semitones.isDefined && deviation.isDefined) {
-            JsSuccess(EdoInterval(countPerOctave, (semitones.get, deviation.get)).asInstanceOf[Interval])
+          val offset = jsArr.value(1).asOpt[Int]
+          if (semitones.isDefined && offset.isDefined) {
+            JsSuccess(EdoInterval(countPerOctave, (semitones.get, offset.get)).asInstanceOf[Interval])
           } else {
             // We don't care about the message of the error here because the fallback below will override the error
             // anyway.
@@ -73,8 +73,8 @@ object JsonIntervalFormat {
     case CentsInterval(centsValue) => JsNumber(centsValue)
     case RatioInterval(numerator, denominator) => JsString(s"$numerator/$denominator")
     case edoInterval: EdoInterval if edoInterval.edo % 12 == 0 =>
-      val (semitones, deviation) = edoInterval.countRelativeToStandard
-      Json.arr(JsNumber(semitones), JsNumber(deviation))
+      val (semitones, offset) = edoInterval.countRelativeToStandard
+      Json.arr(JsNumber(semitones), JsNumber(offset))
     case EdoInterval(_, count) => JsNumber(count)
     case interval: Interval => JsNumber(interval.cents)
   }

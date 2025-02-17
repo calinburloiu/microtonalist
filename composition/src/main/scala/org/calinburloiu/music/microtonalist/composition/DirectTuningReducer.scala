@@ -20,24 +20,24 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 /**
- * [[TuningReducer]] algorithm that essentially performs no reduce and attempts to map each partial tuning to a final
- * tuning. It should be used if no reduction is wanted.
+ * [[TuningReducer]] algorithm that essentially performs no reduce and only applies the global fill. It should be
+ * used if no reduction is wanted.
  */
 object DirectTuningReducer extends TuningReducer with StrictLogging {
 
   override val typeName: String = "direct"
 
-  override def reduceTunings(partialTunings: Seq[Tuning],
+  override def reduceTunings(tunings: Seq[Tuning],
                              globalFillTuning: Tuning = Tuning.Standard): TuningList = {
-    val tunings = partialTunings.map { partialTuning =>
-      val enrichedPartialTuning = partialTuning.fill(globalFillTuning)
-      if (!enrichedPartialTuning.isComplete) {
-        logger.info(s"Incomplete tuning: ${enrichedPartialTuning.unfilledPitchClassesString}")
+    val resultTunings = tunings.map { tuning =>
+      val enrichedTuning = tuning.fill(globalFillTuning)
+      if (!enrichedTuning.isComplete) {
+        logger.info(s"Incomplete tuning: ${enrichedTuning.unfilledPitchClassesString}")
       }
 
-      enrichedPartialTuning.resolve
+      enrichedTuning
     }
 
-    TuningList(tunings)
+    TuningList(resultTunings)
   }
 }

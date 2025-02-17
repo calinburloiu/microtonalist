@@ -519,15 +519,15 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
 
   /**
    * @return a pair of integers where the first is the number of 12-EDO semitones approximated
-   *         in this EDO (by rounding, 0.5 goes up), and the second is the deviation in
+   *         in this EDO (by rounding, 0.5 goes up), and the second is the offset in
    *         divisions (in this EDO) from the approximated semitone.
    */
   def countRelativeToStandard: (Int, Int) = {
     val factor = edo / 12.0
     val semitones = Math.round(count / factor).toInt
-    val deviation = Math.round(count - factor * semitones).toInt
+    val offset = Math.round(count - factor * semitones).toInt
 
-    (semitones, deviation)
+    (semitones, offset)
   }
 }
 
@@ -538,7 +538,7 @@ object EdoInterval {
    *
    * @param edo                     the number of divisions used to express an octave
    * @param countRelativeToStandard a pair of integers where the first is the number of 12-EDO semitones approximated
-   *                                in this EDO (by rounding, 0.5 goes up), and the second is the deviation in
+   *                                in this EDO (by rounding, 0.5 goes up), and the second is the offset in
    *                                divisions (in this EDO) from the approximated semitone.
    * @return a new [[EdoInterval]]
    */
@@ -586,7 +586,7 @@ case class EdoIntervalFactory(edo: Int) {
    * standard tuning (12-EDO).
    *
    * @param semitones     the number of 12-EDO semitones approximated in this EDO (by rounding, 0.5 goes up)
-   * @param relativeCount the deviation in divisions (in this EDO) from the approximated semitone
+   * @param relativeCount the offset in divisions (in this EDO) from the approximated semitone
    * @return a new [[EdoInterval]]
    */
   def apply(semitones: Int, relativeCount: Int): EdoInterval = EdoInterval(edo, (semitones, relativeCount))
