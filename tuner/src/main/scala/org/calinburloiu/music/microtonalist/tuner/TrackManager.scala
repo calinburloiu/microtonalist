@@ -28,7 +28,8 @@ import javax.annotation.concurrent.NotThreadSafe
  * Manages a collection of MIDI tracks and updates their tuning based on external events.
  */
 @NotThreadSafe
-class TrackManager(private val tracks: Seq[Track],
+class TrackManager(@deprecated("Only expose TrackSpecs publicly")
+                   private val tracks: Seq[Track],
                    private val executorService: ExecutorService = TrackManager.createExecutorService()) {
 
   /**

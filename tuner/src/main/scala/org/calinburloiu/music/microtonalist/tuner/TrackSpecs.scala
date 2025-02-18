@@ -16,13 +16,30 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-case class TrackSpec(id: String,
+case class TrackSpec(id: TrackSpec.Id,
                      name: String,
-                     input: TrackInput,
-                     tuningChanger: TuningChanger,
-                     tuner: Tuner,
+                     input: Option[TrackInput],
+                     tuningChanger: Option[TuningChanger],
+                     tuner: Option[Tuner],
                      output: TrackOutput,
                      muted: Boolean = false) {
   require(id != null && id.nonEmpty, "id must not be null or empty!")
   require(name != null && name.nonEmpty, "name must not be null or empty!")
+}
+
+object TrackSpec {
+  type Id = String
+}
+
+case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
+
+  def apply(index: Int): TrackSpec = tracks(index)
+
+  def get(index: Int): Option[TrackSpec] = tracks.lift(index)
+
+  def update(index: Int, trackSpec: TrackSpec): TrackSpecs = {
+    require(index >= 0 && index < tracks.size, s"Index $index is out of bounds!")
+
+    copy(tracks = tracks.updated(index, trackSpec))
+  }
 }

@@ -37,6 +37,7 @@ class TuningService(session: TuningSession, businessync: Businessync) {
    *
    * @return a sequence of tuning objects representing the available tunings.
    */
+  @deprecated("To be removed; not thread-safe!")
   def tunings: Seq[Tuning] = session.tunings
 
   /**
