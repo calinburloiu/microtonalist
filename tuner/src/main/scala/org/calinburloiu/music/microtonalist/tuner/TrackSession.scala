@@ -21,15 +21,12 @@ import org.calinburloiu.music.microtonalist.common.OpenableSession
 
 import java.net.URI
 import javax.annotation.concurrent.NotThreadSafe
-import scala.collection.mutable
 
 @NotThreadSafe
 class TrackSession(trackManager: TrackManager,
                    businessync: Businessync) extends OpenableSession {
   private var _uri: Option[URI] = None
   private var _tracks: TrackSpecs = TrackSpecs()
-
-  private val trackIndexById: mutable.Map[TrackSpec.Id, Int] = mutable.Map()
 
   def tracks: TrackSpecs = _tracks
 
@@ -52,17 +49,21 @@ class TrackSession(trackManager: TrackManager,
 
   override def uri: Option[URI] = _uri
 
-  def getTrack(id: TrackSpec.Id): Option[TrackSpec] = trackIndexById.get(id).map(_tracks.apply)
+  def getTrack(id: TrackSpec.Id): Option[TrackSpec] = _tracks.get(id)
 
   def getTrack(index: Int): Option[TrackSpec] = _tracks.get(index)
 
-  def addTrack(trackSpec: TrackSpec): Unit = addTrackBefore(trackSpec, None)
+  def addTrack(track: TrackSpec): Unit = addTrackBefore(track, None)
 
-  def addTrackBefore(trackSpec: TrackSpec, beforeId: TrackSpec.Id): Unit = addTrackBefore(trackSpec, Some(beforeId))
+  def addTrackBefore(track: TrackSpec, beforeId: TrackSpec.Id): Unit = addTrackBefore(track, Some(beforeId))
 
-  def addTrackBefore(trackSpec: TrackSpec, beforeId: Option[TrackSpec.Id]): Unit = ???
+  def addTrackBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): Unit = {
+    _tracks = _tracks.addBefore(track, beforeId)
+  }
 
-  def updateTrack(trackSpec: TrackSpec): Unit = ???
+  def updateTrack(track: TrackSpec): Unit = {
+    _tracks = _tracks.update(track)
+  }
 
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: TrackSpec.Id): Unit = moveTrackBefore(idToMove, Some(beforeId))
 

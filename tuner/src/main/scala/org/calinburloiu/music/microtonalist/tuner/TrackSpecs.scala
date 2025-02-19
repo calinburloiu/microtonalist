@@ -33,13 +33,36 @@ object TrackSpec {
 
 case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
 
+  private val trackIndexById: Map[TrackSpec.Id, Int] = tracks.zipWithIndex.map {
+    case (track, index) => track.id -> index
+  }.toMap
+
+  def apply(id: TrackSpec.Id): TrackSpec = tracks(trackIndexById(id))
+
   def apply(index: Int): TrackSpec = tracks(index)
+
+  def get(id: TrackSpec.Id): Option[TrackSpec] = trackIndexById.get(id).map(tracks)
 
   def get(index: Int): Option[TrackSpec] = tracks.lift(index)
 
-  def update(index: Int, trackSpec: TrackSpec): TrackSpecs = {
+  def addBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): TrackSpecs = {
+    if (trackIndexById.contains(track.id)) {
+      // Do nothing if a track with the same ID already exists
+      this
+    } else {
+      val index = beforeId.map(trackIndexById).getOrElse(tracks.size)
+      copy(tracks = tracks.patch(index, Seq(track), 0))
+    }
+  }
+
+  def update(track: TrackSpec): TrackSpecs = trackIndexById.get(track.id) match {
+    case None => this
+    case Some(index) => update(index, track)
+  }
+
+  def update(index: Int, track: TrackSpec): TrackSpecs = {
     require(index >= 0 && index < tracks.size, s"Index $index is out of bounds!")
 
-    copy(tracks = tracks.updated(index, trackSpec))
+    copy(tracks = tracks.updated(index, track))
   }
 }
