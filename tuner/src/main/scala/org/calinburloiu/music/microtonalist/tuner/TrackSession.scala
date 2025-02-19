@@ -49,6 +49,8 @@ class TrackSession(trackManager: TrackManager,
 
   override def uri: Option[URI] = _uri
 
+  def indexOf(id: TrackSpec.Id): Option[Int] = _tracks.indexOf(id)
+
   def getTrack(id: TrackSpec.Id): Option[TrackSpec] = _tracks.get(id)
 
   def getTrack(index: Int): Option[TrackSpec] = _tracks.get(index)
@@ -67,11 +69,13 @@ class TrackSession(trackManager: TrackManager,
 
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: TrackSpec.Id): Unit = moveTrackBefore(idToMove, Some(beforeId))
 
-  def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): Unit = ???
+  def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): Unit = {
+    _tracks = _tracks.moveBefore(idToMove, beforeId)
+  }
 
   def moveTrackToEnd(idToMove: TrackSpec.Id): Unit = moveTrackBefore(idToMove, None)
 
-  def removeTrack(id: TrackSpec.Id): Unit = ???
-
-  def removeTrack(index: Int): Unit = ???
+  def removeTrack(id: TrackSpec.Id): Unit = {
+    _tracks = _tracks.remove(id)
+  }
 }

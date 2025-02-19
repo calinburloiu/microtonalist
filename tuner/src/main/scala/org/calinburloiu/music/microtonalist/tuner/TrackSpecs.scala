@@ -37,6 +37,8 @@ case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
     case (track, index) => track.id -> index
   }.toMap
 
+  def indexOf(id: TrackSpec.Id): Option[Int] = trackIndexById.get(id)
+
   def apply(id: TrackSpec.Id): TrackSpec = tracks(trackIndexById(id))
 
   def apply(index: Int): TrackSpec = tracks(index)
@@ -64,5 +66,15 @@ case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
     require(index >= 0 && index < tracks.size, s"Index $index is out of bounds!")
 
     copy(tracks = tracks.updated(index, track))
+  }
+
+  def moveBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): TrackSpecs = get(idToMove) match {
+    case None => this
+    case Some(track) => remove(idToMove).addBefore(track, beforeId)
+  }
+
+  def remove(id: TrackSpec.Id): TrackSpecs = trackIndexById.get(id) match {
+    case None => this
+    case Some(index) => copy(tracks = tracks.patch(index, Seq.empty, 1))
   }
 }
