@@ -45,8 +45,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     (ccTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
     (() => ccTuningChangerStub.triggersThru).when().returns(triggersThru)
 
-    val processor: TuningChangeProcessor = new TuningChangeProcessor(
-      tuningServiceStub, Seq(noteTuningChangerStub, ccTuningChangerStub))
+    val processor: TuningChangeProcessor = new TuningChangeProcessor(Seq(noteTuningChangerStub, ccTuningChangerStub),
+      tuningServiceStub)
 
     val receiverStub: Receiver = stub[Receiver]
     processor.receiver = receiverStub

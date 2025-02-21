@@ -19,7 +19,6 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
 
-import java.util.UUID
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
 
@@ -32,20 +31,21 @@ import javax.sound.midi.{MidiMessage, Receiver}
  * @param ccParams              Map of CC parameters to be set during initialization.
  */
 @ThreadSafe
-class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
-            tunerProcessor: TunerProcessor,
-            outputReceiver: Receiver,
+class Track(val id: TrackSpec.Id,
+            tuningChangeProcessor: Option[TuningChangeProcessor],
+            tunerProcessor: Option[TunerProcessor],
+            outputReceiver: Option[Receiver],
             ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
 
-  // TODO #97 Reading Tracks from a file requires assigning this value from the constructor.
-  val id: String = UUID.randomUUID().toString
-
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, Some(tunerProcessor)).flatten, outputReceiver)
+    Seq(tuningChangeProcessor, tunerProcessor).flatten)
+  outputReceiver.foreach { receiver =>
+    pipeline.receiver = receiver
+  }
 
   initCcParams()
 
-  // TODO #97 Implement Track#run
+  // TODO #121 Implement Track#run
   override def run(): Unit = {
     logger.warn("Track#run is not yet implemented!")
   }
@@ -61,20 +61,22 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
    */
   def tune(tuning: Tuning): Unit = {
     logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
-    tunerProcessor.tune(tuning)
+    tunerProcessor.foreach(_.tune(tuning))
   }
 
   override def close(): Unit = logger.info(s"Closing ${this.getClass.getName}...")
 
   private def initCcParams(): Unit = {
-    for ((number, value) <- ccParams) {
-      outputReceiver.send(ScCcMidiMessage(Track.DefaultOutputChannel, number, value).javaMidiMessage, -1)
+    outputReceiver.foreach { receiver =>
+      for ((number, value) <- ccParams) {
+        receiver.send(ScCcMidiMessage(Track.DefaultOutputChannel, number, value).javaMidiMessage, -1)
+      }
     }
   }
 }
 
 object Track {
-  // TODO #97 Using a default channel is an ugly hack
+  // TODO #121 Using a default channel is an ugly hack
   @deprecated
   val DefaultOutputChannel: Int = 0
 }

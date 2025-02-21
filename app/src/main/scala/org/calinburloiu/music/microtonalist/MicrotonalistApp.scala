@@ -84,20 +84,9 @@ object MicrotonalistApp extends StrictLogging {
 
     val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
     val midiInputConfig = midiInputConfigManager.config
-    val maybeTransmitter = if (midiInputConfig.enabled && midiInputConfig.triggers.cc.enabled) {
-      val maybeDeviceHandle = midiManager.openFirstAvailableInput(midiInputConfig.devices)
-      maybeDeviceHandle.map(_.transmitter)
-    } else {
-      None
-    }
 
     val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
     val midiOutputConfig = midiOutputConfigManager.config
-    val outputDeviceHandle = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
-      .getOrElse {
-        throw NoDeviceAvailableException
-      }
-    val receiver = outputDeviceHandle.receiver
 
     // # I/O
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
@@ -109,7 +98,6 @@ object MicrotonalistApp extends StrictLogging {
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
     val tuner = createTuner(midiInputConfig, midiOutputConfig)
-    val tunerProcessor = new TunerProcessor(tuner)
 
     val triggersConfig = midiInputConfig.triggers.cc
     val tuningChangeTriggers = TuningChangeTriggers(
@@ -118,16 +106,20 @@ object MicrotonalistApp extends StrictLogging {
     )
     val tuningChanger = PedalTuningChanger(
       tuningChangeTriggers, triggersConfig.ccThreshold, !triggersConfig.isFilteringThru)
-    val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger)
 
-    val track = new Track(Some(tuningChangeProcessor), tunerProcessor, receiver, midiOutputConfig.ccParams)
-    val trackManager = new TrackManager(Seq(track))
+    val trackSpec = TrackSpec(
+      id = "unique-track",
+      name = "The Track",
+      input = Option(DeviceTrackIO(midiInputConfig.devices.head, None)),
+      tuningChangers = Seq(tuningChanger),
+      tuner = Option(tuner),
+      output = Some(DeviceTrackIO(midiOutputConfig.devices.head, None)),
+      initMidiConfig = InitMidiConfig(midiOutputConfig.ccParams)
+    )
+
+    val trackManager = new TrackManager(TrackSpecs(Seq(trackSpec)), midiManager, tuningService)
     businessync.register(trackManager)
 
-    maybeTransmitter.foreach { transmitter =>
-      transmitter.setReceiver(track)
-      logger.info("Using CC tuning switcher")
-    }
     tunerModule.tuningSession.tunings = tuningList.tunings
 
     // # GUI

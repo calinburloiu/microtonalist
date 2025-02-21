@@ -33,8 +33,8 @@ import scala.annotation.tailrec
  *                       will be performed.
  */
 @NotThreadSafe
-class TuningChangeProcessor(tuningService: TuningService,
-                            val tuningChangers: Seq[TuningChanger]) extends MidiProcessor {
+class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
+                            tuningService: TuningService) extends MidiProcessor {
   require(tuningChangers.nonEmpty, "There should be at least one TuningChanger!")
 
   /**
@@ -43,7 +43,7 @@ class TuningChangeProcessor(tuningService: TuningService,
    * @see the main constructor for details.
    */
   def this(tuningService: TuningService, tuningChanger: TuningChanger) = {
-    this(tuningService, Seq(tuningChanger))
+    this(Seq(tuningChanger), tuningService)
   }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {

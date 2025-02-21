@@ -92,6 +92,7 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
     logger.info(s"Finished closing ${getClass.getSimpleName}.")
   }
 
+  def isInputAvailable(deviceId: MidiDeviceId): Boolean = inputEndpoint.isDeviceAvailable(deviceId)
 
   def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = inputEndpoint.deviceInfoOf(deviceId)
 
@@ -123,6 +124,8 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
 
   def closeInput(deviceId: MidiDeviceId): Unit = inputEndpoint.closeDevice(deviceId)
 
+
+  def isOutputAvailable(deviceId: MidiDeviceId): Boolean = outputEndpoint.isDeviceAvailable(deviceId)
 
   def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = outputEndpoint.deviceInfoOf(deviceId)
 
@@ -228,6 +231,8 @@ object MidiManager {
         businessync.publish(MidiDeviceDisconnectedEvent(deviceId))
       }
     }
+
+    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = devicesIdToInfo.contains(deviceId)
 
     def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = devicesIdToInfo.get(deviceId)
 

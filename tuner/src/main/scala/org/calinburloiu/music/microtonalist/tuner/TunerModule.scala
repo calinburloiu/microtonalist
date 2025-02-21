@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
 
-// TODO #97 Migrate all module init here.
+// TODO #120 Migrate all module init here.
 class TunerModule(businessync: Businessync) {
 
   lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)

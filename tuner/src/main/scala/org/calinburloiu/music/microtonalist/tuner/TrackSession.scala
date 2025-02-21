@@ -32,17 +32,23 @@ class TrackSession(trackManager: TrackManager,
 
   def tracks_=(newTrackSpecs: TrackSpecs): Unit = {
     _tracks = newTrackSpecs
+
+    businessync.publish(TracksUpdatedEvent(newTrackSpecs))
   }
 
   override def open(uri: URI): Unit = {
     _uri = Some(uri)
 
-    // TODO [#119] Read tracks files
+    // TODO #119 Read tracks files
     ???
+
+    businessync.publish(TracksOpenedEvent(uri, tracks))
   }
 
   override def close(): Unit = {
     _uri = None
+
+    businessync.publish(TracksClosedEvent(uri.get))
   }
 
   override def isOpened: Boolean = _uri.isDefined
@@ -61,21 +67,29 @@ class TrackSession(trackManager: TrackManager,
 
   def addTrackBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): Unit = {
     _tracks = _tracks.addBefore(track, beforeId)
+
+    businessync.publish(TrackAddedEvent(track, beforeId))
   }
 
   def updateTrack(track: TrackSpec): Unit = {
     _tracks = _tracks.update(track)
+
+    businessync.publish(TrackUpdatedEvent(track))
   }
 
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: TrackSpec.Id): Unit = moveTrackBefore(idToMove, Some(beforeId))
 
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): Unit = {
     _tracks = _tracks.moveBefore(idToMove, beforeId)
+
+    businessync.publish(TrackMovedEvent(idToMove, beforeId))
   }
 
   def moveTrackToEnd(idToMove: TrackSpec.Id): Unit = moveTrackBefore(idToMove, None)
 
   def removeTrack(id: TrackSpec.Id): Unit = {
     _tracks = _tracks.remove(id)
+
+    businessync.publish(TrackRemovedEvent(id))
   }
 }

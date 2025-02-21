@@ -16,17 +16,36 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-trait BaseTrackIO {
+import org.calinburloiu.music.scmidi.MidiDeviceId
+
+trait TrackChannelIOSupport {
   /**
    * [[Some]] MIDI channel number if that particular channel must be used, or [[None]] if ''any'' channel can be used.
    *
    * The channel number must be between 0 and 15, inclusive.
    */
   val channel: Option[Int]
+
+  require(channel.forall(ch => ch >= 0 && ch <= 15), "Channel must be between 0 and 15, inclusive.")
 }
 
-trait TrackInput extends BaseTrackIO
+trait TrackDeviceIOSupport extends TrackChannelIOSupport {
+  val midiDeviceId: MidiDeviceId
+}
 
-trait TrackOutput extends BaseTrackIO
+trait InterTrackIOSupport extends TrackChannelIOSupport {
+  val trackId: TrackSpec.Id
+}
+
+trait TrackInput
+
+trait TrackOutput
 
 trait TrackIO extends TrackInput with TrackOutput
+
+
+case class DeviceTrackIO(override val midiDeviceId: MidiDeviceId,
+                         override val channel: Option[Int]) extends TrackIO with TrackDeviceIOSupport
+
+case class InterTrackIO(override val trackId: TrackSpec.Id,
+                        override val channel: Option[Int]) extends TrackIO with InterTrackIOSupport

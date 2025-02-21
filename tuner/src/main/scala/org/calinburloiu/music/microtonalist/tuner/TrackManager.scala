@@ -17,20 +17,66 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiManager}
 
 import java.util.concurrent._
 import javax.annotation.concurrent.NotThreadSafe
 
-// TODO #97 Logic to update tracks.
+// TODO #121 Logic to update tracks.
 
 /**
  * Manages a collection of MIDI tracks and updates their tuning based on external events.
  */
 @NotThreadSafe
-class TrackManager(@deprecated("Only expose TrackSpecs publicly")
-                   private val tracks: Seq[Track],
-                   private val executorService: ExecutorService = TrackManager.createExecutorService()) {
+class TrackManager(trackSpecs: TrackSpecs,
+                   private val midiManager: MidiManager,
+                   private val tuningService: TuningService,
+                   private val executorService: ExecutorService = TrackManager.createExecutorService())
+  extends StrictLogging {
+
+  private val tracks: Seq[Track] = trackSpecs.tracks.flatMap { trackSpec =>
+    val inputDeviceHandle = createInputDeviceHandle(trackSpec)
+    val outputDeviceHandle = createOutputDeviceHandle(trackSpec)
+
+    if (inputDeviceHandle.isEmpty && outputDeviceHandle.isEmpty) {
+      logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input or output device specified. " +
+        s"Skipping.")
+      None
+    } else {
+      val tuningChangeProcessor = if (trackSpec.tuningChangers.nonEmpty)
+        Some(new TuningChangeProcessor(trackSpec.tuningChangers, tuningService))
+      else
+        None
+      val tunerProcessor = trackSpec.tuner.map { tuner => new TunerProcessor(tuner) }
+
+      val track = new Track(trackSpec.id, tuningChangeProcessor, tunerProcessor, outputDeviceHandle.map(_.receiver))
+
+      inputDeviceHandle.foreach(_.transmitter.setReceiver(track))
+
+      Some(track)
+    }
+  }
+
+  private def createInputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
+    // TODO #120 Use proper pattern matching
+    trackSpec.input.flatMap {
+      case DeviceTrackIO(midiDeviceId, _) =>
+        if (midiManager.isInputAvailable(midiDeviceId)) Some(midiManager.openInput(midiDeviceId))
+        else None
+      case _ => ???
+    }
+  }
+
+  private def createOutputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
+    // TODO #120 Use proper pattern matching
+    trackSpec.output.flatMap {
+      case DeviceTrackIO(midiDeviceId, _) =>
+        if (midiManager.isOutputAvailable(midiDeviceId)) Some(midiManager.openOutput(midiDeviceId))
+        else None
+      case _ => ???
+    }
+  }
 
   /**
    * Handles changes in tuning by applying the updated tuning to all managed tracks.
@@ -39,7 +85,7 @@ class TrackManager(@deprecated("Only expose TrackSpecs publicly")
    */
   // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
-  def onTuningChanged(event: TuningSessionEvent): Unit = {
+  private def onTuningChanged(event: TuningSessionEvent): Unit = {
     for (track <- tracks) {
       track.tune(event.currentTuning)
     }

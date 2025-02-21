@@ -19,16 +19,24 @@ package org.calinburloiu.music.microtonalist.tuner
 case class TrackSpec(id: TrackSpec.Id,
                      name: String,
                      input: Option[TrackInput],
-                     tuningChanger: Option[TuningChanger],
+                     tuningChangers: Seq[TuningChanger],
                      tuner: Option[Tuner],
-                     output: TrackOutput,
-                     muted: Boolean = false) {
+                     output: Option[TrackOutput],
+                     muted: Boolean = false,
+                     initMidiConfig: InitMidiConfig = InitMidiConfig()) {
   require(id != null && id.nonEmpty, "id must not be null or empty!")
   require(name != null && name.nonEmpty, "name must not be null or empty!")
 }
 
 object TrackSpec {
   type Id = String
+}
+
+case class InitMidiConfig(ccParams: Map[Int, Int] = Map.empty) {
+  require(ccParams.keySet.forall(ccParam => ccParam >= 0 && ccParam <= 127),
+    "CC parameters must be in the range [0, 127]!")
+  require(ccParams.values.forall(ccParam => ccParam >= 0 && ccParam <= 127),
+    "CC parameter values must be in the range [0, 127]!")
 }
 
 case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
