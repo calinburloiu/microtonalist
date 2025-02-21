@@ -17,25 +17,19 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.scmidi.MidiManager
 
-class TunerModule(businessync: Businessync) extends AutoCloseable {
+import java.net.URI
+import javax.annotation.concurrent.ThreadSafe
 
-  lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
+@ThreadSafe
+class TrackService(trackSession: TrackSession,
+                   businessync: Businessync) {
 
-  lazy val tuningSession: TuningSession = new TuningSession(businessync)
+  def open(uri: URI): Unit = businessync.run { () =>
+    trackSession.open(uri)
+  }
 
-  lazy val trackService: TrackService = new TrackService(trackSession, businessync)
-
-  private lazy val midiManager = new MidiManager(businessync)
-
-  private lazy val trackManager = new TrackManager(midiManager, tuningService)
-  businessync.register(trackManager)
-
-  private lazy val trackSession = new TrackSession(trackManager, businessync)
-
-  override def close(): Unit = {
-    trackManager.close()
-    midiManager.close()
+  def replaceAllTracks(tracks: TrackSpecs): Unit = businessync.run { () =>
+    trackSession.tracks = tracks
   }
 }

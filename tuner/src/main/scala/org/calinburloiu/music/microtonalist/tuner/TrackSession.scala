@@ -30,10 +30,12 @@ class TrackSession(trackManager: TrackManager,
 
   def tracks: TrackSpecs = _tracks
 
-  def tracks_=(newTrackSpecs: TrackSpecs): Unit = {
-    _tracks = newTrackSpecs
+  def tracks_=(newTracks: TrackSpecs): Unit = {
+    _tracks = newTracks
 
-    businessync.publish(TracksUpdatedEvent(newTrackSpecs))
+    trackManager.replaceAllTracks(newTracks)
+
+    businessync.publish(TracksUpdatedEvent(newTracks))
   }
 
   override def open(uri: URI): Unit = {

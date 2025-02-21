@@ -279,7 +279,7 @@ object Tuning {
   /**
    * A [[Tuning]] with 12 keys and all 0 offsets for the standard 12-tone equal temperament.
    */
-  val Standard: Tuning = fill(0, Size)
+  val Standard: Tuning = fill("Standard 12-EDO", 0, Size)
 
   /**
    * Creates a [[Tuning]] for the 12 pitch classes in an octave with an empty name.
@@ -362,7 +362,7 @@ object Tuning {
    * @param size   The number of keys in the tuning.
    * @return a new Tuning instance filled with the specified offset value across all keys.
    */
-  def fill(offset: Double, size: Int): Tuning = Tuning(Seq.fill(size)(Some(offset)))
+  def fill(name: String, offset: Double, size: Int): Tuning = Tuning(name, Seq.fill(size)(Some(offset)))
 
   private def fromOffsetToString(offset: Double): String = f"$offset%+06.2f"
 

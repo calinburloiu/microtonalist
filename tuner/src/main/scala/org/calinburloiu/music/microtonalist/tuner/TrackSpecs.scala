@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import javax.annotation.concurrent.ThreadSafe
+
+@ThreadSafe
 case class TrackSpec(id: TrackSpec.Id,
                      name: String,
                      input: Option[TrackInput],
@@ -39,13 +42,12 @@ case class InitMidiConfig(ccParams: Map[Int, Int] = Map.empty) {
     "CC parameter values must be in the range [0, 127]!")
 }
 
+@ThreadSafe
 case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
 
   private val trackIndexById: Map[TrackSpec.Id, Int] = tracks.zipWithIndex.map {
     case (track, index) => track.id -> index
   }.toMap
-
-  def indexOf(id: TrackSpec.Id): Option[Int] = trackIndexById.get(id)
 
   def apply(id: TrackSpec.Id): TrackSpec = tracks(trackIndexById(id))
 
@@ -54,6 +56,22 @@ case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
   def get(id: TrackSpec.Id): Option[TrackSpec] = trackIndexById.get(id).map(tracks)
 
   def get(index: Int): Option[TrackSpec] = tracks.lift(index)
+
+  /**
+   * Retrieves the name of the track corresponding to the specified ID, substituting `"#"` with the track number
+   * (`index + 1`). If the user wants to keep the `"#"` as it, they can escape it as `"\\#"`.
+   *
+   * @param id The unique identifier of the track whose name is to be retrieved.
+   * @return an option containing the track name with indexed placeholders replaced, or None if the ID does not exist.
+   */
+  def nameOf(id: TrackSpec.Id): Option[String] = indexOf(id).map { index =>
+    tracks(index).name
+      .replace("\\#", "\u0000")
+      .replace("#", (index + 1).toString)
+      .replace("\u0000", "#")
+  }
+
+  def indexOf(id: TrackSpec.Id): Option[Int] = trackIndexById.get(id)
 
   def addBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): TrackSpecs = {
     if (trackIndexById.contains(track.id)) {

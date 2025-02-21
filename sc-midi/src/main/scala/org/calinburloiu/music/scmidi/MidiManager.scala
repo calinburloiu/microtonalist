@@ -85,11 +85,12 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
   }
 
   override def close(): Unit = {
-    logger.info(s"Closing ${getClass.getSimpleName}...")
+    logger.info(s"Closing MIDI connections...")
     inputEndpoint.close()
     outputEndpoint.close()
+    logger.info(s"Finished closing MIDI connections.")
+
     CoreMidiDeviceProvider.removeNotificationListener(onMidiNotification)
-    logger.info(s"Finished closing ${getClass.getSimpleName}.")
   }
 
   def isInputAvailable(deviceId: MidiDeviceId): Boolean = inputEndpoint.isDeviceAvailable(deviceId)

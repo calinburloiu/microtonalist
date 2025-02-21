@@ -17,11 +17,12 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor, ScCcMidiMessage}
 
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
 
+// TODO #120 Doc
 /**
  * MIDI route for tuning an output device.
  *
@@ -32,13 +33,18 @@ import javax.sound.midi.{MidiMessage, Receiver}
  */
 @ThreadSafe
 class Track(val id: TrackSpec.Id,
+            inputDeviceHandle: Option[MidiDeviceHandle],
             tuningChangeProcessor: Option[TuningChangeProcessor],
             tunerProcessor: Option[TunerProcessor],
-            outputReceiver: Option[Receiver],
+            outputDeviceHandle: Option[MidiDeviceHandle],
             ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
 
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
     Seq(tuningChangeProcessor, tunerProcessor).flatten)
+
+  inputDeviceHandle.foreach(_.transmitter.setReceiver(this))
+
+  private val outputReceiver: Option[Receiver] = outputDeviceHandle.map(_.receiver)
   outputReceiver.foreach { receiver =>
     pipeline.receiver = receiver
   }
@@ -64,7 +70,15 @@ class Track(val id: TrackSpec.Id,
     tunerProcessor.foreach(_.tune(tuning))
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getName}...")
+  override def close(): Unit = {
+    logger.info(s"Closing track $id...")
+
+    logger.info(s"Switching back to 12-EDO for track $id...")
+    tune(Tuning.Standard)
+
+    inputDeviceHandle.foreach(_.midiDevice.close())
+    outputDeviceHandle.foreach(_.midiDevice.close())
+  }
 
   private def initCcParams(): Unit = {
     outputReceiver.foreach { receiver =>

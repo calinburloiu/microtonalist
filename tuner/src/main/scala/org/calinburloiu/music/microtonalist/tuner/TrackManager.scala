@@ -29,37 +29,50 @@ import javax.annotation.concurrent.NotThreadSafe
  * Manages a collection of MIDI tracks and updates their tuning based on external events.
  */
 @NotThreadSafe
-class TrackManager(trackSpecs: TrackSpecs,
-                   private val midiManager: MidiManager,
+class TrackManager(private val midiManager: MidiManager,
                    private val tuningService: TuningService,
                    private val executorService: ExecutorService = TrackManager.createExecutorService())
-  extends StrictLogging {
+  extends AutoCloseable with StrictLogging {
 
-  private val tracks: Seq[Track] = trackSpecs.tracks.flatMap { trackSpec =>
-    val inputDeviceHandle = createInputDeviceHandle(trackSpec)
-    val outputDeviceHandle = createOutputDeviceHandle(trackSpec)
+  private var tracks: Seq[Track] = Seq.empty
 
-    if (inputDeviceHandle.isEmpty && outputDeviceHandle.isEmpty) {
-      logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input or output device specified. " +
-        s"Skipping.")
-      None
-    } else {
-      val tuningChangeProcessor = if (trackSpec.tuningChangers.nonEmpty)
-        Some(new TuningChangeProcessor(trackSpec.tuningChangers, tuningService))
-      else
+  def replaceAllTracks(trackSpecs: TrackSpecs): Unit = {
+    closeTracks()
+
+    tracks = trackSpecs.tracks.flatMap { trackSpec =>
+      val inputDeviceHandle = createInputDeviceHandle(trackSpec)
+      val outputDeviceHandle = createOutputDeviceHandle(trackSpec)
+
+      if (inputDeviceHandle.isEmpty && outputDeviceHandle.isEmpty) {
+        logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input or output device specified. " +
+          s"Skipping.")
         None
-      val tunerProcessor = trackSpec.tuner.map { tuner => new TunerProcessor(tuner) }
+      } else {
+        val tuningChangeProcessor = if (trackSpec.tuningChangers.nonEmpty)
+          Some(new TuningChangeProcessor(trackSpec.tuningChangers, tuningService))
+        else
+          None
+        val tunerProcessor = trackSpec.tuner.map { tuner => new TunerProcessor(tuner) }
 
-      val track = new Track(trackSpec.id, tuningChangeProcessor, tunerProcessor, outputDeviceHandle.map(_.receiver))
-
-      inputDeviceHandle.foreach(_.transmitter.setReceiver(track))
-
-      Some(track)
+        val track = new Track(trackSpec.id, inputDeviceHandle, tuningChangeProcessor, tunerProcessor,
+          outputDeviceHandle)
+        Some(track)
+      }
     }
   }
 
+  def tune(tuning: Tuning): Unit = {
+    for (track <- tracks) {
+      track.tune(tuning)
+    }
+  }
+
+  override def close(): Unit = {
+    closeTracks()
+    executorService.shutdown()
+  }
+
   private def createInputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
-    // TODO #120 Use proper pattern matching
     trackSpec.input.flatMap {
       case DeviceTrackIO(midiDeviceId, _) =>
         if (midiManager.isInputAvailable(midiDeviceId)) Some(midiManager.openInput(midiDeviceId))
@@ -69,13 +82,16 @@ class TrackManager(trackSpecs: TrackSpecs,
   }
 
   private def createOutputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
-    // TODO #120 Use proper pattern matching
     trackSpec.output.flatMap {
       case DeviceTrackIO(midiDeviceId, _) =>
         if (midiManager.isOutputAvailable(midiDeviceId)) Some(midiManager.openOutput(midiDeviceId))
         else None
       case _ => ???
     }
+  }
+
+  private def closeTracks(): Unit = {
+    tracks.foreach(_.close())
   }
 
   /**
@@ -86,9 +102,7 @@ class TrackManager(trackSpecs: TrackSpecs,
   // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
   private def onTuningChanged(event: TuningSessionEvent): Unit = {
-    for (track <- tracks) {
-      track.tune(event.currentTuning)
-    }
+    tune(event.currentTuning)
   }
 }
 
