@@ -24,7 +24,7 @@ sealed abstract class TrackSessionEvent extends BusinessyncEvent
 
 case class TracksOpenedEvent(uri: URI, tracks: TrackSpecs) extends TrackSessionEvent
 
-case class TracksClosedEvent(uri: URI) extends TrackSessionEvent
+case class TracksClosedEvent(uri: Option[URI]) extends TrackSessionEvent
 
 case class TracksUpdatedEvent(tracks: TrackSpecs) extends TrackSessionEvent
 

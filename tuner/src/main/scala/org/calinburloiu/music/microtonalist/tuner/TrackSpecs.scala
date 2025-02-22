@@ -64,21 +64,36 @@ case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
    * @param id The unique identifier of the track whose name is to be retrieved.
    * @return an option containing the track name with indexed placeholders replaced, or None if the ID does not exist.
    */
-  def nameOf(id: TrackSpec.Id): Option[String] = indexOf(id).map { index =>
-    tracks(index).name
-      .replace("\\#", "\u0000")
-      .replace("#", (index + 1).toString)
-      .replace("\u0000", "#")
+  def nameOf(id: TrackSpec.Id): Option[String] = {
+    val index = indexOf(id)
+    if (index >= 0) {
+      Some(tracks(index).name
+        .replace("\\#", "\u0000")
+        .replace("#", (index + 1).toString)
+        .replace("\u0000", "#"))
+    } else {
+      None
+    }
   }
 
-  def indexOf(id: TrackSpec.Id): Option[Int] = trackIndexById.get(id)
+  def indexOf(id: TrackSpec.Id): Int = trackIndexById.getOrElse(id, -1)
+
+  def contains(id: TrackSpec.Id): Boolean = trackIndexById.contains(id)
+
+  def size: Int = tracks.size
+
+  def isEmpty: Boolean = tracks.isEmpty
+
+  def nonEmpty: Boolean = tracks.nonEmpty
+
+  def ids: Seq[TrackSpec.Id] = tracks.map(_.id)
 
   def addBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): TrackSpecs = {
     if (trackIndexById.contains(track.id)) {
       // Do nothing if a track with the same ID already exists
       this
     } else {
-      val index = beforeId.map(trackIndexById).getOrElse(tracks.size)
+      val index = beforeId.flatMap(trackIndexById.get).getOrElse(tracks.size)
       copy(tracks = tracks.patch(index, Seq(track), 0))
     }
   }

@@ -28,6 +28,25 @@ class TrackSession(trackManager: TrackManager,
   private var _uri: Option[URI] = None
   private var _tracks: TrackSpecs = TrackSpecs()
 
+  override def open(uri: URI): Unit = {
+    _uri = Some(uri)
+
+    // TODO #119 Read tracks files
+
+    businessync.publish(TracksOpenedEvent(uri, tracks))
+  }
+
+  override def close(): Unit = {
+    val uriBefore = _uri
+    _uri = None
+
+    businessync.publish(TracksClosedEvent(uriBefore))
+  }
+
+  override def isOpened: Boolean = _uri.isDefined
+
+  override def uri: Option[URI] = _uri
+
   def tracks: TrackSpecs = _tracks
 
   def tracks_=(newTracks: TrackSpecs): Unit = {
@@ -38,26 +57,13 @@ class TrackSession(trackManager: TrackManager,
     businessync.publish(TracksUpdatedEvent(newTracks))
   }
 
-  override def open(uri: URI): Unit = {
-    _uri = Some(uri)
+  def indexOf(id: TrackSpec.Id): Int = _tracks.indexOf(id)
 
-    // TODO #119 Read tracks files
-    ???
+  def nameOf(id: TrackSpec.Id): Option[String] = _tracks.nameOf(id)
 
-    businessync.publish(TracksOpenedEvent(uri, tracks))
-  }
+  def contains(id: TrackSpec.Id): Boolean = _tracks.contains(id)
 
-  override def close(): Unit = {
-    _uri = None
-
-    businessync.publish(TracksClosedEvent(uri.get))
-  }
-
-  override def isOpened: Boolean = _uri.isDefined
-
-  override def uri: Option[URI] = _uri
-
-  def indexOf(id: TrackSpec.Id): Option[Int] = _tracks.indexOf(id)
+  def trackCount: Int = _tracks.size
 
   def getTrack(id: TrackSpec.Id): Option[TrackSpec] = _tracks.get(id)
 
@@ -68,30 +74,44 @@ class TrackSession(trackManager: TrackManager,
   def addTrackBefore(track: TrackSpec, beforeId: TrackSpec.Id): Unit = addTrackBefore(track, Some(beforeId))
 
   def addTrackBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): Unit = {
+    val countBefore = _tracks.size
     _tracks = _tracks.addBefore(track, beforeId)
 
-    businessync.publish(TrackAddedEvent(track, beforeId))
+    if (_tracks.size > countBefore) {
+      val actualBeforeId = if (beforeId.exists(_tracks.contains)) beforeId else None
+      businessync.publish(TrackAddedEvent(track, actualBeforeId))
+    }
   }
 
   def updateTrack(track: TrackSpec): Unit = {
+    val trackBefore = _tracks.get(track.id)
     _tracks = _tracks.update(track)
 
-    businessync.publish(TrackUpdatedEvent(track))
+    if (trackBefore.exists(_ ne track)) {
+      businessync.publish(TrackUpdatedEvent(track))
+    }
   }
 
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: TrackSpec.Id): Unit = moveTrackBefore(idToMove, Some(beforeId))
 
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): Unit = {
+    val indexBefore = _tracks.indexOf(idToMove)
     _tracks = _tracks.moveBefore(idToMove, beforeId)
 
-    businessync.publish(TrackMovedEvent(idToMove, beforeId))
+    if (indexBefore != _tracks.indexOf(idToMove)) {
+      val actualBeforeId = if (beforeId.exists(_tracks.contains)) beforeId else None
+      businessync.publish(TrackMovedEvent(idToMove, actualBeforeId))
+    }
   }
 
   def moveTrackToEnd(idToMove: TrackSpec.Id): Unit = moveTrackBefore(idToMove, None)
 
   def removeTrack(id: TrackSpec.Id): Unit = {
+    val countBefore = _tracks.size
     _tracks = _tracks.remove(id)
 
-    businessync.publish(TrackRemovedEvent(id))
+    if (_tracks.size < countBefore) {
+      businessync.publish(TrackRemovedEvent(id))
+    }
   }
 }

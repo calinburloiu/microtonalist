@@ -25,6 +25,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   trait Fixture {
     val businessyncStub: Businessync = stub[Businessync]
+
     val tuningSession: TuningSession = new TuningSession(businessyncStub)
   }
 
