@@ -25,6 +25,8 @@ import javax.annotation.concurrent.NotThreadSafe
 /**
  * Manages a sequence of tracks by providing loading/unloading (I/O) and editing operations.
  *
+ * This class should only be accessed from the business thread.
+ *
  * @param trackManager Manages the MIDI configuration and handling of tracks.
  * @param businessync  An instance of `Businessync` responsible for handling event publication.
  */
