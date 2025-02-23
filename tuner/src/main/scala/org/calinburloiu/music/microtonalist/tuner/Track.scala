@@ -22,14 +22,10 @@ import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor}
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
 
-// TODO #120 Doc
 /**
  * MIDI route for tuning an output device.
  *
  * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
- * @param tuner                 Class responsible for tuning the output instrument based on specific protocol.
- * @param outputReceiver        MIDI [[Receiver]] of the output instrument.
- * @param ccParams              Map of CC parameters to be set during initialization.
  */
 @ThreadSafe
 class Track(val id: TrackSpec.Id,
@@ -88,6 +84,11 @@ class Track(val id: TrackSpec.Id,
 }
 
 object Track {
-  // TODO #121 Using a default channel is an ugly hack
+  /**
+   * Default MIDI output channel to be used if not other is provided in a context where a channel number is required.
+   *
+   * Note that the channel number is 0-based internally, although the `.tracks` files and the UI may expose it as
+   * 1-based.
+   */
   val DefaultOutputChannel: Int = 0
 }

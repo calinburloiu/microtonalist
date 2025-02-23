@@ -36,6 +36,11 @@ class TrackManager(private val midiManager: MidiManager,
 
   private var tracks: Seq[Track] = Seq.empty
 
+  /**
+   * Replaces all existing tracks with new ones based on the provided track specifications and configures them.
+   *
+   * @param trackSpecs The specifications of the tracks to be created.
+   */
   def replaceAllTracks(trackSpecs: TrackSpecs): Unit = {
     closeTracks()
 
@@ -61,12 +66,22 @@ class TrackManager(private val midiManager: MidiManager,
     }
   }
 
+  /**
+   * Applies a specified tuning to all managed tracks.
+   *
+   * @param tuning The tuning to be applied to the tracks.
+   */
   def tune(tuning: Tuning): Unit = {
     for (track <- tracks) {
       track.tune(tuning)
     }
   }
 
+  /**
+   * Closes all managed resources associated with the TrackManager.
+   *
+   * This method ensures that the MIDI devices of all tracks are properly closed.
+   */
   override def close(): Unit = {
     closeTracks()
     executorService.shutdown()
@@ -95,7 +110,7 @@ class TrackManager(private val midiManager: MidiManager,
   }
 
   /**
-   * Handles changes in tuning by applying the updated tuning to all managed tracks.
+   * Handles tuning change events by applying the updated tuning to all managed tracks.
    *
    * @param event The tuning session event containing the current tuning to be applied to the tracks.
    */

@@ -21,15 +21,33 @@ import org.calinburloiu.businessync.Businessync
 import java.net.URI
 import javax.annotation.concurrent.ThreadSafe
 
+/**
+ * Service that exposes track management capabilities to the application layer.
+ *
+ * The service makes sure that all operations are executed on the business thread.
+ *
+ * @param session     Object where all mutable operations are performed.
+ * @param businessync Provides thread communication capabilities.
+ */
 @ThreadSafe
-class TrackService(trackSession: TrackSession,
+class TrackService(session: TrackSession,
                    businessync: Businessync) {
 
+  /**
+   * Opens a new track session by loading the track list from the given URI.
+   *
+   * @param uri the URI from which tracks are read.
+   */
   def open(uri: URI): Unit = businessync.run { () =>
-    trackSession.open(uri)
+    session.open(uri)
   }
 
+  /**
+   * Replaces all tracks in the current session with the provided track specifications.
+   *
+   * @param tracks The new track specifications to replace the current tracks.
+   */
   def replaceAllTracks(tracks: TrackSpecs): Unit = businessync.run { () =>
-    trackSession.tracks = tracks
+    session.tracks = tracks
   }
 }
