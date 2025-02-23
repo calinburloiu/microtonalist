@@ -22,7 +22,7 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.MicrotonalistApp.AppConfigException
 import org.calinburloiu.music.microtonalist.tuner._
-import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity, ScCcMidiMessage}
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
                             tunerType: TunerType,
@@ -232,6 +232,10 @@ object MidiConfigsTrackSpecsFactory extends StrictLogging {
     )
     val tuningChanger = PedalTuningChanger(
       tuningChangeTriggers, triggersConfig.ccThreshold, !triggersConfig.isFilteringThru)
+    val initMidiMessages = midiOutputConfig.ccParams.map {
+      case (number, value) => ScCcMidiMessage(channel = Track.DefaultOutputChannel, number = number, value = value)
+        .javaMidiMessage
+    }.toSeq
 
     val trackSpec = TrackSpec(
       id = "unique-track",
@@ -240,7 +244,7 @@ object MidiConfigsTrackSpecsFactory extends StrictLogging {
       tuningChangers = Seq(tuningChanger),
       tuner = Option(tuner),
       output = Some(DeviceTrackIO(midiOutputConfig.devices.head, None)),
-      initMidiConfig = InitMidiConfig(midiOutputConfig.ccParams)
+      initMidiMessages = initMidiMessages
     )
 
     TrackSpecs(Seq(trackSpec))

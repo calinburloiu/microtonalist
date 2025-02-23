@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor, ScCcMidiMessage}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor}
 
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
@@ -37,7 +37,7 @@ class Track(val id: TrackSpec.Id,
             tuningChangeProcessor: Option[TuningChangeProcessor],
             tunerProcessor: Option[TunerProcessor],
             outputDeviceHandle: Option[MidiDeviceHandle],
-            ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
+            initMidiMessages: Seq[MidiMessage] = Seq.empty) extends Receiver with Runnable with StrictLogging {
 
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
     Seq(tuningChangeProcessor, tunerProcessor).flatten)
@@ -49,7 +49,7 @@ class Track(val id: TrackSpec.Id,
     pipeline.receiver = receiver
   }
 
-  initCcParams()
+  sendInitMidiMessages()
 
   // TODO #121 Implement Track#run
   override def run(): Unit = {
@@ -80,17 +80,14 @@ class Track(val id: TrackSpec.Id,
     outputDeviceHandle.foreach(_.midiDevice.close())
   }
 
-  private def initCcParams(): Unit = {
-    outputReceiver.foreach { receiver =>
-      for ((number, value) <- ccParams) {
-        receiver.send(ScCcMidiMessage(Track.DefaultOutputChannel, number, value).javaMidiMessage, -1)
-      }
+  private def sendInitMidiMessages(): Unit = {
+    for (message <- initMidiMessages) {
+      pipeline.send(message, -1)
     }
   }
 }
 
 object Track {
   // TODO #121 Using a default channel is an ugly hack
-  @deprecated
   val DefaultOutputChannel: Int = 0
 }

@@ -40,7 +40,7 @@ import javax.sound.midi.MidiMessage
  * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures
  * external synchronization.
  *
- * @param tuner The [[Tuner]] instance used to handle tuning operations and modify MIDI messages.
+ * @param tuner The [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
  */
 @NotThreadSafe
 class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
