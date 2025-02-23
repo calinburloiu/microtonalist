@@ -36,7 +36,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
     if (tracks.nonEmpty) {
       (trackManagerMock.replaceAllTracks _).expects(sampleTracks)
-      (businessyncMock.publish _).expects(TracksUpdatedEvent(sampleTracks))
+      (businessyncMock.publish _).expects(TracksReplacedEvent(sampleTracks))
 
       trackSession.tracks = tracks
     }
