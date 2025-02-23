@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiSerialProcessor, ScCcMidiMessage}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor}
 
-import java.util.UUID
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
 
@@ -27,25 +26,28 @@ import javax.sound.midi.{MidiMessage, Receiver}
  * MIDI route for tuning an output device.
  *
  * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
- * @param tuner                 Class responsible for tuning the output instrument based on specific protocol.
- * @param outputReceiver        MIDI [[Receiver]] of the output instrument.
- * @param ccParams              Map of CC parameters to be set during initialization.
  */
 @ThreadSafe
-class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
-            tunerProcessor: TunerProcessor,
-            outputReceiver: Receiver,
-            ccParams: Map[Int, Int] = Map.empty) extends Receiver with Runnable with StrictLogging {
-
-  // TODO #97 Reading Tracks from a file requires assigning this value from the constructor.
-  val id: String = UUID.randomUUID().toString
+class Track(val id: TrackSpec.Id,
+            inputDeviceHandle: Option[MidiDeviceHandle],
+            tuningChangeProcessor: Option[TuningChangeProcessor],
+            tunerProcessor: Option[TunerProcessor],
+            outputDeviceHandle: Option[MidiDeviceHandle],
+            initMidiMessages: Seq[MidiMessage] = Seq.empty) extends Receiver with Runnable with StrictLogging {
 
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, Some(tunerProcessor)).flatten, outputReceiver)
+    Seq(tuningChangeProcessor, tunerProcessor).flatten)
 
-  initCcParams()
+  inputDeviceHandle.foreach(_.transmitter.setReceiver(this))
 
-  // TODO #97 Implement Track#run
+  private val outputReceiver: Option[Receiver] = outputDeviceHandle.map(_.receiver)
+  outputReceiver.foreach { receiver =>
+    pipeline.receiver = receiver
+  }
+
+  sendInitMidiMessages()
+
+  // TODO #121 Implement Track#run
   override def run(): Unit = {
     logger.warn("Track#run is not yet implemented!")
   }
@@ -61,20 +63,32 @@ class Track(tuningChangeProcessor: Option[TuningChangeProcessor],
    */
   def tune(tuning: Tuning): Unit = {
     logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
-    tunerProcessor.tune(tuning)
+    tunerProcessor.foreach(_.tune(tuning))
   }
 
-  override def close(): Unit = logger.info(s"Closing ${this.getClass.getName}...")
+  override def close(): Unit = {
+    logger.info(s"Closing track $id...")
 
-  private def initCcParams(): Unit = {
-    for ((number, value) <- ccParams) {
-      outputReceiver.send(ScCcMidiMessage(Track.DefaultOutputChannel, number, value).javaMidiMessage, -1)
+    logger.info(s"Switching back to 12-EDO for track $id...")
+    tune(Tuning.Standard)
+
+    inputDeviceHandle.foreach(_.midiDevice.close())
+    outputDeviceHandle.foreach(_.midiDevice.close())
+  }
+
+  private def sendInitMidiMessages(): Unit = {
+    for (message <- initMidiMessages) {
+      pipeline.send(message, -1)
     }
   }
 }
 
 object Track {
-  // TODO #97 Using a default channel is an ugly hack
-  @deprecated
+  /**
+   * Default MIDI output channel to be used if not other is provided in a context where a channel number is required.
+   *
+   * Note that the channel number is 0-based internally, although the `.tracks` files and the UI may expose it as
+   * 1-based.
+   */
   val DefaultOutputChannel: Int = 0
 }

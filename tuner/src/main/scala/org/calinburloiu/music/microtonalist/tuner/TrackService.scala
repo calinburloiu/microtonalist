@@ -18,11 +18,11 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
 
+import java.net.URI
 import javax.annotation.concurrent.ThreadSafe
 
 /**
- * Service that exposes tuning capabilities to the application layer by allowing things like setting the sequence of
- * tunings and the current tuning from that sequence.
+ * Service that exposes track management capabilities to the application layer.
  *
  * The service makes sure that all operations are executed on the business thread.
  *
@@ -30,27 +30,24 @@ import javax.annotation.concurrent.ThreadSafe
  * @param businessync Provides thread communication capabilities.
  */
 @ThreadSafe
-class TuningService(session: TuningSession, businessync: Businessync) {
+class TrackService(session: TrackSession,
+                   businessync: Businessync) {
 
   /**
-   * Retrieves the sequence of tunings currently set in the tuning session.
+   * Opens a new track session by loading the track list from the given URI.
    *
-   * @return a sequence of tuning objects representing the available tunings.
+   * @param uri the URI from which tracks are read.
    */
-  @deprecated("To be removed; not thread-safe!")
-  def tunings: Seq[Tuning] = session.tunings
+  def open(uri: URI): Unit = businessync.run { () =>
+    session.open(uri)
+  }
 
   /**
-   * Changes the current tuning with the given operation object by selecting one of the tunings from the tuning sequence
-   * stored in the session.
+   * Replaces all tracks in the current session with the provided track specifications.
    *
-   * @param tuningChange An operation object that describes how the tuning should be changed.
+   * @param tracks The new track specifications to replace the current tracks.
    */
-  def changeTuning(tuningChange: EffectiveTuningChange): Unit = businessync.run { () =>
-    tuningChange match {
-      case PreviousTuningChange => session.previousTuning()
-      case NextTuningChange => session.nextTuning()
-      case IndexTuningChange(index) => session.tuningIndex = index
-    }
+  def replaceAllTracks(tracks: TrackSpecs): Unit = businessync.run { () =>
+    session.tracks = tracks
   }
 }

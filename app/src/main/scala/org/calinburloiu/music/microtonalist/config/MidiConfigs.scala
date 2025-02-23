@@ -17,9 +17,12 @@
 package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
-import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
+import org.calinburloiu.music.microtonalist.MicrotonalistApp.AppConfigException
+import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity, ScCcMidiMessage}
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
                             tunerType: TunerType,
@@ -209,5 +212,51 @@ object MidiConfigSerDe {
 
   def serializeDevices(devices: Seq[MidiDeviceId]): Seq[Map[String, String]] = devices.map { device =>
     Map("name" -> device.name, "vendor" -> device.vendor)
+  }
+}
+
+object MidiConfigsTrackSpecsFactory extends StrictLogging {
+  def read(mainConfigManager: MainConfigManager): TrackSpecs = {
+    val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
+    val midiInputConfig = midiInputConfigManager.config
+
+    val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
+    val midiOutputConfig = midiOutputConfigManager.config
+
+    val tuner = createTuner(midiInputConfig, midiOutputConfig)
+
+    val triggersConfig = midiInputConfig.triggers.cc
+    val tuningChangeTriggers = TuningChangeTriggers(
+      Some(triggersConfig.prevTuningCc),
+      Some(triggersConfig.nextTuningCc)
+    )
+    val tuningChanger = PedalTuningChanger(
+      tuningChangeTriggers, triggersConfig.ccThreshold, !triggersConfig.isFilteringThru)
+    val initMidiMessages = midiOutputConfig.ccParams.map {
+      case (number, value) => ScCcMidiMessage(channel = Track.DefaultOutputChannel, number = number, value = value)
+        .javaMidiMessage
+    }.toSeq
+
+    val trackSpec = TrackSpec(
+      id = "unique-track",
+      name = "The Track",
+      input = Option(DeviceTrackIO(midiInputConfig.devices.head, None)),
+      tuningChangers = Seq(tuningChanger),
+      tuner = Option(tuner),
+      output = Some(DeviceTrackIO(midiOutputConfig.devices.head, None)),
+      initMidiMessages = initMidiMessages
+    )
+
+    TrackSpecs(Seq(trackSpec))
+  }
+
+  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
+    logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
+    midiOutputConfig.tunerType match {
+      case TunerType.MtsOctave1ByteNonRealTime => MtsOctave1ByteNonRealTimeTuner(midiInputConfig.thru)
+      case TunerType.MonophonicPitchBend => MonophonicPitchBendTuner(
+        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity)
+      case _ => throw AppConfigException(s"Invalid tunerType ${midiOutputConfig.tunerType} in config!")
+    }
   }
 }

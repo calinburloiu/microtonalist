@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
+import org.calinburloiu.businessync.Businessync
 import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
 import javax.sound.midi.{MidiDevice, MidiSystem}
@@ -85,13 +85,15 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
   }
 
   override def close(): Unit = {
-    logger.info(s"Closing ${getClass.getSimpleName}...")
+    logger.info(s"Closing MIDI connections...")
     inputEndpoint.close()
     outputEndpoint.close()
+    logger.info(s"Finished closing MIDI connections.")
+
     CoreMidiDeviceProvider.removeNotificationListener(onMidiNotification)
-    logger.info(s"Finished closing ${getClass.getSimpleName}.")
   }
 
+  def isInputAvailable(deviceId: MidiDeviceId): Boolean = inputEndpoint.isDeviceAvailable(deviceId)
 
   def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = inputEndpoint.deviceInfoOf(deviceId)
 
@@ -123,6 +125,8 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
 
   def closeInput(deviceId: MidiDeviceId): Unit = inputEndpoint.closeDevice(deviceId)
 
+
+  def isOutputAvailable(deviceId: MidiDeviceId): Boolean = outputEndpoint.isDeviceAvailable(deviceId)
 
   def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = outputEndpoint.deviceInfoOf(deviceId)
 
@@ -156,17 +160,6 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
 }
 
 object MidiManager {
-
-  abstract class MidiEvent extends BusinessyncEvent
-
-  case object MidiEnvironmentChangedEvent extends MidiEvent
-
-  case class MidiDeviceAddedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-  case class MidiDeviceRemovedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-  case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
 
   private sealed abstract class MidiEndpointType(name: String) {
     override def toString: String = name
@@ -229,6 +222,8 @@ object MidiManager {
       }
     }
 
+    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = devicesIdToInfo.contains(deviceId)
+
     def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = devicesIdToInfo.get(deviceId)
 
     def deviceIds: Seq[MidiDeviceId] = devicesIdToInfo.keys.toSeq
@@ -244,6 +239,7 @@ object MidiManager {
         deviceHandle.open()
         openedDevicesMap.update(deviceId, deviceHandle)
         logger.info(s"Successfully opened $endpointType device $deviceId.")
+        businessync.publish(MidiDeviceConnectedEvent(deviceId))
 
         deviceHandle
       }

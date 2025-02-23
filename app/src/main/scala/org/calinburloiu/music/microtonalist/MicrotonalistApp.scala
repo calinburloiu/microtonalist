@@ -25,7 +25,6 @@ import org.calinburloiu.music.microtonalist.config._
 import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
-import org.calinburloiu.music.scmidi.MidiManager
 
 import java.net.URI
 import java.nio.file.{InvalidPathException, Path, Paths}
@@ -78,90 +77,28 @@ object MicrotonalistApp extends StrictLogging {
     val businessync = new Businessync(eventBus)
     val mainConfigManager = MainConfigManager(configPath)
 
-    // # MIDI
-    logger.info("Initializing MIDI...")
-    val midiManager = new MidiManager(businessync)
-
-    val midiInputConfigManager = new MidiInputConfigManager(mainConfigManager)
-    val midiInputConfig = midiInputConfigManager.config
-    val maybeTransmitter = if (midiInputConfig.enabled && midiInputConfig.triggers.cc.enabled) {
-      val maybeDeviceHandle = midiManager.openFirstAvailableInput(midiInputConfig.devices)
-      maybeDeviceHandle.map(_.transmitter)
-    } else {
-      None
-    }
-
-    val midiOutputConfigManager = new MidiOutputConfigManager(mainConfigManager)
-    val midiOutputConfig = midiOutputConfigManager.config
-    val outputDeviceHandle = midiManager.openFirstAvailableOutput(midiOutputConfig.devices)
-      .getOrElse {
-        throw NoDeviceAvailableException
-      }
-    val receiver = outputDeviceHandle.receiver
-
-    // # I/O
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
-
-    // # Microtuner
-    val tunerModule = new TunerModule(businessync)
-    val tuningService = tunerModule.tuningService
-
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
-    val tuner = createTuner(midiInputConfig, midiOutputConfig)
-    val tunerProcessor = new TunerProcessor(tuner)
 
-    val triggersConfig = midiInputConfig.triggers.cc
-    val tuningChangeTriggers = TuningChangeTriggers(
-      Some(triggersConfig.prevTuningCc),
-      Some(triggersConfig.nextTuningCc)
-    )
-    val tuningChanger = PedalTuningChanger(
-      tuningChangeTriggers, triggersConfig.ccThreshold, !triggersConfig.isFilteringThru)
-    val tuningChangeProcessor = new TuningChangeProcessor(tuningService, tuningChanger)
-
-    val track = new Track(Some(tuningChangeProcessor), tunerProcessor, receiver, midiOutputConfig.ccParams)
-    val trackManager = new TrackManager(Seq(track))
-    businessync.register(trackManager)
-
-    maybeTransmitter.foreach { transmitter =>
-      transmitter.setReceiver(track)
-      logger.info("Using CC tuning switcher")
-    }
+    val tunerModule = new TunerModule(businessync)
+    val trackSpecs = MidiConfigsTrackSpecsFactory.read(mainConfigManager)
+    tunerModule.trackService.replaceAllTracks(trackSpecs)
     tunerModule.tuningSession.tunings = tuningList.tunings
 
-    // # GUI
     logger.info("Initializing GUI...")
-    val tuningListFrame = new TuningListFrame(tuningService)
+    val tuningListFrame = new TuningListFrame(tunerModule.tuningService)
     businessync.register(tuningListFrame)
     tuningListFrame.setVisible(true)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
         logger.info("Preparing to exit...")
-        logger.info("Switching back to 12-EDO...")
-        try {
-          tuner.tune(Tuning.Standard)
-        } catch {
-          case e: TunerException => logger.error(e.getMessage)
-        }
-        Thread.sleep(1000)
-
-        logger.info("Closing MIDI connections...")
-        midiManager.close()
+        tunerModule.close()
+        Thread.sleep(1_000)
 
         logger.info("Bye bye!")
       }
     })
-  }
-
-  private def createTuner(midiInputConfig: MidiInputConfig, midiOutputConfig: MidiOutputConfig): Tuner = {
-    logger.info(s"Using ${midiOutputConfig.tunerType} tuner...")
-    midiOutputConfig.tunerType match {
-      case TunerType.MtsOctave1ByteNonRealTime => MtsOctave1ByteNonRealTimeTuner(midiInputConfig.thru)
-      case TunerType.MonophonicPitchBend => MonophonicPitchBendTuner(
-        Track.DefaultOutputChannel, midiOutputConfig.pitchBendSensitivity)
-      case _ => throw AppConfigException(s"Invalid tunerType ${midiOutputConfig.tunerType} in config!")
-    }
   }
 }

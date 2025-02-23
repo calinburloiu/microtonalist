@@ -24,6 +24,8 @@ import javax.annotation.concurrent.NotThreadSafe
 /**
  * Manages the sequence of tunings and provides functionality to select one of them.
  *
+ * This class should only be accessed from the business thread.
+ *
  * @param businessync An instance of `Businessync` responsible for handling event publication.
  */
 @NotThreadSafe

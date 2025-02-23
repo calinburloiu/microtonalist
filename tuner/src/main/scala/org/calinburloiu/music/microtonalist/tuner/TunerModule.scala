@@ -17,11 +17,25 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.scmidi.MidiManager
 
-// TODO #97 Migrate all module init here.
-class TunerModule(businessync: Businessync) {
+class TunerModule(businessync: Businessync) extends AutoCloseable {
 
   lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
 
   lazy val tuningSession: TuningSession = new TuningSession(businessync)
+
+  lazy val trackService: TrackService = new TrackService(trackSession, businessync)
+
+  private lazy val midiManager = new MidiManager(businessync)
+
+  private lazy val trackManager = new TrackManager(midiManager, tuningService)
+  businessync.register(trackManager)
+
+  private lazy val trackSession = new TrackSession(trackManager, businessync)
+
+  override def close(): Unit = {
+    trackManager.close()
+    midiManager.close()
+  }
 }
