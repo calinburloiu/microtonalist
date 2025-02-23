@@ -116,7 +116,7 @@ class TrackManager(private val midiManager: MidiManager,
    */
   // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
-  private def onTuningChanged(event: TuningSessionEvent): Unit = {
+  private def onTuningChanged(event: TuningEvent): Unit = {
     tune(event.currentTuning)
   }
 }

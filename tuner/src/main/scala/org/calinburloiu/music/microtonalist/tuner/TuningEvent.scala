@@ -21,7 +21,7 @@ import org.calinburloiu.businessync.BusinessyncEvent
 /**
  * Base class for all events published by [[TuningSession]].
  */
-sealed abstract class TuningSessionEvent extends BusinessyncEvent {
+sealed abstract class TuningEvent extends BusinessyncEvent {
   /**
    * Identifier representing the index (0-based) within the sequence of tunings related to the tuning session.
    */
@@ -42,7 +42,7 @@ sealed abstract class TuningSessionEvent extends BusinessyncEvent {
  *                      the specified musical tuning.
  */
 case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
-                                   override val currentTuning: Tuning) extends TuningSessionEvent
+                                   override val currentTuning: Tuning) extends TuningEvent
 
 /**
  * Event representing an update in the sequence of tunings during a tuning session.
@@ -57,7 +57,7 @@ case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
  * @param tunings     The new tuning list.
  * @param tuningIndex Index of the currently selected tuning within the `tunings` sequence.
  */
-case class TuningsUpdatedEvent(tunings: Seq[Tuning], override val tuningIndex: Int) extends TuningSessionEvent {
+case class TuningsUpdatedEvent(tunings: Seq[Tuning], override val tuningIndex: Int) extends TuningEvent {
   require(tunings.isEmpty || 0 <= tuningIndex && tuningIndex < tunings.size,
     s"Tuning index $tuningIndex is out of bounds for tunings $tunings!")
 

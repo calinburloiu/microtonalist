@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
+import org.calinburloiu.businessync.Businessync
 import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
 import javax.sound.midi.{MidiDevice, MidiSystem}
@@ -161,17 +161,6 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
 
 object MidiManager {
 
-  abstract class MidiEvent extends BusinessyncEvent
-
-  case object MidiEnvironmentChangedEvent extends MidiEvent
-
-  case class MidiDeviceAddedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-  case class MidiDeviceRemovedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-  case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-
   private sealed abstract class MidiEndpointType(name: String) {
     override def toString: String = name
   }
@@ -250,6 +239,7 @@ object MidiManager {
         deviceHandle.open()
         openedDevicesMap.update(deviceId, deviceHandle)
         logger.info(s"Successfully opened $endpointType device $deviceId.")
+        businessync.publish(MidiDeviceConnectedEvent(deviceId))
 
         deviceHandle
       }
