@@ -43,7 +43,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
   private val jsonPluginFormat = JsonTrackInputSpecPluginFormat
   private val reads: Reads[TrackInputSpec] = jsonPluginFormat.reads
 
-  behavior of "DeviceTrackInput JSON plugin format"
+  behavior of "DeviceTrackInputSpec JSON plugin format"
 
   private val deviceTrackInput = DeviceTrackInputSpec(MidiDeviceId("Fp-90", "Roland"), Some(9))
   private val deviceTrackInputJson = Json.obj(
@@ -70,7 +70,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
     jsonPluginFormat.writes.writes(deviceTrackInput) shouldEqual deviceTrackInputJson
   }
 
-  behavior of "FromTrackInput JSON plugin format"
+  behavior of "FromTrackInputSpec JSON plugin format"
 
   private val fromTrackInput = FromTrackInputSpec("Piano", Some(0))
   private val fromTrackInputJson = Json.obj(
@@ -107,7 +107,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
   private val jsonPluginFormat = JsonTrackOutputSpecPluginFormat
   private val reads: Reads[TrackOutputSpec] = jsonPluginFormat.reads
 
-  behavior of "DeviceTrackOutput JSON plugin format"
+  behavior of "DeviceTrackOutputSpec JSON plugin format"
 
   private val deviceTrackOutput = DeviceTrackOutputSpec(MidiDeviceId("Fp-90", "Roland"), Some(9))
   private val deviceTrackOutputJson = Json.obj(
@@ -134,7 +134,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
     jsonPluginFormat.writes.writes(deviceTrackOutput) shouldEqual deviceTrackOutputJson
   }
 
-  behavior of "FromTrackOutput JSON plugin format"
+  behavior of "FromTrackOutputSpec JSON plugin format"
 
   private val toTrackOutput = ToTrackOutputSpec("Piano", Some(0))
   private val toTrackOutputJson = Json.obj(

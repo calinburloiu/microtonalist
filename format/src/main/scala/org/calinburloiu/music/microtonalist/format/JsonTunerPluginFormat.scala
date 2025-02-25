@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.channelFormat
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
@@ -24,6 +23,8 @@ import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
 import play.api.libs.json._
 
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
+
+  import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat._
 
   override val familyName: String = Tuner.FamilyName
 
@@ -42,7 +43,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
   private val mtsTunerCommonFormat: Format[MtsTunerParamsTuple] = (
     (__ \ "thru").format[Boolean] and
-    (__ \ "altTuningOutput").formatNullable[MidiDeviceId](JsonCommonMidiFormat.midiDeviceIdFormat)
+    (__ \ "altTuningOutput").formatNullable[MidiDeviceId](midiDeviceIdFormat)
   )(Tuple2.apply, identity)
   //@formatter:on
 
