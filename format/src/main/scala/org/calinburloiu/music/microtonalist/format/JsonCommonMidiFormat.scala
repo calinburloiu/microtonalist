@@ -17,9 +17,15 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.scmidi.MidiDeviceId
-import play.api.libs.json.{Format, Json}
+import play.api.libs.functional.syntax.toApplicativeOps
+import play.api.libs.json.Reads.{max, min}
+import play.api.libs.json.{Format, JsNumber, Json, Writes}
 
-object JsonMidiDeviceIdFormat {
+object JsonCommonMidiFormat {
+  val midiDeviceIdFormat: Format[MidiDeviceId] = Json.format[MidiDeviceId]
 
-  implicit val format: Format[MidiDeviceId] = Json.format[MidiDeviceId]
+  val channelFormat: Format[Int] = Format(
+    (min(1) keepAnd max(16)).map(_ - 1),
+    Writes { channel: Int => JsNumber(channel + 1) }
+  )
 }

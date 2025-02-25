@@ -240,10 +240,10 @@ object MidiConfigsTrackSpecsFactory extends StrictLogging {
     val trackSpec = TrackSpec(
       id = "unique-track",
       name = "The Track",
-      input = Option(DeviceTrackIO(midiInputConfig.devices.head, None)),
+      input = Option(DeviceTrackInputSpec(midiInputConfig.devices.head, None)),
       tuningChangers = Seq(tuningChanger),
       tuner = Option(tuner),
-      output = Some(DeviceTrackIO(midiOutputConfig.devices.head, None)),
+      output = Some(DeviceTrackOutputSpec(midiOutputConfig.devices.head, None)),
       initMidiMessages = initMidiMessages
     )
 

@@ -89,7 +89,7 @@ class TrackManager(private val midiManager: MidiManager,
 
   private def createInputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
     trackSpec.input.flatMap {
-      case DeviceTrackIO(midiDeviceId, _) =>
+      case DeviceTrackInputSpec(midiDeviceId, _) =>
         if (midiManager.isInputAvailable(midiDeviceId)) Some(midiManager.openInput(midiDeviceId))
         else None
       case _ => ???
@@ -98,7 +98,7 @@ class TrackManager(private val midiManager: MidiManager,
 
   private def createOutputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
     trackSpec.output.flatMap {
-      case DeviceTrackIO(midiDeviceId, _) =>
+      case DeviceTrackOutputSpec(midiDeviceId, _) =>
         if (midiManager.isOutputAvailable(midiDeviceId)) Some(midiManager.openOutput(midiDeviceId))
         else None
       case _ => ???
