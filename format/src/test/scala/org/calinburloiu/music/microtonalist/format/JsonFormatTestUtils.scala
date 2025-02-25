@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -30,8 +30,13 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
 
   import JsonFormatTestUtils._
 
-  def assertReads[A](reads: Reads[A], json: JsValue, result: A): Unit =
-    reads.reads(json) should matchPattern { case JsSuccess(`result`, _) => }
+  def assertReads[A](reads: Reads[A], json: JsValue, expectedResult: A): Unit = {
+    val actualResult = reads.reads(json)
+    actualResult match {
+      case JsSuccess(`expectedResult`, _) => // succeed
+      case _ => fail(s"Reading JSON `$json` should give JsSuccess($expectedResult), but got $actualResult.")
+    }
+  }
 
   /** Asserts that the given error is the only error to be matched. */
   def assertReadsSingleFailure[A](reads: Reads[A],

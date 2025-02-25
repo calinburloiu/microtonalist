@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.channelFormat
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner._
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
-import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
-import play.api.libs.json.Reads.{max, min}
+import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
 import play.api.libs.json._
 
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
@@ -36,20 +36,13 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   )(PitchBendSensitivity.apply, unlift(PitchBendSensitivity.unapply))
 
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (
-    (__ \ "outputChannel").format[Int](min(1) keepAnd max(16)) and
+    (__ \ "outputChannel").format[Int](channelFormat) and
     (__ \ "pitchBendSensitivity").format[PitchBendSensitivity]
-  )(
-    { (outputChannel, pitchBendSensitivity) =>
-      MonophonicPitchBendTuner(outputChannel - 1, pitchBendSensitivity)
-    },
-    { tuner =>
-      (tuner.outputChannel + 1, tuner.pitchBendSensitivity)
-    }
-  )
+  )(MonophonicPitchBendTuner.apply, unlift(MonophonicPitchBendTuner.unapply))
 
   private val mtsTunerCommonFormat: Format[MtsTunerParamsTuple] = (
     (__ \ "thru").format[Boolean] and
-    (__ \ "altTuningOutput").formatNullable[MidiDeviceId](JsonMidiDeviceIdFormat.format)
+    (__ \ "altTuningOutput").formatNullable[MidiDeviceId](JsonCommonMidiFormat.midiDeviceIdFormat)
   )(Tuple2.apply, identity)
   //@formatter:on
 
