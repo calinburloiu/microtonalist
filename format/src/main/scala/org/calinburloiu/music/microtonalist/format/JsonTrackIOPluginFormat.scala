@@ -78,7 +78,7 @@ object JsonTrackIOPluginFormat {
   protected type InterTrackParamsTuple = (TrackSpec.Id, Option[Int])
 }
 
-object JsonTrackInputPluginFormat extends JsonTrackIOPluginFormat[TrackInputSpec] {
+object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInputSpec] {
   override val familyName: String = TrackInputSpec.FamilyName
 
   override val specs: TypeSpecs[TrackInputSpec] = Seq(
@@ -98,7 +98,7 @@ object JsonTrackInputPluginFormat extends JsonTrackIOPluginFormat[TrackInputSpec
 }
 
 
-object JsonTrackOutputPluginFormat extends JsonTrackIOPluginFormat[TrackOutputSpec] {
+object JsonTrackOutputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackOutputSpec] {
   override val familyName: String = TrackOutputSpec.FamilyName
 
   override val specs: TypeSpecs[TrackOutputSpec] = Seq(

@@ -40,7 +40,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
 
   import JsonTrackIOPluginFormatTest._
 
-  private val jsonPluginFormat = JsonTrackInputPluginFormat
+  private val jsonPluginFormat = JsonTrackInputSpecPluginFormat
   private val reads: Reads[TrackInputSpec] = jsonPluginFormat.reads
 
   behavior of "DeviceTrackInput JSON plugin format"
@@ -104,7 +104,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
 
   import JsonTrackIOPluginFormatTest._
 
-  private val jsonPluginFormat = JsonTrackOutputPluginFormat
+  private val jsonPluginFormat = JsonTrackOutputSpecPluginFormat
   private val reads: Reads[TrackOutputSpec] = jsonPluginFormat.reads
 
   behavior of "DeviceTrackOutput JSON plugin format"
