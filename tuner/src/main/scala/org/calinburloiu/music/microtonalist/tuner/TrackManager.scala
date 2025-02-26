@@ -48,8 +48,12 @@ class TrackManager(private val midiManager: MidiManager,
       val inputDeviceHandle = createInputDeviceHandle(trackSpec)
       val outputDeviceHandle = createOutputDeviceHandle(trackSpec)
 
-      if (inputDeviceHandle.isEmpty && outputDeviceHandle.isEmpty) {
-        logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input or output device specified. " +
+      if (trackSpec.input.isEmpty && trackSpec.output.isEmpty) {
+        logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input and output device specified. " +
+          s"Skipping.")
+        None
+      } else if (inputDeviceHandle.isEmpty && outputDeviceHandle.isEmpty) {
+        logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input and output device available. " +
           s"Skipping.")
         None
       } else {

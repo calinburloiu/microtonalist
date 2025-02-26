@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.calinburloiu.music.microtonalist.composition
 import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 
+import java.net.URI
+
 /**
  * A collection of scales to be mapped to tunings.
  *
@@ -30,12 +32,22 @@ import org.calinburloiu.music.microtonalist.tuner.Tuning
  * @param fill               Specifies filling configuration for the tunings used in the composition.
  * @param metadata           Additional information about the composition.
  */
-case class Composition(intonationStandard: IntonationStandard,
+case class Composition(uri: Option[URI],
+                       intonationStandard: IntonationStandard,
                        tuningReference: TuningReference,
                        tuningSpecs: Seq[TuningSpec],
                        tuningReducer: TuningReducer,
                        fill: FillSpec = FillSpec(),
-                       metadata: Option[CompositionMetadata] = None)
+                       metadata: Option[CompositionMetadata] = None,
+                       tracksUriOverride: Option[URI] = None) {
+
+  def tracksUri: Option[URI] = tracksUriOverride.orElse {
+    uri.map { uriValue =>
+      // TODO #64 Put extension in a constant (similar with ScaleFormatMetadata)
+      uriValue.resolve(uriValue.getPath + ".tracks")
+    }
+  }
+}
 
 
 /**

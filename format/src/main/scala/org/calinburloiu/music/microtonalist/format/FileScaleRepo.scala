@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
     val inputStream = Try {
       new FileInputStream(scalePath.toString)
     }.recover {
-      case e: FileNotFoundException => throw new ScaleNotFoundException(uri, e.getCause)
+      case e: FileNotFoundException => throw new ScaleNotFoundException(uri, e)
     }.get
 
     val scaleFormat = scaleFormatRegistry.get(uri, None)

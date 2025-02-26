@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.calinburloiu.music.microtonalist.format
+
+import org.calinburloiu.music.microtonalist.tuner.TrackRepo
 
 import java.net.URI
 import java.net.http.HttpClient
@@ -55,4 +57,11 @@ class FormatModule(libraryUri: URI,
 
   lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(Some(fileCompositionRepo),
     Some(httpCompositionRepo))
+
+  lazy val trackFormat: TrackFormat = new JsonTrackFormat(jsonPreprocessor, synchronousAwaitTimeout)
+
+  lazy val fileTrackRepo: FileTrackRepo = new FileTrackRepo(trackFormat, synchronousAwaitTimeout)
+
+  // TODO #64 Add support for all schemes
+  lazy val defaultTrackRepo: TrackRepo = fileTrackRepo
 }

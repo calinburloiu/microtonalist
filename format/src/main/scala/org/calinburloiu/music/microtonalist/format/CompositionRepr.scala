@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ case class FillSpecRepr(local: LocalFillSpecRepr = LocalFillSpecRepr(),
 case class CompositionDefinitions(scales: Map[String, DeferrableRead[Scale[Interval], URI]] = Map())
 
 class CompositionFormatContext {
+  var uri: Option[URI] = None
   var baseUri: Option[URI] = None
   var preprocessedJson: JsValue = JsNull
   var intonationStandard: IntonationStandard = CentsIntonationStandard
