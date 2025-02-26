@@ -10,7 +10,7 @@
     "$defs": {
         "type": {
             "type": "string",
-            "enum": ["midiDevice", "track"]
+            "enum": ["device", "track"]
         }
     }
 }
