@@ -14,12 +14,12 @@
             "$comment": "TODO"
         },
         "input": { "$ref": "trackInput.schema.json" },
-      "tuningChangers": {
-        "type": "array",
-        "items": {
-          "$ref": "tuningChanger.schema.json"
-        }
-      },
+        "tuningChangers": {
+            "type": "array",
+            "items": {
+                "$ref": "tuningChanger.schema.json"
+            }
+        },
         "tuner": { "$ref": "tuner.schema.json" },
         "output": { "$ref": "trackOutput.schema.json" },
         "muted": {
@@ -28,9 +28,6 @@
             "default": false
         }
     },
-  "required": [
-    "id",
-    "name"
-  ],
+    "required": ["id", "name"],
     "unevaluatedProperties": false
 }
