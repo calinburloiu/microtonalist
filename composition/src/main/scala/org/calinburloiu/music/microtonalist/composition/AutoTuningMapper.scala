@@ -309,7 +309,9 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 
   private def createTuning(pitchesInfo: PitchesInfo, tuningName: String): Tuning = {
     val offsetsByPitchClass = pitchesInfo
-      .values.map { tuningPitch => TuningPitch.unapply(tuningPitch).get }
+      .values.map {
+        case TuningPitch(pitchClass, offset) => (pitchClass, offset)
+      }
       .toMap
     val tuningValues = (PitchClass.C.number to PitchClass.B.number).map { pitchClassNum =>
       offsetsByPitchClass.get(PitchClass.fromNumber(pitchClassNum))
