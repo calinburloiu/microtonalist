@@ -33,12 +33,12 @@ import scala.collection.immutable.ArraySeq
  *
  * @param offsetOptions `Some` tuning offset in cents for each key or `None` if the key is missing an offset value.
  */
-case class Tuning(name: String, offsetOptions: Seq[Option[Double]]) extends Iterable[Option[Double]] with
-  LazyLogging {
+case class Tuning(name: String, offsetOptions: Seq[Option[Double]])
+  extends Iterable[Option[Double]] with LazyLogging {
   require(offsetOptions.size == 12,
     s"There should be exactly 12 offsets corresponding to the 12 pitch classes, but found ${offsetOptions.size}!")
 
-  import Tuning._
+  import Tuning.*
 
 
   /**

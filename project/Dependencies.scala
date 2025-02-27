@@ -14,18 +14,17 @@
  *    limitations under the License.
  */
 
-import sbt._
+import sbt.*
 
 object Dependencies {
   // # Versions
   val coreMidi4jVersion = "1.6"
-  val enumeratumVersion = "1.7.0"
-  val ficusVersion = "1.5.1"
-  val guavaVersion = "31.0.1-jre"
-  val logbackVersion = "1.2.7"
-  val playJsonVersion = "2.9.2"
-  val scalaLoggingVersion = "3.9.4"
-  val scalaMockVersion = "6.1.1"
+  val ficusVersion = "1.5.2"
+  val guavaVersion = "33.4.0-jre"
+  val logbackVersion = "1.5.17"
+  val playJsonVersion = "3.0.4"
+  val scalaLoggingVersion = "3.9.5"
+  val scalaMockVersion = "7.2.0"
   val scalaTestVersion = "3.2.19"
 
   // # Dependency definitions
@@ -33,7 +32,7 @@ object Dependencies {
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
-  val playJson = "com.typesafe.play" %% "play-json" % playJsonVersion
+  val playJson = "org.playframework" %% "play-json" % playJsonVersion
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
   val scalaMock = "org.scalamock" %% "scalamock" % scalaMockVersion
   val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion

@@ -40,8 +40,8 @@ import scala.annotation.tailrec
  * @param equalityTolerance Error in cents that should be tolerated when comparing corresponding pitch class
  *                          offsets of [[Tuning]]s to avoid double precision errors.
  */
-case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance) extends TuningReducer with
-  StrictLogging {
+case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
+  extends TuningReducer with StrictLogging {
 
   override val typeName: String = MergeTuningReducer.typeName
 
