@@ -39,10 +39,10 @@ import javax.sound.midi.MidiMessage
  */
 case class TrackSpec(id: TrackSpec.Id,
                      name: String,
-                     input: Option[TrackInputSpec],
-                     tuningChangers: Seq[TuningChanger],
-                     tuner: Option[Tuner],
-                     output: Option[TrackOutputSpec],
+                     input: Option[TrackInputSpec] = None,
+                     tuningChangers: Seq[TuningChanger] = Seq.empty,
+                     tuner: Option[Tuner] = None,
+                     output: Option[TrackOutputSpec] = None,
                      muted: Boolean = false,
                      initMidiMessages: Seq[MidiMessage] = Seq.empty) {
   require(id != null && id.nonEmpty, "id must not be null or empty!")

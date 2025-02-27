@@ -81,6 +81,8 @@ object JsonTrackIOPluginFormat {
 object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInputSpec] {
   override val familyName: String = TrackInputSpec.FamilyName
 
+  override val defaultTypeName: Option[String] = Some(DeviceTrackInputSpec.TypeName)
+
   override val specs: TypeSpecs[TrackInputSpec] = Seq(
     makeDeviceTypeSpec[DeviceTrackInputSpec](
       typeName = DeviceTrackInputSpec.TypeName,
@@ -100,6 +102,8 @@ object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInput
 
 object JsonTrackOutputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackOutputSpec] {
   override val familyName: String = TrackOutputSpec.FamilyName
+
+  override val defaultTypeName: Option[String] = Some(DeviceTrackOutputSpec.TypeName)
 
   override val specs: TypeSpecs[TrackOutputSpec] = Seq(
     makeDeviceTypeSpec[DeviceTrackOutputSpec](

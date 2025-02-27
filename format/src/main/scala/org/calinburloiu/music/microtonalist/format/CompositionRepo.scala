@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ class CompositionRepoException(message: String, cause: Throwable) extends Runtim
  * Exception thrown if the requested composition could not be found.
  */
 class CompositionNotFoundException(uri: URI, cause: Throwable = null)
-  extends CompositionRepoException(s"A composition with $uri was not found", cause)
+  extends CompositionRepoException(s"Composition with $uri was not found!", cause)
 
 
 /**

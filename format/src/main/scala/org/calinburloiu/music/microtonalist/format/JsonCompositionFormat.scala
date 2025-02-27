@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -51,15 +51,16 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
   override def writeAsync(composition: Composition, outputStream: OutputStream): Future[Unit] = ???
 
-  private def readRepr(inputStream: InputStream, baseUri: Option[URI]): CompositionRepr = {
+  private def readRepr(inputStream: InputStream, compositionUri: Option[URI]): CompositionRepr = {
     val json = Json.parse(inputStream)
     val context = new CompositionFormatContext
 
     (json \ "baseUri").validateOpt[URI].flatMap { overrideBaseUri =>
-      val actualBaseUri = resolveBaseUriWithOverride(baseUri, overrideBaseUri)
-      val preprocessedJson = jsonPreprocessor.preprocess(json, actualBaseUri)
+      val baseUri = resolveBaseUriWithOverride(compositionUri, overrideBaseUri)
+      val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-      context.baseUri = actualBaseUri
+      context.uri = compositionUri
+      context.baseUri = baseUri
       context.preprocessedJson = preprocessedJson
 
       (context.preprocessedJson \ "settings").validateOpt[JsObject].map(_.getOrElse(JsObject.empty))
@@ -128,6 +129,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     val fillSpec = convertFillSpec(compositionRepr.fill)
 
     Composition(
+      context.uri,
       intonationStandard = context.intonationStandard,
       tuningReference = tuningReference,
       tuningSpecs = tuningSpecs,

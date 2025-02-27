@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -41,13 +41,13 @@ class FileCompositionRepo(compositionFormat: CompositionFormat,
 
     logger.info(s"Reading composition from path \"$path\"...")
     Future {
-      new FileInputStream(path.toString)
+      new FileInputStream(path.toFile)
     }.recover {
-      case e: FileNotFoundException => throw new CompositionNotFoundException(uri, e.getCause)
+      case e: FileNotFoundException => throw new CompositionNotFoundException(uri, e)
     }.flatMap { inputStream =>
       compositionFormat.readAsync(inputStream, Some(uri))
     }.andThen {
-      case Success(_) => logger.info(s"Successfully read composition from path \"$path\"")
+      case Success(_) => logger.info(s"Successfully read composition from path \"$path\".")
       case Failure(exception) => logger.error(s"Failed to read composition from path \"$path\"!", exception)
     }
   }

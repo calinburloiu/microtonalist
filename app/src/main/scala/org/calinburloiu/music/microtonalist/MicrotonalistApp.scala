@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -78,11 +78,18 @@ object MicrotonalistApp extends StrictLogging {
     val mainConfigManager = MainConfigManager(configPath)
 
     val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
+
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
 
+    val tracksUri = composition.tracksUri
+    val trackSpecs = if (composition.uri.exists(_.getScheme == "file") && tracksUri.isDefined) {
+      formatModule.defaultTrackRepo.readTracks(tracksUri.get)
+    } else {
+      MidiConfigsTrackSpecsFactory.read(mainConfigManager)
+    }
+
     val tunerModule = new TunerModule(businessync)
-    val trackSpecs = MidiConfigsTrackSpecsFactory.read(mainConfigManager)
     tunerModule.trackService.replaceAllTracks(trackSpecs)
     tunerModule.tuningSession.tunings = tuningList.tunings
 
