@@ -1,6 +1,6 @@
 import Dependencies.*
 
-ThisBuild / scalaVersion := "3.3.1"
+ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / version := "1.1.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
@@ -198,11 +198,13 @@ lazy val compilerOptions = Seq(
   "-encoding", "utf8",
   "-language:implicitConversions",
   "-language:postfixOps",
+  // TODO #103
+  "-experimental"
 )
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq(
-    "-source", "17", "-target", "17",
+    "-source", "23", "-target", "23",
   ),
   scalacOptions ++= compilerOptions,
   resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",

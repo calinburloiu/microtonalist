@@ -37,22 +37,22 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   override val typeName: String = MonophonicPitchBendTuner.TypeName
 
-  private[this] var _currTuning: Tuning = Tuning.Standard
+  private var _currTuning: Tuning = Tuning.Standard
 
-  private[this] val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
-  private[this] var _lastSingleNote: MidiNote = 0
+  private val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
+  private var _lastSingleNote: MidiNote = 0
 
   /** Pitch bend applied by the performer to the current note before applying the extra tuning value */
-  private[this] var _currExpressionPitchBend: Int = 0
+  private var _currExpressionPitchBend: Int = 0
   /** Extra pitch bend added to achieve the tuning for the current note */
-  private[this] var _currTuningPitchBend: Int = 0
-  private[this] var _unsentPitchBend: Boolean = false
+  private var _currTuningPitchBend: Int = 0
+  private var _unsentPitchBend: Boolean = false
 
-  private[this] var _lastNoteOnVelocity = ScNoteOnMidiMessage.DefaultVelocity
-  private[this] var _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
+  private var _lastNoteOnVelocity = ScNoteOnMidiMessage.DefaultVelocity
+  private var _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
 
-  private[this] var _sustainPedal: Int = 0
-  private[this] var _sostenutoPedal: Int = 0
+  private var _sustainPedal: Int = 0
+  private var _sostenutoPedal: Int = 0
 
   override def reset(): Seq[MidiMessage] = {
     this._resetState()

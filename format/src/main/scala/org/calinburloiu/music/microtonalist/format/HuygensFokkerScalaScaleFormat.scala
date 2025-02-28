@@ -34,7 +34,7 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata("Huygens-Fokker Scala Application Scale", Set("scl"))
 
-  private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
+  private val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
 
   @throws[IOException]
   @throws[InvalidHuygensFokkerScalaFileException]

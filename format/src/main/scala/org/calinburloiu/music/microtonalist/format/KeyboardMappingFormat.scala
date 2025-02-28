@@ -62,7 +62,7 @@ object KeyboardMappingFormat {
   val reads: Reads[KeyboardMapping] =
     denseKeyboardMappingReads orElse sparseKeyboardMappingReads orElse Reads.failed(InvalidKeyboardMapping)
 
-  val writes: Writes[KeyboardMapping] = Writes { keyboardMapping: KeyboardMapping =>
+  val writes: Writes[KeyboardMapping] = Writes { (keyboardMapping: KeyboardMapping) =>
     Writes.seq[Option[Int]](Writes.optionWithNull[Int]).writes(keyboardMapping.indexesInScale)
   }
 

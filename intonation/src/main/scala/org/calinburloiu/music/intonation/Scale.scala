@@ -169,10 +169,10 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
     -1
   }
 
-  private def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[_]]
+  private def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[?]]
 
   override def equals(other: Any): Boolean = other match {
-    case that: Scale[_] =>
+    case that: Scale[?] =>
       (that canEqual this) &&
         intervals == that.intervals &&
         name == that.name
@@ -229,7 +229,7 @@ object Scale {
     new Scale(name, headPitch +: tailPitches)
 
   def apply[I <: Interval](headPitch: I, tailPitches: I*): Scale[I] =
-    Scale("", headPitch, tailPitches: _*)
+    Scale("", headPitch, tailPitches*)
 
   /**
    * Creates the correct [[Scale]] implementation by taking pitches [[Interval]] implementation into account.

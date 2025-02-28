@@ -37,9 +37,9 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
 
   def metaConfig: MetaConfig = coreConfig.metaConfig
 
-  private[this] var _mainHoconConfig: HoconConfig = load()
-  private[this] val lock: ReadWriteLock = new ReentrantReadWriteLock
-  private[this] var _dirty: Boolean = false
+  private var _mainHoconConfig: HoconConfig = load()
+  private val lock: ReadWriteLock = new ReentrantReadWriteLock
+  private var _dirty: Boolean = false
 
   private val scheduledExecutorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
   private val scheduledTask: Runnable = () => save()
@@ -93,14 +93,14 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
     scheduledExecutorService.shutdown()
   }
 
-  private[this] def mainHoconConfig: HoconConfig = {
+  private def mainHoconConfig: HoconConfig = {
     lock.readLock().lock()
     val result = _mainHoconConfig
     lock.readLock().unlock()
     result
   }
 
-  private[this] def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = {
+  private def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = {
     lock.writeLock().lock()
     _mainHoconConfig = newMainHoconConfig
     _dirty = true

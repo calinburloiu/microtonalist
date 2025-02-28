@@ -64,7 +64,7 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
               currPath == path && currJsonValidationErrors.contains(jsonValidationError)
           } shouldBe true
         }
-      case jsSuccess: JsSuccess[_] => fail(s"($path, $jsonValidationError) does not match ($json, $jsSuccess)")
+      case jsSuccess: JsSuccess[?] => fail(s"($path, $jsonValidationError) does not match ($json, $jsSuccess)")
     }
   }
 
@@ -82,7 +82,7 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
             case _ => false
           } shouldBe true
         }
-      case jsSuccess: JsSuccess[_] => fail(s"($path, $errorMessage) does not match ($json, $jsSuccess)")
+      case jsSuccess: JsSuccess[?] => fail(s"($path, $errorMessage) does not match ($json, $jsSuccess)")
     }
   }
 

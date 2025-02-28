@@ -29,12 +29,12 @@ import java.net.URI
  */
 class ScaleFormatRegistry(val scaleFormats: Seq[ScaleFormat]) {
 
-  private[this] val extensionMap: Map[String, ScaleFormat] = (for {
+  private val extensionMap: Map[String, ScaleFormat] = (for {
     scaleFormat <- scaleFormats
     extension <- scaleFormat.metadata.extensions
   } yield extension -> scaleFormat).toMap
 
-  private[this] val mediaTypeMap: Map[MediaType, ScaleFormat] = (for {
+  private val mediaTypeMap: Map[MediaType, ScaleFormat] = (for {
     scaleFormat <- scaleFormats
     mediaType <- scaleFormat.metadata.mediaTypes
   } yield mediaType -> scaleFormat).toMap

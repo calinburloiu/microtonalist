@@ -59,7 +59,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val uri = new URI("http://example.com/composition.mtlist.tracks")
 
     // Expect
-    (businessyncMock.publish _).expects(argAssert { event: TracksOpenedEvent =>
+    (businessyncMock.publish _).expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
       // TODO #119 Check tracks
     })
@@ -79,7 +79,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val uri = new URI("http://example.com/composition.mtlist.tracks")
 
     // Expect
-    (businessyncMock.publish _).expects(argAssert { event: TracksOpenedEvent =>
+    (businessyncMock.publish _).expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
       // TODO #119 Check tracks
     })

@@ -25,7 +25,7 @@ object ConfigSerDe {
   implicit class HoconConfigExtension(hoconConfig: Config) {
 
     def withAnyRefValue(path: String, value: Any): Config = value match {
-      case _: Seq[_] | _: Map[_, _] =>
+      case _: Seq[?] | _: Map[?, ?] =>
         hoconConfig.withValue(path, createHoconValue(value))
       case _: Any =>
         if (hoconConfig.getAnyRef(path) != value) {
@@ -37,7 +37,7 @@ object ConfigSerDe {
   }
 
   def createHoconValue(value: Any): ConfigValue = value match {
-    case seq: Seq[_] => ConfigValueFactory.fromIterable(seq.map { v: Any => createHoconValue(v) }.asJava)
+    case seq: Seq[?] => ConfigValueFactory.fromIterable(seq.map { (v: Any) => createHoconValue(v) }.asJava)
     case map: Map[_, _] =>
       val convertedMap = map.map { case (k: Any, v: Any) =>
         (k.toString, createHoconValue(v))

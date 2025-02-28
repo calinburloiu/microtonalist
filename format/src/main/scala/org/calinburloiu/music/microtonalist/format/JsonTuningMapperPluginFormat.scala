@@ -52,7 +52,7 @@ object JsonTuningMapperPluginFormat extends JsonPluginFormat[TuningMapper] {
         overrideKeyboardMapping = repr.overrideKeyboardMapping.getOrElse(KeyboardMapping.empty)
       )
     },
-    Writes { autoTuningMapper: AutoTuningMapper =>
+    Writes { (autoTuningMapper: AutoTuningMapper) =>
       val repr = AutoTuningMapperRepr(
         shouldMapQuarterTonesLow = autoTuningMapper.shouldMapQuarterTonesLow,
         quarterToneTolerance = Some(autoTuningMapper.quarterToneTolerance),

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{ScCcMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
+import org.calinburloiu.music.scmidi.{MidiNote, ScCcMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -30,7 +30,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
   val tuneMessage1: MidiMessage = ScPitchBendMidiMessage(0, 100).javaMidiMessage
   val tuneMessage2: MidiMessage = ScPitchBendMidiMessage(0, 0).javaMidiMessage
 
-  val processMessage1: MidiMessage = ScNoteOnMidiMessage(0, 60, 64).javaMidiMessage
+  val processMessage1: MidiMessage = ScNoteOnMidiMessage(0, MidiNote(60), 64).javaMidiMessage
   val processMessage2: MidiMessage = ScPitchBendMidiMessage(0, 101).javaMidiMessage
 
   abstract class Fixture(shouldConnect: Boolean = true) {

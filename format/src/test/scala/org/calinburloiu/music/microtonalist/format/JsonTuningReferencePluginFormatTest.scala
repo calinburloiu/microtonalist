@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, RatioInterval}
 import org.calinburloiu.music.microtonalist.composition.{ConcertPitchTuningReference, StandardTuningReference, TuningReference}
-import org.calinburloiu.music.scmidi.PitchClass
-import play.api.libs.json._
+import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
+import play.api.libs.json.*
 
 class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
 
@@ -76,7 +76,7 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
     "baseMidiNote" -> 60,
     "concertPitchFrequency" -> 440.0
   )
-  private val concertPitchType = ConcertPitchTuningReference(RatioInterval(2, 3), 60, 440.0)
+  private val concertPitchType = ConcertPitchTuningReference(RatioInterval(2, 3), MidiNote(60), 440.0)
 
   private val concertPitchTypeFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("path", "check", "expected JsonValidationError"),

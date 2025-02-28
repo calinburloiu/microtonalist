@@ -23,11 +23,13 @@ import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.{MidiMessage, SysexMessage}
 
+private class TestSysexMessage extends SysexMessage
+
 class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
-    val sysexMessage: SysexMessage = stub[SysexMessage]("SysexMessage")
+    val sysexMessage: SysexMessage = stub[TestSysexMessage]("SysexMessage")
     val tuner: MtsTuner = new MtsTuner(mtsMessageGenerator, thru) {
       override val typeName: String = "test"
     }

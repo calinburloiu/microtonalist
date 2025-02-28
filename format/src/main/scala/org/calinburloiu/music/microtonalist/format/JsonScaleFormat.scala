@@ -110,7 +110,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
       (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
     )(
       { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
-      { context: ScaleFormatContext =>
+      { (context: ScaleFormatContext) =>
         // There's a play-json bug on write, so we need to apply the fallback manually here
         (context.name.orElse(fallbackName), context.intonationStandard.orElse(fallbackIntonationStandard))
       }

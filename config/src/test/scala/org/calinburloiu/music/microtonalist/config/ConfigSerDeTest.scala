@@ -37,7 +37,7 @@ class ConfigSerDeTest extends AnyFlatSpec with Matchers {
     createHoconValue(Seq("John", "Doe")).unwrapped() shouldEqual Seq("John", "Doe").asJava
     createHoconValue(Seq(1.5, "apples")).unwrapped() shouldEqual Seq(1.5, "apples").asJava
 
-    val result = createHoconValue(Seq(1, Seq("John", "Doe"))).unwrapped().asInstanceOf[java.util.List[_]]
+    val result = createHoconValue(Seq(1, Seq("John", "Doe"))).unwrapped().asInstanceOf[java.util.List[?]]
     result.get(0) shouldEqual 1
     result.get(1) shouldEqual Seq("John", "Doe").asJava
   }

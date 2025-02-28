@@ -40,12 +40,12 @@ case class JsonTuningReferencePluginFormat(intonationStandard: IntonationStandar
   private val standardTypeFormat: Format[StandardTuningReference] = (
     (__ \ "basePitchClass").format[PitchClass](PitchClassFormat) and
     (__ \ "baseOffset").format[Double](min(-50.0) keepAnd max(50.0))
-  )(StandardTuningReference.apply, unlift(StandardTuningReference.unapply))
+  )(StandardTuningReference.apply, Tuple.fromProductTyped)
   private val concertPitchTypeFormat: Format[ConcertPitchTuningReference] = (
     (__ \ "concertPitchToBaseInterval").format[Interval] and
     (__ \ "baseMidiNote").format[MidiNote](MidiNoteFormat) and
     (__ \ "concertPitchFrequency").format[Double](exclusiveMin(0.0) keepAnd max(20000.0))
-  )(ConcertPitchTuningReference.apply, unlift(ConcertPitchTuningReference.unapply))
+  )(ConcertPitchTuningReference.apply, Tuple.fromProductTyped)
   //@formatter:on
 
   override val specs: JsonPluginFormat.TypeSpecs[TuningReference] = Seq(

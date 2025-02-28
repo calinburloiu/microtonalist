@@ -240,7 +240,7 @@ object JsonPluginFormat {
     (
       (__ \ PropertyNameType).write[String] and
       __.write[P](writes)
-    ) ({ plugin: P => (typeName, plugin) })
+    ) ({ (plugin: P) => (typeName, plugin) })
     //@formatter:on
   }
 }

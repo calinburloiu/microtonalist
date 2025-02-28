@@ -27,20 +27,20 @@ import javax.swing.event.ListSelectionEvent
 
 class TuningListFrame(tuningService: TuningService) extends JFrame("Microtuner") with StrictLogging {
 
-  private[this] val tunings = tuningService.tunings
+  private val tunings = tuningService.tunings
 
-  private[this] val panel = new JPanel(new BorderLayout())
+  private val panel = new JPanel(new BorderLayout())
 
-  private[this] val listModel = new AbstractListModel[String] {
+  private val listModel = new AbstractListModel[String] {
     override def getSize: Int = tunings.size
 
     override def getElementAt(index: Int): String = tunings(index).name
   }
 
-  private[this] val listComponent: JList[String] = new JList[String](listModel)
+  private val listComponent: JList[String] = new JList[String](listModel)
 
   listComponent.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-  listComponent.addListSelectionListener { listSelectionEvent: ListSelectionEvent =>
+  listComponent.addListSelectionListener { (listSelectionEvent: ListSelectionEvent) =>
     val index = listSelectionEvent.getSource.asInstanceOf[JList[String]].getSelectedIndex
 
     if (!listSelectionEvent.getValueIsAdjusting && index != -1) {

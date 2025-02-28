@@ -92,7 +92,7 @@ private object JsonTrackFormat {
       case JsNull => JsSuccess(Seq.empty)
       case _ => JsError("error.notImplemented")
     },
-    Writes { initMidiMessages: Seq[MidiMessage] =>
+    Writes { (initMidiMessages: Seq[MidiMessage]) =>
       if (initMidiMessages.nonEmpty) throw new NotImplementedError("Writing init MIDI messages is not supported yet!")
       else JsNull
     }

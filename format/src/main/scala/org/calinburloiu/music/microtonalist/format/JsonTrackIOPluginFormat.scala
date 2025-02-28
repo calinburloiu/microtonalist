@@ -88,13 +88,13 @@ object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInput
       typeName = DeviceTrackInputSpec.TypeName,
       javaClass = classOf[DeviceTrackInputSpec],
       apply = (DeviceTrackInputSpec.apply _).tupled,
-      unapply = unlift(DeviceTrackInputSpec.unapply)
+      unapply = Tuple.fromProductTyped
     ),
     makeInterTrackTypeSpec[FromTrackInputSpec](
       typeName = FromTrackInputSpec.TypeName,
       javaClass = classOf[FromTrackInputSpec],
       apply = (FromTrackInputSpec.apply _).tupled,
-      unapply = unlift(FromTrackInputSpec.unapply)
+      unapply = Tuple.fromProductTyped
     )
   )
 }
@@ -110,13 +110,13 @@ object JsonTrackOutputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackOutp
       typeName = DeviceTrackOutputSpec.TypeName,
       javaClass = classOf[DeviceTrackOutputSpec],
       apply = (DeviceTrackOutputSpec.apply _).tupled,
-      unapply = unlift(DeviceTrackOutputSpec.unapply)
+      unapply = Tuple.fromProductTyped
     ),
     makeInterTrackTypeSpec[ToTrackOutputSpec](
       typeName = ToTrackOutputSpec.TypeName,
       javaClass = classOf[ToTrackOutputSpec],
       apply = (ToTrackOutputSpec.apply _).tupled,
-      unapply = unlift(ToTrackOutputSpec.unapply)
+      unapply = Tuple.fromProductTyped
     )
   )
 }
