@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
   require(areIntervalsSorted, "Expecting intervals to be sorted in ascending or descending order")
 
-  import Scale._
+  import Scale.*
 
   def apply(index: Int): I = {
     checkElementIndex(index, size)
@@ -59,7 +59,9 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    * @return the intervals between all pairs of the adjacent absolute [[intervals]].
    */
   def relativeIntervals: Seq[I] = {
-    val result = intervals.sliding(2).map { case Seq(a, b) => (b - a).asInstanceOf[I] }.toSeq
+    val result = intervals.sliding(2)
+      .filter(_.size == 2)
+      .map { case Seq(a, b) => (b - a).asInstanceOf[I] }.toSeq
     if (direction >= 0) result else result.map(_.reverse.asInstanceOf[I])
   }
 
@@ -204,7 +206,7 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
     var isAscending = true
     var isDescending = true
 
-    for (Seq(a, b) <- intervals.sliding(2)) {
+    for (item <- intervals.sliding(2) if item.size == 2; Seq(a, b) = item) {
       isAscending = isAscending && a <= b
       isDescending = isDescending && a >= b
     }
