@@ -64,7 +64,6 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
       typeName = MtsTuner.MtsOctave1ByteNonRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave1ByteNonRealTimeTuner],
       apply = MtsOctave1ByteNonRealTimeTuner.apply.tupled,
-      // TODO #103 Should we remove this param
       unapply = Tuple.fromProductTyped
     ),
     makeMtsTunerTypeSpec[MtsOctave2ByteNonRealTimeTuner](
