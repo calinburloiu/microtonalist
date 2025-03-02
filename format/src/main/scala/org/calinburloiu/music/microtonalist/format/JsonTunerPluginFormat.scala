@@ -17,14 +17,14 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
-  import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat._
+  import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.*
 
   override val familyName: String = Tuner.FamilyName
 
@@ -76,13 +76,13 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
     makeMtsTunerTypeSpec[MtsOctave1ByteRealTimeTuner](
       typeName = MtsTuner.MtsOctave1ByteRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave1ByteRealTimeTuner],
-      apply = (MtsOctave1ByteRealTimeTuner.apply _).tupled,
+      apply = MtsOctave1ByteRealTimeTuner.apply.tupled,
       unapply = Tuple.fromProductTyped
     ),
     makeMtsTunerTypeSpec[MtsOctave2ByteRealTimeTuner](
       typeName = MtsTuner.MtsOctave2ByteRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave2ByteRealTimeTuner],
-      apply = (MtsOctave2ByteRealTimeTuner.apply _).tupled,
+      apply = MtsOctave2ByteRealTimeTuner.apply.tupled,
       unapply = Tuple.fromProductTyped
     )
   )

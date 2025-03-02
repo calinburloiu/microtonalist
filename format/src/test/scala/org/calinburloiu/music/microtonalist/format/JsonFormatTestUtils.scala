@@ -20,7 +20,7 @@ import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 /**
  * Convenience trait that can be mixed in tests for various utilities like easily asserting reading JSON with the
@@ -28,7 +28,7 @@ import play.api.libs.json._
  */
 trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with TableDrivenPropertyChecks {
 
-  import JsonFormatTestUtils._
+  import JsonFormatTestUtils.*
 
   def assertReads[A](reads: Reads[A], json: JsValue, expectedResult: A): Unit = {
     val actualResult = reads.reads(json)
@@ -79,7 +79,6 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
           jsError.errors.exists {
             case (currPath, currJsonValidationErrors) =>
               currPath == path && currJsonValidationErrors.exists(_.messages.contains(errorMessage))
-            case _ => false
           } shouldBe true
         }
       case jsSuccess: JsSuccess[?] => fail(s"($path, $errorMessage) does not match ($json, $jsSuccess)")
@@ -118,12 +117,12 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
 
     forAll(table) { (path, check, expectedErrorMessage) =>
       check match {
-        case DisallowedValues(values@_*) =>
+        case DisallowedValues(values*) =>
           for (value <- values) {
             assertRow(path, value, expectedErrorMessage)
           }
 
-        case AllowedTypes(allowedJsonTypes@_*) =>
+        case AllowedTypes(allowedJsonTypes*) =>
           for (jsonType <- AllJsonTypes if !allowedJsonTypes.contains(jsonType)) {
             assertRow(path, jsonType.sample, expectedErrorMessage)
           }

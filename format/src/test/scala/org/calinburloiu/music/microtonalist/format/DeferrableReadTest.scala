@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     DeferrableRead.format(personFormat, importFormat)
   implicit val profileFormat: Format[Profile] = Json.format[Profile]
 
-  behavior of classOf[DeferrableRead[_, _]].getSimpleName
+  behavior of classOf[DeferrableRead[?, ?]].getSimpleName
 
   it should "read a JSON with non-deferred data" in {
     // Given

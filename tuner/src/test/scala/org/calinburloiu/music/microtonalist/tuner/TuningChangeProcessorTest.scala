@@ -34,15 +34,15 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     val tuningServiceStub: TuningService = stub[TuningService]("tuningService")
 
     val noteTuningChangerStub: TuningChanger = stub[TuningChanger]("noteTuningChanger")
-    (noteTuningChangerStub.decide _).when(noteTriggerMidiMessage).returns(IndexTuningChange(2))
-    (noteTuningChangerStub.decide _).when(noteTriggerMidiMessage).returns(MayTriggerTuningChange)
-    (noteTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
+    noteTuningChangerStub.decide.when(noteTriggerMidiMessage).returns(IndexTuningChange(2))
+    noteTuningChangerStub.decide.when(noteTriggerMidiMessage).returns(MayTriggerTuningChange)
+    noteTuningChangerStub.decide.when(*).returns(NoTuningChange).anyNumberOfTimes()
     (() => noteTuningChangerStub.triggersThru).when().returns(triggersThru)
 
     val ccTuningChangerStub: TuningChanger = stub[TuningChanger]("ccTuningChanger")
-    (ccTuningChangerStub.decide _).when(ccTriggerMidiMessage).returns(NextTuningChange)
-    (ccTuningChangerStub.decide _).when(ccTriggerMidiMessage).returns(MayTriggerTuningChange)
-    (ccTuningChangerStub.decide _).when(*).returns(NoTuningChange).anyNumberOfTimes()
+    ccTuningChangerStub.decide.when(ccTriggerMidiMessage).returns(NextTuningChange)
+    ccTuningChangerStub.decide.when(ccTriggerMidiMessage).returns(MayTriggerTuningChange)
+    ccTuningChangerStub.decide.when(*).returns(NoTuningChange).anyNumberOfTimes()
     (() => ccTuningChangerStub.triggersThru).when().returns(triggersThru)
 
     val processor: TuningChangeProcessor = new TuningChangeProcessor(Seq(noteTuningChangerStub, ccTuningChangerStub),
@@ -60,8 +60,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     processor.send(nonTriggerMidiMessage1, 4)
 
     // Then
-    (tuningServiceStub.changeTuning _).verify(IndexTuningChange(2))
-    (tuningServiceStub.changeTuning _).verify(NextTuningChange)
+    tuningServiceStub.changeTuning.verify(IndexTuningChange(2))
+    tuningServiceStub.changeTuning.verify(NextTuningChange)
   }
 
   it should "forward MIDI messages that are not tuning change triggers " +
@@ -69,7 +69,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     // When
     processor.send(nonTriggerMidiMessage1, 1)
     // Then
-    (receiverStub.send _).verify(nonTriggerMidiMessage1, 1).once()
+    receiverStub.send.verify(nonTriggerMidiMessage1, 1).once()
   }
 
   it should "forward MIDI messages that are not tuning change triggers " +
@@ -77,7 +77,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     // When
     processor.send(nonTriggerMidiMessage1, 1)
     // Then
-    (receiverStub.send _).verify(nonTriggerMidiMessage1, 1).once()
+    receiverStub.send.verify(nonTriggerMidiMessage1, 1).once()
   }
 
   it should "forward MIDI messages that are tuning change triggers " +
@@ -86,7 +86,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     processor.send(ccTriggerMidiMessage, 1)
     processor.send(ccTriggerMidiMessage, 2)
     // Then
-    (receiverStub.send _).verify(ccTriggerMidiMessage, *).repeated(2)
+    receiverStub.send.verify(ccTriggerMidiMessage, *).repeated(2)
   }
 
   it should "not forward MIDI messages that are tuning change triggers " +
@@ -95,6 +95,6 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     processor.send(ccTriggerMidiMessage, 1)
     processor.send(ccTriggerMidiMessage, 2)
     // Then
-    (receiverStub.send _).verify(*, *).never()
+    receiverStub.send.verify(*, *).never()
   }
 }

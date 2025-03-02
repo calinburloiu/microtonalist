@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.common.Plugin
-import play.api.libs.functional.syntax._
-import play.api.libs.json._
+import play.api.libs.functional.syntax.*
+import play.api.libs.json.*
 
 /**
  * Instances of this trait are used for parsing a _family_ of plugins represented as JSON by using Play JSON Format.
@@ -35,7 +35,7 @@ import play.api.libs.json._
  */
 trait JsonPluginFormat[P] {
 
-  import JsonPluginFormat._
+  import JsonPluginFormat.*
 
   /**
    * Plugin family name.
@@ -57,8 +57,8 @@ trait JsonPluginFormat[P] {
    */
   val defaultTypeName: Option[String] = None
 
-  private lazy val specsByType: Map[String, TypeSpec[_ <: P]] = specs.map { spec => spec.typeName -> spec }.toMap
-  private lazy val specsByClass: Map[Class[_ <: P], TypeSpec[_ <: P]] = specs.map { spec => spec.javaClass -> spec }
+  private lazy val specsByType: Map[String, TypeSpec[? <: P]] = specs.map { spec => spec.typeName -> spec }.toMap
+  private lazy val specsByClass: Map[Class[? <: P], TypeSpec[? <: P]] = specs.map { spec => spec.javaClass -> spec }
     .toMap
 
   /**
@@ -160,7 +160,7 @@ trait JsonPluginFormat[P] {
 }
 
 object JsonPluginFormat {
-  type TypeSpecs[P] = Seq[JsonPluginFormat.TypeSpec[_ <: P]]
+  type TypeSpecs[P] = Seq[JsonPluginFormat.TypeSpec[? <: P]]
 
   /**
    * Factory method for instantiating a [[JsonPluginFormat]] without extending it in a class.

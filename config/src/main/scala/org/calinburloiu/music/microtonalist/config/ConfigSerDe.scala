@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.{Config, ConfigValue, ConfigValueFactory}
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object ConfigSerDe {
 
@@ -38,7 +38,7 @@ object ConfigSerDe {
 
   def createHoconValue(value: Any): ConfigValue = value match {
     case seq: Seq[?] => ConfigValueFactory.fromIterable(seq.map { (v: Any) => createHoconValue(v) }.asJava)
-    case map: Map[_, _] =>
+    case map: Map[?, ?] =>
       val convertedMap = map.map { case (k: Any, v: Any) =>
         (k.toString, createHoconValue(v))
       }.asJava

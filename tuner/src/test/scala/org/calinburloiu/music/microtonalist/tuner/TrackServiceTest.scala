@@ -29,7 +29,7 @@ class TrackServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     val sessionStub: TrackSession = stub[TrackSession]
     val businessyncStub: Businessync = stub[Businessync]
 
-    (businessyncStub.run _).when(*).onCall { (fn: () => Unit) =>
+    businessyncStub.run.when(*).onCall { (fn: () => Unit) =>
       fn()
     }
 
@@ -47,7 +47,7 @@ class TrackServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     trackService.open(uri)
 
     // Then
-    (sessionStub.open _).verify(uri).once()
+    sessionStub.open.verify(uri).once()
   }
 
   "replaceAllTracks" should "update tracks in the trackSession with the provided TrackSpecs" in new Fixture {
@@ -58,6 +58,6 @@ class TrackServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     trackService.replaceAllTracks(trackSpecs)
 
     // Then
-    (sessionStub.tracks_= _).verify(trackSpecs).once()
+    sessionStub.tracks_=.verify(trackSpecs).once()
   }
 }

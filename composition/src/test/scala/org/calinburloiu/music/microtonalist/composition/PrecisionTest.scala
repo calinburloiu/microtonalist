@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-import org.calinburloiu.music.intonation._
+import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.scmidi.PitchClass
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -32,7 +32,7 @@ class PrecisionTest extends AnyFunSuite with Matchers with TableDrivenPropertyCh
     val convertedIntervals = scaleCents.intervals.map { (centsInterval: CentsInterval) =>
       RealInterval(centsInterval.realValue)
     }
-    val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail: _*)
+    val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail *)
 
     val autoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.5e-2)
     val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningReference(PitchClass.C))

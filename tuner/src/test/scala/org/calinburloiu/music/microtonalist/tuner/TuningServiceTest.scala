@@ -30,7 +30,7 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
 
     (() => sessionStub.tunings).when().returns(tunings)
 
-    (businessyncStub.run _).when(*).onCall { (fn: () => Unit) =>
+    businessyncStub.run.when(*).onCall { (fn: () => Unit) =>
       fn()
     }
 
@@ -45,14 +45,14 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     tuningService.changeTuning(PreviousTuningChange)
     // Then
-    (sessionStub.previousTuning _).verify().once()
+    (() => sessionStub.previousTuning()).verify().once()
   }
 
   it should "call nextTuning in the session when NextTuningChange is provided" in new Fixture {
     // When
     tuningService.changeTuning(NextTuningChange)
     // Then
-    (sessionStub.nextTuning _).verify().once()
+    (() => sessionStub.nextTuning()).verify().once()
   }
 
   it should "update tuning index in the session when IndexTuningChange is provided" in new Fixture {
@@ -61,6 +61,6 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     tuningService.changeTuning(IndexTuningChange(newIndex))
     // Then
-    (sessionStub.tuningIndex_= _).verify(newIndex).once()
+    sessionStub.tuningIndex_=.verify(newIndex).once()
   }
 }

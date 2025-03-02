@@ -51,7 +51,7 @@ class TuningSession(businessync: Businessync) {
     // Modifying _tuningIndex without calling its setter to avoid publishing a redundant TuningIndexUpdatedEvent
     _tuningIndex = Math.max(Math.min(_tuningIndex, newTunings.size - 1), 0)
 
-    businessync publish TuningsUpdatedEvent(newTunings, _tuningIndex)
+    businessync.publish(TuningsUpdatedEvent(newTunings, _tuningIndex))
   }
 
   /**
@@ -76,7 +76,7 @@ class TuningSession(businessync: Businessync) {
     if (sanitizedIndex != _tuningIndex) {
       _tuningIndex = sanitizedIndex
 
-      businessync publish TuningIndexUpdatedEvent(sanitizedIndex, currentTuning)
+      businessync.publish(TuningIndexUpdatedEvent(sanitizedIndex, currentTuning))
     }
   }
 

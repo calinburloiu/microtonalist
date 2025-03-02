@@ -19,6 +19,8 @@ package org.calinburloiu.music.intonation
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
 
+import scala.util.boundary
+
 class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
   require(areIntervalsSorted, "Expecting intervals to be sorted in ascending or descending order")
@@ -161,17 +163,9 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   /**
    * @return the index of the unison interval if there is one, or `-1` otherwise.
    */
-  def indexOfUnison: Int = {
-    for (i <- 0 until size) {
-      if (intervals(i).isUnison) {
-        return i
-      }
-    }
+  def indexOfUnison: Int = (0 until size).find(i => intervals(i).isUnison).getOrElse(-1)
 
-    -1
-  }
-
-  private def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[?]]
+  private infix def canEqual(other: Any): Boolean = other.isInstanceOf[Scale[?]]
 
   override def equals(other: Any): Boolean = other match {
     case that: Scale[?] =>
@@ -322,7 +316,7 @@ object RatiosScale {
     RatiosScale(name, headRatioPitch +: tailRatioPitches)
 
   def apply(headRatioPitch: RatioInterval, tailRatioPitches: RatioInterval*): RatiosScale =
-    RatiosScale("", headRatioPitch, tailRatioPitches: _*)
+    RatiosScale("", headRatioPitch, tailRatioPitches *)
 }
 
 
@@ -355,13 +349,13 @@ object CentsScale {
     CentsScale(name, headCentsInterval +: tailCentsIntervals)
 
   def apply(headCentsInterval: CentsInterval, tailCentsIntervals: CentsInterval*): CentsScale =
-    CentsScale("", headCentsInterval, tailCentsIntervals: _*)
+    CentsScale("", headCentsInterval, tailCentsIntervals *)
 
   def apply(name: String, headCentValue: Double, tailCentValues: Double*): CentsScale =
     CentsScale(name, (headCentValue +: tailCentValues).map(CentsInterval.apply))
 
   def apply(headCentValue: Double, tailCentValues: Double*): CentsScale =
-    CentsScale("", headCentValue, tailCentValues: _*)
+    CentsScale("", headCentValue, tailCentValues *)
 }
 
 case class EdoScale(override val name: String,
@@ -394,13 +388,13 @@ object EdoScale {
     EdoScale(name, headEdoInterval +: tailEdoIntervals)
 
   def apply(headEdoInterval: EdoInterval, tailEdoIntervals: EdoInterval*): EdoScale =
-    EdoScale("", headEdoInterval, tailEdoIntervals: _*)
+    EdoScale("", headEdoInterval, tailEdoIntervals *)
 
   def apply(name: String, edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
     EdoScale(name, (headCount +: tailCounts).map(EdoInterval(edo, _)))
 
   def apply(edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
-    EdoScale("", edo, headCount, tailCounts: _*)
+    EdoScale("", edo, headCount, tailCounts *)
 
   def apply(name: String,
             edo: Int, headCountRelativeToStandard: (Int, Int),

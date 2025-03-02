@@ -17,14 +17,14 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiDeviceId
 import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 abstract class JsonTrackIOPluginFormat[P <: TrackIOSupport] extends JsonPluginFormat[P] {
 
-  import JsonTrackIOPluginFormat._
+  import JsonTrackIOPluginFormat.*
   import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.{channelFormat, midiDeviceIdFormat}
 
   //@formatter:off
@@ -87,13 +87,13 @@ object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInput
     makeDeviceTypeSpec[DeviceTrackInputSpec](
       typeName = DeviceTrackInputSpec.TypeName,
       javaClass = classOf[DeviceTrackInputSpec],
-      apply = (DeviceTrackInputSpec.apply _).tupled,
+      apply = DeviceTrackInputSpec.apply.tupled,
       unapply = Tuple.fromProductTyped
     ),
     makeInterTrackTypeSpec[FromTrackInputSpec](
       typeName = FromTrackInputSpec.TypeName,
       javaClass = classOf[FromTrackInputSpec],
-      apply = (FromTrackInputSpec.apply _).tupled,
+      apply = FromTrackInputSpec.apply.tupled,
       unapply = Tuple.fromProductTyped
     )
   )
@@ -109,13 +109,13 @@ object JsonTrackOutputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackOutp
     makeDeviceTypeSpec[DeviceTrackOutputSpec](
       typeName = DeviceTrackOutputSpec.TypeName,
       javaClass = classOf[DeviceTrackOutputSpec],
-      apply = (DeviceTrackOutputSpec.apply _).tupled,
+      apply = DeviceTrackOutputSpec.apply.tupled,
       unapply = Tuple.fromProductTyped
     ),
     makeInterTrackTypeSpec[ToTrackOutputSpec](
       typeName = ToTrackOutputSpec.TypeName,
       javaClass = classOf[ToTrackOutputSpec],
-      apply = (ToTrackOutputSpec.apply _).tupled,
+      apply = ToTrackOutputSpec.apply.tupled,
       unapply = Tuple.fromProductTyped
     )
   )

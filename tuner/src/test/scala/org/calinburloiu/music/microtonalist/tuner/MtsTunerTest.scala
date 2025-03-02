@@ -34,14 +34,14 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
       override val typeName: String = "test"
     }
 
-    (mtsMessageGenerator.generate _).when(*).returns(sysexMessage)
+    mtsMessageGenerator.generate.when(*).returns(sysexMessage)
   }
 
   "MtsTuner#tune" should "return the generated SysEx MTS message" in new Fixture {
     // When
     val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
-    (mtsMessageGenerator.generate _).verify(TestTunings.justCMaj).once()
+    mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
     result shouldEqual Seq(sysexMessage)
   }
 

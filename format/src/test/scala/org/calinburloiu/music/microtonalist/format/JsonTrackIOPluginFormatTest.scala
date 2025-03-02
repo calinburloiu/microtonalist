@@ -17,13 +17,13 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils.{AllowedTypes, JsonFailureCheck, JsonStringType}
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiDeviceId
-import play.api.libs.json._
+import play.api.libs.json.*
 
 object JsonTrackIOPluginFormatTest {
 
-  import JsonFormatTestUtils._
+  import JsonFormatTestUtils.*
 
   val midiDeviceIdFailureTableRows: Seq[(JsPath, JsonFailureCheck, String)] = Seq(
     (__ \ "midiDeviceId" \ "name", AllowedTypes(JsonStringType), "error.expected.jsstring"),
@@ -38,7 +38,7 @@ object JsonTrackIOPluginFormatTest {
 
 class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
 
-  import JsonTrackIOPluginFormatTest._
+  import JsonTrackIOPluginFormatTest.*
 
   private val jsonPluginFormat = JsonTrackInputSpecPluginFormat
   private val reads: Reads[TrackInputSpec] = jsonPluginFormat.reads
@@ -55,7 +55,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
   private val deviceFailureTableRows = midiDeviceIdFailureTableRows ++ channelFailureTableRows
   private val deviceFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    deviceFailureTableRows: _*
+    deviceFailureTableRows *
   )
 
   it should "deserialize" in {
@@ -84,7 +84,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
   ) ++ channelFailureTableRows
   private val fromTrackInputFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    fromTrackInputFailureTableRows: _*
+    fromTrackInputFailureTableRows *
   )
 
   it should "deserialize" in {
@@ -102,7 +102,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
 
 class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
 
-  import JsonTrackIOPluginFormatTest._
+  import JsonTrackIOPluginFormatTest.*
 
   private val jsonPluginFormat = JsonTrackOutputSpecPluginFormat
   private val reads: Reads[TrackOutputSpec] = jsonPluginFormat.reads
@@ -119,7 +119,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
   private val deviceFailureTableRows = midiDeviceIdFailureTableRows ++ channelFailureTableRows
   private val deviceFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    deviceFailureTableRows: _*
+    deviceFailureTableRows *
   )
 
   it should "deserialize" in {
@@ -148,7 +148,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
   ) ++ channelFailureTableRows
   private val toTrackOutputFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    toTrackOutputFailureTableRows: _*
+    toTrackOutputFailureTableRows *
   )
 
   it should "deserialize" in {
