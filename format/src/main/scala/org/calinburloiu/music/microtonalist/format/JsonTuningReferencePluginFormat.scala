@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import org.calinburloiu.music.microtonalist.composition.{ConcertPitchTuningRefer
 import org.calinburloiu.music.microtonalist.format.JsonConstraints.exclusiveMin
 import org.calinburloiu.music.scmidi.{DefaultConcertPitchFreq, MidiNote, PitchClass}
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
+import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
-import play.api.libs.json._
 
 case class JsonTuningReferencePluginFormat(intonationStandard: IntonationStandard) extends
   JsonPluginFormat[TuningReference] {

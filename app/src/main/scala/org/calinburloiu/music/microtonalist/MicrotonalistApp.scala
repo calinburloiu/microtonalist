@@ -21,9 +21,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.parseUriOrPath
 import org.calinburloiu.music.microtonalist.composition.TuningList
-import org.calinburloiu.music.microtonalist.config._
+import org.calinburloiu.music.microtonalist.config.*
 import org.calinburloiu.music.microtonalist.format.FormatModule
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 
 import java.net.URI

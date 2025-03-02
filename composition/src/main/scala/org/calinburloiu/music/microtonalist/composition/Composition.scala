@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-import org.calinburloiu.music.intonation._
+import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 import java.net.URI

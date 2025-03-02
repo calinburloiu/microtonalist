@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import com.typesafe.config.{Config => HoconConfig}
-import net.ceedubs.ficus.Ficus._
+import com.typesafe.config.Config as HoconConfig
+import net.ceedubs.ficus.Ficus.*
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.common.{PlatformUtils, parseUriOrPath}
 
@@ -46,8 +46,8 @@ object MetaConfig {
 class CoreConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[CoreConfig](CoreConfigManager.configRootPath, mainConfigManager) {
 
-  import ConfigSerDe._
-  import CoreConfigManager._
+  import ConfigSerDe.*
+  import CoreConfigManager.*
 
   override protected def serialize(config: CoreConfig): HoconConfig = {
     val hoconConfig = this.hoconConfig

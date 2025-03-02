@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => HoconConfig}
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config as HoconConfig}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.common.PlatformUtils
 
@@ -29,7 +29,7 @@ import scala.util.Try
 final class MainConfigManager private[microtonalist](configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
   extends AutoCloseable with StrictLogging {
 
-  import MainConfigManager._
+  import MainConfigManager.*
 
   val coreConfigManager: CoreConfigManager = new CoreConfigManager(this)
 

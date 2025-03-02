@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.calinburloiu.music.scmidi.PitchClass
  */
 case class ManualTuningMapper(keyboardMapping: KeyboardMapping) extends TuningMapper {
 
-  import ManualTuningMapper._
+  import ManualTuningMapper.*
 
   override val typeName: String = ManualTuningMapper.typeName
 

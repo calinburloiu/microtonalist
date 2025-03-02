@@ -34,7 +34,7 @@ import scala.util.Try
  */
 class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLogging {
 
-  import MidiManager._
+  import MidiManager.*
 
   private val inputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Input, businessync)
   private val outputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Output, businessync)

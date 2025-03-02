@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.CentsInterval.PostfixOperator
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation._
-import play.api.libs.json._
+import play.api.libs.json.*
 
 class JsonScaleFormatTest extends JsonFormatTestUtils {
   private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)

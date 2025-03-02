@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner._
-import play.api.libs.json._
+import org.calinburloiu.music.microtonalist.tuner.*
+import play.api.libs.json.*
 
 import java.io.{InputStream, OutputStream, PrintWriter}
 import java.net.URI

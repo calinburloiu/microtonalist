@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import play.api.libs.json._
+import play.api.libs.json.*
 
 object JsonPluginFormatTest {
   sealed trait Animals
@@ -32,7 +32,7 @@ object JsonPluginFormatTest {
 
 class JsonPluginFormatTest extends JsonFormatTestUtils {
 
-  import JsonPluginFormatTest._
+  import JsonPluginFormatTest.*
 
   private val FamilyNameAnimals = "animals"
   private val TypeNameDomestic = "domestic"

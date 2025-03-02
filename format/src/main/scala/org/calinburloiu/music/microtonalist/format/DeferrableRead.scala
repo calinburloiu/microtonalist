@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.LazyLogging
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import scala.concurrent.ExecutionContext.Implicits.global

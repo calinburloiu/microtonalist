@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -41,8 +41,8 @@ trait MtsMessageGenerator {
 abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
                                          val isIn2ByteForm: Boolean) extends MtsMessageGenerator {
 
-  import MtsMessageGenerator._
-  import MtsOctaveMessageGenerator._
+  import MtsMessageGenerator.*
+  import MtsOctaveMessageGenerator.*
 
   private val minTuningOutputValue: Int = if (isIn2ByteForm) -8192 else -64
   private val maxTuningOutputValue: Int = if (isIn2ByteForm) 8191 else 63

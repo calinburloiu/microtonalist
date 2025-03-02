@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ class LibraryScaleRepo(libraryUri: URI,
                        fileScaleRepo: FileScaleRepo,
                        httpScaleRepo: HttpScaleRepo) extends ScaleRepo with StrictLogging {
 
-  import LibraryScaleRepo._
+  import LibraryScaleRepo.*
 
   logger.info(s"Using Microtonalist library base URI: $libraryUri")
 

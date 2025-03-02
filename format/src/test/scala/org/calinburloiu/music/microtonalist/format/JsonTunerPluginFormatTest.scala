@@ -16,13 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
 
-  import JsonFormatTestUtils._
+  import JsonFormatTestUtils.*
 
   private val jsonPluginFormat = JsonTunerPluginFormat
   private val reads: Reads[Tuner] = jsonPluginFormat.reads

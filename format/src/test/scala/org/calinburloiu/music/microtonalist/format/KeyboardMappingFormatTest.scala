@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.composition.KeyboardMapping
-import play.api.libs.json._
+import play.api.libs.json.*
 
 class KeyboardMappingFormatTest extends JsonFormatTestUtils {
   private val sampleKeyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),

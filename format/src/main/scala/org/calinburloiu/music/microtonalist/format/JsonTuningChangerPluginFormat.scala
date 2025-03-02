@@ -21,8 +21,8 @@ import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
 import org.calinburloiu.music.scmidi.ScCcMidiMessage
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
+import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
-import play.api.libs.json._
 
 import scala.util.Try
 

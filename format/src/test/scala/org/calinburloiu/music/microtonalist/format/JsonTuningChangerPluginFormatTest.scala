@@ -18,11 +18,11 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
 
-  import JsonFormatTestUtils._
+  import JsonFormatTestUtils.*
 
   private val jsonPluginFormat = JsonTuningChangerPluginFormat
   private val reads: Reads[TuningChanger] = jsonPluginFormat.reads

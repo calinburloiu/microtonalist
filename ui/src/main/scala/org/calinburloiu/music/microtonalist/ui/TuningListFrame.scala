@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, TuningInde
 
 import java.awt.BorderLayout
 import java.awt.event.{KeyEvent, KeyListener}
-import javax.swing._
+import javax.swing.*
 import javax.swing.event.ListSelectionEvent
 
 class TuningListFrame(tuningService: TuningService) extends JFrame("Microtuner") with StrictLogging {

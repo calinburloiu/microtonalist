@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.composition.{DirectTuningReducer, MergeTuningReducer, TuningReducer}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 class JsonTuningReducerPluginFormatTest extends JsonFormatTestUtils {
 
-  import JsonFormatTestUtils._
+  import JsonFormatTestUtils.*
 
   private val jsonPluginFormat = JsonTuningReducerPluginFormat
   private val reads: Reads[TuningReducer] = jsonPluginFormat.reads
