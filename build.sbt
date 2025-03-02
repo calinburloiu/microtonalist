@@ -198,7 +198,7 @@ lazy val compilerOptions = Seq(
   "-encoding", "utf8",
   "-language:implicitConversions",
   "-language:postfixOps",
-  // TODO #103
+  // Used for scalamock: trait Mock is marked as experimental
   "-experimental"
 )
 
