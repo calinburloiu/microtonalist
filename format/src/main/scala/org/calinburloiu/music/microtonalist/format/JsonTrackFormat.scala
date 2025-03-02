@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner._
-import play.api.libs.json._
+import org.calinburloiu.music.microtonalist.tuner.*
+import play.api.libs.json.*
 
 import java.io.{InputStream, OutputStream, PrintWriter}
 import java.net.URI
@@ -92,7 +92,7 @@ private object JsonTrackFormat {
       case JsNull => JsSuccess(Seq.empty)
       case _ => JsError("error.notImplemented")
     },
-    Writes { initMidiMessages: Seq[MidiMessage] =>
+    Writes { (initMidiMessages: Seq[MidiMessage]) =>
       if (initMidiMessages.nonEmpty) throw new NotImplementedError("Writing init MIDI messages is not supported yet!")
       else JsNull
     }

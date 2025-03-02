@@ -32,6 +32,7 @@ import javax.annotation.concurrent.ThreadSafe
 @ThreadSafe
 class TuningService(session: TuningSession, businessync: Businessync) {
 
+  // TODO #99 To be removed after moving the UI to JavaFX
   /**
    * Retrieves the sequence of tunings currently set in the tuning session.
    *

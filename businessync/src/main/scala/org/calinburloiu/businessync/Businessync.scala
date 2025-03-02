@@ -23,7 +23,7 @@ import scala.concurrent.Future
 case class BusinessyncUiHandler(run: () => Unit,
                                 isUiThread: () => Boolean)
 
-class Businessync(@deprecated eventBus: EventBus) {
+class Businessync(eventBus: EventBus) {
   /**
    * Publishes an event to its subscribers and delivers it on either the Business or the UI Thread based on which
    * method subscribers used for subscribing, [[subscribe]] or [[subscribeOnUi]], respectively.
@@ -78,7 +78,7 @@ class Businessync(@deprecated eventBus: EventBus) {
    */
   def subscribeOnUi[E >: BusinessyncEvent](eventClass: Class[E], handler: E => Unit): Unit = {}
 
-  @deprecated("Will be replaced by subscribe")
+  // TODO #90 Replaced by subscribe after implementing businessync
   def register(obj: AnyRef): Unit = eventBus.register(obj)
 
   /**

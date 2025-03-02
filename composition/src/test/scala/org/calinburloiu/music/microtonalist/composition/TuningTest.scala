@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -108,16 +108,16 @@ class TuningTest extends AnyFlatSpec with Matchers {
   }
 
   "enrich" should "correctly do a best effort combine of Tunings" in {
-    incompleteTuning fill emptyTuning shouldEqual incompleteTuning
+    incompleteTuning `fill` emptyTuning shouldEqual incompleteTuning
 
-    incompleteTuning fill completeTuning shouldEqual
+    incompleteTuning `fill` completeTuning shouldEqual
       Tuning(
         Some(0.0), Some(200.0), Some(270.0),
         Some(400.0), Some(500.0), Some(600.0),
         Some(700.0), Some(800.0), Some(900.0),
         Some(1000.0), Some(1100.0), Some(1200.0))
 
-    incompleteTuning2 fill incompleteTuning shouldEqual Tuning(
+    incompleteTuning2 `fill` incompleteTuning shouldEqual Tuning(
       Some(0.0), None, Some(250.0),
       Some(400.0), Some(500.0), Some(600.0),
       Some(700.0), Some(800.0), Some(900.0),

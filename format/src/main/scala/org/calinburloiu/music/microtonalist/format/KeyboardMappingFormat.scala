@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.composition.KeyboardMapping
 import org.calinburloiu.music.microtonalist.format.PitchClassFormat.InvalidPitchClassError
 import org.calinburloiu.music.scmidi.PitchClass
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import scala.util.{Failure, Success, Try}
 
@@ -62,7 +62,7 @@ object KeyboardMappingFormat {
   val reads: Reads[KeyboardMapping] =
     denseKeyboardMappingReads orElse sparseKeyboardMappingReads orElse Reads.failed(InvalidKeyboardMapping)
 
-  val writes: Writes[KeyboardMapping] = Writes { keyboardMapping: KeyboardMapping =>
+  val writes: Writes[KeyboardMapping] = Writes { (keyboardMapping: KeyboardMapping) =>
     Writes.seq[Option[Int]](Writes.optionWithNull[Int]).writes(keyboardMapping.indexesInScale)
   }
 

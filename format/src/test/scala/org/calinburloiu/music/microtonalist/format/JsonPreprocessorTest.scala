@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -113,13 +113,13 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val input = Json.obj("$ref" -> "company/employees/john.json")
     val mockLoader = stub[JsonPreprocessorRefLoader]
-    mockLoader.load _ when(*, *) returns Some(JsObject.empty)
+    mockLoader.load.when(*, *).returns(Some(JsObject.empty))
     val loaders: RefLoaders = Seq(mockLoader)
     val preprocessor = new JsonPreprocessor(loaders)
     // When
     preprocessor.preprocess(input, Some(new URI("https://example.org/")))
     // Then
-    mockLoader.load _ verify(new URI("https://example.org/company/employees/john.json"), __)
+    mockLoader.load.verify(new URI("https://example.org/company/employees/john.json"), __)
   }
 
   it should "pass the correct JsonPath context to JsonPreprocessorRefLoaders" in {
@@ -144,17 +144,17 @@ class JsonPreprocessorTest extends AnyFlatSpec with Matchers with MockFactory {
       )
     )
     val mockLoader = stub[JsonPreprocessorRefLoader]
-    mockLoader.load _ when(*, *) returns Some(JsObject.empty)
+    mockLoader.load.when(*, *).returns(Some(JsObject.empty))
     val loaders: RefLoaders = Seq(mockLoader)
     val preprocessor = new JsonPreprocessor(loaders)
     // When
     preprocessor.preprocess(input, None)
     // Then
-    mockLoader.load _ verify(new URI("https://example.org/1"), __)
-    mockLoader.load _ verify(new URI("https://example.org/2"), __ \ "foo")
-    mockLoader.load _ verify(new URI("https://example.org/3"), __ \ "foo" \ "bar")
-    mockLoader.load _ verify(new URI("https://example.org/4"), __ \ "foo" \ "bar" \ "items" \ 1)
-    mockLoader.load _ verify(new URI("https://example.org/5"), __ \ "foo" \ "bar" \ "items" \ 1 \ "detail")
+    mockLoader.load.verify(new URI("https://example.org/1"), __)
+    mockLoader.load.verify(new URI("https://example.org/2"), __ \ "foo")
+    mockLoader.load.verify(new URI("https://example.org/3"), __ \ "foo" \ "bar")
+    mockLoader.load.verify(new URI("https://example.org/4"), __ \ "foo" \ "bar" \ "items" \ 1)
+    mockLoader.load.verify(new URI("https://example.org/5"), __ \ "foo" \ "bar" \ "items" \ 1 \ "detail")
   }
 
   it should "leave a JSON as it is if it does not have references" in {

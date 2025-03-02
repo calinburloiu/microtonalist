@@ -40,8 +40,8 @@ import scala.annotation.tailrec
  * @param equalityTolerance Error in cents that should be tolerated when comparing corresponding pitch class
  *                          offsets of [[Tuning]]s to avoid double precision errors.
  */
-case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance) extends TuningReducer with
-  StrictLogging {
+case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
+  extends TuningReducer with StrictLogging {
 
   override val typeName: String = MergeTuningReducer.typeName
 
@@ -65,7 +65,7 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
     TuningList(resultTunings)
   }
 
-  private[this] def collect(tunings: Seq[Tuning],
+  private def collect(tunings: Seq[Tuning],
                             backFill: Tuning,
                             tuningSize: Int): List[Tuning] = {
     if (tunings.isEmpty) {
@@ -83,7 +83,7 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
   }
 
   @tailrec
-  private[this] def merge(acc: Tuning,
+  private def merge(acc: Tuning,
                           tunings: Seq[Tuning]): (Tuning, Seq[Tuning]) = {
     tunings.headOption match {
       case Some(nextTuning) =>

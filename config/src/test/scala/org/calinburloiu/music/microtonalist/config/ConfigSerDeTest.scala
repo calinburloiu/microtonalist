@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.ConfigFactory
-import org.calinburloiu.music.microtonalist.config.ConfigSerDe._
+import org.calinburloiu.music.microtonalist.config.ConfigSerDe.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 class ConfigSerDeTest extends AnyFlatSpec with Matchers {
 
@@ -37,7 +37,7 @@ class ConfigSerDeTest extends AnyFlatSpec with Matchers {
     createHoconValue(Seq("John", "Doe")).unwrapped() shouldEqual Seq("John", "Doe").asJava
     createHoconValue(Seq(1.5, "apples")).unwrapped() shouldEqual Seq(1.5, "apples").asJava
 
-    val result = createHoconValue(Seq(1, Seq("John", "Doe"))).unwrapped().asInstanceOf[java.util.List[_]]
+    val result = createHoconValue(Seq(1, Seq("John", "Doe"))).unwrapped().asInstanceOf[java.util.List[?]]
     result.get(0) shouldEqual 1
     result.get(1) shouldEqual Seq("John", "Doe").asJava
   }
@@ -47,7 +47,7 @@ class ConfigSerDeTest extends AnyFlatSpec with Matchers {
     createHoconValue(m1).unwrapped() shouldEqual m1.asJava
 
     val result = createHoconValue(Map("x" -> 10, "y" -> m1, "z" -> Seq(1, 5))).unwrapped()
-      .asInstanceOf[java.util.Map[_, _]]
+      .asInstanceOf[java.util.Map[?, ?]]
     result.get("x") shouldEqual 10
     result.get("y") shouldEqual m1.asJava
     result.get("z") shouldEqual Seq(1, 5).asJava

@@ -35,8 +35,8 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val trackSession = new TrackSession(trackManagerMock, businessyncMock)
 
     if (tracks.nonEmpty) {
-      (trackManagerMock.replaceAllTracks _).expects(sampleTracks)
-      (businessyncMock.publish _).expects(TracksReplacedEvent(sampleTracks))
+      trackManagerMock.replaceAllTracks.expects(sampleTracks)
+      businessyncMock.publish.expects(TracksReplacedEvent(sampleTracks))
 
       trackSession.tracks = tracks
     }
@@ -59,7 +59,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val uri = new URI("http://example.com/composition.mtlist.tracks")
 
     // Expect
-    (businessyncMock.publish _).expects(argAssert { event: TracksOpenedEvent =>
+    businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
       // TODO #119 Check tracks
     })
@@ -79,7 +79,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val uri = new URI("http://example.com/composition.mtlist.tracks")
 
     // Expect
-    (businessyncMock.publish _).expects(argAssert { event: TracksOpenedEvent =>
+    businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
       // TODO #119 Check tracks
     })
@@ -87,7 +87,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     trackSession.open(uri)
 
     // Expect
-    (businessyncMock.publish _).expects(TracksClosedEvent(Some(uri)))
+    businessyncMock.publish.expects(TracksClosedEvent(Some(uri)))
 
     // When
     trackSession.close()
@@ -98,7 +98,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     trackSession.isOpened shouldBe false
 
     // Expect
-    (businessyncMock.publish _).expects(TracksClosedEvent(None))
+    businessyncMock.publish.expects(TracksClosedEvent(None))
 
     // When
     trackSession.close()
@@ -158,10 +158,10 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val flute2Track: TrackSpec = makeTrack("Flute 2")
 
     // Expect
-    (businessyncMock.publish _).expects(TrackAddedEvent(stringsTrack, Some("Piano")))
-    (businessyncMock.publish _).expects(TrackAddedEvent(leadTrack, Some("Bass")))
-    (businessyncMock.publish _).expects(TrackAddedEvent(fluteTrack, None))
-    (businessyncMock.publish _).expects(TrackAddedEvent(flute2Track, None))
+    businessyncMock.publish.expects(TrackAddedEvent(stringsTrack, Some("Piano")))
+    businessyncMock.publish.expects(TrackAddedEvent(leadTrack, Some("Bass")))
+    businessyncMock.publish.expects(TrackAddedEvent(fluteTrack, None))
+    businessyncMock.publish.expects(TrackAddedEvent(flute2Track, None))
 
     // When
     trackSession.addTrackBefore(stringsTrack, "Piano")
@@ -188,7 +188,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val stringsTrack: TrackSpec = makeTrack("Strings")
     // Expect
-    (businessyncMock.publish _).expects(TrackAddedEvent(stringsTrack, None))
+    businessyncMock.publish.expects(TrackAddedEvent(stringsTrack, None))
     // When
     trackSession.addTrackBefore(stringsTrack, "Non-existent track")
     // Then
@@ -200,7 +200,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     val nameBeforeUpdate: String = trackSession.getTrack("Piano").get.name
     val newPianoTrack: TrackSpec = makeTrack("Piano", withTrackNo = false)
     // Expect
-    (businessyncMock.publish _).expects(TrackUpdatedEvent(newPianoTrack))
+    businessyncMock.publish.expects(TrackUpdatedEvent(newPianoTrack))
     // When
     trackSession.updateTrack(newPianoTrack)
     // Then
@@ -211,7 +211,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val newTrack: TrackSpec = makeTrack("Non-existent track")
     // Expect
-    (businessyncMock.publish _).expects(*).never()
+    businessyncMock.publish.expects(*).never()
     // When
     trackSession.updateTrack(newTrack)
     // Then
@@ -222,14 +222,14 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val track: TrackSpec = sampleTracks.tracks.head
     // Expect
-    (businessyncMock.publish _).expects(*).never()
+    businessyncMock.publish.expects(*).never()
     // When
     trackSession.updateTrack(track)
   }
 
   "moveTrackBefore" should "move a track before another tracks with given ID" in new Fixture(sampleTracks) {
     // Expect
-    (businessyncMock.publish _).expects(TrackMovedEvent("Bass", Some("Piano")))
+    businessyncMock.publish.expects(TrackMovedEvent("Bass", Some("Piano")))
     // When
     trackSession.moveTrackBefore("Bass", "Piano")
     // Then
@@ -238,7 +238,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "do nothing if the ID of the track to move does not exist" in new Fixture(sampleTracks) {
     // Expect
-    (businessyncMock.publish _).expects(*).never()
+    businessyncMock.publish.expects(*).never()
     // When
     trackSession.moveTrackBefore("Non-existent track", "Bass")
     trackSession.moveTrackToEnd("Non-existent track")
@@ -246,7 +246,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "move the track to the end if before ID does not exist" in new Fixture(sampleTracks) {
     // Expect
-    (businessyncMock.publish _).expects(TrackMovedEvent("Bass", None))
+    businessyncMock.publish.expects(TrackMovedEvent("Bass", None))
     // When
     trackSession.moveTrackBefore("Bass", "Non-existent track")
     // Then
@@ -255,7 +255,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "moveTrackToEnd" should "move a track to the end" in new Fixture(sampleTracks) {
     // Expect
-    (businessyncMock.publish _).expects(TrackMovedEvent("Bass", None))
+    businessyncMock.publish.expects(TrackMovedEvent("Bass", None))
     // When
     trackSession.moveTrackToEnd("Bass")
     // Then
@@ -264,7 +264,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "removeTrack" should "remove a track with the given ID" in new Fixture(sampleTracks) {
     // Expect
-    (businessyncMock.publish _).expects(TrackRemovedEvent("Synth"))
+    businessyncMock.publish.expects(TrackRemovedEvent("Synth"))
     // When
     trackSession.removeTrack("Synth")
     // Then
@@ -273,7 +273,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "do nothing if the ID does not exist" in new Fixture(sampleTracks) {
     // Expect
-    (businessyncMock.publish _).expects(*).never()
+    businessyncMock.publish.expects(*).never()
     // When
     trackSession.removeTrack("Non-existent track")
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 
 class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
 
-  import org.calinburloiu.music.microtonalist.tuner.TestTunings._
+  import org.calinburloiu.music.microtonalist.tuner.TestTunings.*
 
   private val reducer = MergeTuningReducer()
 

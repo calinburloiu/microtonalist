@@ -32,8 +32,8 @@ import scala.util.{Failure, Success}
  * @param compositionFormat format implementation responsible for (de)serialization.
  */
 class FileCompositionRepo(compositionFormat: CompositionFormat,
-                          synchronousAwaitTimeout: FiniteDuration = 1 minute) extends CompositionRepo with
-  StrictLogging {
+                          synchronousAwaitTimeout: FiniteDuration = 1 minute)
+  extends CompositionRepo with StrictLogging {
   override def read(uri: URI): Composition = Await.result(readAsync(uri), synchronousAwaitTimeout)
 
   override def readAsync(uri: URI): Future[Composition] = {

@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.composition._
+import org.calinburloiu.music.microtonalist.composition.*
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import java.io.{InputStream, OutputStream}
 import java.net.URI
@@ -37,7 +37,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
                             jsonScaleFormat: JsonScaleFormat,
                             synchronousAwaitTimeout: FiniteDuration = 1 minute) extends CompositionFormat {
 
-  import JsonCompositionFormat._
+  import JsonCompositionFormat.*
 
   override def read(inputStream: InputStream, baseUri: Option[URI] = None): Composition =
     Await.result(readAsync(inputStream, baseUri), synchronousAwaitTimeout)
@@ -174,7 +174,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
           case Some(tuningMapper) => JsSuccess(tuningMapper)
           case None => createDefaultTuningMapper().repath(tuningMapperPath)
         }
-      )(TuningSpecRepr.apply _)
+      )(TuningSpecRepr.apply)
       //@formatter:on
     }
   }

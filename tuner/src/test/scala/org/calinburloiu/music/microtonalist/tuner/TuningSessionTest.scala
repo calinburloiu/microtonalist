@@ -85,7 +85,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     tuningSession.tuningIndex = 1 // Set a new index
     // Then
-    businessyncStub.publish _ verify TuningIndexUpdatedEvent(1, TestTunings.justCRast)
+    businessyncStub.publish.verify(TuningIndexUpdatedEvent(1, TestTunings.justCRast))
   }
 
   it should "not publish TuningIndexUpdatedEvent when tuningIndex remains the same" in new Fixture {
@@ -94,7 +94,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     tuningSession.tuningIndex = 0 // Setting the same index
     // Then
-    (businessyncStub.publish _).verify(*).once()
+    businessyncStub.publish.verify(*).once()
   }
 
   "tunings" should "set tunings and adjust tuningIndex if necessary" in new Fixture {
@@ -134,7 +134,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Setting it twice with the same tunings, only publishes one event
     tuningSession.tunings = Seq(TestTunings.justCMaj, TestTunings.justCRast)
     // Then
-    (businessyncStub.publish _).verify(TuningsUpdatedEvent(Seq(TestTunings.justCMaj, TestTunings.justCRast), 0)).once()
+    businessyncStub.publish.verify(TuningsUpdatedEvent(Seq(TestTunings.justCMaj, TestTunings.justCRast), 0)).once()
   }
 
   it should "not publish TuningsUpdatedEvent when the same tunings is set" in new Fixture {
@@ -144,7 +144,7 @@ class TuningSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     tuningSession.tunings = tunings
     // Then
-    (businessyncStub.publish _).verify(TuningsUpdatedEvent(Seq(TestTunings.justCMaj, TestTunings.justCRast), 0)).once()
+    businessyncStub.publish.verify(TuningsUpdatedEvent(Seq(TestTunings.justCMaj, TestTunings.justCRast), 0)).once()
   }
 
   "previousTuning, nextTuning and nextBy" should "cycle to the previous and next tunings correctly" in new Fixture {

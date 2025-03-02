@@ -18,10 +18,10 @@ package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
-import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.Ficus.*
 import net.ceedubs.ficus.readers.ValueReader
 import org.calinburloiu.music.microtonalist.MicrotonalistApp.AppConfigException
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity, ScCcMidiMessage}
 
 case class MidiOutputConfig(devices: Seq[MidiDeviceId],
@@ -33,9 +33,9 @@ case class MidiOutputConfig(devices: Seq[MidiDeviceId],
 class MidiOutputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiOutputConfig](MidiOutputConfigManager.configRootPath, mainConfigManager) {
 
-  import MidiConfigSerDe._
-  import MidiOutputConfigManager._
-  import org.calinburloiu.music.microtonalist.config.ConfigSerDe._
+  import MidiConfigSerDe.*
+  import MidiOutputConfigManager.*
+  import org.calinburloiu.music.microtonalist.config.ConfigSerDe.*
 
   override protected def serialize(config: MidiOutputConfig): Config = {
     val hoconConfig = this.hoconConfig
@@ -80,8 +80,8 @@ case class MidiInputConfig(enabled: Boolean = false,
 class MidiInputConfigManager(mainConfigManager: MainConfigManager)
   extends SubConfigManager[MidiInputConfig](MidiInputConfigManager.configRootPath, mainConfigManager) {
 
-  import MidiConfigSerDe._
-  import org.calinburloiu.music.microtonalist.config.ConfigSerDe._
+  import MidiConfigSerDe.*
+  import org.calinburloiu.music.microtonalist.config.ConfigSerDe.*
 
   override protected def serialize(config: MidiInputConfig): Config = {
     val hoconConfig = this.hoconConfig
@@ -122,7 +122,6 @@ object MidiInputConfigManager {
   val configRootPath = "input.midi"
 }
 
-@deprecated("To be removed with MIDI HOCON config support")
 sealed trait TunerType
 
 /**

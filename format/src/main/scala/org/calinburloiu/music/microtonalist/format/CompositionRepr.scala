@@ -17,11 +17,12 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
-import org.calinburloiu.music.microtonalist.composition._
+import org.calinburloiu.music.microtonalist.composition.*
 import play.api.libs.json.{JsNull, JsObject, JsValue}
 
 import java.net.URI
 import scala.collection.mutable
+import scala.compiletime.uninitialized
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -34,7 +35,7 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
                            tuningReducer: Option[TuningReducer] = None,
                            fill: FillSpecRepr = FillSpecRepr()) {
 
-  var context: CompositionFormatContext = _
+  var context: CompositionFormatContext = uninitialized
 
   def loadDeferredData(scaleRepo: ScaleRepo): Future[this.type] = {
     val localScaleCache = mutable.Map[URI, Future[Scale[Interval]]]()

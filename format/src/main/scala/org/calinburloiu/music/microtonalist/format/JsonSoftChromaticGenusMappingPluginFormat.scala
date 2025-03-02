@@ -23,7 +23,7 @@ object JsonSoftChromaticGenusMappingPluginFormat extends JsonPluginFormat[SoftCh
   override val familyName: String = SoftChromaticGenusMapping.FamilyName
 
   override val specs: JsonPluginFormat.TypeSpecs[SoftChromaticGenusMapping] = SoftChromaticGenusMapping.All
-    .map { plugin: SoftChromaticGenusMapping => JsonPluginFormat.TypeSpec.withoutSettings(plugin) }
+    .map { (plugin: SoftChromaticGenusMapping) => JsonPluginFormat.TypeSpec.withoutSettings(plugin) }
 
   override val defaultTypeName: Option[String] = Some(SoftChromaticGenusMapping.Off.typeName)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import com.typesafe.config.{ConfigFactory, Config => HoconConfig}
+import com.typesafe.config.{ConfigFactory, Config as HoconConfig}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -27,13 +27,13 @@ abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extend
   lazy val initialMainHoconConfig: HoconConfig = ConfigFactory.parseResources(getClass, configResource).resolve()
   lazy val mainConfigManager: MainConfigManager = MainConfigManager(initialMainHoconConfig)
 
-  val subConfigManager: SCM
+  def subConfigManager: SCM
 
   def subConfig: C = subConfigManager.config
 
-  val expectedSubConfigRead: C
+  def expectedSubConfigRead: C
 
-  val subConfigsToWrite: Seq[C]
+  def subConfigsToWrite: Seq[C]
   lazy val subConfigsToWriteCount: Int = subConfigsToWrite.size
 
   getClass.getSimpleName should "correctly read HOCON sub-config" in {

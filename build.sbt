@@ -1,6 +1,6 @@
 import Dependencies.*
 
-ThisBuild / scalaVersion := "2.13.14"
+ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / version := "1.1.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
@@ -198,11 +198,13 @@ lazy val compilerOptions = Seq(
   "-encoding", "utf8",
   "-language:implicitConversions",
   "-language:postfixOps",
+  // Used for scalamock: trait Mock is marked as experimental
+  "-experimental"
 )
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq(
-    "-source", "17", "-target", "17",
+    "-source", "23", "-target", "23",
   ),
   scalacOptions ++= compilerOptions,
   resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
@@ -216,6 +218,7 @@ lazy val assemblySettings = Seq(
       MergeStrategy.concat
     case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
       MergeStrategy.rename
+    case PathList(ps@_*) if ps.last == "module-info.class" => MergeStrategy.discard
     case PathList("META-INF", xs @ _*) =>
       xs.map(_.toLowerCase) match {
         case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil =>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import org.calinburloiu.music.microtonalist.composition.{ConcertPitchTuningRefer
 import org.calinburloiu.music.microtonalist.format.JsonConstraints.exclusiveMin
 import org.calinburloiu.music.scmidi.{DefaultConcertPitchFreq, MidiNote, PitchClass}
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
+import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
-import play.api.libs.json._
 
 case class JsonTuningReferencePluginFormat(intonationStandard: IntonationStandard) extends
   JsonPluginFormat[TuningReference] {
@@ -40,12 +40,12 @@ case class JsonTuningReferencePluginFormat(intonationStandard: IntonationStandar
   private val standardTypeFormat: Format[StandardTuningReference] = (
     (__ \ "basePitchClass").format[PitchClass](PitchClassFormat) and
     (__ \ "baseOffset").format[Double](min(-50.0) keepAnd max(50.0))
-  )(StandardTuningReference.apply, unlift(StandardTuningReference.unapply))
+  )(StandardTuningReference.apply, Tuple.fromProductTyped)
   private val concertPitchTypeFormat: Format[ConcertPitchTuningReference] = (
     (__ \ "concertPitchToBaseInterval").format[Interval] and
     (__ \ "baseMidiNote").format[MidiNote](MidiNoteFormat) and
     (__ \ "concertPitchFrequency").format[Double](exclusiveMin(0.0) keepAnd max(20000.0))
-  )(ConcertPitchTuningReference.apply, unlift(ConcertPitchTuningReference.unapply))
+  )(ConcertPitchTuningReference.apply, Tuple.fromProductTyped)
   //@formatter:on
 
   override val specs: JsonPluginFormat.TypeSpecs[TuningReference] = Seq(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -29,12 +29,12 @@ import java.net.URI
  */
 class ScaleFormatRegistry(val scaleFormats: Seq[ScaleFormat]) {
 
-  private[this] val extensionMap: Map[String, ScaleFormat] = (for {
+  private val extensionMap: Map[String, ScaleFormat] = (for {
     scaleFormat <- scaleFormats
     extension <- scaleFormat.metadata.extensions
   } yield extension -> scaleFormat).toMap
 
-  private[this] val mediaTypeMap: Map[MediaType, ScaleFormat] = (for {
+  private val mediaTypeMap: Map[MediaType, ScaleFormat] = (for {
     scaleFormat <- scaleFormats
     mediaType <- scaleFormat.metadata.mediaTypes
   } yield mediaType -> scaleFormat).toMap
@@ -64,7 +64,7 @@ class ScaleFormatRegistry(val scaleFormats: Seq[ScaleFormat]) {
    */
   def getByMediaType(mediaType: MediaType): Option[ScaleFormat] = {
     def findSequentially(): Option[ScaleFormat] = mediaTypeMap
-      .find { case (formatMediaType, _) => mediaType is formatMediaType }
+      .find { case (formatMediaType, _) => mediaType `is` formatMediaType }
       .map(_._2)
 
     if (!mediaType.hasWildcard) {

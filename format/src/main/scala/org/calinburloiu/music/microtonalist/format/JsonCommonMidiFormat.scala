@@ -26,6 +26,6 @@ object JsonCommonMidiFormat {
 
   val channelFormat: Format[Int] = Format(
     (min(1) keepAnd max(16)).map(_ - 1),
-    Writes { channel: Int => JsNumber(channel + 1) }
+    Writes { (channel: Int) => JsNumber(channel + 1) }
   )
 }

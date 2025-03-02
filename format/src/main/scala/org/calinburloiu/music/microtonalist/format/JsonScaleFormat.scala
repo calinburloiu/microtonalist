@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.calinburloiu.music.intonation._
-import play.api.libs.functional.syntax._
-import play.api.libs.json._
+import org.calinburloiu.music.intonation.*
+import play.api.libs.functional.syntax.*
+import play.api.libs.json.*
 
 import java.io.{InputStream, OutputStream, PrintWriter}
 import java.net.URI
@@ -31,7 +31,7 @@ import java.net.URI
  */
 class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
-  import JsonScaleFormat._
+  import JsonScaleFormat.*
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata(
     "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType, MediaType.JSON_UTF_8))
@@ -110,7 +110,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
       (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
     )(
       { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
-      { context: ScaleFormatContext =>
+      { (context: ScaleFormatContext) =>
         // There's a play-json bug on write, so we need to apply the fallback manually here
         (context.name.orElse(fallbackName), context.intonationStandard.orElse(fallbackIntonationStandard))
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
+import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation._
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}

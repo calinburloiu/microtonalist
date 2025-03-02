@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ class SoftChromaticGenusStudy {
 object SoftChromaticGenusStudy extends App {
   private val study = new SoftChromaticGenusStudy
 
-  import study._
+  import study.*
 
   println("== Just Intonation ==")
   printStruct(maj3SoftHicaz, strictAug2Threshold)

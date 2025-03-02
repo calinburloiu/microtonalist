@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,10 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import java.net.URI
 import scala.collection.mutable
+import scala.util.boundary
 
 /**
  * JSON preprocessor that replaces JSON references to other JSON files with the actual JSON value.
@@ -32,7 +33,7 @@ import scala.collection.mutable
  */
 class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
 
-  import JsonPreprocessor._
+  import JsonPreprocessor.*
 
   /**
    * Performs preprocessing in the given JSON value.
@@ -126,7 +127,7 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
    * @param nestedRefContext object used for accounting nested references
    * @return maybe a JSON object
    */
-  private def loadRef(uri: URI, pathContext: JsPath, nestedRefContext: NestedRefContext): Option[JsObject] = {
+  private def loadRef(uri: URI, pathContext: JsPath, nestedRefContext: NestedRefContext): Option[JsObject] = boundary {
     for (loader <- refLoaders) {
       loader.load(uri, pathContext) match {
         case Some(obj) =>
@@ -146,7 +147,7 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
 
           val preprocessedObj = preprocessObject(obj, pathContext, Some(uri), nestedRefContext).value
 
-          return Some(preprocessedObj)
+          boundary.break(Some(preprocessedObj))
 
         case None =>
       }

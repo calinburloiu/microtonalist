@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.{Config, ConfigValue, ConfigValueFactory}
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object ConfigSerDe {
 
   implicit class HoconConfigExtension(hoconConfig: Config) {
 
     def withAnyRefValue(path: String, value: Any): Config = value match {
-      case _: Seq[_] | _: Map[_, _] =>
+      case _: Seq[?] | _: Map[?, ?] =>
         hoconConfig.withValue(path, createHoconValue(value))
       case _: Any =>
         if (hoconConfig.getAnyRef(path) != value) {
@@ -37,8 +37,8 @@ object ConfigSerDe {
   }
 
   def createHoconValue(value: Any): ConfigValue = value match {
-    case seq: Seq[_] => ConfigValueFactory.fromIterable(seq.map { v: Any => createHoconValue(v) }.asJava)
-    case map: Map[_, _] =>
+    case seq: Seq[?] => ConfigValueFactory.fromIterable(seq.map { (v: Any) => createHoconValue(v) }.asJava)
+    case map: Map[?, ?] =>
       val convertedMap = map.map { case (k: Any, v: Any) =>
         (k.toString, createHoconValue(v))
       }.asJava

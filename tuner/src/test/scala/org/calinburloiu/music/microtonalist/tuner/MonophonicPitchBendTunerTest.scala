@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi._
+import org.calinburloiu.music.scmidi.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec

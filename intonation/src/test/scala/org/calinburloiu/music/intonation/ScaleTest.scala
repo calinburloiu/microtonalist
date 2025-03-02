@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.intonation
 
-import org.calinburloiu.music.intonation.CentsInterval._
-import org.calinburloiu.music.intonation.RatioInterval._
-import org.calinburloiu.music.intonation.Scale._
+import org.calinburloiu.music.intonation.CentsInterval.*
+import org.calinburloiu.music.intonation.RatioInterval.*
+import org.calinburloiu.music.intonation.Scale.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

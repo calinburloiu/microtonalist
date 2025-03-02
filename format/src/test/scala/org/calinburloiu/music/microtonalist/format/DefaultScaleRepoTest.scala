@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
-import org.calinburloiu.music.intonation._
 import org.scalamock.scalatest.AbstractMockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -50,12 +50,12 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
   "read" should "read a JSON Scale file in cents intonation standard and convert it according to the context" in {
     // No context
     var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, None)
-    result almostEquals minorScaleCents shouldBe true
+    result `almostEquals` minorScaleCents shouldBe true
     result.intonationStandard should contain(CentsIntonationStandard)
 
     // Cents context
     result = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, centsContext)
-    result almostEquals minorScaleCents shouldBe true
+    result `almostEquals` minorScaleCents shouldBe true
     result.intonationStandard should contain(CentsIntonationStandard)
 
     // Just intonation context
@@ -77,7 +77,7 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
 
     // Cents context
     result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, centsContext)
-    result almostEquals minorScaleCents shouldBe true
+    result `almostEquals` minorScaleCents shouldBe true
     result.intonationStandard should contain(CentsIntonationStandard)
 
     // Just intonation context
@@ -100,7 +100,7 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
     // Cents context
     val expectedResult = CentsScale("Natural Minor", 0.0, 200.00, 316.67, 500.00, 700.00, 816.67, 1016.67, 1200.00)
     result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, centsContext)
-    result almostEquals expectedResult shouldBe true
+    result `almostEquals` expectedResult shouldBe true
     result.intonationStandard should contain(CentsIntonationStandard)
 
     // Just intonation context

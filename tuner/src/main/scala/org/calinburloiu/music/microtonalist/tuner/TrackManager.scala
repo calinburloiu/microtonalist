@@ -20,7 +20,7 @@ import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiManager}
 
-import java.util.concurrent._
+import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
 
 // TODO #121 Logic to update tracks.

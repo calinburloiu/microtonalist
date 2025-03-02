@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -22,25 +22,25 @@ import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, TuningInde
 
 import java.awt.BorderLayout
 import java.awt.event.{KeyEvent, KeyListener}
-import javax.swing._
+import javax.swing.*
 import javax.swing.event.ListSelectionEvent
 
 class TuningListFrame(tuningService: TuningService) extends JFrame("Microtuner") with StrictLogging {
 
-  private[this] val tunings = tuningService.tunings
+  private val tunings = tuningService.tunings
 
-  private[this] val panel = new JPanel(new BorderLayout())
+  private val panel = new JPanel(new BorderLayout())
 
-  private[this] val listModel = new AbstractListModel[String] {
+  private val listModel = new AbstractListModel[String] {
     override def getSize: Int = tunings.size
 
     override def getElementAt(index: Int): String = tunings(index).name
   }
 
-  private[this] val listComponent: JList[String] = new JList[String](listModel)
+  private val listComponent: JList[String] = new JList[String](listModel)
 
   listComponent.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-  listComponent.addListSelectionListener { listSelectionEvent: ListSelectionEvent =>
+  listComponent.addListSelectionListener { (listSelectionEvent: ListSelectionEvent) =>
     val index = listSelectionEvent.getSource.asInstanceOf[JList[String]].getSelectedIndex
 
     if (!listSelectionEvent.getValueIsAdjusting && index != -1) {

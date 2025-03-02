@@ -17,14 +17,14 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
-import org.calinburloiu.music.microtonalist.tuner._
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
-import play.api.libs.json._
+import play.api.libs.json.*
 
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
-  import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat._
+  import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.*
 
   override val familyName: String = Tuner.FamilyName
 
@@ -34,12 +34,12 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = (
     (__ \ "semitoneCount").format[Int](uint7Format) and
     (__ \ "centCount").format[Int](uint7Format)
-  )(PitchBendSensitivity.apply, unlift(PitchBendSensitivity.unapply))
+  )(PitchBendSensitivity.apply, Tuple.fromProductTyped)
 
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (
     (__ \ "outputChannel").format[Int](channelFormat) and
     (__ \ "pitchBendSensitivity").format[PitchBendSensitivity]
-  )(MonophonicPitchBendTuner.apply, unlift(MonophonicPitchBendTuner.unapply))
+  )(MonophonicPitchBendTuner.apply, Tuple.fromProductTyped)
 
   private val mtsTunerCommonFormat: Format[MtsTunerParamsTuple] = (
     (__ \ "thru").format[Boolean] and
@@ -63,26 +63,26 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
     makeMtsTunerTypeSpec[MtsOctave1ByteNonRealTimeTuner](
       typeName = MtsTuner.MtsOctave1ByteNonRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave1ByteNonRealTimeTuner],
-      apply = (MtsOctave1ByteNonRealTimeTuner.apply _).tupled,
-      unapply = unlift(MtsOctave1ByteNonRealTimeTuner.unapply)
+      apply = MtsOctave1ByteNonRealTimeTuner.apply.tupled,
+      unapply = Tuple.fromProductTyped
     ),
     makeMtsTunerTypeSpec[MtsOctave2ByteNonRealTimeTuner](
       typeName = MtsTuner.MtsOctave2ByteNonRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave2ByteNonRealTimeTuner],
-      apply = (MtsOctave2ByteNonRealTimeTuner.apply _).tupled,
-      unapply = unlift(MtsOctave2ByteNonRealTimeTuner.unapply)
+      apply = MtsOctave2ByteNonRealTimeTuner.apply.tupled,
+      unapply = Tuple.fromProductTyped
     ),
     makeMtsTunerTypeSpec[MtsOctave1ByteRealTimeTuner](
       typeName = MtsTuner.MtsOctave1ByteRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave1ByteRealTimeTuner],
-      apply = (MtsOctave1ByteRealTimeTuner.apply _).tupled,
-      unapply = unlift(MtsOctave1ByteRealTimeTuner.unapply)
+      apply = MtsOctave1ByteRealTimeTuner.apply.tupled,
+      unapply = Tuple.fromProductTyped
     ),
     makeMtsTunerTypeSpec[MtsOctave2ByteRealTimeTuner](
       typeName = MtsTuner.MtsOctave2ByteRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave2ByteRealTimeTuner],
-      apply = (MtsOctave2ByteRealTimeTuner.apply _).tupled,
-      unapply = unlift(MtsOctave2ByteRealTimeTuner.unapply)
+      apply = MtsOctave2ByteRealTimeTuner.apply.tupled,
+      unapply = Tuple.fromProductTyped
     )
   )
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.intonation._
+import org.calinburloiu.music.intonation.*
 
 import java.io.{IOException, InputStream, OutputStream}
 import java.net.URI
@@ -34,7 +34,7 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
 
   override val metadata: ScaleFormatMetadata = ScaleFormatMetadata("Huygens-Fokker Scala Application Scale", Set("scl"))
 
-  private[this] val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
+  private val intervalValueRegex: Regex = """[\s]*([\d]+[./]?[\d]*).*""".r
 
   @throws[IOException]
   @throws[InvalidHuygensFokkerScalaFileException]

@@ -788,7 +788,7 @@ class IntervalTest extends AnyFlatSpec with TableDrivenPropertyChecks with Match
   "the result of a binary operation between intervals of different classes" should
     "have the class of the most specific common superclass" in {
     //@formatter:off
-    val table = Table[Interval, Double, Class[_]](
+    val table = Table[Interval, Double, Class[?]](
       ("computation",                                "result in ¢",  "class"),
       (RealInterval(1.5) + RatioInterval(4, 3),      1200.0,         classOf[RealInterval]),
       (RealInterval(1.5) - RatioInterval(4, 3),      203.91,         classOf[RealInterval]),

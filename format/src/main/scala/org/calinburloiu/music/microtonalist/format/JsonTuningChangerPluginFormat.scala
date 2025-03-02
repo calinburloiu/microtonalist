@@ -21,8 +21,8 @@ import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
 import org.calinburloiu.music.scmidi.ScCcMidiMessage
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
+import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
-import play.api.libs.json._
 
 import scala.util.Try
 
@@ -48,13 +48,13 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
     (__ \ "previous").formatNullable[Cc](uint7Format) and
     (__ \ "next").formatNullable[Cc](uint7Format) and
     (__ \ "index").formatWithDefault[Map[Int, Cc]](Map.empty)(Format(indexTriggersReads, indexTriggersWrites))
-  )(TuningChangeTriggers.apply, unlift(TuningChangeTriggers.unapply))
+  )(TuningChangeTriggers.apply, Tuple.fromProductTyped)
 
   implicit val pedalTuningChangerFormat: Format[PedalTuningChanger] = (
     (__ \ "triggers").format[TuningChangeTriggers[Cc]](ccTriggersFormat) and
     (__ \ "threshold").format[Int](min(0) keepAnd max(126)) and
     (__ \ "triggersThru").format[Boolean]
-  )(PedalTuningChanger.apply, unlift(PedalTuningChanger.unapply))
+  )(PedalTuningChanger.apply, Tuple.fromProductTyped)
   //@formatter:on
 
   override val specs: TypeSpecs[TuningChanger] = Seq(
