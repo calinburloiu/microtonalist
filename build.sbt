@@ -218,6 +218,7 @@ lazy val assemblySettings = Seq(
       MergeStrategy.concat
     case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
       MergeStrategy.rename
+    case PathList(ps@_*) if ps.last == "module-info.class" => MergeStrategy.discard
     case PathList("META-INF", xs @ _*) =>
       xs.map(_.toLowerCase) match {
         case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil =>
