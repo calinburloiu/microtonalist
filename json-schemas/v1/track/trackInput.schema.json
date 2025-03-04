@@ -3,14 +3,80 @@
     "title": "Track Input",
     "description": "TODO",
     "type": "object",
-    "properties": {
-
-    },
-    "unevaluatedProperties": false,
+    "oneOf": [
+        { "$ref": "#/$defs/object" }
+    ],
     "$defs": {
+        "channel": {
+            "type": "integer",
+            "title": "Input Channel",
+            "description": "TODO",
+            "minimum": 1,
+            "maximum": 16
+        },
+        "deviceSettings": {
+            "type": "object",
+            "properties": {
+                "midiDeviceId": {
+                    "allOf": [
+                        { "$ref": "midiDeviceId.schema.json" },
+                        {
+                            "title": "Input MIDI Device ID",
+                            "description": "TODO"
+                        }
+                    ]
+                },
+                "channel": { "$ref": "#/$defs/channel" }
+            }
+        },
+        "trackSettings": {
+            "type": "object",
+            "properties": {
+                "trackId": {
+                    "type": "string",
+                    "title": "Input Track ID",
+                    "description": "TODO"
+                },
+                "channel": { "$ref": "#/$defs/channel" }
+            }
+        },
         "type": {
             "type": "string",
+            "title": "Track Input Type",
+            "description": "TODO",
             "enum": ["device", "track"]
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": { "$ref": "#/$defs/type" }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "device" }
+                        }
+                    },
+                    "then": {
+                        "$ref": "#/$defs/deviceSettings",
+                        "required": ["midiDeviceId"]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "track" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/trackSettings",
+                        "required": ["trackId"]
+                    }
+                }
+            ],
+            "unevaluatedProperties": false
         }
     }
 }
