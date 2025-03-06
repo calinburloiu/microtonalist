@@ -8,12 +8,18 @@
     ],
     "$defs": {
         "channel": {
-            "type": "integer",
-            "title": "Input Channel",
-            "description": "Optional MIDI channel to be used for this track input. If the channel number is set, it marks a filtering of all incoming MIDI messages that have that channel number. If it's not set or it's null, all messages will pass.",
-            "minimum": 1,
-            "maximum": 16,
-            "default": null
+            "allOf": [
+                {
+                    "oneOf": [
+                        { "$ref": "midiChannel.schema.json" },
+                        { "type": "null" }
+                    ]
+                },
+                {
+                    "title": "Input Channel",
+                    "description": "Optional MIDI channel to be used for this track input. If the channel number is set, it marks a filtering of all incoming MIDI messages that have that channel number. If it's not set or it's null, all messages will pass."
+                }
+            ]
         },
         "deviceSettings": {
             "type": "object",

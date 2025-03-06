@@ -8,12 +8,18 @@
     ],
     "$defs": {
         "channel": {
-            "type": "integer",
-            "title": "Output Channel",
-            "description": "Optional MIDI channel to be used for this track output. If the channel number is set, it marks a mapping of all outgoing MIDI messages such that all are transformed to have that channel number. If it's not set or it's null, message pass without modification.",
-            "minimum": 1,
-            "maximum": 16,
-            "default": null
+            "allOf": [
+                {
+                    "oneOf": [
+                        { "$ref": "midiChannel.schema.json" },
+                        { "type": "null" }
+                    ]
+                },
+                {
+                    "title": "Output Channel",
+                    "description": "Optional MIDI channel to be used for this track output. If the channel number is set, it marks a mapping of all outgoing MIDI messages such that all are transformed to have that channel number. If it's not set or it's null, message pass without modification."
+                }
+            ]
         },
         "deviceSettings": {
             "type": "object",
