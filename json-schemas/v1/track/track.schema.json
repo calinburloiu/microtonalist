@@ -1,30 +1,35 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Track",
-    "description": "TODO",
+    "description": "Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and tuning configuration.",
     "type": "object",
     "properties": {
         "id": {
             "type": "string",
             "title": "ID",
-            "$comment": "TODO"
+            "description": "Unique identifier of a track."
         },
         "name": {
             "type": "string",
-            "$comment": "TODO"
+            "title": "Name",
+            "description": "User defined name of a track. Character \"#\" will be substituted with the 1-based track index. If the user wants to keep the \"#\" as it is, they can escape it as \"\\#\"."
         },
         "input": { "$ref": "trackInput.schema.json" },
         "tuningChangers": {
             "type": "array",
+            "title": "Tuning Changers",
+            "description": "A list of tuningChanger plugins that decide whether the tuning should be changed or not. The decision is of the first one that returns an effectively triggers a tuning change, so the decision is taken by an OR operator. Note that if none decides to trigger a change, no change will be performed.",
             "items": {
                 "$ref": "tuningChanger.schema.json"
-            }
+            },
+            "default": []
         },
         "tuner": { "$ref": "tuner.schema.json" },
         "output": { "$ref": "trackOutput.schema.json" },
         "muted": {
             "type": "boolean",
-            "$comment": "TODO",
+            "title": "Muted",
+            "description": "Tells whether the plugin is muted or not; true if it is, false otherwise.",
             "default": false
         }
     },

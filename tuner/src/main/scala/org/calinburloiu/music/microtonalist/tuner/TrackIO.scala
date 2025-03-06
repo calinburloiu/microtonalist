@@ -125,7 +125,7 @@ object DeviceTrackInputSpec {
 }
 
 /**
- * Plugin that specifies the input for a track by connecting it to another track.
+ * Plugin that allows configuring another track's output as the input of this track.
  *
  * @param trackId Identifier of the track that this input is connected to.
  * @param channel Optional MIDI channel to be used for this track input. If the channel is defined, it marks a
@@ -160,7 +160,7 @@ object DeviceTrackOutputSpec {
 }
 
 /**
- * Plugin that specifies the output for a track by connecting it to another track.
+ * Plugin that allows configuring this track's output as the input of another track.
  *
  * @param trackId Identifier of the track that this output is connected to.
  * @param channel Optional MIDI channel to be used for this track output. If the channel is defined, it marks a

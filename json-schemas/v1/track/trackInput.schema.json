@@ -1,16 +1,89 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Track Input",
-    "description": "TODO",
+    "description": "Plugin responsible to configure a track's input.\nAs any plugin it can be defined as an object with a \"type\" property that identifies the input to be used. Check the documentation for that property for details about what input types are supported.",
     "type": "object",
-    "properties": {
-
-    },
-    "unevaluatedProperties": false,
+    "oneOf": [
+        { "$ref": "#/$defs/object" }
+    ],
     "$defs": {
+        "channel": {
+            "allOf": [
+                {
+                    "oneOf": [
+                        { "$ref": "midiChannel.schema.json" },
+                        { "type": "null" }
+                    ]
+                },
+                {
+                    "title": "Input Channel",
+                    "description": "Optional MIDI channel to be used for this track input. If the channel number is set, it marks a filtering of all incoming MIDI messages that have that channel number. If it's not set or it's null, all messages will pass."
+                }
+            ]
+        },
+        "deviceSettings": {
+            "type": "object",
+            "properties": {
+                "midiDeviceId": {
+                    "allOf": [
+                        { "$ref": "midiDeviceId.schema.json" },
+                        {
+                            "title": "Input MIDI Device ID",
+                            "description": "Unique identifier of the associated MIDI input device."
+                        }
+                    ]
+                },
+                "channel": { "$ref": "#/$defs/channel" }
+            }
+        },
+        "trackSettings": {
+            "type": "object",
+            "properties": {
+                "trackId": {
+                    "type": "string",
+                    "title": "Input Track ID",
+                    "description": "Identifier of the track that this input is connected to."
+                },
+                "channel": { "$ref": "#/$defs/channel" }
+            }
+        },
         "type": {
             "type": "string",
+            "title": "Track Input Type",
+            "description": "Name that serves as a unique identifier of a Track Input Type. The following values are allowed:\n- \"device\": allows configuring a MIDI device as a track input.\n\"track\": allows configuring another track's output as the input of this track.",
             "enum": ["device", "track"]
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": { "$ref": "#/$defs/type" }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "device" }
+                        }
+                    },
+                    "then": {
+                        "$ref": "#/$defs/deviceSettings",
+                        "required": ["midiDeviceId"]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "track" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/trackSettings",
+                        "required": ["trackId"]
+                    }
+                }
+            ],
+            "unevaluatedProperties": false
         }
     }
 }

@@ -1,16 +1,89 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Track Output",
-    "description": "TODO",
+    "description": "Plugin responsible to configure a track's output.\nAs any plugin it can be defined as an object with a \"type\" property that identifies the output to be used. Check the documentation for that property for details about what output types are supported.",
     "type": "object",
-    "properties": {
-
-    },
-    "unevaluatedProperties": false,
+    "oneOf": [
+        { "$ref": "#/$defs/object" }
+    ],
     "$defs": {
+        "channel": {
+            "allOf": [
+                {
+                    "oneOf": [
+                        { "$ref": "midiChannel.schema.json" },
+                        { "type": "null" }
+                    ]
+                },
+                {
+                    "title": "Output Channel",
+                    "description": "Optional MIDI channel to be used for this track output. If the channel number is set, it marks a mapping of all outgoing MIDI messages such that all are transformed to have that channel number. If it's not set or it's null, message pass without modification."
+                }
+            ]
+        },
+        "deviceSettings": {
+            "type": "object",
+            "properties": {
+                "midiDeviceId": {
+                    "allOf": [
+                        { "$ref": "midiDeviceId.schema.json" },
+                        {
+                            "title": "Output MIDI Device ID",
+                            "description": "Unique identifier of the associated MIDI output device."
+                        }
+                    ]
+                },
+                "channel": { "$ref": "#/$defs/channel" }
+            }
+        },
+        "trackSettings": {
+            "type": "object",
+            "properties": {
+                "trackId": {
+                    "type": "string",
+                    "title": "Output Track ID",
+                    "description": "Identifier of the track that this output is connected to."
+                },
+                "channel": { "$ref": "#/$defs/channel" }
+            }
+        },
         "type": {
             "type": "string",
+            "title": "Track Output Type",
+            "description": "Name that serves as a unique identifier of a Track Output Type. The following values are allowed:\n- \"device\": allows configuring a MIDI device as a track output.\n\"track\": allows configuring this track's output as the input of another track.",
             "enum": ["device", "track"]
+        },
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": { "$ref": "#/$defs/type" }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "device" }
+                        }
+                    },
+                    "then": {
+                        "$ref": "#/$defs/deviceSettings",
+                        "required": ["midiDeviceId"]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "track" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/trackSettings",
+                        "required": ["trackId"]
+                    }
+                }
+            ],
+            "unevaluatedProperties": false
         }
     }
 }
