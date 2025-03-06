@@ -19,7 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import javax.sound.midi.MidiMessage
 
 /**
- * Specification of a track used for performing configuring its MIDI and tuning configuration.
+ * Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and 
+ * tuning configuration.
  *
  * @param id               Unique identifier of a track.
  * @param name             User defined name of a track. Character `"#"` will be substituted with the 1-based track
@@ -27,8 +28,8 @@ import javax.sound.midi.MidiMessage
  *                         user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
  * @param input            Plugin used to configure the track input.
  * @param tuningChangers   A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
- *                         not. The decision is of the first one that returns an effective [[TuningChange]], so the
- *                         is taken by an OR operator. Note that if none decides to trigger a change, no change
+ *                         not. The decision is of the first one that returns an effective [[TuningChange]], so the 
+ *                         decision is taken by an OR operator. Note that if none decides to trigger a change, no change
  *                         will be performed.
  * @param tuner            An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
  * @param output           Plugin used to configure the track output.
