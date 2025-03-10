@@ -34,3 +34,9 @@ class TrackRepoException(message: String, cause: Throwable) extends RuntimeExcep
 
 class TracksNotFoundException(uri: URI, cause: Throwable = null)
   extends TrackRepoException(s"Track with $uri was not found!", cause)
+
+class BadTracksRequestException(uri: URI, message: Option[String], cause: Throwable = null)
+  extends TrackRepoException(message.getOrElse(s"Bad request for tracks with $uri!"), cause)
+
+class TracksReadFailureException(val uri: URI, message: String, cause: Throwable = null)
+  extends TrackRepoException(message, cause)
