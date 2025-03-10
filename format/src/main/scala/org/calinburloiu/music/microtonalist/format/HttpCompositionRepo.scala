@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -65,8 +65,7 @@ class HttpCompositionRepo(httpClient: HttpClient,
       .flatMap { response => handleReadResponse(uri, response) }
       .andThen {
         case Success(_) => logger.info(s"Successfully read composition from $uri via HTTP")
-        case Failure(exception) => logger.error(s"Failed to read composition from $uri via HTTP!",
-          exception)
+        case Failure(exception) => logger.error(s"Failed to read composition from $uri via HTTP!", exception)
       }
   }
 
