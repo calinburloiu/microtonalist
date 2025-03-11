@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.microtonalist.composition.Composition
+
 import java.net.URI
+import scala.concurrent.Future
 
 /**
  * Default composition repository implementation that accesses compositions from other repositories based on URI:
@@ -28,10 +31,18 @@ import java.net.URI
  * @param httpCompositionRepo an [[HttpScaleRepo]] instance
  */
 class DefaultCompositionRepo(fileCompositionRepo: Option[FileCompositionRepo],
-                             httpCompositionRepo: Option[HttpCompositionRepo]) extends ComposedCompositionRepo {
-  override def getCompositionRepo(uri: URI): Option[CompositionRepo] = uri.getScheme match {
-    case null | UriScheme.File => fileCompositionRepo
-    case UriScheme.Http | UriScheme.Https => httpCompositionRepo
-    case _ => None
-  }
+                             httpCompositionRepo: Option[HttpCompositionRepo]) extends CompositionRepo {
+
+  private val compositionRepoSelector: RepoSelector[CompositionRepo] = new DefaultRepoSelector(
+    fileCompositionRepo, httpCompositionRepo, None, uri => new BadCompositionRequestException(uri))
+
+  override def read(uri: URI): Composition = compositionRepoSelector.selectRepoOrThrow(uri).read(uri)
+
+  override def readAsync(uri: URI): Future[Composition] = compositionRepoSelector.selectRepoOrThrow(uri).readAsync(uri)
+
+  override def write(composition: Composition, uri: URI): Unit = compositionRepoSelector.selectRepoOrThrow(uri)
+    .write(composition, uri)
+
+  override def writeAsync(composition: Composition, uri: URI): Future[Unit] =
+    compositionRepoSelector.selectRepoOrThrow(uri).writeAsync(composition, uri)
 }

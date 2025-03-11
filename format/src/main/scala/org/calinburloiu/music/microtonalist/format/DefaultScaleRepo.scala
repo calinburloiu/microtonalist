@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import com.google.common.net.MediaType
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.intonation.Scale.ConversionQuality
 import org.calinburloiu.music.intonation.{Interval, IntonationStandard, Scale, ScaleConversionResult}
@@ -50,21 +51,30 @@ import scala.concurrent.Future
  */
 class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
                        httpScaleRepo: Option[HttpScaleRepo],
-                       libraryScaleRepo: Option[LibraryScaleRepo]) extends ComposedScaleRepo with LazyLogging {
-  override def getScaleRepo(uri: URI): Option[ScaleRepo] = uri.getScheme match {
-    case null | UriScheme.File => fileScaleRepo
-    case UriScheme.Http | UriScheme.Https => httpScaleRepo
-    case UriScheme.MicrotonalistLibrary => libraryScaleRepo
-    case _ => None
-  }
+                       libraryScaleRepo: Option[LibraryScaleRepo]) extends ScaleRepo with LazyLogging {
+
+  private val scaleRepoSelector: RepoSelector[ScaleRepo] = new DefaultRepoSelector(
+    fileScaleRepo, httpScaleRepo, libraryScaleRepo)
 
   override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
-    updateScaleFromContext(super.read(uri, context), uri, context)
+    updateScaleFromContext(scaleRepoSelector.selectRepoOrThrow(uri).read(uri), uri, context)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
-    super.readAsync(uri, context).map { scale => updateScaleFromContext(scale, uri, context) }
+    scaleRepoSelector.selectRepoOrThrow(uri).readAsync(uri).map { scale => updateScaleFromContext(scale, uri, context) }
   }
+
+  override def write(scale: Scale[Interval],
+                     uri: URI,
+                     mediaType: Option[MediaType],
+                     context: Option[ScaleFormatContext] = None): Unit =
+    scaleRepoSelector.selectRepoOrThrow(uri).write(scale, uri, mediaType)
+
+  override def writeAsync(scale: Scale[Interval],
+                          uri: URI,
+                          mediaType: Option[MediaType],
+                          context: Option[ScaleFormatContext] = None): Future[Unit] =
+    scaleRepoSelector.selectRepoOrThrow(uri).writeAsync(scale, uri, mediaType)
 
   private def updateScaleFromContext(scale: Scale[Interval],
                                      uri: URI,
