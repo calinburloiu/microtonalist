@@ -41,11 +41,11 @@ class FormatModule(libraryUri: URI,
 
   lazy val fileScaleRepo: FileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
   lazy val httpScaleRepo: HttpScaleRepo = new HttpScaleRepo(httpClient, scaleFormatRegistry)
-  lazy val microtonalistLibraryScaleRepo: LibraryScaleRepo = new LibraryScaleRepo(
+  lazy val libraryScaleRepo: LibraryScaleRepo = new LibraryScaleRepo(
     libraryUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
-    Some(fileScaleRepo), Some(httpScaleRepo), Some(microtonalistLibraryScaleRepo))
+    Some(fileScaleRepo), Some(httpScaleRepo), Some(libraryScaleRepo))
 
   lazy val compositionFormat: CompositionFormat = new JsonCompositionFormat(
     defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
@@ -61,7 +61,9 @@ class FormatModule(libraryUri: URI,
   lazy val trackFormat: TrackFormat = new JsonTrackFormat(jsonPreprocessor, synchronousAwaitTimeout)
 
   lazy val fileTrackRepo: FileTrackRepo = new FileTrackRepo(trackFormat, synchronousAwaitTimeout)
+  lazy val httpTrackRepo: HttpTrackRepo = new HttpTrackRepo(httpClient, trackFormat, synchronousAwaitTimeout)
+  lazy val libraryTrackRepo: LibraryTrackRepo = new LibraryTrackRepo(libraryUri, fileTrackRepo, httpTrackRepo)
 
-  // TODO #64 Add support for all schemes
-  lazy val defaultTrackRepo: TrackRepo = fileTrackRepo
+  lazy val defaultTrackRepo: TrackRepo = new DefaultTrackRepo(
+    Some(fileTrackRepo), Some(httpTrackRepo), Some(libraryTrackRepo))
 }

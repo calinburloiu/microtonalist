@@ -17,12 +17,12 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
 import scala.concurrent.Future
 
+// TODO #64 Rename libraryUri to libraryBaseUri
 /**
  * Special scale repository implementation that accesses scales from user's configured private Microtonalist Library.
  *
@@ -34,25 +34,23 @@ import scala.concurrent.Future
  * the Microtonalist Library URI `microtonalist:///scales/lydian.scl` used in a scale import will actually point to
  * `/Users/john/Music/microtonalist/lib/scales/lydian.scl`.
  *
- * @param libraryUri    base URI for Microtonalist Library
- * @param fileScaleRepo a [[FileScaleRepo]] instance
- * @param httpScaleRepo an [[HttpScaleRepo]] instance
+ * @param libraryBaseUri base URI for Microtonalist Library
+ * @param fileScaleRepo  a [[FileScaleRepo]] instance
+ * @param httpScaleRepo  an [[HttpScaleRepo]] instance
  */
-class LibraryScaleRepo(libraryUri: URI,
+class LibraryScaleRepo(libraryBaseUri: URI,
                        fileScaleRepo: FileScaleRepo,
-                       httpScaleRepo: HttpScaleRepo) extends ScaleRepo with StrictLogging {
-  logger.info(s"Using Microtonalist library base URI: $libraryUri")
-
+                       httpScaleRepo: HttpScaleRepo) extends ScaleRepo {
   private val repoSelector: RepoSelector[ScaleRepo] = new DefaultRepoSelector(
     Some(fileScaleRepo), Some(httpScaleRepo), None)
 
   override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
-    val resolvedUri = resolveUri(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).read(resolvedUri)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] = {
-    val resolvedUri = resolveUri(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).readAsync(resolvedUri)
   }
 
@@ -60,7 +58,7 @@ class LibraryScaleRepo(libraryUri: URI,
                      uri: URI,
                      mediaType: Option[MediaType],
                      context: Option[ScaleFormatContext] = None): Unit = {
-    val resolvedUri = resolveUri(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).write(scale, resolvedUri, mediaType)
   }
 
@@ -68,17 +66,7 @@ class LibraryScaleRepo(libraryUri: URI,
                           uri: URI,
                           mediaType: Option[MediaType],
                           context: Option[ScaleFormatContext] = None): Future[Unit] = {
-    val resolvedUri = resolveUri(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).writeAsync(scale, resolvedUri, mediaType)
-  }
-
-  private def resolveUri(uri: URI) = {
-    require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
-      "URI must be absolute and have microtonalist scheme!")
-
-    // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
-    val rootUri = uri.resolve("/")
-    val relativeToRootUri = rootUri.relativize(uri)
-    libraryUri.resolve(relativeToRootUri)
   }
 }

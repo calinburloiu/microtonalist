@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -56,6 +56,23 @@ package object format {
       case (None, Some(overrideBaseUriValue)) => Some(overrideBaseUriValue)
       case (None, None) => None
     }
+  }
+
+  /**
+   * Maps a URI with `microtonalist` scheme to the actual URI as configured via `libraryBaseUri`
+   *
+   * @param uri     URI of resource from the library.
+   * @param baseUri Base URI of the library.
+   * @return the actual URI.
+   */
+  def resolveLibraryUri(uri: URI, baseUri: URI): URI = {
+    require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
+      "URI must be absolute and have microtonalist scheme!")
+
+    // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
+    val rootUri = uri.resolve("/")
+    val relativeToRootUri = rootUri.relativize(uri)
+    baseUri.resolve(relativeToRootUri)
   }
 
   lazy val uint7Format: Format[Int] = {
