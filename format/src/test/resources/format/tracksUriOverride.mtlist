@@ -1,0 +1,11 @@
+{
+  "intonationStandard": {
+    "type": "edo",
+    "countPerOctave": 72
+  },
+  "tuningReference": {
+    "basePitchClass": "Bb"
+  },
+  "tunings": [],
+  "tracksUri": "file:///Users/john/tracks.mtlist"
+}

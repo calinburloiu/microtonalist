@@ -91,6 +91,8 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
     composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs.head.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
+
+    composition.tracksUriOverride shouldEqual None
   }
 
   // TODO #68
@@ -200,5 +202,29 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
       quarterToneTolerance = 17.0,
       softChromaticGenusMapping = SoftChromaticGenusMapping.PseudoChromatic
     )
+  }
+
+  it should "populate the URI of a composition when reading it from one" in {
+    val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
+
+    val uri = composition.uri
+    uri.isDefined shouldBe true
+    uri.get.getScheme shouldEqual "file"
+    uri.get.toString should include("minor-major.mtlist")
+
+    composition.tracksUriOverride shouldBe empty
+
+    val tracksUri = composition.tracksUri
+    tracksUri.isDefined shouldBe true
+    tracksUri.get.getScheme shouldEqual "file"
+    tracksUri.get.toString should include("minor-major.mtlist.tracks")
+  }
+
+  it should "read tracksUriOverride" in {
+    val composition = readCompositionFromResources("format/tracksUriOverride.mtlist", compositionRepo)
+
+    val expectedUri = new URI("file:///Users/john/tracks.mtlist")
+    composition.tracksUriOverride should contain(expectedUri)
+    composition.tracksUri should contain(expectedUri)
   }
 }

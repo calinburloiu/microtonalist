@@ -135,7 +135,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
       tuningSpecs = tuningSpecs,
       tuningReducer = tuningReducer,
       fill = fillSpec,
-      metadata = compositionRepr.metadata
+      metadata = compositionRepr.metadata,
+      tracksUriOverride = compositionRepr.tracksUri
     )
   }
 

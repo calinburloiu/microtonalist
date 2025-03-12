@@ -33,7 +33,8 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
                            tuningReference: TuningReference,
                            tunings: Seq[TuningSpecRepr],
                            tuningReducer: Option[TuningReducer] = None,
-                           fill: FillSpecRepr = FillSpecRepr()) {
+                           fill: FillSpecRepr = FillSpecRepr(),
+                           tracksUri: Option[URI] = None) {
 
   var context: CompositionFormatContext = uninitialized
 
