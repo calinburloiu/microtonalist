@@ -17,6 +17,8 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.tuner.*
+import org.calinburloiu.music.microtonalist.tuner.TrackInitSpec.{Cc, CcValue}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 
 import java.io.{InputStream, OutputStream, PrintWriter}
@@ -25,6 +27,7 @@ import javax.sound.midi.MidiMessage
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 class JsonTrackFormat(jsonPreprocessor: JsonPreprocessor,
                       synchronousAwaitTimeout: FiniteDuration = 1 minute) extends TrackFormat {
@@ -86,6 +89,7 @@ private object JsonTrackFormat {
   private implicit val tuningChangerFormat: Format[TuningChanger] = JsonTuningChangerPluginFormat.format
   private implicit val tunerFormat: Format[Tuner] = JsonTunerPluginFormat.format
   private implicit val trackOutputSpecFormat: Format[TrackOutputSpec] = JsonTrackOutputSpecPluginFormat.format
+
   // TODO #64 Add support for CC init messages
   private implicit val initMidiMessagesFormat: Format[Seq[MidiMessage]] = Format(
     Reads {
@@ -97,6 +101,33 @@ private object JsonTrackFormat {
       else JsNull
     }
   )
+  private implicit val initFormat: Format[TrackInitSpec] = JsonTrackInitFormat.initFormat
   private implicit val trackSpecFormat: Format[TrackSpec] = Json.using[Json.WithDefaultValues].format[TrackSpec]
   private implicit val trackSpecsFormat: Format[TrackSpecs] = Json.format[TrackSpecs]
+}
+
+private[format] object JsonTrackInitFormat {
+
+  private[format] val ccReads: Reads[Map[Cc, CcValue]] = {
+    val ccKeyReads: String => JsResult[Cc] = { str =>
+      Try(Integer.parseInt(str)).toOption match {
+        case Some(cc) if 0 <= cc && cc < 128 => JsSuccess(cc)
+        case _ => JsError(JsonError_Uint7)
+      }
+    }
+
+    Reads.mapReads[Cc, CcValue](ccKeyReads)(uint7Format)
+  }
+  private[format] val ccWrites: Writes[Map[Cc, CcValue]] = Writes { map =>
+    val convertedMap = map.map { case (cc, ccValue) => cc.toString -> ccValue }
+    Json.toJson(convertedMap)
+  }
+  private[format] val ccFormat: Format[Map[Cc, CcValue]] = Format(ccReads, ccWrites)
+
+  //@formatter:off
+  private[format] val initFormat: Format[TrackInitSpec] = (
+    (__ \ "programChange").formatNullable[Int](uint7PositiveFormat) and
+    (__ \ "cc").formatWithDefault(Map.empty)(ccFormat)
+  )(TrackInitSpec.apply, Tuple.fromProductTyped)
+  //@formatter:on
 }

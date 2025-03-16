@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import org.calinburloiu.music.microtonalist.tuner.TrackInitSpec.{Cc, CcValue}
+import org.calinburloiu.music.scmidi.ScCcMidiMessage
+
 import javax.sound.midi.MidiMessage
 
 /**
@@ -45,9 +48,21 @@ case class TrackSpec(id: TrackSpec.Id,
                      tuner: Option[Tuner] = None,
                      output: Option[TrackOutputSpec] = None,
                      muted: Boolean = false,
-                     initMidiMessages: Seq[MidiMessage] = Seq.empty) {
+                     initSpec: Option[TrackInitSpec] = None) {
   require(id != null && id.nonEmpty, "id must not be null or empty!")
   require(name != null && name.nonEmpty, "name must not be null or empty!")
+
+  def initMidiMessages: Seq[MidiMessage] = {
+    // TODO #64 Get channel from input/output
+    val channel = 0
+    val ccMessages = for {
+      spec <- initSpec.toSeq
+      (cc, value) <- spec.cc
+    } yield ScCcMidiMessage(channel, cc, value).javaMidiMessage
+
+    // TODO #64 Also output program change and make sure bank select if before it
+    ccMessages
+  }
 }
 
 object TrackSpec {
@@ -55,6 +70,18 @@ object TrackSpec {
    * Type of tracks unique identifiers.
    */
   type Id = String
+}
+
+case class TrackInitSpec(programChange: Option[Int] = None,
+                         cc: Map[Cc, CcValue] = Map.empty) {
+  require(programChange.forall(p => p >= 1 && p <= 128), "Program change must be between 1 and 128!")
+  require(cc.forall { case (cc, value) => cc >= 0 && cc <= 127 && value >= 0 && value <= 127 },
+    "CC values must be between 0 and 127!")
+}
+
+object TrackInitSpec {
+  type Cc = Int
+  type CcValue = Int
 }
 
 /**

@@ -25,6 +25,9 @@ import java.nio.file.{Path, Paths}
 
 package object format {
 
+  val JsonError_Uint7: String = "error.expected.uint7"
+  val JsonError_Uint7Positive: String = "error.expected.uint7.positive"
+
   /**
    * Converts the given [[URI]] to a [[Path]].
    *
@@ -76,7 +79,12 @@ package object format {
   }
 
   lazy val uint7Format: Format[Int] = {
-    val reads = __.read[Int](min(0) keepAnd max(127)) orElse Reads.failed("error.expected.uint7")
+    val reads = __.read[Int](min(0) keepAnd max(127)) orElse Reads.failed(JsonError_Uint7)
+    Format(reads, Writes.IntWrites)
+  }
+
+  lazy val uint7PositiveFormat: Format[Int] = {
+    val reads = __.read[Int](min(1) keepAnd max(128)) orElse Reads.failed(JsonError_Uint7Positive)
     Format(reads, Writes.IntWrites)
   }
 }
