@@ -64,7 +64,7 @@ class TrackManager(private val midiManager: MidiManager,
         val tunerProcessor = trackSpec.tuner.map { tuner => new TunerProcessor(tuner) }
 
         val track = new Track(trackSpec.id, inputDeviceHandle, tuningChangeProcessor, tunerProcessor,
-          outputDeviceHandle, trackSpec.initMidiMessages)
+          outputDeviceHandle)
         Some(track)
       }
     }

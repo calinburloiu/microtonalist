@@ -16,30 +16,22 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.tuner.TrackInitSpec.{Cc, CcValue}
-import org.calinburloiu.music.scmidi.ScCcMidiMessage
-
-import javax.sound.midi.MidiMessage
-
 /**
  * Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and 
  * tuning configuration.
  *
- * @param id               Unique identifier of a track.
- * @param name             User defined name of a track. Character `"#"` will be substituted with the 1-based track
- *                         index. If the
- *                         user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
- * @param input            Plugin used to configure the track input.
- * @param tuningChangers   A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
- *                         not. The decision is of the first one that returns an effective [[TuningChange]], so the 
- *                         decision is taken by an OR operator. Note that if none decides to trigger a change, no change
- *                         will be performed.
- * @param tuner            An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
- * @param output           Plugin used to configure the track output.
- * @param muted            Tells whether the plugin is muted or not.
- * @param initMidiMessages Optional sequence of MIDI message to be initially passed through the track, as if they
- *                         come from the input, that can be used to initialize the MIDI pipeline of the track,
- *                         including [[TuningChanger]]s, the [[Tuner]] and the output.
+ * @param id             Unique identifier of a track.
+ * @param name           User defined name of a track. Character `"#"` will be substituted with the 1-based track
+ *                       index. If the
+ *                       user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
+ * @param input          Plugin used to configure the track input.
+ * @param tuningChangers A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
+ *                       not. The decision is of the first one that returns an effective [[TuningChange]], so the
+ *                       decision is taken by an OR operator. Note that if none decides to trigger a change, no change
+ *                       will be performed.
+ * @param tuner          An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
+ * @param output         Plugin used to configure the track output.
+ * @param muted          Tells whether the plugin is muted or not.
  */
 case class TrackSpec(id: TrackSpec.Id,
                      name: String,
@@ -47,22 +39,9 @@ case class TrackSpec(id: TrackSpec.Id,
                      tuningChangers: Seq[TuningChanger] = Seq.empty,
                      tuner: Option[Tuner] = None,
                      output: Option[TrackOutputSpec] = None,
-                     muted: Boolean = false,
-                     initSpec: Option[TrackInitSpec] = None) {
+                     muted: Boolean = false) {
   require(id != null && id.nonEmpty, "id must not be null or empty!")
   require(name != null && name.nonEmpty, "name must not be null or empty!")
-
-  def initMidiMessages: Seq[MidiMessage] = {
-    // TODO #64 Get channel from input/output
-    val channel = 0
-    val ccMessages = for {
-      spec <- initSpec.toSeq
-      (cc, value) <- spec.cc
-    } yield ScCcMidiMessage(channel, cc, value).javaMidiMessage
-
-    // TODO #64 Also output program change and make sure bank select if before it
-    ccMessages
-  }
 }
 
 object TrackSpec {
@@ -70,18 +49,6 @@ object TrackSpec {
    * Type of tracks unique identifiers.
    */
   type Id = String
-}
-
-case class TrackInitSpec(programChange: Option[Int] = None,
-                         cc: Map[Cc, CcValue] = Map.empty) {
-  require(programChange.forall(p => p >= 1 && p <= 128), "Program change must be between 1 and 128!")
-  require(cc.forall { case (cc, value) => cc >= 0 && cc <= 127 && value >= 0 && value <= 127 },
-    "CC values must be between 0 and 127!")
-}
-
-object TrackInitSpec {
-  type Cc = Int
-  type CcValue = Int
 }
 
 /**

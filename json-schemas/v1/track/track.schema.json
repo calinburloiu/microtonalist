@@ -31,8 +31,7 @@
             "title": "Muted",
             "description": "Tells whether the plugin is muted or not; true if it is, false otherwise.",
             "default": false
-        },
-        "init": { "$ref": "trackInit.schema.json" }
+        }
     },
     "required": ["id", "name"],
     "unevaluatedProperties": false
