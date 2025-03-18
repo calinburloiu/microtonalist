@@ -47,10 +47,13 @@ case class Composition(uri: Option[URI],
 
   def tracksUri: Option[URI] = tracksUriOverride.orElse {
     uri.map { uriValue =>
-      // TODO #64 Put extension in a constant (similar with ScaleFormatMetadata)
-      uriValue.resolve(uriValue.getPath + ".tracks")
+      uriValue.resolve(s"${uriValue.getPath}.${Composition.TracksFileExtension}")
     }
   }
+}
+
+private object Composition {
+  private val TracksFileExtension: String = "tracks"
 }
 
 
