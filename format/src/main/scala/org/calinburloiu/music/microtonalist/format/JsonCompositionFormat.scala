@@ -28,9 +28,13 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
 
 /**
- * Class used for serialization/deserialization of [[Composition]]s in Microtonalist's own JSON format.
+ * A JSON-based implementation of the [[CompositionFormat]] interface for serialization/deserialization of
+ * [[Composition]]s in Microtonalist's own JSON format.
  *
- * @param scaleRepo repository for retrieving scales by URI
+ * @param scaleRepo               Repository for retrieving scales by URI.
+ * @param jsonPreprocessor        A preprocessor instance that can replace JSON references.
+ * @param jsonScaleFormat         Provides functionality to parse musical scales from JSON.
+ * @param synchronousAwaitTimeout The timeout duration for synchronous operations that rely on asynchronous calls.
  */
 class JsonCompositionFormat(scaleRepo: ScaleRepo,
                             jsonPreprocessor: JsonPreprocessor,

@@ -21,6 +21,22 @@ import org.calinburloiu.music.microtonalist.tuner.{TrackRepo, TrackSpecs}
 import java.net.URI
 import scala.concurrent.Future
 
+/**
+ * Special track specification repository implementation that accesses scales from user's configured private
+ * Microtonalist Library.
+ *
+ * The user can configure a base URI for the library, `libraryBaseUri`, which can be a file system path or a remote HTTP
+ * URL. Scales can then be imported by using a special URI with format `microtonalist:///<path-in-library>`, where
+ * `<path-in-library>` is relative to the configured base URI.
+ *
+ * For example, if the user configures `file:///Users/john/Music/microtonalist/lib/` as the base URI for the library,
+ * the Microtonalist Library URI `microtonalist:///tracks/default.mtlist.tracks` used as a tracks file URI will
+ * actually point to `/Users/john/Music/microtonalist/lib/tracks/default.mtlist.tracks`.
+ *
+ * @param libraryBaseUri base URI for Microtonalist Library
+ * @param fileTrackRepo  a [[FileTrackRepo]] instance
+ * @param httpTrackRepo  an [[HttpTrackRepo]] instance
+ */
 class LibraryTrackRepo(libraryBaseUri: URI,
                        fileTrackRepo: FileTrackRepo,
                        httpTrackRepo: HttpTrackRepo) extends TrackRepo {

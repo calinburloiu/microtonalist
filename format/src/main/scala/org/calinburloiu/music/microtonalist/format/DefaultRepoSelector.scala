@@ -18,6 +18,16 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 
+/**
+ * Default implementation of the `RepoSelector` trait for selecting repositories based on URI schemes.
+ *
+ * @param fileRepo      Optional repository instance for handling URIs with the `file` scheme or no scheme.
+ * @param httpRepo      Optional repository instance for handling URIs with the `http` or `https` scheme.
+ * @param libraryRepo   Optional repository instance for handling URIs with the `microtonalist` scheme.
+ * @param onNoRepoFound A function defining the behavior when no repository is found for a given URI.
+ *                      Defaults to throwing an `IllegalArgumentException`.
+ * @tparam R The type of the repositories being selected.
+ */
 class DefaultRepoSelector[R](fileRepo: Option[R],
                              httpRepo: Option[R],
                              libraryRepo: Option[R],

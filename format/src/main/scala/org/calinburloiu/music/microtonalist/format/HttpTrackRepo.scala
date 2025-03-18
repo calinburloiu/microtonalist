@@ -29,6 +29,15 @@ import scala.concurrent.{Await, Future}
 import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.{Failure, Success}
 
+/**
+ * A concrete implementation of the [[TrackRepo]] trait that retrieves and persists track specifications
+ * via HTTP.
+ *
+ * @param httpClient              The HTTP client used for sending HTTP requests.
+ * @param trackFormat             Format object used to read and write track specifications.
+ * @param synchronousAwaitTimeout The maximum duration to wait for asynchronous operations to complete when used 
+ *                                synchronously.
+ */
 class HttpTrackRepo(httpClient: HttpClient,
                     trackFormat: TrackFormat,
                     synchronousAwaitTimeout: FiniteDuration = 1 minute) extends TrackRepo with StrictLogging {

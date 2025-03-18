@@ -18,8 +18,25 @@ package org.calinburloiu.music.microtonalist.format
 
 import java.net.URI
 
+/**
+ * A trait for selecting a repository instance based on a provided URI.
+ *
+ * @tparam R The type of the repository being selected.
+ */
 trait RepoSelector[R] {
+  /**
+   * Selects a repository instance based on the provided URI.
+   *
+   * @param uri The URI used to identify the repository instance.
+   * @return An optional repository instance matching the given URI.
+   */
   def selectRepo(uri: URI): Option[R]
 
+  /**
+   * Selects a repository instance corresponding to the provided URI or throws an exception if no repository is found.
+   *
+   * @param uri The URI used to identify the repository instance.
+   * @return The repository instance matching the given URI.
+   */
   def selectRepoOrThrow(uri: URI): R
 }

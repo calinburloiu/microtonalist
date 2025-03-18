@@ -25,6 +25,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
 
+/**
+ * A tracks file format implementation used for serialization/deserialization in JSON format.
+ *
+ * @param jsonPreprocessor        A preprocessor instance that can replace JSON references.
+ * @param synchronousAwaitTimeout Duration used as the timeout for synchronous operations.
+ */
 class JsonTrackFormat(jsonPreprocessor: JsonPreprocessor,
                       synchronousAwaitTimeout: FiniteDuration = 1 minute) extends TrackFormat {
 
