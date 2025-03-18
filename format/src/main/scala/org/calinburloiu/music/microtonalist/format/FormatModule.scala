@@ -22,7 +22,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class FormatModule(libraryUri: URI,
+class FormatModule(libraryBaseUri: URI,
                    synchronousAwaitTimeout: FiniteDuration = 1 minute) {
   lazy val jsonPreprocessor: JsonPreprocessor = new JsonPreprocessor(
     Seq(jsonPreprocessorFileRefLoader, jsonPreprocessorHttpRefLoader)
@@ -42,7 +42,7 @@ class FormatModule(libraryUri: URI,
   lazy val fileScaleRepo: FileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
   lazy val httpScaleRepo: HttpScaleRepo = new HttpScaleRepo(httpClient, scaleFormatRegistry)
   lazy val libraryScaleRepo: LibraryScaleRepo = new LibraryScaleRepo(
-    libraryUri, fileScaleRepo, httpScaleRepo)
+    libraryBaseUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
     Some(fileScaleRepo), Some(httpScaleRepo), Some(libraryScaleRepo))
@@ -62,7 +62,7 @@ class FormatModule(libraryUri: URI,
 
   lazy val fileTrackRepo: FileTrackRepo = new FileTrackRepo(trackFormat, synchronousAwaitTimeout)
   lazy val httpTrackRepo: HttpTrackRepo = new HttpTrackRepo(httpClient, trackFormat, synchronousAwaitTimeout)
-  lazy val libraryTrackRepo: LibraryTrackRepo = new LibraryTrackRepo(libraryUri, fileTrackRepo, httpTrackRepo)
+  lazy val libraryTrackRepo: LibraryTrackRepo = new LibraryTrackRepo(libraryBaseUri, fileTrackRepo, httpTrackRepo)
 
   lazy val defaultTrackRepo: TrackRepo = new DefaultTrackRepo(
     Some(fileTrackRepo), Some(httpTrackRepo), Some(libraryTrackRepo))

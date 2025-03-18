@@ -22,11 +22,10 @@ import org.calinburloiu.music.intonation.{Interval, Scale}
 import java.net.URI
 import scala.concurrent.Future
 
-// TODO #64 Rename libraryUri to libraryBaseUri
 /**
  * Special scale repository implementation that accesses scales from user's configured private Microtonalist Library.
  *
- * The user can configure a base URI for the library, `libraryUri`, which can be a file system path or a remote HTTP
+ * The user can configure a base URI for the library, `libraryBaseUri`, which can be a file system path or a remote HTTP
  * URL. Scales can then be imported by using a special URI with format `microtonalist:///<path-in-library>`, where
  * `<path-in-library>` is relative to the configured base URI.
  *

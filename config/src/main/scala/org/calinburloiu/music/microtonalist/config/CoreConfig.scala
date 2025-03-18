@@ -24,7 +24,7 @@ import org.calinburloiu.music.microtonalist.common.{PlatformUtils, parseUriOrPat
 import java.net.URI
 import java.nio.file.Paths
 
-case class CoreConfig(libraryUri: URI = CoreConfig.defaultLibraryUri,
+case class CoreConfig(libraryBaseUri: URI = CoreConfig.defaultLibraryUri,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
@@ -57,14 +57,14 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
     )
 
     hoconConfig
-      .withAnyRefValue("libraryUri", config.libraryUri.toString)
+      .withAnyRefValue("libraryBaseUri", config.libraryBaseUri.toString)
       .withAnyRefValue("metaConfig", metaConfigMap)
   }
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
-    libraryUri = hoconConfig.getAs[String]("libraryUri")
+    libraryBaseUri = hoconConfig.getAs[String]("libraryBaseUri")
       .map(uri => parseUriOrPath(uri).getOrElse(throw new ConfigPropertyException(
-        s"$configRootPath.libraryUri", "must be a valid URI or a local path")))
+        s"$configRootPath.libraryBaseUri", "must be a valid URI or a local path")))
       .getOrElse(CoreConfig.defaultLibraryUri),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
