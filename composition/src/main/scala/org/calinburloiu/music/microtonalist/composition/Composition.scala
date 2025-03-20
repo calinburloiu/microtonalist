@@ -52,7 +52,7 @@ case class Composition(uri: Option[URI],
   }
 }
 
-private object Composition {
+object Composition {
   private val TracksFileExtension: String = "tracks"
 }
 
