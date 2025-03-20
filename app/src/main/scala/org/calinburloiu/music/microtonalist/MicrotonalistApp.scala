@@ -84,7 +84,7 @@ object MicrotonalistApp extends StrictLogging {
 
     val trackSpecs = composition.tracksUri
       .map(formatModule.defaultTrackRepo.readTracks)
-      .getOrElse(TrackSpecs())
+      .getOrElse(TrackSpecs.Default)
 
     val tunerModule = new TunerModule(businessync)
     tunerModule.trackService.replaceAllTracks(trackSpecs)

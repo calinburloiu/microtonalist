@@ -28,7 +28,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
   private val sampleTracks = TrackSpecs(Seq(
     makeTrack("Piano"), makeTrack("Synth"), makeTrack("Bass"), makeTrack("Percussion", withTrackNo = false)))
 
-  abstract class Fixture(tracks: TrackSpecs = TrackSpecs()) {
+  abstract class Fixture(tracks: TrackSpecs = TrackSpecs.Default) {
     val trackManagerMock: TrackManager = mock[TrackManager]
     val businessyncMock: Businessync = mock[Businessync]
 

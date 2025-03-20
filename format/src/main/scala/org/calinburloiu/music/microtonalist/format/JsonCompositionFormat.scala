@@ -133,7 +133,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     val fillSpec = convertFillSpec(compositionRepr.fill)
 
     Composition(
-      context.uri,
+      uri = context.uri,
       intonationStandard = context.intonationStandard,
       tuningReference = tuningReference,
       tuningSpecs = tuningSpecs,

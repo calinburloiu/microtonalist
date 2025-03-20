@@ -57,7 +57,7 @@ object TrackSpec {
  *
  * @param tracks The sequence of track items.
  */
-case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
+case class TrackSpecs(tracks: Seq[TrackSpec]) {
 
   private val trackIndexById: Map[TrackSpec.Id, Int] = tracks.zipWithIndex.map {
     case (track, index) => track.id -> index
@@ -236,4 +236,8 @@ case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
     case None => this
     case Some(index) => copy(tracks = tracks.patch(index, Seq.empty, 1))
   }
+}
+
+object TrackSpecs {
+  val Default = TrackSpecs(Seq.empty)
 }

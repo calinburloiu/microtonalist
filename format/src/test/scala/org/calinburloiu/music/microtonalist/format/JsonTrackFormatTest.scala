@@ -16,4 +16,32 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-class JsonTrackFormatTest extends JsonFormatTestUtils
+import com.fasterxml.jackson.core.JsonParseException
+import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readTracksFromResources
+import org.calinburloiu.music.microtonalist.tuner.TrackRepo
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class JsonTrackFormatTest extends AnyFlatSpec with Matchers {
+  private val trackFormat: TrackFormat = new JsonTrackFormat(NoJsonPreprocessor)
+  private val trackRepo: TrackRepo = {
+    val fileTrackRepo = new FileTrackRepo(trackFormat)
+
+    new DefaultTrackRepo(Some(fileTrackRepo), None, None)
+  }
+
+  it should "read a basic tracks file" in {
+    val tracks = readTracksFromResources("format/tracks/basic.mtlist.tracks", trackRepo)
+
+    // TODO #64 Add assertions
+    tracks
+  }
+
+  it should "fail to read a file that is not a JSON" in assertThrows[JsonParseException] {
+    readTracksFromResources("format/scales/chromatic.scl", trackRepo)
+  }
+
+  it should "fail to read a JSON file with another format" in assertThrows[InvalidTrackFormatException] {
+    readTracksFromResources("format/scales/minor-just.jscl", trackRepo)
+  }
+}
