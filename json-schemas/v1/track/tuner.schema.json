@@ -18,7 +18,8 @@
                         { "$ref": "uint7.schema.json" },
                         {
                             "title": "Semitone Count",
-                            "description": "The number of semitones for the pitch bend range (0-127). This defines the integer part of the range."
+                            "description": "The number of semitones for the pitch bend range (0-127). This defines the integer part of the range.",
+                            "default": 2
                         }
                     ]
                 },
@@ -27,11 +28,13 @@
                         { "$ref": "uint7.schema.json" },
                         {
                             "title": "Cent Count",
-                            "description": "The additional pitch bend range in cents (0-127). This adds fractional precision to the semitone value."
+                            "description": "The additional pitch bend range in cents (0-127). This adds fractional precision to the semitone value.",
+                            "default": 0
                         }
                     ]
                 }
             },
+            "required": ["semitoneCount"],
             "unevaluatedProperties": false
         },
         "monophonicPitchBendSettings": {
