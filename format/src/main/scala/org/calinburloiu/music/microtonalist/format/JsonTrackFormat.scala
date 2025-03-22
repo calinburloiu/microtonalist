@@ -21,11 +21,16 @@ import play.api.libs.json.*
 
 import java.io.{InputStream, OutputStream, PrintWriter}
 import java.net.URI
-import javax.sound.midi.MidiMessage
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
 
+/**
+ * A tracks file format implementation used for serialization/deserialization in JSON format.
+ *
+ * @param jsonPreprocessor        A preprocessor instance that can replace JSON references.
+ * @param synchronousAwaitTimeout Duration used as the timeout for synchronous operations.
+ */
 class JsonTrackFormat(jsonPreprocessor: JsonPreprocessor,
                       synchronousAwaitTimeout: FiniteDuration = 1 minute) extends TrackFormat {
 
@@ -86,17 +91,7 @@ private object JsonTrackFormat {
   private implicit val tuningChangerFormat: Format[TuningChanger] = JsonTuningChangerPluginFormat.format
   private implicit val tunerFormat: Format[Tuner] = JsonTunerPluginFormat.format
   private implicit val trackOutputSpecFormat: Format[TrackOutputSpec] = JsonTrackOutputSpecPluginFormat.format
-  // TODO #64 Add support for CC init messages
-  private implicit val initMidiMessagesFormat: Format[Seq[MidiMessage]] = Format(
-    Reads {
-      case JsNull => JsSuccess(Seq.empty)
-      case _ => JsError("error.notImplemented")
-    },
-    Writes { (initMidiMessages: Seq[MidiMessage]) =>
-      if (initMidiMessages.nonEmpty) throw new NotImplementedError("Writing init MIDI messages is not supported yet!")
-      else JsNull
-    }
-  )
+
   private implicit val trackSpecFormat: Format[TrackSpec] = Json.using[Json.WithDefaultValues].format[TrackSpec]
   private implicit val trackSpecsFormat: Format[TrackSpecs] = Json.format[TrackSpecs]
 }

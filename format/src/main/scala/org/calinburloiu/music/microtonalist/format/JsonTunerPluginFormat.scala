@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
@@ -33,7 +33,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   //@formatter:off
   private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = (
     (__ \ "semitoneCount").format[Int](uint7Format) and
-    (__ \ "centCount").format[Int](uint7Format)
+    (__ \ "centCount").formatWithDefault[Int](0)(uint7Format)
   )(PitchBendSensitivity.apply, Tuple.fromProductTyped)
 
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (

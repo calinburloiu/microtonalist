@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ class CoreConfigTest extends SubConfigTest[CoreConfig, CoreConfigManager] {
   override lazy val subConfigManager: CoreConfigManager = mainConfigManager.coreConfigManager
 
   override lazy val expectedSubConfigRead: CoreConfig = CoreConfig(
-    libraryUri = new URI("file:///Users/johnny/Music/microtonalist/lib/scales/"),
+    libraryBaseUri = new URI("file:///Users/johnny/Music/microtonalist/lib/scales/"),
     metaConfig = MetaConfig(
       saveIntervalMillis = 2000,
       saveOnExit = false
@@ -38,7 +38,7 @@ class CoreConfigTest extends SubConfigTest[CoreConfig, CoreConfigManager] {
       )
     ),
     expectedSubConfigRead.copy(
-      libraryUri = new URI("file:///tmp/scales/")
+      libraryBaseUri = new URI("file:///tmp/scales/")
     )
   )
 }
@@ -48,7 +48,7 @@ class CoreConfigDefaultsTest extends CoreConfigTest {
   override def configResource: String = SubConfigTest.defaultConfigResourceWithDefaults
 
   override lazy val expectedSubConfigRead: CoreConfig = CoreConfig(
-    libraryUri = CoreConfig.defaultLibraryUri,
+    libraryBaseUri = CoreConfig.defaultLibraryUri,
     metaConfig = MetaConfig(
       saveIntervalMillis = 5000,
       saveOnExit = true

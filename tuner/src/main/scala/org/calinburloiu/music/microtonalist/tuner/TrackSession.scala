@@ -34,7 +34,7 @@ import javax.annotation.concurrent.NotThreadSafe
 class TrackSession(trackManager: TrackManager,
                    businessync: Businessync) extends OpenableSession {
   private var _uri: Option[URI] = None
-  private var _tracks: TrackSpecs = TrackSpecs()
+  private var _tracks: TrackSpecs = TrackSpecs.Default
 
   /**
    * Opens a session with the tracks loaded from the given URI.

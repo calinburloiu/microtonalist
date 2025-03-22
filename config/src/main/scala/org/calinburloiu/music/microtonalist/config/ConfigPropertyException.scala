@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.config
 /**
  * Exception thrown when an error occurred while deserializing a config property.
  *
- * @param propertyPath               HOCON config property path (e.g. `"core.libraryUri"`)
+ * @param propertyPath HOCON config property path (e.g. `"core.libraryBaseUri"`)
  * @param propertyRequirementMessage message that describes the requirement for the above property (e.g. "must be a
  *                                   valid URI or file system path")
  */

@@ -1,0 +1,100 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/track/tracks.schema.json",
+    "tracks": [
+        {
+            "id": "piano",
+            "name": "# Piano",
+            "input": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - IAC 1",
+                    "vendor": "Apple Inc."
+                }
+            },
+            "tuningChangers": [
+                "pedal"
+            ],
+            "tuner": "mtsOctave1ByteNonRealTime",
+            "output": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - Roland Digital Piano",
+                    "vendor": "Roland"
+                }
+            }
+        },
+        {
+            "id": "piano-tuning-pedals",
+            "name": "# Piano Tuning Pedals",
+            "input": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - Roland Digital Piano",
+                    "vendor": "Roland"
+                }
+            },
+            "tuningChangers": [
+                "pedal"
+            ],
+            "muted": false
+        },
+        {
+            "id": "synthA",
+            "name": "# Synth A",
+            "input": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - Seaboard BLOCK M",
+                    "vendor": "ROLI Ltd."
+                }
+            },
+            "tuner": {
+                "type": "monophonicPitchBend",
+                "pitchBendSensitivity": {
+                    "semitoneCount": 48
+                }
+            },
+            "output": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - IAC 2",
+                    "vendor": "Apple Inc."
+                }
+            },
+            "muted": false
+        },
+        {
+            "id": "neova",
+            "name": "# Neova Ring",
+            "input": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - Neova",
+                    "vendor": "Enhancia"
+                }
+            },
+            "output": {
+                "type": "track",
+                "trackId": "synthB"
+            },
+            "muted": true
+        },
+        {
+            "id": "synthB",
+            "name": "# Synth B",
+            "input": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - Roland Digital Piano",
+                    "vendor": "Roland"
+                }
+            },
+            "tuner": {
+                "type": "monophonicPitchBend",
+                "pitchBendSensitivity": {
+                    "semitoneCount": 2
+                }
+            },
+            "output": {
+                "midiDeviceId": {
+                    "name": "CoreMIDI4J - IAC 2",
+                    "vendor": "Apple Inc."
+                }
+            },
+            "muted": true
+        }
+    ]
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.Composition
+import org.calinburloiu.music.microtonalist.tuner.{TrackRepo, TrackSpecs}
 
 /**
  * Utilities used for testing the I/O formats.
@@ -27,6 +28,10 @@ object FormatTestUtils {
 
   def readCompositionFromResources(resourcePathString: String, compositionRepo: CompositionRepo): Composition = {
     compositionRepo.read(CommonTestUtils.uriOfResource(resourcePathString))
+  }
+
+  def readTracksFromResources(resourcePathString: String, trackRepo: TrackRepo): TrackSpecs = {
+    trackRepo.readTracks(CommonTestUtils.uriOfResource(resourcePathString))
   }
 
   def readScaleFromResources(resourcePathString: String,

@@ -122,7 +122,7 @@ object PedalTuningChanger {
 
   val TypeName: String = "pedal"
 
-  val DefaultTuningChangeTriggers: TuningChangeTriggers[Cc] = TuningChangeTriggers(
+  val DefaultTriggers: TuningChangeTriggers[Cc] = TuningChangeTriggers(
     previous = Some(ScCcMidiMessage.SoftPedal),
     next = Some(ScCcMidiMessage.SostenutoPedal)
   )

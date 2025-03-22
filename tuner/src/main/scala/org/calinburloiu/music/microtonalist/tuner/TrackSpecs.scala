@@ -16,27 +16,22 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import javax.sound.midi.MidiMessage
-
 /**
  * Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and 
  * tuning configuration.
  *
- * @param id               Unique identifier of a track.
- * @param name             User defined name of a track. Character `"#"` will be substituted with the 1-based track
- *                         index. If the
- *                         user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
- * @param input            Plugin used to configure the track input.
- * @param tuningChangers   A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
- *                         not. The decision is of the first one that returns an effective [[TuningChange]], so the 
- *                         decision is taken by an OR operator. Note that if none decides to trigger a change, no change
- *                         will be performed.
- * @param tuner            An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
- * @param output           Plugin used to configure the track output.
- * @param muted            Tells whether the plugin is muted or not.
- * @param initMidiMessages Optional sequence of MIDI message to be initially passed through the track, as if they
- *                         come from the input, that can be used to initialize the MIDI pipeline of the track,
- *                         including [[TuningChanger]]s, the [[Tuner]] and the output.
+ * @param id             Unique identifier of a track.
+ * @param name           User defined name of a track. Character `"#"` will be substituted with the 1-based track
+ *                       index. If the
+ *                       user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
+ * @param input          Plugin used to configure the track input.
+ * @param tuningChangers A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
+ *                       not. The decision is of the first one that returns an effective [[TuningChange]], so the
+ *                       decision is taken by an OR operator. Note that if none decides to trigger a change, no change
+ *                       will be performed.
+ * @param tuner          An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
+ * @param output         Plugin used to configure the track output.
+ * @param muted          Tells whether the plugin is muted or not.
  */
 case class TrackSpec(id: TrackSpec.Id,
                      name: String,
@@ -44,8 +39,7 @@ case class TrackSpec(id: TrackSpec.Id,
                      tuningChangers: Seq[TuningChanger] = Seq.empty,
                      tuner: Option[Tuner] = None,
                      output: Option[TrackOutputSpec] = None,
-                     muted: Boolean = false,
-                     initMidiMessages: Seq[MidiMessage] = Seq.empty) {
+                     muted: Boolean = false) {
   require(id != null && id.nonEmpty, "id must not be null or empty!")
   require(name != null && name.nonEmpty, "name must not be null or empty!")
 }
@@ -63,7 +57,7 @@ object TrackSpec {
  *
  * @param tracks The sequence of track items.
  */
-case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
+case class TrackSpecs(tracks: Seq[TrackSpec]) {
 
   private val trackIndexById: Map[TrackSpec.Id, Int] = tracks.zipWithIndex.map {
     case (track, index) => track.id -> index
@@ -242,4 +236,8 @@ case class TrackSpecs(tracks: Seq[TrackSpec] = Seq.empty) {
     case None => this
     case Some(index) => copy(tracks = tracks.patch(index, Seq.empty, 1))
   }
+}
+
+object TrackSpecs {
+  val Default = TrackSpecs(Seq.empty)
 }

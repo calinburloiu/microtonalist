@@ -88,7 +88,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   }
 
   private def sendToReceiver(messages: Seq[MidiMessage], timeStamp: Long): Unit = {
-    // TODO #64 Handle the try differently
+    // TODO #97 Handle the try differently
     try {
       for (message <- messages) {
         receiver.send(message, timeStamp)

@@ -19,9 +19,18 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiDeviceId
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 
+/**
+ * Abstract class extending [[JsonPluginFormat]] to handle JSON serialization and deserialization
+ * for plugins related to MIDI track input/output.
+ *
+ * This class provides utility methods to create `TypeSpec` definitions for devices and inter-track
+ * configurations, facilitating (de)serialization of associated plugin data.
+ *
+ * @tparam P A type parameter bounded by [[TrackIOSupport]] to specify the supported plugin type.
+ */
 abstract class JsonTrackIOPluginFormat[P <: TrackIOSupport] extends JsonPluginFormat[P] {
 
   import JsonTrackIOPluginFormat.*
@@ -38,6 +47,9 @@ abstract class JsonTrackIOPluginFormat[P <: TrackIOSupport] extends JsonPluginFo
   )(Tuple2.apply, identity)
   //@formatter:on
 
+  /**
+   * Creates a TypeSpec instance for track devices with serialization and deserialization settings.
+   */
   protected def makeDeviceTypeSpec[T <: P](typeName: String,
                                            javaClass: Class[T],
                                            apply: DeviceParamsTuple => T,
@@ -55,6 +67,9 @@ abstract class JsonTrackIOPluginFormat[P <: TrackIOSupport] extends JsonPluginFo
     )
   }
 
+  /**
+   * Creates a TypeSpec instance for inter-track I/O operations with serialization and deserialization settings.
+   */
   protected def makeInterTrackTypeSpec[T <: P](typeName: String,
                                                javaClass: Class[T],
                                                apply: InterTrackParamsTuple => T,
@@ -78,6 +93,10 @@ object JsonTrackIOPluginFormat {
   protected type InterTrackParamsTuple = (TrackSpec.Id, Option[Int])
 }
 
+/**
+ * JSON format handler for [[TrackInputSpec]] plugins, providing serialization and deserialization support
+ * for various track input specifications.
+ */
 object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInputSpec] {
   override val familyName: String = TrackInputSpec.FamilyName
 
@@ -99,7 +118,10 @@ object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInput
   )
 }
 
-
+/**
+ * JSON format handler for [[TrackOutputSpec]] plugins, providing serialization and deserialization support
+ * for various track output specifications.
+ */
 object JsonTrackOutputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackOutputSpec] {
   override val familyName: String = TrackOutputSpec.FamilyName
 

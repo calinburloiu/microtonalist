@@ -77,17 +77,14 @@ object MicrotonalistApp extends StrictLogging {
     val businessync = new Businessync(eventBus)
     val mainConfigManager = MainConfigManager(configPath)
 
-    val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryUri)
+    val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryBaseUri)
 
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
 
-    val tracksUri = composition.tracksUri
-    val trackSpecs = if (composition.uri.exists(_.getScheme == "file") && tracksUri.isDefined) {
-      formatModule.defaultTrackRepo.readTracks(tracksUri.get)
-    } else {
-      MidiConfigsTrackSpecsFactory.read(mainConfigManager)
-    }
+    val trackSpecs = composition.tracksUri
+      .map(formatModule.defaultTrackRepo.readTracks)
+      .getOrElse(TrackSpecs.Default)
 
     val tunerModule = new TunerModule(businessync)
     tunerModule.trackService.replaceAllTracks(trackSpecs)
