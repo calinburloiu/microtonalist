@@ -51,7 +51,7 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
     (__ \ "pitchBendSensitivity" \ "semitoneCount", DisallowedValues(JsNumber(-1)), "error.expected.uint7"),
     (__ \ "pitchBendSensitivity" \ "semitoneCount", DisallowedValues(JsNumber(128)), "error.expected.uint7"),
 
-    (__ \ "pitchBendSensitivity" \ "centCount", AllowedTypes(JsonNumberType), "error.expected.uint7"),
+    (__ \ "pitchBendSensitivity" \ "centCount", AllowedTypes(JsonNumberType, JsonNullType), "error.expected.uint7"),
     (__ \ "pitchBendSensitivity" \ "centCount", DisallowedValues(JsNumber(-1)), "error.expected.uint7"),
     (__ \ "pitchBendSensitivity" \ "centCount", DisallowedValues(JsNumber(128)), "error.expected.uint7")
   )
