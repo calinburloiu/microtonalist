@@ -96,7 +96,10 @@ class TrackManager(private val midiManager: MidiManager,
       case DeviceTrackInputSpec(midiDeviceId, _) =>
         if (midiManager.isInputAvailable(midiDeviceId)) Some(midiManager.openInput(midiDeviceId))
         else None
-      case _ => ???
+      case _ =>
+        // TODO #97
+        logger.info(s"Unimplemented track input ${trackSpec.input.get}")
+        None
     }
   }
 
@@ -105,7 +108,10 @@ class TrackManager(private val midiManager: MidiManager,
       case DeviceTrackOutputSpec(midiDeviceId, _) =>
         if (midiManager.isOutputAvailable(midiDeviceId)) Some(midiManager.openOutput(midiDeviceId))
         else None
-      case _ => ???
+      case _ =>
+        // TODO #97
+        logger.info(s"Unimplemented track output ${trackSpec.output.get}")
+        None
     }
   }
 

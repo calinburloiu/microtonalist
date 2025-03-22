@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import javax.sound.midi.{MidiMessage, Receiver}
  */
 class MidiSerialProcessor(processors: Seq[MidiProcessor])
   extends MidiProcessor with StrictLogging {
-  require(processors.nonEmpty, "there should be at least 1 processor")
 
   def this(processors: Seq[MidiProcessor], initialReceiver: Receiver) = {
     this(processors)
@@ -35,7 +34,7 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
   }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    processors.head.send(message, timeStamp)
+    processors.headOption.foreach(_.send(message, timeStamp))
   }
 
   override def close(): Unit = {
