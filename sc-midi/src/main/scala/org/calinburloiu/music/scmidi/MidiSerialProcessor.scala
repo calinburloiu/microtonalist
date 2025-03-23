@@ -21,7 +21,11 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
- * A [[MidiProcessor]] that can execute a chain of other [[MidiProcessor]]s.
+ * A [[MidiProcessor]] that connects a sequence of [[MidiProcessor]]s in a chain ending with the [[Receiver]] set.
+ *
+ * {{{
+ *   MidiProcessor -> MidiProcessor -> ... -> MidiProcessor -> Receiver
+ * }}}
  *
  * @param processors [[MidiProcessor]]s to execute in sequence
  */
