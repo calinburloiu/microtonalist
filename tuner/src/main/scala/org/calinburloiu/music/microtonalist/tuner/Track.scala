@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor, MidiSplitter}
 
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
@@ -35,14 +35,15 @@ class Track(val id: TrackSpec.Id,
             outputDeviceHandle: Option[MidiDeviceHandle],
             initMidiMessages: Seq[MidiMessage] = Seq.empty) extends Receiver with Runnable with StrictLogging {
 
+  private val outputSplitter: MidiSplitter = new MidiSplitter
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, tunerProcessor).flatten)
+    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputSplitter)
 
   inputDeviceHandle.foreach(_.transmitter.setReceiver(this))
 
   private val outputReceiver: Option[Receiver] = outputDeviceHandle.map(_.receiver)
   outputReceiver.foreach { receiver =>
-    pipeline.receiver = receiver
+    outputSplitter.addReceiver(receiver)
   }
 
   sendInitMidiMessages()
@@ -56,16 +57,6 @@ class Track(val id: TrackSpec.Id,
     pipeline.send(message, timeStamp)
   }
 
-  /**
-   * Tunes the output instrument using the provided tuning.
-   *
-   * @param tuning The tuning to be applied.
-   */
-  def tune(tuning: Tuning): Unit = {
-    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
-    tunerProcessor.foreach(_.tune(tuning))
-  }
-
   override def close(): Unit = {
     logger.info(s"Closing track $id...")
 
@@ -74,6 +65,16 @@ class Track(val id: TrackSpec.Id,
 
     inputDeviceHandle.foreach(_.midiDevice.close())
     outputDeviceHandle.foreach(_.midiDevice.close())
+  }
+
+  /**
+   * Tunes the output instrument using the provided tuning.
+   *
+   * @param tuning The tuning to be applied.
+   */
+  def tune(tuning: Tuning): Unit = {
+    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
+    tunerProcessor.foreach(_.tune(tuning))
   }
 
   private def sendInitMidiMessages(): Unit = {

@@ -52,7 +52,9 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
     for (i <- 1 until size) {
       processors(i - 1).receiver = processors(i)
     }
-    processors(size - 1).receiver = receiver
+    if (size > 0) {
+      processors(size - 1).receiver = receiver
+    }
   }
 
   override protected def onDisconnect(): Unit = {}
