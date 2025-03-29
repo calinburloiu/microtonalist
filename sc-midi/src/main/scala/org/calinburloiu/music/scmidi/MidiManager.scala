@@ -185,8 +185,6 @@ object MidiManager {
     private val openedDevicesMap = TrieMap[MidiDeviceId, MidiDeviceHandle]()
 
     def updateDevices(deviceHandles: Iterable[MidiDeviceHandle]): Unit = {
-      val currentIds = deviceHandles.map(_.id).toSet
-
       // New devices
       for (currentDeviceHandle <- deviceHandles; id = currentDeviceHandle.id if !devicesIdToInfo.contains(id)) {
         devicesIdToInfo.update(id, currentDeviceHandle.info)
@@ -195,6 +193,7 @@ object MidiManager {
       }
 
       // Removed devices
+      val currentIds = deviceHandles.map(_.id).toSet
       for (previousId <- devicesIdToInfo.keys if !currentIds.contains(previousId)) {
         devicesIdToInfo.remove(previousId)
         logger.info(s"${endpointType.toString.capitalize} device $previousId was removed.")
