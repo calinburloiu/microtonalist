@@ -34,31 +34,31 @@ abstract sealed class MidiEvent extends BusinessyncEvent
 case object MidiEnvironmentChangedEvent extends MidiEvent
 
 /**
- * Event representing the addition of a new MIDI device.
+ * Event emitted when a new MIDI device is connected (added) to the system.
  *
- * Note that this event does not tell that the device was also connected in the application.
+ * Note that this event does not tell that the device was also opened by the application.
  *
  * @param deviceId Unique identifier of the newly added MIDI device.
- */
-case class MidiDeviceAddedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-/**
- * Represents an event indicating that a MIDI device has been removed.
- *
- * @param deviceId Identifier of the MIDI device that was removed.
- */
-case class MidiDeviceRemovedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-/**
- * Event representing the connection of a MIDI device.
- *
- * @param deviceId The unique identifier of the connected MIDI device.
  */
 case class MidiDeviceConnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
 
 /**
- * Event emitted when a MIDI device is disconnected.
+ * Event emitted when an existing MIDI device is disconnected (removed) from the system.
  *
- * @param deviceId Identifier of the MIDI device that has been disconnected.
+ * @param deviceId Identifier of the MIDI device that was removed.
  */
 case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+/**
+ * Event emitted when a MIDI device is opened.
+ *
+ * @param deviceId The unique identifier of the opened MIDI device.
+ */
+case class MidiDeviceOpenedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+/**
+ * Event emitted when a MIDI device is closed.
+ *
+ * @param deviceId Identifier of the MIDI device that has been closed.
+ */
+case class MidiDeviceClosedEvent(deviceId: MidiDeviceId) extends MidiEvent

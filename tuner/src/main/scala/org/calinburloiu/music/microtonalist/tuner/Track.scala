@@ -63,8 +63,8 @@ class Track(val id: TrackSpec.Id,
     logger.info(s"Switching back to 12-EDO for track $id...")
     tune(Tuning.Standard)
 
-    inputDeviceHandle.foreach(_.midiDevice.close())
-    outputDeviceHandle.foreach(_.midiDevice.close())
+    inputDeviceHandle.foreach(_.close())
+    outputDeviceHandle.foreach(_.close())
   }
 
   /**

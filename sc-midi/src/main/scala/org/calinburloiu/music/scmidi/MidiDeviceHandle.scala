@@ -18,46 +18,179 @@ package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi
 
-import javax.sound.midi.{MidiDevice, Receiver, Transmitter}
+import javax.sound.midi.*
 
-/**
- * Idiomatic Scala wrapper around [[MidiDevice]] which provides extra convenience methods like [[isInputDevice]] and
- * [[isOutputDevice]].
- */
-case class MidiDeviceHandle(midiDevice: MidiDevice) {
-  def id: MidiDeviceId = MidiDeviceId(midiDevice.getDeviceInfo)
+// TODO #122 Re-document
+class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
 
-  def info: MidiDevice.Info = midiDevice.getDeviceInfo
+  import MidiDeviceHandle.*
 
-  def isInputDevice: Boolean = scmidi.isInputDevice(midiDevice)
+  private var _info: Option[MidiDevice.Info] = None
+  private var _device: Option[MidiDevice] = None
 
-  def isOutputDevice: Boolean = scmidi.isOutputDevice(midiDevice)
+  private var _state: State = MidiDeviceHandle.State.Closed
 
-  def open(): Unit = midiDevice.open()
+  private lazy val _receiver: HandleReceiver = new HandleReceiver
+  private lazy val _transmitter: HandleTransmitter = new HandleTransmitter
 
-  def close(): Unit = midiDevice.close()
+  private class HandleReceiver extends Receiver {
+    override def send(message: MidiMessage, timeStamp: Long): Unit = {
+      for (midiDevice <- _device if midiDevice.isOpen; deviceReceiver <- Option(midiDevice.getReceiver)) {
+        deviceReceiver.send(message, timeStamp)
+      }
+    }
 
-  def isOpen: Boolean = midiDevice.isOpen
+    override def close(): Unit = {}
+  }
+
+  private class HandleTransmitter extends Transmitter {
+    private var _receiver: Option[Receiver] = None
+
+    override def setReceiver(receiverToSet: Receiver): Unit = {
+      _receiver = Option(receiverToSet)
+      setDeviceReceiver()
+    }
+
+    def setDeviceReceiver(): Unit = _receiver match {
+      case Some(receiverToSet) =>
+        for (midiDevice <- _device if midiDevice.isOpen; deviceTransmitter <- Option(midiDevice.getTransmitter)) {
+          deviceTransmitter.setReceiver(receiverToSet)
+        }
+      case None =>
+    }
+
+    override def getReceiver: Receiver = _receiver.orNull
+
+    override def close(): Unit = {}
+  }
+
+  def this(info: MidiDevice.Info) = {
+    this(MidiDeviceId(info))
+
+    onConnect(info)
+  }
+
+  def info: Option[MidiDevice.Info] = _info
+
+  def device: Option[MidiDevice] = _device
+
+  def isInputDevice: Boolean = _device.exists(scmidi.isInputDevice)
+
+  def isOutputDevice: Boolean = _device.exists(scmidi.isOutputDevice)
+
+  def state = _state
 
   /**
-   * @return [[Some]] [[Receiver]] if there is one, or [[None]] otherwise.
+   * Attempts to connect the device corresponding to the given [[MidiDevice.Info]].
+   *
+   * @param info Information about the MIDI device to connect to.
+   * @return true if the connection was successful, or false otherwise.
    */
-  def receiverOption: Option[Receiver] = Option(midiDevice.getReceiver)
+  private[scmidi] def onConnect(info: MidiDevice.Info): Boolean = {
+    onDisconnect()
+
+    _device = try {
+      Some(MidiSystem.getMidiDevice(info))
+    } catch {
+      case e: MidiUnavailableException => None
+      case e: IllegalArgumentException => None
+    }
+
+    if (_device.isDefined) {
+      _info = Some(info)
+
+      if (_state == State.Closed) {
+        _state = State.Connected
+      } else if (_state == State.WaitingToOpen) {
+        doOpen()
+      }
+
+      true
+    } else {
+      false
+    }
+  }
+
+  private[scmidi] def onDisconnect(): Unit = {
+    _device.foreach(_.close())
+    _device = None
+    _info = None
+  }
+
+  def open(): Unit = {
+    if (_state == State.Closed) {
+      _state = State.WaitingToOpen
+    } else if (_state == State.Connected) {
+      doOpen()
+    }
+  }
+
+  override def close(): Unit = {
+    if (_state == State.WaitingToOpen) {
+      _state = State.Closed
+    } else if (_state == State.Open) {
+      _device.foreach(_.close())
+
+      _state = State.Connected
+    }
+  }
+
+  def isOpen: Boolean = {
+    if (_device.exists(_.isOpen)) {
+      true
+    } else {
+      _state = State.Connected
+      false
+    }
+  }
+
+  def receiver: Receiver = _receiver
+
+  def transmitter: Transmitter = _transmitter
+
+  private def doOpen(): Unit = {
+    _state = State.Open
+
+    _device.foreach(_.open())
+    _transmitter.setDeviceReceiver()
+  }
+}
+
+object MidiDeviceHandle {
 
   /**
-   * @return the [[Receiver]] if there is one, or throws [[NoSuchElementException]] otherwise.
-   * @throws NoSuchElementException if there is no receiver.
+   * Represents the state of a MIDI device's connection and openness.
+   *
+   * {{{
+   *    ┌─────────────┐     onConnect    ┌────┐
+   *    │             ├──────────────────►    │
+   *    │WaitingToOpen│                  │Open│
+   *    │             │            ┌─────►    │
+   *    └▲────────────┘            │     └────┘
+   *     │   │                   open       │
+   *     │   │                     │      close
+   *     │   │            ┌────────┴┐       │
+   *     │   │            │Connected◄───────┘
+   *     │   │close       └─▲────┬──┘
+   * open│   │              │    │
+   *     │   │     onConnect│    │onDisconnect
+   *     │   │              │    │
+   *     │   │             ┌┴────▼┐
+   *     │   └─────────────►      │
+   *     │                 │Closed│
+   *     └─────────────────┤      │
+   *                       └──────┘
+   * }}}
+   *
+   * @param isConnected Indicates whether the device is connected.
+   * @param isOpen      Indicates whether the device is open for use.
    */
-  def receiver: Receiver = receiverOption.get
-
-  /**
-   * @return [[Some]] [[Transmitter]] if there is one, or [[None]] otherwise.
-   */
-  def transmitterOption: Option[Transmitter] = Option(midiDevice.getTransmitter)
-
-  /**
-   * @return the [[Transmitter]] if there is one, or throws [[NoSuchElementException]] otherwise.
-   * @throws NoSuchElementException if there is no transmitter.
-   */
-  def transmitter: Transmitter = transmitterOption.get
+  //@formatter:off
+  enum State(val isConnected: Boolean, val isOpen: Boolean) {
+    case Closed         extends State(isConnected = false,  isOpen = false)
+    case Connected      extends State(isConnected = true,   isOpen = false)
+    case WaitingToOpen  extends State(isConnected = false,  isOpen = false)
+    case Open           extends State(isConnected = true,   isOpen = true)
+  }
+  //@formatter:on
 }
