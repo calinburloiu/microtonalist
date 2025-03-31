@@ -40,47 +40,49 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
     // When
     val customSplitter = new MidiSplitter(Seq(receiverStub1, receiverStub2, receiverStub3))
     // Then
-    customSplitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub2, receiverStub3)
-    splitter.receivers shouldBe empty
+    customSplitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub2,
+      receiverStub3)
+    splitter.multiTransmitter.receivers shouldBe empty
   }
 
   "receivers" should "be modifiable" in new Fixture {
     // Given
-    splitter.receivers shouldBe empty
+    splitter.multiTransmitter.receivers shouldBe empty
 
     // When
-    splitter.addReceiver(receiverStub3)
+    splitter.multiTransmitter.addReceiver(receiverStub3)
     // Then
-    splitter.receivers should contain theSameElementsAs Seq(receiverStub3)
+    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub3)
 
     // When
-    splitter.addReceivers(Seq(receiverStub1, receiverStub2))
+    splitter.multiTransmitter.addReceivers(Seq(receiverStub1, receiverStub2))
     // Then
-    splitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub2, receiverStub3)
+    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub2,
+      receiverStub3)
 
     // When
-    splitter.removeReceiver(receiverStub2)
+    splitter.multiTransmitter.removeReceiver(receiverStub2)
     // Then
-    splitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub3)
+    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub3)
 
     // When
-    splitter.receivers = Seq(receiverStub2, receiverStub3)
+    splitter.multiTransmitter.receivers = Seq(receiverStub2, receiverStub3)
     // Then
-    splitter.receivers should contain theSameElementsAs Seq(receiverStub2, receiverStub3)
+    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub2, receiverStub3)
 
     // When
-    splitter.clearReceivers()
+    splitter.multiTransmitter.clearReceivers()
     // Then
-    splitter.receivers shouldBe empty
+    splitter.multiTransmitter.receivers shouldBe empty
   }
 
   "send" should "forward MIDI messages to the receivers" in new Fixture {
     // Given
-    splitter.receivers = receiverStubs
+    splitter.multiTransmitter.receivers = receiverStubs
 
     // When
-    splitter.send(ScNoteOnMidiMessage(0, MidiNote.C4, 69).javaMidiMessage, 100L)
-    splitter.send(ScNoteOffMidiMessage(0, MidiNote.C4, 63).javaMidiMessage, 120L)
+    splitter.receiver.send(ScNoteOnMidiMessage(0, MidiNote.C4, 69).javaMidiMessage, 100L)
+    splitter.receiver.send(ScNoteOffMidiMessage(0, MidiNote.C4, 63).javaMidiMessage, 120L)
 
     // Then
     for (receiverStub <- receiverStubs) {
