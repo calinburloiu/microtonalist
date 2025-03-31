@@ -18,6 +18,7 @@ package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi
 
+import java.util.concurrent.locks.ReentrantLock
 import javax.sound.midi.*
 
 // TODO #122 Re-document
@@ -25,13 +26,15 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
 
   import MidiDeviceHandle.*
 
-  private var _info: Option[MidiDevice.Info] = None
-  private var _device: Option[MidiDevice] = None
+  @volatile private var _info: Option[MidiDevice.Info] = None
+  @volatile private var _device: Option[MidiDevice] = None
 
   private var _state: State = MidiDeviceHandle.State.Closed
 
+  private val lock: ReentrantLock = new ReentrantLock()
+
   private lazy val _receiver: HandleReceiver = new HandleReceiver
-  private lazy val _transmitter: HandleTransmitter = new HandleTransmitter
+  private lazy val splitter: MidiSplitter = new MidiSplitter
 
   private class HandleReceiver extends Receiver {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
@@ -39,27 +42,6 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
         deviceReceiver.send(message, timeStamp)
       }
     }
-
-    override def close(): Unit = {}
-  }
-
-  private class HandleTransmitter extends Transmitter {
-    private var _receiver: Option[Receiver] = None
-
-    override def setReceiver(receiverToSet: Receiver): Unit = {
-      _receiver = Option(receiverToSet)
-      setDeviceReceiver()
-    }
-
-    def setDeviceReceiver(): Unit = _receiver match {
-      case Some(receiverToSet) =>
-        for (midiDevice <- _device if midiDevice.isOpen; deviceTransmitter <- Option(midiDevice.getTransmitter)) {
-          deviceTransmitter.setReceiver(receiverToSet)
-        }
-      case None =>
-    }
-
-    override def getReceiver: Receiver = _receiver.orNull
 
     override def close(): Unit = {}
   }
@@ -78,7 +60,9 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
 
   def isOutputDevice: Boolean = _device.exists(scmidi.isOutputDevice)
 
-  def state = _state
+  def state = withLock {
+    _state
+  }
 
   /**
    * Attempts to connect the device corresponding to the given [[MidiDevice.Info]].
@@ -86,7 +70,7 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
    * @param info Information about the MIDI device to connect to.
    * @return true if the connection was successful, or false otherwise.
    */
-  private[scmidi] def onConnect(info: MidiDevice.Info): Boolean = {
+  private[scmidi] def onConnect(info: MidiDevice.Info): Boolean = withLock {
     onDisconnect()
 
     _device = try {
@@ -111,13 +95,13 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
     }
   }
 
-  private[scmidi] def onDisconnect(): Unit = {
+  private[scmidi] def onDisconnect(): Unit = withLock {
     _device.foreach(_.close())
     _device = None
     _info = None
   }
 
-  def open(): Unit = {
+  def open(): Unit = withLock {
     if (_state == State.Closed) {
       _state = State.WaitingToOpen
     } else if (_state == State.Connected) {
@@ -125,7 +109,7 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
     }
   }
 
-  override def close(): Unit = {
+  override def close(): Unit = withLock {
     if (_state == State.WaitingToOpen) {
       _state = State.Closed
     } else if (_state == State.Open) {
@@ -135,24 +119,33 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
     }
   }
 
-  def isOpen: Boolean = {
-    if (_device.exists(_.isOpen)) {
-      true
-    } else {
-      _state = State.Connected
-      false
-    }
-  }
+  def isOpen: Boolean = _device.exists(_.isOpen)
 
   def receiver: Receiver = _receiver
 
-  def transmitter: Transmitter = _transmitter
+  def multiTransmitter: MultiTransmitter = splitter.multiTransmitter
 
-  private def doOpen(): Unit = {
+  private def doOpen(): Unit = withLock {
     _state = State.Open
 
-    _device.foreach(_.open())
-    _transmitter.setDeviceReceiver()
+    _device.foreach { dev =>
+      dev.open()
+
+      val devTransmitter = dev.getTransmitter
+      if (devTransmitter != null) {
+        devTransmitter.setReceiver(splitter.receiver)
+      }
+    }
+  }
+
+  @inline
+  private def withLock[R](block: => R): R = {
+    lock.lock()
+    try {
+      block
+    } finally {
+      lock.unlock()
+    }
   }
 }
 

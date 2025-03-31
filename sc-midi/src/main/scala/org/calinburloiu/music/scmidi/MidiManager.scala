@@ -179,6 +179,8 @@ object MidiManager {
   private class MidiEndpoint(val endpointType: MidiEndpointType,
                              businessync: Businessync) extends AutoCloseable with StrictLogging {
 
+    // TODO #131 Use a java.util.concurrent.ConcurrentMap instead with compute* methods to allow thread-safe
+    //  computation of the value
     private val devicesIdToInfo = TrieMap[MidiDeviceId, MidiDevice.Info]()
     private val openedDevicesMap = TrieMap[MidiDeviceId, MidiDeviceHandle]()
 
