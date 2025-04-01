@@ -116,7 +116,7 @@ class TrackManager(private val midiManager: MidiManager,
   }
 
   private def closeTracks(): Unit = {
-    tracks.foreach(_.close())
+    tracks.foreach(_.track.close())
   }
 
   /**

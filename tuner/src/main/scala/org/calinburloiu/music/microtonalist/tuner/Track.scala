@@ -17,10 +17,12 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor, MidiSplitter}
+import org.calinburloiu.music.scmidi.{MidiSerialProcessor, MidiSplitter}
 
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
+
+// TODO #121 Factor out the Receiver instead of being a Receiver
 
 /**
  * MIDI route for tuning an output device.
@@ -37,7 +39,7 @@ class Track(val id: TrackSpec.Id,
 
   private val outputSplitter: MidiSplitter = new MidiSplitter
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputSplitter)
+    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputSplitter.receiver)
 
   inputDeviceHandle.foreach(_.transmitter.setReceiver(this))
 
