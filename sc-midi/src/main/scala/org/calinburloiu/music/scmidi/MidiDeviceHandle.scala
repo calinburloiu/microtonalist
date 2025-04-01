@@ -31,10 +31,12 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
 
   private var _state: State = MidiDeviceHandle.State.Closed
 
-  private val lock: ReentrantLock = new ReentrantLock()
+  private var openRefCount: Int = 0
 
   private lazy val _receiver: HandleReceiver = new HandleReceiver
   private lazy val splitter: MidiSplitter = new MidiSplitter
+
+  private val lock: ReentrantLock = new ReentrantLock()
 
   private class HandleReceiver extends Receiver {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
@@ -102,20 +104,26 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
   }
 
   def open(): Unit = withLock {
-    if (_state == State.Closed) {
-      _state = State.WaitingToOpen
-    } else if (_state == State.Connected) {
-      doOpen()
+    openRefCount += 1
+    if (openRefCount == 1) {
+      if (_state == State.Closed) {
+        _state = State.WaitingToOpen
+      } else if (_state == State.Connected) {
+        doOpen()
+      }
     }
   }
 
   override def close(): Unit = withLock {
-    if (_state == State.WaitingToOpen) {
-      _state = State.Closed
-    } else if (_state == State.Open) {
-      _device.foreach(_.close())
+    openRefCount -= 1
+    if (openRefCount == 0) {
+      if (_state == State.WaitingToOpen) {
+        _state = State.Closed
+      } else if (_state == State.Open) {
+        _device.foreach(_.close())
 
-      _state = State.Connected
+        _state = State.Connected
+      }
     }
   }
 
