@@ -76,6 +76,7 @@ class TrackManager(private val midiManager: MidiManager,
    * @param tuning The tuning to be applied to the tracks.
    */
   def tune(tuning: Tuning): Unit = {
+    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
     for (track <- tracks) {
       track.tune(tuning)
     }

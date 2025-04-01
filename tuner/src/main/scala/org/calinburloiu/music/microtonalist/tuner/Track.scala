@@ -75,7 +75,6 @@ class Track(val id: TrackSpec.Id,
    * @param tuning The tuning to be applied.
    */
   def tune(tuning: Tuning): Unit = {
-    logger.info(s"Tuning to ${tuning.toPianoKeyboardString}")
     tunerProcessor.foreach(_.tune(tuning))
   }
 
