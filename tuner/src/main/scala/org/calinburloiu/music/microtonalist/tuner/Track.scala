@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiSerialProcessor, MidiSplitter}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor, MidiSplitter}
 
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
@@ -41,11 +41,11 @@ class Track(val id: TrackSpec.Id,
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
     Seq(tuningChangeProcessor, tunerProcessor).flatten, outputSplitter.receiver)
 
-  inputDeviceHandle.foreach(_.transmitter.setReceiver(this))
+  inputDeviceHandle.foreach(_.multiTransmitter.addReceiver(this))
 
   private val outputReceiver: Option[Receiver] = outputDeviceHandle.map(_.receiver)
   outputReceiver.foreach { receiver =>
-    outputSplitter.addReceiver(receiver)
+    outputSplitter.multiTransmitter.addReceiver(receiver)
   }
 
   sendInitMidiMessages()

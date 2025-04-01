@@ -139,9 +139,9 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
     _device.foreach { dev =>
       dev.open()
 
-      val devTransmitter = dev.getTransmitter
-      if (devTransmitter != null) {
-        devTransmitter.setReceiver(splitter.receiver)
+      val maxTransmitters = dev.getMaxTransmitters
+      if (maxTransmitters == -1 || maxTransmitters > 0) {
+        dev.getTransmitter.setReceiver(splitter.receiver)
       }
     }
   }

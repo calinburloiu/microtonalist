@@ -20,9 +20,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.businessync.Businessync
 import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
+import java.util.concurrent.ConcurrentHashMap
 import javax.sound.midi.MidiDevice
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
 /**
@@ -181,24 +182,32 @@ object MidiManager {
 
     // TODO #131 Use a java.util.concurrent.ConcurrentMap instead with compute* methods to allow thread-safe
     //  computation of the value
-    private val devicesIdToInfo = TrieMap[MidiDeviceId, MidiDevice.Info]()
-    private val openedDevicesMap = TrieMap[MidiDeviceId, MidiDeviceHandle]()
+    private val devicesIdToInfo = ConcurrentHashMap[MidiDeviceId, MidiDevice.Info]()
+    private val openedDevicesMap = ConcurrentHashMap[MidiDeviceId, MidiDeviceHandle]()
 
     def updateDevices(deviceHandles: Iterable[MidiDeviceHandle]): Unit = {
       // New devices
       for (
         currentDeviceHandle <- deviceHandles;
-        id = currentDeviceHandle.id if !devicesIdToInfo.contains(id);
+        id = currentDeviceHandle.id;
         deviceInfo <- currentDeviceHandle.info
       ) {
-        devicesIdToInfo.update(id, deviceInfo)
-        logDebugConnectedDevice(currentDeviceHandle)
-        businessync.publish(MidiDeviceConnectedEvent(id))
+        var wasAdded = false
+        devicesIdToInfo.computeIfAbsent(id, _ => {
+          wasAdded = true
+          deviceInfo
+        })
+
+        if (wasAdded) {
+          logDebugConnectedDevice(currentDeviceHandle)
+          businessync.publish(MidiDeviceConnectedEvent(id))
+        }
       }
 
       // Removed devices
       val currentIds = deviceHandles.map(_.id).toSet
-      for (previousId <- devicesIdToInfo.keys if !currentIds.contains(previousId)) {
+
+      for (previousId <- devicesIdToInfo.keys.asScala if !currentIds.contains(previousId)) {
         devicesIdToInfo.remove(previousId)
         logger.info(s"${endpointType.toString.capitalize} device $previousId was disconnected.")
         businessync.publish(MidiDeviceDisconnectedEvent(previousId))
@@ -207,17 +216,16 @@ object MidiManager {
 
     /** Remove devices that were previously opened, but now were disconnected. */
     def purgeDisconnectedDevices(): Unit = {
-      val deviceIds = devicesIdToInfo.keySet
-      val disconnectedDeviceIds = openedDevicesMap.keySet diff deviceIds
+      val disconnectedDeviceIds = openedDevicesMap.keySet.asScala diff devicesIdToInfo.keySet.asScala
 
       disconnectedDeviceIds.foreach { deviceId =>
-        val device = openedDevicesMap(deviceId).device
+        val device = openedDevicesMap.get(deviceId).device
 
         try {
           device.foreach(_.close())
         } catch {
           case throwable: Throwable =>
-            logger.info(s"${endpointType.toString.capitalize} device $deviceId is already closed.", throwable)
+            logger.info(s"Failed to close $endpointType device $deviceId! Was it already closed?", throwable)
         }
 
         openedDevicesMap.remove(deviceId)
@@ -227,21 +235,20 @@ object MidiManager {
       }
     }
 
-    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = devicesIdToInfo.contains(deviceId)
+    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = devicesIdToInfo.containsKey(deviceId)
 
-    def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = devicesIdToInfo.get(deviceId)
+    def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = Option(devicesIdToInfo.get(deviceId))
 
-    def deviceIds: Seq[MidiDeviceId] = devicesIdToInfo.keys.toSeq
+    def deviceIds: Seq[MidiDeviceId] = devicesIdToInfo.keys.asScala.toSeq
 
-    def devicesInfo: Seq[MidiDevice.Info] = devicesIdToInfo.values.toSeq
+    def devicesInfo: Seq[MidiDevice.Info] = devicesIdToInfo.values.asScala.toSeq
 
     def openDevice(deviceId: MidiDeviceId): MidiDeviceHandle = {
       val result = Try {
-        val deviceInfo = devicesIdToInfo(deviceId)
+        val deviceInfo = deviceInfoOf(deviceId).get
+        val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId, _ => MidiDeviceHandle(deviceInfo))
 
-        val deviceHandle = MidiDeviceHandle(deviceInfo)
         deviceHandle.open()
-        openedDevicesMap.update(deviceId, deviceHandle)
         logger.info(s"Successfully opened $endpointType device $deviceId.")
         businessync.publish(MidiDeviceOpenedEvent(deviceId))
 
@@ -269,12 +276,12 @@ object MidiManager {
         .map(_.get)
     }
 
-    def deviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = openedDevicesMap.get(deviceId)
+    def deviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = Option(openedDevicesMap.get(deviceId))
 
-    def openedDevices: Seq[MidiDeviceHandle] = openedDevicesMap.values.toSeq
+    def openedDevices: Seq[MidiDeviceHandle] = openedDevicesMap.values.asScala.toSeq
 
     def closeDevice(deviceId: MidiDeviceId): Unit = {
-      openedDevicesMap.get(deviceId) match {
+      deviceHandleOf(deviceId) match {
         case Some(openedDevice) if openedDevice.isOpen =>
           logger.info(s"Closing $endpointType device $deviceId...")
           openedDevice.close()
@@ -285,7 +292,7 @@ object MidiManager {
     }
 
     override def close(): Unit = {
-      openedDevicesMap.keys.foreach { deviceId =>
+      openedDevicesMap.keys.asScala.foreach { deviceId =>
         Try {
           closeDevice(deviceId)
         }.recover {
