@@ -54,7 +54,7 @@ class TrackManager(private val midiManager: MidiManager,
     tracks = trackSpecs.tracks
       .filter { spec =>
         if (spec.muted) {
-          logger.info(s"Track \"${trackSpecs.nameOf(spec.id)}\" with id=${spec.id} is muted. Skipping.")
+          logger.info(s"Track \"${trackSpecs.nameOf(spec.id).getOrElse("")}\" with id=${spec.id} is muted. Skipping.")
         }
 
         !spec.muted

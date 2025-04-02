@@ -38,7 +38,7 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
   }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    processors.headOption.foreach(_.send(message, timeStamp))
+    processors.headOption.getOrElse(receiver).send(message, timeStamp)
   }
 
   override def close(): Unit = {

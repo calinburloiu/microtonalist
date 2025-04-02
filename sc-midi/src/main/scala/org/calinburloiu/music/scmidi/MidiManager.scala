@@ -47,6 +47,13 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
 
   init()
 
+  private def init(): Unit = {
+    refresh()
+
+    // Automatically refresh when the MIDI environment has changed
+    CoreMidiDeviceProvider.addNotificationListener(onMidiNotification)
+  }
+
   /**
    * Rescans the environment for MIDI device information and updates the class internal state.
    */
@@ -148,13 +155,6 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
   def outputOpenedDevices: Seq[MidiDeviceHandle] = outputEndpoint.openedDevices
 
   def closeOutput(deviceId: MidiDeviceId): Unit = outputEndpoint.closeDevice(deviceId)
-
-  private def init(): Unit = {
-    refresh()
-
-    // Automatically refresh when the MIDI environment has changed
-    CoreMidiDeviceProvider.addNotificationListener(onMidiNotification)
-  }
 }
 
 object MidiManager {
@@ -169,8 +169,6 @@ object MidiManager {
   private class MidiEndpoint(val endpointType: MidiEndpointType,
                              businessync: Businessync) extends AutoCloseable with StrictLogging {
 
-    // TODO #131 Use a java.util.concurrent.ConcurrentMap instead with compute* methods to allow thread-safe
-    //  computation of the value
     private val devicesIdToInfo = ConcurrentHashMap[MidiDeviceId, MidiDevice.Info]()
     private val openedDevicesMap = ConcurrentHashMap[MidiDeviceId, MidiDeviceHandle]()
 
@@ -181,13 +179,13 @@ object MidiManager {
         id = currentDeviceHandle.id;
         deviceInfo <- currentDeviceHandle.info
       ) {
-        var wasAdded = false
+        var wasConnected = false
         devicesIdToInfo.computeIfAbsent(id, _ => {
-          wasAdded = true
+          wasConnected = true
           deviceInfo
         })
 
-        if (wasAdded) {
+        if (wasConnected) {
           logDebugConnectedDevice(currentDeviceHandle)
           businessync.publish(MidiDeviceConnectedEvent(id))
         }

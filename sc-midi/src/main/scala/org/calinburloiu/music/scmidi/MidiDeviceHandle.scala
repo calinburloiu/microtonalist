@@ -23,7 +23,6 @@ import org.calinburloiu.music.scmidi
 import java.util.concurrent.locks.ReentrantLock
 import javax.sound.midi.*
 
-// TODO #122 Handle the errors/exceptions
 // TODO #122 Re-document
 class MidiDeviceHandle(val id: MidiDeviceId,
                        businessync: Businessync) extends AutoCloseable, LazyLogging {
@@ -33,7 +32,7 @@ class MidiDeviceHandle(val id: MidiDeviceId,
   @volatile private var _info: Option[MidiDevice.Info] = None
   @volatile private var _device: Option[MidiDevice] = None
 
-  private var _state: State = MidiDeviceHandle.State.Closed
+  private var _state: State = State.Closed
 
   private var openRefCount: Int = 0
 
@@ -168,8 +167,7 @@ class MidiDeviceHandle(val id: MidiDeviceId,
       _device.foreach { dev =>
         dev.open()
 
-        val maxTransmitters = dev.getMaxTransmitters
-        if (maxTransmitters == -1 || maxTransmitters > 0) {
+        if (scmidi.isInputDevice(dev)) {
           dev.getTransmitter.setReceiver(splitter.receiver)
         }
       }

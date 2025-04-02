@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
 package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.{Receiver, Transmitter}
+
+// TODO #121 Make a MidiProcessor be composed from a Receiver and a Transmitter rather than extend them to reduce
+//  confusion
 
 /**
  * MIDI interceptor that can change MIDI events that pass through it.
