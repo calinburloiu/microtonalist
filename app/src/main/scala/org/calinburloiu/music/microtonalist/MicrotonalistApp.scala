@@ -58,8 +58,8 @@ object MicrotonalistApp extends StrictLogging {
     }
   }.recover {
     case appException: AppException => appException.exitWithMessage()
-    case throwable: Throwable =>
-      logger.error("Unexpected error", throwable)
+    case exception: Exception =>
+      logger.error("Unexpected error", exception)
       System.exit(1000)
   }
 

@@ -18,10 +18,11 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiManager}
+import org.calinburloiu.music.scmidi.MidiManager
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
+import scala.collection.immutable.VectorMap
 
 // TODO #121 Logic to update tracks.
 
@@ -34,7 +35,13 @@ class TrackManager(private val midiManager: MidiManager,
                    private val executorService: ExecutorService = TrackManager.createExecutorService())
   extends AutoCloseable with StrictLogging {
 
-  private var tracks: Seq[Track] = Seq.empty
+  private var tracksById: VectorMap[TrackSpec.Id, Track] = VectorMap()
+
+  def tracks: Seq[Track] = tracksById.values.toSeq
+
+  private def tracks_=(tracks: Seq[Track]): Unit = {
+    tracksById = tracks.map(track => track.spec.id -> track).to(VectorMap)
+  }
 
   /**
    * Replaces all existing tracks with new ones based on the provided track specifications and configures them.
@@ -44,28 +51,29 @@ class TrackManager(private val midiManager: MidiManager,
   def replaceAllTracks(trackSpecs: TrackSpecs): Unit = {
     closeTracks()
 
-    tracks = trackSpecs.tracks.flatMap { trackSpec =>
-      val inputDeviceHandle = createInputDeviceHandle(trackSpec)
-      val outputDeviceHandle = createOutputDeviceHandle(trackSpec)
+    tracks = trackSpecs.tracks
+      .filter { spec =>
+        if (spec.muted) {
+          logger.info(s"Track \"${trackSpecs.nameOf(spec.id)}\" with id=${spec.id} is muted. Skipping.")
+        }
 
-      if (trackSpec.input.isEmpty && trackSpec.output.isEmpty) {
-        logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input and output device specified. " +
-          s"Skipping.")
-        None
-      } else if (inputDeviceHandle.isEmpty && outputDeviceHandle.isEmpty) {
-        logger.warn(s"Track \"${trackSpec.name}\" with id=${trackSpec.id} has no input and output device available. " +
-          s"Skipping.")
-        None
-      } else {
-        val tuningChangeProcessor = if (trackSpec.tuningChangers.nonEmpty)
-          Some(new TuningChangeProcessor(trackSpec.tuningChangers, tuningService))
-        else
-          None
-        val tunerProcessor = trackSpec.tuner.map { tuner => new TunerProcessor(tuner) }
+        !spec.muted
+      }.map { spec => Track(spec, midiManager, tuningService) }
 
-        val track = new Track(trackSpec.id, inputDeviceHandle, tuningChangeProcessor, tunerProcessor,
-          outputDeviceHandle)
-        Some(track)
+    // Wire inter-track connections
+    for (currTrack <- tracks) {
+      currTrack.spec.input match {
+        case Some(FromTrackInputSpec(trackId, _)) =>
+          val fromTrack = tracksById(trackId)
+          fromTrack.multiTransmitter.addReceiver(currTrack.receiver)
+        case _ => // Nothing to do here
+      }
+
+      currTrack.spec.output match {
+        case Some(ToTrackOutputSpec(trackId, _)) =>
+          val toTrack = tracksById(trackId)
+          currTrack.multiTransmitter.addReceiver(toTrack.receiver)
+        case _ => // Nothing to do here
       }
     }
   }
@@ -90,30 +98,6 @@ class TrackManager(private val midiManager: MidiManager,
   override def close(): Unit = {
     closeTracks()
     executorService.shutdown()
-  }
-
-  private def createInputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
-    trackSpec.input.flatMap {
-      case DeviceTrackInputSpec(midiDeviceId, _) =>
-        if (midiManager.isInputAvailable(midiDeviceId)) Some(midiManager.openInput(midiDeviceId))
-        else None
-      case _ =>
-        // TODO #97
-        logger.info(s"Unimplemented track input ${trackSpec.input.get}")
-        None
-    }
-  }
-
-  private def createOutputDeviceHandle(trackSpec: TrackSpec): Option[MidiDeviceHandle] = {
-    trackSpec.output.flatMap {
-      case DeviceTrackOutputSpec(midiDeviceId, _) =>
-        if (midiManager.isOutputAvailable(midiDeviceId)) Some(midiManager.openOutput(midiDeviceId))
-        else None
-      case _ =>
-        // TODO #97
-        logger.info(s"Unimplemented track output ${trackSpec.output.get}")
-        None
-    }
   }
 
   private def closeTracks(): Unit = {

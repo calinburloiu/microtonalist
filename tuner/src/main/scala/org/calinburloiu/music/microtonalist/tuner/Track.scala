@@ -17,12 +17,10 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiSerialProcessor, MidiSplitter}
+import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiManager, MidiSerialProcessor, MidiSplitter, MultiTransmitter}
 
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiMessage, Receiver}
-
-// TODO #121 Factor out the Receiver instead of being a Receiver
 
 /**
  * MIDI route for tuning an output device.
@@ -30,18 +28,29 @@ import javax.sound.midi.{MidiMessage, Receiver}
  * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
  */
 @ThreadSafe
-class Track(val id: TrackSpec.Id,
-            inputDeviceHandle: Option[MidiDeviceHandle],
-            tuningChangeProcessor: Option[TuningChangeProcessor],
-            tunerProcessor: Option[TunerProcessor],
-            outputDeviceHandle: Option[MidiDeviceHandle],
-            initMidiMessages: Seq[MidiMessage] = Seq.empty) extends Receiver with Runnable with StrictLogging {
+class Track(val spec: TrackSpec,
+            midiManager: MidiManager,
+            tuningService: TuningService,
+            initMidiMessages: Seq[MidiMessage] = Seq.empty) extends Runnable, AutoCloseable, StrictLogging {
+
+  private val inputDeviceHandle: Option[MidiDeviceHandle] = spec.input.collect {
+    case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.openInput(midiDeviceId)
+  }
+  private val tuningChangeProcessor: Option[TuningChangeProcessor] = if (spec.tuningChangers.nonEmpty) {
+    Some(new TuningChangeProcessor(spec.tuningChangers, tuningService))
+  } else {
+    None
+  }
+  private val tunerProcessor: Option[TunerProcessor] = spec.tuner.map { tuner => new TunerProcessor(tuner) }
+  private val outputDeviceHandle: Option[MidiDeviceHandle] = spec.output.collect {
+    case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.openOutput(midiDeviceId)
+  }
 
   private val outputSplitter: MidiSplitter = new MidiSplitter
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
     Seq(tuningChangeProcessor, tunerProcessor).flatten, outputSplitter.receiver)
 
-  inputDeviceHandle.foreach(_.multiTransmitter.addReceiver(this))
+  inputDeviceHandle.foreach(_.multiTransmitter.addReceiver(receiver))
 
   private val outputReceiver: Option[Receiver] = outputDeviceHandle.map(_.receiver)
   outputReceiver.foreach { receiver =>
@@ -50,14 +59,22 @@ class Track(val id: TrackSpec.Id,
 
   sendInitMidiMessages()
 
+  def id: TrackSpec.Id = spec.id
+
   // TODO #121 Implement Track#run
   override def run(): Unit = {
     logger.warn("Track#run is not yet implemented!")
   }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    pipeline.send(message, timeStamp)
+  def receiver: Receiver = new Receiver {
+    override def send(message: MidiMessage, timeStamp: Long): Unit = {
+      pipeline.send(message, timeStamp)
+    }
+
+    override def close(): Unit = {}
   }
+
+  def multiTransmitter: MultiTransmitter = outputSplitter.multiTransmitter
 
   override def close(): Unit = {
     logger.info(s"Closing track $id...")

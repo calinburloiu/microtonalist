@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.sound.midi.MidiDevice
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
-import scala.util.Try
 
 /**
  * Class that manages connections and gives information about MIDI devices.
@@ -59,7 +58,7 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
     val currentInputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
     val currentOutputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
     deviceInfoArray.foreach { deviceInfo =>
-      val deviceHandle = MidiDeviceHandle(deviceInfo)
+      val deviceHandle = MidiDeviceHandle(deviceInfo, businessync)
 
       if (deviceHandle.isInputDevice) {
         currentInputDevices += deviceHandle
@@ -160,16 +159,6 @@ class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLog
 
 object MidiManager {
 
-  private sealed abstract class MidiEndpointType(name: String) {
-    override def toString: String = name
-  }
-
-  private object MidiEndpointType {
-    case object Input extends MidiEndpointType("input")
-
-    case object Output extends MidiEndpointType("output")
-  }
-
   /**
    * Helper class that manages either input or output MIDI devices. The reason for that is that the Java MIDI API
    * lists input and output devices separately, so the same physical device may appear twice but with the same
@@ -221,12 +210,7 @@ object MidiManager {
       disconnectedDeviceIds.foreach { deviceId =>
         val device = openedDevicesMap.get(deviceId).device
 
-        try {
-          device.foreach(_.close())
-        } catch {
-          case throwable: Throwable =>
-            logger.info(s"Failed to close $endpointType device $deviceId! Was it already closed?", throwable)
-        }
+        device.foreach(_.close())
 
         openedDevicesMap.remove(deviceId)
 
@@ -244,36 +228,27 @@ object MidiManager {
     def devicesInfo: Seq[MidiDevice.Info] = devicesIdToInfo.values.asScala.toSeq
 
     def openDevice(deviceId: MidiDeviceId): MidiDeviceHandle = {
-      val result = Try {
-        val deviceInfo = deviceInfoOf(deviceId).get
-        val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId, _ => MidiDeviceHandle(deviceInfo))
+      val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId, _ => MidiDeviceHandle(deviceId, businessync))
 
-        deviceHandle.open()
-        logger.info(s"Successfully opened $endpointType device $deviceId.")
-        businessync.publish(MidiDeviceOpenedEvent(deviceId))
-
-        deviceHandle
+      deviceInfoOf(deviceId) match {
+        case Some(deviceInfo) =>
+          deviceHandle.onConnect(deviceInfo)
+          deviceHandle.open()
+          logger.info(s"Successfully opened $endpointType device $deviceId.")
+          businessync.publish(MidiDeviceOpenedEvent(deviceId))
+        case None => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not connected.")
       }
 
-      result.recover {
-        case _: NoSuchElementException => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not " +
-          s"connected.")
-        case exception => logger.error(s"Failed to open $endpointType device $deviceId.", exception)
-      }
-
-      result.get
+      deviceHandle
     }
 
     def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] = {
       deviceIds.to(LazyList)
         .map { deviceId =>
           logger.info(s"Attempting to open $endpointType device $deviceId...")
-          Try {
-            openDevice(deviceId)
-          }
+          openDevice(deviceId)
         }
-        .find(_.isSuccess)
-        .map(_.get)
+        .find(_.isOpen)
     }
 
     def deviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = Option(openedDevicesMap.get(deviceId))
@@ -293,11 +268,7 @@ object MidiManager {
 
     override def close(): Unit = {
       openedDevicesMap.keys.asScala.foreach { deviceId =>
-        Try {
-          closeDevice(deviceId)
-        }.recover {
-          case exception => logger.error(s"Failed to close $endpointType device $deviceId!", exception)
-        }
+        closeDevice(deviceId)
       }
     }
 

@@ -16,13 +16,17 @@
 
 package org.calinburloiu.music.scmidi
 
+import com.typesafe.scalalogging.LazyLogging
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.sound.midi.*
 
+// TODO #122 Handle the errors/exceptions
 // TODO #122 Re-document
-class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
+class MidiDeviceHandle(val id: MidiDeviceId,
+                       businessync: Businessync) extends AutoCloseable, LazyLogging {
 
   import MidiDeviceHandle.*
 
@@ -48,8 +52,8 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
     override def close(): Unit = {}
   }
 
-  def this(info: MidiDevice.Info) = {
-    this(MidiDeviceId(info))
+  def this(info: MidiDevice.Info, businessync: Businessync) = {
+    this(MidiDeviceId(info), businessync)
 
     onConnect(info)
   }
@@ -62,6 +66,8 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
 
   def isOutputDevice: Boolean = _device.exists(scmidi.isOutputDevice)
 
+  def endpointType: MidiEndpointType = MidiEndpointType(isInputDevice, isOutputDevice)
+
   def state = withLock {
     _state
   }
@@ -73,13 +79,20 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
    * @return true if the connection was successful, or false otherwise.
    */
   private[scmidi] def onConnect(info: MidiDevice.Info): Boolean = withLock {
+    require(id.correspondsToInfo(info), s"The given MidiDevice.Info $info does not correspond to the MidiDeviceHandle" +
+      s" $id!")
+
     onDisconnect()
 
     _device = try {
       Some(MidiSystem.getMidiDevice(info))
     } catch {
-      case e: MidiUnavailableException => None
-      case e: IllegalArgumentException => None
+      case exception: MidiUnavailableException => None
+      case exception: IllegalArgumentException => None
+      case exception: Exception =>
+        logger.error(s"Failed to connect to $endpointType device $id!", exception)
+        businessync.publish(MidiDeviceFailedToConnectEvent(id, exception))
+        None
     }
 
     if (_device.isDefined) {
@@ -98,7 +111,14 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
   }
 
   private[scmidi] def onDisconnect(): Unit = withLock {
-    _device.foreach(_.close())
+    try {
+      _device.foreach(_.close())
+    } catch {
+      case exception: Exception =>
+        logger.error(s"Failed to disconnect from $endpointType device $id!", exception)
+        businessync.publish(MidiDeviceFailedToDisconnectEvent(id, exception))
+    }
+
     _device = None
     _info = None
   }
@@ -120,12 +140,20 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
       if (_state == State.WaitingToOpen) {
         _state = State.Closed
       } else if (_state == State.Open) {
-        _device.foreach(_.close())
+        try {
+          _device.foreach(_.close())
+        } catch {
+          case exception: Exception =>
+            logger.error(s"Failed to close $endpointType device $id!", exception)
+            businessync.publish(MidiDeviceFailedToCloseEvent(id, exception))
+        }
 
         _state = State.Connected
       }
     }
   }
+
+  def isConnected: Boolean = _device.isDefined
 
   def isOpen: Boolean = _device.exists(_.isOpen)
 
@@ -136,13 +164,19 @@ class MidiDeviceHandle(val id: MidiDeviceId) extends AutoCloseable {
   private def doOpen(): Unit = withLock {
     _state = State.Open
 
-    _device.foreach { dev =>
-      dev.open()
+    try {
+      _device.foreach { dev =>
+        dev.open()
 
-      val maxTransmitters = dev.getMaxTransmitters
-      if (maxTransmitters == -1 || maxTransmitters > 0) {
-        dev.getTransmitter.setReceiver(splitter.receiver)
+        val maxTransmitters = dev.getMaxTransmitters
+        if (maxTransmitters == -1 || maxTransmitters > 0) {
+          dev.getTransmitter.setReceiver(splitter.receiver)
+        }
       }
+    } catch {
+      case exception: Exception =>
+        logger.error(s"Failed to open $endpointType device $id.", exception)
+        businessync.publish(MidiDeviceFailedToOpenEvent(id, exception))
     }
   }
 
