@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.microtonalist.common.concurrency.Lockable
+
+import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import javax.sound.midi.Receiver
 
 /**
@@ -23,26 +26,18 @@ import javax.sound.midi.Receiver
  *
  * @see [[javax.sound.midi.Transmitter]] which only allows a single [[Receiver]] to be set.
  */
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import javax.sound.midi.Receiver
-
-trait MultiTransmitter extends AutoCloseable {
+trait MultiTransmitter extends AutoCloseable, Lockable {
   private var _receivers: Seq[Receiver] = Seq.empty
 
-  private val lock = new ReentrantReadWriteLock()
+  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
 
   /**
    * Retrieves the current sequence of MIDI [[Receiver]]s to which all messages are forwarded.
    *
    * @return A sequence of [[Receiver]] instances.
    */
-  def receivers: Seq[Receiver] = {
-    lock.readLock().lock()
-    try {
-      _receivers
-    } finally {
-      lock.readLock().unlock()
-    }
+  def receivers: Seq[Receiver] = withReadLock {
+    _receivers
   }
 
   /**
@@ -50,7 +45,7 @@ trait MultiTransmitter extends AutoCloseable {
    *
    * @param receivers Sequence of new [[Receiver]] instances.
    */
-  def receivers_=(receivers: Seq[Receiver]): Unit = writeWithLock {
+  def receivers_=(receivers: Seq[Receiver]): Unit = withWriteLock {
     _receivers = receivers
   }
 
@@ -59,7 +54,7 @@ trait MultiTransmitter extends AutoCloseable {
    *
    * @param receiver Receiver instance to be added to the list.
    */
-  def addReceiver(receiver: Receiver): Unit = writeWithLock {
+  def addReceiver(receiver: Receiver): Unit = withWriteLock {
     _receivers = _receivers :+ receiver
   }
 
@@ -68,7 +63,7 @@ trait MultiTransmitter extends AutoCloseable {
    *
    * @param newReceivers Sequence of [[Receiver]] instances to be added.
    */
-  def addReceivers(newReceivers: Seq[Receiver]): Unit = writeWithLock {
+  def addReceivers(newReceivers: Seq[Receiver]): Unit = withWriteLock {
     _receivers = _receivers :++ newReceivers
   }
 
@@ -77,24 +72,14 @@ trait MultiTransmitter extends AutoCloseable {
    *
    * @param receiver Receiver instance to be removed from the list.
    */
-  def removeReceiver(receiver: Receiver): Unit = writeWithLock {
+  def removeReceiver(receiver: Receiver): Unit = withWriteLock {
     _receivers = _receivers.filterNot(_ == receiver)
   }
 
   /**
    * Clears the list of MIDI receivers.
    */
-  def clearReceivers(): Unit = writeWithLock {
+  def clearReceivers(): Unit = withWriteLock {
     _receivers = Seq.empty
-  }
-
-  @inline
-  private def writeWithLock(action: => Unit): Unit = {
-    lock.writeLock().lock()
-    try {
-      action
-    } finally {
-      lock.writeLock().unlock()
-    }
   }
 }

@@ -18,14 +18,15 @@ package org.calinburloiu.music.scmidi
 
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.microtonalist.common.concurrency.Lockable
 import org.calinburloiu.music.scmidi
 
-import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.locks.{Lock, ReentrantLock}
 import javax.sound.midi.*
 
 // TODO #122 Re-document
 class MidiDeviceHandle(val id: MidiDeviceId,
-                       businessync: Businessync) extends AutoCloseable, LazyLogging {
+                       businessync: Businessync) extends AutoCloseable, Lockable, LazyLogging {
 
   import MidiDeviceHandle.*
 
@@ -39,7 +40,7 @@ class MidiDeviceHandle(val id: MidiDeviceId,
   private lazy val _receiver: HandleReceiver = new HandleReceiver
   private lazy val splitter: MidiSplitter = new MidiSplitter
 
-  private val lock: ReentrantLock = new ReentrantLock()
+  private implicit val lock: Lock = new ReentrantLock()
 
   private class HandleReceiver extends Receiver {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
@@ -175,16 +176,6 @@ class MidiDeviceHandle(val id: MidiDeviceId,
       case exception: Exception =>
         logger.error(s"Failed to open $endpointType device $id.", exception)
         businessync.publish(MidiDeviceFailedToOpenEvent(id, exception))
-    }
-  }
-
-  @inline
-  private def withLock[R](block: => R): R = {
-    lock.lock()
-    try {
-      block
-    } finally {
-      lock.unlock()
     }
   }
 }
