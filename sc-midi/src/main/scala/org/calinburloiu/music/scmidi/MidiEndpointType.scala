@@ -16,6 +16,13 @@
 
 package org.calinburloiu.music.scmidi
 
+/**
+ * Tells whether a MIDI endpoint (like a device) support input and/or output.
+ *
+ * @param name     Descriptive name of the MIDI endpoint type.
+ * @param isInput  Indicates whether the endpoint supports MIDI input.
+ * @param isOutput Indicates whether the endpoint supports MIDI output.
+ */
 enum MidiEndpointType(val name: String, isInput: Boolean, isOutput: Boolean) {
   override def toString: String = name
 

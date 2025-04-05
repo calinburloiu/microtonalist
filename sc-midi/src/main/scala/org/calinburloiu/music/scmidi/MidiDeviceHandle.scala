@@ -18,17 +18,44 @@ package org.calinburloiu.music.scmidi
 
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.common.concurrency.Lockable
+import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 import org.calinburloiu.music.scmidi
 
 import java.util.concurrent.locks.{Lock, ReentrantLock}
+import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.*
 
-// TODO #122 Re-document
-class MidiDeviceHandle(val id: MidiDeviceId,
-                       businessync: Businessync) extends AutoCloseable, Lockable, LazyLogging {
+/**
+ * Class used for objects that handle MIDI devices.
+ *
+ * [[MidiManager]] is responsible to create instances of this class and to keep it up to date behind the scenes.
+ *
+ * A [[MidiDeviceHandle]] can be instantiated for a MIDI device based on its unique identifier, [[MidiDeviceId]].
+ * The device is not required to be connected to the system when the object is instantiated. However, [[MidiManager]]
+ * will automatically inform the object when the physical device gets connected or disconnected. Only when the device
+ * is connected the [[MidiDevice]], via [[device]] accessor, and the [[MidiDevice.Info]], via [[info]] accessor,
+ * become defined on the instance.
+ *
+ * Similar to [[MidiDevice]], a device can only be used after it's opened via the [[open]] method. When it's no
+ * longer needed, [[close]] must be called. The device can be requested to be opened even if it's not connected and
+ * once it will become connected it will also be opened.
+ *
+ * An instance exposes a [[Receiver]] and a [[MultiTransmitter]] via [[receiver]] and [[multiTransmitter]] accessors,
+ * respectively. If the device is not connected, those instances will do nothing. But you can wire them, and when the
+ * device becomes connected they can be used without doing something.
+ *
+ * The class also exposes a [[state]] accessor with the current state of the instance and its associated device.
+ *
+ * @param id          Unique identifier of the MIDI device.
+ * @param businessync Used for publishing MIDI events about the device state.
+ */
+@ThreadSafe
+class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
+                                       businessync: Businessync) extends AutoCloseable, Locking, LazyLogging {
 
   import MidiDeviceHandle.*
+
+  private implicit val lock: Lock = new ReentrantLock()
 
   @volatile private var _info: Option[MidiDevice.Info] = None
   @volatile private var _device: Option[MidiDevice] = None
@@ -40,8 +67,6 @@ class MidiDeviceHandle(val id: MidiDeviceId,
   private lazy val _receiver: HandleReceiver = new HandleReceiver
   private lazy val splitter: MidiSplitter = new MidiSplitter
 
-  private implicit val lock: Lock = new ReentrantLock()
-
   private class HandleReceiver extends Receiver {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
       for (midiDevice <- _device if midiDevice.isOpen; deviceReceiver <- Option(midiDevice.getReceiver)) {
@@ -52,28 +77,65 @@ class MidiDeviceHandle(val id: MidiDeviceId,
     override def close(): Unit = {}
   }
 
-  def this(info: MidiDevice.Info, businessync: Businessync) = {
+  /**
+   * Convenience constructor for creating an instance from an already connected device..
+   *
+   * @param info        Information about the MIDI device used to generate the MidiDeviceId and establish the device
+   *                    connection.
+   * @param businessync Used for publishing MIDI events about the device state.
+   */
+  private[scmidi] def this(info: MidiDevice.Info, businessync: Businessync) = {
     this(MidiDeviceId(info), businessync)
 
     onConnect(info)
   }
 
+  /**
+   * Retrieves the information about the MIDI device.
+   *
+   * @return An optional containing the MIDI device information if available; otherwise, None.
+   */
   def info: Option[MidiDevice.Info] = _info
 
+  /**
+   * Retrieves the associated Java MIDI API device.
+   *
+   * @return An optional containing the MIDI device if available; otherwise, None.
+   */
   def device: Option[MidiDevice] = _device
 
+  /**
+   * Determines if the associated MIDI device is an input device. If it is, then its [[receiver]] can be used,
+   * otherwise that will do nothing.
+   *
+   * @return True if the MIDI device supports input, false otherwise.
+   */
   def isInputDevice: Boolean = _device.exists(scmidi.isInputDevice)
 
+  /**
+   * Determines if the associated MIDI device is an output device. If it is, then its [[transmitter]] can be used,
+   * otherwise that will do nothing.
+   *
+   * @return True if the MIDI device supports output, false otherwise.
+   */
   def isOutputDevice: Boolean = _device.exists(scmidi.isOutputDevice)
 
+  /**
+   * Tells whether a MIDI endpoint (like a device) support input and/or output.
+   *
+   * @return A MidiEndpointType indicating the input/output capabilities of the endpoint.
+   */
   def endpointType: MidiEndpointType = MidiEndpointType(isInputDevice, isOutputDevice)
 
+  /**
+   * Retrieves the current state of the MIDI device.
+   */
   def state = withLock {
     _state
   }
 
   /**
-   * Attempts to connect the device corresponding to the given [[MidiDevice.Info]].
+   * Informs the instance that the device got connected to the system.
    *
    * @param info Information about the MIDI device to connect to.
    * @return true if the connection was successful, or false otherwise.
@@ -110,6 +172,9 @@ class MidiDeviceHandle(val id: MidiDeviceId,
     }
   }
 
+  /**
+   * Informs the instance that the device got disconnected from the system.
+   */
   private[scmidi] def onDisconnect(): Unit = withLock {
     try {
       _device.foreach(_.close())
@@ -123,6 +188,18 @@ class MidiDeviceHandle(val id: MidiDeviceId,
     _info = None
   }
 
+  /**
+   * Attempts to open the MIDI device associated with this handle.
+   *
+   *   - If the device is not yet connected, the instance transitions to [[State.WaitingToOpen]] and once it becomes
+   *     connected it will then open.
+   *   - If the device is already connected, the device will attempt to open immediately.
+   *
+   * This is a reference-counted operation; the device will only transition to an opened state if this is the first
+   * call to the method, and it is in a state that allows opening.
+   *
+   * @see `MidiDevice.open()` from the Java MIDI API which is called by this method to open the device.
+   */
   def open(): Unit = withLock {
     openRefCount += 1
     if (openRefCount == 1) {
@@ -134,6 +211,14 @@ class MidiDeviceHandle(val id: MidiDeviceId,
     }
   }
 
+  /**
+   * Closes the MIDI device handle, updating its internal state.
+   *
+   * If this is the last reference to the device, it is properly closed or its state is adjusted depending on
+   * the current state and connection status.
+   *
+   * @see `MidiDevice.close()` from the Java MIDI API which is called by this method to close the device.
+   */
   override def close(): Unit = withLock {
     openRefCount -= 1
     if (openRefCount == 0) {
@@ -153,12 +238,34 @@ class MidiDeviceHandle(val id: MidiDeviceId,
     }
   }
 
+  /**
+   * Checks whether the MIDI device is currently connected.
+   *
+   * @return True if the device is connected, false otherwise.
+   */
   def isConnected: Boolean = _device.isDefined
 
+  /**
+   * Determines if the MIDI device is currently open.
+   *
+   * @return True if the device is open, false otherwise.
+   * @see [[open]] and [[close]], the method that update this state.
+   */
   def isOpen: Boolean = _device.exists(_.isOpen)
 
+  /**
+   * Retrieves the MIDI receiver associated with the device which can be used to send MIDI messages to the device.
+   *
+   * @return The MIDI receiver instance.
+   */
   def receiver: Receiver = _receiver
 
+  /**
+   * Retrieves the [[MultiTransmitter]] instance associated with the MIDI device, which can be used to subscribe to
+   * MIDI messages sent from the device.
+   *
+   * @return The `MultiTransmitter` instance.
+   */
   def multiTransmitter: MultiTransmitter = splitter.multiTransmitter
 
   private def doOpen(): Unit = withLock {

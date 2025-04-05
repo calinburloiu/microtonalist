@@ -18,6 +18,9 @@ package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
 
+// TODO #132 Make a MidiProcessor be composed from a Receiver and a Transmitter rather than extend them to reduce
+//  confusion
+
 /**
  * MIDI interceptor that can change MIDI events that pass through it.
  *
