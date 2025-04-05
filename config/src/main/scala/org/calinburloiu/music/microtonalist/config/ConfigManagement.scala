@@ -32,6 +32,8 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
 
   import MainConfigManager.*
 
+  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock
+
   val coreConfigManager: CoreConfigManager = new CoreConfigManager(this)
 
   def coreConfig: CoreConfig = coreConfigManager.config
@@ -47,8 +49,6 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
     scheduledExecutorService.scheduleAtFixedRate(scheduledTask,
       metaConfig.saveIntervalMillis, metaConfig.saveIntervalMillis, TimeUnit.MILLISECONDS)
   }
-
-  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock
 
   def load(): HoconConfig = configFile
     .map { path =>

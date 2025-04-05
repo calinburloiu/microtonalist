@@ -27,9 +27,9 @@ import javax.sound.midi.Receiver
  * @see [[javax.sound.midi.Transmitter]] which only allows a single [[Receiver]] to be set.
  */
 trait MultiTransmitter extends AutoCloseable, Locking {
-  private var _receivers: Seq[Receiver] = Seq.empty
-
   private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
+
+  private var _receivers: Seq[Receiver] = Seq.empty
 
   /**
    * Retrieves the current sequence of MIDI [[Receiver]]s to which all messages are forwarded.

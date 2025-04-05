@@ -55,6 +55,8 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
 
   import MidiDeviceHandle.*
 
+  private implicit val lock: Lock = new ReentrantLock()
+
   @volatile private var _info: Option[MidiDevice.Info] = None
   @volatile private var _device: Option[MidiDevice] = None
 
@@ -64,8 +66,6 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
 
   private lazy val _receiver: HandleReceiver = new HandleReceiver
   private lazy val splitter: MidiSplitter = new MidiSplitter
-
-  private implicit val lock: Lock = new ReentrantLock()
 
   private class HandleReceiver extends Receiver {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {

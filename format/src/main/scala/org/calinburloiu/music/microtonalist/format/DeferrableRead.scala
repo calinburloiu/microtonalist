@@ -139,11 +139,11 @@ case class AlreadyRead[V, P](override val value: V) extends DeferrableRead[V, P]
  *           reference (e.g. a URI)
  */
 case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Locking, LazyLogging {
+  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
+
   private var _status: DeferrableReadStatus = DeferrableReadStatus.Unloaded
   private var _futureValue: Option[Future[V]] = None
   private var _value: Option[V] = None
-
-  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
 
   override def load(loader: P => Future[V]): Future[V] = {
     // Read locks are cheaper, first try to read to see if it was not already loaded

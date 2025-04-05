@@ -27,9 +27,9 @@ import java.util.concurrent.locks.{Lock, ReadWriteLock}
  *
  * {{{
  * class Test extends Locking {
- *   private var _x: Int
- *
  *   private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
+ *
+ *   private var _x: Int
  *
  *   def x: Int = withReadLock {
  *     _x
