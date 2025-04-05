@@ -34,31 +34,71 @@ abstract sealed class MidiEvent extends BusinessyncEvent
 case object MidiEnvironmentChangedEvent extends MidiEvent
 
 /**
- * Event representing the addition of a new MIDI device.
+ * Event emitted when a new MIDI device is connected (added) to the system.
  *
- * Note that this event does not tell that the device was also connected in the application.
+ * Note that this event does not tell that the device was also opened by the application.
  *
  * @param deviceId Unique identifier of the newly added MIDI device.
- */
-case class MidiDeviceAddedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-/**
- * Represents an event indicating that a MIDI device has been removed.
- *
- * @param deviceId Identifier of the MIDI device that was removed.
- */
-case class MidiDeviceRemovedEvent(deviceId: MidiDeviceId) extends MidiEvent
-
-/**
- * Event representing the connection of a MIDI device.
- *
- * @param deviceId The unique identifier of the connected MIDI device.
+ * @see [[MidiDeviceFailedToConnectEvent]], the failing pair of this event.
  */
 case class MidiDeviceConnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
 
 /**
- * Event emitted when a MIDI device is disconnected.
+ * Event emitted when a MIDI device fails to connect.
  *
- * @param deviceId Identifier of the MIDI device that has been disconnected.
+ * @param deviceId Unique identifier of the MIDI device that failed to connect.
+ * @param cause    Exception that describes the cause of the failure.
+ * @see [[MidiDeviceConnectedEvent]], the successful pair of this event.
+ */
+case class MidiDeviceFailedToConnectEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent
+
+/**
+ * Event emitted when an existing MIDI device is disconnected (removed) from the system.
+ *
+ * @param deviceId Identifier of the MIDI device that was removed.
+ * @see [[MidiDeviceFailedToDisconnectEvent]], the failing pair of this event.
  */
 case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+/**
+ * Event emitted when a MIDI device fails to disconnect.
+ *
+ * @param deviceId Unique identifier of the MIDI device that failed to disconnect.
+ * @param cause    Exception that caused the failure to disconnect the device.
+ * @see [[MidiDeviceDisconnectedEvent]], the successful pair of this event.
+ */
+case class MidiDeviceFailedToDisconnectEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent
+
+/**
+ * Event emitted when a MIDI device is opened.
+ *
+ * @param deviceId The unique identifier of the opened MIDI device.
+ * @see [[MidiDeviceFailedToOpenEvent]], the failing pair of this event.
+ */
+case class MidiDeviceOpenedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+/**
+ * Event triggered when a MIDI device fails to open.
+ *
+ * @param deviceId Unique identifier of the MIDI device that failed to open.
+ * @param cause    Exception representing the reason for the failure.
+ * @see [[MidiDeviceOpenedEvent]], the successful pair of this event.
+ */
+case class MidiDeviceFailedToOpenEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent
+
+/**
+ * Event emitted when a MIDI device is closed.
+ *
+ * @param deviceId Identifier of the MIDI device that has been closed.
+ * @see [[MidiDeviceFailedToCloseEvent]], the failing pair of this event.
+ */
+case class MidiDeviceClosedEvent(deviceId: MidiDeviceId) extends MidiEvent
+
+/**
+ * Event emitted when a MIDI device fails to close.
+ *
+ * @param deviceId The unique identifier of the MIDI device that failed to close.
+ * @param cause    The exception that caused the failure.
+ * @see [[MidiDeviceClosedEvent]], the successful pair of this event.
+ */
+case class MidiDeviceFailedToCloseEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent

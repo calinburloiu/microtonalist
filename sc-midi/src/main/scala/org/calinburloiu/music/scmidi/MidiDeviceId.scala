@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -29,6 +29,17 @@ import javax.sound.midi.MidiDevice
  */
 case class MidiDeviceId(name: String,
                         vendor: String) {
+
+  /**
+   * Checks whether the current MIDI device identifier corresponds to the given MIDI device info.
+   *
+   * @param midiDeviceInfo The MIDI device information to compare against.
+   * @return True if the current device identifier matches the given device information, false otherwise.
+   */
+  def correspondsToInfo(midiDeviceInfo: MidiDevice.Info): Boolean = {
+    name == midiDeviceInfo.getName && vendor == midiDeviceInfo.getVendor
+  }
+
   /**
    * The app does not use the Java MIDI implementation and instead uses CoreMidi4J, which causes all device names to
    * have a certain prefix. This method removes that prefix.

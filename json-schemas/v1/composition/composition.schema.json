@@ -54,6 +54,12 @@
         },
         "fill": { "$ref": "#/$defs/fill" },
         "tuningReducer": { "$ref": "tuningReducer.schema.json" },
+        "tracksUri": {
+            "type": "string",
+            "title": "Tracks URI",
+            "description": "Optional URI for the Tracks file. If not provided, the \".tracks\" extension is appended to the composition URI. E.g. Composition with URI \"file:///path/to/composition.mtlist\" has the default Tracks file with URI \"file:///path/to/composition.mtlist.tracks\".",
+            "format": "uri-reference"
+        },
         "settings": {
             "type": "object",
             "title": "Settings",

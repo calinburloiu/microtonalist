@@ -21,7 +21,11 @@ import com.typesafe.scalalogging.StrictLogging
 import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
- * A [[MidiProcessor]] that can execute a chain of other [[MidiProcessor]]s.
+ * A [[MidiProcessor]] that connects a sequence of [[MidiProcessor]]s in a chain ending with the [[Receiver]] set.
+ *
+ * {{{
+ *   MidiProcessor -> MidiProcessor -> ... -> MidiProcessor -> Receiver
+ * }}}
  *
  * @param processors [[MidiProcessor]]s to execute in sequence
  */
@@ -34,7 +38,7 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
   }
 
   override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    processors.headOption.foreach(_.send(message, timeStamp))
+    processors.headOption.getOrElse(receiver).send(message, timeStamp)
   }
 
   override def close(): Unit = {
@@ -48,7 +52,9 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor])
     for (i <- 1 until size) {
       processors(i - 1).receiver = processors(i)
     }
-    processors(size - 1).receiver = receiver
+    if (size > 0) {
+      processors(size - 1).receiver = receiver
+    }
   }
 
   override protected def onDisconnect(): Unit = {}
