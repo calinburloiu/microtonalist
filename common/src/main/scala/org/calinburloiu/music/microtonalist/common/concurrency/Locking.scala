@@ -26,7 +26,7 @@ import java.util.concurrent.locks.{Lock, ReadWriteLock}
  * Example usage:
  *
  * {{{
- * class Test extends Lockable {
+ * class Test extends Locking {
  *   private var _x: Int
  *
  *   private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
@@ -41,7 +41,7 @@ import java.util.concurrent.locks.{Lock, ReadWriteLock}
  * }
  * }}}
  */
-trait Lockable {
+trait Locking {
 
   /**
    * Executes the given block of code while holding the provided lock, ensuring proper lock acquisition and release,

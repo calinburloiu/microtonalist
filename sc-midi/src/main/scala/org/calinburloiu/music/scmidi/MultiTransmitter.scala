@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.microtonalist.common.concurrency.Lockable
+import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import javax.sound.midi.Receiver
@@ -26,7 +26,7 @@ import javax.sound.midi.Receiver
  *
  * @see [[javax.sound.midi.Transmitter]] which only allows a single [[Receiver]] to be set.
  */
-trait MultiTransmitter extends AutoCloseable, Lockable {
+trait MultiTransmitter extends AutoCloseable, Locking {
   private var _receivers: Seq[Receiver] = Seq.empty
 
   private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()

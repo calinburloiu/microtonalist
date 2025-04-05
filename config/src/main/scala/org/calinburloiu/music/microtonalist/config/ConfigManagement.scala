@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.config
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config as HoconConfig}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.common.PlatformUtils
+import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -27,7 +28,7 @@ import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 import scala.util.Try
 
 final class MainConfigManager private[microtonalist](configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
-  extends AutoCloseable with StrictLogging {
+  extends AutoCloseable, Locking, StrictLogging {
 
   import MainConfigManager.*
 
@@ -38,7 +39,6 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
   def metaConfig: MetaConfig = coreConfig.metaConfig
 
   private var _mainHoconConfig: HoconConfig = load()
-  private val lock: ReadWriteLock = new ReentrantReadWriteLock
   private var _dirty: Boolean = false
 
   private val scheduledExecutorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
@@ -47,6 +47,8 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
     scheduledExecutorService.scheduleAtFixedRate(scheduledTask,
       metaConfig.saveIntervalMillis, metaConfig.saveIntervalMillis, TimeUnit.MILLISECONDS)
   }
+
+  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock
 
   def load(): HoconConfig = configFile
     .map { path =>
@@ -93,18 +95,13 @@ final class MainConfigManager private[microtonalist](configFile: Option[Path], f
     scheduledExecutorService.shutdown()
   }
 
-  private def mainHoconConfig: HoconConfig = {
-    lock.readLock().lock()
-    val result = _mainHoconConfig
-    lock.readLock().unlock()
-    result
+  private def mainHoconConfig: HoconConfig = withReadLock {
+    _mainHoconConfig
   }
 
-  private def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = {
-    lock.writeLock().lock()
+  private def mainHoconConfig_=(newMainHoconConfig: HoconConfig): Unit = withWriteLock {
     _mainHoconConfig = newMainHoconConfig
     _dirty = true
-    lock.writeLock().unlock()
   }
 }
 

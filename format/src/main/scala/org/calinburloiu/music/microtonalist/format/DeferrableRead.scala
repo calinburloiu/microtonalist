@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.LazyLogging
+import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 import play.api.libs.json.*
 
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
@@ -137,25 +138,24 @@ case class AlreadyRead[V, P](override val value: V) extends DeferrableRead[V, P]
  * @tparam P type of the ''placeholder'' that will be used later to load the actual value that typically contains a
  *           reference (e.g. a URI)
  */
-case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] with LazyLogging {
-  var _status: DeferrableReadStatus = DeferrableReadStatus.Unloaded
-  var _futureValue: Option[Future[V]] = None
-  var _value: Option[V] = None
+case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Locking, LazyLogging {
+  private var _status: DeferrableReadStatus = DeferrableReadStatus.Unloaded
+  private var _futureValue: Option[Future[V]] = None
+  private var _value: Option[V] = None
 
-  val lock: ReadWriteLock = new ReentrantReadWriteLock()
+  private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
 
   override def load(loader: P => Future[V]): Future[V] = {
     // Read locks are cheaper, first try to read to see if it was not already loaded
-    lock.readLock.lock()
-    val valueRead = _futureValue
-    lock.readLock.unlock()
+    val valueRead = withReadLock {
+      _futureValue
+    }
 
     val loadedValue = valueRead match {
       case Some(v) =>
         logger.warn(s"The value $v was already loaded!")
         v
-      case None =>
-        lock.writeLock.lock()
+      case None => withWriteLock {
         try {
           // We need to read the value again because it might have changed since we released the read lock above
           _futureValue match {
@@ -179,37 +179,30 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P] with 
           case throwable: Throwable =>
             _status = DeferrableReadStatus.FailedLoad(throwable)
             throw throwable
-        } finally {
-          // Make sure we release the write lock if the loader function above throws an exception
-          lock.writeLock().unlock()
         }
+      }
     }
 
     loadedValue
   }
 
-  override def status: DeferrableReadStatus = {
-    lock.readLock.lock()
-    val status = _status
-    lock.readLock.unlock()
-
-    status
+  override def status: DeferrableReadStatus = withReadLock {
+    _status
   }
 
   override def futureValue: Future[V] = {
-    lock.readLock.lock()
-    val maybeFutureValue = _futureValue
-    lock.readLock.unlock()
+    val maybeFutureValue = withReadLock {
+      _futureValue
+    }
 
     maybeFutureValue
       .getOrElse(throw new NoSuchElementException("load was not called before getting the value in DeferredRead"))
   }
 
   override def value: V = {
-    lock.readLock.lock()
-    val maybeValue = _value
-    val status = _status
-    lock.readLock.unlock()
+    val (maybeValue, status) = withReadLock {
+      (_value, _status)
+    }
 
     maybeValue.getOrElse {
       status match {
