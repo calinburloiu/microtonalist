@@ -29,15 +29,14 @@ import javax.sound.midi.{MidiMessage, Receiver}
  *
  * @param processors [[MidiProcessor]]s to execute in sequence
  */
-class MidiSerialProcessor(processors: Seq[MidiProcessor])
-  extends MidiProcessor with StrictLogging {
+class MidiSerialProcessor(processors: Seq[MidiProcessor]) extends MidiProcessor with StrictLogging {
 
-  def this(processors: Seq[MidiProcessor], initialReceiver: Receiver) = {
+  def this(processors: Seq[MidiProcessor], initialOutputReceiver: Receiver) = {
     this(processors)
-    receiver = initialReceiver
+    transmitter.receiver = initialOutputReceiver
   }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
+  protected override def process(message: MidiMessage): Seq[MidiMessage] = {
     processors.headOption.getOrElse(receiver).send(message, timeStamp)
   }
 

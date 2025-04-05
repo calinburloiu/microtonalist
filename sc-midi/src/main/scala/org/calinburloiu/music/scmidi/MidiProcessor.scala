@@ -16,10 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import javax.sound.midi.{Receiver, Transmitter}
-
-// TODO #121 Make a MidiProcessor be composed from a Receiver and a Transmitter rather than extend them to reduce
-//  confusion
+import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
 
 /**
  * MIDI interceptor that can change MIDI events that pass through it.
@@ -29,49 +26,84 @@ import javax.sound.midi.{Receiver, Transmitter}
  * When the receiver is changed, it first _disconnects_, so [[MidiProcessor#onDisconnect()]] is called before.
  * [[MidiProcessor#onDisconnect()]] is also called with the [[MidiProcessor]] is closed.
  */
-trait MidiProcessor extends Transmitter with Receiver {
-  private var _receiver: Option[Receiver] = None
+trait MidiProcessor extends AutoCloseable {
 
-  override def setReceiver(receiver: Receiver): Unit = {
-    if (_receiver.isDefined) onDisconnect()
-    _receiver = Some(receiver)
-    onConnect()
-  }
+  private val _receiver: MidiProcessorReceiver = MidiProcessorReceiver()
 
-  override def getReceiver: Receiver = _receiver.orNull
+  private val _transmitter: MidiProcessorTransmitter = MidiProcessorTransmitter()
 
-  /**
-   * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.
-   *
-   * As opposed to the Java version, this method throws [[IllegalStateException]] is a [[Receiver]] was not
-   * previously set.
-   *
-   * @return the current receiver. If no receiver is currently set, [[IllegalStateException]] is thrown.
-   * @throws IllegalStateException if no receiver is currently set.
-   * @see [[javax.sound.midi.Transmitter#getReceiver()]]
-   */
-  final def receiver: Receiver = {
-    val result = getReceiver
-    if (result == null) {
-      throw new IllegalStateException("No receiver was set!")
+  class MidiProcessorReceiver extends Receiver {
+
+    override def send(message: MidiMessage, timeStamp: Long): Unit = {
+      val outputMessages = process(message)
+
+      for (receiverUsed <- outputReceiver; outputMessage <- outputMessages) {
+        receiverUsed.send(outputMessage, timeStamp)
+      }
     }
 
-    result
+    def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
+      send(scMessage.javaMidiMessage, -1)
+      this
+    }
+
+    override def close(): Unit = {
+      _transmitter.close()
+      onDisconnect()
+    }
   }
 
-  /**
-   * Scala idiomatic version of [[Transmitter]]'s `setReceiver` method.
-   *
-   * @see [[javax.sound.midi.Transmitter#setReceiver()]]
-   */
-  final def receiver_=(receiver: Receiver): Unit = setReceiver(receiver)
+  class MidiProcessorTransmitter extends Transmitter {
+    private var outputReceiver: Option[Receiver] = None
 
-  final def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-    send(scMessage.javaMidiMessage, timeStamp)
-    this
+    override def setReceiver(receiver: Receiver): Unit = {
+      if (outputReceiver.isDefined) onDisconnect()
+      outputReceiver = Option(receiver)
+      onConnect()
+    }
+
+    override def getReceiver: Receiver = outputReceiver.orNull
+
+    /**
+     * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.
+     *
+     * As opposed to the Java version, this method throws [[IllegalStateException]] is a [[Receiver]] was not
+     * previously set.
+     *
+     * @return the current receiver. If no receiver is currently set, [[IllegalStateException]] is thrown.
+     * @throws IllegalStateException if no receiver is currently set. Use the Java-like getReceiver as a non-throwing
+     *                               accessor that may return null
+     * @see [[javax.sound.midi.Transmitter#getReceiver()]]
+     */
+    def receiver: Receiver = {
+      val result = getReceiver
+      if (result == null) {
+        throw new IllegalStateException("No receiver was set!")
+      }
+
+      result
+    }
+
+    /**
+     * Scala idiomatic version of [[Transmitter]]'s `setReceiver` method.
+     *
+     * @see [[javax.sound.midi.Transmitter#setReceiver()]]
+     */
+    def receiver_=(receiver: Receiver): Unit = setReceiver(receiver)
+
+    def receiverOption: Option[Receiver] = outputReceiver
+
+    override def close(): Unit = {
+      _receiver.close()
+      onDisconnect()
+    }
   }
 
-  override def close(): Unit = onDisconnect()
+  def receiver: MidiProcessorReceiver = _receiver
+
+  def transmitter: MidiProcessorTransmitter = _transmitter
+
+  protected def process(message: MidiMessage): Seq[MidiMessage]
 
   /**
    * Callback called after a receiver is set to allow configuring the output device to be used with the processor.
@@ -90,4 +122,6 @@ trait MidiProcessor extends Transmitter with Receiver {
    * @see [[MidiProcessor#setReceiver()]]
    */
   protected def onDisconnect(): Unit = {}
+
+  private def outputReceiver: Option[Receiver] = _transmitter.receiverOption
 }
