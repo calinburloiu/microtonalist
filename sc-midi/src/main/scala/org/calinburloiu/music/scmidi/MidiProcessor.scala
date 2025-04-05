@@ -18,7 +18,7 @@ package org.calinburloiu.music.scmidi
 
 import javax.sound.midi.{Receiver, Transmitter}
 
-// TODO #121 Make a MidiProcessor be composed from a Receiver and a Transmitter rather than extend them to reduce
+// TODO #132 Make a MidiProcessor be composed from a Receiver and a Transmitter rather than extend them to reduce
 //  confusion
 
 /**
