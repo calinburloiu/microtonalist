@@ -35,7 +35,7 @@ trait MidiProcessor extends AutoCloseable {
 
   private val _transmitter: MidiProcessorTransmitter = MidiProcessorTransmitter()
 
-  class MidiProcessorReceiver extends Receiver {
+  class MidiProcessorReceiver private[scmidi] extends Receiver {
 
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
       val outputMessages = process(message)
@@ -56,7 +56,7 @@ trait MidiProcessor extends AutoCloseable {
     }
   }
 
-  class MidiProcessorTransmitter extends Transmitter {
+  class MidiProcessorTransmitter private[scmidi] extends Transmitter {
     private var outputReceiver: Option[Receiver] = None
 
     override def setReceiver(receiver: Receiver): Unit = {
