@@ -36,12 +36,21 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor]) extends MidiProcessor 
     transmitter.receiver = initialOutputReceiver
   }
 
-  protected override def process(message: MidiMessage): Seq[MidiMessage] = {
-    processors.headOption.getOrElse(receiver).send(message, timeStamp)
+  protected override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+    // If there is at least one processor, then messages will flow through processors until the output receivers due
+    // to the way they are wired, so there is no need to return anything. But if processors is empty, we return the
+    // input such that forwarding to the output receiver is handled by MidiProcessorReceiver.
+    processors.headOption match {
+      case Some(firstProcessor) =>
+        firstProcessor.receiver.send(message, -1)
+
+        Seq.empty
+      case None =>
+        Seq(message)
+    }
   }
 
   override def close(): Unit = {
-    super.close()
     logger.info(s"Closing ${this.getClass.getCanonicalName}...")
   }
 
@@ -49,10 +58,10 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor]) extends MidiProcessor 
 
   override protected def onConnect(): Unit = {
     for (i <- 1 until size) {
-      processors(i - 1).receiver = processors(i)
+      processors(i - 1).transmitter.receiver = processors(i).receiver
     }
     if (size > 0) {
-      processors(size - 1).receiver = receiver
+      processors(size - 1).transmitter.receiver = outputReceiver.orNull
     }
   }
 

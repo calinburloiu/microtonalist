@@ -38,7 +38,7 @@ trait MidiProcessor extends AutoCloseable {
   class MidiProcessorReceiver private[scmidi] extends Receiver {
 
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
-      val outputMessages = process(message)
+      val outputMessages = process(message, timeStamp)
 
       for (receiverUsed <- outputReceiver; outputMessage <- outputMessages) {
         receiverUsed.send(outputMessage, timeStamp)
@@ -106,7 +106,9 @@ trait MidiProcessor extends AutoCloseable {
 
   def transmitter: MidiProcessorTransmitter = _transmitter
 
-  protected def process(message: MidiMessage): Seq[MidiMessage]
+  protected def outputReceiver: Option[Receiver] = _transmitter.receiverOption
+
+  protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage]
 
   /**
    * Callback called after a receiver is set to allow configuring the output device to be used with the processor.
@@ -125,6 +127,4 @@ trait MidiProcessor extends AutoCloseable {
    * @see [[MidiProcessor#setReceiver()]]
    */
   protected def onDisconnect(): Unit = {}
-
-  private def outputReceiver: Option[Receiver] = _transmitter.receiverOption
 }
