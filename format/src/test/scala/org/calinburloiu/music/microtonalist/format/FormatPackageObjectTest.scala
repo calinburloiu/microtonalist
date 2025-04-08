@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -77,5 +77,33 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     uint7Format.writes(19) shouldEqual JsNumber(19)
     uint7Format.writes(127) shouldEqual JsNumber(127)
     // No validation on write
+  }
+
+  "resolveLibraryUri" should "resolve an URI with microtonalist scheme" in {
+    val uri = URI("microtonalist:///scales/dorian.scl")
+
+    resolveLibraryUri(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual URI(
+      "file:///Users/grey/Music/Library/scales/dorian.scl")
+    resolveLibraryUri(uri, URI("https://microtonalist.org/library/grey/")) shouldEqual URI(
+      "https://microtonalist.org/library/grey/scales/dorian.scl")
+  }
+
+  it should "fail for a relative URI" in {
+    val uri = URI("scales/dorian.scl")
+
+    assertThrows[IllegalArgumentException] {
+      resolveLibraryUri(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual uri
+    }
+  }
+
+  it should "fail for URIs that don't have a microtonalist scheme" in {
+    val libraryBaseUri = URI("file:///Users/grey/Music/Library/")
+
+    assertThrows[IllegalArgumentException] {
+      resolveLibraryUri(URI("file:///Users/grey/Music/Library/scales/dorian.scl"), libraryBaseUri)
+    }
+    assertThrows[IllegalArgumentException] {
+      resolveLibraryUri(URI("https://microtonalist.org/library/grey/scales/dorian.scl"), libraryBaseUri)
+    }
   }
 }

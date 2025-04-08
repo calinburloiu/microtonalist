@@ -45,22 +45,22 @@ class LibraryTrackRepo(libraryBaseUri: URI,
     Some(fileTrackRepo), Some(httpTrackRepo), None)
 
   override def readTracks(uri: URI): TrackSpecs = {
-    val resolvedUri = libraryBaseUri.resolve(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).readTracks(resolvedUri)
   }
 
   override def readTracksAsync(uri: URI): Future[TrackSpecs] = {
-    val resolvedUri = libraryBaseUri.resolve(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).readTracksAsync(resolvedUri)
   }
 
   override def writeTracks(trackSpecs: TrackSpecs, uri: URI): Unit = {
-    val resolvedUri = libraryBaseUri.resolve(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).writeTracks(trackSpecs, resolvedUri)
   }
 
   override def writeTracksAsync(trackSpecs: TrackSpecs, uri: URI): Future[Unit] = {
-    val resolvedUri = libraryBaseUri.resolve(uri)
+    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
     repoSelector.selectRepoOrThrow(resolvedUri).writeTracksAsync(trackSpecs, resolvedUri)
   }
 }
