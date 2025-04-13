@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.scmidi
 
-import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
+import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 
-// TODO #134 Make a MidiProcessor be composed from a Receiver and a Transmitter rather than extend them to reduce
-//  confusion
+import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
+import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
 
 /**
  * MIDI interceptor that can change MIDI events that pass through it.
@@ -37,35 +37,54 @@ trait MidiProcessor extends AutoCloseable {
 
   class MidiProcessorReceiver private[scmidi] extends Receiver {
 
+    @volatile private var isClosed: Boolean = false
+
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
       val outputMessages = process(message, timeStamp)
 
-      for (receiverUsed <- outputReceiver; outputMessage <- outputMessages) {
+      for (receiverUsed <- transmitter.receiverOption; outputMessage <- outputMessages) {
         receiverUsed.send(outputMessage, timeStamp)
       }
     }
 
     def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-      send(scMessage.javaMidiMessage, -1)
+      send(scMessage.javaMidiMessage, timeStamp)
       this
     }
 
-    override def close(): Unit = {
-      _transmitter.close()
-      onDisconnect()
+    override def close(): Unit = if (!isClosed) {
+      // Nothing to do for the moment. Add clean-up code here whenever necessary.
+
+      isClosed = true
     }
   }
 
-  class MidiProcessorTransmitter private[scmidi] extends Transmitter {
+  class MidiProcessorTransmitter private[scmidi] extends Transmitter, Locking {
+    private implicit val lock: ReadWriteLock = ReentrantReadWriteLock()
+
     private var outputReceiver: Option[Receiver] = None
 
+    @volatile private var isClosed: Boolean = false
+
     override def setReceiver(receiver: Receiver): Unit = {
-      if (outputReceiver.isDefined) onDisconnect()
-      outputReceiver = Option(receiver)
+      def disconnectBeforeSet(localOutputReceiver: Option[Receiver]): Unit = {
+        if (localOutputReceiver.isDefined) {
+          onDisconnect()
+        }
+      }
+
+      val localOutputReceiver = receiverOption
+      disconnectBeforeSet(localOutputReceiver)
+
+      withWriteLock {
+        disconnectBeforeSet(outputReceiver)
+        outputReceiver = Option(receiver)
+      }
+
       onConnect()
     }
 
-    override def getReceiver: Receiver = outputReceiver.orNull
+    override def getReceiver: Receiver = receiverOption.orNull
 
     /**
      * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.
@@ -78,14 +97,7 @@ trait MidiProcessor extends AutoCloseable {
      *                               accessor that may return null
      * @see [[javax.sound.midi.Transmitter#getReceiver()]]
      */
-    def receiver: Receiver = {
-      val result = getReceiver
-      if (result == null) {
-        throw new IllegalStateException("No receiver was set!")
-      }
-
-      result
-    }
+    def receiver: Receiver = receiverOption.getOrElse(throw new IllegalStateException("No receiver was set!"))
 
     /**
      * Scala idiomatic version of [[Transmitter]]'s `setReceiver` method.
@@ -94,19 +106,20 @@ trait MidiProcessor extends AutoCloseable {
      */
     def receiver_=(receiver: Receiver): Unit = setReceiver(receiver)
 
-    def receiverOption: Option[Receiver] = outputReceiver
+    def receiverOption: Option[Receiver] = withReadLock {
+      outputReceiver
+    }
 
-    override def close(): Unit = {
-      _receiver.close()
-      onDisconnect()
+    override def close(): Unit = if (!isClosed) {
+      // Nothing to do for the moment. Add clean-up code here whenever necessary.
+
+      isClosed = true
     }
   }
 
   def receiver: MidiProcessorReceiver = _receiver
 
   def transmitter: MidiProcessorTransmitter = _transmitter
-
-  protected def outputReceiver: Option[Receiver] = _transmitter.receiverOption
 
   protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage]
 

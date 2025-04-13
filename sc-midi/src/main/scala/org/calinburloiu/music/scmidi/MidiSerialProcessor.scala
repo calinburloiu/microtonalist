@@ -61,7 +61,7 @@ class MidiSerialProcessor(processors: Seq[MidiProcessor]) extends MidiProcessor 
       processors(i - 1).transmitter.receiver = processors(i).receiver
     }
     if (size > 0) {
-      processors(size - 1).transmitter.receiver = outputReceiver.orNull
+      processors(size - 1).transmitter.receiver = transmitter.receiverOption.orNull
     }
   }
 
