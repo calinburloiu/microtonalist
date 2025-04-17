@@ -74,6 +74,8 @@ trait MidiProcessor extends AutoCloseable {
       }
 
       val localOutputReceiver = receiverOption
+      // TODO #134 Check if the current value is the same to avoid doing a write lock
+
       disconnectBeforeSet(localOutputReceiver)
 
       withWriteLock {
@@ -85,6 +87,8 @@ trait MidiProcessor extends AutoCloseable {
     }
 
     override def getReceiver: Receiver = receiverOption.orNull
+
+    // TODO #134 receiver should be an Option
 
     /**
      * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.

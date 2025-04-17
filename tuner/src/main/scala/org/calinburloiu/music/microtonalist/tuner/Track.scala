@@ -68,7 +68,7 @@ class Track(val spec: TrackSpec,
 
   def receiver: Receiver = new Receiver {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
-      pipeline.send(message, timeStamp)
+      pipeline.receiver.send(message, timeStamp)
     }
 
     override def close(): Unit = {}
@@ -97,7 +97,7 @@ class Track(val spec: TrackSpec,
 
   private def sendInitMidiMessages(): Unit = {
     for (message <- initMidiMessages) {
-      pipeline.send(message, -1)
+      pipeline.receiver.send(message, -1)
     }
   }
 }

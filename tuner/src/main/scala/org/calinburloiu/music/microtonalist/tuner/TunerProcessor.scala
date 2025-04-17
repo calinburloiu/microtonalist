@@ -58,10 +58,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     sendToReceiver(tuningMessages, -1)
   }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    val messages = tuner.process(message)
-    sendToReceiver(messages, timeStamp)
-  }
+  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = tuner.process(message)
 
   override protected def onConnect(): Unit = {
     super.onConnect()
@@ -83,8 +80,6 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
 
   override def close(): Unit = {
     logger.info(s"Closing the processor for tuner $tuner...")
-
-    super.close()
   }
 
   private def sendToReceiver(messages: Seq[MidiMessage], timeStamp: Long): Unit = {
