@@ -131,7 +131,6 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
     val fillSpec = convertFillSpec(compositionRepr.fill)
-    // TODO #133 Does not work for local absolute paths and microtonalist scheme
     val tracksUriOverride = for (
       uri <- compositionRepr.tracksUri;
       baseUri <- context.baseUri

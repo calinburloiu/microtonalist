@@ -61,7 +61,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Expect
     businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
-      // TODO #119 Check tracks
+      // TODO #134 Check tracks
     })
 
     // When
@@ -69,7 +69,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
 
     // Then
     trackSession.uri should contain(uri)
-    // TODO #119 Check repo is called
+    // TODO #134 Check repo is called
 
     trackSession.isOpened shouldBe true
   }
@@ -81,7 +81,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Expect
     businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
-      // TODO #119 Check tracks
+      // TODO #134 Check tracks
     })
 
     trackSession.open(uri)
