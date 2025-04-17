@@ -49,7 +49,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
       tuningServiceStub)
 
     val receiverStub: Receiver = stub[Receiver]
-    processor.transmitter.receiver = receiverStub
+    processor.transmitter.receiver = Some(receiverStub)
   }
 
   it should "inform the TuningService about the tuning decision taken" in new Fixture {

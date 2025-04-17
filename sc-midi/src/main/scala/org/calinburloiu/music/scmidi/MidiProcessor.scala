@@ -42,8 +42,8 @@ trait MidiProcessor extends AutoCloseable {
     override def send(message: MidiMessage, timeStamp: Long): Unit = {
       val outputMessages = process(message, timeStamp)
 
-      for (receiverUsed <- transmitter.receiverOption; outputMessage <- outputMessages) {
-        receiverUsed.send(outputMessage, timeStamp)
+      for (destReceiver <- transmitter.receiver; outputMessage <- outputMessages) {
+        destReceiver.send(outputMessage, timeStamp)
       }
     }
 
@@ -66,53 +66,46 @@ trait MidiProcessor extends AutoCloseable {
 
     @volatile private var isClosed: Boolean = false
 
-    override def setReceiver(receiver: Receiver): Unit = {
+    override def setReceiver(value: Receiver): Unit = {
       def disconnectBeforeSet(localOutputReceiver: Option[Receiver]): Unit = {
         if (localOutputReceiver.isDefined) {
           onDisconnect()
         }
       }
 
-      val localOutputReceiver = receiverOption
+      val localOutputReceiver = receiver
       // TODO #134 Check if the current value is the same to avoid doing a write lock
 
-      disconnectBeforeSet(localOutputReceiver)
+      if (!receiver.contains(value)) {
+        disconnectBeforeSet(localOutputReceiver)
 
-      withWriteLock {
-        disconnectBeforeSet(outputReceiver)
-        outputReceiver = Option(receiver)
+        withWriteLock {
+          disconnectBeforeSet(outputReceiver)
+          outputReceiver = Option(value)
+        }
+
+        onConnect()
       }
-
-      onConnect()
     }
 
-    override def getReceiver: Receiver = receiverOption.orNull
-
-    // TODO #134 receiver should be an Option
+    override def getReceiver: Receiver = receiver.orNull
 
     /**
      * Scala idiomatic version of [[Transmitter]]'s `getReceiver` method.
      *
-     * As opposed to the Java version, this method throws [[IllegalStateException]] is a [[Receiver]] was not
-     * previously set.
-     *
-     * @return the current receiver. If no receiver is currently set, [[IllegalStateException]] is thrown.
-     * @throws IllegalStateException if no receiver is currently set. Use the Java-like getReceiver as a non-throwing
-     *                               accessor that may return null
+     * @return an [[Option]] of the current receiver.
      * @see [[javax.sound.midi.Transmitter#getReceiver()]]
      */
-    def receiver: Receiver = receiverOption.getOrElse(throw new IllegalStateException("No receiver was set!"))
+    def receiver: Option[Receiver] = withReadLock {
+      outputReceiver
+    }
 
     /**
      * Scala idiomatic version of [[Transmitter]]'s `setReceiver` method.
      *
      * @see [[javax.sound.midi.Transmitter#setReceiver()]]
      */
-    def receiver_=(receiver: Receiver): Unit = setReceiver(receiver)
-
-    def receiverOption: Option[Receiver] = withReadLock {
-      outputReceiver
-    }
+    def receiver_=(value: Option[Receiver]): Unit = setReceiver(value.orNull)
 
     override def close(): Unit = if (!isClosed) {
       // Nothing to do for the moment. Add clean-up code here whenever necessary.

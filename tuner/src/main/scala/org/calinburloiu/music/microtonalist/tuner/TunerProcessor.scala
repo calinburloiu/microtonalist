@@ -85,8 +85,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   private def sendToReceiver(messages: Seq[MidiMessage], timeStamp: Long): Unit = {
     // TODO #97 Handle the try differently
     try {
-      for (message <- messages) {
-        transmitter.receiver.send(message, timeStamp)
+      for (message <- messages; destReceiver <- transmitter.receiver) {
+        destReceiver.send(message, timeStamp)
       }
     } catch {
       case e: IllegalStateException => throw new TunerException(e)

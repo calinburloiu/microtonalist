@@ -38,7 +38,7 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
 
   def this(processors: Seq[MidiProcessor], initialOutputReceiver: Receiver) = {
     this(processors)
-    transmitter.receiver = initialOutputReceiver
+    transmitter.receiver = Some(initialOutputReceiver)
   }
 
   wireAll()
@@ -143,12 +143,12 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
   private def wireProcessorToPrevious(index: Int): Unit = withWriteLock {
     require(1 <= index && index < size, s"index should be between 0 and size=$size - 1")
 
-    processors(index - 1).transmitter.receiver = processors(index).receiver
+    processors(index - 1).transmitter.receiver = Some(processors(index).receiver)
   }
 
   private def wireOutput(): Unit = withWriteLock {
     if (size > 0) {
-      processors.last.transmitter.receiver = transmitter.getReceiver
+      processors.last.transmitter.receiver = transmitter.receiver
     }
   }
 }
