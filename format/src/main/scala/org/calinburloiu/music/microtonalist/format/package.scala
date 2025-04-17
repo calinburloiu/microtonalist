@@ -65,17 +65,17 @@ package object format {
    * Maps a URI with `microtonalist` scheme to the actual URI as configured via `libraryBaseUri`
    *
    * @param uri     URI of resource from the library.
-   * @param baseUri Base URI of the library.
+   * @param libraryBaseUri Base URI of the library.
    * @return the actual URI.
    */
-  def resolveLibraryUri(uri: URI, baseUri: URI): URI = {
+  def resolveLibraryUri(uri: URI, libraryBaseUri: URI): URI = {
     require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
       "URI must be absolute and have microtonalist scheme!")
 
     // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
     val rootUri = uri.resolve("/")
     val relativeToRootUri = rootUri.relativize(uri)
-    baseUri.resolve(relativeToRootUri)
+    libraryBaseUri.resolve(relativeToRootUri)
   }
 
   lazy val uint7Format: Format[Int] = {
