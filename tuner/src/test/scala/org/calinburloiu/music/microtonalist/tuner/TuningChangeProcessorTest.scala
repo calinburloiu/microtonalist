@@ -67,7 +67,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
-    processor.process(nonTriggerMidiMessage1, 1)
+    processor.receiver.send(nonTriggerMidiMessage1, 1)
     // Then
     receiverStub.send.verify(nonTriggerMidiMessage1, 1).once()
   }
@@ -75,7 +75,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is false" in new Fixture(triggersThru = false) {
     // When
-    processor.process(nonTriggerMidiMessage1, 1)
+    processor.receiver.send(nonTriggerMidiMessage1, 1)
     // Then
     receiverStub.send.verify(nonTriggerMidiMessage1, 1).once()
   }
@@ -83,8 +83,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "forward MIDI messages that are tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
-    processor.process(ccTriggerMidiMessage, 1)
-    processor.process(ccTriggerMidiMessage, 2)
+    processor.receiver.send(ccTriggerMidiMessage, 1)
+    processor.receiver.send(ccTriggerMidiMessage, 2)
     // Then
     receiverStub.send.verify(ccTriggerMidiMessage, *).repeated(2)
   }
@@ -92,8 +92,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "not forward MIDI messages that are tuning change triggers " +
     "when triggersThru is false" in new Fixture(triggersThru = false) {
     // When
-    processor.process(ccTriggerMidiMessage, 1)
-    processor.process(ccTriggerMidiMessage, 2)
+    processor.receiver.send(ccTriggerMidiMessage, 1)
+    processor.receiver.send(ccTriggerMidiMessage, 2)
     // Then
     receiverStub.send.verify(*, *).never()
   }

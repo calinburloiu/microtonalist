@@ -71,7 +71,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val timeStamp: Long = 3L
     // When
-    processor.process(processMessage1, timeStamp)
+    processor.receiver.send(processMessage1, timeStamp)
     // Then
     tuner.process.verify(processMessage1).once()
     receiver.send.verify(processMessage1, timeStamp).once()
