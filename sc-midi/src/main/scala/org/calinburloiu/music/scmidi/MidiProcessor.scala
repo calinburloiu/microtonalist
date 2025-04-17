@@ -74,7 +74,6 @@ trait MidiProcessor extends AutoCloseable {
       }
 
       val localOutputReceiver = receiver
-      // TODO #134 Check if the current value is the same to avoid doing a write lock
 
       if (!receiver.contains(value)) {
         disconnectBeforeSet(localOutputReceiver)
