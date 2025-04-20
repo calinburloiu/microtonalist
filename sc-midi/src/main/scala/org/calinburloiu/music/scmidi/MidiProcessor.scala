@@ -37,9 +37,9 @@ trait MidiProcessor extends AutoCloseable {
 
   class MidiProcessorReceiver private[scmidi] extends Receiver {
 
-    @volatile private var isClosed: Boolean = false
+    @volatile private var _isClosed: Boolean = false
 
-    override def send(message: MidiMessage, timeStamp: Long): Unit = {
+    override def send(message: MidiMessage, timeStamp: Long): Unit = if (!_isClosed) {
       val outputMessages = process(message, timeStamp)
 
       for (destReceiver <- transmitter.receiver; outputMessage <- outputMessages) {
@@ -48,15 +48,20 @@ trait MidiProcessor extends AutoCloseable {
     }
 
     def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-      send(scMessage.javaMidiMessage, timeStamp)
+      if (!_isClosed) {
+        send(scMessage.javaMidiMessage, timeStamp)
+      }
+
       this
     }
 
-    override def close(): Unit = if (!isClosed) {
+    override def close(): Unit = if (!_isClosed) {
       // Nothing to do for the moment. Add clean-up code here whenever necessary.
 
-      isClosed = true
+      _isClosed = true
     }
+
+    def isClosed: Boolean = _isClosed
   }
 
   class MidiProcessorTransmitter private[scmidi] extends Transmitter, Locking {
@@ -64,22 +69,28 @@ trait MidiProcessor extends AutoCloseable {
 
     private var outputReceiver: Option[Receiver] = None
 
-    @volatile private var isClosed: Boolean = false
+    @volatile private var _isClosed: Boolean = false
 
     override def setReceiver(value: Receiver): Unit = {
-      def disconnectBeforeSet(localOutputReceiver: Option[Receiver]): Unit = {
+      def disconnectBeforeSet(localOutputReceiver: Option[Receiver]): Boolean = {
         if (localOutputReceiver.isDefined) {
           onDisconnect()
+          true
+        } else {
+          false
         }
       }
 
       val localOutputReceiver = receiver
 
       if (!receiver.contains(value)) {
-        disconnectBeforeSet(localOutputReceiver)
+        val wasOnDisconnectCalled = disconnectBeforeSet(localOutputReceiver)
 
         withWriteLock {
-          disconnectBeforeSet(outputReceiver)
+          if (!wasOnDisconnectCalled) {
+            disconnectBeforeSet(outputReceiver)
+          }
+
           outputReceiver = Option(value)
         }
 
@@ -106,11 +117,13 @@ trait MidiProcessor extends AutoCloseable {
      */
     def receiver_=(value: Option[Receiver]): Unit = setReceiver(value.orNull)
 
-    override def close(): Unit = if (!isClosed) {
+    override def close(): Unit = if (!_isClosed) {
       // Nothing to do for the moment. Add clean-up code here whenever necessary.
 
-      isClosed = true
+      _isClosed = true
     }
+
+    def isClosed: Boolean = _isClosed
   }
 
   def receiver: MidiProcessorReceiver = _receiver
