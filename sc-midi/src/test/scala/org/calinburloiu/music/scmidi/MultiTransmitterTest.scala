@@ -29,51 +29,61 @@ class TestMultiTransmitter extends MultiTransmitter {
 class MultiTransmitterTest extends AnyFlatSpec with Matchers with Stubs {
 
   trait Fixture {
-    val transmitter: MultiTransmitter = new TestMultiTransmitter
+    val multiTransmitter: MultiTransmitter = new TestMultiTransmitter
 
     val receiver1: Stub[Receiver] = stub[Receiver]
     val receiver2: Stub[Receiver] = stub[Receiver]
+    val receiver3: Stub[Receiver] = stub[Receiver]
   }
 
   "constructor" should "initialize with an empty list of receivers" in new Fixture {
-    transmitter.receivers shouldBe empty
+    multiTransmitter.receivers shouldBe empty
   }
 
-  "receivers" should "set and get the list of receivers" in new Fixture {
-    transmitter.receivers = Seq(receiver1, receiver2)
-    transmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2)
+  "receivers" should "return an empty sequence by default" in new Fixture {
+    multiTransmitter.receivers shouldBe empty
+  }
+
+  it should "set and get the list of receivers" in new Fixture {
+    multiTransmitter.receivers = Seq(receiver1, receiver2)
+    multiTransmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2)
   }
 
   "addReceiver" should "add a single receiver to the list" in new Fixture {
-    transmitter.addReceiver(receiver1)
-    transmitter.receivers should contain only receiver1
+    multiTransmitter.addReceiver(receiver1)
+    multiTransmitter.receivers should contain only receiver1
 
-    transmitter.addReceiver(receiver2)
-    transmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2)
+    multiTransmitter.addReceiver(receiver2)
+    multiTransmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2)
   }
 
   "addReceivers" should "add a sequence of new receivers to the existing list" in new Fixture {
-    val receiver3: Stub[Receiver] = stub[Receiver]
+    multiTransmitter.addReceivers(Seq(receiver1, receiver2))
+    multiTransmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2)
 
-    transmitter.addReceivers(Seq(receiver1, receiver2))
-    transmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2)
-
-    transmitter.addReceivers(Seq(receiver3))
-    transmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2, receiver3)
+    multiTransmitter.addReceivers(Seq(receiver3))
+    multiTransmitter.receivers should contain theSameElementsAs Seq(receiver1, receiver2, receiver3)
   }
 
   "removeReceiver" should "remove a specific receiver from the list" in new Fixture {
-    transmitter.addReceivers(Seq(receiver1, receiver2))
-    transmitter.removeReceiver(receiver1)
-    transmitter.receivers should contain only receiver2
+    multiTransmitter.addReceivers(Seq(receiver1, receiver2))
+    multiTransmitter.removeReceiver(receiver1)
+    multiTransmitter.receivers should contain only receiver2
 
-    transmitter.removeReceiver(receiver2)
-    transmitter.receivers shouldBe empty
+    multiTransmitter.removeReceiver(receiver2)
+    multiTransmitter.receivers shouldBe empty
   }
 
+  it should "do nothing if the receiver is not in the list" in new Fixture {
+    multiTransmitter.receivers = Seq(receiver1, receiver2)
+    multiTransmitter.removeReceiver(receiver3)
+    multiTransmitter.receivers should contain only(receiver1, receiver2)
+  }
+
+
   "clear" should "remove all receivers from the list" in new Fixture {
-    transmitter.addReceivers(Seq(receiver1, receiver2))
-    transmitter.clearReceivers()
-    transmitter.receivers shouldBe empty
+    multiTransmitter.addReceivers(Seq(receiver1, receiver2))
+    multiTransmitter.clearReceivers()
+    multiTransmitter.receivers shouldBe empty
   }
 }
