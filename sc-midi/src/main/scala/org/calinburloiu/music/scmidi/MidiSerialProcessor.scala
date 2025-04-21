@@ -41,20 +41,6 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
   transmitter.receiver = initialOutputReceiver
   wireAll()
 
-  protected override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
-    // If there is at least one processor, then messages will flow through processors towards the output receivers due
-    // to the way they are wired, so there is no need to return anything. But if processors is empty, we return the
-    // input such that forwarding to the output receiver is handled by MidiProcessor#MidiProcessorReceiver.
-    processors.headOption match {
-      case Some(firstProcessor) =>
-        firstProcessor.receiver.send(message, -1)
-
-        Seq.empty
-      case None =>
-        Seq(message)
-    }
-  }
-
   /**
    * Retrieves the sequence of MIDI processors that are chained.
    *
@@ -152,6 +138,20 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
   override def close(): Unit = {
     logger.info(s"Closing ${this.getClass.getCanonicalName}...")
     _processors.foreach(_.transmitter.setReceiver(null))
+  }
+
+  protected override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+    // If there is at least one processor, then messages will flow through processors towards the output receivers due
+    // to the way they are wired, so there is no need to return anything. But if processors is empty, we return the
+    // input such that forwarding to the output receiver is handled by MidiProcessor#MidiProcessorReceiver.
+    processors.headOption match {
+      case Some(firstProcessor) =>
+        firstProcessor.receiver.send(message, -1)
+
+        Seq.empty
+      case None =>
+        Seq(message)
+    }
   }
 
   override protected def onConnect(): Unit = wireOutput()
