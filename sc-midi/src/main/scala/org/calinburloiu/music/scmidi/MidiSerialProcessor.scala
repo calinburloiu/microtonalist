@@ -23,24 +23,22 @@ import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
- * A [[MidiProcessor]] that connects a sequence of [[MidiProcessor]]s in a chain ending with the [[Receiver]] set.
+ * A [[MidiProcessor]] that connects a sequence of [[MidiProcessor]]s in a chain ending with the [[Receiver]] set on 
+ * its [[Transmitter]].
  *
  * {{{
- *   MidiProcessor -> MidiProcessor -> ... -> MidiProcessor -> Receiver
+ *   MidiProcessor -> MidiProcessor -> ... -> MidiProcessor -> MidiProcessorTransmitter#receiver
  * }}}
  *
  * @param initialProcessors The initialization value for the [[MidiProcessor]]s to execute in sequence.
  */
-class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiProcessor, Locking, StrictLogging {
+class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
+                          initialOutputReceiver: Option[Receiver]) extends MidiProcessor, Locking, StrictLogging {
   private implicit val lock: ReadWriteLock = ReentrantReadWriteLock()
 
   private var _processors: Seq[MidiProcessor] = initialProcessors
 
-  def this(processors: Seq[MidiProcessor], initialOutputReceiver: Receiver) = {
-    this(processors)
-    transmitter.receiver = Some(initialOutputReceiver)
-  }
-
+  transmitter.receiver = initialOutputReceiver
   wireAll()
 
   protected override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
@@ -57,39 +55,76 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
     }
   }
 
+  /**
+   * Retrieves the sequence of MIDI processors that are chained.
+   *
+   * @return A sequence of MIDI processors.
+   */
   def processors: Seq[MidiProcessor] = withReadLock {
     _processors
   }
 
+  /**
+   * Sets the sequence of MIDI processors that are chained.
+   *
+   * @param processors A sequence of MIDI processors to be set.
+   */
   def processors_=(processors: Seq[MidiProcessor]): Unit = withWriteLock {
     _processors = processors
 
     wireAll()
   }
 
+  /**
+   * Inserts a MIDI processor at the specified index in the chain of processors.
+   *
+   * @param index     The position at which the processor should be inserted.
+   * @param processor The MIDI processor to be inserted.
+   */
   def insert(index: Int, processor: MidiProcessor): Unit = withWriteLock {
     _processors = _processors.patch(index, Seq(processor), 0)
 
     wireProcessor(index)
   }
 
+  /**
+   * Appends a MIDI processor to the end of the processors chain.
+   *
+   * @param processor The MIDI processor to be appended.
+   */
   def append(processor: MidiProcessor): Unit = withWriteLock {
     _processors = _processors :+ processor
 
     wireProcessor(size - 1)
   }
 
+  /**
+   * Updates the MIDI processor at the specified index in the sequence of chained processors.
+   *
+   * @param index     The 0-based position of the processor to be updated.
+   * @param processor The new MIDI processor to replace the existing one at the specified index.
+   */
   def update(index: Int, processor: MidiProcessor): Unit = withWriteLock {
     _processors = _processors.updated(index, processor)
 
     wireProcessor(index)
   }
 
+  /**
+   * Removes the specified MIDI processor from the sequence of chained processors if it exists.
+   *
+   * @param processor The MIDI processor to be removed.
+   */
   def remove(processor: MidiProcessor): Unit = withWriteLock {
     val index = _processors.indexOf(processor)
     if (index != -1) removeAt(index)
   }
 
+  /**
+   * Removes the MIDI processor at the specified index from the sequence of chained processors.
+   *
+   * @param index The 0-based position of the processor to be removed.
+   */
   def removeAt(index: Int): Unit = withWriteLock {
     val processor = processors(index)
 
@@ -100,12 +135,18 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
     processor.transmitter.setReceiver(null)
   }
 
+  /**
+   * Clears all MIDI processors in the chain and disconnects their transmitters.
+   */
   def clear(): Unit = withWriteLock {
     _processors.foreach(_.transmitter.setReceiver(null))
 
     _processors = Seq.empty
   }
 
+  /**
+   * @return the number of MIDI processors in the chain.
+   */
   def size: Int = processors.size
 
   override def close(): Unit = {
@@ -117,6 +158,11 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
 
   override protected def onDisconnect(): Unit = wireOutput()
 
+  /**
+   * Wires a processor at the specified index to neighboring processors or the MIDI output as needed.
+   *
+   * @param index The index of the processor to wire. Must be between 0 and size - 1.
+   */
   private def wireProcessor(index: Int): Unit = withWriteLock {
     require(0 <= index && index < size, s"index should be between 0 and size=$size - 1")
 
@@ -132,6 +178,10 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
     }
   }
 
+  /**
+   * Wires all MIDI processors in the chain together sequentially, ensuring correct data flow
+   * between adjacent processors and from the last processor to the output.
+   */
   private def wireAll(): Unit = withWriteLock {
     for (i <- 1 until size) {
       wireProcessorToPrevious(i)
@@ -140,12 +190,22 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor]) extends MidiPro
     wireOutput()
   }
 
+  /**
+   * Wires the current processor at the specified index to the previous processor in the chain, 
+   * enabling data flow between them.
+   *
+   * @param index The index of the processor to be connected to its predecessor. Must be between 1 and size - 1.
+   */
   private def wireProcessorToPrevious(index: Int): Unit = withWriteLock {
     require(1 <= index && index < size, s"index should be between 0 and size=$size - 1")
 
     processors(index - 1).transmitter.receiver = Some(processors(index).receiver)
   }
 
+  /**
+   * Wires the output receiver of the last MIDI processor in the chain to the transmitter's receiver,
+   * ensuring proper data flow from the processors to the MIDI output.
+   */
   private def wireOutput(): Unit = withWriteLock {
     if (size > 0) {
       processors.last.transmitter.receiver = transmitter.receiver
