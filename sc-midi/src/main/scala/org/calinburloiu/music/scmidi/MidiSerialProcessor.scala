@@ -56,6 +56,8 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    * @param processors A sequence of MIDI processors to be set.
    */
   def processors_=(processors: Seq[MidiProcessor]): Unit = withWriteLock {
+    _processors.foreach(_.transmitter.setReceiver(null))
+
     _processors = processors
 
     wireAll()
@@ -91,6 +93,9 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    * @param processor The new MIDI processor to replace the existing one at the specified index.
    */
   def update(index: Int, processor: MidiProcessor): Unit = withWriteLock {
+    val oldProcessor = processors(index)
+    oldProcessor.transmitter.setReceiver(null)
+
     _processors = _processors.updated(index, processor)
 
     wireProcessor(index)

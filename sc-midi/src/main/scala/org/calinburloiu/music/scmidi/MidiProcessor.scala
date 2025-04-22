@@ -47,9 +47,11 @@ trait MidiProcessor extends AutoCloseable {
     @volatile private var _isClosed: Boolean = false
 
     override def send(message: MidiMessage, timeStamp: Long): Unit = if (!_isClosed) {
-      val outputMessages = process(message, timeStamp)
-
-      for (destReceiver <- transmitter.receiver; outputMessage <- outputMessages) {
+      for (
+        destReceiver <- transmitter.receiver;
+        outputMessages = process(message, timeStamp);
+        outputMessage <- outputMessages
+      ) {
         destReceiver.send(outputMessage, timeStamp)
       }
     }
@@ -64,8 +66,7 @@ trait MidiProcessor extends AutoCloseable {
      * @throws IllegalStateException if the receiver is closed
      */
     def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-      if (!_isClosed) send(scMessage.javaMidiMessage, timeStamp)
-
+      send(scMessage.javaMidiMessage, timeStamp)
       this
     }
 
