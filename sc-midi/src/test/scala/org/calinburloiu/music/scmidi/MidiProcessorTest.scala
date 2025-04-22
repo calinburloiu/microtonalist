@@ -23,29 +23,29 @@ import org.scalatest.matchers.should.Matchers
 import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
 import scala.collection.mutable
 
-class TestMidiProcessor extends MidiProcessor {
-  val processedMessages: mutable.ListBuffer[(MidiMessage, Long)] = mutable.ListBuffer[(MidiMessage, Long)]()
-  val connectCalled: mutable.ListBuffer[Unit] = mutable.ListBuffer[Unit]()
-  val disconnectCalled: mutable.ListBuffer[Unit] = mutable.ListBuffer[Unit]()
-
-  // Simple implementation that returns the same message
-  override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
-    processedMessages += ((message, timeStamp))
-    Seq(message)
-  }
-
-  override protected def onConnect(): Unit = {
-    connectCalled += (())
-  }
-
-  override protected def onDisconnect(): Unit = {
-    disconnectCalled += (())
-  }
-
-  override def close(): Unit = {}
-}
-
 class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
+
+  class TestMidiProcessor extends MidiProcessor {
+    val processedMessages: mutable.ListBuffer[(MidiMessage, Long)] = mutable.ListBuffer()
+    val connectCalled: mutable.ListBuffer[Unit] = mutable.ListBuffer()
+    val disconnectCalled: mutable.ListBuffer[Unit] = mutable.ListBuffer()
+
+    // Simple implementation that returns the same message
+    override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+      processedMessages += ((message, timeStamp))
+      Seq(message)
+    }
+
+    override protected def onConnect(): Unit = {
+      connectCalled += (())
+    }
+
+    override protected def onDisconnect(): Unit = {
+      disconnectCalled += (())
+    }
+
+    override def close(): Unit = {}
+  }
 
   // Fixtures
   trait TestFixture {
@@ -71,7 +71,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Send a message through the processor
     processor.receiver.send(testMessage, testTimestamp)
 
-    // Verify that process was called with the correct message
+    // Verify that `process` was called with the correct message
     processor.processedMessages should contain((testMessage, testTimestamp))
 
     // Verify that the message was forwarded to the mock receiver

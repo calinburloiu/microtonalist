@@ -22,11 +22,11 @@ import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.Receiver
 
-class TestMultiTransmitter extends MultiTransmitter {
-  override def close(): Unit = {}
-}
-
 class MultiTransmitterTest extends AnyFlatSpec with Matchers with Stubs {
+
+  class TestMultiTransmitter extends MultiTransmitter {
+    override def close(): Unit = {}
+  }
 
   trait Fixture {
     val multiTransmitter: MultiTransmitter = new TestMultiTransmitter
