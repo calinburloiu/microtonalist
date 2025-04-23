@@ -58,10 +58,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     sendToReceiver(tuningMessages, -1)
   }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
-    val messages = tuner.process(message)
-    sendToReceiver(messages, timeStamp)
-  }
+  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = tuner.process(message)
 
   override protected def onConnect(): Unit = {
     super.onConnect()
@@ -75,28 +72,31 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   override protected def onDisconnect(): Unit = {
     super.onDisconnect()
 
-    // Reset the output instrument to the standard tuning
-    tune(Tuning.Standard)
+    tuneToStandard()
 
     logger.info(s"Disconnected the processor for tuner $tuner.")
   }
 
   override def close(): Unit = {
     logger.info(s"Closing the processor for tuner $tuner...")
-
-    super.close()
+    tuneToStandard()
   }
 
   private def sendToReceiver(messages: Seq[MidiMessage], timeStamp: Long): Unit = {
     // TODO #97 Handle the try differently
     try {
-      for (message <- messages) {
-        receiver.send(message, timeStamp)
+      for (message <- messages; destReceiver <- transmitter.receiver) {
+        destReceiver.send(message, timeStamp)
       }
     } catch {
       case e: IllegalStateException => throw new TunerException(e)
     }
   }
+
+  /**
+   * Reset the output instrument to the standard tuning.
+   */
+  private def tuneToStandard(): Unit = tune(Tuning.Standard)
 }
 
 class TunerException(cause: Throwable) extends RuntimeException(

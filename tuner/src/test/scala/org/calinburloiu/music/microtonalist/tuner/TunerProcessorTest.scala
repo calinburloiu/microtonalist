@@ -44,13 +44,13 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val processor: TunerProcessor = new TunerProcessor(tuner)
 
     if (shouldConnect) {
-      processor.receiver = receiver
+      processor.transmitter.receiver = Some(receiver)
     }
   }
 
   "onConnect" should "send init message after connecting" in new Fixture(shouldConnect = false) {
     // When
-    processor.receiver = receiver
+    processor.transmitter.receiver = Some(receiver)
     // Then
     receiver.send.verify(initMessage, -1).once()
   }
@@ -71,7 +71,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // Given
     val timeStamp: Long = 3L
     // When
-    processor.send(processMessage1, timeStamp)
+    processor.receiver.send(processMessage1, timeStamp)
     // Then
     tuner.process.verify(processMessage1).once()
     receiver.send.verify(processMessage1, timeStamp).once()

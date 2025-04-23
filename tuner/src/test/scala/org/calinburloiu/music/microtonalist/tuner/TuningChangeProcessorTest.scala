@@ -49,15 +49,15 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
       tuningServiceStub)
 
     val receiverStub: Receiver = stub[Receiver]
-    processor.receiver = receiverStub
+    processor.transmitter.receiver = Some(receiverStub)
   }
 
   it should "inform the TuningService about the tuning decision taken" in new Fixture {
     // When
-    processor.send(ccTriggerMidiMessage, 1)
-    processor.send(noteTriggerMidiMessage, 2)
-    processor.send(nonTriggerMidiMessage2, 3)
-    processor.send(nonTriggerMidiMessage1, 4)
+    processor.process(ccTriggerMidiMessage, 1)
+    processor.process(noteTriggerMidiMessage, 2)
+    processor.process(nonTriggerMidiMessage2, 3)
+    processor.process(nonTriggerMidiMessage1, 4)
 
     // Then
     tuningServiceStub.changeTuning.verify(IndexTuningChange(2))
@@ -67,7 +67,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
-    processor.send(nonTriggerMidiMessage1, 1)
+    processor.receiver.send(nonTriggerMidiMessage1, 1)
     // Then
     receiverStub.send.verify(nonTriggerMidiMessage1, 1).once()
   }
@@ -75,7 +75,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "forward MIDI messages that are not tuning change triggers " +
     "when triggersThru is false" in new Fixture(triggersThru = false) {
     // When
-    processor.send(nonTriggerMidiMessage1, 1)
+    processor.receiver.send(nonTriggerMidiMessage1, 1)
     // Then
     receiverStub.send.verify(nonTriggerMidiMessage1, 1).once()
   }
@@ -83,8 +83,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "forward MIDI messages that are tuning change triggers " +
     "when triggersThru is true" in new Fixture(triggersThru = true) {
     // When
-    processor.send(ccTriggerMidiMessage, 1)
-    processor.send(ccTriggerMidiMessage, 2)
+    processor.receiver.send(ccTriggerMidiMessage, 1)
+    processor.receiver.send(ccTriggerMidiMessage, 2)
     // Then
     receiverStub.send.verify(ccTriggerMidiMessage, *).repeated(2)
   }
@@ -92,8 +92,8 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
   it should "not forward MIDI messages that are tuning change triggers " +
     "when triggersThru is false" in new Fixture(triggersThru = false) {
     // When
-    processor.send(ccTriggerMidiMessage, 1)
-    processor.send(ccTriggerMidiMessage, 2)
+    processor.receiver.send(ccTriggerMidiMessage, 1)
+    processor.receiver.send(ccTriggerMidiMessage, 2)
     // Then
     receiverStub.send.verify(*, *).never()
   }

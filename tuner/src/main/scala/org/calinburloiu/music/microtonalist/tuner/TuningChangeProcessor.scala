@@ -46,7 +46,7 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
     this(Seq(tuningChanger), tuningService)
   }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = {
+  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
     val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
       message, tuningChangers.toList)
 
@@ -60,8 +60,14 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
     //   - It's not a potential trigger for a tuning change;
     //   - triggersThru is set on the effective tuning changer.
     if (!tuningChange.mayTrigger || effectiveTuningChanger.forall(_.triggersThru)) {
-      receiver.send(message, timeStamp)
+      Seq(message)
+    } else {
+      Seq.empty
     }
+  }
+
+  override def close(): Unit = {
+    // Nothing to do here
   }
 }
 
