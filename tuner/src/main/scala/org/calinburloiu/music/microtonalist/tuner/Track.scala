@@ -48,7 +48,7 @@ class Track(val spec: TrackSpec,
 
   private val outputSplitter: MidiSplitter = new MidiSplitter
   private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputSplitter.receiver)
+    Seq(tuningChangeProcessor, tunerProcessor).flatten, Some(outputSplitter.receiver))
 
   inputDeviceHandle.foreach(_.multiTransmitter.addReceiver(receiver))
 

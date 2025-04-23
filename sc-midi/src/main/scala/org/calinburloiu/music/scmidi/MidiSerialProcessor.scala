@@ -117,13 +117,19 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    * @param index The 0-based position of the processor to be removed.
    */
   def removeAt(index: Int): Unit = withWriteLock {
-    val processor = processors(index)
+    if (0 <= index && index < size) {
+      val processor = processors(index)
 
-    _processors = _processors.patch(index, Seq.empty, 1)
+      _processors = _processors.patch(index, Seq.empty, 1)
 
-    wireProcessorToPrevious(index)
+      wireProcessorToPrevious(index)
+      // Note that after the remove the size is smaller with 1, that's why we check against size, not size - 1
+      if (index == size) wireOutput()
 
-    processor.transmitter.setReceiver(null)
+      processor.transmitter.setReceiver(null)
+    } else if (index < 0) {
+      throw new IllegalArgumentException(s"index should be non-negative, but was $index")
+    }
   }
 
   /**
@@ -168,8 +174,9 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    *
    * @param index The index of the processor to wire. Must be between 0 and size - 1.
    */
-  private def wireProcessor(index: Int): Unit = withWriteLock {
-    require(0 <= index && index < size, s"index should be between 0 and size=$size - 1")
+  private def wireProcessor(_index: Int): Unit = withWriteLock {
+    require(0 <= _index, s"index should be positive")
+    val index = _index.min(size - 1)
 
     if (index > 0) {
       wireProcessorToPrevious(index)
@@ -201,8 +208,9 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    *
    * @param index The index of the processor to be connected to its predecessor. Must be between 1 and size - 1.
    */
-  private def wireProcessorToPrevious(index: Int): Unit = withWriteLock {
-    require(1 <= index && index < size, s"index should be between 0 and size=$size - 1")
+  private def wireProcessorToPrevious(_index: Int): Unit = withWriteLock {
+    require(1 <= _index, s"index should be greater or equal to 1")
+    val index = _index.min(size - 1)
 
     processors(index - 1).transmitter.receiver = Some(processors(index).receiver)
   }
