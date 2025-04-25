@@ -239,5 +239,5 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
 }
 
 object TrackSpecs {
-  val Default = TrackSpecs(Seq.empty)
+  val Empty: TrackSpecs = TrackSpecs(Seq.empty)
 }

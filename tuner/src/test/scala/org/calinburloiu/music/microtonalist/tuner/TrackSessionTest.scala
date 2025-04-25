@@ -22,17 +22,24 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
 
 class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
+
+  private val uri = new URI("http://example.com/composition.mtlist.tracks")
 
   private val sampleTracks = TrackSpecs(Seq(
     makeTrack("Piano"), makeTrack("Synth"), makeTrack("Bass"), makeTrack("Percussion", withTrackNo = false)))
 
-  abstract class Fixture(tracks: TrackSpecs = TrackSpecs.Default) {
+  abstract class Fixture(tracks: TrackSpecs = TrackSpecs.Empty) {
     val trackManagerMock: TrackManager = mock[TrackManager]
+    val trackRepo: TrackRepo = stub[TrackRepo]
     val businessyncMock: Businessync = mock[Businessync]
 
-    val trackSession = new TrackSession(trackManagerMock, businessyncMock)
+    val trackSession = new TrackSession(trackManagerMock, trackRepo, businessyncMock)
+
+    trackRepo.readTracksAsync.when(uri).returns(Future.successful(sampleTracks))
 
     if (tracks.nonEmpty) {
       trackManagerMock.replaceAllTracks.expects(sampleTracks)
@@ -55,38 +62,38 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   "open" should "load tracks from the given URI" in new Fixture {
-    // Given
-    val uri = new URI("http://example.com/composition.mtlist.tracks")
-
     // Expect
+    trackManagerMock.replaceAllTracks.expects(sampleTracks)
+    businessyncMock.publish.expects(TracksReplacedEvent(sampleTracks))
     businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
-      // TODO #137 Check tracks
+      event.tracks shouldBe sampleTracks
     })
 
     // When
-    trackSession.open(uri)
+    Await.result(trackSession.open(uri), 500 milliseconds)
 
     // Then
     trackSession.uri should contain(uri)
-    // TODO #137 Check repo is called
+    trackRepo.readTracksAsync.verify(uri).once()
 
     trackSession.isOpened shouldBe true
   }
 
   "close" should "unload tracks and clear the state" in new Fixture {
-    // Given
-    val uri = new URI("http://example.com/composition.mtlist.tracks")
-
     // Expect
+    trackManagerMock.replaceAllTracks.expects(sampleTracks)
+    businessyncMock.publish.expects(TracksReplacedEvent(sampleTracks))
     businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
       event.uri shouldBe uri
-      // TODO #137 Check tracks
+      event.tracks shouldBe sampleTracks
     })
 
-    trackSession.open(uri)
+    Await.result(trackSession.open(uri), 500 milliseconds)
 
     // Expect
+    trackManagerMock.replaceAllTracks.expects(TrackSpecs.Empty)
+    businessyncMock.publish.expects(TracksReplacedEvent(TrackSpecs.Empty))
     businessyncMock.publish.expects(TracksClosedEvent(Some(uri)))
 
     // When

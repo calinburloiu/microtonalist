@@ -20,6 +20,7 @@ import org.calinburloiu.businessync.Businessync
 
 import java.net.URI
 import javax.annotation.concurrent.ThreadSafe
+import scala.concurrent.Future
 
 /**
  * Service that exposes track management capabilities to the application layer.
@@ -38,7 +39,7 @@ class TrackService(session: TrackSession,
    *
    * @param uri the URI from which tracks are read.
    */
-  def open(uri: URI): Unit = businessync.run { () =>
+  def open(uri: URI): Future[Unit] = businessync.callAsync { () =>
     session.open(uri)
   }
 
