@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -25,16 +26,12 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
 
   trait Fixture {
     val sessionStub: TuningSession = stub[TuningSession]
-    val businessyncStub: Businessync = stub[Businessync]
+    val businessync: Businessync = Businessync(EventBus())
     val tunings: Seq[Tuning] = Seq(TestTunings.justCMaj, TestTunings.justCRast)
 
     (() => sessionStub.tunings).when().returns(tunings)
 
-    businessyncStub.run.when(*).onCall { (fn: () => Unit) =>
-      fn()
-    }
-
-    val tuningService = new TuningService(sessionStub, businessyncStub)
+    val tuningService = new TuningService(sessionStub, businessync)
   }
 
   "tunings" should "return the sequence of tunings from the session" in new Fixture {

@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -27,13 +28,9 @@ class TrackServiceTest extends AnyFlatSpec with Matchers with MockFactory {
 
   trait Fixture {
     val sessionStub: TrackSession = stub[TrackSession]
-    val businessyncStub: Businessync = stub[Businessync]
+    val businessync: Businessync = Businessync(EventBus())
 
-    businessyncStub.run.when(*).onCall { (fn: () => Unit) =>
-      fn()
-    }
-
-    val trackService = new TrackService(sessionStub, businessyncStub)
+    val trackService = new TrackService(sessionStub, businessync)
 
     protected def makeTrackSpec(name: String): TrackSpec =
       TrackSpec(name + "-id", name, None, Seq.empty, None, None)
