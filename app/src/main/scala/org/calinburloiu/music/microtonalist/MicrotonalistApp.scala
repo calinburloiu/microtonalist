@@ -28,6 +28,8 @@ import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 
 import java.net.URI
 import java.nio.file.{InvalidPathException, Path, Paths}
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 object MicrotonalistApp extends StrictLogging {
@@ -82,12 +84,12 @@ object MicrotonalistApp extends StrictLogging {
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
 
-    val trackSpecs = composition.tracksUri
-      .map(formatModule.defaultTrackRepo.readTracks)
-      .getOrElse(TrackSpecs.Default)
-
-    val tunerModule = new TunerModule(businessync)
-    tunerModule.trackService.replaceAllTracks(trackSpecs)
+    val tunerModule = new TunerModule(businessync, formatModule.defaultTrackRepo)
+    val trackService = tunerModule.trackService
+    composition.tracksUri.foreach { uri =>
+      // TODO #87 This will be moved as part of a composition opening workflow
+      Await.result(trackService.open(uri), 10 seconds)
+    }
     tunerModule.tuningSession.tunings = tuningList.tunings
 
     logger.info("Initializing GUI...")

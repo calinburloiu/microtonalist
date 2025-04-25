@@ -18,9 +18,10 @@ package org.calinburloiu.music.microtonalist.common
 
 import java.io.Closeable
 import java.net.URI
+import scala.concurrent.Future
 
 trait OpenableSession extends Closeable {
-  def open(uri: URI): Unit
+  def open(uri: URI): Future[Unit]
 
   override def close(): Unit
 

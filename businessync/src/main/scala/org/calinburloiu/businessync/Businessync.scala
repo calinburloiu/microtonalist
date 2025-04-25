@@ -18,6 +18,7 @@ package org.calinburloiu.businessync
 
 import com.google.common.eventbus.EventBus
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 case class BusinessyncUiHandler(run: () => Unit,
@@ -110,7 +111,12 @@ class Businessync(eventBus: EventBus) {
    *
    * @param fn
    */
-  def call[R](fn: () => R): Future[R] = ???
+  def call[R](fn: () => R): Future[R] = Future {
+    fn()
+  }
+
+  // TODO #90 Details
+  def callAsync[R](fn: () => Future[R]): Future[R] = fn()
 
   /**
    * Calls the given function on the UI Thread and returns a [[Future]] with its result.

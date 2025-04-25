@@ -16,11 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.OpenableSession
 
 import java.net.URI
 import javax.annotation.concurrent.NotThreadSafe
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
  * Manages a sequence of tracks by providing loading/unloading (I/O) and editing operations.
@@ -32,9 +35,10 @@ import javax.annotation.concurrent.NotThreadSafe
  */
 @NotThreadSafe
 class TrackSession(trackManager: TrackManager,
-                   businessync: Businessync) extends OpenableSession {
+                   trackRepo: TrackRepo,
+                   businessync: Businessync) extends OpenableSession, LazyLogging {
   private var _uri: Option[URI] = None
-  private var _tracks: TrackSpecs = TrackSpecs.Default
+  private var _tracks: TrackSpecs = TrackSpecs.Empty
 
   /**
    * Opens a session with the tracks loaded from the given URI.
@@ -44,24 +48,27 @@ class TrackSession(trackManager: TrackManager,
    * @param uri The URI where the tracks are loaded from.
    * @throws java.io.IOException if the tracks could not be loaded from the given URI.
    */
-  override def open(uri: URI): Unit = {
-    _uri = Some(uri)
+  override def open(uri: URI): Future[Unit] = {
+    trackRepo.readTracksAsync(uri).map { tracksRead =>
+      tracks = tracksRead
+      _uri = Some(uri)
 
-    // TODO #137 Read tracks files
-
-    businessync.publish(TracksOpenedEvent(uri, tracks))
+      businessync.publish(TracksOpenedEvent(uri, tracks))
+    }
   }
 
   /**
    * Closes the current track session and clears the list of tracks.
    *
    * Publishes a [[TracksClosedEvent]] containing the URI of the session
-   * that was previously active, if any. Note that the operation is idempotent, if the session was already closed no
+   * that was previously active, if any. Note that the operation is idempotent, if the session was already closed, no
    * URI will be passed to the event.
    */
   override def close(): Unit = {
     val uriBefore = _uri
     _uri = None
+
+    tracks = TrackSpecs.Empty
 
     businessync.publish(TracksClosedEvent(uriBefore))
   }
@@ -95,11 +102,13 @@ class TrackSession(trackManager: TrackManager,
    * @param newTracks The new track specifications to be assigned.
    */
   def tracks_=(newTracks: TrackSpecs): Unit = {
-    _tracks = newTracks
+    if (!_tracks.eq(newTracks)) {
+      _tracks = newTracks
 
-    trackManager.replaceAllTracks(newTracks)
+      trackManager.replaceAllTracks(newTracks)
 
-    businessync.publish(TracksReplacedEvent(newTracks))
+      businessync.publish(TracksReplacedEvent(newTracks))
+    }
   }
 
   /**

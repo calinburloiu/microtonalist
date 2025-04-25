@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.MidiManager
 
-class TunerModule(businessync: Businessync) extends AutoCloseable {
+class TunerModule(businessync: Businessync, trackRepo: TrackRepo) extends AutoCloseable {
 
   lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
 
@@ -32,7 +32,7 @@ class TunerModule(businessync: Businessync) extends AutoCloseable {
   private lazy val trackManager = new TrackManager(midiManager, tuningService)
   businessync.register(trackManager)
 
-  private lazy val trackSession = new TrackSession(trackManager, businessync)
+  private lazy val trackSession = new TrackSession(trackManager, trackRepo, businessync)
 
   override def close(): Unit = {
     trackManager.close()
