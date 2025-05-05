@@ -19,9 +19,13 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.microtonalist.format.JsonIntervalFormat.ErrorExpectedIntervalFor
+import org.scalactic.{Equality, TolerantNumerics}
 import play.api.libs.json.*
 
 class JsonIntervalFormatTest extends JsonFormatTestUtils {
+  private val epsilon: Double = 1e-2
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
   "formatFor" should "read cents and ratio intervals in CentsIntonationStandard" in {
     val format: Format[Interval] = JsonIntervalFormat.formatFor(CentsIntonationStandard)
 
@@ -29,8 +33,14 @@ class JsonIntervalFormatTest extends JsonFormatTestUtils {
     assertReads(format, JsNumber(-333.33), CentsInterval(-333.33))
     assertReads(format, JsNumber(0), CentsInterval(0))
 
-    assertReads(format, JsString("5/4"), RatioInterval(5, 4))
-    assertReads(format, JsString("8/9"), RatioInterval(8, 9))
+    matchReads(format, JsString("5/4"), { (result: Interval) =>
+      result shouldBe a[CentsInterval]
+      result.cents shouldEqual 386.31
+    })
+    matchReads(format, JsString("8/9"), { (result: Interval) =>
+      result shouldBe a[CentsInterval]
+      result.cents shouldEqual -203.91
+    })
   }
 
   it should "not read invalid data in CentsIntonationStandard" in {
@@ -76,8 +86,8 @@ class JsonIntervalFormatTest extends JsonFormatTestUtils {
     assertReads(format, Json.arr(4, -1), EdoInterval(72, 23))
     assertReads(format, Json.arr(3, +1), EdoInterval(72, 19))
 
-    assertReads(format, JsString("5/4"), RatioInterval(5, 4))
-    assertReads(format, JsString("8/9"), RatioInterval(8, 9))
+    assertReads(format, JsString("5/4"), EdoInterval(72, 23))
+    assertReads(format, JsString("8/9"), EdoInterval(72, -12))
   }
 
   it should "not read invalid data in EdoIntonationStandard" in {
