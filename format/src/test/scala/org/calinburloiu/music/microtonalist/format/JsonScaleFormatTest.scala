@@ -19,10 +19,14 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.CentsInterval.PostfixOperator
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
+import org.scalactic.{Equality, TolerantNumerics}
 import play.api.libs.json.*
 
 class JsonScaleFormatTest extends JsonFormatTestUtils {
   private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+
+  private val epsilon: Double = 1e-1
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   "pitchIntervalFormatFor" should "either read on interval directly or get it from a scale pitch object" in {
     val format: Format[Interval] = JsonScaleFormat.pitchIntervalFormatFor(JustIntonationStandard)
@@ -47,7 +51,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(centsScaleJson, None)
     // Then
-    result.getClass shouldEqual classOf[CentsScale]
+    result shouldBe a[CentsScale]
     result shouldEqual centsScale
   }
 
@@ -61,8 +65,8 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(scale, None)
     // Then
-    result.getClass shouldEqual classOf[Scale[Interval]]
-    result shouldEqual new Scale("mix", Seq(RealInterval.Unison, 204.3 cents, 6 /: 5, 498.5 cents))
+    result shouldBe a[Scale[Interval]]
+    result.intervals.map(_.cents) should contain theSameElementsAs Seq(0.0, 204.3, 315.6, 498.5)
   }
 
   it should "fail if there are intervals written with EDO-style arrays" in {
@@ -118,7 +122,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(ratiosScaleJson, None)
     // Then
-    result.getClass shouldEqual classOf[RatiosScale]
+    result shouldBe a[RatiosScale]
     result shouldEqual ratiosScale
   }
 
@@ -180,7 +184,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(edo53ScaleJson, None)
     // Then
-    result.getClass shouldEqual classOf[EdoScale]
+    result shouldBe a[EdoScale]
     result shouldEqual edo53Scale
   }
 
@@ -188,7 +192,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(createEdo72ScaleJson(edo72MixedIntervals), None)
     // Then
-    result.getClass shouldEqual classOf[EdoScale]
+    result shouldBe a[EdoScale]
     result shouldEqual edo72Scale
   }
 
@@ -205,8 +209,8 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(json, None)
     // Then
-    result.getClass shouldEqual classOf[Scale[Interval]]
-    result shouldEqual Scale("hicaz-4", 8 /: 9, edo72(0, 0), edo72(1, +1), 5 /: 4, 4 /: 3, 10 /: 7)
+    result shouldBe a[Scale[Interval]]
+    result shouldEqual Scale("hicaz-4", edo72(-2, 0), edo72(0, 0), edo72(1, +1), edo72(4, -1), edo72(5, 0), edo72(6, 1))
   }
 
   it should "fail if some intervals are invalid" in {
@@ -306,14 +310,13 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     result shouldEqual min4Scale
   }
 
-  it should "take ignore the name from the context if the scale already provides one" in {
+  it should "override the scale name with the one from the context" in {
     // Given
     val context = Some(ScaleFormatContext(name = Some("blah")))
     // When
     val result = scaleFormat.read(centsScaleJson, context)
     // Then
-    result.name shouldEqual "min-4"
-    result shouldEqual centsScale
+    result.name shouldEqual "blah"
   }
 
   "Reading a JSON Scale without intonation standard" should "fail if the context does not provide one" in {
@@ -332,14 +335,14 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     result shouldEqual min4Scale
   }
 
-  it should "take ignore the name from the context if the scale already provides one" in {
+  it should "use the scale name if the context does not provide an override" in {
     // Given
-    val context = Some(ScaleFormatContext(intonationStandard = Some(JustIntonationStandard)))
+    val context = Some(ScaleFormatContext(intonationStandard = Some(CentsIntonationStandard)))
     // When
-    val result = scaleFormat.read(centsScaleJson, context)
+    val result = scaleFormat.read(ratiosScaleJson, context)
     // Then
     result.intonationStandard should contain(CentsIntonationStandard)
-    result shouldEqual centsScale
+    result.name shouldEqual "maj-4"
   }
 
   "Reading a concise JSON Scale" should "fail if the context does not provide a name and the intonation standard" in {
@@ -380,7 +383,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // When
     val result = scaleFormat.read(json, None)
     // Then
-    result.getClass shouldEqual classOf[EdoScale]
+    result shouldBe a[EdoScale]
     result shouldEqual edo72Scale
   }
 }

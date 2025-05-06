@@ -75,44 +75,48 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
       name = if (scale.name.trim.isBlank) None else Some(scale.name),
       intonationStandard = scale.intonationStandard
     )
-    val intonationStandard = scale.intonationStandard.orElse(context.flatMap(_.intonationStandard))
+
+    val intonationStandard = context.flatMap(_.intonationStandard).orElse(scale.intonationStandard)
       .getOrElse(throw new MissingContextScaleFormatException)
     // Making sure that the intonation standard that we output is still consistent with the intervals
     val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.scale.intervals).getOrElse {
       throw new IncompatibleIntervalsScaleFormatException
     }
 
-    val contextJson = Json.toJson(scaleSelfContext)(contextFormatWith(fallbackContext = context)).asInstanceOf[JsObject]
+    val contextJson = Json.toJson(scaleSelfContext)(contextFormatWith(overrideContext = context)).asInstanceOf[JsObject]
     val pitchesJson = Json.toJson(intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
 
     contextJson ++ pitchesJson
   }
 
-  def scaleReadsWith(fallbackContext: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
+  def scaleReadsWith(overrideContext: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
     Reads { jsValue =>
-      contextFormatWith(fallbackContext)
+      contextFormatWith(overrideContext)
         .reads(jsValue)
         .flatMap {
           case ScaleFormatContext(Some(name), Some(intonationStandard)) =>
-            pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals => Scale.create(name, intervals) }
+            pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals =>
+              Scale.create(name, intervals, intonationStandard)
+            }
           case _ => JsError(ErrorMissingContext)
         }
     }
   }
 
-  private[format] def contextFormatWith(fallbackContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
-    lazy val fallbackName = fallbackContext.flatMap(_.name)
-    lazy val fallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
+  private[format] def contextFormatWith(overrideContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
+    val overrideName = overrideContext.flatMap(_.name)
+    val overrideIntonationStandard = overrideContext.flatMap(_.intonationStandard)
 
     //@formatter:off
     (
-      (__ \ "name").formatNullableWithDefault[String](fallbackName) and
-      (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
+      (__ \ "name").formatNullable[String] and
+      (__ \ "intonationStandard").formatNullable[IntonationStandard]
     )(
-      { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
+      { (name, intonationStandard) =>
+        ScaleFormatContext(overrideName.orElse(name), overrideIntonationStandard.orElse(intonationStandard))
+      },
       { (context: ScaleFormatContext) =>
-        // There's a play-json bug on write, so we need to apply the fallback manually here
-        (context.name.orElse(fallbackName), context.intonationStandard.orElse(fallbackIntonationStandard))
+        (overrideName.orElse(context.name), overrideIntonationStandard.orElse(context.intonationStandard))
       }
     )
     //@formatter:on
