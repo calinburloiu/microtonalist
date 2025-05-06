@@ -18,11 +18,9 @@ package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.intonation.Scale.ConversionQuality
-import org.calinburloiu.music.intonation.{Interval, IntonationStandard, Scale, ScaleConversionResult}
+import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
@@ -57,11 +55,11 @@ class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
     fileScaleRepo, httpScaleRepo, libraryScaleRepo)
 
   override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
-    updateScaleFromContext(scaleRepoSelector.selectRepoOrThrow(uri).read(uri), uri, context)
+    scaleRepoSelector.selectRepoOrThrow(uri).read(uri)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
-    scaleRepoSelector.selectRepoOrThrow(uri).readAsync(uri).map { scale => updateScaleFromContext(scale, uri, context) }
+    scaleRepoSelector.selectRepoOrThrow(uri).readAsync(uri)
   }
 
   override def write(scale: Scale[Interval],
@@ -75,30 +73,4 @@ class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
                           mediaType: Option[MediaType],
                           context: Option[ScaleFormatContext] = None): Future[Unit] =
     scaleRepoSelector.selectRepoOrThrow(uri).writeAsync(scale, uri, mediaType)
-
-  private def updateScaleFromContext(scale: Scale[Interval],
-                                     uri: URI,
-                                     context: Option[ScaleFormatContext]): Scale[Interval] = {
-    context match {
-      case Some(ScaleFormatContext(maybeName, maybeIntonationStandard)) =>
-        val renamedScale = maybeName.map(scale.rename).getOrElse(scale)
-
-        maybeIntonationStandard.map { toIntonationStandard =>
-          renamedScale.convertToIntonationStandard(toIntonationStandard) match {
-            case Some(ScaleConversionResult(convertedScale, conversionQuality)) =>
-              reportConversionQuality(conversionQuality, toIntonationStandard, uri)
-              convertedScale
-            case None => throw new IncompatibleIntervalsScaleFormatException
-          }
-        }.getOrElse(renamedScale)
-      case None => scale
-    }
-  }
-
-  private def reportConversionQuality(conversionQuality: ConversionQuality,
-                                      intonationStandard: IntonationStandard,
-                                      uri: URI): Unit = conversionQuality match {
-    case Scale.LossyConversion => logger.warn(s"Conversion of scale $uri to $intonationStandard is lossy!")
-    case _ =>
-  }
 }

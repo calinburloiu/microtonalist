@@ -95,8 +95,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tracksUriOverride shouldEqual None
   }
 
-  // TODO #68
-  ignore should "successfully read just intonation intervals in 72-EDO intonation standard" in {
+  it should "successfully read just intonation intervals in 72-EDO intonation standard" in {
     val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
 
     composition.tuningSpecs(1).transposition shouldEqual EdoInterval(72, (4, -1))
