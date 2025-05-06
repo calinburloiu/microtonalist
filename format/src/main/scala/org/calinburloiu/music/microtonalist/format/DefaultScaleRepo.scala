@@ -55,22 +55,22 @@ class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
     fileScaleRepo, httpScaleRepo, libraryScaleRepo)
 
   override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
-    scaleRepoSelector.selectRepoOrThrow(uri).read(uri)
+    scaleRepoSelector.selectRepoOrThrow(uri).read(uri, context)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
-    scaleRepoSelector.selectRepoOrThrow(uri).readAsync(uri)
+    scaleRepoSelector.selectRepoOrThrow(uri).readAsync(uri, context)
   }
 
   override def write(scale: Scale[Interval],
                      uri: URI,
                      mediaType: Option[MediaType],
                      context: Option[ScaleFormatContext] = None): Unit =
-    scaleRepoSelector.selectRepoOrThrow(uri).write(scale, uri, mediaType)
+    scaleRepoSelector.selectRepoOrThrow(uri).write(scale, uri, mediaType, context)
 
   override def writeAsync(scale: Scale[Interval],
                           uri: URI,
                           mediaType: Option[MediaType],
                           context: Option[ScaleFormatContext] = None): Future[Unit] =
-    scaleRepoSelector.selectRepoOrThrow(uri).writeAsync(scale, uri, mediaType)
+    scaleRepoSelector.selectRepoOrThrow(uri).writeAsync(scale, uri, mediaType, context)
 }

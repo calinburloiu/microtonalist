@@ -46,7 +46,7 @@ class HttpScaleRepo(httpClient: HttpClient,
     val request = createReadRequest(uri)
     val response = httpClient.send(request, BodyHandlers.ofInputStream())
 
-    val result = handleReadResponse(uri, response)
+    val result = handleReadResponse(uri, response, context)
     logger.info(s"Successfully read scale from $uri via HTTP")
     result
   }
@@ -61,7 +61,7 @@ class HttpScaleRepo(httpClient: HttpClient,
       .asScala
 
     futureResponse
-      .map { response => handleReadResponse(uri, response) }
+      .map { response => handleReadResponse(uri, response, context) }
       .andThen {
         case Success(_) => logger.info(s"Successfully read scale from $uri via HTTP")
         case Failure(exception) => logger.error(s"Failed to read scale from $uri via HTTP!",
@@ -79,14 +79,15 @@ class HttpScaleRepo(httpClient: HttpClient,
     .build()
 
   private def handleReadResponse(uri: URI,
-                                 response: HttpResponse[InputStream]): Scale[Interval] = response.statusCode() match {
+                                 response: HttpResponse[InputStream],
+                                 context: Option[ScaleFormatContext]): Scale[Interval] = response.statusCode() match {
     case 200 =>
       val mediaType = response.headers().firstValue(GuavaHttpHeaders.CONTENT_TYPE).toScala.map(MediaType.parse)
 
       val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
         .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
-      scaleFormat.read(response.body(), Some(uri))
+      scaleFormat.read(response.body(), Some(uri), context)
     case 404 => throw new ScaleNotFoundException(uri)
     case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
       Some(s"HTTP request to $uri returned status code $status"))

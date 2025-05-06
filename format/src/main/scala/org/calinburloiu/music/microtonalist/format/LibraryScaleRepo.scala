@@ -45,12 +45,12 @@ class LibraryScaleRepo(libraryBaseUri: URI,
 
   override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
     val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
-    repoSelector.selectRepoOrThrow(resolvedUri).read(resolvedUri)
+    repoSelector.selectRepoOrThrow(resolvedUri).read(resolvedUri, context)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] = {
     val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
-    repoSelector.selectRepoOrThrow(resolvedUri).readAsync(resolvedUri)
+    repoSelector.selectRepoOrThrow(resolvedUri).readAsync(resolvedUri, context)
   }
 
   override def write(scale: Scale[Interval],
@@ -58,7 +58,7 @@ class LibraryScaleRepo(libraryBaseUri: URI,
                      mediaType: Option[MediaType],
                      context: Option[ScaleFormatContext] = None): Unit = {
     val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
-    repoSelector.selectRepoOrThrow(resolvedUri).write(scale, resolvedUri, mediaType)
+    repoSelector.selectRepoOrThrow(resolvedUri).write(scale, resolvedUri, mediaType, context)
   }
 
   override def writeAsync(scale: Scale[Interval],
@@ -66,6 +66,6 @@ class LibraryScaleRepo(libraryBaseUri: URI,
                           mediaType: Option[MediaType],
                           context: Option[ScaleFormatContext] = None): Future[Unit] = {
     val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
-    repoSelector.selectRepoOrThrow(resolvedUri).writeAsync(scale, resolvedUri, mediaType)
+    repoSelector.selectRepoOrThrow(resolvedUri).writeAsync(scale, resolvedUri, mediaType, context)
   }
 }

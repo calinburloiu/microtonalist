@@ -44,12 +44,12 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
       .getOrElse(throw new BadScaleRequestException(uri, None))
 
     logger.info(s"Reading scale from path \"$scalePath\"...")
-    scaleFormat.read(inputStream, Some(uri))
+    scaleFormat.read(inputStream, Some(uri), context)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] =
     Future {
-      read(uri)
+      read(uri, context)
     }
 
   override def write(scale: Scale[Interval],
