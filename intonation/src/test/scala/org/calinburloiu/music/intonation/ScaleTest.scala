@@ -168,7 +168,7 @@ class ScaleTest extends AnyFlatSpec with Matchers {
     var result: Option[ScaleConversionResult] = mixedScale.convertToIntonationStandard(CentsIntonationStandard)
     // Then
     result should not be empty
-    result.get.conversionQuality shouldEqual LosslessConversion
+    result.get.conversionQuality shouldEqual IntonationConversionQuality.Lossless
     result.get.scale.apply(2) shouldBe a[CentsInterval]
 
     // When
@@ -185,35 +185,35 @@ class ScaleTest extends AnyFlatSpec with Matchers {
         72,
         (0, 0), (2, 0), (4, -1), (5, 0)
       ),
-      LossyConversion
+      IntonationConversionQuality.Lossy
     ))
 
     // When
     result = centsScale.convertToIntonationStandard(CentsIntonationStandard)
     // Then
     result should not be empty
-    result.get.conversionQuality shouldEqual NoConversion
+    result.get.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
     result.get.scale shouldBe theSameInstanceAs(centsScale)
 
     // When
     result = ratiosScale.convertToIntonationStandard(JustIntonationStandard)
     // Then
     result should not be empty
-    result.get.conversionQuality shouldEqual NoConversion
+    result.get.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
     result.get.scale shouldBe theSameInstanceAs(ratiosScale)
 
     // When
     result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(72))
     // Then
     result should not be empty
-    result.get.conversionQuality shouldEqual NoConversion
+    result.get.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
     result.get.scale shouldBe theSameInstanceAs(edo72Scale)
 
     // When
     result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(31))
     // Then
     result should not be empty
-    result.get.conversionQuality shouldEqual LossyConversion
+    result.get.conversionQuality shouldEqual IntonationConversionQuality.Lossy
     result.get.scale should not be theSameInstanceAs(edo72Scale)
     result.get.scale.apply(2) shouldEqual EdoInterval(31, 8)
   }

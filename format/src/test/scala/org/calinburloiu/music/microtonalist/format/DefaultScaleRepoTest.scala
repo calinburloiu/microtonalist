@@ -59,7 +59,7 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
     result.intonationStandard should contain(CentsIntonationStandard)
 
     // Just intonation context
-    assertThrows[InvalidJsonScaleException] {
+    assertThrows[IncompatibleIntervalsScaleFormatException] {
       FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, justIntonationContext)
     }
 
@@ -104,7 +104,7 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
     result.intonationStandard should contain(CentsIntonationStandard)
 
     // Just intonation context
-    assertThrows[InvalidJsonScaleException] {
+    assertThrows[IncompatibleIntervalsScaleFormatException] {
       FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, justIntonationContext)
     }
 

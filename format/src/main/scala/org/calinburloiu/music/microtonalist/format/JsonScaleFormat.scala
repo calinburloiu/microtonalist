@@ -107,15 +107,24 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
     val overrideName = overrideContext.flatMap(_.name)
     val overrideIntonationStandard = overrideContext.flatMap(_.intonationStandard)
 
+    def checkConversionQuality(from: Option[IntonationStandard]): Unit = (from, overrideIntonationStandard) match {
+      case (Some(fromValue), Some(toValue)) if fromValue.conversionQualityTo(toValue) == IntonationConversionQuality
+        .Impossible =>
+        throw new IncompatibleIntervalsScaleFormatException
+      case _ =>
+    }
+
     //@formatter:off
     (
       (__ \ "name").formatNullable[String] and
       (__ \ "intonationStandard").formatNullable[IntonationStandard]
     )(
       { (name, intonationStandard) =>
+        checkConversionQuality(intonationStandard)
         ScaleFormatContext(overrideName.orElse(name), overrideIntonationStandard.orElse(intonationStandard))
       },
       { (context: ScaleFormatContext) =>
+        checkConversionQuality(context.intonationStandard)
         (overrideName.orElse(context.name), overrideIntonationStandard.orElse(context.intonationStandard))
       }
     )
