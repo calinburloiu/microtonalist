@@ -18,6 +18,7 @@ package org.calinburloiu.music.intonation
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
+import org.calinburloiu.music.intonation.IntonationStandard
 
 class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
@@ -139,22 +140,27 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    * @param newIntonationStandard The given intonation standard to convert to.
    * @return [[Some]] new scale with the intervals converted or [[None]] if the conversion is not possible.
    */
-  def convertToIntonationStandard(newIntonationStandard: IntonationStandard): Option[ScaleConversionResult] = {
-    newIntonationStandard match {
-      case _: IntonationStandard if intonationStandard.contains(newIntonationStandard) =>
-        Some(ScaleConversionResult(this, IntonationConversionQuality.NoConversion))
-      case CentsIntonationStandard =>
-        Some(ScaleConversionResult(
-          CentsScale(name, intervals.map(_.toCentsInterval)),
-          IntonationConversionQuality.Lossless
-        ))
-      case JustIntonationStandard => None
-      case EdoIntonationStandard(thatEdo) =>
-        val quality = intonationStandard match {
-          case Some(EdoIntonationStandard(thisEdo)) if thatEdo % thisEdo == 0 => IntonationConversionQuality.Lossless
-          case _ => IntonationConversionQuality.Lossy
-        }
-        Some(ScaleConversionResult(EdoScale(name, intervals.map(_.toEdoInterval(thatEdo))), quality))
+  def convertToIntonationStandard(newIntonationStandard: IntonationStandard): ScaleConversionResult = {
+    val quality = IntonationConversionQuality.fromOrdinal(intervals.map { interval =>
+      val intervalConversionQuality = interval.intonationStandard.conversionQualityTo(newIntonationStandard)
+      intervalConversionQuality.ordinal
+    }.max)
+
+    if (quality == IntonationConversionQuality.NoConversion) {
+      ScaleConversionResult(Some(this), quality)
+    } else if (quality == IntonationConversionQuality.Impossible) {
+      ScaleConversionResult(None, quality)
+    } else {
+      newIntonationStandard match {
+        case CentsIntonationStandard =>
+          ScaleConversionResult(
+            Some(CentsScale(name, intervals.map(_.toCentsInterval))),
+            quality
+          )
+        case JustIntonationStandard => ScaleConversionResult(None, IntonationConversionQuality.Impossible)
+        case EdoIntonationStandard(thatEdo) =>
+          ScaleConversionResult(Some(EdoScale(name, intervals.map(_.toEdoInterval(thatEdo)))), quality)
+      }
     }
   }
 
@@ -273,7 +279,7 @@ object Scale {
 }
 
 
-case class ScaleConversionResult(scale: Scale[Interval], conversionQuality: IntonationConversionQuality)
+case class ScaleConversionResult(scale: Option[Scale[Interval]], conversionQuality: IntonationConversionQuality)
 
 
 case class RatiosScale(override val name: String,

@@ -75,60 +75,76 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
       name = if (scale.name.trim.isBlank) None else Some(scale.name),
       intonationStandard = scale.intonationStandard
     )
+    val newContext = scaleSelfContext.applyOverride(context)
+    val contextJson = Json.toJson(newContext)(contextWrites).asInstanceOf[JsObject]
 
     val intonationStandard = context.flatMap(_.intonationStandard).orElse(scale.intonationStandard)
       .getOrElse(throw new MissingContextScaleFormatException)
     // Making sure that the intonation standard that we output is still consistent with the intervals
-    val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.scale.intervals).getOrElse {
+    val intervals = scale.convertToIntonationStandard(intonationStandard).scale.map(_.intervals).getOrElse {
       throw new IncompatibleIntervalsScaleFormatException
     }
-
-    val contextJson = Json.toJson(scaleSelfContext)(contextFormatWith(overrideContext = context)).asInstanceOf[JsObject]
     val pitchesJson = Json.toJson(intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
 
     contextJson ++ pitchesJson
   }
 
-  def scaleReadsWith(overrideContext: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
+  def scaleReadsWith(context: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
     Reads { jsValue =>
-      contextFormatWith(overrideContext)
+      contextReadsWithFallback(context)
         .reads(jsValue)
         .flatMap {
           case ScaleFormatContext(Some(name), Some(intonationStandard)) =>
             pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals =>
-              Scale.create(name, intervals, intonationStandard)
+              val scaleRead = Scale.create(name, intervals, intonationStandard)
+              updateScaleFromContext(scaleRead, context)
             }
           case _ => JsError(ErrorMissingContext)
         }
     }
   }
 
-  private[format] def contextFormatWith(overrideContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
-    val overrideName = overrideContext.flatMap(_.name)
-    val overrideIntonationStandard = overrideContext.flatMap(_.intonationStandard)
 
-    def checkConversionQuality(from: Option[IntonationStandard]): Unit = (from, overrideIntonationStandard) match {
-      case (Some(fromValue), Some(toValue)) if fromValue.conversionQualityTo(toValue) == IntonationConversionQuality
-        .Impossible =>
-        throw new IncompatibleIntervalsScaleFormatException
-      case _ =>
-    }
+  private[format] def contextReadsWithFallback(fallbackContext: Option[ScaleFormatContext])
+  : Reads[ScaleFormatContext] = {
+    lazy val fallbackName = fallbackContext.flatMap(_.name)
+    lazy val fallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
 
     //@formatter:off
     (
-      (__ \ "name").formatNullable[String] and
-      (__ \ "intonationStandard").formatNullable[IntonationStandard]
-    )(
-      { (name, intonationStandard) =>
-        checkConversionQuality(intonationStandard)
-        ScaleFormatContext(overrideName.orElse(name), overrideIntonationStandard.orElse(intonationStandard))
-      },
-      { (context: ScaleFormatContext) =>
-        checkConversionQuality(context.intonationStandard)
-        (overrideName.orElse(context.name), overrideIntonationStandard.orElse(context.intonationStandard))
-      }
-    )
+      (__ \ "name").readNullableWithDefault[String](fallbackName) and
+      (__ \ "intonationStandard").readNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
+    )({ (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) })
     //@formatter:on
+  }
+
+  private def updateScaleFromContext(scale: Scale[Interval],
+                                     context: Option[ScaleFormatContext]): Scale[Interval] = {
+    context match {
+      case Some(ScaleFormatContext(maybeName, maybeIntonationStandard)) =>
+        val renamedScale = maybeName.map(scale.rename).getOrElse(scale)
+
+        maybeIntonationStandard.map { toIntonationStandard =>
+          renamedScale.convertToIntonationStandard(toIntonationStandard) match {
+            case ScaleConversionResult(Some(convertedScale), conversionQuality) =>
+              if (conversionQuality == IntonationConversionQuality.Lossy) {
+                reportLossyConversion(scale.intonationStandard, toIntonationStandard, scale.name)
+              }
+
+              convertedScale
+            case _ => throw new IncompatibleIntervalsScaleFormatException
+          }
+        }.getOrElse(renamedScale)
+      case None => scale
+    }
+  }
+
+  private def reportLossyConversion(fromIntonationStandard: Option[IntonationStandard],
+                                    toIntonationStandard: IntonationStandard,
+                                    scaleName: String): Unit = {
+    // TODO #68 Report via Businessync
+    println(s"Conversion of scale \"$scaleName\" from ${fromIntonationStandard.getOrElse("N/A")} " +
+      s"to $toIntonationStandard is lossy!")
   }
 }
 
@@ -140,6 +156,8 @@ object JsonScaleFormat {
 
   private[JsonScaleFormat] implicit val intonationStandardFormat: Format[IntonationStandard] =
     JsonIntonationStandardPluginFormat.format
+
+  private val contextWrites: Writes[ScaleFormatContext] = Json.writes[ScaleFormatContext]
 
   private[format] def pitchIntervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = {
     val intervalFormat: Format[Interval] = JsonIntervalFormat.formatFor(intonationStandard)

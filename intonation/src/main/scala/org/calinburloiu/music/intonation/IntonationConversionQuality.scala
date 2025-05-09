@@ -20,9 +20,6 @@ package org.calinburloiu.music.intonation
  * Rates the conversion of an interval or scale from an `IntonationStandard` to another.
  */
 enum IntonationConversionQuality {
-  /** The conversion is not possible. */
-  case Impossible
-
   /** No conversion is performed. */
   case NoConversion
 
@@ -31,4 +28,7 @@ enum IntonationConversionQuality {
 
   /** A conversion is performed with a degradation of intonation precision quality. */
   case Lossy
+
+  /** The conversion is not possible. */
+  case Impossible
 }

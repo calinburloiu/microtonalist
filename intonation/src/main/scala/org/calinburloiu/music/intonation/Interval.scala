@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -116,6 +116,8 @@ sealed trait Interval extends Ordered[Interval] {
    */
   def isUnison: Boolean
 
+  def intonationStandard: IntonationStandard
+
   /**
    * Converts `this` interval to a [[RealInterval]].
    */
@@ -223,6 +225,8 @@ case class RealInterval(override val realValue: Double) extends Interval {
 
   override def isUnison: Boolean = realValue == 1.0
 
+  override def intonationStandard: IntonationStandard = CentsIntonationStandard
+
   override def toRealInterval: RealInterval = this
 
   override def compare(that: Interval): Int = this.realValue.compareTo(that.realValue)
@@ -318,6 +322,8 @@ case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
   override def reverse: Interval = RatioInterval(this.denominator, this.numerator)
 
   override def isUnison: Boolean = numerator == 1 && denominator == 1
+
+  override def intonationStandard: IntonationStandard = JustIntonationStandard
 
   override def compare(that: Interval): Int = this.realValue.compareTo(that.realValue)
 
@@ -421,6 +427,8 @@ case class CentsInterval(override val cents: Double) extends Interval {
 
   override def isUnison: Boolean = cents == 0.0
 
+  override def intonationStandard: IntonationStandard = CentsIntonationStandard
+
   override def toCentsInterval: CentsInterval = this
 
   override def compare(that: Interval): Int = this.cents.compareTo(that.cents)
@@ -511,6 +519,8 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
   override def reverse: EdoInterval = EdoInterval(edo, -count)
 
   override def isUnison: Boolean = count == 0
+
+  override def intonationStandard: IntonationStandard = EdoIntonationStandard(edo)
 
   override def compare(that: Interval): Int = that match {
     case EdoInterval(`edo`, thatCount) => this.count.compareTo(thatCount)

@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.scalatest.Assertion
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{Format, Json}
@@ -107,7 +106,7 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
     // Then
     actualProfile shouldEqual profile
 
-    val futures = ArrayBuffer[Future[Assertion]]()
+    val futures = ArrayBuffer[Future[Any]]()
 
     // Successfully load data
     val john = Person("John", 25)
@@ -123,7 +122,9 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
 
       // Loading the second time has no effect
       actualProfile.person.load { _ => Future(Person("Max", 50)) }
-    }.map { person => person shouldEqual john }
+    }.map { person =>
+      person shouldEqual john
+    }
 
     // Loading already loaded data does nothing
     val mary = Person("Mary", 19)
@@ -136,7 +137,7 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
 
     // Immediately fail to load data
     val exception = intercept[RuntimeException] {
-      actualProfile.friends.head.load { placeholder =>
+      futures += actualProfile.friends.head.load { placeholder =>
         placeholder.`import` shouldEqual "https://example.org/persons/george"
         throw new RuntimeException("epic failure")
       }
@@ -166,17 +167,15 @@ class DeferrableReadTest extends AsyncFlatSpec with Matchers {
       actualProfile.friends(1).value shouldEqual mary
       actualProfile.friends(1).status shouldEqual DeferrableReadStatus.Loaded
 
-      val exception = intercept[RuntimeException] {
+      val exception1 = intercept[RuntimeException] {
         actualProfile.friends(2).value
       }
-      actualProfile.friends(2).status shouldEqual DeferrableReadStatus.FailedLoad(exception)
+      actualProfile.friends(2).status shouldEqual DeferrableReadStatus.FailedLoad(exception1)
 
       val exception2 = intercept[RuntimeException] {
         actualProfile.friends.head.value
       }
       actualProfile.friends.head.status shouldEqual DeferrableReadStatus.FailedLoad(exception2)
-
-      v.head
     }
   }
 

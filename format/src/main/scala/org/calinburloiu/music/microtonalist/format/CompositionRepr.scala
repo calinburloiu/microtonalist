@@ -46,6 +46,7 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
 
       localScaleCache.get(resolvedUri) match {
         case None =>
+          // TODO #68 No ScaleFormatContext passed
           val scale = scaleRepo.readAsync(resolvedUri)
           localScaleCache.addOne((resolvedUri, scale))
           scale

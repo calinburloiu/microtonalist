@@ -37,4 +37,21 @@ import org.calinburloiu.music.intonation.IntonationStandard
  * @param intonationStandard The intonation standard of the composition file that may either be used to convert the
  *                           scale read to it, if it has a different one, or use it, if an embedded scale omits it.
  */
-case class ScaleFormatContext(name: Option[String] = None, intonationStandard: Option[IntonationStandard] = None)
+case class ScaleFormatContext(name: Option[String] = None, intonationStandard: Option[IntonationStandard] = None) {
+
+  /**
+   * Applies the given override context to the current scale format context, combining properties from both contexts.
+   *
+   * @param overrideContext An optional override context that may provide values to replace or supplement
+   *                        the properties of the current context.
+   * @return a new ScaleFormatContext with the combined properties from the current context and the override context.
+   */
+  def applyOverride(overrideContext: Option[ScaleFormatContext]): ScaleFormatContext = overrideContext match {
+    case None => this
+    case Some(ScaleFormatContext(overrideName, overrideIntonationStandard)) =>
+      val newName = overrideName.orElse(name)
+      val newIntonationStandard = overrideIntonationStandard.orElse(intonationStandard)
+
+      ScaleFormatContext(newName, newIntonationStandard)
+  }
+}

@@ -165,12 +165,16 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Lock
             case None =>
               _status = DeferrableReadStatus.PendingLoad
               val futureValue = loader(placeholder)
-              futureValue.onComplete {
-                case Success(v) =>
-                  _value = Some(v)
-                  _status = DeferrableReadStatus.Loaded
-                case Failure(exception) =>
-                  _status = DeferrableReadStatus.FailedLoad(exception)
+              futureValue.onComplete { result =>
+                withWriteLock {
+                  result match {
+                    case Success(v) =>
+                      _value = Some(v)
+                      _status = DeferrableReadStatus.Loaded
+                    case Failure(exception) =>
+                      _status = DeferrableReadStatus.FailedLoad(exception)
+                  }
+                }
               }
               _futureValue = Some(futureValue)
               futureValue

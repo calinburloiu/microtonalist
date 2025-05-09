@@ -165,57 +165,98 @@ class ScaleTest extends AnyFlatSpec with Matchers {
 
   "convertToIntonationStandard" should "convert a scale if necessary to a given intonation standard" in {
     // When
-    var result: Option[ScaleConversionResult] = mixedScale.convertToIntonationStandard(CentsIntonationStandard)
+    var result: ScaleConversionResult = mixedScale.convertToIntonationStandard(CentsIntonationStandard)
     // Then
-    result should not be empty
-    result.get.conversionQuality shouldEqual IntonationConversionQuality.Lossless
-    result.get.scale.apply(2) shouldBe a[CentsInterval]
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Lossless
+    result.scale.get.apply(2) shouldBe a[CentsInterval]
 
     // When
     result = mixedScale.convertToIntonationStandard(JustIntonationStandard)
     // Then
-    result shouldBe empty
+    result.scale shouldBe empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Impossible
 
     // When
     result = mixedScale.convertToIntonationStandard(EdoIntonationStandard(72))
     // Then
-    result should contain(ScaleConversionResult(
-      EdoScale(
+    result shouldEqual ScaleConversionResult(
+      Some(EdoScale(
         "mixed",
         72,
         (0, 0), (2, 0), (4, -1), (5, 0)
-      ),
+      )),
       IntonationConversionQuality.Lossy
-    ))
+    )
 
     // When
     result = centsScale.convertToIntonationStandard(CentsIntonationStandard)
     // Then
-    result should not be empty
-    result.get.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
-    result.get.scale shouldBe theSameInstanceAs(centsScale)
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
+    result.scale.get shouldBe theSameInstanceAs(centsScale)
+
+    // When
+    result = centsScale.convertToIntonationStandard(JustIntonationStandard)
+    // Then
+    result.scale shouldBe empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Impossible
+
+    // When
+    result = centsScale.convertToIntonationStandard(EdoIntonationStandard(72))
+    // Then
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Lossy
+    result.scale.get.apply(2) shouldEqual EdoInterval(72, 24)
+
+    // When
+    result = ratiosScale.convertToIntonationStandard(CentsIntonationStandard)
+    // Then
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Lossless
+    result.scale.get.apply(1).cents shouldEqual 266.87
 
     // When
     result = ratiosScale.convertToIntonationStandard(JustIntonationStandard)
     // Then
-    result should not be empty
-    result.get.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
-    result.get.scale shouldBe theSameInstanceAs(ratiosScale)
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
+    result.scale.get shouldBe theSameInstanceAs(ratiosScale)
+
+    // When
+    result = ratiosScale.convertToIntonationStandard(EdoIntonationStandard(72))
+    // Then
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Lossy
+    result.scale.get.apply(1) shouldEqual EdoInterval(72, 16)
+
+    // When
+    result = edo72Scale.convertToIntonationStandard(CentsIntonationStandard)
+    // Then
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Lossless
+    result.scale.get.apply(2).cents shouldEqual 316.67
+
+    // When
+    result = edo72Scale.convertToIntonationStandard(JustIntonationStandard)
+    // Then
+    result.scale shouldBe empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Impossible
 
     // When
     result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(72))
     // Then
-    result should not be empty
-    result.get.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
-    result.get.scale shouldBe theSameInstanceAs(edo72Scale)
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.NoConversion
+    result.scale.get shouldBe theSameInstanceAs(edo72Scale)
 
     // When
     result = edo72Scale.convertToIntonationStandard(EdoIntonationStandard(31))
     // Then
-    result should not be empty
-    result.get.conversionQuality shouldEqual IntonationConversionQuality.Lossy
-    result.get.scale should not be theSameInstanceAs(edo72Scale)
-    result.get.scale.apply(2) shouldEqual EdoInterval(31, 8)
+    result.scale should not be empty
+    result.conversionQuality shouldEqual IntonationConversionQuality.Lossy
+    result.scale should not be theSameInstanceAs(edo72Scale)
+    result.scale.get.apply(2) shouldEqual EdoInterval(31, 8)
   }
 
   "indexOfUnison" should "tell the index where a unison interval is in the scale's intervals, if any" in {
