@@ -183,7 +183,9 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
           case Some(tuningMapper) => JsSuccess(tuningMapper)
           case None => createDefaultTuningMapper().repath(tuningMapperPath)
         }
-      )(TuningSpecRepr.apply)
+      )({ (transposition, scale, tuningMapper) => 
+        TuningSpecRepr.apply(transposition, scale, tuningMapper, maybeName)
+      })
       //@formatter:on
     }
   }
