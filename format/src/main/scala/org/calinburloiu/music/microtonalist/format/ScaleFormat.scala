@@ -38,8 +38,8 @@ trait ScaleFormat {
    * @return the scale read
    */
   def read(inputStream: InputStream,
-           baseUri: Option[URI] = None,
-           context: Option[ScaleFormatContext] = None): Scale[Interval]
+           baseUri: Option[URI],
+           context: Option[ScaleFormatContext]): Scale[Interval]
 
   /**
    * Writes the given scale to the given [[OutputStream]].
@@ -49,7 +49,7 @@ trait ScaleFormat {
    * @param context      If writing occurs in a context, such as from a composition file, then a context may be set
    *                     with certain properties, that may be omitted from the serialized scale.
    */
-  def write(scale: Scale[Interval], outputStream: OutputStream, context: Option[ScaleFormatContext] = None): Unit
+  def write(scale: Scale[Interval], outputStream: OutputStream, context: Option[ScaleFormatContext]): Unit
 }
 
 /**

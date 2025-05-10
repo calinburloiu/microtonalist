@@ -32,7 +32,7 @@ import scala.util.Try
  * @param scaleFormatRegistry registry responsible for choosing the scale format
  */
 class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
-  override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
+  override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
     val scalePath = filePathOf(uri)
     val inputStream = Try {
       new FileInputStream(scalePath.toString)
@@ -47,7 +47,7 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
     scaleFormat.read(inputStream, Some(uri), context)
   }
 
-  override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] =
+  override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] =
     Future {
       read(uri, context)
     }
@@ -55,10 +55,10 @@ class FileScaleRepo(scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo 
   override def write(scale: Scale[Interval],
                      uri: URI,
                      mediaType: Option[MediaType],
-                     context: Option[ScaleFormatContext] = None): Unit = ???
+                     context: Option[ScaleFormatContext]): Unit = ???
 
   override def writeAsync(scale: Scale[Interval],
                           uri: URI,
                           mediaType: Option[MediaType],
-                          context: Option[ScaleFormatContext] = None): Future[Unit] = ???
+                          context: Option[ScaleFormatContext]): Future[Unit] = ???
 }

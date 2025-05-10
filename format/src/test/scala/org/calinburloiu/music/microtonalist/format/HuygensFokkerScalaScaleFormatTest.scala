@@ -206,7 +206,7 @@ class HuygensFokkerScalaScaleFormatTest extends AnyFlatSpec with Matchers {
     val input = scalaTuningFileString.stripMargin.toInputStream
 
     val caught = intercept[InvalidHuygensFokkerScalaFileException] {
-      scaleFormat.read(input)
+      scaleFormat.read(input, None, None)
     }
 
     maybeMessageContained match {
@@ -219,7 +219,7 @@ class HuygensFokkerScalaScaleFormatTest extends AnyFlatSpec with Matchers {
   def testSuccess(scalaTuningFileString: String, expectedScale: Scale[Interval]): Unit = {
     val input = scalaTuningFileString.stripMargin.toInputStream
 
-    val actualScale = scaleFormat.read(input)
+    val actualScale = scaleFormat.read(input, None, None)
 
     actualScale.getClass shouldEqual expectedScale.getClass
     actualScale shouldEqual expectedScale

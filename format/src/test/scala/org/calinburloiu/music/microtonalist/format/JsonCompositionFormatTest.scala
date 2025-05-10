@@ -29,6 +29,8 @@ import java.net.URI
 import scala.collection.mutable
 import scala.concurrent.Future
 
+// TODO #68 Scales context handling (both referenced and inline)
+
 class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with BeforeAndAfter with MockFactory {
 
   import FormatTestUtils.readCompositionFromResources

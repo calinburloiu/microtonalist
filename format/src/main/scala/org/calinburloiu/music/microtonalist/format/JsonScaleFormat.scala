@@ -37,8 +37,8 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
     "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType, MediaType.JSON_UTF_8))
 
   override def read(inputStream: InputStream,
-                    baseUri: Option[URI] = None,
-                    context: Option[ScaleFormatContext] = None): Scale[Interval] = {
+                    baseUri: Option[URI],
+                    context: Option[ScaleFormatContext]): Scale[Interval] = {
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
@@ -64,13 +64,13 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
   override def write(scale: Scale[Interval],
                      outputStream: OutputStream,
-                     context: Option[ScaleFormatContext] = None): Unit = {
-    val json = writeAsJsValue(scale)
+                     context: Option[ScaleFormatContext]): Unit = {
+    val json = writeAsJsValue(scale, context)
     val writer = new PrintWriter(outputStream)
     writer.write(json.toString)
   }
 
-  def writeAsJsValue(scale: Scale[Interval], context: Option[ScaleFormatContext] = None): JsValue = {
+  def writeAsJsValue(scale: Scale[Interval], context: Option[ScaleFormatContext]): JsValue = {
     val scaleSelfContext = ScaleFormatContext(
       name = if (scale.name.trim.isBlank) None else Some(scale.name),
       intonationStandard = scale.intonationStandard

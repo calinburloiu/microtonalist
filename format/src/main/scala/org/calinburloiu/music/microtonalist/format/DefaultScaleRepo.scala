@@ -65,12 +65,12 @@ class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
   override def write(scale: Scale[Interval],
                      uri: URI,
                      mediaType: Option[MediaType],
-                     context: Option[ScaleFormatContext] = None): Unit =
+                     context: Option[ScaleFormatContext]): Unit =
     scaleRepoSelector.selectRepoOrThrow(uri).write(scale, uri, mediaType, context)
 
   override def writeAsync(scale: Scale[Interval],
                           uri: URI,
                           mediaType: Option[MediaType],
-                          context: Option[ScaleFormatContext] = None): Future[Unit] =
+                          context: Option[ScaleFormatContext]): Future[Unit] =
     scaleRepoSelector.selectRepoOrThrow(uri).writeAsync(scale, uri, mediaType, context)
 }

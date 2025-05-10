@@ -22,6 +22,9 @@ import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalactic.{Equality, TolerantNumerics}
 import play.api.libs.json.*
 
+// TODO #68 Test writeAsJsValue with defined context
+// TODO #68 Test context-based conversion of cents scale to EDO
+
 class JsonScaleFormatTest extends JsonFormatTestUtils {
   private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
 
@@ -102,7 +105,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "output a JSON Scale with cents intonation standard" in {
     // When
-    val result = scaleFormat.writeAsJsValue(centsScale)
+    val result = scaleFormat.writeAsJsValue(centsScale, None)
     // Then
     (result \ "intonationStandard").asOpt[String] should contain("cents")
     result shouldEqual centsScaleJson
@@ -157,7 +160,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "output a JSON Scale with just intonation standard" in {
     // When
-    val result = scaleFormat.writeAsJsValue(ratiosScale)
+    val result = scaleFormat.writeAsJsValue(ratiosScale, None)
     // Then
     (result \ "intonationStandard").asOpt[String] should contain("justIntonation")
     result shouldEqual ratiosScaleJson
@@ -237,7 +240,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
   it should "output a JSON Scale with EDO intonation standard and intervals " +
     "expressed as absolute values in divisions if division count per octave is not a multiple of 12" in {
     // When
-    val result = scaleFormat.writeAsJsValue(edo53Scale)
+    val result = scaleFormat.writeAsJsValue(edo53Scale, None)
     // Then
     (result \ "intonationStandard" \ "type").asOpt[String] should contain("edo")
     result shouldEqual edo53ScaleJson
@@ -246,7 +249,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
   it should "output a JSON Scale with EDO intonation standard and intervals expressed as relative to 12-EDO in " +
     "divisions if division count per octave is a multiple of 12" in {
     // When
-    val result = scaleFormat.writeAsJsValue(edo72Scale)
+    val result = scaleFormat.writeAsJsValue(edo72Scale, None)
     // Then
     (result \ "intonationStandard" \ "type").asOpt[String] should contain("edo")
     result shouldEqual createEdo72ScaleJson(edo72RelativeIntervals)
@@ -263,7 +266,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "fail if no context is provided" in {
     assertThrows[MissingContextScaleFormatException] {
-      scaleFormat.writeAsJsValue(mixedScale)
+      scaleFormat.writeAsJsValue(mixedScale, None)
     }
   }
 
