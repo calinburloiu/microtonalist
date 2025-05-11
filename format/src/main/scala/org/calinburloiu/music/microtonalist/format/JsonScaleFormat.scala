@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
 import com.typesafe.scalalogging.LazyLogging
+import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
 import org.calinburloiu.music.intonation.*
 import play.api.libs.functional.syntax.*
 import play.api.libs.json.*
@@ -28,9 +29,11 @@ import java.net.URI
 /**
  * [[ScaleFormat]] implementation that provides support for Microtonalist's own JSON-based scale format.
  *
- * @param jsonPreprocessor a preprocessor instance that can replace JSON references
+ * @param jsonPreprocessor A preprocessor instance that can replace JSON references.
+ * @param businessync      Used to publish events (which extend [[JsonScaleFormatEvent]]) to subscribers.
  */
-class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat, LazyLogging {
+class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
+                      businessync: Businessync) extends ScaleFormat, LazyLogging {
 
   import JsonScaleFormat.*
 
@@ -145,6 +148,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat, L
                                     scaleName: String): Unit = {
     logger.warn(s"Conversion of scale \"$scaleName\" from ${fromIntonationStandard.getOrElse("N/A")} " +
       s"to $toIntonationStandard is lossy!")
+    businessync.publish(LossyConversionEvent(fromIntonationStandard, toIntonationStandard, scaleName))
   }
 }
 
@@ -183,3 +187,9 @@ class InvalidJsonScaleException(message: String, cause: Throwable = null)
 
   def this(jsError: JsError) = this(JsError.toJson(jsError).toString)
 }
+
+sealed abstract class JsonScaleFormatEvent extends BusinessyncEvent
+
+case class LossyConversionEvent(fromIntonationStandard: Option[IntonationStandard],
+                                toIntonationStandard: IntonationStandard,
+                                scaleName: String) extends JsonScaleFormatEvent

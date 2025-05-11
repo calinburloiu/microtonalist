@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import com.google.common.eventbus.EventBus
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.CentsInterval.PostfixOperator
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
@@ -26,7 +28,8 @@ import play.api.libs.json.*
 //   - In particular, a case that was not correctly covered: cents scale to EDO
 
 class JsonScaleFormatTest extends JsonFormatTestUtils {
-  private val scaleFormat: JsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+  private val businessync: Businessync = Businessync(EventBus())
+  private val scaleFormat: JsonScaleFormat = JsonScaleFormat(NoJsonPreprocessor, businessync)
 
   private val epsilon: Double = 1e-1
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)

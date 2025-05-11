@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,14 +17,17 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
+import org.calinburloiu.businessync.Businessync
+import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
-class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
+class ScaleFormatRegistryTest extends AnyFlatSpec, Matchers, Stubs {
+  val businessyncStub: Stub[Businessync] = stub[Businessync]
   val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+  val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, businessyncStub)
   val registry: ScaleFormatRegistry = new ScaleFormatRegistry(Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
 
   def assertResult(actualResult: Option[ScaleFormat], expectedResult: ScaleFormat): Unit = {

@@ -16,13 +16,15 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.tuner.TrackRepo
 
 import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class FormatModule(libraryBaseUri: URI,
+class FormatModule(businessync: Businessync,
+                   libraryBaseUri: URI,
                    synchronousAwaitTimeout: FiniteDuration = 1 minute) {
   lazy val jsonPreprocessor: JsonPreprocessor = new JsonPreprocessor(
     Seq(jsonPreprocessorFileRefLoader, jsonPreprocessorHttpRefLoader)
@@ -34,7 +36,7 @@ class FormatModule(libraryBaseUri: URI,
   lazy val jsonPreprocessorHttpRefLoader: JsonPreprocessorHttpRefLoader = new JsonPreprocessorHttpRefLoader(httpClient)
 
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor)
+  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor, businessync)
 
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))

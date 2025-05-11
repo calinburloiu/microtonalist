@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.microtonalist.composition.*
@@ -38,7 +39,8 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   private val urisOfReadScales: mutable.ArrayBuffer[URI] = mutable.ArrayBuffer()
 
   private lazy val compositionFormat: CompositionFormat = {
-    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+    val businessyncStub = stub[Businessync]
+    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, businessyncStub)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat

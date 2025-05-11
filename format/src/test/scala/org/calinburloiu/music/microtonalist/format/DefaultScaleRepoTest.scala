@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalamock.scalatest.AbstractMockFactory
@@ -24,7 +25,8 @@ import org.scalatest.matchers.should.Matchers
 
 class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFactory {
   private lazy val scaleRepo: DefaultScaleRepo = {
-    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+    val businessyncStub = stub[Businessync]
+    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, businessyncStub)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(jsonScaleFormat))
     val fileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
     new DefaultScaleRepo(Some(fileScaleRepo), Some(stub[HttpScaleRepo]), Some(stub[LibraryScaleRepo]))
