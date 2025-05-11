@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
+import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.intonation.*
 import play.api.libs.functional.syntax.*
 import play.api.libs.json.*
@@ -29,7 +30,7 @@ import java.net.URI
  *
  * @param jsonPreprocessor a preprocessor instance that can replace JSON references
  */
-class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
+class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat, LazyLogging {
 
   import JsonScaleFormat.*
 
@@ -142,8 +143,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
   private def reportLossyConversion(fromIntonationStandard: Option[IntonationStandard],
                                     toIntonationStandard: IntonationStandard,
                                     scaleName: String): Unit = {
-    // TODO #68 Report via Businessync
-    println(s"Conversion of scale \"$scaleName\" from ${fromIntonationStandard.getOrElse("N/A")} " +
+    logger.warn(s"Conversion of scale \"$scaleName\" from ${fromIntonationStandard.getOrElse("N/A")} " +
       s"to $toIntonationStandard is lossy!")
   }
 }
