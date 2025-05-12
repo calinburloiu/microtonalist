@@ -16,23 +16,35 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import com.google.common.eventbus.EventBus
+import com.google.common.eventbus.{EventBus, Subscribe}
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.CentsInterval.PostfixOperator
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalactic.{Equality, TolerantNumerics}
+import org.scalatest.BeforeAndAfter
 import play.api.libs.json.*
 
-// TODO #68 Specific test cases with context-based conversion to each intonation standard
-//   - In particular, a case that was not correctly covered: cents scale to EDO
-
-class JsonScaleFormatTest extends JsonFormatTestUtils {
+class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
   private val businessync: Businessync = Businessync(EventBus())
   private val scaleFormat: JsonScaleFormat = JsonScaleFormat(NoJsonPreprocessor, businessync)
 
   private val epsilon: Double = 1e-1
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
+
+  private var lastLossyReport: Option[LossyConversionEvent] = None
+
+  businessync.register(this)
+  businessync.subscribe(classOf[LossyConversionEvent], onLossyConversion)
+
+  @Subscribe
+  def onLossyConversion(event: LossyConversionEvent): Unit = {
+    lastLossyReport = Some(event)
+  }
+
+  after {
+    lastLossyReport = None
+  }
 
   "pitchIntervalFormatFor" should "either read on interval directly or get it from a scale pitch object" in {
     val format: Format[Interval] = JsonScaleFormat.pitchIntervalFormatFor(JustIntonationStandard)
@@ -50,8 +62,8 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   behavior of "Reading a JSON Scale in cents intonation standard"
 
-  private val centsScale = CentsScale("min-4", 0.0, 204.3, 315.9, 498.5)
-  private val centsScaleJson = Json.obj(
+  private val min4CentsScale = CentsScale("min-4", 0.0, 204.3, 315.9, 498.5)
+  private val min4CentsScaleJson = Json.obj(
     "name" -> "min-4",
     "intonationStandard" -> "cents",
     "pitches" -> Json.arr(
@@ -61,10 +73,11 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "create a CentsScale object when all intervals are in cents" in {
     // When
-    val result = scaleFormat.read(centsScaleJson, None)
+    val result = scaleFormat.read(min4CentsScaleJson, None)
     // Then
     result shouldBe a[CentsScale]
-    result shouldEqual centsScale
+    result shouldEqual min4CentsScale
+    lastLossyReport shouldBe empty
   }
 
   it should "create a Scale object when some intervals are ratios" in {
@@ -79,6 +92,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // Then
     result shouldBe a[Scale[Interval]]
     result.intervals.map(_.cents) should contain theSameElementsAs Seq(0.0, 204.3, 315.6, 498.5)
+    lastLossyReport shouldBe empty
   }
 
   it should "fail if there are intervals written with EDO-style arrays" in {
@@ -114,16 +128,16 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "output a JSON Scale with cents intonation standard" in {
     // When
-    val result = scaleFormat.writeAsJsValue(centsScale, None)
+    val result = scaleFormat.writeAsJsValue(min4CentsScale, None)
     // Then
     (result \ "intonationStandard").asOpt[String] should contain("cents")
-    result shouldEqual centsScaleJson
+    result shouldEqual min4CentsScaleJson
   }
 
   behavior of "Reading a JSON Scale in just intonation standard"
 
-  private val ratiosScale = RatiosScale("maj-4", (15, 16), (1, 1), (9, 8), (5, 4), (4, 3))
-  private val ratiosScaleJson = Json.obj(
+  private val maj4RatiosScale = RatiosScale("maj-4", (15, 16), (1, 1), (9, 8), (5, 4), (4, 3))
+  private val maj4RatiosScaleJson = Json.obj(
     "name" -> "maj-4",
     "intonationStandard" -> "justIntonation",
     "pitches" -> Json.arr(
@@ -133,10 +147,11 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "create a RatiosScale object when all intervals are ratios" in {
     // When
-    val result = scaleFormat.read(ratiosScaleJson, None)
+    val result = scaleFormat.read(maj4RatiosScaleJson, None)
     // Then
     result shouldBe a[RatiosScale]
-    result shouldEqual ratiosScale
+    result shouldEqual maj4RatiosScale
+    lastLossyReport shouldBe empty
   }
 
   private def createJustJsonScaleWithCustomInterval(jsIntervalValue: JsValue): JsObject = {
@@ -169,24 +184,24 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "output a JSON Scale with just intonation standard" in {
     // When
-    val result = scaleFormat.writeAsJsValue(ratiosScale, None)
+    val result = scaleFormat.writeAsJsValue(maj4RatiosScale, None)
     // Then
     (result \ "intonationStandard").asOpt[String] should contain("justIntonation")
-    result shouldEqual ratiosScaleJson
+    result shouldEqual maj4RatiosScaleJson
   }
 
   behavior of "Reading a JSON Scale in EDO intonation standard"
 
-  private val edo53Scale = EdoScale("hicaz-4", 53, 0, 5, 17, 22)
-  private val edo53ScaleJson = Json.obj(
+  private val hicaz4Edo53Scale = EdoScale("hicaz-4", 53, 0, 5, 17, 22)
+  private val hicaz4Edo53ScaleJson = Json.obj(
     "name" -> "hicaz-4",
     "intonationStandard" -> Json.obj("type" -> "edo", "countPerOctave" -> 53),
     "pitches" -> Json.arr(0, 5, 17, 22)
   )
 
-  private val edo72Scale = EdoScale("hicaz-4", 72, (0, 0), (1, +1), (4, -1), (5, 0))
-  private val edo72RelativeIntervals = Json.arr(Json.arr(0, 0), Json.arr(1, +1), Json.arr(4, -1), Json.arr(5, 0))
-  private val edo72MixedIntervals = Json.arr(0, Json.arr(1, +1), 23, Json.arr(5, 0))
+  private val hicaz4Edo72Scale = EdoScale("hicaz-4", 72, (0, 0), (1, +1), (4, -1), (5, 0))
+  private val hicaz4Edo72RelativeIntervals = Json.arr(Json.arr(0, 0), Json.arr(1, +1), Json.arr(4, -1), Json.arr(5, 0))
+  private val hicaz4Edo72MixedIntervals = Json.arr(0, Json.arr(1, +1), 23, Json.arr(5, 0))
 
   private def createEdo72ScaleJson(intervals: JsArray) = Json.obj(
     "name" -> "hicaz-4",
@@ -196,18 +211,19 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
 
   it should "create an EdoScale object when all intervals are expressed as absolute values in divisions" in {
     // When
-    val result = scaleFormat.read(edo53ScaleJson, None)
+    val result = scaleFormat.read(hicaz4Edo53ScaleJson, None)
     // Then
     result shouldBe a[EdoScale]
-    result shouldEqual edo53Scale
+    result shouldEqual hicaz4Edo53Scale
+    lastLossyReport shouldBe empty
   }
 
   it should "create an EdoScale object when some intervals are expressed relative to 12-EDO" in {
     // When
-    val result = scaleFormat.read(createEdo72ScaleJson(edo72MixedIntervals), None)
+    val result = scaleFormat.read(createEdo72ScaleJson(hicaz4Edo72MixedIntervals), None)
     // Then
     result shouldBe a[EdoScale]
-    result shouldEqual edo72Scale
+    result shouldEqual hicaz4Edo72Scale
   }
 
   it should "create a EdoScale object when some intervals are given as ratios" in {
@@ -248,19 +264,19 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
   it should "output a JSON Scale with EDO intonation standard and intervals " +
     "expressed as absolute values in divisions if division count per octave is not a multiple of 12" in {
     // When
-    val result = scaleFormat.writeAsJsValue(edo53Scale, None)
+    val result = scaleFormat.writeAsJsValue(hicaz4Edo53Scale, None)
     // Then
     (result \ "intonationStandard" \ "type").asOpt[String] should contain("edo")
-    result shouldEqual edo53ScaleJson
+    result shouldEqual hicaz4Edo53ScaleJson
   }
 
   it should "output a JSON Scale with EDO intonation standard and intervals expressed as relative to 12-EDO in " +
     "divisions if division count per octave is a multiple of 12" in {
     // When
-    val result = scaleFormat.writeAsJsValue(edo72Scale, None)
+    val result = scaleFormat.writeAsJsValue(hicaz4Edo72Scale, None)
     // Then
     (result \ "intonationStandard" \ "type").asOpt[String] should contain("edo")
-    result shouldEqual createEdo72ScaleJson(edo72RelativeIntervals)
+    result shouldEqual createEdo72ScaleJson(hicaz4Edo72RelativeIntervals)
   }
 
   behavior of "Writing scales with mixed interval types"
@@ -328,7 +344,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // Given
     val context = Some(ScaleFormatContext(name = Some("blah")))
     // When
-    val result = scaleFormat.read(centsScaleJson, context)
+    val result = scaleFormat.read(min4CentsScaleJson, context)
     // Then
     result.name shouldEqual "blah"
   }
@@ -353,7 +369,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     // Given
     val context = Some(ScaleFormatContext(intonationStandard = Some(CentsIntonationStandard)))
     // When
-    val result = scaleFormat.read(ratiosScaleJson, context)
+    val result = scaleFormat.read(maj4RatiosScaleJson, context)
     // Then
     result.intonationStandard should contain(CentsIntonationStandard)
     result.name shouldEqual "maj-4"
@@ -376,14 +392,73 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     result shouldEqual min4Scale
   }
 
-  "Reading a scale when its intonation is not convertible to the one from the context" should
-    "fail if the context provides an intonation standard incompatible with some of the intervals" in {
+  "A scale with cents intonation standard" should "be converted on read to 72-EDO intonation standard" in {
+    // Given
+    val context = Some(ScaleFormatContext(intonationStandard = Some(EdoIntonationStandard(72))))
+    // When
+    val result = scaleFormat.read(min4CentsScaleJson, context)
+    // Then
+    result.intonationStandard should contain(EdoIntonationStandard(72))
+    result shouldEqual EdoScale("min-4", 72, (0, 0), (2, 0), (3, 1), (5, 0))
+    lastLossyReport should contain(
+      LossyConversionEvent(Some(CentsIntonationStandard), EdoIntonationStandard(72), "min-4"))
+  }
+
+  it should "fail to be converted on read to just intonation standard" in {
     // Given
     val context = Some(ScaleFormatContext(intonationStandard = Some(JustIntonationStandard)))
     // Then
     assertThrows[IncompatibleIntervalsScaleFormatException] {
-      scaleFormat.read(centsScaleJson, context)
+      scaleFormat.read(min4CentsScaleJson, context)
     }
+  }
+
+  "A scale with just intonation standard" should "be converted on read to cents intonation standard" in {
+    // Given
+    val context = Some(ScaleFormatContext(intonationStandard = Some(CentsIntonationStandard)))
+    // When
+    val result = scaleFormat.read(maj4RatiosScaleJson, context)
+    // Then
+    result.intonationStandard should contain(CentsIntonationStandard)
+    result.name shouldEqual "maj-4"
+    result.intervals.map(_.cents) should contain theSameElementsAs Seq(-111.7, 0.0, 203.9, 386.3, 498.0)
+    lastLossyReport shouldBe empty
+  }
+
+  it should "be converted on read to 72-EDO intonation standard" in {
+    // Given
+    val context = Some(ScaleFormatContext(intonationStandard = Some(EdoIntonationStandard(72))))
+    // When
+    val result = scaleFormat.read(maj4RatiosScaleJson, context)
+    // Then
+    result.intonationStandard should contain(EdoIntonationStandard(72))
+    result shouldEqual EdoScale("maj-4", 72, (-1, -1), (0, 0), (2, 0), (4, -1), (5, 0))
+    lastLossyReport should contain(
+      LossyConversionEvent(Some(JustIntonationStandard), EdoIntonationStandard(72), "maj-4"))
+  }
+
+  "A scale with 53-EDO intonation standard" should "be converted on read to cents intonation standard" in {
+    // Given
+    val context = Some(ScaleFormatContext(intonationStandard = Some(CentsIntonationStandard)))
+    // When
+    val result = scaleFormat.read(hicaz4Edo53ScaleJson, context)
+    // Then
+    result.intonationStandard should contain(CentsIntonationStandard)
+    result.name shouldEqual "hicaz-4"
+    result.intervals.map(_.cents) should contain theSameElementsAs Seq(0.0, 113.2, 384.9, 498.1)
+    lastLossyReport shouldBe empty
+  }
+
+  it should "be converted on read to 72-EDO intonation standard" in {
+    // Given
+    val context = Some(ScaleFormatContext(intonationStandard = Some(EdoIntonationStandard(72))))
+    // When
+    val result = scaleFormat.read(hicaz4Edo53ScaleJson, context)
+    // Then
+    result.intonationStandard should contain(EdoIntonationStandard(72))
+    result shouldEqual hicaz4Edo72Scale
+    lastLossyReport should contain(
+      LossyConversionEvent(Some(EdoIntonationStandard(53)), EdoIntonationStandard(72), "hicaz-4"))
   }
 
   "Reading a JSON Scale with extra metadata" should "successfully create a Scale instance" in {
@@ -406,6 +481,6 @@ class JsonScaleFormatTest extends JsonFormatTestUtils {
     val result = scaleFormat.read(json, None)
     // Then
     result shouldBe a[EdoScale]
-    result shouldEqual edo72Scale
+    result shouldEqual hicaz4Edo72Scale
   }
 }
