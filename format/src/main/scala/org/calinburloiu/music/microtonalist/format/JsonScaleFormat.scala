@@ -17,8 +17,6 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
 import org.calinburloiu.music.intonation.*
 import play.api.libs.functional.syntax.*
 import play.api.libs.json.*
@@ -30,10 +28,8 @@ import java.net.URI
  * [[ScaleFormat]] implementation that provides support for Microtonalist's own JSON-based scale format.
  *
  * @param jsonPreprocessor A preprocessor instance that can replace JSON references.
- * @param businessync      Used to publish events (which extend [[JsonScaleFormatEvent]]) to subscribers.
  */
-class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
-                      businessync: Businessync) extends ScaleFormat, LazyLogging {
+class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
   import JsonScaleFormat.*
 
@@ -95,13 +91,12 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
 
   def scaleReadsWith(context: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
     Reads { jsValue =>
-      contextReadsWithFallback(context)
+      contextFormatWith(context)
         .reads(jsValue)
         .flatMap {
           case ScaleFormatContext(Some(name), Some(intonationStandard)) =>
             pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals =>
-              val scaleRead = Scale.create(name, intervals, intonationStandard)
-              updateScaleFromContext(scaleRead, context)
+              Scale.create(name, intervals, intonationStandard)
             }
           case _ => JsError(ErrorMissingContext)
         }
@@ -109,46 +104,22 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor,
   }
 
 
-  private[format] def contextReadsWithFallback(fallbackContext: Option[ScaleFormatContext])
-  : Reads[ScaleFormatContext] = {
+  private[format] def contextFormatWith(fallbackContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
     lazy val fallbackName = fallbackContext.flatMap(_.name)
     lazy val fallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
 
     //@formatter:off
     (
-      (__ \ "name").readNullableWithDefault[String](fallbackName) and
-      (__ \ "intonationStandard").readNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
-    )({ (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) })
+      (__ \ "name").formatNullableWithDefault[String](fallbackName) and
+        (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
+      )(
+      { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
+      { (context: ScaleFormatContext) =>
+        // There's a play-json bug on write, so we need to apply the fallback manually here
+        (context.name.orElse(fallbackName), context.intonationStandard.orElse(fallbackIntonationStandard))
+      }
+    )
     //@formatter:on
-  }
-
-  private def updateScaleFromContext(scale: Scale[Interval],
-                                     context: Option[ScaleFormatContext]): Scale[Interval] = {
-    context match {
-      case Some(ScaleFormatContext(maybeName, maybeIntonationStandard)) =>
-        val renamedScale = maybeName.map(scale.rename).getOrElse(scale)
-
-        maybeIntonationStandard.map { toIntonationStandard =>
-          renamedScale.convertToIntonationStandard(toIntonationStandard) match {
-            case ScaleConversionResult(Some(convertedScale), conversionQuality) =>
-              if (conversionQuality == IntonationConversionQuality.Lossy) {
-                reportLossyConversion(scale.intonationStandard, toIntonationStandard, scale.name)
-              }
-
-              convertedScale
-            case _ => throw new IncompatibleIntervalsScaleFormatException
-          }
-        }.getOrElse(renamedScale)
-      case None => scale
-    }
-  }
-
-  private def reportLossyConversion(fromIntonationStandard: Option[IntonationStandard],
-                                    toIntonationStandard: IntonationStandard,
-                                    scaleName: String): Unit = {
-    logger.warn(s"Conversion of scale \"$scaleName\" from ${fromIntonationStandard.getOrElse("N/A")} " +
-      s"to $toIntonationStandard is lossy!")
-    businessync.publish(LossyConversionEvent(fromIntonationStandard, toIntonationStandard, scaleName))
   }
 }
 
@@ -187,9 +158,3 @@ class InvalidJsonScaleException(message: String, cause: Throwable = null)
 
   def this(jsError: JsError) = this(JsError.toJson(jsError).toString)
 }
-
-sealed abstract class JsonScaleFormatEvent extends BusinessyncEvent
-
-case class LossyConversionEvent(fromIntonationStandard: Option[IntonationStandard],
-                                toIntonationStandard: IntonationStandard,
-                                scaleName: String) extends JsonScaleFormatEvent

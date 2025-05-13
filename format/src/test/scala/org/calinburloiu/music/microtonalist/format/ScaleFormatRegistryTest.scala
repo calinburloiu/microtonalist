@@ -17,17 +17,15 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.calinburloiu.businessync.Businessync
-import org.scalamock.stubs.{Stub, Stubs}
+import org.scalamock.stubs.Stubs
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
 class ScaleFormatRegistryTest extends AnyFlatSpec, Matchers, Stubs {
-  val businessyncStub: Stub[Businessync] = stub[Businessync]
   val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, businessyncStub)
+  val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
   val registry: ScaleFormatRegistry = new ScaleFormatRegistry(Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
 
   def assertResult(actualResult: Option[ScaleFormat], expectedResult: ScaleFormat): Unit = {

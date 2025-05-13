@@ -16,35 +16,17 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import com.google.common.eventbus.{EventBus, Subscribe}
-import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.CentsInterval.PostfixOperator
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.BeforeAndAfter
 import play.api.libs.json.*
 
-class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
-  private val businessync: Businessync = Businessync(EventBus())
-  private val scaleFormat: JsonScaleFormat = JsonScaleFormat(NoJsonPreprocessor, businessync)
+class JsonScaleFormatTest extends JsonFormatTestUtils {
+  private val scaleFormat: JsonScaleFormat = JsonScaleFormat(NoJsonPreprocessor)
 
   private val epsilon: Double = 1e-1
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
-
-  private var lastLossyReport: Option[LossyConversionEvent] = None
-
-  businessync.register(this)
-  businessync.subscribe(classOf[LossyConversionEvent], onLossyConversion)
-
-  @Subscribe
-  def onLossyConversion(event: LossyConversionEvent): Unit = {
-    lastLossyReport = Some(event)
-  }
-
-  after {
-    lastLossyReport = None
-  }
 
   "pitchIntervalFormatFor" should "either read on interval directly or get it from a scale pitch object" in {
     val format: Format[Interval] = JsonScaleFormat.pitchIntervalFormatFor(JustIntonationStandard)
@@ -77,7 +59,6 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result shouldBe a[CentsScale]
     result shouldEqual min4CentsScale
-    lastLossyReport shouldBe empty
   }
 
   it should "create a Scale object when some intervals are ratios" in {
@@ -92,7 +73,6 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result shouldBe a[Scale[Interval]]
     result.intervals.map(_.cents) should contain theSameElementsAs Seq(0.0, 204.3, 315.6, 498.5)
-    lastLossyReport shouldBe empty
   }
 
   it should "fail if there are intervals written with EDO-style arrays" in {
@@ -151,7 +131,6 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result shouldBe a[RatiosScale]
     result shouldEqual maj4RatiosScale
-    lastLossyReport shouldBe empty
   }
 
   private def createJustJsonScaleWithCustomInterval(jsIntervalValue: JsValue): JsObject = {
@@ -215,7 +194,6 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result shouldBe a[EdoScale]
     result shouldEqual hicaz4Edo53Scale
-    lastLossyReport shouldBe empty
   }
 
   it should "create an EdoScale object when some intervals are expressed relative to 12-EDO" in {
@@ -400,8 +378,8 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result.intonationStandard should contain(EdoIntonationStandard(72))
     result shouldEqual EdoScale("min-4", 72, (0, 0), (2, 0), (3, 1), (5, 0))
-    lastLossyReport should contain(
-      LossyConversionEvent(Some(CentsIntonationStandard), EdoIntonationStandard(72), "min-4"))
+    // TODO #68 lastLossyReport should contain(ScaleLossyConversionEvent(Some(CentsIntonationStandard), 
+    //  EdoIntonationStandard(72), "min-4"))
   }
 
   it should "fail to be converted on read to just intonation standard" in {
@@ -422,7 +400,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     result.intonationStandard should contain(CentsIntonationStandard)
     result.name shouldEqual "maj-4"
     result.intervals.map(_.cents) should contain theSameElementsAs Seq(-111.7, 0.0, 203.9, 386.3, 498.0)
-    lastLossyReport shouldBe empty
+    // TODO #68 lastLossyReport shouldBe empty
   }
 
   it should "be converted on read to 72-EDO intonation standard" in {
@@ -433,8 +411,8 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result.intonationStandard should contain(EdoIntonationStandard(72))
     result shouldEqual EdoScale("maj-4", 72, (-1, -1), (0, 0), (2, 0), (4, -1), (5, 0))
-    lastLossyReport should contain(
-      LossyConversionEvent(Some(JustIntonationStandard), EdoIntonationStandard(72), "maj-4"))
+    // TODO #68 lastLossyReport should contain(ScaleLossyConversionEvent(Some(JustIntonationStandard), 
+    //  EdoIntonationStandard(72), "maj-4"))
   }
 
   "A scale with 53-EDO intonation standard" should "be converted on read to cents intonation standard" in {
@@ -446,7 +424,7 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     result.intonationStandard should contain(CentsIntonationStandard)
     result.name shouldEqual "hicaz-4"
     result.intervals.map(_.cents) should contain theSameElementsAs Seq(0.0, 113.2, 384.9, 498.1)
-    lastLossyReport shouldBe empty
+    // TODO #68 lastLossyReport shouldBe empty
   }
 
   it should "be converted on read to 72-EDO intonation standard" in {
@@ -457,8 +435,8 @@ class JsonScaleFormatTest extends JsonFormatTestUtils, BeforeAndAfter {
     // Then
     result.intonationStandard should contain(EdoIntonationStandard(72))
     result shouldEqual hicaz4Edo72Scale
-    lastLossyReport should contain(
-      LossyConversionEvent(Some(EdoIntonationStandard(53)), EdoIntonationStandard(72), "hicaz-4"))
+    // TODO #68 lastLossyReport should contain(ScaleLossyConversionEvent(Some(EdoIntonationStandard(53)), 
+    //  EdoIntonationStandard(72), "hicaz-4"))
   }
 
   "Reading a JSON Scale with extra metadata" should "successfully create a Scale instance" in {

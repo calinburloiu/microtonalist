@@ -26,7 +26,7 @@ import org.scalatest.matchers.should.Matchers
 class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFactory {
   private lazy val scaleRepo: DefaultScaleRepo = {
     val businessyncStub = stub[Businessync]
-    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, businessyncStub)
+    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(jsonScaleFormat))
     val fileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
     new DefaultScaleRepo(Some(fileScaleRepo), Some(stub[HttpScaleRepo]), Some(stub[LibraryScaleRepo]))

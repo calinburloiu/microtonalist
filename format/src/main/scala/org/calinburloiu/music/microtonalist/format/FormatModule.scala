@@ -36,7 +36,7 @@ class FormatModule(businessync: Businessync,
   lazy val jsonPreprocessorHttpRefLoader: JsonPreprocessorHttpRefLoader = new JsonPreprocessorHttpRefLoader(httpClient)
 
   lazy val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
-  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor, businessync)
+  lazy val jsonScaleFormat: JsonScaleFormat = new JsonScaleFormat(jsonPreprocessor)
 
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
