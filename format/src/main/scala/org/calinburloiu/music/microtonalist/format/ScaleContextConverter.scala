@@ -20,8 +20,23 @@ import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
 import org.calinburloiu.music.intonation.*
 
+/**
+ * Provides functionality to convert a scale to a specified intonation standard or to rename it based on the provided
+ * [[ScaleFormatContext]].
+ *
+ * If a conversion is lossy, a [[ScaleLossyConversionEvent]] is published to [[Businessync]].
+ *
+ * @param businessync A dependency used to publish events when a lossy conversion occurs.
+ */
 class ScaleContextConverter(businessync: Businessync) extends LazyLogging {
 
+  /**
+   * Converts a scale to a specified intonation standard or renames it based on the provided context.
+   *
+   * @param scale   The scale to be converted or renamed.
+   * @param context An optional context that may include a new name and/or an intonation standard to convert to.
+   * @return The converted or renamed scale.
+   */
   def convert(scale: Scale[Interval], context: Option[ScaleFormatContext]): Scale[Interval] = context match {
     case Some(ScaleFormatContext(maybeName, maybeIntonationStandard)) =>
       val renamedScale = maybeName.map(scale.rename).getOrElse(scale)
@@ -49,8 +64,16 @@ class ScaleContextConverter(businessync: Businessync) extends LazyLogging {
   }
 }
 
-sealed abstract class ScaleContextConverterEvent extends BusinessyncEvent
-
+/**
+ * Event triggered when a scale is converted between different intonation standards,
+ * potentially losing precision or fidelity during the process.
+ *
+ * @param fromIntonationStandard The original `IntonationStandard` of the scale before conversion.
+ *                               None if no standard is specified (in case of a scale with different types of
+ *                               intervals).
+ * @param toIntonationStandard   The target `IntonationStandard` to which the scale is converted.
+ * @param scaleName              The name of the scale being converted.
+ */
 case class ScaleLossyConversionEvent(fromIntonationStandard: Option[IntonationStandard],
                                      toIntonationStandard: IntonationStandard,
-                                     scaleName: String) extends ScaleContextConverterEvent
+                                     scaleName: String) extends BusinessyncEvent
