@@ -211,7 +211,7 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Lock
     maybeValue.getOrElse {
       status match {
         case DeferrableReadStatus.FailedLoad(exception) => throw exception
-        case _ => throw new NoSuchElementException(s"value not loaded; status=$status")
+        case _ => throw new NoSuchElementException(s"value not loaded for $this; status=$status")
       }
     }
   }

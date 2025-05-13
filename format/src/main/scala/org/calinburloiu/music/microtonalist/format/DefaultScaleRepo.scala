@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 
 import java.net.URI
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
@@ -49,17 +50,21 @@ import scala.concurrent.Future
  */
 class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],
                        httpScaleRepo: Option[HttpScaleRepo],
-                       libraryScaleRepo: Option[LibraryScaleRepo]) extends ScaleRepo with LazyLogging {
+                       libraryScaleRepo: Option[LibraryScaleRepo],
+                       scaleContextConverter: ScaleContextConverter) extends ScaleRepo with LazyLogging {
 
   private val scaleRepoSelector: RepoSelector[ScaleRepo] = new DefaultRepoSelector(
     fileScaleRepo, httpScaleRepo, libraryScaleRepo)
 
   override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
-    scaleRepoSelector.selectRepoOrThrow(uri).read(uri, context)
+    val readScale = scaleRepoSelector.selectRepoOrThrow(uri).read(uri, context)
+    scaleContextConverter.convert(readScale, context)
   }
 
   override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
-    scaleRepoSelector.selectRepoOrThrow(uri).readAsync(uri, context)
+    scaleRepoSelector.selectRepoOrThrow(uri)
+      .readAsync(uri, context)
+      .map { scale => scaleContextConverter.convert(scale, context) }
   }
 
   override def write(scale: Scale[Interval],

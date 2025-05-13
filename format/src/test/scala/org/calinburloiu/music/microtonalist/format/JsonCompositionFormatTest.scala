@@ -37,13 +37,14 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
   private val urisOfReadScales: mutable.ArrayBuffer[URI] = mutable.ArrayBuffer()
 
   private lazy val compositionFormat: CompositionFormat = {
-    val businessyncStub = stub[Businessync]
     val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
+    val businessyncStub = stub[Businessync]
+    val scaleContextConverter = new ScaleContextConverter(businessyncStub)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat
     ))
-    val scaleRepo = new FileScaleRepo(scaleFormatRegistry) {
+    val fileScaleRepo = new FileScaleRepo(scaleFormatRegistry) {
       override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
         val result = super.readAsync(uri, context)
 
@@ -52,7 +53,9 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
         result
       }
     }
-    new JsonCompositionFormat(scaleRepo, NoJsonPreprocessor, jsonScaleFormat)
+    val defaultScaleRepo = new DefaultScaleRepo(Some(fileScaleRepo), None, None, scaleContextConverter)
+
+    new JsonCompositionFormat(defaultScaleRepo, NoJsonPreprocessor, jsonScaleFormat, scaleContextConverter)
   }
 
   private lazy val compositionRepo: CompositionRepo = {

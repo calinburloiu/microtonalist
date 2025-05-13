@@ -41,16 +41,18 @@ class FormatModule(businessync: Businessync,
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
 
+  lazy val scaleContextConverter: ScaleContextConverter = new ScaleContextConverter(businessync)
+
   lazy val fileScaleRepo: FileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
   lazy val httpScaleRepo: HttpScaleRepo = new HttpScaleRepo(httpClient, scaleFormatRegistry)
   lazy val libraryScaleRepo: LibraryScaleRepo = new LibraryScaleRepo(
     libraryBaseUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
-    Some(fileScaleRepo), Some(httpScaleRepo), Some(libraryScaleRepo))
+    Some(fileScaleRepo), Some(httpScaleRepo), Some(libraryScaleRepo), scaleContextConverter)
 
   lazy val compositionFormat: CompositionFormat = new JsonCompositionFormat(
-    defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
+    defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, scaleContextConverter, synchronousAwaitTimeout)
 
   lazy val fileCompositionRepo: FileCompositionRepo = new FileCompositionRepo(compositionFormat,
     synchronousAwaitTimeout)

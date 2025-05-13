@@ -39,6 +39,7 @@ import scala.concurrent.{Await, Future}
 class JsonCompositionFormat(scaleRepo: ScaleRepo,
                             jsonPreprocessor: JsonPreprocessor,
                             jsonScaleFormat: JsonScaleFormat,
+                            scaleContextConverter: ScaleContextConverter,
                             synchronousAwaitTimeout: FiniteDuration = 1 minute) extends CompositionFormat {
 
   import JsonCompositionFormat.*
@@ -168,6 +169,7 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
 
       implicit val intervalReads: Reads[Interval] = JsonIntervalFormat.readsFor(intonationStandard)
       implicit val scaleReads: Reads[Scale[Interval]] = jsonScaleFormat.scaleReadsWith(scaleFormatContext)
+        .map { scale => scaleContextConverter.convert(scale, scaleFormatContext) }
       implicit val scaleDeferrableReads: Reads[DeferrableRead[Scale[Interval], URI]] =
         DeferrableRead.reads(scaleReads, Reads.uriReads)
       implicit val tuningMapperReads: Reads[TuningMapper] = JsonTuningMapperPluginFormat
