@@ -103,7 +103,6 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
     }
   }
 
-
   private[format] def contextFormatWith(fallbackContext: Option[ScaleFormatContext]): Format[ScaleFormatContext] = {
     lazy val fallbackName = fallbackContext.flatMap(_.name)
     lazy val fallbackIntonationStandard = fallbackContext.flatMap(_.intonationStandard)
@@ -111,8 +110,8 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
     //@formatter:off
     (
       (__ \ "name").formatNullableWithDefault[String](fallbackName) and
-        (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
-      )(
+      (__ \ "intonationStandard").formatNullableWithDefault[IntonationStandard](fallbackIntonationStandard)
+    )(
       { (name, intonationStandard) => ScaleFormatContext(name, intonationStandard) },
       { (context: ScaleFormatContext) =>
         // There's a play-json bug on write, so we need to apply the fallback manually here
