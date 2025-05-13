@@ -1,0 +1,48 @@
+{
+  "intonationStandard": {
+    "type": "edo",
+    "countPerOctave": 72
+  },
+  "tuningReference": {
+    "basePitchClass": "D"
+  },
+  "baseUri": "scales/",
+  "tunings": [
+    {
+      "transposition": 0,
+      "scale": "minor-cents.jscl"
+    },
+    {
+      "name": "72-EDO Major",
+      "transposition": "6/5",
+      "scale": "major.scl"
+    },
+    {
+      "transposition": [
+        0,
+        0
+      ],
+      "name": "Romanian Minor",
+      "scale": [
+        "9/8",
+        [
+          3,
+          1
+        ],
+        35,
+        "3/2",
+        "27/16",
+        "16/9",
+        "2"
+      ]
+    }
+  ],
+  "tuningReducer": "merge",
+  "fill": {
+    "global": {
+      "name": "Chromatic",
+      "transposition": "1/1",
+      "scale": "chromatic.scl"
+    }
+  }
+}

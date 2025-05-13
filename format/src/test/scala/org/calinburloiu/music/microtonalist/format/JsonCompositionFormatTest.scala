@@ -30,8 +30,6 @@ import java.net.URI
 import scala.collection.mutable
 import scala.concurrent.Future
 
-// TODO #68 Scales context handling (both referenced and inline)
-
 class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside with BeforeAndAfter with MockFactory {
 
   import FormatTestUtils.readCompositionFromResources
@@ -40,7 +38,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
 
   private lazy val compositionFormat: CompositionFormat = {
     val businessyncStub = stub[Businessync]
-    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor, businessyncStub)
+    val jsonScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
     val scaleFormatRegistry = new ScaleFormatRegistry(Seq(
       new HuygensFokkerScalaScaleFormat,
       jsonScaleFormat
@@ -61,15 +59,23 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     new FileCompositionRepo(compositionFormat)
   }
 
-  val majorScale: RatiosScale = RatiosScale("Major",
+  val justMajorScale: RatiosScale = RatiosScale("Major",
     (1, 1), (9, 8), (5, 4), (4, 3), (3, 2), (5, 3), (15, 8), (2, 1))
-  val naturalMinorScale: RatiosScale = RatiosScale("Natural Minor",
+  val justNaturalMinorScale: RatiosScale = RatiosScale("Natural Minor",
     (1, 1), (9, 8), (6, 5), (4, 3), (3, 2), (8, 5), (9, 5), (2, 1))
-  val romanianMinorScale: RatiosScale = RatiosScale("Romanian Minor",
+  val justRomanianMinorScale: RatiosScale = RatiosScale("Romanian Minor",
     (1, 1), (9, 8), (6, 5), (7, 5), (3, 2), (27, 16), (16, 9), (2, 1))
-  val chromaticScale: RatiosScale = RatiosScale("Just Chromatic",
-    (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3),
-    (7, 4), (15, 8), (2, 1))
+  val justChromaticScale: RatiosScale = RatiosScale("Just Chromatic",
+    (1, 1), (16, 15), (9, 8), (6, 5), (5, 4), (4, 3), (7, 5), (3, 2), (8, 5), (5, 3), (7, 4), (15, 8), (2, 1))
+
+  val edo72MajorScale: EdoScale = EdoScale("72-EDO Major", 72,
+    (0, 0), (2, 0), (4, -1), (5, 0), (7, 0), (9, -1), (11, -1), (12, 0))
+  val edo72NaturalMinorScale: EdoScale = EdoScale("Natural Minor", 72,
+    (0, 0), (2, 0), (3, 1), (5, 0), (7, 0), (8, 1), (10, 1), (12, 0))
+  val edo72RomanianMinorScale: EdoScale = EdoScale("Romanian Minor", 72,
+    (0, 0), (2, 0), (3, 1), (6, -1), (7, 0), (9, 0), (10, 0), (12, 0))
+  val edo72ChromaticScale: EdoScale = EdoScale("Chromatic", 72,
+    (0, 0), (1, 1), (2, 0), (3, 1), (4, -1), (5, 0), (6, -1), (7, 0), (8, 1), (9, -1), (10, -2), (11, -1), (12, 0))
 
   after {
     urisOfReadScales.clear()
@@ -99,40 +105,72 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tracksUriOverride shouldEqual None
   }
 
-  it should "successfully read just intonation intervals in 72-EDO intonation standard" in {
+  it should "successfully read an in-context scale with just intonation intervals in 72-EDO intonation standard" in {
     val composition = readCompositionFromResources("format/72-edo.mtlist", compositionRepo)
 
     composition.tuningSpecs(1).transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs(1).scale shouldEqual EdoScale("mustear-3", 72, (0, 0), (2, 0), (3, 1))
   }
 
-  it should "fail to interpret EDO intervals in just intonation standard" in {
+  it should "fail to read an in-context scale with EDO intervals in just intonation standard" in {
     assertThrows[InvalidCompositionFormatException] {
-      readCompositionFromResources("format/intonation-standard-incompatibility.mtlist", compositionRepo)
+      readCompositionFromResources("format/intonation-standard-incompatibility-in-context.mtlist", compositionRepo)
+    }
+  }
+
+  it should "fail to read a referenced .jscl scale with EDO intervals in just intonation standard" in {
+    assertThrows[IncompatibleIntervalsScaleFormatException] {
+      readCompositionFromResources("format/intonation-standard-incompatibility-jscl.mtlist", compositionRepo)
+    }
+  }
+
+  it should "fail to read a referenced .scl scale with cents intervals in just intonation standard" in {
+    assertThrows[IncompatibleIntervalsScaleFormatException] {
+      readCompositionFromResources("format/intonation-standard-incompatibility-scl.mtlist", compositionRepo)
     }
   }
 
   it should "successfully read a valid composition file" in {
     val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
 
-    composition.fill.global.map(_.scale) should contain(chromaticScale)
+    composition.fill.global.map(_.scale) should contain(justChromaticScale)
     composition.fill.global.map(_.transposition) should contain(1 /: 1)
     composition.tuningReference.basePitchClass.number shouldEqual 2
+    composition.intonationStandard shouldEqual JustIntonationStandard
 
-    composition.tuningSpecs.head.scale shouldEqual naturalMinorScale
+    composition.tuningSpecs.head.scale shouldEqual justNaturalMinorScale
     composition.tuningSpecs.head.transposition shouldEqual RatioInterval(1, 1)
 
     composition.tuningSpecs(1).transposition shouldEqual RatioInterval(6, 5)
-    composition.tuningSpecs(1).scale shouldEqual majorScale
+    composition.tuningSpecs(1).scale shouldEqual justMajorScale
 
     composition.tuningSpecs(2).transposition shouldEqual RatioInterval(1, 1)
-    composition.tuningSpecs(2).scale shouldEqual romanianMinorScale
+    composition.tuningSpecs(2).scale shouldEqual justRomanianMinorScale
 
     composition.metadata should contain(CompositionMetadata(
       name = Some("Minor & Major"),
       composerName = Some("Călin-Andrei Burloiu"),
       authorName = Some("John Doe")
     ))
+  }
+
+  it should "convert intervals/scales according to the intonation standard" in {
+    val composition = readCompositionFromResources("format/intonation-standard-conversion.mtlist", compositionRepo)
+    val edo72 = EdoIntervalFactory(72)
+
+    composition.fill.global.map(_.scale) should contain(edo72ChromaticScale)
+    composition.fill.global.map(_.transposition) should contain(edo72(0, 0))
+    composition.tuningReference.basePitchClass.number shouldEqual 2
+    composition.intonationStandard shouldEqual EdoIntonationStandard(72)
+
+    composition.tuningSpecs.head.scale shouldEqual edo72NaturalMinorScale
+    composition.tuningSpecs.head.transposition shouldEqual edo72(0)
+
+    composition.tuningSpecs(1).transposition shouldEqual edo72(3, 1)
+    composition.tuningSpecs(1).scale shouldEqual edo72MajorScale
+
+    composition.tuningSpecs(2).transposition shouldEqual edo72(0)
+    composition.tuningSpecs(2).scale shouldEqual edo72RomanianMinorScale
   }
 
   it should "fail when a transposition interval in invalid" in {
@@ -223,7 +261,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     tracksUri.get.toString should include("minor-major.mtlist.tracks")
   }
 
-  it should "read tracksUriOverride" in {
+  it should "read tracksUri override" in {
     val composition = readCompositionFromResources("format/tracksUriOverride.mtlist", compositionRepo)
 
     val expectedUri = new URI("file:///Users/john/tracks.mtlist")

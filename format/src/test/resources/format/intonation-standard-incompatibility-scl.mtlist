@@ -1,0 +1,12 @@
+{
+  "intonationStandard": "justIntonation",
+  "tuningReference": {
+    "basePitchClass": 10
+  },
+  "tunings": [
+    {
+      "name": "hicaz-4",
+      "scale": "scales/minor-cents.jscl"
+    }
+  ]
+}
