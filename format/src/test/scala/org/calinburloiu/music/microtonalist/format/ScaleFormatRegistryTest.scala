@@ -17,13 +17,12 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.scalamock.stubs.Stubs
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
-class ScaleFormatRegistryTest extends AnyFlatSpec, Matchers, Stubs {
+class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
   val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
   val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
   val registry: ScaleFormatRegistry = new ScaleFormatRegistry(Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
