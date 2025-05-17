@@ -14,10 +14,10 @@
         "metadata": { "$ref": "compositionMetadata.schema.json" },
         "intonationStandard": { "$ref": "../common/intonationStandard.schema.json" },
         "tuningReference": { "$ref": "tuningReference.schema.json" },
-        "baseUri": {
+        "baseUrl": {
             "type": "string",
-            "title": "Base URI",
-            "description": "Custom base URI to be used for all internal URIs in this file. For local files this property allows changing the current directory.",
+            "title": "Base URL",
+            "description": "Custom base URL to be used for all internal URLs in this file. For local files this property allows changing the current directory.",
             "format": "uri-reference"
         },
         "definitions": {
@@ -28,7 +28,7 @@
                 "scales": {
                     "type": "object",
                     "title": "Scale Definitions",
-                    "description": "Key-value pairs, where keys are scale identifiers to be referenced in other sections of the composition file, and values are scale definitions which include both inline scale or an external URI for the scale. Keys should only use basic Latin letters, numbers, hyphens and underscores.",
+                    "description": "Key-value pairs, where keys are scale identifiers to be referenced in other sections of the composition file, and values are scale definitions which include both inline scale or an external URL for the scale. Keys should only use basic Latin letters, numbers, hyphens and underscores.",
                     "patternProperties": {
                         "^[\\w\\-_]+$": { "$ref": "../scale/scale-inContext.schema.json" }
                     },
@@ -54,10 +54,10 @@
         },
         "fill": { "$ref": "#/$defs/fill" },
         "tuningReducer": { "$ref": "tuningReducer.schema.json" },
-        "tracksUri": {
+        "tracksUrl": {
             "type": "string",
-            "title": "Tracks URI",
-            "description": "Optional URI for the Tracks file. If not provided, the \".tracks\" extension is appended to the composition URI. E.g. Composition with URI \"file:///path/to/composition.mtlist\" has the default Tracks file with URI \"file:///path/to/composition.mtlist.tracks\".",
+            "title": "Tracks URL",
+            "description": "Optional URL for the Tracks file. If not provided, the \".tracks\" extension is appended to the composition URL. E.g. Composition with URL \"file:///path/to/composition.mtlist\" has the default Tracks file with URL \"file:///path/to/composition.mtlist.tracks\".",
             "format": "uri-reference"
         },
         "settings": {
@@ -132,7 +132,7 @@
             "oneOf": [
                 { "$ref": "tuningSpec.schema.json" },
                 {
-                    "$comment": "A URI fragment that references a tuning spec declared locally.",
+                    "$comment": "A URL fragment that references a tuning spec declared locally.",
                     "type": "string",
                     "pattern": "^#[\\w\\-_]+$"
                 }

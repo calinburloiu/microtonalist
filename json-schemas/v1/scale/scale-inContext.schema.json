@@ -12,7 +12,7 @@
             "items": { "$ref": "pitch.schema.json" }
         },
         {
-            "$comment": "A URI for the scale.",
+            "$comment": "A URL for the scale.",
             "type": "string",
             "format": "uri-reference"
         }

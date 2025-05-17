@@ -154,7 +154,7 @@ class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
     tuning(11) shouldEqual -16.67
   }
 
-  it should "successfully create a tuning sequence for a a composition with global settings, baseUri and a $ref" in {
+  it should "successfully create a tuning sequence for a a composition with global settings, baseUrl and a $ref" in {
     val composition = FormatTestUtils.readCompositionFromResources("app/huseyni.mtlist",
       formatModule.defaultCompositionRepo)
 

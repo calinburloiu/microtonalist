@@ -19,9 +19,9 @@ package org.calinburloiu.music.microtonalist.config
 /**
  * Exception thrown when an error occurred while deserializing a config property.
  *
- * @param propertyPath HOCON config property path (e.g. `"core.libraryBaseUri"`)
+ * @param propertyPath HOCON config property path (e.g. `"core.libraryBaseUrl"`)
  * @param propertyRequirementMessage message that describes the requirement for the above property (e.g. "must be a
- *                                   valid URI or file system path")
+ *                                   valid URL or file system path")
  */
 class ConfigPropertyException(propertyPath: String, propertyRequirementMessage: String, cause: Throwable = null)
   extends ConfigException(s"$propertyPath $propertyRequirementMessage", cause)

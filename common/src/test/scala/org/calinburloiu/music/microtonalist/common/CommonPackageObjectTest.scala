@@ -24,28 +24,29 @@ import java.nio.file.Paths
 
 class CommonPackageObjectTest extends AnyFlatSpec with Matchers {
 
-  "parseUri" should "parse an absolute URI" in {
-    parseUriOrPath("https://example.org/path/to/file.json") should contain(new URI("https://example.org/path/to/file.json"))
-    parseUriOrPath("https://example.org/path/to/") should contain(new URI("https://example.org/path/to/"))
+  "parseUrlOrPath" should "parse an absolute URL" in {
+    parseUrlOrPath("https://example.org/path/to/file.json") should contain(new URI("https://example.org/path/to/file" +
+      ".json"))
+    parseUrlOrPath("https://example.org/path/to/") should contain(new URI("https://example.org/path/to/"))
 
-    parseUriOrPath("file:///path/to/file.json") should contain(new URI("file:///path/to/file.json"))
-    parseUriOrPath("file:///path/to/") should contain(new URI("file:///path/to/"))
+    parseUrlOrPath("file:///path/to/file.json") should contain(new URI("file:///path/to/file.json"))
+    parseUrlOrPath("file:///path/to/") should contain(new URI("file:///path/to/"))
   }
 
   it should "parse a UNIX path" in {
     var uri = CommonTestUtils.uriOfResource("config/")
-    parseUriOrPath(uri.getPath) should contain(uri)
+    parseUrlOrPath(uri.getPath) should contain(uri)
     uri = CommonTestUtils.uriOfResource("config/microtonalist.conf")
-    parseUriOrPath(uri.getPath) should contain(uri)
+    parseUrlOrPath(uri.getPath) should contain(uri)
 
-    parseUriOrPath("/Users/johnny/Music/microtonalist/lib/scales/rast.jscl") should contain(
+    parseUrlOrPath("/Users/johnny/Music/microtonalist/lib/scales/rast.jscl") should contain(
       new URI("file:///Users/johnny/Music/microtonalist/lib/scales/rast.jscl"))
-    parseUriOrPath("/Users/johnny/Music/microtonalist/lib/scales/") should contain(
+    parseUrlOrPath("/Users/johnny/Music/microtonalist/lib/scales/") should contain(
       new URI("file:///Users/johnny/Music/microtonalist/lib/scales/"))
 
     // Current working directory
     val cwd = Paths.get("").toAbsolutePath.toString
-    parseUriOrPath("scales/rast.scl") should contain(new URI(s"file://$cwd/scales/rast.scl"))
-    parseUriOrPath("scales/") should contain(new URI(s"file://$cwd/scales/"))
+    parseUrlOrPath("scales/rast.scl") should contain(new URI(s"file://$cwd/scales/rast.scl"))
+    parseUrlOrPath("scales/") should contain(new URI(s"file://$cwd/scales/"))
   }
 }

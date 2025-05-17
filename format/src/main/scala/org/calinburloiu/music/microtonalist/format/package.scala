@@ -40,10 +40,10 @@ package object format {
   }
 
   /**
-   * When a resource is loaded its URI will be used as the base URI for all resources referred inside it. That base
+   * When a resource is loaded, its URI will be used as the base URI for all resources referred inside it. That base
    * URI may be overridden to further simplify the URIs referred inside it.
    *
-   * E.g. A composition resource is loaded from file:///Users/john/Music/composition.mtlist. All scales referenced
+   * E.g., A composition resource is loaded from file:///Users/john/Music/composition.mtlist. All scales referenced
    * inside it will use its URI as base URI. So a scale from file:///Users/john/Music/scales/rast.jscl can be referenced
    * as simply "scales/rast.jscl". But this relative URI can be further simplified by defining an override URI
    * "scales/". Then, the same scale may be referenced as simply "rast.jscl".
@@ -62,20 +62,20 @@ package object format {
   }
 
   /**
-   * Maps a URI with `microtonalist` scheme to the actual URI as configured via `libraryBaseUri`
+   * Maps a URL with `microtonalist` scheme to the actual URL as configured via `libraryBaseUrl`
    *
-   * @param uri     URI of resource from the library.
-   * @param libraryBaseUri Base URI of the library.
-   * @return the actual URI.
+   * @param url            URL of a resource from the library.
+   * @param libraryBaseUrl Base URL of the library.
+   * @return the actual URL.
    */
-  def resolveLibraryUri(uri: URI, libraryBaseUri: URI): URI = {
-    require(uri.isAbsolute && uri.getScheme == UriScheme.MicrotonalistLibrary,
-      "URI must be absolute and have microtonalist scheme!")
+  def resolveLibraryUrl(url: URI, libraryBaseUrl: URI): URI = {
+    require(url.isAbsolute && url.getScheme == UriScheme.MicrotonalistLibrary,
+      "URL must be absolute and have microtonalist scheme!")
 
     // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
-    val rootUri = uri.resolve("/")
-    val relativeToRootUri = rootUri.relativize(uri)
-    libraryBaseUri.resolve(relativeToRootUri)
+    val rootUri = url.resolve("/")
+    val relativeToRootUri = rootUri.relativize(url)
+    libraryBaseUrl.resolve(relativeToRootUri)
   }
 
   lazy val uint7Format: Format[Int] = {

@@ -60,8 +60,8 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     val json = Json.parse(inputStream)
     val context = new CompositionFormatContext
 
-    (json \ "baseUri").validateOpt[URI].flatMap { overrideBaseUri =>
-      val baseUri = resolveBaseUriWithOverride(compositionUri, overrideBaseUri)
+    (json \ "baseUrl").validateOpt[URI].flatMap { overrideBaseUrl =>
+      val baseUri = resolveBaseUriWithOverride(compositionUri, overrideBaseUrl)
       val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
       context.uri = compositionUri
@@ -132,20 +132,20 @@ class JsonCompositionFormat(scaleRepo: ScaleRepo,
     val tuningSpecs = compositionRepr.tunings.map(convertTuningSpec)
     val tuningReducer = compositionRepr.tuningReducer.getOrElse(TuningReducer.Default)
     val fillSpec = convertFillSpec(compositionRepr.fill)
-    val tracksUriOverride = for (
-      uri <- compositionRepr.tracksUri;
+    val tracksUrlOverride = for (
+      uri <- compositionRepr.tracksUrl;
       baseUri <- context.baseUri
     ) yield baseUri.resolve(uri)
 
     Composition(
-      uri = context.uri,
+      url = context.uri,
       intonationStandard = context.intonationStandard,
       tuningReference = tuningReference,
       tuningSpecs = tuningSpecs,
       tuningReducer = tuningReducer,
       fill = fillSpec,
       metadata = compositionRepr.metadata,
-      tracksUriOverride = tracksUriOverride
+      tracksUrlOverride = tracksUrlOverride
     )
   }
 
