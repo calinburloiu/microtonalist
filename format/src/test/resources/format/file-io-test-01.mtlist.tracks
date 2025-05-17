@@ -1,0 +1,23 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/track/tracks.schema.json",
+    "tracks": [
+        {
+            "id": "test",
+            "name": "# Test",
+            "input": {
+                "midiDeviceId": {
+                    "name": "Real Time Sequencer",
+                    "vendor": "Oracle Corporation"
+                }
+            },
+            "tuningChangers": ["pedal"],
+            "tuner": "mtsOctave1ByteNonRealTime",
+            "output": {
+                "midiDeviceId": {
+                    "name": "Gervill",
+                    "vendor": "OpenJDK"
+                }
+            }
+        }
+    ]
+}
