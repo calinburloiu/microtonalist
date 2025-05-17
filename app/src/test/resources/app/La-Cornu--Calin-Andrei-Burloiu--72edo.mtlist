@@ -16,7 +16,7 @@
     "tuningReference": {
         "basePitchClass": 0
     },
-  "baseUrl": "scales/burloiu-ottoman-72edo/",
+    "baseUrl": "scales/burloiu-ottoman-72edo/",
     "tunings": [
         {
             "transposition": [11, -1],
