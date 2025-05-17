@@ -105,7 +105,7 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     composition.tuningSpecs.head.transposition shouldEqual EdoInterval(72, (4, -1))
     composition.tuningSpecs.head.scale shouldEqual EdoScale("segah-3", 72, (0, 0), (1, 1), (3, 1))
 
-    composition.tracksUriOverride shouldEqual None
+    composition.tracksUrlOverride shouldEqual None
   }
 
   it should "successfully read an in-context scale with just intonation intervals in 72-EDO intonation standard" in {
@@ -248,27 +248,27 @@ class JsonCompositionFormatTest extends AnyFlatSpec with Matchers with Inside wi
     )
   }
 
-  it should "populate the URI of a composition when reading it from one" in {
+  it should "populate the URL of a composition when reading it from one" in {
     val composition = readCompositionFromResources("format/minor-major.mtlist", compositionRepo)
 
-    val uri = composition.uri
-    uri.isDefined shouldBe true
-    uri.get.getScheme shouldEqual "file"
-    uri.get.toString should include("minor-major.mtlist")
+    val url = composition.url
+    url.isDefined shouldBe true
+    url.get.getScheme shouldEqual "file"
+    url.get.toString should include("minor-major.mtlist")
 
-    composition.tracksUriOverride shouldBe empty
+    composition.tracksUrlOverride shouldBe empty
 
-    val tracksUri = composition.tracksUri
-    tracksUri.isDefined shouldBe true
-    tracksUri.get.getScheme shouldEqual "file"
-    tracksUri.get.toString should include("minor-major.mtlist.tracks")
+    val tracksUrl = composition.tracksUrl
+    tracksUrl.isDefined shouldBe true
+    tracksUrl.get.getScheme shouldEqual "file"
+    tracksUrl.get.toString should include("minor-major.mtlist.tracks")
   }
 
-  it should "read tracksUri override" in {
-    val composition = readCompositionFromResources("format/tracksUriOverride.mtlist", compositionRepo)
+  it should "read tracksUrl override" in {
+    val composition = readCompositionFromResources("format/tracksUrlOverride.mtlist", compositionRepo)
 
     val expectedUri = new URI("file:///Users/john/tracks.mtlist")
-    composition.tracksUriOverride should contain(expectedUri)
-    composition.tracksUri should contain(expectedUri)
+    composition.tracksUrlOverride should contain(expectedUri)
+    composition.tracksUrl should contain(expectedUri)
   }
 }

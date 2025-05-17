@@ -14,7 +14,7 @@
         "metadata": { "$ref": "compositionMetadata.schema.json" },
         "intonationStandard": { "$ref": "../common/intonationStandard.schema.json" },
         "tuningReference": { "$ref": "tuningReference.schema.json" },
-        "baseUri": {
+      "baseUrl": {
             "type": "string",
             "title": "Base URI",
             "description": "Custom base URI to be used for all internal URIs in this file. For local files this property allows changing the current directory.",
@@ -54,7 +54,7 @@
         },
         "fill": { "$ref": "#/$defs/fill" },
         "tuningReducer": { "$ref": "tuningReducer.schema.json" },
-        "tracksUri": {
+      "tracksUrl": {
             "type": "string",
             "title": "Tracks URI",
             "description": "Optional URI for the Tracks file. If not provided, the \".tracks\" extension is appended to the composition URI. E.g. Composition with URI \"file:///path/to/composition.mtlist\" has the default Tracks file with URI \"file:///path/to/composition.mtlist.tracks\".",

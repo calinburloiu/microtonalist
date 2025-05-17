@@ -79,12 +79,12 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     // No validation on write
   }
 
-  "resolveLibraryUri" should "resolve an URI with microtonalist scheme" in {
+  "resolveLibraryUrl" should "resolve an URI with microtonalist scheme" in {
     val uri = URI("microtonalist:///scales/dorian.scl")
 
-    resolveLibraryUri(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual URI(
+    resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual URI(
       "file:///Users/grey/Music/Library/scales/dorian.scl")
-    resolveLibraryUri(uri, URI("https://microtonalist.org/library/grey/")) shouldEqual URI(
+    resolveLibraryUrl(uri, URI("https://microtonalist.org/library/grey/")) shouldEqual URI(
       "https://microtonalist.org/library/grey/scales/dorian.scl")
   }
 
@@ -92,18 +92,18 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     val uri = URI("scales/dorian.scl")
 
     assertThrows[IllegalArgumentException] {
-      resolveLibraryUri(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual uri
+      resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual uri
     }
   }
 
   it should "fail for URIs that don't have a microtonalist scheme" in {
-    val libraryBaseUri = URI("file:///Users/grey/Music/Library/")
+    val libraryBaseUrl = URI("file:///Users/grey/Music/Library/")
 
     assertThrows[IllegalArgumentException] {
-      resolveLibraryUri(URI("file:///Users/grey/Music/Library/scales/dorian.scl"), libraryBaseUri)
+      resolveLibraryUrl(URI("file:///Users/grey/Music/Library/scales/dorian.scl"), libraryBaseUrl)
     }
     assertThrows[IllegalArgumentException] {
-      resolveLibraryUri(URI("https://microtonalist.org/library/grey/scales/dorian.scl"), libraryBaseUri)
+      resolveLibraryUrl(URI("https://microtonalist.org/library/grey/scales/dorian.scl"), libraryBaseUrl)
     }
   }
 }

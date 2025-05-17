@@ -79,14 +79,14 @@ object MicrotonalistApp extends StrictLogging {
     val businessync = new Businessync(eventBus)
     val mainConfigManager = MainConfigManager(configPath)
 
-    val formatModule = new FormatModule(businessync, mainConfigManager.coreConfig.libraryBaseUri)
+    val formatModule = new FormatModule(businessync, mainConfigManager.coreConfig.libraryBaseUrl)
 
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)
 
     val tunerModule = new TunerModule(businessync, formatModule.defaultTrackRepo)
     val trackService = tunerModule.trackService
-    composition.tracksUri.foreach { uri =>
+    composition.tracksUrl.foreach { uri =>
       // TODO #87 This will be moved as part of a composition opening workflow
       Await.result(trackService.open(uri), 10 seconds)
     }

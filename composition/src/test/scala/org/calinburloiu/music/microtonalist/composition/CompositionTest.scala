@@ -25,7 +25,7 @@ import java.net.URI
 
 class CompositionTest extends AnyFlatSpec with Matchers {
   val sampleComposition: Composition = Composition(
-    uri = Some(new URI("file:///path/to/composition.mtlist")),
+    url = Some(new URI("file:///path/to/composition.mtlist")),
     intonationStandard = CentsIntonationStandard,
     tuningReference = StandardTuningReference(PitchClass.C),
     tuningSpecs = Seq(),
@@ -33,18 +33,18 @@ class CompositionTest extends AnyFlatSpec with Matchers {
     fill = FillSpec()
   )
 
-  "tracksUri" should "be derived from URI when there is no override" in {
-    sampleComposition.tracksUri should contain(new URI("file:///path/to/composition.mtlist.tracks"))
+  "tracksUrl" should "be derived from URI when there is no override" in {
+    sampleComposition.tracksUrl should contain(new URI("file:///path/to/composition.mtlist.tracks"))
   }
 
   it should "be empty when URI is not defined" in {
-    val composition = sampleComposition.copy(uri = None)
-    composition.tracksUri shouldBe empty
+    val composition = sampleComposition.copy(url = None)
+    composition.tracksUrl shouldBe empty
   }
 
   it should "overridden" in {
     val uri = new URI("file:///path/to/special.mtlist.tracks")
-    val composition = sampleComposition.copy(tracksUriOverride = Some(uri))
-    composition.tracksUri should contain(uri)
+    val composition = sampleComposition.copy(tracksUrlOverride = Some(uri))
+    composition.tracksUrl should contain(uri)
   }
 }

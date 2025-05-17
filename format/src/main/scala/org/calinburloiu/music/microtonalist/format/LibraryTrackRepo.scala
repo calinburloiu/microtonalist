@@ -25,7 +25,7 @@ import scala.concurrent.Future
  * Special track specification repository implementation that accesses scales from user's configured private
  * Microtonalist Library.
  *
- * The user can configure a base URI for the library, `libraryBaseUri`, which can be a file system path or a remote HTTP
+ * The user can configure a base URI for the library, `libraryBaseUrl`, which can be a file system path or a remote HTTP
  * URL. Scales can then be imported by using a special URI with format `microtonalist:///<path-in-library>`, where
  * `<path-in-library>` is relative to the configured base URI.
  *
@@ -33,11 +33,11 @@ import scala.concurrent.Future
  * the Microtonalist Library URI `microtonalist:///tracks/default.mtlist.tracks` used as a tracks file URI will
  * actually point to `/Users/john/Music/microtonalist/lib/tracks/default.mtlist.tracks`.
  *
- * @param libraryBaseUri base URI for Microtonalist Library
+ * @param libraryBaseUrl base URI for Microtonalist Library
  * @param fileTrackRepo  a [[FileTrackRepo]] instance
  * @param httpTrackRepo  an [[HttpTrackRepo]] instance
  */
-class LibraryTrackRepo(libraryBaseUri: URI,
+class LibraryTrackRepo(libraryBaseUrl: URI,
                        fileTrackRepo: FileTrackRepo,
                        httpTrackRepo: HttpTrackRepo) extends TrackRepo {
 
@@ -45,22 +45,22 @@ class LibraryTrackRepo(libraryBaseUri: URI,
     Some(fileTrackRepo), Some(httpTrackRepo), None)
 
   override def readTracks(uri: URI): TrackSpecs = {
-    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
+    val resolvedUri = resolveLibraryUrl(uri, libraryBaseUrl)
     repoSelector.selectRepoOrThrow(resolvedUri).readTracks(resolvedUri)
   }
 
   override def readTracksAsync(uri: URI): Future[TrackSpecs] = {
-    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
+    val resolvedUri = resolveLibraryUrl(uri, libraryBaseUrl)
     repoSelector.selectRepoOrThrow(resolvedUri).readTracksAsync(resolvedUri)
   }
 
   override def writeTracks(trackSpecs: TrackSpecs, uri: URI): Unit = {
-    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
+    val resolvedUri = resolveLibraryUrl(uri, libraryBaseUrl)
     repoSelector.selectRepoOrThrow(resolvedUri).writeTracks(trackSpecs, resolvedUri)
   }
 
   override def writeTracksAsync(trackSpecs: TrackSpecs, uri: URI): Future[Unit] = {
-    val resolvedUri = resolveLibraryUri(uri, libraryBaseUri)
+    val resolvedUri = resolveLibraryUrl(uri, libraryBaseUrl)
     repoSelector.selectRepoOrThrow(resolvedUri).writeTracksAsync(trackSpecs, resolvedUri)
   }
 }

@@ -7,7 +7,7 @@
     "tuningReference": {
         "basePitchClass": "C"
     },
-    "#baseUri": "",
+    "#baseUrl": "",
     "tunings": [
         {
             "scale": "scales/maj-4-cents.jscl"
@@ -24,5 +24,5 @@
             "scale": "http://localhost:8080/scales/min-4-cents.scl"
         }
     ],
-    "#tracksUri": "test.mtlist.tracks"
+    "#tracksUrl": "test.mtlist.tracks"
 }

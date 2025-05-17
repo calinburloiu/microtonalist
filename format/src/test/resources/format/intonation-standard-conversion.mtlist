@@ -6,7 +6,7 @@
   "tuningReference": {
     "basePitchClass": "D"
   },
-  "baseUri": "scales/",
+  "baseUrl": "scales/",
   "tunings": [
     {
       "transposition": 0,

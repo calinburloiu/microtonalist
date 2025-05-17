@@ -24,11 +24,11 @@ import org.calinburloiu.music.microtonalist.common.{PlatformUtils, parseUriOrPat
 import java.net.URI
 import java.nio.file.Paths
 
-case class CoreConfig(libraryBaseUri: URI = CoreConfig.defaultLibraryUri,
+case class CoreConfig(libraryBaseUrl: URI = CoreConfig.defaultLibraryBaseUrl,
                       metaConfig: MetaConfig = MetaConfig()) extends Configured
 
 object CoreConfig {
-  val defaultLibraryUri: URI = if (PlatformUtils.isMac) {
+  val defaultLibraryBaseUrl: URI = if (PlatformUtils.isMac) {
     val homePath = Paths.get(System.getProperty("user.home"))
     homePath.resolve("Music/microtonalist/lib/").toUri
   } else {
@@ -57,15 +57,15 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
     )
 
     hoconConfig
-      .withAnyRefValue("libraryBaseUri", config.libraryBaseUri.toString)
+      .withAnyRefValue("libraryBaseUrl", config.libraryBaseUrl.toString)
       .withAnyRefValue("metaConfig", metaConfigMap)
   }
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
-    libraryBaseUri = hoconConfig.getAs[String]("libraryBaseUri")
+    libraryBaseUrl = hoconConfig.getAs[String]("libraryBaseUrl")
       .map(uri => parseUriOrPath(uri).getOrElse(throw new ConfigPropertyException(
-        s"$configRootPath.libraryBaseUri", "must be a valid URI or a local path")))
-      .getOrElse(CoreConfig.defaultLibraryUri),
+        s"$configRootPath.libraryBaseUrl", "must be a valid URI or a local path")))
+      .getOrElse(CoreConfig.defaultLibraryBaseUrl),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )
 }
