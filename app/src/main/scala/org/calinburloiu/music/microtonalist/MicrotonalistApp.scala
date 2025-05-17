@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist
 import com.google.common.eventbus.EventBus
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.common.parseUriOrPath
+import org.calinburloiu.music.microtonalist.common.parseUrlOrPath
 import org.calinburloiu.music.microtonalist.composition.TuningList
 import org.calinburloiu.music.microtonalist.config.*
 import org.calinburloiu.music.microtonalist.format.FormatModule
@@ -42,7 +42,7 @@ object MicrotonalistApp extends StrictLogging {
     }
   }
 
-  case object AppUsageException extends AppException("Usage: microtonalist <input-composition-uri> [config-file]", 1)
+  case object AppUsageException extends AppException("Usage: microtonalist <input-composition-url> [config-file]", 1)
 
   case object NoDeviceAvailableException extends AppException("None of the configured devices is available", 2)
 
@@ -52,10 +52,10 @@ object MicrotonalistApp extends StrictLogging {
     logger.info(s"Welcome to Microtonalist ${BuildInfo.version}!")
 
     args match {
-      case Array(inputUriString: String) =>
-        run(parseUriArg(inputUriString))
-      case Array(inputUriString: String, configFileName: String) =>
-        run(parseUriArg(inputUriString), Some(parsePathArg(configFileName)))
+      case Array(inputUrlString: String) =>
+        run(parseUrlArg(inputUrlString))
+      case Array(inputUrlString: String, configFileName: String) =>
+        run(parseUrlArg(inputUrlString), Some(parsePathArg(configFileName)))
       case _ => throw AppUsageException
     }
   }.recover {
@@ -65,15 +65,15 @@ object MicrotonalistApp extends StrictLogging {
       System.exit(1000)
   }
 
-  private def parseUriArg(uriString: String): URI = {
-    parseUriOrPath(uriString).getOrElse(throw AppUsageException)
+  private def parseUrlArg(urlString: String): URI = {
+    parseUrlOrPath(urlString).getOrElse(throw AppUsageException)
   }
 
   private def parsePathArg(fileName: String): Path = Try(Paths.get(fileName)).recover {
     case _: InvalidPathException => throw AppUsageException
   }.get
 
-  def run(inputUri: URI, maybeConfigPath: Option[Path] = None): Unit = {
+  def run(inputUrl: URI, maybeConfigPath: Option[Path] = None): Unit = {
     val configPath = maybeConfigPath.getOrElse(MainConfigManager.defaultConfigFile)
     val eventBus: EventBus = new EventBus
     val businessync = new Businessync(eventBus)
@@ -81,7 +81,7 @@ object MicrotonalistApp extends StrictLogging {
 
     val formatModule = new FormatModule(businessync, mainConfigManager.coreConfig.libraryBaseUrl)
 
-    val composition = formatModule.defaultCompositionRepo.read(inputUri)
+    val composition = formatModule.defaultCompositionRepo.read(inputUrl)
     val tuningList = TuningList.fromComposition(composition)
 
     val tunerModule = new TunerModule(businessync, formatModule.defaultTrackRepo)

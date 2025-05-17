@@ -62,15 +62,15 @@ package object format {
   }
 
   /**
-   * Maps a URI with `microtonalist` scheme to the actual URI as configured via `libraryBaseUrl`
+   * Maps a URL with `microtonalist` scheme to the actual URL as configured via `libraryBaseUrl`
    *
    * @param url            URL of a resource from the library.
-   * @param libraryBaseUrl Base URI of the library.
-   * @return the actual URI.
+   * @param libraryBaseUrl Base URL of the library.
+   * @return the actual URL.
    */
   def resolveLibraryUrl(url: URI, libraryBaseUrl: URI): URI = {
     require(url.isAbsolute && url.getScheme == UriScheme.MicrotonalistLibrary,
-      "URI must be absolute and have microtonalist scheme!")
+      "URL must be absolute and have microtonalist scheme!")
 
     // Making the path relative to root. E.g. "/path/to/file" => "path/to/file"
     val rootUri = url.resolve("/")

@@ -25,23 +25,23 @@ import java.nio.file.Paths
 
 class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
 
-  "filePathOf" should "convert an absolute URI to a file system path" in {
+  "filePathOf" should "convert an absolute URL to a file system path" in {
     filePathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual Paths
       .get("/", "Users", "john", "Music", "phrygian.scl")
   }
 
-  it should "convert a relative URI to file system path" in {
+  it should "convert a relative URL to file system path" in {
     filePathOf(new URI("Music/phrygian.scl")) shouldEqual Paths
       .get("Music", "phrygian.scl")
   }
 
-  it should "fail for a non file URI" in {
+  it should "fail for a non file URL" in {
     assertThrows[IllegalArgumentException] {
       filePathOf(new URI("https://example.org/path/to/file.scl"))
     }
   }
 
-  it should "resolve an override base URI against an initial base URI" in {
+  it should "resolve an override base URL against an initial base URL" in {
     def uri(str: String) = Some(new URI(str))
 
     resolveBaseUriWithOverride(
@@ -79,7 +79,7 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     // No validation on write
   }
 
-  "resolveLibraryUrl" should "resolve an URI with microtonalist scheme" in {
+  "resolveLibraryUrl" should "resolve an URL with microtonalist scheme" in {
     val uri = URI("microtonalist:///scales/dorian.scl")
 
     resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual URI(
@@ -88,7 +88,7 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
       "https://microtonalist.org/library/grey/scales/dorian.scl")
   }
 
-  it should "fail for a relative URI" in {
+  it should "fail for a relative URL" in {
     val uri = URI("scales/dorian.scl")
 
     assertThrows[IllegalArgumentException] {
@@ -96,7 +96,7 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "fail for URIs that don't have a microtonalist scheme" in {
+  it should "fail for URLs that don't have a microtonalist scheme" in {
     val libraryBaseUrl = URI("file:///Users/grey/Music/Library/")
 
     assertThrows[IllegalArgumentException] {

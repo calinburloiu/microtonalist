@@ -24,19 +24,18 @@ import java.net.URI
 /**
  * A collection of scales to be mapped to tunings.
  *
- * @param url                          Optional URI associated with the composition which might have been used to
- *                                     load it from.
+ * @param url                    Optional URL associated with the composition which might have been used to
+ *                               load it from.
  * @param intonationStandard Specifies how intervals from the composition are expressed or interpreted.
  * @param tuningReference    Establishes the relation between the composition base pitch and a pitch class from the
  *                           keyboard instrument.
  * @param tuningSpecs        A sequence of specifications that defines each tuning based on scales.
- * @param tuningReducer      Strategy for reducing the number of tunings by merging them together.
+ * @param tuningReducer          Strategy for reducing the number of tunings by merging them.
  * @param fill               Specifies filling configuration for the tunings used in the composition.
  * @param metadata           Additional information about the composition.
- * @param tracksUrlOverride            Optional override for the URI of the tracks file used for configuring tracks.
- *                                     If not
- *                           provided the URI will be computed by appending `.tracks` to the path of the composition
- *                           URI.
+ * @param tracksUrlOverride      Optional override for the URL of the tracks file used for configuring tracks.
+ *                               If not provided, the URL will be computed by appending `.tracks` to the path of the
+ *                               composition URL.
  */
 case class Composition(url: Option[URI],
                        intonationStandard: IntonationStandard,

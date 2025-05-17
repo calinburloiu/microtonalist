@@ -33,11 +33,11 @@ class CompositionTest extends AnyFlatSpec with Matchers {
     fill = FillSpec()
   )
 
-  "tracksUrl" should "be derived from URI when there is no override" in {
+  "tracksUrl" should "be derived from URL when there is no override" in {
     sampleComposition.tracksUrl should contain(new URI("file:///path/to/composition.mtlist.tracks"))
   }
 
-  it should "be empty when URI is not defined" in {
+  it should "be empty when URL is not defined" in {
     val composition = sampleComposition.copy(url = None)
     composition.tracksUrl shouldBe empty
   }

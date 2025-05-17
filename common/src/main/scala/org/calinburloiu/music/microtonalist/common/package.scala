@@ -23,14 +23,14 @@ import scala.util.Try
 package object common {
 
   /**
-   * Parses a string as a URI. The string can either be an absolute URI or a local path.
+   * Parses a string as a URL. The string can either be an absolute URL or a local path.
    *
-   * @param uriString string to parse
-   * @return URI for the given string
+   * @param urlString string to parse
+   * @return an option [[URI]] for the given string
    */
-  def parseUriOrPath(uriString: String): Option[URI] =
-    Try(new URI(uriString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(uriString)).toOption.map { path =>
-      mapPathToUri(path, uriString)
+  def parseUrlOrPath(urlString: String): Option[URI] =
+    Try(new URI(urlString)).toOption.filter(_.isAbsolute) orElse Try(Paths.get(urlString)).toOption.map { path =>
+      mapPathToUri(path, urlString)
     }
 
   /**
