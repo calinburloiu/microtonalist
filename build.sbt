@@ -1,7 +1,7 @@
 import Dependencies.*
 
 ThisBuild / scalaVersion := "3.6.3"
-ThisBuild / version := "1.2.0"
+ThisBuild / version := "1.3.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
 // # Projects
