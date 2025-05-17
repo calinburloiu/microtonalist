@@ -1,0 +1,28 @@
+{
+    "$schema": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/composition/composition.schema.json",
+    "intonationStandard": {
+        "type":"edo",
+        "countPerOctave": 72
+    },
+    "tuningReference": {
+        "basePitchClass": "C"
+    },
+    "#baseUri": "",
+    "tunings": [
+        {
+            "scale": "scales/maj-4-cents.jscl"
+        },
+        {
+            "scale": "/Users/calinburloiu/Music/microtonalist/lib/compositions/test/scales/min-4-53edo.jscl"
+        },
+        {
+            "transposition": [7, 0],
+            "scale": "microtonalist:///scales/maj-4-just.scl"
+        },
+        {
+            "transposition": "3/2",
+            "scale": "http://localhost:8080/scales/min-4-cents.scl"
+        }
+    ],
+    "#tracksUri": "test.mtlist.tracks"
+}
