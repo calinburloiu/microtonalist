@@ -164,8 +164,7 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Lock
               v
             case None =>
               _status = DeferrableReadStatus.PendingLoad
-              val futureValue = loader(placeholder)
-              futureValue.onComplete { result =>
+              val futureValue = loader(placeholder).andThen { result =>
                 withWriteLock {
                   result match {
                     case Success(v) =>
