@@ -1,0 +1,8 @@
+{
+  "name": "min-4 (53-EDO)",
+  "intonationStandard": {
+    "type": "edo",
+    "countPerOctave": 53
+  },
+  "pitches": [9, 14, 22]
+}

@@ -55,7 +55,7 @@ class SoftChromaticGenusStudy {
   def printStructForAllEdos(scale: Scale[Interval], aug2Threshold: Double, edos: Seq[Int]): Unit = {
     for (edo <- edos) {
       val intonationStandard = EdoIntonationStandard(edo)
-      val edoScale = scale.convertToIntonationStandard(intonationStandard).get.scale
+      val edoScale = scale.convertToIntonationStandard(intonationStandard).scale.get
 
       printStruct(edoScale, aug2Threshold)
     }

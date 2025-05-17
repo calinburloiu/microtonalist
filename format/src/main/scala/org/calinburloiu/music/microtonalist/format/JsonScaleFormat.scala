@@ -27,7 +27,7 @@ import java.net.URI
 /**
  * [[ScaleFormat]] implementation that provides support for Microtonalist's own JSON-based scale format.
  *
- * @param jsonPreprocessor a preprocessor instance that can replace JSON references
+ * @param jsonPreprocessor A preprocessor instance that can replace JSON references.
  */
 class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
@@ -37,8 +37,8 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
     "Microtonalist JSON Scale", Set("jscl", "json"), Set(JsonScaleMediaType, MediaType.JSON_UTF_8))
 
   override def read(inputStream: InputStream,
-                    baseUri: Option[URI] = None,
-                    context: Option[ScaleFormatContext] = None): Scale[Interval] = {
+                    baseUri: Option[URI],
+                    context: Option[ScaleFormatContext]): Scale[Interval] = {
     val json = Json.parse(inputStream)
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
@@ -64,37 +64,40 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
 
   override def write(scale: Scale[Interval],
                      outputStream: OutputStream,
-                     context: Option[ScaleFormatContext] = None): Unit = {
-    val json = writeAsJsValue(scale)
+                     context: Option[ScaleFormatContext]): Unit = {
+    val json = writeAsJsValue(scale, context)
     val writer = new PrintWriter(outputStream)
     writer.write(json.toString)
   }
 
-  def writeAsJsValue(scale: Scale[Interval], context: Option[ScaleFormatContext] = None): JsValue = {
+  def writeAsJsValue(scale: Scale[Interval], context: Option[ScaleFormatContext]): JsValue = {
     val scaleSelfContext = ScaleFormatContext(
       name = if (scale.name.trim.isBlank) None else Some(scale.name),
       intonationStandard = scale.intonationStandard
     )
-    val intonationStandard = scale.intonationStandard.orElse(context.flatMap(_.intonationStandard))
+    val newContext = scaleSelfContext.applyOverride(context)
+    val contextJson = Json.toJson(newContext)(contextWrites).asInstanceOf[JsObject]
+
+    val intonationStandard = context.flatMap(_.intonationStandard).orElse(scale.intonationStandard)
       .getOrElse(throw new MissingContextScaleFormatException)
     // Making sure that the intonation standard that we output is still consistent with the intervals
-    val intervals = scale.convertToIntonationStandard(intonationStandard).map(_.scale.intervals).getOrElse {
+    val intervals = scale.convertToIntonationStandard(intonationStandard).scale.map(_.intervals).getOrElse {
       throw new IncompatibleIntervalsScaleFormatException
     }
-
-    val contextJson = Json.toJson(scaleSelfContext)(contextFormatWith(fallbackContext = context)).asInstanceOf[JsObject]
     val pitchesJson = Json.toJson(intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
 
     contextJson ++ pitchesJson
   }
 
-  def scaleReadsWith(fallbackContext: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
+  def scaleReadsWith(context: Option[ScaleFormatContext]): Reads[Scale[Interval]] = {
     Reads { jsValue =>
-      contextFormatWith(fallbackContext)
+      contextFormatWith(context)
         .reads(jsValue)
         .flatMap {
           case ScaleFormatContext(Some(name), Some(intonationStandard)) =>
-            pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals => Scale.create(name, intervals) }
+            pitchesFormatFor(intonationStandard).reads(jsValue).map { intervals =>
+              Scale.create(name, intervals, intonationStandard)
+            }
           case _ => JsError(ErrorMissingContext)
         }
     }
@@ -127,6 +130,8 @@ object JsonScaleFormat {
 
   private[JsonScaleFormat] implicit val intonationStandardFormat: Format[IntonationStandard] =
     JsonIntonationStandardPluginFormat.format
+
+  private val contextWrites: Writes[ScaleFormatContext] = Json.writes[ScaleFormatContext]
 
   private[format] def pitchIntervalFormatFor(intonationStandard: IntonationStandard): Format[Interval] = {
     val intervalFormat: Format[Interval] = JsonIntervalFormat.formatFor(intonationStandard)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -24,6 +24,23 @@ package org.calinburloiu.music.intonation
  */
 sealed abstract class IntonationStandard(val typeName: String) {
   def unison: Interval
+
+  /**
+   * Determines the quality of an interval or scale conversion when transitioning from the current `IntonationStandard`
+   * to a different `IntonationStandard`.
+   *
+   * @param that The target `IntonationStandard` to which the conversion is assessed.
+   * @return the `IntonationConversionQuality` representing the quality of the conversion.
+   */
+  def conversionQualityTo(that: IntonationStandard): IntonationConversionQuality = that match {
+    case _: IntonationStandard if this == that => IntonationConversionQuality.NoConversion
+    case CentsIntonationStandard => IntonationConversionQuality.Lossless
+    case JustIntonationStandard => IntonationConversionQuality.Impossible
+    case EdoIntonationStandard(thatEdo) => this match {
+      case EdoIntonationStandard(thisEdo) if thatEdo % thisEdo == 0 => IntonationConversionQuality.Lossless
+      case _ => IntonationConversionQuality.Lossy
+    }
+  }
 }
 
 /**

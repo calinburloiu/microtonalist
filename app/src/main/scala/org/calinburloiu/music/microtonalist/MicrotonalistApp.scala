@@ -79,7 +79,7 @@ object MicrotonalistApp extends StrictLogging {
     val businessync = new Businessync(eventBus)
     val mainConfigManager = MainConfigManager(configPath)
 
-    val formatModule = new FormatModule(mainConfigManager.coreConfig.libraryBaseUri)
+    val formatModule = new FormatModule(businessync, mainConfigManager.coreConfig.libraryBaseUri)
 
     val composition = formatModule.defaultCompositionRepo.read(inputUri)
     val tuningList = TuningList.fromComposition(composition)

@@ -40,27 +40,37 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
 
   def loadDeferredData(scaleRepo: ScaleRepo): Future[this.type] = {
     val localScaleCache = mutable.Map[URI, Future[Scale[Interval]]]()
+    lazy val defaultScaleFormatContext = Some(ScaleFormatContext(intonationStandard = Some(context.intonationStandard)))
 
-    def scaleLoader(uri: URI): Future[Scale[Interval]] = {
+    def scaleLoader(uri: URI, scaleFormatContext: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
       val resolvedUri = context.baseUri.map(_.resolve(uri)).getOrElse(uri)
 
       localScaleCache.get(resolvedUri) match {
         case None =>
-          val scale = scaleRepo.readAsync(resolvedUri)
+          val scale = scaleRepo.readAsync(resolvedUri, scaleFormatContext)
           localScaleCache.addOne((resolvedUri, scale))
           scale
         case Some(scale) => scale
       }
+    }
 
+    def createLocalScaleFormatContext(tuningSpec: TuningSpecRepr): Option[ScaleFormatContext] = tuningSpec.name match {
+      case None => defaultScaleFormatContext
+      case Some(name) => Some(ScaleFormatContext(
+        name = tuningSpec.name,
+        intonationStandard = Some(context.intonationStandard))
+      )
     }
 
     val futures: mutable.ArrayBuffer[Future[Any]] = mutable.ArrayBuffer()
     for (tuningSpec <- tunings) {
-      futures += tuningSpec.scale.load(scaleLoader)
+      futures += tuningSpec.scale.load { uri => scaleLoader(uri, createLocalScaleFormatContext(tuningSpec)) }
     }
 
-    for (globalFillValue <- fill.global) {
-      futures += globalFillValue.scale.load(scaleLoader)
+    for (globalFillTuningSpec <- fill.global) {
+      futures += globalFillTuningSpec.scale.load { uri =>
+        scaleLoader(uri, createLocalScaleFormatContext(globalFillTuningSpec))
+      }
     }
 
     Future.sequence(futures).map(_ => this)
@@ -90,4 +100,5 @@ class CompositionFormatContext {
 
 case class TuningSpecRepr(transposition: Interval,
                           scale: DeferrableRead[Scale[Interval], URI],
-                          tuningMapper: TuningMapper)
+                          tuningMapper: TuningMapper,
+                          name: Option[String])

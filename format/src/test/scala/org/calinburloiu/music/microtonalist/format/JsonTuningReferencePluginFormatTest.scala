@@ -95,7 +95,9 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
   )
 
   it should "deserialize a ConcertPitchTuningReference" in {
-    assertReads(reads, concertPitchTypeJson, concertPitchType)
+    val concertPitchTypeInCents = concertPitchType.copy(
+      concertPitchToBaseInterval = concertPitchType.concertPitchToBaseInterval.toCentsInterval)
+    assertReads(reads, concertPitchTypeJson, concertPitchTypeInCents)
   }
 
   it should "fail to deserialize a ConcertPitchTuningReference without mandatory settings" in {

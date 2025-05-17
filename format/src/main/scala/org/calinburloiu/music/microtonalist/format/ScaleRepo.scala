@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ trait ScaleRepo {
    *                certain properties in order to override or fill them when they are missing.
    * @return the requested scale
    */
-  def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval]
+  def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval]
 
   /**
    * Retrieves a scale asynchronously.
@@ -46,7 +46,7 @@ trait ScaleRepo {
    *                certain properties in order to override or fill them when they are missing.
    * @return a [[Future]] of the requested scale
    */
-  def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]]
+  def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]]
 
   /**
    * Persists a scale.
@@ -61,7 +61,7 @@ trait ScaleRepo {
   def write(scale: Scale[Interval],
             uri: URI,
             mediaType: Option[MediaType],
-            context: Option[ScaleFormatContext] = None): Unit
+            context: Option[ScaleFormatContext]): Unit
 
   /**
    * Persists a scale asynchronously.
@@ -77,7 +77,7 @@ trait ScaleRepo {
   def writeAsync(scale: Scale[Interval],
                  uri: URI,
                  mediaType: Option[MediaType],
-                 context: Option[ScaleFormatContext] = None): Future[Unit]
+                 context: Option[ScaleFormatContext]): Future[Unit]
 }
 
 /**

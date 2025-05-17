@@ -39,19 +39,19 @@ import scala.util.{Failure, Success}
 class HttpScaleRepo(httpClient: HttpClient,
                     scaleFormatRegistry: ScaleFormatRegistry) extends ScaleRepo with StrictLogging {
 
-  override def read(uri: URI, context: Option[ScaleFormatContext] = None): Scale[Interval] = {
+  override def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval] = {
     checkReadRequirements(uri)
 
     logger.info(s"Reading scale from $uri via HTTP...")
     val request = createReadRequest(uri)
     val response = httpClient.send(request, BodyHandlers.ofInputStream())
 
-    val result = handleReadResponse(uri, response)
+    val result = handleReadResponse(uri, response, context)
     logger.info(s"Successfully read scale from $uri via HTTP")
     result
   }
 
-  override def readAsync(uri: URI, context: Option[ScaleFormatContext] = None): Future[Scale[Interval]] = {
+  override def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]] = {
     checkReadRequirements(uri)
 
     logger.info(s"Reading scale from $uri via HTTP...")
@@ -61,7 +61,7 @@ class HttpScaleRepo(httpClient: HttpClient,
       .asScala
 
     futureResponse
-      .map { response => handleReadResponse(uri, response) }
+      .map { response => handleReadResponse(uri, response, context) }
       .andThen {
         case Success(_) => logger.info(s"Successfully read scale from $uri via HTTP")
         case Failure(exception) => logger.error(s"Failed to read scale from $uri via HTTP!",
@@ -79,14 +79,15 @@ class HttpScaleRepo(httpClient: HttpClient,
     .build()
 
   private def handleReadResponse(uri: URI,
-                                 response: HttpResponse[InputStream]): Scale[Interval] = response.statusCode() match {
+                                 response: HttpResponse[InputStream],
+                                 context: Option[ScaleFormatContext]): Scale[Interval] = response.statusCode() match {
     case 200 =>
       val mediaType = response.headers().firstValue(GuavaHttpHeaders.CONTENT_TYPE).toScala.map(MediaType.parse)
 
       val scaleFormat = scaleFormatRegistry.get(uri, mediaType)
         .getOrElse(throw new BadScaleRequestException(uri, mediaType))
 
-      scaleFormat.read(response.body(), Some(uri))
+      scaleFormat.read(response.body(), Some(uri), context)
     case 404 => throw new ScaleNotFoundException(uri)
     case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
       Some(s"HTTP request to $uri returned status code $status"))
@@ -98,10 +99,10 @@ class HttpScaleRepo(httpClient: HttpClient,
   override def write(scale: Scale[Interval],
                      uri: URI,
                      mediaType: Option[MediaType],
-                     context: Option[ScaleFormatContext] = None): Unit = ???
+                     context: Option[ScaleFormatContext]): Unit = ???
 
   override def writeAsync(scale: Scale[Interval],
                           uri: URI,
                           mediaType: Option[MediaType],
-                          context: Option[ScaleFormatContext] = None): Future[Unit] = ???
+                          context: Option[ScaleFormatContext]): Future[Unit] = ???
 }

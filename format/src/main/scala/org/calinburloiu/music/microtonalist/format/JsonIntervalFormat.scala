@@ -34,39 +34,45 @@ object JsonIntervalFormat {
     EdoIntonationStandard.typeName -> "error.expected.intervalForEdoIntonationStandard"
   )
 
-  def readsFor(intonationStandard: IntonationStandard): Reads[Interval] = {
-    lazy val centsReads: Reads[Interval] = Reads.JsNumberReads.map { jsNumber =>
-      CentsInterval(jsNumber.value.doubleValue)
-    }
-    lazy val ratioReads: Reads[Interval] = Reads.StringReads
-      .collect(JsonValidationError(ErrorExpectedIntervalFor(JustIntonationStandard.typeName)))(
-        Function.unlift(Interval.fromRatioString)
-      )
+  private lazy val centsReads: Reads[Interval] = Reads.JsNumberReads.map { jsNumber =>
+    CentsInterval(jsNumber.value.doubleValue)
+  }
+  private lazy val ratioReads: Reads[Interval] = Reads.StringReads
+    .collect(JsonValidationError(ErrorExpectedIntervalFor(JustIntonationStandard.typeName)))(
+      Function.unlift(Interval.fromRatioString)
+    )
 
-    intonationStandard match {
-      case CentsIntonationStandard => centsReads orElse ratioReads orElse
-        Reads.failed(ErrorExpectedIntervalFor(CentsIntonationStandard.typeName))
-      case JustIntonationStandard => ratioReads orElse
-        Reads.failed(ErrorExpectedIntervalFor(JustIntonationStandard.typeName))
-      case EdoIntonationStandard(countPerOctave) => Reads.JsNumberReads.map { jsNumber =>
-        EdoInterval(countPerOctave, jsNumber.value.intValue).asInstanceOf[Interval]
-      } orElse Reads.JsArrayReads.flatMapResult { jsArr =>
-        if (jsArr.value.size == 2) {
-          val semitones = jsArr.value.head.asOpt[Int]
-          val offset = jsArr.value(1).asOpt[Int]
-          if (semitones.isDefined && offset.isDefined) {
-            JsSuccess(EdoInterval(countPerOctave, (semitones.get, offset.get)).asInstanceOf[Interval])
-          } else {
-            // We don't care about the message of the error here because the fallback below will override the error
-            // anyway.
-            JsError()
-          }
+  private def edoReadsFor(countPerOctave: Int) = {
+    Reads.JsNumberReads.map { jsNumber =>
+      EdoInterval(countPerOctave, jsNumber.value.intValue).asInstanceOf[Interval]
+    } orElse Reads.JsArrayReads.flatMapResult { jsArr =>
+      if (jsArr.value.size == 2) {
+        val semitones = jsArr.value.head.asOpt[Int]
+        val offset = jsArr.value(1).asOpt[Int]
+        if (semitones.isDefined && offset.isDefined) {
+          JsSuccess(EdoInterval(countPerOctave, (semitones.get, offset.get)).asInstanceOf[Interval])
         } else {
-          // See the comment above for the other JsError.
+          // We don't care about the message of the error here because the fallback below will override the error
+          // anyway.
           JsError()
         }
-      } orElse ratioReads orElse Reads.failed(ErrorExpectedIntervalFor(EdoIntonationStandard.typeName))
+      } else {
+        // See the comment above for the other JsError.
+        JsError()
+      }
     }
+  }
+
+  def readsFor(intonationStandard: IntonationStandard): Reads[Interval] = intonationStandard match {
+    case CentsIntonationStandard =>
+      (centsReads orElse ratioReads orElse Reads.failed(ErrorExpectedIntervalFor(CentsIntonationStandard.typeName)))
+        .map(_.toCentsInterval)
+    case JustIntonationStandard =>
+      ratioReads orElse Reads.failed(ErrorExpectedIntervalFor(JustIntonationStandard.typeName))
+    case EdoIntonationStandard(countPerOctave) =>
+      val edoReads = edoReadsFor(countPerOctave)
+      (edoReads orElse ratioReads orElse Reads.failed(ErrorExpectedIntervalFor(EdoIntonationStandard.typeName)))
+        .map(_.toEdoInterval(countPerOctave))
   }
 
   val writes: Writes[Interval] = Writes {

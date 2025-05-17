@@ -16,13 +16,15 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.tuner.TrackRepo
 
 import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class FormatModule(libraryBaseUri: URI,
+class FormatModule(businessync: Businessync,
+                   libraryBaseUri: URI,
                    synchronousAwaitTimeout: FiniteDuration = 1 minute) {
   lazy val jsonPreprocessor: JsonPreprocessor = new JsonPreprocessor(
     Seq(jsonPreprocessorFileRefLoader, jsonPreprocessorHttpRefLoader)
@@ -39,16 +41,18 @@ class FormatModule(libraryBaseUri: URI,
   lazy val scaleFormatRegistry: ScaleFormatRegistry = new ScaleFormatRegistry(
     Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
 
+  lazy val scaleContextConverter: ScaleContextConverter = new ScaleContextConverter(businessync)
+
   lazy val fileScaleRepo: FileScaleRepo = new FileScaleRepo(scaleFormatRegistry)
   lazy val httpScaleRepo: HttpScaleRepo = new HttpScaleRepo(httpClient, scaleFormatRegistry)
   lazy val libraryScaleRepo: LibraryScaleRepo = new LibraryScaleRepo(
     libraryBaseUri, fileScaleRepo, httpScaleRepo)
 
   lazy val defaultScaleRepo: ScaleRepo = new DefaultScaleRepo(
-    Some(fileScaleRepo), Some(httpScaleRepo), Some(libraryScaleRepo))
+    Some(fileScaleRepo), Some(httpScaleRepo), Some(libraryScaleRepo), scaleContextConverter)
 
   lazy val compositionFormat: CompositionFormat = new JsonCompositionFormat(
-    defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, synchronousAwaitTimeout)
+    defaultScaleRepo, jsonPreprocessor, jsonScaleFormat, scaleContextConverter, synchronousAwaitTimeout)
 
   lazy val fileCompositionRepo: FileCompositionRepo = new FileCompositionRepo(compositionFormat,
     synchronousAwaitTimeout)

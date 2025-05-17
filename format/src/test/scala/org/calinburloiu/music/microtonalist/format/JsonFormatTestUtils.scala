@@ -38,6 +38,22 @@ trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with Tab
     }
   }
 
+  /**
+   * Asserts that a JSON value is correctly deserialized using the provided `Reads` instance and matches the expected
+   * result.
+   *
+   * @param reads       A `Reads` instance used to deserialize the JSON.
+   * @param json        The JSON value to be deserialized.
+   * @param matchResult A function to validate that the actual result matches the expected result.
+   */
+  def matchReads[A](reads: Reads[A], json: JsValue, matchResult: A => Unit): Unit = {
+    val actualResult = reads.reads(json)
+    actualResult match {
+      case JsSuccess(actualResult, _) => matchResult(actualResult)
+      case _ => fail(s"Reading JSON `$json` did not match the expected result, but got $actualResult.")
+    }
+  }
+
   /** Asserts that the given error is the only error to be matched. */
   def assertReadsSingleFailure[A](reads: Reads[A],
                                   json: JsValue,

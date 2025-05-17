@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist
 
+import com.google.common.eventbus.EventBus
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{JustIntonationStandard, RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
@@ -26,7 +28,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
-  private val formatModule = new FormatModule(CommonTestUtils.uriOfResource("app/"))
+  private val businessync = Businessync(EventBus())
+  private val formatModule = FormatModule(businessync, CommonTestUtils.uriOfResource("app/"))
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
