@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -488,6 +488,51 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(shortMessageOutput(3)) { case ScCcMidiMessage(_, ScCcMidiMessage.SostenutoPedal, 0) => }
     inside(shortMessageOutput(4)) { case ScPitchBendMidiMessage(_, value) => value should be < 0 }
     inside(shortMessageOutput(5)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+  }
+
+  it should "change pitch bend sensitivity via MIDI RPN messages" in new Fixture {
+    tuner.tune(customTuning)
+
+    // Current pbs is 1 semitone (semitonePitchBendSensitivity)
+    // Send RPN messages to change it to 2 semitones
+    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMidiMessage)
+    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMidiMessage)
+    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.DataEntryMsb, tonePitchBendSensitivity.semitones)
+      .javaMidiMessage)
+    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.DataEntryLsb, tonePitchBendSensitivity.cents)
+      .javaMidiMessage)
+
+    // Play noteE4 (offset is -16.67 cents in customTuning)
+    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMidiMessage)
+
+    pitchBendOutput should have size 1
+    // The pitch bend value should be calculated using the NEW pbs (2 semitones)
+    // cents = -16.67, pbs = 2 semitones = 200 cents
+    // value = cents / pbs * 8192 = -16.67 / 200 * 8192 = -682.8032 -> -683
+    pitchBendOutput.head.value should equal(
+      ScPitchBendMidiMessage.convertCentsToValue(-16.67, tonePitchBendSensitivity)
+    )
+  }
+
+  it should "immediately send updated pitch bend if sensitivity changes while a note is on" in new Fixture {
+    tuner.tune(customTuning)
+    // Play noteE4 (-16.67 cents) with default PBS (1 semitone = 100 cents)
+    // value = -16.67 / 100 * 8192 = -1365.6 -> -1366
+    tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMidiMessage)
+
+    // Send RPN messages to change it to 2 semitones
+    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMidiMessage)
+    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMidiMessage)
+    // MSB change
+    output ++= tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.DataEntryMsb, tonePitchBendSensitivity
+      .semitones).javaMidiMessage)
+
+    // It should have sent a new pitch bend message immediately after DataEntryMsb
+    // value = -16.67 / 200 * 8192 = -683
+    pitchBendOutput should have size 1
+    pitchBendOutput.head.value should equal(
+      ScPitchBendMidiMessage.convertCentsToValue(-16.67, tonePitchBendSensitivity)
+    )
   }
 
   behavior of "MonophonicPitchBendTuner for playing microtonal notes"
