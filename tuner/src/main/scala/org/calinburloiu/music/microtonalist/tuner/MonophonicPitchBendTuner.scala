@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -26,11 +26,13 @@ import scala.collection.mutable
  * Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent
  * on, this tuner only supports and enforces monophonic playing.
  *
- * @param outputChannel        Output MIDI channel on which all output is sent, regardless on the input channels used.
- * @param pitchBendSensitivity Pitch bend range that will be configured via Pitch Bend Sensitivity MIDI RPN.
+ * @param outputChannel               Output MIDI channel on which all output is sent, regardless on the input
+ *                                    channels used.
+ * @param defaultPitchBendSensitivity Default pitch bend range that will be configured via Pitch Bend Sensitivity
+ *                                    MIDI RPN.
  */
 case class MonophonicPitchBendTuner(outputChannel: Int,
-                                    pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
+                                    defaultPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
   extends Tuner with StrictLogging {
   require(0 <= outputChannel && outputChannel <= 15,
     s"Output MIDI channel must be between 0 and 15, but was $outputChannel!")
@@ -38,6 +40,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   override val typeName: String = MonophonicPitchBendTuner.TypeName
 
   private var _currTuning: Tuning = Tuning.Standard
+  private var _pitchBendSensitivity: PitchBendSensitivity = defaultPitchBendSensitivity
 
   private val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
   private var _lastSingleNote: MidiNote = 0
@@ -53,6 +56,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private var _sustainPedal: Int = 0
   private var _sostenutoPedal: Int = 0
+  private var _rpnLsb: Int = Rpn.NullLsb
+  private var _rpnMsb: Int = Rpn.NullMsb
 
   override def reset(): Seq[MidiMessage] = {
     this._resetState()
@@ -61,6 +66,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private def _resetState(): Unit = {
     _currTuning = Tuning.Standard
+    _pitchBendSensitivity = defaultPitchBendSensitivity
     noteStack.clear()
     _lastSingleNote = 0
     _currExpressionPitchBend = 0
@@ -70,9 +76,11 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
     _sustainPedal = 0
     _sostenutoPedal = 0
+    _rpnLsb = Rpn.NullLsb
+    _rpnMsb = Rpn.NullMsb
   }
 
-  private def _init(): Seq[MidiMessage] = applyPitchSensitivity(pitchBendSensitivity)
+  private def _init(): Seq[MidiMessage] = applyPitchSensitivity(defaultPitchBendSensitivity)
 
   override def tune(tuning: Tuning): Seq[MidiMessage] = {
     currTuning = tuning
@@ -106,6 +114,18 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       case ScCcMidiMessage(_, ScCcMidiMessage.SostenutoPedal, value) =>
         _sostenutoPedal = value
         buffer += forwardMessage()
+      case ScCcMidiMessage(_, ScCcMidiMessage.RpnLsb, value) =>
+        _rpnLsb = value
+        buffer += forwardMessage()
+      case ScCcMidiMessage(_, ScCcMidiMessage.RpnMsb, value) =>
+        _rpnMsb = value
+        buffer += forwardMessage()
+      case ScCcMidiMessage(_, ScCcMidiMessage.DataEntryMsb, value) =>
+        buffer += forwardMessage()
+        applyPitchBendSensitivityMsb(buffer, value)
+      case ScCcMidiMessage(_, ScCcMidiMessage.DataEntryLsb, value) =>
+        buffer += forwardMessage()
+        applyPitchBendSensitivityLsb(buffer, value)
       case _ =>
         buffer += forwardMessage()
     }
@@ -135,6 +155,34 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     }
 
     _currTuning = newTuning
+  }
+
+  private def isSettingPitchBendSensitivity: Boolean =
+    _rpnLsb == Rpn.PitchBendSensitivityLsb && _rpnMsb == Rpn.PitchBendSensitivityMsb
+
+  private def applyPitchBendSensitivityMsb(buffer: mutable.Buffer[MidiMessage], value: Int): Unit = {
+    if (isSettingPitchBendSensitivity) {
+      pitchBendSensitivity = pitchBendSensitivity.copy(semitones = value)
+      applyPitchBend(buffer)
+    }
+  }
+
+  private def applyPitchBendSensitivityLsb(buffer: mutable.Buffer[MidiMessage], value: Int): Unit = {
+    if (isSettingPitchBendSensitivity) {
+      pitchBendSensitivity = pitchBendSensitivity.copy(cents = value)
+      applyPitchBend(buffer)
+    }
+  }
+
+  private def pitchBendSensitivity: PitchBendSensitivity = _pitchBendSensitivity
+
+  private def pitchBendSensitivity_=(value: PitchBendSensitivity): Unit = {
+    if (_pitchBendSensitivity != value) {
+      _pitchBendSensitivity = value
+      // Update currTuningPitchBend for the current note using the new sensitivity
+      val offset = currTuning(lastNote.pitchClass)
+      currTuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(offset, _pitchBendSensitivity)
+    }
   }
 
   private def lastNote: MidiNote = noteStack.headOption.getOrElse(_lastSingleNote)

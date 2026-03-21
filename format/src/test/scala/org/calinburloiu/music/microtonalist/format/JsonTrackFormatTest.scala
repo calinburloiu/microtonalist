@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ class JsonTrackFormatTest extends AnyFlatSpec with Matchers {
       tuningChangers = Seq.empty,
       tuner = Some(MonophonicPitchBendTuner(
         outputChannel = 0,
-        pitchBendSensitivity = PitchBendSensitivity(48, 0)
+        defaultPitchBendSensitivity = PitchBendSensitivity(48, 0)
       )),
       output = Some(DeviceTrackOutputSpec(
         midiDeviceId = MidiDeviceId("CoreMIDI4J - IAC 2", "Apple Inc."),
@@ -120,7 +120,7 @@ class JsonTrackFormatTest extends AnyFlatSpec with Matchers {
       tuningChangers = Seq.empty,
       tuner = Some(MonophonicPitchBendTuner(
         outputChannel = 0,
-        pitchBendSensitivity = PitchBendSensitivity(2, 0)
+        defaultPitchBendSensitivity = PitchBendSensitivity(2, 0)
       )),
       output = Some(DeviceTrackOutputSpec(
         midiDeviceId = MidiDeviceId("CoreMIDI4J - IAC 2", "Apple Inc."),
