@@ -78,8 +78,9 @@ Appendix B.
 `MpeChannelAllocator` manages channel allocation for a single `MpeZone`. It is used by `MpeTuner` to determine which
 member channel a note should be assigned to. Key operations:
 
-- `allocate(midiNote, pitchClass, expressivePitchBend?, preferredChannel?): AllocationResult` — allocates a member
-  channel for a new note. Returns the allocated channel and any notes that must be dropped (with Note Off messages).
+- `allocate(midiNote, expressivePitchBend?, preferredChannel?): AllocationResult` — allocates a member
+  channel for a new note. The pitch class is computed internally from `midiNote`, so it does not need to be passed
+  separately. Returns the allocated channel and any notes that must be dropped (with Note Off messages).
   The optional `preferredChannel` is used in MPE input mode to attempt preserving the input channel assignment.
 - `release(midiNote, channel)` — signals that a note has ended on a channel (Note Off received).
 - `updateExpressivePitchBend(channel, pitchBend): Seq[DroppedNote]` — updates the expressive pitch bend for a channel;
@@ -88,6 +89,18 @@ member channel a note should be assigned to. Key operations:
 - `reset()` — clears all allocation state.
 
 `AllocationResult` contains the allocated channel and a list of notes that were dropped (if any) to make room.
+
+### State Inspection Accessors
+
+The following accessors are exposed for inspecting internal state, primarily useful in tests:
+
+- `activeNotes(channel): Seq[ActiveNote]` — returns the active notes on a given member channel. Each `ActiveNote`
+  includes the MIDI note number and expression parameters (expressive pitch bend, channel pressure, slide / CC #74).
+- `channelPitchClass(channel): Option[PitchClass]` — returns the pitch class assigned to a channel, if any.
+- `activeChannelCount: Int` — returns the number of currently occupied member channels.
+- `isChannelOccupied(channel): Boolean` — whether a channel has any active notes.
+- `isInPitchClassGroup(channel): Boolean` — whether the given channel belongs to the Pitch Class Group.
+- `isInExpressionGroup(channel): Boolean` — whether the given channel belongs to the Expression Group.
 
 ### Test Cases (`MpeChannelAllocatorTest`)
 
@@ -337,6 +350,8 @@ Add `MpeTuner` serialization/deserialization support to `JsonTunerPluginFormat.s
    - `zones.lower.memberCount`: wrong type.
    - `zones.lower.masterPitchBendSensitivity.semitoneCount`: out of uint7 range.
    - `zones.lower.memberPitchBendSensitivity.centCount`: out of uint7 range.
+    - Overlapping zone channel ranges (e.g. lower with 10 members and upper with 10 members) — deserialization must
+      fail with a validation error.
 
 ---
 
