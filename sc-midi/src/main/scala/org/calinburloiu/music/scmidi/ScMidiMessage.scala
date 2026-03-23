@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -201,6 +201,38 @@ object Rpn {
 
   val NullMsb: Int = 0x7F
   val NullLsb: Int = 0x7F
+}
+
+case class ScChannelPressureMidiMessage(channel: Int, value: Int) extends ScMidiMessage {
+  MidiRequirements.requireChannel(channel)
+  MidiRequirements.requireUnsigned7BitValue("value", value)
+
+  override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CHANNEL_PRESSURE, channel, value, 0)
+}
+
+object ScChannelPressureMidiMessage {
+  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
+    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CHANNEL_PRESSURE =>
+      Some((shortMessage.getChannel, shortMessage.getData1))
+    case _ => None
+  }
+}
+
+case class ScPolyPressureMidiMessage(channel: Int, midiNote: MidiNote, value: Int) extends ScMidiMessage {
+  MidiRequirements.requireChannel(channel)
+  midiNote.assertValid()
+  MidiRequirements.requireUnsigned7BitValue("value", value)
+
+  override lazy val javaMidiMessage: ShortMessage =
+    new ShortMessage(ShortMessage.POLY_PRESSURE, channel, midiNote.number, value)
+}
+
+object ScPolyPressureMidiMessage {
+  def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
+    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.POLY_PRESSURE =>
+      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
+    case _ => None
+  }
 }
 
 object MidiRequirements {

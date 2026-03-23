@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -101,5 +101,72 @@ class ScCcMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "be converted to a MidiMessage" in {
     ScCcMidiMessage(channel, number, pitchBendValue).javaMidiMessage.getMessage should equal(javaMidiMessage.getMessage)
+  }
+}
+
+class ScChannelPressureMidiMessageTest extends AnyFlatSpec with Matchers {
+  private val channel = 3
+  private val pressure = 100
+  private val javaMessage: MidiMessage = new ShortMessage(ShortMessage.CHANNEL_PRESSURE, channel, pressure, 0)
+
+  behavior of "ScChannelPressureMidiMessage"
+
+  it should "create correct Java MIDI message" in {
+    val msg = ScChannelPressureMidiMessage(channel, pressure)
+    msg.javaMidiMessage.getMessage should equal(javaMessage.getMessage)
+  }
+
+  it should "be extracted from a valid Channel Pressure message" in {
+    inside(javaMessage) {
+      case ScChannelPressureMidiMessage(`channel`, `pressure`) => succeed
+    }
+  }
+
+  it should "return None for non-Channel-Pressure messages" in {
+    val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, channel, 60, 100)
+    ScChannelPressureMidiMessage.unapply(noteOn) shouldBe None
+  }
+
+  it should "reject invalid channel" in {
+    an[IllegalArgumentException] should be thrownBy ScChannelPressureMidiMessage(16, pressure)
+  }
+
+  it should "reject invalid value" in {
+    an[IllegalArgumentException] should be thrownBy ScChannelPressureMidiMessage(channel, 128)
+    an[IllegalArgumentException] should be thrownBy ScChannelPressureMidiMessage(channel, -1)
+  }
+}
+
+class ScPolyPressureMidiMessageTest extends AnyFlatSpec with Matchers {
+  private val channel = 5
+  private val noteNumber: Int = 64
+  private val pressure = 80
+  private val javaMessage: MidiMessage = new ShortMessage(ShortMessage.POLY_PRESSURE, channel, noteNumber, pressure)
+
+  behavior of "ScPolyPressureMidiMessage"
+
+  it should "create correct Java MIDI message" in {
+    val msg = ScPolyPressureMidiMessage(channel, noteNumber, pressure)
+    msg.javaMidiMessage.getMessage should equal(javaMessage.getMessage)
+  }
+
+  it should "be extracted from a valid Poly Pressure message" in {
+    inside(javaMessage) {
+      case ScPolyPressureMidiMessage(`channel`, midiNote, `pressure`) => midiNote.number should equal(noteNumber)
+    }
+  }
+
+  it should "return None for non-Poly-Pressure messages" in {
+    val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, channel, 60, 100)
+    ScPolyPressureMidiMessage.unapply(noteOn) shouldBe None
+  }
+
+  it should "reject invalid channel" in {
+    an[IllegalArgumentException] should be thrownBy ScPolyPressureMidiMessage(16, noteNumber, pressure)
+  }
+
+  it should "reject invalid value" in {
+    an[IllegalArgumentException] should be thrownBy ScPolyPressureMidiMessage(channel, noteNumber, 128)
+    an[IllegalArgumentException] should be thrownBy ScPolyPressureMidiMessage(channel, noteNumber, -1)
   }
 }
