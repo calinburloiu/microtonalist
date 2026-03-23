@@ -4,7 +4,8 @@
 
 Implement `MpeTuner`, a `Tuner` that uses MIDI Polyphonic Expression (MPE) to apply microtonal tunings to polyphonic
 MIDI streams. The design follows the [MPE Tuner paper](../../docs/tuner/mpe-tuner-paper.md), which details dual-group
-channel partitioning, the pitch-class invariant, note dropping, and non-MPE to MPE conversion.
+channel partitioning, the pitch-class invariant, note dropping, and non-MPE to MPE conversion. The paper references the
+[MPE specification](../../docs/tuner/mpe-spec.md) for details.
 
 Update `JsonTunerPluginFormat` to support serialization/deserialization of `MpeTuner`.
 
@@ -368,3 +369,5 @@ Each step follows Red-Green-Refactor:
    bend computation → dropping → MPE input → worked examples), implement after each group.
 5. **JsonTunerPluginFormat** — write tests for MpeTuner JSON format, then implement.
 6. **Integration review** — ensure all tests pass, review edge cases.
+
+After each step, if all tests pass, commit changes in Git and move on to the next step.
