@@ -19,8 +19,9 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
-import play.api.libs.functional.syntax.toFunctionalBuilderOps
+import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*
+import play.api.libs.json.Reads.{max, min}
 
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
@@ -50,14 +51,10 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   private val defaultMasterPbs = MpeZone.DefaultMasterPitchBendSensitivity
   private val defaultMemberPbs = MpeZone.DefaultMemberPitchBendSensitivity
 
-  private val memberCountFormat: Format[Int] = Format(
-    Reads[Int] {
-      case JsNumber(n) if n.isValidInt && n.intValue >= 0 && n.intValue <= 15 => JsSuccess(n.intValue)
-      case JsNumber(_) => JsError("error.expected.memberCount")
-      case _ => JsError("error.expected.jsnumber")
-    },
-    Writes.IntWrites
-  )
+  private val memberCountFormat: Format[Int] = {
+    val reads = __.read[Int](min(0) keepAnd max(15))
+    Format(reads, Writes.IntWrites)
+  }
 
   private implicit val inputModeFormat: Format[MpeInputMode] = Format(
     Reads[MpeInputMode] {

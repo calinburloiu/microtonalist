@@ -22,12 +22,9 @@ import org.calinburloiu.music.scmidi.*
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
 
-sealed trait MpeInputMode
-
-object MpeInputMode {
-  case object NonMpe extends MpeInputMode
-
-  case object Mpe extends MpeInputMode
+enum MpeInputMode {
+  case NonMpe
+  case Mpe
 }
 
 /**
@@ -37,7 +34,7 @@ object MpeInputMode {
  * @param inputMode Non-MPE or MPE input mode.
  */
 class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
-               var inputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {
+               val inputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {
 
   override val typeName: String = MpeTuner.TypeName
 

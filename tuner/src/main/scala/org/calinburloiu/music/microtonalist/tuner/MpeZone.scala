@@ -18,12 +18,9 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.PitchBendSensitivity
 
-sealed trait MpeZoneType
-
-object MpeZoneType {
-  case object Lower extends MpeZoneType
-
-  case object Upper extends MpeZoneType
+enum MpeZoneType {
+  case Lower
+  case Upper
 }
 
 case class MpeZone(zoneType: MpeZoneType,
@@ -45,12 +42,11 @@ case class MpeZone(zoneType: MpeZoneType,
 
   val isEnabled: Boolean = memberCount > 0
 
-  val expressionGroupSize: Int = {
-    if (memberCount == 0) 0
-    else if (memberCount == 1) 0
-    else if (memberCount == 2) 1
-    else if (memberCount <= 9) 2
-    else 3
+  val expressionGroupSize: Int = memberCount match {
+    case n if n >= 10 => 3
+    case n if 3 <= n && n < 10 => 2
+    case 2 => 1
+    case _ => 0
   }
 
   val pitchClassGroupSize: Int = memberCount - expressionGroupSize

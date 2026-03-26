@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchClass, ScPitchBendMidiMessage}
+import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessage}
 
 import scala.collection.mutable
 
@@ -260,30 +260,32 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   private def freeChannel(incomingNote: MidiNote): Seq[DroppedNote] = {
     val occupiedChannels = channelStates.values.filter(_.notes.nonEmpty).toSeq
-    if (occupiedChannels.isEmpty) return Seq.empty
-
-    // Find highest and lowest pitched notes across all channels
-    val allNotes = occupiedChannels.flatMap(s => s.notes.map(n => (s, n)))
-    val highestNote = allNotes.maxBy(_._2.midiNote.number)._2.midiNote.number
-    val lowestNote = allNotes.minBy(_._2.midiNote.number)._2.midiNote.number
-
-    // Exclude channels with highest or lowest pitched notes
-    val candidates = occupiedChannels.filterNot { s =>
-      s.notes.exists(n => n.midiNote.number == highestNote || n.midiNote.number == lowestNote)
-    }
-
-    val target = if (candidates.nonEmpty) {
-      candidates.minBy(_.lastOnsetTime)
+    if (occupiedChannels.isEmpty) {
+      Seq.empty
     } else {
-      // If all channels have boundary notes, pick the oldest
-      occupiedChannels.minBy(_.lastOnsetTime)
+      // Find highest and lowest pitched notes across all channels
+      val allNotes = occupiedChannels.flatMap(s => s.notes.map(n => (s, n)))
+      val highestNote = allNotes.maxBy(_._2.midiNote.number)._2.midiNote.number
+      val lowestNote = allNotes.minBy(_._2.midiNote.number)._2.midiNote.number
+
+      // Exclude channels with highest or lowest pitched notes
+      val candidates = occupiedChannels.filterNot { s =>
+        s.notes.exists(n => n.midiNote.number == highestNote || n.midiNote.number == lowestNote)
+      }
+
+      val target = if (candidates.nonEmpty) {
+        candidates.minBy(_.lastOnsetTime)
+      } else {
+        // If all channels have boundary notes, pick the oldest
+        occupiedChannels.minBy(_.lastOnsetTime)
+      }
+
+      val dropped = target.notes.map(n => DroppedNote(target.channel, n.midiNote)).toSeq
+      target.notes.clear()
+      target.pitchClass = None
+      target.group = None
+
+      dropped
     }
-
-    val dropped = target.notes.map(n => DroppedNote(target.channel, n.midiNote)).toSeq
-    target.notes.clear()
-    target.pitchClass = None
-    target.group = None
-
-    dropped
   }
 }

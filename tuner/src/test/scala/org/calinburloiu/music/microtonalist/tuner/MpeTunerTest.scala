@@ -22,21 +22,13 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
-import scala.collection.mutable
 
 class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
 
   private val defaultPbs = PitchBendSensitivity(48)
   private val masterPbs = PitchBendSensitivity(2)
 
-  private val C4: MidiNote = MidiNote.C4
-  private val D4: MidiNote = MidiNote.C4 + 2
-  private val E4: MidiNote = MidiNote.C4 + 4
-  private val F4: MidiNote = MidiNote.C4 + 5
-  private val G4: MidiNote = MidiNote.C4 + 7
-  private val A4: MidiNote = MidiNote.C4 + 9
-  private val B4: MidiNote = MidiNote.C4 + 11
-  private val C5: MidiNote = MidiNote.C4 + 12
+  import MidiNote.{A4, C4, C5, D4, E4, G4}
 
   private val inputChannel = 0
 
