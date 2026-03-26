@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessage}
 
 import scala.collection.mutable
+import scala.util.boundary
 
 case class ActiveNote(midiNote: MidiNote,
                       var expressivePitchBend: Int = 0,
@@ -69,7 +70,7 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   def allocate(midiNote: MidiNote,
                expressivePitchBend: Int = 0,
-               preferredChannel: Option[Int] = None): AllocationResult = {
+               preferredChannel: Option[Int] = None): AllocationResult = boundary {
     val pc = midiNote.pitchClass
     val time = nextTime()
 
@@ -85,11 +86,11 @@ class MpeChannelAllocator(val zone: MpeZone,
 
           if (s.notes.isEmpty && !pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize &&
             canUsePitchClassGroup) {
-            return doAllocate(s, midiNote, expressivePitchBend, time, PitchClassGroupTag)
+            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, PitchClassGroupTag))
           } else if (s.notes.isEmpty && expressionGroupCount < zone.expressionGroupSize && canUseExpressionGroup) {
-            return doAllocate(s, midiNote, expressivePitchBend, time, ExpressionGroupTag)
+            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, ExpressionGroupTag))
           } else if (s.pitchClass.contains(pc)) {
-            return doAllocateShared(s, midiNote, expressivePitchBend, time)
+            boundary.break(doAllocateShared(s, midiNote, expressivePitchBend, time))
           }
         }
       }
@@ -103,7 +104,7 @@ class MpeChannelAllocator(val zone: MpeZone,
       }
       if (unoccupiedPCG.nonEmpty) {
         val target = unoccupiedPCG.minBy(_.channel)
-        return doAllocate(target, midiNote, expressivePitchBend, time, PitchClassGroupTag)
+        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, PitchClassGroupTag))
       }
     }
 
@@ -114,7 +115,7 @@ class MpeChannelAllocator(val zone: MpeZone,
       }
       if (unoccupiedEG.nonEmpty) {
         val target = unoccupiedEG.minBy(_.channel)
-        return doAllocate(target, midiNote, expressivePitchBend, time, ExpressionGroupTag)
+        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, ExpressionGroupTag))
       }
     }
 
@@ -122,7 +123,7 @@ class MpeChannelAllocator(val zone: MpeZone,
     val samePcChannels = channelStates.values.filter(s => s.notes.nonEmpty && s.pitchClass.contains(pc)).toSeq
     if (samePcChannels.nonEmpty) {
       val target = bestSharingCandidate(samePcChannels)
-      return doAllocateShared(target, midiNote, expressivePitchBend, time)
+      boundary.break(doAllocateShared(target, midiNote, expressivePitchBend, time))
     }
 
     // Step 4: No channel with same pitch class and all channels occupied -> free a channel
