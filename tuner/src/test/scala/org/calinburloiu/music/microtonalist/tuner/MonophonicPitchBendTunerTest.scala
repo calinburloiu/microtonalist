@@ -51,7 +51,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   private val customTuning2 = Tuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
-  noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4 until MidiNote.C5
+    noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4.number until MidiNote.C5.number
 
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] =
@@ -120,7 +120,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   behavior of "MonophonicPitchBendTuner after initialization"
 
   it should "tune all notes in 12-EDO by not sending any pitch bend" in new Fixture {
-    for (note <- MidiNote.C4 to MidiNote.C5) {
+    for (note <- MidiNote.C4.number to MidiNote.C5.number) {
       output ++= sendNote(note)
     }
 
@@ -187,7 +187,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     // Use a microtonal tuning such that pitch bend messages are also send
     output ++= tuner.tune(customTuning2)
 
-    for (note <- MidiNote.C4 to MidiNote.C5; channel = note % 12) {
+    for (note <- MidiNote.C4.number to MidiNote.C5.number; channel = note % 12) {
       output ++= sendNote(note, channel)
     }
 
@@ -552,7 +552,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     it should s"play a scale with microtonal notes when pitch bend sensitivity is $pbsString" in new Fixture(pbs) {
       tuner.tune(customTuning)
 
-      for (note <- MidiNote.C4 until MidiNote.C5) {
+      for (note <- MidiNote.C4.number until MidiNote.C5.number) {
         output ++= sendNote(note)
       }
 

@@ -16,42 +16,34 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchClass, ScPitchBendMidiMessage}
+import org.calinburloiu.music.scmidi.MidiNote
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
 
   // Lower Zone with 15 members: PCG=12, EG=3, channels 1..15
-  private def allocator15: MpeChannelAllocator =
-    new MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15))
+  private def allocator15: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15))
 
   // Lower Zone with 7 members: PCG=5, EG=2, channels 1..7
-  private def allocator7: MpeChannelAllocator =
-    new MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 7))
+  private def allocator7: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 7))
 
   // Lower Zone with 3 members: PCG=1, EG=2, channels 1..3
-  private def allocator3: MpeChannelAllocator =
-    new MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 3))
+  private def allocator3: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 3))
 
   // Lower Zone with 2 members: PCG=1, EG=1, channels 1..2
-  private def allocator2: MpeChannelAllocator =
-    new MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 2))
+  private def allocator2: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 2))
 
   // Lower Zone with 1 member: PCG=1, EG=0, channels 1..1
-  private def allocator1: MpeChannelAllocator =
-    new MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 1))
+  private def allocator1: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 1))
 
-  private val C4: MidiNote = MidiNote.C4 // 60
-  private val D4: MidiNote = MidiNote.C4 + 2 // 62
-  private val E4: MidiNote = MidiNote.C4 + 4 // 64
-  private val F4: MidiNote = MidiNote.C4 + 5 // 65
-  private val G4: MidiNote = MidiNote.C4 + 7 // 67
-  private val A4: MidiNote = MidiNote.C4 + 9 // 69
-  private val B4: MidiNote = MidiNote.C4 + 11 // 71
-  private val C5: MidiNote = MidiNote.C4 + 12 // 72
+  import MidiNote.{A4, B4, C4, C5, D4, E4, F4, G4}
 
-  // High pitch bend value (> 50 cents with 48 semitone sensitivity)
+  private val C3: MidiNote = C4 - 12
+  private val C6: MidiNote = C5 + 12
+  private val C7: MidiNote = C5 + 24
+
+  // High pitch bend value (> 50 cents with 48 semitones sensitivity)
   // 50 cents / (48*100 cents) * 8191 ≈ 85.3, so use 100
   private val highPitchBend: Int = 200
   private val lowPitchBend: Int = 50
@@ -65,7 +57,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val result = alloc.allocate(C4)
     result.droppedNotes shouldBe empty
     alloc.isInPitchClassGroup(result.channel) shouldBe true
-    alloc.activeNotes(result.channel).map(_.midiNote) should contain(C4)
+    alloc.activeNotes(result.channel).map(_.midiNote) should contain theSameElementsAs Seq(C4)
   }
 
   it should "allocate notes with distinct pitch classes to their own Pitch Class Group channels" in {
@@ -118,15 +110,16 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
     // Both groups full for pitch class C, third note must share
-    val r3 = alloc.allocate(MidiNote(48)) // C3, same pitch class
+    val r3 = alloc.allocate(C3) // same pitch class
     (r3.channel == r1.channel || r3.channel == r2.channel) shouldBe true
+    r1.channel should not equal r2.channel
   }
 
   it should "allocate third note with same pitch class to another Expression Group channel when available" in {
     val alloc = allocator15 // EG=3
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48)) // C3
+    val r3 = alloc.allocate(C3)
     Set(r1.channel, r2.channel, r3.channel).size shouldBe 3
     alloc.isInPitchClassGroup(r1.channel) shouldBe true
     alloc.isInExpressionGroup(r2.channel) shouldBe true
@@ -150,61 +143,61 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator3 // PCG=1, EG=2, channels 1..3
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48)) // C3
+    val r3 = alloc.allocate(C3)
     // All 3 channels occupied, 4th C note must share
-    val r4 = alloc.allocate(MidiNote(84)) // C6
+    val r4 = alloc.allocate(C6)
     Set(r1.channel, r2.channel, r3.channel) should contain(r4.channel)
   }
 
   it should "prefer channel with lowest active note count when sharing" in {
-    val alloc = allocator3 // PCG=1, EG=2
+    val alloc = allocator2 // PCG=1, EG=1
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48)) // C3
+    val r3 = alloc.allocate(C3)
     // Add another note to r1's channel
-    alloc.allocate(MidiNote(84)) // C6 - goes to channel with fewest notes
-    // r2 and r3 channels each have 1 note, r1 might have 1 too
-    // The allocator should pick the one with lowest count
-    alloc.activeChannelCount shouldBe 3
+    alloc.allocate(C6) // goes to channel with fewest notes
+    alloc.activeChannelCount shouldBe 2
+    alloc.activeNotes(r1.channel).size shouldEqual 2
+    alloc.activeNotes(r2.channel).size shouldEqual 2
   }
 
   it should "prefer channel with oldest last Note Off when note counts are equal" in {
     val alloc = allocator3 // PCG=1, EG=2
     val r1 = alloc.allocate(C4) // ch, time=1
     val r2 = alloc.allocate(C5) // ch, time=2
-    val r3 = alloc.allocate(MidiNote(48)) // ch, time=3
+    val r3 = alloc.allocate(C3) // ch, time=3
 
     // Release r2 first (gets older Note Off time), then r3
     alloc.release(C5, r2.channel)
     val ch2 = r2.channel
-    alloc.release(MidiNote(48), r3.channel)
+    alloc.release(C3, r3.channel)
     val ch3 = r3.channel
 
     // Re-add notes to those channels
     val r2b = alloc.allocate(C5) // goes to ch2 (older note off)
-    val r3b = alloc.allocate(MidiNote(48)) // goes to ch3
+    val r3b = alloc.allocate(C3) // goes to ch3
 
     // All channels have 1 note each. r1 never had a Note Off (lastNoteOffTime=0),
     // ch2 had the oldest Note Off. Among equal note counts, prefer oldest Note Off.
-    val r4 = alloc.allocate(MidiNote(84)) // C6
+    val r4 = alloc.allocate(C6)
     // r1 has lastNoteOffTime=0 (never released), which is the oldest/smallest
     r4.channel shouldBe r1.channel
   }
 
-  it should "share in Pitch Class Group when Expression Group is full but PCG has same pitch class" in {
+  it should "share when Expression Group is full but PCG has same pitch class" in {
     val alloc = allocator7 // PCG=5, EG=2
     // Put C in PCG
     val r1 = alloc.allocate(C4)
     // Put C in EG (2 channels)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48))
+    val r3 = alloc.allocate(C3)
     // Fill remaining PCG with other pitch classes
     alloc.allocate(D4)
     alloc.allocate(E4)
     alloc.allocate(F4)
     alloc.allocate(G4)
     // EG is full, PCG has C on r1's channel. New C should share with existing C channel
-    val r4 = alloc.allocate(MidiNote(84)) // C6
+    val r4 = alloc.allocate(C6)
     val cChannels = Set(r1.channel, r2.channel, r3.channel)
     cChannels should contain(r4.channel)
   }
@@ -242,9 +235,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.allocate(G4) // highest
     val result = alloc.allocate(A4)
     // E4 channel should be freed (not C4 or G4)
-    result.droppedNotes.map(_.midiNote) should contain(E4)
-    result.droppedNotes.map(_.midiNote) should not contain C4
-    result.droppedNotes.map(_.midiNote) should not contain G4
+    result.droppedNotes.map(_.midiNote) should contain theSameElementsAs Seq(E4)
   }
 
   it should "select channel with oldest last onset among remaining candidates" in {
@@ -254,10 +245,10 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.allocate(B4) // newest onset, also highest
     // C4 is lowest, B4 is highest. E4 is the only candidate.
     val result = alloc.allocate(A4)
-    result.droppedNotes.map(_.midiNote) should contain(E4)
+    result.droppedNotes.map(_.midiNote) should contain theSameElementsAs Seq(E4)
   }
 
-  it should "send Note Off for freed channel's notes before new note is assigned" in {
+  it should "assign the new note to the freed channel" in {
     val alloc = allocator3
     alloc.allocate(C4)
     alloc.allocate(E4)
@@ -276,9 +267,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator3 // PCG=1, EG=2
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48))
+    val r3 = alloc.allocate(C3)
     // All channels have C. Add another C to share
-    val r4 = alloc.allocate(MidiNote(84))
+    val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
     // Now update pitch bend on shared channel to high value
     val dropped = alloc.updateExpressivePitchBend(sharedChannel, highPitchBend)
@@ -290,8 +281,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator3
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48))
-    val r4 = alloc.allocate(MidiNote(84))
+    val r3 = alloc.allocate(C3)
+    val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
     val dropped = alloc.updateExpressivePitchBend(sharedChannel, lowPitchBend)
     dropped shouldBe empty
@@ -302,7 +293,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.allocate(C4)
     alloc.allocate(C5)
     // Both channels occupied with C. Third C must share.
-    val result = alloc.allocate(MidiNote(48), expressivePitchBend = highPitchBend)
+    val result = alloc.allocate(C3, expressivePitchBend = highPitchBend)
     result.droppedNotes should not be empty
     alloc.activeNotes(result.channel).size shouldBe 1
   }
@@ -311,7 +302,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator2
     alloc.allocate(C4)
     alloc.allocate(C5)
-    val result = alloc.allocate(MidiNote(48), expressivePitchBend = lowPitchBend)
+    val result = alloc.allocate(C3, expressivePitchBend = lowPitchBend)
     result.droppedNotes shouldBe empty
   }
 
@@ -320,7 +311,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r1 = alloc.allocate(C4, expressivePitchBend = highPitchBend)
     alloc.allocate(C5)
     // Third C must share. r1 has high bend.
-    val result = alloc.allocate(MidiNote(48))
+    val result = alloc.allocate(C3)
     if (result.channel == r1.channel) {
       result.droppedNotes.map(_.midiNote) should contain(C4)
     }
@@ -330,7 +321,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator2
     alloc.allocate(C4, expressivePitchBend = lowPitchBend)
     alloc.allocate(C5)
-    val result = alloc.allocate(MidiNote(48))
+    val result = alloc.allocate(C3)
     result.droppedNotes shouldBe empty
   }
 
@@ -338,8 +329,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator3
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    val r3 = alloc.allocate(MidiNote(48))
-    val r4 = alloc.allocate(MidiNote(84))
+    val r3 = alloc.allocate(C3)
+    val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
     alloc.updateExpressivePitchBend(sharedChannel, highPitchBend)
     alloc.activeNotes(sharedChannel).size shouldBe 1
@@ -362,11 +353,11 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   it should "keep channel occupied until all notes receive Note Off" in {
     val alloc = allocator2 // PCG=1, EG=1
     val r1 = alloc.allocate(C4)
-    alloc.allocate(C5) // shares or goes to EG
-    val r2 = alloc.allocate(MidiNote(48)) // C3, must share
+    alloc.allocate(C5) // goes to EG
+    val r2 = alloc.allocate(C3) // must share
     val sharedChannel = r2.channel
     if (alloc.activeNotes(sharedChannel).size > 1) {
-      alloc.release(MidiNote(48), sharedChannel)
+      alloc.release(C3, sharedChannel)
       alloc.isChannelOccupied(sharedChannel) shouldBe true
     }
   }

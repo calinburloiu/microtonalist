@@ -91,21 +91,21 @@ class MpeZoneTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChec
     //@formatter:off
     val table = Table(
       ("n", "expectedPitchClassGroupSize", "expectedExpressionGroupSize"),
-      (1,   1,  0),
-      (2,   1,  1),
-      (3,   1,  2),
-      (4,   2,  2),
-      (5,   3,  2),
-      (6,   4,  2),
-      (7,   5,  2),
-      (8,   6,  2),
-      (9,   7,  2),
-      (10,  7,  3),
-      (11,  8,  3),
-      (12,  9,  3),
-      (13,  10, 3),
-      (14,  11, 3),
-      (15,  12, 3)
+      (1,   1,                             0),
+      (2,   1,                             1),
+      (3,   1,                             2),
+      (4,   2,                             2),
+      (5,   3,                             2),
+      (6,   4,                             2),
+      (7,   5,                             2),
+      (8,   6,                             2),
+      (9,   7,                             2),
+      (10,  7,                             3),
+      (11,  8,                             3),
+      (12,  9,                             3),
+      (13,  10,                            3),
+      (14,  11,                            3),
+      (15,  12,                            3)
     )
     //@formatter:on
 

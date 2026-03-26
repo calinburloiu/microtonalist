@@ -102,7 +102,29 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
     (__ \ "altTuningOutput" \ "vendor", AllowedTypes(JsonStringType), "error.expected.jsstring")
   )
 
-  // --- MpeTuner JSON plugin format ---
+  for ((typeName, tuner, defaultTuner) <- mtsTunersTestTable) {
+    val tunerClassName = tuner.getClass.getSimpleName
+    val mtsTunerJson = Json.obj("type" -> typeName) ++ mtsTunerCommonJson
+
+    behavior of s"$tunerClassName JSON plugin format"
+
+    it should s"deserialize with default value" in {
+      assertReads(reads, JsString(typeName), defaultTuner)
+      assertReads(reads, Json.obj("type" -> typeName), defaultTuner)
+    }
+
+    it should s"deserialize" in {
+      assertReads(reads, mtsTunerJson, tuner)
+    }
+
+    it should s"fail to deserialize from invalid JSON" in {
+      assertReadsFailureTable(reads, mtsTunerJson, mtsTunerFailureTable)
+    }
+
+    it should s"serialize" in {
+      jsonPluginFormat.writes.writes(tuner) shouldEqual mtsTunerJson
+    }
+  }
 
   behavior of "MpeTuner JSON plugin format"
 
@@ -274,29 +296,5 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
       "lower" -> Json.obj("memberCount" -> 10),
       "upper" -> Json.obj("memberCount" -> 10)))
     reads.reads(json) shouldBe a[JsError]
-  }
-
-  for ((typeName, tuner, defaultTuner) <- mtsTunersTestTable) {
-    val tunerClassName = tuner.getClass.getSimpleName
-    val mtsTunerJson = Json.obj("type" -> typeName) ++ mtsTunerCommonJson
-
-    behavior of s"$tunerClassName JSON plugin format"
-
-    it should s"deserialize with default value" in {
-      assertReads(reads, JsString(typeName), defaultTuner)
-      assertReads(reads, Json.obj("type" -> typeName), defaultTuner)
-    }
-
-    it should s"deserialize" in {
-      assertReads(reads, mtsTunerJson, tuner)
-    }
-
-    it should s"fail to deserialize from invalid JSON" in {
-      assertReadsFailureTable(reads, mtsTunerJson, mtsTunerFailureTable)
-    }
-
-    it should s"serialize" in {
-      jsonPluginFormat.writes.writes(tuner) shouldEqual mtsTunerJson
-    }
   }
 }

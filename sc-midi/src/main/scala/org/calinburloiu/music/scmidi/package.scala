@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -47,26 +47,26 @@ package object scmidi {
     val Lowest: Int = 0
     val Highest: Int = 127
 
-    val C4: Int = 60
-    val CSharp4: Int = 61
-    val DFlat4: Int = 61
-    val D4: Int = 62
-    val DSharp4: Int = 63
-    val EFlat4: Int = 63
-    val E4: Int = 64
-    val F4: Int = 65
-    val FSharp4: Int = 66
-    val GFlat4: Int = 66
-    val G4: Int = 67
-    val GSharp4: Int = 68
-    val AFlat4: Int = 68
-    val A4: Int = 69
-    val ASharp4: Int = 70
-    val BFlat4: Int = 70
-    val B4: Int = 71
-    val C5: Int = 72
+    val C4: MidiNote = 60
+    val CSharp4: MidiNote = 61
+    val DFlat4: MidiNote = 61
+    val D4: MidiNote = 62
+    val DSharp4: MidiNote = 63
+    val EFlat4: MidiNote = 63
+    val E4: MidiNote = 64
+    val F4: MidiNote = 65
+    val FSharp4: MidiNote = 66
+    val GFlat4: MidiNote = 66
+    val G4: MidiNote = 67
+    val GSharp4: MidiNote = 68
+    val AFlat4: MidiNote = 68
+    val A4: MidiNote = 69
+    val ASharp4: MidiNote = 70
+    val BFlat4: MidiNote = 70
+    val B4: MidiNote = 71
+    val C5: MidiNote = 72
 
-    val ConcertPitch: Int = 69
+    val ConcertPitch: Int = A4
 
     def apply(pitchClass: PitchClass, octave: Int): MidiNote = {
       require(octave >= -1 && (octave < 9 || octave == 9 && pitchClass <= 7),
