@@ -21,10 +21,10 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessa
 import scala.collection.mutable
 import scala.util.boundary
 
-case class ActiveNote(midiNote: MidiNote,
-                      var expressivePitchBend: Int = 0,
-                      var channelPressure: Int = 0,
-                      var slide: Int = 64)
+class ActiveNote(val midiNote: MidiNote,
+                 var expressivePitchBend: Int = 0,
+                 var channelPressure: Int = 0,
+                 var slide: Int = 64)
 
 case class DroppedNote(channel: Int, midiNote: MidiNote)
 
@@ -40,7 +40,7 @@ case class AllocationResult(channel: Int, droppedNotes: Seq[DroppedNote] = Seq.e
 class MpeChannelAllocator(val zone: MpeZone,
                           expressionPitchBendThresholdCents: Double = 50.0) {
 
-  private case class ChannelState(channel: Int) {
+  private class ChannelState(val channel: Int) {
     val notes: mutable.Buffer[ActiveNote] = mutable.Buffer.empty
     var pitchClass: Option[PitchClass] = None
     var group: Option[ChannelGroup] = None
