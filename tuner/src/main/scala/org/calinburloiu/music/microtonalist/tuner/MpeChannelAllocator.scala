@@ -40,6 +40,8 @@ case class AllocationResult(channel: Int, droppedNotes: Seq[DroppedNote] = Seq.e
 class MpeChannelAllocator(val zone: MpeZone,
                           expressionPitchBendThresholdCents: Double = 50.0) {
 
+  import MpeChannelAllocator.*
+
   private class ChannelState(val channel: Int) {
     val notes: mutable.Buffer[ActiveNote] = mutable.Buffer.empty
     var pitchClass: Option[PitchClass] = None
@@ -47,12 +49,6 @@ class MpeChannelAllocator(val zone: MpeZone,
     var lastOnsetTime: Long = 0L
     var lastNoteOffTime: Long = 0L
   }
-
-  private sealed trait ChannelGroup
-
-  private case object PitchClassGroupTag extends ChannelGroup
-
-  private case object ExpressionGroupTag extends ChannelGroup
 
   private val channelStates: Map[Int, ChannelState] =
     zone.memberChannels.map(ch => ch -> ChannelState(ch)).toMap
@@ -74,21 +70,21 @@ class MpeChannelAllocator(val zone: MpeZone,
     val pc = midiNote.pitchClass
     val time = nextTime()
 
-    // Try preferred channel first (MPE input mode)
+    // Try the preferred channel first (MPE input mode)
     preferredChannel.foreach { prefCh =>
       val state = channelStates.get(prefCh)
       state.foreach { s =>
         if (s.notes.isEmpty || s.pitchClass.contains(pc)) {
-          // Can use preferred channel if it doesn't violate constraints
-          val canUsePitchClassGroup = s.group.isEmpty || s.group.contains(PitchClassGroupTag)
-          val canUseExpressionGroup = s.group.isEmpty || s.group.contains(ExpressionGroupTag)
+          // Can use the preferred channel if it doesn't violate constraints
+          val canUsePitchClassGroup = s.group.isEmpty || s.group.contains(ChannelGroup.PitchClass)
+          val canUseExpressionGroup = s.group.isEmpty || s.group.contains(ChannelGroup.Expression)
           val pitchClassInPCG = pitchClassGroupChannels.exists(cs => cs.pitchClass.contains(pc) && cs.channel != prefCh)
 
           if (s.notes.isEmpty && !pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize &&
             canUsePitchClassGroup) {
-            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, PitchClassGroupTag))
+            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, ChannelGroup.PitchClass))
           } else if (s.notes.isEmpty && expressionGroupCount < zone.expressionGroupSize && canUseExpressionGroup) {
-            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, ExpressionGroupTag))
+            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, ChannelGroup.Expression))
           } else if (s.pitchClass.contains(pc)) {
             boundary.break(doAllocateShared(s, midiNote, expressivePitchBend, time))
           }
@@ -100,22 +96,22 @@ class MpeChannelAllocator(val zone: MpeZone,
     val pitchClassInPCG = pitchClassGroupChannels.exists(_.pitchClass.contains(pc))
     if (!pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize) {
       val unoccupiedPCG = unoccupiedChannels.filter { s =>
-        s.group.isEmpty || s.group.contains(PitchClassGroupTag)
+        s.group.isEmpty || s.group.contains(ChannelGroup.PitchClass)
       }
       if (unoccupiedPCG.nonEmpty) {
         val target = unoccupiedPCG.minBy(_.channel)
-        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, PitchClassGroupTag))
+        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, ChannelGroup.PitchClass))
       }
     }
 
     // Step 2: Try Expression Group
     if (expressionGroupCount < zone.expressionGroupSize) {
       val unoccupiedEG = unoccupiedChannels.filter { s =>
-        s.group.isEmpty || s.group.contains(ExpressionGroupTag)
+        s.group.isEmpty || s.group.contains(ChannelGroup.Expression)
       }
       if (unoccupiedEG.nonEmpty) {
         val target = unoccupiedEG.minBy(_.channel)
-        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, ExpressionGroupTag))
+        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, ChannelGroup.Expression))
       }
     }
 
@@ -129,7 +125,11 @@ class MpeChannelAllocator(val zone: MpeZone,
     // Step 4: No channel with same pitch class and all channels occupied -> free a channel
     val dropped = freeChannel(midiNote)
     val freedState = channelStates.values.find(s => s.notes.isEmpty).get
-    val group = if (pitchClassGroupCount < zone.pitchClassGroupSize) PitchClassGroupTag else ExpressionGroupTag
+    val group = if (pitchClassGroupCount < zone.pitchClassGroupSize) {
+      ChannelGroup.PitchClass
+    } else {
+      ChannelGroup.Expression
+    }
     val result = doAllocate(freedState, midiNote, expressivePitchBend, time, group)
     AllocationResult(result.channel, dropped ++ result.droppedNotes)
   }
@@ -187,20 +187,18 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   def isChannelOccupied(channel: Int): Boolean = channelStates(channel).notes.nonEmpty
 
-  def isInPitchClassGroup(channel: Int): Boolean = channelStates(channel).group.contains(PitchClassGroupTag)
-
-  def isInExpressionGroup(channel: Int): Boolean = channelStates(channel).group.contains(ExpressionGroupTag)
+  def channelGroupOf(channel: Int): ChannelGroup = channelStates(channel).group.get
 
   private def isHighExpressivePitchBend(pitchBend: Int): Boolean =
     Math.abs(pitchBend) > expressionPitchBendThreshold
 
   private def pitchClassGroupChannels: Iterable[ChannelState] =
-    channelStates.values.filter(_.group.contains(PitchClassGroupTag))
+    channelStates.values.filter(_.group.contains(ChannelGroup.PitchClass))
 
   private def pitchClassGroupCount: Int = pitchClassGroupChannels.size
 
   private def expressionGroupCount: Int =
-    channelStates.values.count(_.group.contains(ExpressionGroupTag))
+    channelStates.values.count(_.group.contains(ChannelGroup.Expression))
 
   private def unoccupiedChannels: Iterable[ChannelState] =
     channelStates.values.filter(_.notes.isEmpty)
@@ -288,5 +286,30 @@ class MpeChannelAllocator(val zone: MpeZone,
 
       dropped
     }
+  }
+}
+
+object MpeChannelAllocator {
+
+  /**
+   * Logical partitioning of Member Channels into two groups to manage note allocation while
+   * prioritizing intonation precision.
+   */
+  enum ChannelGroup {
+    /**
+     * Channels reserved for notes of distinct pitch classes. Within this group, no two occupied
+     * Channels may have active notes of the same pitch class. This group ensures that the Zone
+     * can accommodate as many distinct pitch classes as possible, each with an independently
+     * controllable tuning offset.
+     */
+    case PitchClass
+
+    /**
+     * Channels available for notes whose pitch class is already represented in the Pitch Class
+     * Group, or for notes that cannot be accommodated in the Pitch Class Group because all its
+     * channels are occupied. This group accommodates scenarios where multiple notes of the same
+     * pitch class must coexist with different expressive pitch bends.
+     */
+    case Expression
   }
 }

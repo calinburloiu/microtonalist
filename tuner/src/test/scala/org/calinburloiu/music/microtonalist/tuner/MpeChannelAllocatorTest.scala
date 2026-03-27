@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
 import org.calinburloiu.music.scmidi.MidiNote
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -56,7 +57,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator15
     val result = alloc.allocate(C4)
     result.droppedNotes shouldBe empty
-    alloc.isInPitchClassGroup(result.channel) shouldBe true
+    alloc.channelGroupOf(result.channel) shouldBe ChannelGroup.PitchClass
     alloc.activeNotes(result.channel).map(_.midiNote) should contain theSameElementsAs Seq(C4)
   }
 
@@ -68,9 +69,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     r1.channel should not equal r2.channel
     r2.channel should not equal r3.channel
     r1.channel should not equal r3.channel
-    alloc.isInPitchClassGroup(r1.channel) shouldBe true
-    alloc.isInPitchClassGroup(r2.channel) shouldBe true
-    alloc.isInPitchClassGroup(r3.channel) shouldBe true
+    alloc.channelGroupOf(r1.channel) shouldBe ChannelGroup.PitchClass
+    alloc.channelGroupOf(r2.channel) shouldBe ChannelGroup.PitchClass
+    alloc.channelGroupOf(r3.channel) shouldBe ChannelGroup.PitchClass
   }
 
   it should "fill all 12 Pitch Class Group channels with distinct pitch classes (zone with 15 members)" in {
@@ -79,7 +80,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
       alloc.allocate(C4 + pc).channel
     }
     channels.distinct.size shouldBe 12
-    channels.foreach(ch => alloc.isInPitchClassGroup(ch) shouldBe true)
+    channels.foreach(ch => alloc.channelGroupOf(ch) shouldBe ChannelGroup.PitchClass)
   }
 
   it should "fill all Pitch Class Group channels with distinct pitch classes (zone with 7 members)" in {
@@ -89,7 +90,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
       alloc.allocate(C4 + pc).channel
     }
     channels.distinct.size shouldBe 5
-    channels.foreach(ch => alloc.isInPitchClassGroup(ch) shouldBe true)
+    channels.foreach(ch => alloc.channelGroupOf(ch) shouldBe ChannelGroup.PitchClass)
   }
 
   // --- 3.2 Expression Group Allocation ---
@@ -101,8 +102,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5) // same pitch class C
     r1.channel should not equal r2.channel
-    alloc.isInPitchClassGroup(r1.channel) shouldBe true
-    alloc.isInExpressionGroup(r2.channel) shouldBe true
+    alloc.channelGroupOf(r1.channel) shouldBe ChannelGroup.PitchClass
+    alloc.channelGroupOf(r2.channel) shouldBe ChannelGroup.Expression
   }
 
   it should "share channel when Expression Group has only one member and third note with same pitch class arrives" in {
@@ -121,9 +122,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r2 = alloc.allocate(C5)
     val r3 = alloc.allocate(C3)
     Set(r1.channel, r2.channel, r3.channel).size shouldBe 3
-    alloc.isInPitchClassGroup(r1.channel) shouldBe true
-    alloc.isInExpressionGroup(r2.channel) shouldBe true
-    alloc.isInExpressionGroup(r3.channel) shouldBe true
+    alloc.channelGroupOf(r1.channel) shouldBe ChannelGroup.PitchClass
+    alloc.channelGroupOf(r2.channel) shouldBe ChannelGroup.Expression
+    alloc.channelGroupOf(r3.channel) shouldBe ChannelGroup.Expression
   }
 
   it should "allocate note with new pitch class to Expression Group when Pitch Class Group is full" in {
@@ -132,7 +133,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     (0 until 5).foreach(pc => alloc.allocate(C4 + pc))
     // 6th distinct pitch class goes to EG
     val r = alloc.allocate(C4 + 5)
-    alloc.isInExpressionGroup(r.channel) shouldBe true
+    alloc.channelGroupOf(r.channel) shouldBe ChannelGroup.Expression
   }
 
   // --- 3.3 Channel Sharing ---
