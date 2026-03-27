@@ -168,7 +168,9 @@ For each Zone, the available Member Channels are logically partitioned into two 
 
 - **Expression Group**: Channels available for notes whose pitch class is already represented in the Pitch Class Group, or for notes that cannot be accommodated in the Pitch Class Group because all its channels are occupied. This group accommodates scenarios where multiple notes of the same pitch class must coexist with different expressive pitch bends—for example, when a note is bent away from its original pitch and a new note at that original pitch is initiated.
 
-Channels are not statically assigned to groups. Any unoccupied channel may be dynamically assigned to either group as notes are allocated. The group assignment of a channel is determined at the moment a note is placed on it and persists for the lifetime of that channel's occupancy.
+Unoccupied Member Channels are not considered to be part of any group. Group assignment occurs dynamically: any
+unoccupied channel may be assigned to either group as notes are allocated. The group assignment of a channel is
+determined at the moment a note is placed on it and persists for the lifetime of that channel's occupancy.
 
 ### 4.3 Group Size Allocation
 

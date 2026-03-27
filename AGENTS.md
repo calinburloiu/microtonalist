@@ -74,3 +74,46 @@ sbt "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
 * Lines have a maximum length of 120 characters.
 * Currently, we use IntelliJ IDEA for formatting code with the default settings.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
+
+## Use `enum`
+
+Use Scala 3 `enum` instead of `sealed trait` for simple enumerations.
+
+Wrong:
+
+```scala
+sealed trait MpeInputMode
+
+case object NonMpe extends MpeInputMode
+
+case object Mpe extends MpeInputMode
+```
+
+Correct:
+
+```scala
+enum MpeInputMode {
+  case NonMpe
+  case Mpe
+}
+```
+
+## Avoid `case class` for mutable data structures
+
+Avoid using case classes for data structures that expose mutable fields.
+
+Wrong:
+
+```scala
+case class ActiveNote(midiNote: MidiNote,
+                      var expressivePitchBend: Int = 0)
+```
+
+Correct:
+
+```scala
+class ActiveNote(val midiNote: MidiNote,
+                 var expressivePitchBend: Int = 0)
+```
+
+

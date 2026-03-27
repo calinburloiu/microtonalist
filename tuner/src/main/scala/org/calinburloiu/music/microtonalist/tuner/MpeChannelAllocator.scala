@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessage}
 
 import scala.collection.mutable
@@ -62,6 +63,14 @@ case class DroppedNote(channel: Int, midiNote: MidiNote)
  */
 case class AllocationResult(channel: Int, droppedNotes: Seq[DroppedNote] = Seq.empty)
 
+private class ChannelState(val channel: Int) {
+  val notes: mutable.Buffer[MutableActiveNote] = mutable.Buffer.empty
+  var pitchClass: Option[PitchClass] = None
+  var group: Option[ChannelGroup] = None
+  var lastOnsetTime: Long = 0L
+  var lastNoteOffTime: Long = 0L
+}
+
 /**
  * Manages channel allocation for a single MPE Zone following the dual-group allocation strategy.
  *
@@ -78,16 +87,7 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   import MpeChannelAllocator.*
 
-  private class ChannelState(val channel: Int) {
-    val notes: mutable.Buffer[MutableActiveNote] = mutable.Buffer.empty
-    var pitchClass: Option[PitchClass] = None
-    var group: Option[ChannelGroup] = None
-    var lastOnsetTime: Long = 0L
-    var lastNoteOffTime: Long = 0L
-  }
-
-  private val channelStates: Map[Int, ChannelState] =
-    zone.memberChannels.map(ch => ch -> ChannelState(ch)).toMap
+  private val channelStates: Map[Int, ChannelState] = zone.memberChannels.map(ch => ch -> ChannelState(ch)).toMap
 
   private var _time: Long = 0L
 
@@ -115,68 +115,32 @@ class MpeChannelAllocator(val zone: MpeZone,
     val pc = midiNote.pitchClass
     val time = nextTime()
 
-    // Try the preferred channel first (MPE input mode)
-    preferredChannel.foreach { prefCh =>
-      val state = channelStates.get(prefCh)
-      state.foreach { s =>
-        if (s.notes.isEmpty || s.pitchClass.contains(pc)) {
-          // Can use the preferred channel if it doesn't violate constraints
-          val canUsePitchClassGroup = s.group.isEmpty || s.group.contains(ChannelGroup.PitchClass)
-          val canUseExpressionGroup = s.group.isEmpty || s.group.contains(ChannelGroup.Expression)
-          val pitchClassInPCG = pitchClassGroupChannels.exists(cs => cs.pitchClass.contains(pc) && cs.channel != prefCh)
-
-          if (s.notes.isEmpty && !pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize &&
-            canUsePitchClassGroup) {
-            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, ChannelGroup.PitchClass))
-          } else if (s.notes.isEmpty && expressionGroupCount < zone.expressionGroupSize && canUseExpressionGroup) {
-            boundary.break(doAllocate(s, midiNote, expressivePitchBend, time, ChannelGroup.Expression))
-          } else if (s.pitchClass.contains(pc)) {
-            boundary.break(doAllocateShared(s, midiNote, expressivePitchBend, time))
-          }
-        }
-      }
-    }
-
     // Step 1: Check Pitch Class Group availability
     val pitchClassInPCG = pitchClassGroupChannels.exists(_.pitchClass.contains(pc))
     if (!pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize) {
-      val unoccupiedPCG = unoccupiedChannels.filter { s =>
-        s.group.isEmpty || s.group.contains(ChannelGroup.PitchClass)
-      }
-      if (unoccupiedPCG.nonEmpty) {
-        val target = unoccupiedPCG.minBy(_.channel)
-        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, ChannelGroup.PitchClass))
-      }
+      val target = bestCandidate(unoccupiedChannels.map(channelStates), preferredChannel)
+      boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, Some(ChannelGroup.PitchClass)))
     }
 
     // Step 2: Try Expression Group
     if (expressionGroupCount < zone.expressionGroupSize) {
-      val unoccupiedEG = unoccupiedChannels.filter { s =>
-        s.group.isEmpty || s.group.contains(ChannelGroup.Expression)
-      }
-      if (unoccupiedEG.nonEmpty) {
-        val target = unoccupiedEG.minBy(_.channel)
-        boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, ChannelGroup.Expression))
-      }
+      val target = bestCandidate(unoccupiedChannels.map(channelStates), preferredChannel)
+      boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, Some(ChannelGroup.Expression)))
     }
 
     // Step 3: Try sharing with same pitch class
-    val samePcChannels = channelStates.values.filter(s => s.notes.nonEmpty && s.pitchClass.contains(pc)).toSeq
+    val samePcChannels = channelStates.values.filter { s =>
+      s.notes.nonEmpty && s.pitchClass.contains(pc)
+    }.toSeq
     if (samePcChannels.nonEmpty) {
-      val target = bestSharingCandidate(samePcChannels)
-      boundary.break(doAllocateShared(target, midiNote, expressivePitchBend, time))
+      val target = bestCandidate(samePcChannels, preferredChannel)
+      boundary.break(doAllocate(target, midiNote, expressivePitchBend, time))
     }
 
     // Step 4: No channel with same pitch class and all channels occupied -> free a channel
     val dropped = freeChannel(midiNote)
-    val freedState = channelStates.values.find(s => s.notes.isEmpty).get
-    val group = if (pitchClassGroupCount < zone.pitchClassGroupSize) {
-      ChannelGroup.PitchClass
-    } else {
-      ChannelGroup.Expression
-    }
-    val result = doAllocate(freedState, midiNote, expressivePitchBend, time, group)
-    AllocationResult(result.channel, dropped ++ result.droppedNotes)
+    val result = allocate(midiNote, expressivePitchBend, preferredChannel)
+    result.copy(droppedNotes = dropped ++ result.droppedNotes)
   }
 
   /**
@@ -267,39 +231,48 @@ class MpeChannelAllocator(val zone: MpeZone,
   /**
    * Returns the group to which a channel is currently assigned.
    */
-  def channelGroupOf(channel: Int): ChannelGroup = channelStates(channel).group.get
+  def channelGroupOf(channel: Int): Option[ChannelGroup] = channelStates(channel).group
 
   private def isHighExpressivePitchBend(pitchBend: Int): Boolean =
     Math.abs(pitchBend) > expressionPitchBendThreshold
 
-  private def pitchClassGroupChannels: Iterable[ChannelState] =
-    channelStates.values.filter(_.group.contains(ChannelGroup.PitchClass))
+  private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
+    state.notes.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
+  }
+
+  private def pitchClassGroupChannels: Seq[ChannelState] =
+    channelStates.values.filter(_.group.contains(ChannelGroup.PitchClass)).toSeq
 
   private def pitchClassGroupCount: Int = pitchClassGroupChannels.size
 
   private def expressionGroupCount: Int =
     channelStates.values.count(_.group.contains(ChannelGroup.Expression))
 
-  private def unoccupiedChannels: Iterable[ChannelState] =
-    channelStates.values.filter(_.notes.isEmpty)
+  private def unoccupiedChannels: Seq[Int] = channelStates.values.filter(_.notes.isEmpty).map(_.channel).toSeq
 
-  private def doAllocate(state: ChannelState, midiNote: MidiNote, expressivePitchBend: Int,
-                         time: Long, group: ChannelGroup): AllocationResult = {
-    val note = new MutableActiveNote(midiNote, expressivePitchBend)
-    state.notes += note
-    state.pitchClass = Some(midiNote.pitchClass)
-    state.group = Some(group)
+  private def doAllocate(state: ChannelState,
+                         midiNote: MidiNote,
+                         expressivePitchBend: Int,
+                         time: Long,
+                         targetGroup: Option[ChannelGroup] = None): AllocationResult = {
+    val newNote = new MutableActiveNote(midiNote, expressivePitchBend)
+    val existingNotes = state.notes.toSeq
+
+    if (state.notes.isEmpty) {
+      state.pitchClass = Some(midiNote.pitchClass)
+      state.group = targetGroup
+    }
+    state.notes += newNote
     state.lastOnsetTime = time
 
     // Check if existing notes on this channel have high expressive pitch bend
     val dropped = if (state.notes.size > 1) {
-      val existingHighBend = state.notes.init.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
+      val existingHighBend = existingNotes.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
       val newHighBend = isHighExpressivePitchBend(expressivePitchBend)
       if (existingHighBend || newHighBend) {
-        val toDrop = state.notes.init.map(n => DroppedNote(state.channel, n.midiNote)).toSeq
-        val kept = state.notes.last
+        val toDrop = existingNotes.map(n => DroppedNote(state.channel, n.midiNote))
         state.notes.clear()
-        state.notes += kept
+        state.notes += newNote
         toDrop
       } else {
         Seq.empty
@@ -311,30 +284,13 @@ class MpeChannelAllocator(val zone: MpeZone,
     AllocationResult(state.channel, dropped)
   }
 
-  private def doAllocateShared(state: ChannelState, midiNote: MidiNote, expressivePitchBend: Int,
-                               time: Long): AllocationResult = {
-    val note = new MutableActiveNote(midiNote, expressivePitchBend)
-    state.notes += note
-    state.lastOnsetTime = time
-
-    // Check high expressive pitch bend rules
-    val existingHighBend = state.notes.init.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
-    val newHighBend = isHighExpressivePitchBend(expressivePitchBend)
-    val dropped = if (existingHighBend || newHighBend) {
-      val toDrop = state.notes.init.map(n => DroppedNote(state.channel, n.midiNote)).toSeq
-      val kept = state.notes.last
-      state.notes.clear()
-      state.notes += kept
-      toDrop
-    } else {
-      Seq.empty
+  private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState = {
+    preferredChannel match {
+      case Some(prefCh) if candidates.map(_.channel).contains(prefCh) => channelStates(prefCh)
+      case _ => candidates.minBy { s =>
+        (hasHighExpressivePitchBend(s), s.notes.size, s.lastNoteOffTime, s.lastOnsetTime, s.channel)
+      }
     }
-
-    AllocationResult(state.channel, dropped)
-  }
-
-  private def bestSharingCandidate(candidates: Seq[ChannelState]): ChannelState = {
-    candidates.minBy(s => (s.notes.size, s.lastNoteOffTime))
   }
 
   private def freeChannel(incomingNote: MidiNote): Seq[DroppedNote] = {

@@ -126,47 +126,51 @@ The following accessors are exposed for inspecting internal state, primarily use
 
 9. **When both groups are full, new note with existing pitch class shares channel with same pitch class (lowest note
    count, then oldest)**.
-10. **Tie-breaking: prefer channel with lowest active note count**.
-11. **Tie-breaking: among equal note counts, prefer channel with oldest last Note Off**.
-12. **When Expression Group is full and Pitch Class Group is not, new note with existing pitch class in the latter
-    group but not the former shares channel in Pitch Class Group (lowest note count, then oldest)**.
-13. **When both groups are full, new note with existing pitch class in Expression Group but not in Pitch Class Group
-    shares channel in Expression Group (lowest note count, then oldest)**. Note: this applies when Pitch Class Group
+10. **Tie-breaking: prefer channel without high expressive pitch bend**.
+11. **Tie-breaking: prefer channel with lowest active note count**.
+12. **Tie-breaking: among equal note counts, prefer channel with oldest last Note Off**.
+13. **Tie-breaking: if oldest last Note Off is equal, select the oldest channel (oldest last onset time)**.
+14. **When Expression Group is full and Pitch Class Group is not, new note with existing pitch class in the latter
+    group but not the former shares channel in Pitch Class Group (applying all tie-breaking criteria)**.
+15. **When both groups are full, new note with existing pitch class in Expression Group but not in Pitch Class Group
+    shares channel in Expression Group (applying all tie-breaking criteria)**. Note: this applies when Pitch Class Group
     has fewer than 12 Member Channels and all its occupied channels have pitch classes different from the new note's
     pitch class.
+16. **Selecting an unoccupied channel (PCG/EG) follows the same tie-breaking criteria (primarily oldest last Note Off
+    and oldest last onset time)**.
 
 #### 3.4 Note Dropping — Channel Exhaustion (Section 5.1)
 
-14. **When all channels occupied and new pitch class needs a channel, a channel is freed** — only applies when the zone
+17. **When all channels occupied and new pitch class needs a channel, a channel is freed** — only applies when the zone
     has fewer than 15 Member Channels and the new note's pitch class does not appear on any existing Member Channel.
-15. **Freed channel excludes highest-pitched and lowest-pitched note channels**.
-16. **Among remaining candidates, the channel with the oldest last onset is freed**.
-17. **Freed channel's notes receive Note Off before new note is assigned**.
+18. **Freed channel excludes highest-pitched and lowest-pitched note channels**.
+19. **Among remaining candidates, the channel with the oldest last onset is freed**.
+20. **Freed channel's notes receive Note Off before new note is assigned**.
 
 #### 3.5 Note Dropping — High Expressive Pitch Bend (Section 5.2)
 
-18. **When a note on a shared channel develops high expressive pitch bend (>50 cents), other notes on that channel are
+21. **When a note on a shared channel develops high expressive pitch bend (>50 cents), other notes on that channel are
     dropped**.
-19. **When a note on a shared channel has expressive pitch bend ≤50 cents, no notes are dropped** (below-threshold
-    variant of test 18).
-20. **New note with high expressive pitch bend assigned to occupied channel: existing notes are dropped (channel
+22. **When a note on a shared channel has expressive pitch bend ≤50 cents, no notes are dropped** (below-threshold
+    variant of test 21).
+23. **New note with high expressive pitch bend assigned to occupied channel: existing notes are dropped (channel
     freed)**.
-21. **New note with expressive pitch bend ≤50 cents assigned to occupied channel: no notes are dropped**
-    (below-threshold variant of test 20).
-22. **New note assigned to channel with existing high-bend note: channel is freed first**.
-23. **New note assigned to channel with existing note whose bend is ≤50 cents: channel is not freed**
-    (below-threshold variant of test 22).
-24. **A note with high expressive pitch bend is always sole note on its channel**.
+24. **New note with expressive pitch bend ≤50 cents assigned to occupied channel: no notes are dropped**
+    (below-threshold variant of test 23).
+25. **New note assigned to channel with existing high-bend note: channel is freed first**.
+26. **New note assigned to channel with existing note whose bend is ≤50 cents: channel is not freed**
+    (below-threshold variant of test 25).
+27. **A note with high expressive pitch bend is always sole note on its channel**.
 
 #### 3.6 Channel Release
 
-25. **Note Off makes channel available for reuse when all notes on it have ended**.
-26. **Channel with multiple notes remains occupied until all notes receive Note Off**.
+28. **Note Off makes channel available for reuse when all notes on it have ended**.
+29. **Channel with multiple notes remains occupied until all notes receive Note Off**.
 
 #### 3.7 MPE Input — Preserving Input Channel (Section 4.5)
 
-27. **MPE input: input channel assignment is preserved when it doesn't violate constraints**.
-28. **MPE input: input channel is overridden when it would violate pitch-class invariant**.
+30. **MPE input: input channel assignment is preserved when it doesn't violate constraints**.
+31. **MPE input: input channel is overridden when it would violate pitch-class invariant**.
 
 ---
 
