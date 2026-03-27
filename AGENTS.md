@@ -69,8 +69,8 @@ sbt "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
 
 # Coding Conventions
 
-The project uses the old classic brace Scala syntax, not the new indentation Scala 3 syntax.
-
-Indentation is done with 2 spaces, and lines have a maximum length of 120 characters.
-
-Currently, we use IntelliJ IDEA for formatting code with the default settings. 
+* The project uses the old classic brace Scala syntax, not the new indentation Scala 3 syntax.
+* Indentation is done with 2 spaces.
+* Lines have a maximum length of 120 characters.
+* Currently, we use IntelliJ IDEA for formatting code with the default settings.
+* All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.

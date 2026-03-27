@@ -23,6 +23,9 @@ import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps
 import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
 
+/**
+ * JSON format for [[Tuner]] plugins, supporting MPE, Monophonic Pitch Bend, and MTS tuners.
+ */
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
   import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.*

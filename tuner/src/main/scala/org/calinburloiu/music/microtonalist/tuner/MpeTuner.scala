@@ -22,16 +22,35 @@ import org.calinburloiu.music.scmidi.*
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
 
+/**
+ * Defines how incoming MIDI messages are interpreted before being processed by the [[MpeTuner]].
+ */
 enum MpeInputMode {
+  /**
+   * Conventional MIDI where all notes may arrive on a single channel or across channels
+   * without MPE Zone structure. This input is converted to MPE by redirecting
+   * Pitch Bend to the Master Channel and initializing control dimensions before Note On.
+   */
   case NonMpe
+
+  /**
+   * MIDI conforming to the MPE Specification, with notes already distributed across
+   * Member Channels within Zones.
+   */
   case Mpe
 }
 
 /**
  * Tuner that uses MIDI Polyphonic Expression (MPE) to apply microtonal tunings to polyphonic MIDI streams.
  *
- * @param zones     A pair of MpeZone instances (lower and upper).
- * @param inputMode Non-MPE or MPE input mode.
+ * The MPE Tuner leverages the MPE protocol's per-note pitch control to apply pitch-class-based
+ * tuning offsets via per-channel Pitch Bend messages. It supports real-time tuning changes
+ * by updating the Pitch Bend on all occupied Member Channels whenever the active Tuning
+ * is modified.
+ *
+ * @param zones     A pair of [[MpeZone]] instances representing the Lower and Upper Zones.
+ * @param inputMode Initial [[MpeInputMode]]. The tuner may switch to MPE mode automatically
+ *                  upon receiving an MPE Configuration Message.
  */
 class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
                val inputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {

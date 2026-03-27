@@ -21,17 +21,53 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessa
 import scala.collection.mutable
 import scala.util.boundary
 
-class ActiveNote(val midiNote: MidiNote,
-                 var expressivePitchBend: Int = 0,
-                 var channelPressure: Int = 0,
-                 var slide: Int = 64)
+/**
+ * Represents a note that is currently sounding on an MPE Member Channel.
+ */
+trait ActiveNote {
+  /** The MIDI note that was played. */
+  def midiNote: MidiNote
 
+  /** The expressive pitch bend value (excluding the tuning offset). */
+  def expressivePitchBend: Int
+
+  /** The MIDI Channel Pressure value. */
+  def channelPressure: Int
+
+  /** The MIDI CC #74 (Timbre/Slide) value. */
+  def slide: Int
+}
+
+/**
+ * Internal mutable implementation of [[ActiveNote]].
+ */
+private class MutableActiveNote(val midiNote: MidiNote,
+                                var expressivePitchBend: Int = 0,
+                                var channelPressure: Int = 0,
+                                var slide: Int = 64) extends ActiveNote
+
+/**
+ * Information about a note that was dropped to free a channel or maintain intonation.
+ *
+ * @param channel  The 0-indexed MIDI channel from which the note was dropped.
+ * @param midiNote The MIDI note that was dropped.
+ */
 case class DroppedNote(channel: Int, midiNote: MidiNote)
 
+/**
+ * Result of a channel allocation operation.
+ *
+ * @param channel      The 0-indexed MIDI channel assigned to the new note.
+ * @param droppedNotes Any notes that were dropped as a result of this allocation.
+ */
 case class AllocationResult(channel: Int, droppedNotes: Seq[DroppedNote] = Seq.empty)
 
 /**
  * Manages channel allocation for a single MPE Zone following the dual-group allocation strategy.
+ *
+ * The dual-group strategy partitions available Member Channels into a Pitch Class Group
+ * and an Expression Group to prioritize intonation precision over polyphony and expressive
+ * independence when necessary.
  *
  * @param zone                              The MPE zone to allocate channels for.
  * @param expressionPitchBendThresholdCents The threshold in cents above which an expressive pitch bend is considered
@@ -43,7 +79,7 @@ class MpeChannelAllocator(val zone: MpeZone,
   import MpeChannelAllocator.*
 
   private class ChannelState(val channel: Int) {
-    val notes: mutable.Buffer[ActiveNote] = mutable.Buffer.empty
+    val notes: mutable.Buffer[MutableActiveNote] = mutable.Buffer.empty
     var pitchClass: Option[PitchClass] = None
     var group: Option[ChannelGroup] = None
     var lastOnsetTime: Long = 0L
@@ -64,6 +100,15 @@ class MpeChannelAllocator(val zone: MpeZone,
     ScPitchBendMidiMessage.convertCentsToValue(expressionPitchBendThresholdCents, zone.memberPitchBendSensitivity)
   }
 
+  /**
+   * Allocates a channel for a new note.
+   *
+   * @param midiNote            The MIDI note to allocate a channel for.
+   * @param expressivePitchBend The initial expressive pitch bend value for the note.
+   * @param preferredChannel    An optional preferred output channel (e.g., to preserve input
+   *                            allocation in MPE input mode).
+   * @return [[AllocationResult]] containing the assigned channel and any notes that were dropped.
+   */
   def allocate(midiNote: MidiNote,
                expressivePitchBend: Int = 0,
                preferredChannel: Option[Int] = None): AllocationResult = boundary {
@@ -134,6 +179,12 @@ class MpeChannelAllocator(val zone: MpeZone,
     AllocationResult(result.channel, dropped ++ result.droppedNotes)
   }
 
+  /**
+   * Releases a note from a channel.
+   *
+   * @param midiNote The MIDI note to release.
+   * @param channel  The 0-indexed MIDI channel the note was on.
+   */
   def release(midiNote: MidiNote, channel: Int): Unit = {
     val state = channelStates(channel)
     val idx = state.notes.indexWhere(_.midiNote == midiNote)
@@ -147,6 +198,16 @@ class MpeChannelAllocator(val zone: MpeZone,
     }
   }
 
+  /**
+   * Updates the expressive pitch bend for a channel.
+   *
+   * According to the MPE Tuner specification, if a channel holds multiple notes and one
+   * develops a high expressive pitch bend, all other notes on that channel are dropped.
+   *
+   * @param channel   The 0-indexed MIDI channel.
+   * @param pitchBend The new expressive pitch bend value.
+   * @return Any notes that were dropped as a result of a high expressive pitch bend.
+   */
   def updateExpressivePitchBend(channel: Int, pitchBend: Int): Seq[DroppedNote] = {
     val state = channelStates(channel)
     if (state.notes.size > 1 && isHighExpressivePitchBend(pitchBend)) {
@@ -167,6 +228,9 @@ class MpeChannelAllocator(val zone: MpeZone,
     }
   }
 
+  /**
+   * Resets the allocator state, clearing all active notes.
+   */
   def reset(): Unit = {
     channelStates.values.foreach { s =>
       s.notes.clear()
@@ -179,14 +243,30 @@ class MpeChannelAllocator(val zone: MpeZone,
   }
 
   // State inspection accessors
+
+  /**
+   * Returns the notes currently active on a channel.
+   */
   def activeNotes(channel: Int): Seq[ActiveNote] = channelStates(channel).notes.toSeq
 
+  /**
+   * Returns the pitch class currently associated with a channel.
+   */
   def channelPitchClass(channel: Int): Option[PitchClass] = channelStates(channel).pitchClass
 
+  /**
+   * Returns the number of channels that have at least one active note.
+   */
   def activeChannelCount: Int = channelStates.values.count(_.notes.nonEmpty)
 
+  /**
+   * Returns whether a channel has any active notes.
+   */
   def isChannelOccupied(channel: Int): Boolean = channelStates(channel).notes.nonEmpty
 
+  /**
+   * Returns the group to which a channel is currently assigned.
+   */
   def channelGroupOf(channel: Int): ChannelGroup = channelStates(channel).group.get
 
   private def isHighExpressivePitchBend(pitchBend: Int): Boolean =
@@ -205,7 +285,7 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   private def doAllocate(state: ChannelState, midiNote: MidiNote, expressivePitchBend: Int,
                          time: Long, group: ChannelGroup): AllocationResult = {
-    val note = ActiveNote(midiNote, expressivePitchBend)
+    val note = new MutableActiveNote(midiNote, expressivePitchBend)
     state.notes += note
     state.pitchClass = Some(midiNote.pitchClass)
     state.group = Some(group)
@@ -233,7 +313,7 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   private def doAllocateShared(state: ChannelState, midiNote: MidiNote, expressivePitchBend: Int,
                                time: Long): AllocationResult = {
-    val note = ActiveNote(midiNote, expressivePitchBend)
+    val note = new MutableActiveNote(midiNote, expressivePitchBend)
     state.notes += note
     state.lastOnsetTime = time
 
