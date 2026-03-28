@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.calinburloiu.music.scmidi
+
+import javax.sound.midi.MidiMessage
 
 
 /**
@@ -48,4 +50,30 @@ case class PitchBendSensitivity(semitones: Int, cents: Int = 0) {
 
 object PitchBendSensitivity {
   val Default: PitchBendSensitivity = PitchBendSensitivity(2)
+}
+
+/**
+ * Utility object for creating MIDI messages to configure pitch bend sensitivity.
+ */
+object PitchBendSensitivityMessages {
+
+  /**
+   * Creates a sequence of MIDI messages to configure the pitch bend sensitivity
+   * for a specified channel.
+   *
+   * @param channel              The MIDI channel for which the pitch bend sensitivity is configured.
+   * @param pitchBendSensitivity The pitch bend sensitivity settings, including semitones and cents.
+   * @return A sequence of MIDI messages representing the pitch bend sensitivity configuration.
+   */
+  def create(channel: Int, pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
+    Seq(
+      ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryMsb, pitchBendSensitivity.semitones),
+      ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryLsb, pitchBendSensitivity.cents),
+      // Setting cr number to Null to prevent accidental changes of values
+      ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
+      ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
+    ).map(_.javaMidiMessage)
+  }
 }

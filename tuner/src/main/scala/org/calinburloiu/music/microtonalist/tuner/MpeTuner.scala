@@ -61,11 +61,11 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   private val upperZone: MpeZone = zones._2
 
   private val lowerAllocator: Option[MpeChannelAllocator] =
-    if (lowerZone.isEnabled) Some(new MpeChannelAllocator(lowerZone)) else None
+    if (lowerZone.isEnabled) Some(MpeChannelAllocator(lowerZone)) else None
   private val upperAllocator: Option[MpeChannelAllocator] =
-    if (upperZone.isEnabled) Some(new MpeChannelAllocator(upperZone)) else None
+    if (upperZone.isEnabled) Some(MpeChannelAllocator(upperZone)) else None
 
-  private var _currTuning: Tuning = Tuning.Standard
+  private var currTuning: Tuning = Tuning.Standard
 
   // Track which channel each note is on: (midiNote, inputChannel) -> outputChannel
   private val noteChannelMap: mutable.Map[(MidiNote, Int), Int] = mutable.Map.empty
@@ -82,7 +82,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   private var _globalExpressivePitchBend: Int = 0
 
   override def reset(): Seq[MidiMessage] = {
-    _currTuning = Tuning.Standard
+    currTuning = Tuning.Standard
     noteChannelMap.clear()
     mpeInputChannelMap.clear()
     channelExpressivePitchBend.clear()
@@ -109,7 +109,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   }
 
   override def tune(tuning: Tuning): Seq[MidiMessage] = {
-    _currTuning = tuning
+    currTuning = tuning
     val buffer = mutable.Buffer[MidiMessage]()
 
     // Update pitch bend on all occupied member channels
@@ -189,7 +189,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         }
 
         // Compute and send control dimensions before Note On
-        val tuningOffset = _currTuning(midiNote.pitchClass)
+        val tuningOffset = currTuning(midiNote.pitchClass)
         val expressiveBend = if (inputMode == MpeInputMode.Mpe) {
           channelExpressivePitchBend.getOrElse(inputChannel, 0)
         } else {
@@ -255,7 +255,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
           val zone = alloc.zone
           val pc = alloc.channelPitchClass(outChannel)
           pc.foreach { pitchClass =>
-            val tuningOffset = _currTuning(pitchClass)
+            val tuningOffset = currTuning(pitchClass)
             val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
             buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMidiMessage
           }
@@ -336,35 +336,33 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
                                      tuningOffsetCents: Double): Int = {
     val notes = alloc.activeNotes(channel)
     val avgExpressiveBend = if (notes.nonEmpty) {
-      notes.map(_.expressivePitchBend).sum.toDouble / notes.size
+      Math.round(notes.map(_.expressivePitchBend).sum.toDouble / notes.size).toInt
     } else {
-      0.0
+      0
     }
 
     val tuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(tuningOffsetCents,
       zone.memberPitchBendSensitivity)
-    clampValue(tuningPitchBend + Math.round(avgExpressiveBend).toInt,
-      ScPitchBendMidiMessage.MinValue, ScPitchBendMidiMessage.MaxValue)
+    clampValue(tuningPitchBend + avgExpressiveBend, ScPitchBendMidiMessage.MinValue, ScPitchBendMidiMessage.MaxValue)
   }
 
   private def updateTuningOnAllocator(alloc: MpeChannelAllocator, zone: MpeZone,
                                       buffer: mutable.Buffer[MidiMessage]): Unit = {
-    zone.memberChannels.foreach { ch =>
-      if (alloc.isChannelOccupied(ch)) {
-        alloc.channelPitchClass(ch).foreach { pc =>
-          val tuningOffset = _currTuning(pc)
-          val totalPitchBend = computeOutputPitchBend(ch, alloc, zone, tuningOffset)
-          buffer += ScPitchBendMidiMessage(ch, totalPitchBend).javaMidiMessage
-        }
-      }
+    // Only occupied channels have a pitch class assigned
+    for (ch <- zone.memberChannels;
+         pc <- alloc.channelPitchClass(ch)) {
+      // TODO #143 Duplicated lines
+      val tuningOffset = currTuning(pc)
+      val totalPitchBend = computeOutputPitchBend(ch, alloc, zone, tuningOffset)
+      buffer += ScPitchBendMidiMessage(ch, totalPitchBend).javaMidiMessage
     }
   }
 
   private def mcmMessages(zone: MpeZone): Seq[MidiMessage] = {
     // MCM: RPN 6 on master channel with data = memberCount
     Seq(
-      ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnLsb, 6),
-      ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnMsb, 0),
+      ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
       ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.DataEntryMsb, zone.memberCount),
       ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
       ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
@@ -375,25 +373,14 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     val buffer = mutable.Buffer[MidiMessage]()
 
     // Master channel PBS
-    buffer ++= rpn0Messages(zone.masterChannel, zone.masterPitchBendSensitivity)
+    buffer ++= PitchBendSensitivityMessages.create(zone.masterChannel, zone.masterPitchBendSensitivity)
 
     // Member channel PBS
     zone.memberChannels.foreach { ch =>
-      buffer ++= rpn0Messages(ch, zone.memberPitchBendSensitivity)
+      buffer ++= PitchBendSensitivityMessages.create(ch, zone.memberPitchBendSensitivity)
     }
 
     buffer.toSeq
-  }
-
-  private def rpn0Messages(channel: Int, pbs: PitchBendSensitivity): Seq[MidiMessage] = {
-    Seq(
-      ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryMsb, pbs.semitones),
-      ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryLsb, pbs.cents),
-      ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
-      ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-    ).map(_.javaMidiMessage)
   }
 
   private def getAllocatorForInput(inputChannel: Int): Option[MpeChannelAllocator] = {

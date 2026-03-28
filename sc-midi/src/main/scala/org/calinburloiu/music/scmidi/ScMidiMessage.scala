@@ -148,6 +148,9 @@ object ScPitchBendMidiMessage {
     case _ => None
   }
 
+  def fromJavaMessage(message: MidiMessage): Option[ScPitchBendMidiMessage] =
+    unapply(message).map { tuple => ScPitchBendMidiMessage.apply.tupled(tuple) }
+
   /** Creates an [[ScPitchBendMidiMessage]] from a value in cents. */
   def fromCents(channel: Int,
                 cents: Int,
@@ -292,6 +295,10 @@ object Rpn {
   val TuningProgramSelectMsb: Int = 0x00
   /** Tuning Program Select RPN LSB (#3). */
   val TuningProgramSelectLsb: Int = 0x03
+
+  val MpeConfigurationMessageLsb: Int = 0x06
+
+  val MpeConfigurationMessageMsb: Int = 0x00
 
   /** Null RPN MSB (#127). */
   val NullMsb: Int = 0x7F

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, clampValue, mapShortMessageChannel}
+import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, Rpn, ScCcMidiMessage, ScNoteOffMidiMessage, ScNoteOnMidiMessage, ScPitchBendMidiMessage, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -80,7 +80,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     _rpnMsb = Rpn.NullMsb
   }
 
-  private def _init(): Seq[MidiMessage] = applyPitchSensitivity(defaultPitchBendSensitivity)
+  private def _init(): Seq[MidiMessage] = PitchBendSensitivityMessages.create(
+    outputChannel, defaultPitchBendSensitivity)
 
   override def tune(tuning: Tuning): Seq[MidiMessage] = {
     currTuning = tuning
@@ -131,18 +132,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     }
 
     buffer.toSeq
-  }
-
-  private def applyPitchSensitivity(pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
-    Seq(
-      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      ScCcMidiMessage(outputChannel, ScCcMidiMessage.DataEntryMsb, pitchBendSensitivity.semitones),
-      ScCcMidiMessage(outputChannel, ScCcMidiMessage.DataEntryLsb, pitchBendSensitivity.cents),
-      // Setting the parameter number to Null to prevent accidental changes of values
-      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
-      ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-    ).map(_.javaMidiMessage)
   }
 
   private def currTuning: Tuning = _currTuning

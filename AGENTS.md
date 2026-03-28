@@ -172,3 +172,17 @@ for {
   item <- itemOption
 } yield item * 2
 ```
+
+## Don't use `new` when instantiating a class
+
+Wrong:
+
+```scala
+val c = new MyClass(x, y)
+```
+
+Correct:
+
+```scala
+val c = MyClass(x, y)
+```
