@@ -178,7 +178,9 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
         // Handle dropped notes
         result.droppedNotes.foreach { dropped =>
-          buffer += ScNoteOffMidiMessage(dropped.channel, dropped.midiNote).javaMidiMessage
+          dropped.notes.foreach { midiNote =>
+            buffer += ScNoteOffMidiMessage(dropped.channel, midiNote).javaMidiMessage
+          }
         }
 
         // Track the note
@@ -245,9 +247,11 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
         val allocator = getAllocatorForOutput(outChannel)
         allocator.foreach { alloc =>
-          val dropped = alloc.updateExpressivePitchBend(outChannel, pitchBendValue)
-          dropped.foreach { d =>
-            buffer += ScNoteOffMidiMessage(d.channel, d.midiNote).javaMidiMessage
+          val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendValue)
+          droppedNotes.foreach { d =>
+            d.notes.foreach { midiNote =>
+              buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMidiMessage
+            }
           }
           val zone = alloc.zone
           val pc = alloc.channelPitchClass(outChannel)

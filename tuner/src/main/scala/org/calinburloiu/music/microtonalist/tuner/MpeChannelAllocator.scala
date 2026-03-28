@@ -52,15 +52,6 @@ private case class ImmutableActiveNote(midiNote: MidiNote,
                                        channelPressure: Int = 0,
                                        slide: Int = 64) extends ActiveNote
 
-// TODO Remove: replace with DroppedNotes
-/**
- * Information about a note that was dropped to free a channel or maintain intonation.
- *
- * @param channel  The 0-indexed MIDI channel from which the note was dropped.
- * @param midiNote The MIDI note that was dropped.
- */
-case class DroppedNote(channel: Int, midiNote: MidiNote)
-
 case class DroppedNotes(channel: Int,
                         notes: Seq[MidiNote],
                         group: ChannelGroup)
@@ -71,7 +62,7 @@ case class DroppedNotes(channel: Int,
  * @param channel      The 0-indexed MIDI channel assigned to the new note.
  * @param droppedNotes Any notes that were dropped as a result of this allocation.
  */
-case class AllocationResult(channel: Int, droppedNotes: Seq[DroppedNote] = Seq.empty)
+case class AllocationResult(channel: Int, droppedNotes: Option[DroppedNotes] = None)
 
 private class ChannelState(val channel: Int) {
   val notes: mutable.Buffer[MutableActiveNote] = mutable.Buffer.empty
@@ -150,7 +141,7 @@ class MpeChannelAllocator(val zone: MpeZone,
     // Step 4: No channel with the same pitch class and all channels occupied -> free a channel
     val dropped = freeChannel(midiNote)
     doAllocate(channelStates(dropped.channel), midiNote, expressivePitchBend, time, Some(dropped.group))
-      .copy(droppedNotes = dropped.notes.map(note => DroppedNote(dropped.channel, note)))
+      .copy(droppedNotes = Some(dropped))
   }
 
   /**
@@ -182,23 +173,23 @@ class MpeChannelAllocator(val zone: MpeZone,
    * @param pitchBend The new expressive pitch bend value.
    * @return Any notes that were dropped as a result of a high expressive pitch bend.
    */
-  def updateExpressivePitchBend(channel: Int, pitchBend: Int): Seq[DroppedNote] = {
+  def updateExpressivePitchBend(channel: Int, pitchBend: Int): Option[DroppedNotes] = {
     val state = channelStates(channel)
     if (state.notes.size > 1 && isHighExpressivePitchBend(pitchBend)) {
       // Drop all notes except the one that is being bent
       // We assume the most recently added note is the one being bent
       val lastNote = state.notes.last
-      val dropped = state.notes.init.map(n => DroppedNote(channel, n.midiNote)).toSeq
+      val dropped = DroppedNotes(channel, state.notes.init.map(_.midiNote).toSeq, state.group.get)
       state.notes.clear()
       state.notes += lastNote
       lastNote.expressivePitchBend = pitchBend
-      dropped
+      Some(dropped)
     } else {
       // Update the pitch bend for the most recent note
       if (state.notes.nonEmpty) {
         state.notes.last.expressivePitchBend = pitchBend
       }
-      Seq.empty
+      None
     }
   }
 
@@ -281,15 +272,15 @@ class MpeChannelAllocator(val zone: MpeZone,
       val existingHighBend = existingNotes.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
       val newHighBend = isHighExpressivePitchBend(expressivePitchBend)
       if (existingHighBend || newHighBend) {
-        val toDrop = existingNotes.map(n => DroppedNote(state.channel, n.midiNote))
+        val toDrop = DroppedNotes(state.channel, existingNotes.map(_.midiNote), state.group.get)
         state.notes.clear()
         state.notes += newNote
-        toDrop
+        Some(toDrop)
       } else {
-        Seq.empty
+        None
       }
     } else {
-      Seq.empty
+      None
     }
 
     AllocationResult(state.channel, dropped)
@@ -353,3 +344,4 @@ object MpeChannelAllocator {
     case Expression
   }
 }
+
