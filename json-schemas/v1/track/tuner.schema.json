@@ -127,6 +127,7 @@
                                     "$ref": "#/$defs/mpeZone"
                                 },
                                 {
+                                    "title": "Lower Zone",
                                     "properties": {
                                         "memberCount": {
                                             "default": 15
@@ -141,6 +142,7 @@
                                     "$ref": "#/$defs/mpeZone"
                                 },
                                 {
+                                    "title": "Upper Zone",
                                     "properties": {
                                         "memberCount": {
                                             "default": 0
