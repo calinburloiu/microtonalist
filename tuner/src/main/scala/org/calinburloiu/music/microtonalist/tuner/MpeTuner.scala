@@ -125,40 +125,39 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
   override def process(message: MidiMessage): Seq[MidiMessage] = {
     message match {
-      case shortMessage: ShortMessage =>
-        processShortMessage(shortMessage)
+      case msg: ShortMessage =>
+        processShortMessage(msg)
       case _ =>
         Seq(message)
     }
   }
 
-  private def processShortMessage(msg: ShortMessage): Seq[MidiMessage] = {
-    val channel = msg.getChannel
+  private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
 
     // Check for MCM (MPE Configuration Message): RPN 6 on channel 0 or 15
     // MCM is CC 101=0, CC 100=6, CC 6=memberCount on master channel
 
-    msg.getCommand match {
-      case ShortMessage.NOTE_ON if msg.getData2 > 0 =>
-        processNoteOn(buffer, channel, msg.getData1, msg.getData2)
-      case ShortMessage.NOTE_ON if msg.getData2 == 0 =>
-        processNoteOff(buffer, channel, msg.getData1, 0)
-      case ShortMessage.NOTE_OFF =>
-        processNoteOff(buffer, channel, msg.getData1, msg.getData2)
-      case ShortMessage.PITCH_BEND =>
-        processPitchBend(buffer, channel, ScPitchBendMidiMessage.convertDataBytesToValue(msg.getData1, msg.getData2))
-      case ShortMessage.CONTROL_CHANGE =>
-        processCc(buffer, channel, msg.getData1, msg.getData2)
-      case ShortMessage.CHANNEL_PRESSURE =>
-        processChannelPressure(buffer, channel, msg.getData1)
-      case ShortMessage.POLY_PRESSURE =>
-        processPolyPressure(buffer, channel, msg.getData1, msg.getData2)
-      case ShortMessage.PROGRAM_CHANGE =>
+    message match {
+      case ScNoteOnMidiMessage(channel, midiNote, velocity) if velocity > 0 =>
+        processNoteOn(buffer, channel, midiNote, velocity)
+      case ScNoteOnMidiMessage(channel, midiNote, _) =>
+        processNoteOff(buffer, channel, midiNote, 0)
+      case ScNoteOffMidiMessage(channel, midiNote, velocity) =>
+        processNoteOff(buffer, channel, midiNote, velocity)
+      case ScPitchBendMidiMessage(channel, value) =>
+        processPitchBend(buffer, channel, value)
+      case ScCcMidiMessage(channel, number, value) =>
+        processCc(buffer, channel, number, value)
+      case ScChannelPressureMidiMessage(channel, value) =>
+        processChannelPressure(buffer, channel, value)
+      case ScPolyPressureMidiMessage(channel, midiNote, value) =>
+        processPolyPressure(buffer, channel, midiNote, value)
+      case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PROGRAM_CHANGE =>
         // Forward on master channel
-        forwardOnMasterChannel(buffer, msg)
+        forwardOnMasterChannel(buffer, shortMessage)
       case _ =>
-        buffer += msg
+        buffer += message
     }
 
     buffer.toSeq
@@ -291,7 +290,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         }
       case _ =>
         // Forward as-is
-        forwardOnMasterChannel(buffer, new ShortMessage(ShortMessage.CONTROL_CHANGE, inputChannel, ccNumber, ccValue))
+        forwardOnMasterChannel(buffer, ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMidiMessage)
     }
   }
 
@@ -327,9 +326,9 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
   private def forwardOnMasterChannel(buffer: mutable.Buffer[MidiMessage], msg: ShortMessage): Unit = {
     if (lowerZone.isEnabled) {
-      buffer += new ShortMessage(msg.getCommand, lowerZone.masterChannel, msg.getData1, msg.getData2)
+      buffer += mapShortMessageChannel(msg, _ => lowerZone.masterChannel)
     } else if (upperZone.isEnabled) {
-      buffer += new ShortMessage(msg.getCommand, upperZone.masterChannel, msg.getData1, msg.getData2)
+      buffer += mapShortMessageChannel(msg, _ => upperZone.masterChannel)
     }
   }
 
