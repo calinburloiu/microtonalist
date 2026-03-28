@@ -101,6 +101,8 @@ class MpeChannelAllocator(val zone: MpeZone,
     ScPitchBendMidiMessage.convertCentsToValue(expressionPitchBendThresholdCents, zone.memberPitchBendSensitivity)
   }
 
+  reset()
+
   /**
    * Allocates a channel for a new note.
    *
@@ -144,6 +146,7 @@ class MpeChannelAllocator(val zone: MpeZone,
       .copy(droppedNotes = Some(dropped))
   }
 
+  // TODO #143 To map incoming channel to output channel?
   /**
    * Releases a note from a channel.
    *
@@ -163,6 +166,7 @@ class MpeChannelAllocator(val zone: MpeZone,
     }
   }
 
+  // TODO #143 Bad assumption that the last not is being bent. To map incoming channel to output channel.
   /**
    * Updates the expressive pitch bend for a channel.
    *
@@ -193,7 +197,6 @@ class MpeChannelAllocator(val zone: MpeZone,
     }
   }
 
-  // TODO Should we use it for init as well for consistency?
   /**
    * Resets the allocator state, clearing all active notes.
    */
@@ -217,6 +220,8 @@ class MpeChannelAllocator(val zone: MpeZone,
 
   /**
    * Returns the pitch class currently associated with a channel.
+   *
+   * If the channel is unoccupied, it returns `None`.
    */
   def channelPitchClass(channel: Int): Option[PitchClass] = channelStates(channel).pitchClass
 

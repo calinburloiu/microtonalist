@@ -69,11 +69,29 @@ sbt "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
 
 # Coding Conventions
 
-* The project uses the old classic brace Scala syntax, not the new indentation Scala 3 syntax.
 * Indentation is done with 2 spaces.
 * Lines have a maximum length of 120 characters.
 * Currently, we use IntelliJ IDEA for formatting code with the default settings.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
+
+## Use brace syntax
+
+Use the old classic brace Scala syntax, not the new indentation Scala 3 syntax.
+
+Wrong:
+
+```scala
+case class Person(name: String, age: Int):
+  def greet: String = s"Hi, I'm $name"
+```
+
+Correct:
+
+```scala
+case class Person(name: String, age: Int) {
+  def greet: String = s"Hi, I'm $name"
+}
+```
 
 ## Use `enum`
 
@@ -116,4 +134,41 @@ class ActiveNote(val midiNote: MidiNote,
                  var expressivePitchBend: Int = 0)
 ```
 
+## TODOs have issue numbers
 
+All TODOs in the code use `// TODO #<issue_number>`, where `<issue_number>` is the issue number on the project's GitHub
+repository: https://github.com/calinburloiu/microtonalist
+
+Wrong:
+
+```scala
+// TODO Add support for Windows
+```
+
+Correct:
+
+```scala
+// TODO #149 Add support for Windows
+```
+
+## Prefer for-comprehensions for nested monads
+
+Using a deep chain of `flatMap`, `map`, ..., `map` for nested monads can be hard to follow. Prefer for-comprehensions
+for them.
+
+Wrong:
+
+```scala
+val optionsList: List[Option[Int]] = List(Some(1), None, Some(2))
+optionsList.flatMap(list => list.map(item => item * 2))
+```
+
+Correct:
+
+```scala
+val optionsList: List[Option[Int]] = List(Some(1), None, Some(2))
+for {
+  itemOption <- optionsList
+  item <- itemOption
+} yield item * 2
+```
