@@ -43,6 +43,11 @@ class ScNoteMidiMessageTest extends AnyFlatSpec with Matchers {
       .getMessage)
   }
 
+  it should "be created from a Java MidiMessage" in {
+    ScNoteOnMidiMessage.fromJavaMessage(javaNoteOnMessage) should equal(Some(ScNoteOnMidiMessage(channel, noteNumber,
+      velocity)))
+  }
+
   behavior of "ScNoteOffMidiMessage"
 
   it should "be extracted from a MidiMessage" in {
@@ -54,6 +59,11 @@ class ScNoteMidiMessageTest extends AnyFlatSpec with Matchers {
   it should "be converted to a MidiMessage" in {
     ScNoteOffMidiMessage(channel, noteNumber, velocity).javaMidiMessage.getMessage should equal(javaNoteOffMessage
       .getMessage)
+  }
+
+  it should "be created from a Java MidiMessage" in {
+    ScNoteOffMidiMessage.fromJavaMessage(javaNoteOffMessage) should equal(Some(ScNoteOffMidiMessage(channel,
+      noteNumber, velocity)))
   }
 }
 
@@ -84,6 +94,12 @@ class ScPitchBendMidiMessageTest extends AnyFlatSpec with TableDrivenPropertyChe
       scalaPitchBendMessage.javaMidiMessage.getMessage should equal(javaMidiMessage.getMessage)
     }
   }
+
+  it should "be created from a Java MidiMessage" in {
+    forAll(table) { (javaMidiMessage, scalaPitchBendMessage) =>
+      ScPitchBendMidiMessage.fromJavaMessage(javaMidiMessage) should equal(Some(scalaPitchBendMessage))
+    }
+  }
 }
 
 class ScCcMidiMessageTest extends AnyFlatSpec with Matchers {
@@ -102,6 +118,11 @@ class ScCcMidiMessageTest extends AnyFlatSpec with Matchers {
   it should "be converted to a MidiMessage" in {
     ScCcMidiMessage(channel, number, pitchBendValue).javaMidiMessage.getMessage should equal(javaMidiMessage.getMessage)
   }
+
+  it should "be created from a Java MidiMessage" in {
+    ScCcMidiMessage.fromJavaMessage(javaMidiMessage) should equal(Some(ScCcMidiMessage(channel, number,
+      pitchBendValue)))
+  }
 }
 
 class ScChannelPressureMidiMessageTest extends AnyFlatSpec with Matchers {
@@ -114,6 +135,11 @@ class ScChannelPressureMidiMessageTest extends AnyFlatSpec with Matchers {
   it should "create correct Java MIDI message" in {
     val msg = ScChannelPressureMidiMessage(channel, pressure)
     msg.javaMidiMessage.getMessage should equal(javaMessage.getMessage)
+  }
+
+  it should "be created from a Java MidiMessage" in {
+    ScChannelPressureMidiMessage.fromJavaMessage(javaMessage) should equal(Some(ScChannelPressureMidiMessage(channel,
+      pressure)))
   }
 
   it should "be extracted from a valid Channel Pressure message" in {
@@ -148,6 +174,11 @@ class ScPolyPressureMidiMessageTest extends AnyFlatSpec with Matchers {
   it should "create correct Java MIDI message" in {
     val msg = ScPolyPressureMidiMessage(channel, noteNumber, pressure)
     msg.javaMidiMessage.getMessage should equal(javaMessage.getMessage)
+  }
+
+  it should "be created from a Java MidiMessage" in {
+    ScPolyPressureMidiMessage.fromJavaMessage(javaMessage) should equal(Some(ScPolyPressureMidiMessage(channel,
+      noteNumber, pressure)))
   }
 
   it should "be extracted from a valid Poly Pressure message" in {

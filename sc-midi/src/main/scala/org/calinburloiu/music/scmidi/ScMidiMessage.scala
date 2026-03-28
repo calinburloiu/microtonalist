@@ -77,6 +77,9 @@ object ScNoteOnMidiMessage {
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
   }
+
+  def fromJavaMessage(message: MidiMessage): Option[ScNoteOnMidiMessage] =
+    unapply(message).map { tuple => ScNoteOnMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -106,6 +109,9 @@ object ScNoteOffMidiMessage {
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
   }
+
+  def fromJavaMessage(message: MidiMessage): Option[ScNoteOffMidiMessage] =
+    unapply(message).map { tuple => ScNoteOffMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -265,6 +271,9 @@ object ScCcMidiMessage {
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
   }
+
+  def fromJavaMessage(message: MidiMessage): Option[ScCcMidiMessage] =
+    unapply(message).map { tuple => ScCcMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -328,6 +337,9 @@ object ScChannelPressureMidiMessage {
       Some((shortMessage.getChannel, shortMessage.getData1))
     case _ => None
   }
+
+  def fromJavaMessage(message: MidiMessage): Option[ScChannelPressureMidiMessage] =
+    unapply(message).map { tuple => ScChannelPressureMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -355,6 +367,9 @@ object ScPolyPressureMidiMessage {
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
   }
+
+  def fromJavaMessage(message: MidiMessage): Option[ScPolyPressureMidiMessage] =
+    unapply(message).map { tuple => ScPolyPressureMidiMessage.apply.tupled(tuple) }
 }
 
 /**
