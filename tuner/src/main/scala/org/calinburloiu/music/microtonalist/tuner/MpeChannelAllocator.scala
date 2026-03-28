@@ -47,6 +47,12 @@ private class MutableActiveNote(val midiNote: MidiNote,
                                 var channelPressure: Int = 0,
                                 var slide: Int = 64) extends ActiveNote
 
+private case class ImmutableActiveNote(midiNote: MidiNote,
+                                       expressivePitchBend: Int = 0,
+                                       channelPressure: Int = 0,
+                                       slide: Int = 64) extends ActiveNote
+
+// TODO Remove: replace with DroppedNotes
 /**
  * Information about a note that was dropped to free a channel or maintain intonation.
  *
@@ -54,6 +60,10 @@ private class MutableActiveNote(val midiNote: MidiNote,
  * @param midiNote The MIDI note that was dropped.
  */
 case class DroppedNote(channel: Int, midiNote: MidiNote)
+
+case class DroppedNotes(channel: Int,
+                        notes: Seq[MidiNote],
+                        group: ChannelGroup)
 
 /**
  * Result of a channel allocation operation.
@@ -128,7 +138,7 @@ class MpeChannelAllocator(val zone: MpeZone,
       boundary.break(doAllocate(target, midiNote, expressivePitchBend, time, Some(ChannelGroup.Expression)))
     }
 
-    // Step 3: Try sharing with same pitch class
+    // Step 3: Try sharing with the same pitch class
     val samePcChannels = channelStates.values.filter { s =>
       s.notes.nonEmpty && s.pitchClass.contains(pc)
     }.toSeq
@@ -137,10 +147,10 @@ class MpeChannelAllocator(val zone: MpeZone,
       boundary.break(doAllocate(target, midiNote, expressivePitchBend, time))
     }
 
-    // Step 4: No channel with same pitch class and all channels occupied -> free a channel
+    // Step 4: No channel with the same pitch class and all channels occupied -> free a channel
     val dropped = freeChannel(midiNote)
-    val result = allocate(midiNote, expressivePitchBend, preferredChannel)
-    result.copy(droppedNotes = dropped ++ result.droppedNotes)
+    doAllocate(channelStates(dropped.channel), midiNote, expressivePitchBend, time, Some(dropped.group))
+      .copy(droppedNotes = dropped.notes.map(note => DroppedNote(dropped.channel, note)))
   }
 
   /**
@@ -192,6 +202,7 @@ class MpeChannelAllocator(val zone: MpeZone,
     }
   }
 
+  // TODO Should we use it for init as well for consistency?
   /**
    * Resets the allocator state, clearing all active notes.
    */
@@ -293,35 +304,28 @@ class MpeChannelAllocator(val zone: MpeZone,
     }
   }
 
-  private def freeChannel(incomingNote: MidiNote): Seq[DroppedNote] = {
-    val occupiedChannels = channelStates.values.filter(_.notes.nonEmpty).toSeq
-    if (occupiedChannels.isEmpty) {
-      Seq.empty
-    } else {
-      // Find highest and lowest pitched notes across all channels
-      val allNotes = occupiedChannels.flatMap(s => s.notes.map(n => (s, n)))
-      val highestNote = allNotes.maxBy(_._2.midiNote.number)._2.midiNote.number
-      val lowestNote = allNotes.minBy(_._2.midiNote.number)._2.midiNote.number
+  private def freeChannel(incomingNote: MidiNote): DroppedNotes = {
+    val occupiedChannelStates = channelStates.values.filter(_.notes.nonEmpty).toSeq
+    assert(occupiedChannelStates.nonEmpty)
 
-      // Exclude channels with highest or lowest pitched notes
-      val candidates = occupiedChannels.filterNot { s =>
-        s.notes.exists(n => n.midiNote.number == highestNote || n.midiNote.number == lowestNote)
-      }
+    // Find the highest and lowest pitched notes across all channels
+    val allNotes = occupiedChannelStates.flatMap(s => s.notes)
+    val highestNote = allNotes.maxBy(_.midiNote.number).midiNote.number
+    val lowestNote = allNotes.minBy(_.midiNote.number).midiNote.number
 
-      val target = if (candidates.nonEmpty) {
-        candidates.minBy(_.lastOnsetTime)
-      } else {
-        // If all channels have boundary notes, pick the oldest
-        occupiedChannels.minBy(_.lastOnsetTime)
-      }
-
-      val dropped = target.notes.map(n => DroppedNote(target.channel, n.midiNote)).toSeq
-      target.notes.clear()
-      target.pitchClass = None
-      target.group = None
-
-      dropped
+    // Exclude channels with the highest or lowest pitched notes
+    val candidates = occupiedChannelStates.filterNot { s =>
+      s.notes.exists(n => n.midiNote.number == highestNote || n.midiNote.number == lowestNote)
     }
+
+    val target = if (candidates.nonEmpty) {
+      candidates.minBy(_.lastOnsetTime)
+    } else {
+      // If all channels have boundary notes, pick the oldest
+      occupiedChannelStates.minBy(_.lastOnsetTime)
+    }
+
+    DroppedNotes(target.channel, target.notes.map(_.midiNote).toSeq, target.group.get)
   }
 }
 
