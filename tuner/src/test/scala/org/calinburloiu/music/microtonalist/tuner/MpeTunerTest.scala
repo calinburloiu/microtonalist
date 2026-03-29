@@ -89,20 +89,20 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
   private def extractPitchBends(output: Seq[MidiMessage]): Seq[ScPitchBendMidiMessage] =
     output.flatMap(ScPitchBendMidiMessage.fromJavaMessage)
 
-  private def extractNoteOns(output: Seq[MidiMessage]): Seq[(Int, MidiNote, Int)] =
-    output.collect { case ScNoteOnMidiMessage(ch, note, vel) if vel > 0 => (ch, note, vel) }
+  private def extractNoteOns(output: Seq[MidiMessage]): Seq[ScNoteOnMidiMessage] =
+    output.flatMap(ScNoteOnMidiMessage.fromJavaMessage).filter(_.velocity > 0)
 
-  private def extractNoteOffs(output: Seq[MidiMessage]): Seq[(Int, MidiNote)] =
+  private def extractNoteOffs(output: Seq[MidiMessage]): Seq[ScNoteOffMidiMessage] =
     output.collect {
-      case ScNoteOffMidiMessage(ch, note, _) => (ch, note)
-      case ScNoteOnMidiMessage(ch, note, 0) => (ch, note)
+      case ScNoteOffMidiMessage(ch, note, velocity) => ScNoteOffMidiMessage(ch, note, velocity)
+      case ScNoteOnMidiMessage(ch, note, 0) => ScNoteOffMidiMessage(ch, note)
     }
 
-  private def extractCc(output: Seq[MidiMessage]): Seq[(Int, Int, Int)] =
-    output.collect { case ScCcMidiMessage(ch, num, v) => (ch, num, v) }
+  private def extractCc(output: Seq[MidiMessage]): Seq[ScCcMidiMessage] =
+    output.flatMap(ScCcMidiMessage.fromJavaMessage)
 
-  private def extractChannelPressure(output: Seq[MidiMessage]): Seq[(Int, Int)] =
-    output.collect { case ScChannelPressureMidiMessage(ch, v) => (ch, v) }
+  private def extractChannelPressure(output: Seq[MidiMessage]): Seq[ScChannelPressureMidiMessage] =
+    output.flatMap(ScChannelPressureMidiMessage.fromJavaMessage)
 
   // --- 4.2.1 reset() ---
 
@@ -113,9 +113,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val output = tuner.reset()
     val ccs = extractCc(output)
     // MCM: RPN LSB=6, RPN MSB=0, Data Entry MSB=memberCount on master channel 0
-    ccs should contain((0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb))
-    ccs should contain((0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb))
-    ccs should contain((0, ScCcMidiMessage.DataEntryMsb, 15))
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb))
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb))
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 15))
   }
 
   it should "output RPN 0 (Pitch Bend Sensitivity) on all member channels" in {
@@ -124,9 +124,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val ccs = extractCc(output)
     // Check that PBS is set on member channels 1..7
     (1 to 7).foreach { ch =>
-      ccs should contain((ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb))
-      ccs should contain((ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityMsb))
-      ccs should contain((ch, ScCcMidiMessage.DataEntryMsb, 48))
+      ccs should contain(ScCcMidiMessage(ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb))
+      ccs should contain(ScCcMidiMessage(ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityMsb))
+      ccs should contain(ScCcMidiMessage(ch, ScCcMidiMessage.DataEntryMsb, 48))
     }
   }
 
@@ -134,9 +134,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     val output = tuner.reset()
     val ccs = extractCc(output)
-    ccs should contain((0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb))
-    ccs should contain((0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityMsb))
-    ccs should contain((0, ScCcMidiMessage.DataEntryMsb, 2))
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb))
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityMsb))
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 2))
   }
 
   it should "clear internal state after reset" in {
@@ -168,9 +168,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     tuner.reset()
     tuner.tune(quarterCommaMeantone)
     val out1 = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteOnChannel = extractNoteOns(out1).head._1
+    val noteOnChannel = extractNoteOns(out1).head.channel
     val out2 = tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMidiMessage)
-    val noteOnChannel2 = extractNoteOns(out2).head._1
+    val noteOnChannel2 = extractNoteOns(out2).head.channel
 
     val tuneOutput = tuner.tune(pythagoreanTuning)
     val pitchBends = extractPitchBends(tuneOutput)
@@ -214,10 +214,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     tuner.reset()
     val noteOnOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteOnChannel = extractNoteOns(noteOnOutput).head._1
+    val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
     val noteOffOutput = tuner.process(ScNoteOffMidiMessage(inputChannel, C4).javaMidiMessage)
     val noteOffs = extractNoteOffs(noteOffOutput)
-    noteOffs should contain((noteOnChannel, C4))
+    noteOffs should contain(ScNoteOffMidiMessage(noteOnChannel, C4))
   }
 
   it should "allocate multiple notes with distinct pitch classes to separate member channels" in {
@@ -226,7 +226,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val out1 = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
     val out2 = tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMidiMessage)
     val out3 = tuner.process(ScNoteOnMidiMessage(inputChannel, G4).javaMidiMessage)
-    val channels = Seq(out1, out2, out3).flatMap(extractNoteOns).map(_._1)
+    val channels = Seq(out1, out2, out3).flatMap(extractNoteOns).map(_.channel)
     channels.distinct.size shouldBe 3
   }
 
@@ -234,7 +234,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScNoteOnMidiMessage(inputChannel, C4, 127).javaMidiMessage)
-    extractNoteOns(output).head._3 shouldBe 127
+    extractNoteOns(output).head.velocity shouldBe 127
   }
 
   it should "correctly allocate notes from any input channel" in {
@@ -263,8 +263,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     tuner.reset()
     tuner.tune(quarterCommaMeantone)
     val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteChannel = extractNoteOns(noteOutput).head._1
-    val initialPb = extractPitchBends(noteOutput).head._2
+    val noteChannel = extractNoteOns(noteOutput).head.channel
+    val initialPb = extractPitchBends(noteOutput).head.value
 
     // Send expressive pitch bend on input
     tuner.process(ScPitchBendMidiMessage(inputChannel, 500).javaMidiMessage)
@@ -272,9 +272,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     // Retune - member channel pitch bend should only reflect tuning, not expression
     val tuneOutput = tuner.tune(quarterCommaMeantone)
     if (tuneOutput.nonEmpty) {
-      val memberPbs = extractPitchBends(tuneOutput).filter(_._1 == noteChannel)
+      val memberPbs = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
       if (memberPbs.nonEmpty) {
-        memberPbs.head._2 shouldBe initialPb
+        memberPbs.head.value shouldBe initialPb
       }
     }
   }
@@ -287,27 +287,27 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     tuner.reset()
     val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteChannel = extractNoteOns(noteOutput).head._1
+    val noteChannel = extractNoteOns(noteOutput).head.channel
     val output = tuner.process(ScPolyPressureMidiMessage(inputChannel, C4, 80).javaMidiMessage)
-    extractChannelPressure(output) should contain((noteChannel, 80))
+    extractChannelPressure(output) should contain(ScChannelPressureMidiMessage(noteChannel, 80))
   }
 
   it should "forward CC #74 to the appropriate member channel" in {
     val tuner = defaultTuner
     tuner.reset()
     val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteChannel = extractNoteOns(noteOutput).head._1
+    val noteChannel = extractNoteOns(noteOutput).head.channel
     val output = tuner.process(ScCcMidiMessage(inputChannel, 74, 100).javaMidiMessage)
-    extractCc(output) should contain((noteChannel, 74, 100))
+    extractCc(output) should contain(ScCcMidiMessage(noteChannel, 74, 100))
   }
 
   it should "forward Channel Pressure to the appropriate member channel" in {
     val tuner = defaultTuner
     tuner.reset()
     val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteChannel = extractNoteOns(noteOutput).head._1
+    val noteChannel = extractNoteOns(noteOutput).head.channel
     val output = tuner.process(ScChannelPressureMidiMessage(inputChannel, 90).javaMidiMessage)
-    extractChannelPressure(output) should contain((noteChannel, 90))
+    extractChannelPressure(output) should contain(ScChannelPressureMidiMessage(noteChannel, 90))
   }
 
   it should "initialize control dimensions before Note On even when input omits them" in {
@@ -330,7 +330,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SustainPedal, 127).javaMidiMessage)
-    extractCc(output) should contain((0, ScCcMidiMessage.SustainPedal, 127))
+    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.SustainPedal, 127))
   }
 
   it should "forward Program Change on Master Channel" in {
@@ -346,28 +346,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.ResetAllControllers, 0).javaMidiMessage)
-    extractCc(output) should contain((0, ScCcMidiMessage.ResetAllControllers, 0))
+    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.ResetAllControllers, 0))
   }
 
   it should "forward Modulation (CC #1) on Master Channel" in {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.Modulation, 64).javaMidiMessage)
-    extractCc(output) should contain((0, ScCcMidiMessage.Modulation, 64))
+    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.Modulation, 64))
   }
 
   it should "forward Sostenuto Pedal (CC #66) on Master Channel" in {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SostenutoPedal, 127).javaMidiMessage)
-    extractCc(output) should contain((0, ScCcMidiMessage.SostenutoPedal, 127))
+    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.SostenutoPedal, 127))
   }
 
   it should "forward Soft Pedal (CC #67) on Master Channel" in {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SoftPedal, 127).javaMidiMessage)
-    extractCc(output) should contain((0, ScCcMidiMessage.SoftPedal, 127))
+    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.SoftPedal, 127))
   }
 
   // --- 4.2.7 process() — Pitch Bend Computation ---
@@ -381,7 +381,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val output = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
     val pitchBends = extractPitchBends(output)
     // C has 0.0 offset in quarter-comma meantone, so pitch bend should be 0
-    pitchBends.head._2 shouldBe 0
+    pitchBends.head.value shouldBe 0
   }
 
   it should "clamp pitch bend to valid 14-bit signed range" in {
@@ -404,9 +404,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     tuner.reset()
     tuner.tune(quarterCommaMeantone)
     val out1 = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val ch1 = extractNoteOns(out1).head._1
+    val ch1 = extractNoteOns(out1).head.channel
     val out2 = tuner.process(ScNoteOnMidiMessage(inputChannel, C5).javaMidiMessage)
-    val ch2 = extractNoteOns(out2).head._1
+    val ch2 = extractNoteOns(out2).head.channel
     ch1 should not equal ch2
   }
 
@@ -432,7 +432,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMidiMessage) // middle
     tuner.process(ScNoteOnMidiMessage(inputChannel, G4).javaMidiMessage) // highest
     val output = tuner.process(ScNoteOnMidiMessage(inputChannel, A4).javaMidiMessage)
-    val droppedNotes = extractNoteOffs(output).map(_._2)
+    val droppedNotes = extractNoteOffs(output).map(_.midiNote)
     droppedNotes should contain(E4)
     droppedNotes should not contain C4
     droppedNotes should not contain G4
@@ -477,12 +477,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     tuner.reset()
     tuner.tune(quarterCommaMeantone)
     val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val noteChannel = extractNoteOns(noteOutput).head._1
+    val noteChannel = extractNoteOns(noteOutput).head.channel
     tuner.process(ScNoteOffMidiMessage(inputChannel, C4).javaMidiMessage)
 
     val tuneOutput = tuner.tune(pythagoreanTuning)
     val pitchBends = extractPitchBends(tuneOutput)
-    pitchBends.map(_._1) should not contain noteChannel
+    pitchBends.map(_.channel) should not contain noteChannel
   }
 
   it should "make channel available for reuse after Note Off" in {
@@ -506,21 +506,21 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
 
     // 1. Note C4 arrives -> Pitch Class Group
     val out1 = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val ch1 = extractNoteOns(out1).head._1
+    val ch1 = extractNoteOns(out1).head.channel
 
     // 2. Note E4 arrives -> Pitch Class Group
     val out2 = tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMidiMessage)
-    val ch2 = extractNoteOns(out2).head._1
+    val ch2 = extractNoteOns(out2).head.channel
     ch2 should not equal ch1
 
     // 3. Note G4 arrives -> Pitch Class Group
     val out3 = tuner.process(ScNoteOnMidiMessage(inputChannel, G4).javaMidiMessage)
-    val ch3 = extractNoteOns(out3).head._1
+    val ch3 = extractNoteOns(out3).head.channel
     Set(ch1, ch2, ch3).size shouldBe 3
 
     // 4. Second C4 arrives -> Expression Group
     val out4 = tuner.process(ScNoteOnMidiMessage(inputChannel, C5).javaMidiMessage)
-    val ch4 = extractNoteOns(out4).head._1
+    val ch4 = extractNoteOns(out4).head.channel
     ch4 should not equal ch1 // Different channel from first C
 
     // 5. Performer bends second C4 - only ch4's pitch bend affected
@@ -556,10 +556,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
 
     // A arrives - must drop a note
     val output = tuner.process(ScNoteOnMidiMessage(inputChannel, A4).javaMidiMessage)
-    val droppedNotes = extractNoteOffs(output).map(_._2)
+    val droppedNotes = extractNoteOffs(output).map(_.midiNote)
     // E should be dropped (C is lowest, G is highest)
     droppedNotes should contain(E4)
     // A should be allocated
-    extractNoteOns(output).map(_._2) should contain(A4)
+    extractNoteOns(output).map(_.midiNote) should contain(A4)
   }
 }
