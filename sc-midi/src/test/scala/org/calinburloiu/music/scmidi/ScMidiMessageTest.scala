@@ -23,6 +23,41 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 
+class ScMidiMessageTest extends AnyFlatSpec with Matchers {
+  behavior of "ScMidiMessage"
+
+  it should "create correct ScMidiMessage from Java message" in {
+    val channel = 1
+    val noteNumber = 60
+    val velocity = 100
+    val ccNumber = 7
+    val ccValue = 120
+    val pressureValue = 80
+    val pitchBendValue = 0
+
+    val noteOn = new ShortMessage(ShortMessage.NOTE_ON, channel, noteNumber, velocity)
+    val noteOff = new ShortMessage(ShortMessage.NOTE_OFF, channel, noteNumber, velocity)
+    val cc = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, ccNumber, ccValue)
+    val pitchBend = new ShortMessage(ShortMessage.PITCH_BEND, channel, 0x00, 0x40)
+    val channelPressure = new ShortMessage(ShortMessage.CHANNEL_PRESSURE, channel, pressureValue, 0)
+    val polyPressure = new ShortMessage(ShortMessage.POLY_PRESSURE, channel, noteNumber, pressureValue)
+    val programChange = new ShortMessage(ShortMessage.PROGRAM_CHANGE, channel, 1, 0)
+
+    ScMidiMessage.fromJavaMessage(noteOn) should equal(ScNoteOnMidiMessage(channel, noteNumber, velocity))
+    ScMidiMessage.fromJavaMessage(noteOff) should equal(ScNoteOffMidiMessage(channel, noteNumber, velocity))
+    ScMidiMessage.fromJavaMessage(cc) should equal(ScCcMidiMessage(channel, ccNumber, ccValue))
+    ScMidiMessage.fromJavaMessage(pitchBend) should equal(ScPitchBendMidiMessage(channel, pitchBendValue))
+    ScMidiMessage.fromJavaMessage(channelPressure) should equal(ScChannelPressureMidiMessage(channel, pressureValue))
+    ScMidiMessage.fromJavaMessage(polyPressure) should equal(ScPolyPressureMidiMessage(channel, noteNumber,
+      pressureValue))
+    ScMidiMessage.fromJavaMessage(programChange) should equal(ScUnsupportedMidiMessage(programChange))
+  }
+
+  it should "throw IllegalArgumentException for null input" in {
+    an[IllegalArgumentException] should be thrownBy ScMidiMessage.fromJavaMessage(null)
+  }
+}
+
 class ScNoteMidiMessageTest extends AnyFlatSpec with Matchers {
   private val channel = 5
   private val noteNumber: Int = 62

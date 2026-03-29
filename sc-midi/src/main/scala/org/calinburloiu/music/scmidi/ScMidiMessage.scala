@@ -28,6 +28,35 @@ trait ScMidiMessage {
   def javaMidiMessage: MidiMessage
 }
 
+object ScMidiMessage {
+  /**
+   * Converts Java [[MidiMessage]]s to the corresponding [[ScMidiMessage]] instance.
+   *
+   * @param message The Java [[MidiMessage]] to convert. Must not be null.
+   * @return The [[ScMidiMessage]] instance.
+   * @throws IllegalArgumentException if the message is null.
+   */
+  def fromJavaMessage(message: MidiMessage): ScMidiMessage = {
+    require(message != null, "message must not be null")
+
+    message match {
+      case shortMessage: ShortMessage =>
+        shortMessage.getCommand match {
+          case ShortMessage.NOTE_ON => ScNoteOnMidiMessage.fromJavaMessage(message).get
+          case ShortMessage.NOTE_OFF => ScNoteOffMidiMessage.fromJavaMessage(message).get
+          case ShortMessage.PITCH_BEND => ScPitchBendMidiMessage.fromJavaMessage(message).get
+          case ShortMessage.CONTROL_CHANGE => ScCcMidiMessage.fromJavaMessage(message).get
+          case ShortMessage.CHANNEL_PRESSURE => ScChannelPressureMidiMessage.fromJavaMessage(message).get
+          case ShortMessage.POLY_PRESSURE => ScPolyPressureMidiMessage.fromJavaMessage(message).get
+          case _ => ScUnsupportedMidiMessage(message)
+        }
+      case _ => ScUnsupportedMidiMessage(message)
+    }
+  }
+}
+
+case class ScUnsupportedMidiMessage(override val javaMidiMessage: MidiMessage) extends ScMidiMessage
+
 /**
  * Base class for Note MIDI messages.
  *
