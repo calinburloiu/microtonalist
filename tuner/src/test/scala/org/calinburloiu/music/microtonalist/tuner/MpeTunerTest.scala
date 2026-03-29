@@ -104,6 +104,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
   private def extractChannelPressure(output: Seq[MidiMessage]): Seq[ScChannelPressureMidiMessage] =
     output.flatMap(ScChannelPressureMidiMessage.fromJavaMessage)
 
+  private def extractScMidiMessages(output: Seq[MidiMessage]): Seq[ScMidiMessage] =
+    output.map(ScMidiMessage.fromJavaMessage)
+
   // --- 4.2.1 reset() ---
 
   behavior of "MpeTuner - reset()"
@@ -206,14 +209,17 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     tuner.reset()
     tuner.tune(quarterCommaMeantone)
     val output = tuner.process(ScNoteOnMidiMessage(inputChannel, C4, 100).javaMidiMessage)
-    val msgs = extractShortMessages(output)
+    val msgs = extractScMidiMessages(output)
+
     // Should have: PitchBend, CC#74, ChannelPressure, NoteOn
-    msgs.size shouldBe 4
-    msgs(0).getCommand shouldBe ShortMessage.PITCH_BEND
-    msgs(1).getCommand shouldBe ShortMessage.CONTROL_CHANGE
-    msgs(1).getData1 shouldBe 74
-    msgs(2).getCommand shouldBe ShortMessage.CHANNEL_PRESSURE
-    msgs(3).getCommand shouldBe ShortMessage.NOTE_ON
+    // noteChannel is likely 1 since it's the first member channel of the Lower Zone (master 0, members 1-15)
+    val noteChannel = 1
+    msgs should contain inOrder(
+      ScPitchBendMidiMessage(noteChannel, 0),
+      ScCcMidiMessage(noteChannel, 74, 64),
+      ScChannelPressureMidiMessage(noteChannel, 0),
+      ScNoteOnMidiMessage(noteChannel, C4, 100)
+    )
   }
 
   it should "output Note Off on the correct member channel" in {
@@ -320,12 +326,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     tuner.reset()
     val output = tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMidiMessage)
-    val msgs = extractShortMessages(output)
+    val msgs = extractScMidiMessages(output)
+
+    val noteChannel = 1
     // CC #74 should be 64 (default), Channel Pressure should be 0 (default)
-    val cc74 = msgs.find(m => m.getCommand == ShortMessage.CONTROL_CHANGE && m.getData1 == 74)
-    cc74.get.getData2 shouldBe 64
-    val cp = msgs.find(_.getCommand == ShortMessage.CHANNEL_PRESSURE)
-    cp.get.getData1 shouldBe 0
+    msgs should contain allOf(
+      ScCcMidiMessage(noteChannel, 74, 64),
+      ScChannelPressureMidiMessage(noteChannel, 0)
+    )
   }
 
   // --- 4.2.6 process() — Zone-Level Messages ---
