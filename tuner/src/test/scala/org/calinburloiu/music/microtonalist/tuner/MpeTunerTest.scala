@@ -25,8 +25,8 @@ import javax.sound.midi.{MidiMessage, ShortMessage}
 
 class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
 
-  private val defaultPbs = PitchBendSensitivity(48)
-  private val masterPbs = PitchBendSensitivity(2)
+  private implicit val defaultPbs: PitchBendSensitivity = PitchBendSensitivity(48)
+  private val masterPbs: PitchBendSensitivity = PitchBendSensitivity(2)
 
   import MidiNote.{A4, C4, C5, D4, E4, G4}
 
@@ -188,7 +188,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val pitchBends = extractPitchBends(tuneOutput)
     // C and E should have different pitch bends (different tuning offsets)
     pitchBends.size shouldEqual 2
-    pitchBends.map(_.centsFor(defaultPbs).round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
+    pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
   }
 
   // --- 4.2.3 process() — Non-MPE Input, Basic Note Handling ---

@@ -62,6 +62,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val output: mutable.Buffer[MidiMessage] = mutable.Buffer.empty
 
+    protected implicit val implPitchBendSensitivity: PitchBendSensitivity = pitchBendSensitivity
+
     def shortMessageOutput: Seq[ShortMessage] = output.toSeq.collect {
       case shortMessage: ShortMessage => shortMessage
     }
@@ -163,7 +165,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     result should have size 3
 
     val expectedTuningValues: Seq[Double] = Seq(-16.67, -33.33, 16.67)
-    val tuningValues: Seq[Double] = result.map(_.centsFor(pitchBendSensitivity))
+    val tuningValues: Seq[Double] = result.map(_.cents)
     for (i <- tuningValues.indices) {
       tuningValues(i) shouldEqual expectedTuningValues(i)
     }
@@ -557,7 +559,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
       pitchBendOutput should have size 11
 
-      val tuningValues: Seq[Double] = pitchBendOutput.map { message => message.centsFor(pbs).round.toDouble }
+      val tuningValues: Seq[Double] = pitchBendOutput.map { message => message.cents.round.toDouble }
       val expectedTuningValues: Seq[Double] = customTuning.offsets.tail.map(_.round.toDouble)
       tuningValues should contain theSameElementsAs expectedTuningValues
     }

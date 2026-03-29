@@ -134,6 +134,16 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
 
   /** Calculates the pitch bend in cents based on the given pitch bend sensitivity. */
   def centsFor(pitchBendSensitivity: PitchBendSensitivity): Double = convertValueToCents(value, pitchBendSensitivity)
+
+  /**
+   * Calculates the pitch bend in cents using the implicit pitch bend sensitivity.
+   *
+   * @param pitchBendSensitivity Implicit parameter that defines the pitch bend range
+   *                             in semitones and cents.
+   *
+   * @return The pitch bend amount in cents.
+   */
+  def cents(implicit pitchBendSensitivity: PitchBendSensitivity): Double = centsFor(pitchBendSensitivity)
 }
 
 /**
