@@ -28,6 +28,7 @@ import scala.collection.mutable
  *
  * @param outputChannel               Output MIDI channel on which all output is sent, regardless on the input
  *                                    channels used.
+ *
  * @param defaultPitchBendSensitivity Default pitch bend range that will be configured via Pitch Bend Sensitivity
  *                                    MIDI RPN.
  */

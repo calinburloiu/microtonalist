@@ -66,9 +66,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       case shortMessage: ShortMessage => shortMessage
     }
 
-    def pitchBendOutput: Seq[ScPitchBendMidiMessage] = output.toSeq.collect {
-      case ScPitchBendMidiMessage(channel, value) => ScPitchBendMidiMessage(channel, value)
-    }
+    def pitchBendOutput: Seq[ScPitchBendMidiMessage] = output.toSeq.flatMap(
+      ScPitchBendMidiMessage.fromJavaMessage)
 
     def sendNote(note: MidiNote, channel: Int = inputChannel): Seq[MidiMessage] = {
       Seq(

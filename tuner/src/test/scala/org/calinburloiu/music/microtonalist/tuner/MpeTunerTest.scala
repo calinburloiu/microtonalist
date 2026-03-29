@@ -87,7 +87,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     output.collect { case sm: ShortMessage => sm }
 
   private def extractPitchBends(output: Seq[MidiMessage]): Seq[ScPitchBendMidiMessage] =
-    output.flatMap { msg => ScPitchBendMidiMessage.fromJavaMessage(msg) }
+    output.flatMap(ScPitchBendMidiMessage.fromJavaMessage)
 
   private def extractNoteOns(output: Seq[MidiMessage]): Seq[(Int, MidiNote, Int)] =
     output.collect { case ScNoteOnMidiMessage(ch, note, vel) if vel > 0 => (ch, note, vel) }
