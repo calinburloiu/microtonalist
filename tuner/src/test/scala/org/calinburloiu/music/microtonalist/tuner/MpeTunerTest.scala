@@ -113,9 +113,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val output = tuner.reset()
     val ccs = extractCc(output)
     // MCM: RPN LSB=6, RPN MSB=0, Data Entry MSB=memberCount on master channel 0
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb))
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb))
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 15))
+    ccs should contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 15)
+    )
   }
 
   it should "output RPN 0 (Pitch Bend Sensitivity) on all member channels" in {
@@ -124,9 +126,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val ccs = extractCc(output)
     // Check that PBS is set on member channels 1..7
     (1 to 7).foreach { ch =>
-      ccs should contain(ScCcMidiMessage(ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb))
-      ccs should contain(ScCcMidiMessage(ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityMsb))
-      ccs should contain(ScCcMidiMessage(ch, ScCcMidiMessage.DataEntryMsb, 48))
+      ccs should contain inOrder(
+        ScCcMidiMessage(ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+        ScCcMidiMessage(ch, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+        ScCcMidiMessage(ch, ScCcMidiMessage.DataEntryMsb, 48)
+      )
     }
   }
 
@@ -134,9 +138,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val tuner = defaultTuner
     val output = tuner.reset()
     val ccs = extractCc(output)
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb))
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityMsb))
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 2))
+    ccs should contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 2)
+    )
   }
 
   it should "clear internal state after reset" in {
