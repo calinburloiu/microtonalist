@@ -29,6 +29,15 @@ trait ScMidiMessage {
 }
 
 object ScMidiMessage {
+  private val FromJavaMessageMap: Map[Int, MidiMessage => ScMidiMessage] = Map(
+    ShortMessage.NOTE_ON -> ScNoteOnMidiMessage.fromJavaMessage.unlift,
+    ShortMessage.NOTE_OFF -> ScNoteOffMidiMessage.fromJavaMessage.unlift,
+    ShortMessage.PITCH_BEND -> ScPitchBendMidiMessage.fromJavaMessage.unlift,
+    ShortMessage.CONTROL_CHANGE -> ScCcMidiMessage.fromJavaMessage.unlift,
+    ShortMessage.CHANNEL_PRESSURE -> ScChannelPressureMidiMessage.fromJavaMessage.unlift,
+    ShortMessage.POLY_PRESSURE -> ScPolyPressureMidiMessage.fromJavaMessage.unlift
+  ).withDefaultValue(ScUnsupportedMidiMessage.apply)
+
   /**
    * Converts Java [[MidiMessage]]s to the corresponding [[ScMidiMessage]] instance.
    *
@@ -40,16 +49,7 @@ object ScMidiMessage {
     require(message != null, "message must not be null")
 
     message match {
-      case shortMessage: ShortMessage =>
-        shortMessage.getCommand match {
-          case ShortMessage.NOTE_ON => ScNoteOnMidiMessage.fromJavaMessage(message).get
-          case ShortMessage.NOTE_OFF => ScNoteOffMidiMessage.fromJavaMessage(message).get
-          case ShortMessage.PITCH_BEND => ScPitchBendMidiMessage.fromJavaMessage(message).get
-          case ShortMessage.CONTROL_CHANGE => ScCcMidiMessage.fromJavaMessage(message).get
-          case ShortMessage.CHANNEL_PRESSURE => ScChannelPressureMidiMessage.fromJavaMessage(message).get
-          case ShortMessage.POLY_PRESSURE => ScPolyPressureMidiMessage.fromJavaMessage(message).get
-          case _ => ScUnsupportedMidiMessage(message)
-        }
+      case shortMessage: ShortMessage => FromJavaMessageMap(shortMessage.getCommand)(message)
       case _ => ScUnsupportedMidiMessage(message)
     }
   }

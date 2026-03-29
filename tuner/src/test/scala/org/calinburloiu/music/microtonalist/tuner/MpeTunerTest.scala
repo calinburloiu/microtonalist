@@ -212,7 +212,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
     val msgs = extractScMidiMessages(output)
 
     // Should have: PitchBend, CC#74, ChannelPressure, NoteOn
-    // noteChannel is likely 1 since it's the first member channel of the Lower Zone (master 0, members 1-15)
     val noteChannel = 1
     msgs should contain inOrder(
       ScPitchBendMidiMessage(noteChannel, 0),
