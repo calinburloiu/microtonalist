@@ -304,6 +304,11 @@ object ScCcMidiMessage {
   /** Soft Pedal controller number (#67). */
   val SoftPedal: Int = 67
 
+  /**
+   * Represents the MPE (MIDI Polyphonic Expression) Slide controller number (#74), also known as Timbre or Brightness.
+   */
+  val MpeSlide: Int = 74
+
   /** Extracts the channel, controller number, and value from a [[MidiMessage]] if it is a Control Change message. */
   def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CONTROL_CHANGE =>

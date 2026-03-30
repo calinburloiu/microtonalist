@@ -32,6 +32,7 @@ trait ActiveNote {
   /** The expressive pitch bend value (excluding the tuning offset). */
   def expressivePitchBend: Int
 
+  // TODO #143 channelPressure and slide are not update
   /** The MIDI Channel Pressure value. */
   def channelPressure: Int
 

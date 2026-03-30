@@ -125,10 +125,8 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
   override def process(message: MidiMessage): Seq[MidiMessage] = {
     message match {
-      case msg: ShortMessage =>
-        processShortMessage(msg)
-      case _ =>
-        Seq(message)
+      case msg: ShortMessage => processShortMessage(msg)
+      case _ => Seq(message)
     }
   }
 
@@ -142,7 +140,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       case ScNoteOnMidiMessage(channel, midiNote, velocity) if velocity > 0 =>
         processNoteOn(buffer, channel, midiNote, velocity)
       case ScNoteOnMidiMessage(channel, midiNote, _) =>
-        processNoteOff(buffer, channel, midiNote, 0)
+        processNoteOff(buffer, channel, midiNote, ScNoteOffMidiMessage.DefaultVelocity)
       case ScNoteOffMidiMessage(channel, midiNote, velocity) =>
         processNoteOff(buffer, channel, midiNote, velocity)
       case ScPitchBendMidiMessage(channel, value) =>
@@ -175,6 +173,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         val result = alloc.allocate(midiNote, preferredChannel = preferredChannel)
         val outChannel = result.channel
 
+        // TODO #143 Duplicated lines
         // Handle dropped notes
         result.droppedNotes.foreach { dropped =>
           dropped.notes.foreach { midiNote =>
@@ -190,6 +189,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
         // Compute and send control dimensions before Note On
         val tuningOffset = currTuning(midiNote.pitchClass)
+        // TODO #143 Is experssiveBend dead code?
         val expressiveBend = if (inputMode == MpeInputMode.Mpe) {
           channelExpressivePitchBend.getOrElse(inputChannel, 0)
         } else {
@@ -201,7 +201,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
         // CC #74 (slide) - default 64
         val slide = channelSlideMap.getOrElse(inputChannel, 64)
-        buffer += ScCcMidiMessage(outChannel, 74, slide).javaMidiMessage
+        buffer += ScCcMidiMessage(outChannel, ScCcMidiMessage.MpeSlide, slide).javaMidiMessage
 
         // Channel Pressure - default 0
         val pressure = channelPressureMap.getOrElse(inputChannel, 0)
@@ -223,6 +223,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         val allocator = getAllocatorForOutput(outChannel)
         allocator.foreach(_.release(midiNote, outChannel))
         buffer += ScNoteOffMidiMessage(outChannel, midiNote, velocity).javaMidiMessage
+        // TODO #143 Need to understand this
         // Clean up MPE input channel map if no more notes on this input channel
         if (inputMode == MpeInputMode.Mpe) {
           if (!noteChannelMap.values.exists(_ == mpeInputChannelMap.getOrElse(inputChannel, -1))) {
@@ -276,12 +277,14 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   private def processCc(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                         ccNumber: Int, ccValue: Int): Unit = {
     ccNumber match {
-      case 74 =>
+      case ScCcMidiMessage.MpeSlide =>
         // Slide - forward to appropriate member channel
         channelSlideMap(inputChannel) = ccValue
-        forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, 74, ccValue))
+        forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
       case ScCcMidiMessage.SustainPedal | ScCcMidiMessage.SostenutoPedal | ScCcMidiMessage.SoftPedal |
            ScCcMidiMessage.Modulation | ScCcMidiMessage.ResetAllControllers =>
+        // TODO #143 Zones are not mutually exclusive. Should compare inputChannel with zone ranges. Check for
+        //  similar problems.
         // Zone-level messages - forward on master channel
         if (lowerZone.isEnabled) {
           buffer += ScCcMidiMessage(lowerZone.masterChannel, ccNumber, ccValue).javaMidiMessage
@@ -302,6 +305,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
   private def processPolyPressure(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                   midiNote: MidiNote, pressure: Int): Unit = {
+    // TODO #143 For Non-MPE input, convert to Channel Pressure; for MPE input, filter out if not on Master Channel
     // Convert Poly Pressure to Channel Pressure on the appropriate member channel
     noteChannelMap.get((midiNote, inputChannel)).foreach { outChannel =>
       buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMidiMessage
@@ -311,9 +315,12 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                      makeMessage: Int => ScMidiMessage): Unit = {
     if (inputMode == MpeInputMode.Mpe) {
+      // TODO #143 Defaulting to inputChannel is not correct. If should do nothing instead. To check for other
+      //  similar cases.
       val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
       buffer += makeMessage(outChannel).javaMidiMessage
     } else {
+      // TODO #143 Not sure I follow why this is done.
       // For non-MPE, forward to all occupied member channels that have notes from this input
       val outChannels = noteChannelMap.collect {
         case ((_, `inputChannel`), outCh) => outCh
@@ -325,6 +332,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   }
 
   private def forwardOnMasterChannel(buffer: mutable.Buffer[MidiMessage], msg: ShortMessage): Unit = {
+    // TODO #143 Zones are not mutually exclusive.
     if (lowerZone.isEnabled) {
       buffer += mapShortMessageChannel(msg, _ => lowerZone.masterChannel)
     } else if (upperZone.isEnabled) {
@@ -388,6 +396,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     if (inputMode == MpeInputMode.NonMpe) {
       lowerAllocator.orElse(upperAllocator)
     } else {
+      // TODO #143 Duplicated lines
       // For MPE input, determine zone based on input channel
       if (lowerZone.isEnabled && (lowerZone.memberChannels.contains(inputChannel) ||
         inputChannel == lowerZone.masterChannel)) {
