@@ -22,6 +22,21 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessa
 import scala.collection.mutable
 import scala.util.boundary
 
+trait MpeExpression {
+  def pitchBend: Int
+
+  def pressure: Int
+
+  def slide: Int
+}
+
+private class MutableNoteExpression(var pitchBend: Int, var pressure: Int, var slide: Int) extends MpeExpression
+
+private case class ImmutableNoteExpression(pitchBend: Int, pressure: Int, slide: Int) extends MpeExpression
+
+// TODO #143 Note expression is not currently updated
+// TODO #143 Factor out all expression params into an `expression: MpeExpression` field
+
 /**
  * Represents a note that is currently sounding on an MPE Member Channel.
  */
@@ -32,7 +47,6 @@ trait ActiveNote {
   /** The expressive pitch bend value (excluding the tuning offset). */
   def expressivePitchBend: Int
 
-  // TODO #143 channelPressure and slide are not update
   /** The MIDI Channel Pressure value. */
   def channelPressure: Int
 
@@ -56,6 +70,9 @@ private case class ImmutableActiveNote(midiNote: MidiNote,
 case class DroppedNotes(channel: Int,
                         notes: Seq[MidiNote],
                         group: ChannelGroup)
+
+// TODO #143 Add a channelExpression field of type MpeExpression which will be set on the output channel before the
+//  Note On message in MpeTuner. The new field is averaged across all channel notes from ChannelState.
 
 /**
  * Result of a channel allocation operation.
@@ -148,6 +165,7 @@ class MpeChannelAllocator(val zone: MpeZone,
   }
 
   // TODO #143 To map incoming channel to output channel?
+
   /**
    * Releases a note from a channel.
    *
@@ -168,6 +186,7 @@ class MpeChannelAllocator(val zone: MpeZone,
   }
 
   // TODO #143 Bad assumption that the last not is being bent. To map incoming channel to output channel.
+
   /**
    * Updates the expressive pitch bend for a channel.
    *
