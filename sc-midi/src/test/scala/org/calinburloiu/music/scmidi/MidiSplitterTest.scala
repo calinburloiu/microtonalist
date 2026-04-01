@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -81,8 +81,8 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
     splitter.multiTransmitter.receivers = receiverStubs
 
     // When
-    splitter.receiver.send(ScNoteOnMidiMessage(0, MidiNote.C4, 69).javaMidiMessage, 100L)
-    splitter.receiver.send(ScNoteOffMidiMessage(0, MidiNote.C4, 63).javaMidiMessage, 120L)
+    splitter.receiver.send(ScNoteOnMidiMessage(0, MidiNote.C4, 69).javaMessage, 100L)
+    splitter.receiver.send(ScNoteOffMidiMessage(0, MidiNote.C4, 63).javaMessage, 120L)
 
     // Then
     for (receiverStub <- receiverStubs) {

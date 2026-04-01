@@ -25,7 +25,7 @@ import javax.sound.midi.{MidiMessage, ShortMessage}
  */
 trait ScMidiMessage {
   /** The underlying [[javax.sound.midi.MidiMessage]]. */
-  def javaMidiMessage: MidiMessage
+  def javaMessage: MidiMessage
 }
 
 object ScMidiMessage {
@@ -55,7 +55,7 @@ object ScMidiMessage {
   }
 }
 
-case class ScUnsupportedMidiMessage(override val javaMidiMessage: MidiMessage) extends ScMidiMessage
+case class ScUnsupportedMidiMessage(override val javaMessage: MidiMessage) extends ScMidiMessage
 
 /**
  * Base class for Note MIDI messages.
@@ -71,7 +71,7 @@ abstract class ScNoteMidiMessage(val channel: Int,
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
 
-  override def javaMidiMessage: ShortMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
+  override def javaMessage: ShortMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
 
   /** The MIDI command for this note message (e.g., [[ShortMessage.NOTE_ON]]). */
   protected val midiCommand: Int
@@ -156,7 +156,7 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
   MidiRequirements.requireChannel(channel)
   MidiRequirements.requireSigned14BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage = {
+  override lazy val javaMessage: ShortMessage = {
     val (data1, data2) = convertValueToDataBytes(value)
     new ShortMessage(ShortMessage.PITCH_BEND, channel, data1, data2)
   }
@@ -268,7 +268,7 @@ case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidi
   MidiRequirements.requireUnsigned7BitValue("number", number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number,
+  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number,
     value)
 }
 
@@ -369,7 +369,7 @@ case class ScChannelPressureMidiMessage(channel: Int, value: Int) extends ScMidi
   MidiRequirements.requireChannel(channel)
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CHANNEL_PRESSURE, channel, value, 0)
+  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.CHANNEL_PRESSURE, channel, value, 0)
 }
 
 /**
@@ -398,7 +398,7 @@ case class ScPolyPressureMidiMessage(channel: Int, midiNote: MidiNote, value: In
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage =
+  override lazy val javaMessage: ShortMessage =
     new ShortMessage(ShortMessage.POLY_PRESSURE, channel, midiNote.number, value)
 }
 

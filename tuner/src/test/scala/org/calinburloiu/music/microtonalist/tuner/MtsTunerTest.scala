@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -47,14 +47,14 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
     // Given
-    val message: MidiMessage = ScNoteOnMidiMessage(0, MidiNote.A4).javaMidiMessage
+    val message: MidiMessage = ScNoteOnMidiMessage(0, MidiNote.A4).javaMessage
     // Then
     tuner.process(message) shouldEqual Seq(message)
   }
 
   it should "return the received MIDI message if thru is false" in new Fixture(thru = false) {
     // Given
-    val message: MidiMessage = ScNoteOnMidiMessage(0, MidiNote.A4).javaMidiMessage
+    val message: MidiMessage = ScNoteOnMidiMessage(0, MidiNote.A4).javaMessage
     // Then
     tuner.process(message) shouldBe empty
   }

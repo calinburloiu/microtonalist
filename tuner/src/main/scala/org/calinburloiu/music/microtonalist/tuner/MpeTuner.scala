@@ -177,7 +177,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         // Handle dropped notes
         result.droppedNotes.foreach { dropped =>
           dropped.notes.foreach { midiNote =>
-            buffer += ScNoteOffMidiMessage(dropped.channel, midiNote).javaMidiMessage
+            buffer += ScNoteOffMidiMessage(dropped.channel, midiNote).javaMessage
           }
         }
 
@@ -197,22 +197,22 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         }
 
         val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
-        buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMidiMessage
+        buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
 
         // CC #74 (slide) - default 64
         val slide = channelSlideMap.getOrElse(inputChannel, 64)
-        buffer += ScCcMidiMessage(outChannel, ScCcMidiMessage.MpeSlide, slide).javaMidiMessage
+        buffer += ScCcMidiMessage(outChannel, ScCcMidiMessage.MpeSlide, slide).javaMessage
 
         // Channel Pressure - default 0
         val pressure = channelPressureMap.getOrElse(inputChannel, 0)
-        buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMidiMessage
+        buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMessage
 
         // Note On
-        buffer += ScNoteOnMidiMessage(outChannel, midiNote, velocity).javaMidiMessage
+        buffer += ScNoteOnMidiMessage(outChannel, midiNote, velocity).javaMessage
 
       case None =>
         // No allocator for this channel, forward as-is
-        buffer += ScNoteOnMidiMessage(inputChannel, midiNote, velocity).javaMidiMessage
+        buffer += ScNoteOnMidiMessage(inputChannel, midiNote, velocity).javaMessage
     }
   }
 
@@ -222,7 +222,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       case Some(outChannel) =>
         val allocator = getAllocatorForOutput(outChannel)
         allocator.foreach(_.release(midiNote, outChannel))
-        buffer += ScNoteOffMidiMessage(outChannel, midiNote, velocity).javaMidiMessage
+        buffer += ScNoteOffMidiMessage(outChannel, midiNote, velocity).javaMessage
         // TODO #143 Need to understand this
         // Clean up MPE input channel map if no more notes on this input channel
         if (inputMode == MpeInputMode.Mpe) {
@@ -231,7 +231,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
           }
         }
       case None =>
-        buffer += ScNoteOffMidiMessage(inputChannel, midiNote, velocity).javaMidiMessage
+        buffer += ScNoteOffMidiMessage(inputChannel, midiNote, velocity).javaMessage
     }
   }
 
@@ -240,7 +240,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       // Check if it's a master channel
       if (isMasterChannel(inputChannel)) {
         // Forward master channel pitch bend without modification
-        buffer += ScPitchBendMidiMessage(inputChannel, pitchBendValue).javaMidiMessage
+        buffer += ScPitchBendMidiMessage(inputChannel, pitchBendValue).javaMessage
       } else {
         // Per-note pitch bend in MPE input - treat as expressive pitch bend
         channelExpressivePitchBend(inputChannel) = pitchBendValue
@@ -250,7 +250,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
           val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendValue)
           droppedNotes.foreach { d =>
             d.notes.foreach { midiNote =>
-              buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMidiMessage
+              buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMessage
             }
           }
           val zone = alloc.zone
@@ -258,7 +258,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
           pc.foreach { pitchClass =>
             val tuningOffset = currTuning(pitchClass)
             val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
-            buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMidiMessage
+            buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
           }
         }
       }
@@ -266,10 +266,10 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       // Non-MPE input: redirect pitch bend to master channel as zone-level pitch bend
       _globalExpressivePitchBend = pitchBendValue
       if (lowerZone.isEnabled) {
-        buffer += ScPitchBendMidiMessage(lowerZone.masterChannel, pitchBendValue).javaMidiMessage
+        buffer += ScPitchBendMidiMessage(lowerZone.masterChannel, pitchBendValue).javaMessage
       }
       if (upperZone.isEnabled) {
-        buffer += ScPitchBendMidiMessage(upperZone.masterChannel, pitchBendValue).javaMidiMessage
+        buffer += ScPitchBendMidiMessage(upperZone.masterChannel, pitchBendValue).javaMessage
       }
     }
   }
@@ -287,13 +287,13 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         //  similar problems.
         // Zone-level messages - forward on master channel
         if (lowerZone.isEnabled) {
-          buffer += ScCcMidiMessage(lowerZone.masterChannel, ccNumber, ccValue).javaMidiMessage
+          buffer += ScCcMidiMessage(lowerZone.masterChannel, ccNumber, ccValue).javaMessage
         } else if (upperZone.isEnabled) {
-          buffer += ScCcMidiMessage(upperZone.masterChannel, ccNumber, ccValue).javaMidiMessage
+          buffer += ScCcMidiMessage(upperZone.masterChannel, ccNumber, ccValue).javaMessage
         }
       case _ =>
         // Forward as-is
-        forwardOnMasterChannel(buffer, ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMidiMessage)
+        forwardOnMasterChannel(buffer, ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMessage)
     }
   }
 
@@ -308,7 +308,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     // TODO #143 For Non-MPE input, convert to Channel Pressure; for MPE input, filter out if not on Master Channel
     // Convert Poly Pressure to Channel Pressure on the appropriate member channel
     noteChannelMap.get((midiNote, inputChannel)).foreach { outChannel =>
-      buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMidiMessage
+      buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMessage
     }
   }
 
@@ -318,7 +318,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       // TODO #143 Defaulting to inputChannel is not correct. If should do nothing instead. To check for other
       //  similar cases.
       val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
-      buffer += makeMessage(outChannel).javaMidiMessage
+      buffer += makeMessage(outChannel).javaMessage
     } else {
       // TODO #143 Not sure I follow why this is done.
       // For non-MPE, forward to all occupied member channels that have notes from this input
@@ -326,7 +326,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         case ((_, `inputChannel`), outCh) => outCh
       }.toSet
       outChannels.foreach { outCh =>
-        buffer += makeMessage(outCh).javaMidiMessage
+        buffer += makeMessage(outCh).javaMessage
       }
     }
   }
@@ -362,7 +362,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       // TODO #143 Duplicated lines
       val tuningOffset = currTuning(pc)
       val totalPitchBend = computeOutputPitchBend(ch, alloc, zone, tuningOffset)
-      buffer += ScPitchBendMidiMessage(ch, totalPitchBend).javaMidiMessage
+      buffer += ScPitchBendMidiMessage(ch, totalPitchBend).javaMessage
     }
   }
 
@@ -374,7 +374,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.DataEntryMsb, zone.memberCount),
       ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
       ScCcMidiMessage(zone.masterChannel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-    ).map(_.javaMidiMessage)
+    ).map(_.javaMessage)
   }
 
   private def pitchBendSensitivityMessages(zone: MpeZone): Seq[MidiMessage] = {

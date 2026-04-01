@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ trait MidiProcessor extends AutoCloseable {
      * @throws IllegalStateException if the receiver is closed
      */
     def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-      send(scMessage.javaMidiMessage, timeStamp)
+      send(scMessage.javaMessage, timeStamp)
       this
     }
 

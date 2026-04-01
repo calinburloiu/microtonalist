@@ -74,6 +74,6 @@ object PitchBendSensitivityMessages {
       // Setting cr number to Null to prevent accidental changes of values
       ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
       ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-    ).map(_.javaMidiMessage)
+    ).map(_.javaMessage)
   }
 }
