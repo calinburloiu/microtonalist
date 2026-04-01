@@ -62,7 +62,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val result = alloc.allocate(C4)
     result.droppedNotes shouldBe empty
     alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.activeNotes(result.channel).map(_.midiNote) should contain theSameElementsAs Seq(C4)
+    alloc.activeNotes(result.channel) should contain theSameElementsAs Set(C4)
   }
 
   it should "allocate notes with distinct pitch classes to their own Pitch Class Group channels" in {
@@ -327,7 +327,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val result = alloc.allocate(A4)
     result.droppedNotes should not be empty
     // The new note should be on the freed channel
-    alloc.activeNotes(result.channel).map(_.midiNote) should contain(A4)
+    alloc.activeNotes(result.channel) should contain(A4)
   }
 
   // --- 3.5 Note Dropping — High Expressive Pitch Bend ---
