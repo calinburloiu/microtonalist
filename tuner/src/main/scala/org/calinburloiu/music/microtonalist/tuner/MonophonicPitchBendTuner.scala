@@ -142,7 +142,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       // Setting the parameter number to Null to prevent accidental changes of values
       ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
       ScCcMidiMessage(outputChannel, ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
-    ).map(_.javaMidiMessage)
+    ).map(_.javaMessage)
   }
 
   private def currTuning: Tuning = _currTuning
@@ -192,7 +192,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def applyNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     _lastNoteOnVelocity = velocity
 
-    buffer += ScNoteOnMidiMessage(outputChannel, note, velocity).javaMidiMessage
+    buffer += ScNoteOnMidiMessage(outputChannel, note, velocity).javaMessage
   }
 
   private def turnNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
@@ -213,11 +213,11 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (velocity > 0) {
       _lastNoteOffVelocity = velocity
 
-      buffer += ScNoteOffMidiMessage(outputChannel, note, velocity).javaMidiMessage
+      buffer += ScNoteOffMidiMessage(outputChannel, note, velocity).javaMessage
     } else {
       _lastNoteOffVelocity = ScNoteOffMidiMessage.DefaultVelocity
 
-      buffer += ScNoteOnMidiMessage(outputChannel, note, 0).javaMidiMessage
+      buffer += ScNoteOnMidiMessage(outputChannel, note, 0).javaMessage
     }
   }
 
@@ -257,15 +257,15 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    */
   private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
     if (_sustainPedal > 0) {
-      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, 0).javaMidiMessage
-      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, _sustainPedal).javaMidiMessage
+      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, 0).javaMessage
+      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SustainPedal, _sustainPedal).javaMessage
     }
 
     if (_sostenutoPedal > 0) {
       // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
       _sostenutoPedal = 0
 
-      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SostenutoPedal, 0).javaMidiMessage
+      buffer += ScCcMidiMessage(outputChannel, ScCcMidiMessage.SostenutoPedal, 0).javaMessage
     }
   }
 
@@ -300,7 +300,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (_unsentPitchBend) {
       _unsentPitchBend = false
 
-      Some(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMidiMessage)
+      Some(ScPitchBendMidiMessage(outputChannel, currPitchBend).javaMessage)
     } else {
       None
     }

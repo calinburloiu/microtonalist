@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import org.calinburloiu.music.scmidi.ScNoteOnMidiMessage.DefaultVelocity
 import javax.sound.midi.{MidiMessage, ShortMessage}
 
 trait ScMidiMessage {
-  def javaMidiMessage: MidiMessage
+  def javaMessage: MidiMessage
 }
 
 abstract class ScNoteMidiMessage(val channel: Int,
@@ -31,7 +31,7 @@ abstract class ScNoteMidiMessage(val channel: Int,
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
 
-  override def javaMidiMessage: ShortMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
+  override def javaMessage: ShortMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
 
   protected val midiCommand: Int
 }
@@ -78,7 +78,7 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
   MidiRequirements.requireChannel(channel)
   MidiRequirements.requireSigned14BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage = {
+  override lazy val javaMessage: ShortMessage = {
     val (data1, data2) = convertValueToDataBytes(value)
     new ShortMessage(ShortMessage.PITCH_BEND, channel, data1, data2)
   }
@@ -156,7 +156,7 @@ case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidi
   MidiRequirements.requireUnsigned7BitValue("number", number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override lazy val javaMidiMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number,
+  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number,
     value)
 }
 

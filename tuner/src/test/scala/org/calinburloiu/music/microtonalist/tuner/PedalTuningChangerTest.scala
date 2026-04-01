@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     (IndexTuningChange(2), customIndex2TuningCcTrigger)
   )
   for ((tuningChange, cc) <- testCases) {
-    def createCcMessage(value: Int): ShortMessage = ScCcMidiMessage(1, cc, value).javaMidiMessage
+    def createCcMessage(value: Int): ShortMessage = ScCcMidiMessage(1, cc, value).javaMessage
 
     "decide" should s"not trigger a $tuningChange if CC value is below or equal to the threshold" in {
       tuningChanger.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
@@ -95,7 +95,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   "decide" should "return NoTuningChange for a Note On MIDI message" in {
-    val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMidiMessage
+    val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMessage
     tuningChanger.decide(noteOnMessage) shouldEqual NoTuningChange
   }
 
@@ -105,7 +105,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =
-    ScCcMidiMessage(1, customNextTuningCcTrigger, value).javaMidiMessage
+    ScCcMidiMessage(1, customNextTuningCcTrigger, value).javaMessage
 
   "isPressed" should "tell if the pedal for a CC trigger is pressed" in {
     tuningChanger.decide(createCcMessageForNext(customThreshold - 1))

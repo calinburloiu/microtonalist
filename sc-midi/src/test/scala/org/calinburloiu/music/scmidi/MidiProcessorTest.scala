@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
     // Create test MIDI message
     val testScMessage: ScMidiMessage = ScNoteOnMidiMessage(1, 60, 100)
-    val testMessage: MidiMessage = testScMessage.javaMidiMessage
+    val testMessage: MidiMessage = testScMessage.javaMessage
     val testTimestamp = 123L
 
     // Create a stub receiver
