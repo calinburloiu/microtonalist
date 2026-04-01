@@ -22,20 +22,40 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchClass, ScPitchBendMidiMessa
 import scala.collection.mutable
 import scala.util.boundary
 
+/**
+ * Holds the MPE per-note expression parameters transmitted on an MPE Member Channel.
+ */
 trait MpeExpression {
+  /** Expressive pitch bend value, excluding any tuning offset. Ranges from -8192 to 8191; 0 is the centre (no bend). */
   def pitchBend: Int
 
+  /** Channel pressure (aftertouch) value. Ranges from 0 to 127. */
   def pressure: Int
 
+  /** MIDI CC #74 (Timbre / Slide) value. Ranges from 0 to 127; 64 is the centre. */
   def slide: Int
 }
 
-private class MutableNoteExpression(var pitchBend: Int, var pressure: Int, var slide: Int) extends MpeExpression
+object MpeExpression {
+  /** Default expressive pitch bend value (no bend). */
+  val DefaultPitchBend: Int = 0
 
-private case class ImmutableNoteExpression(pitchBend: Int, pressure: Int, slide: Int) extends MpeExpression
+  /** Default channel pressure value (no pressure). */
+  val DefaultPressure: Int = 0
+
+  /** Default slide (CC #74) value (centre position). */
+  val DefaultSlide: Int = 64
+}
+
+private class MutableMpeExpression(var pitchBend: Int = MpeExpression.DefaultPitchBend,
+                                   var pressure: Int = MpeExpression.DefaultPressure,
+                                   var slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
+
+private case class ImmutableMpeExpression(pitchBend: Int = MpeExpression.DefaultPitchBend,
+                                          pressure: Int = MpeExpression.DefaultPressure,
+                                          slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
 
 // TODO #143 Note expression is not currently updated
-// TODO #143 Factor out all expression params into an `expression: MpeExpression` field
 
 /**
  * Represents a note that is currently sounding on an MPE Member Channel.
@@ -44,28 +64,18 @@ trait ActiveNote {
   /** The MIDI note that was played. */
   def midiNote: MidiNote
 
-  /** The expressive pitch bend value (excluding the tuning offset). */
-  def expressivePitchBend: Int
-
-  /** The MIDI Channel Pressure value. */
-  def channelPressure: Int
-
-  /** The MIDI CC #74 (Timbre/Slide) value. */
-  def slide: Int
+  /** The MPE expression parameters for the note. */
+  def expression: MpeExpression
 }
 
 /**
  * Internal mutable implementation of [[ActiveNote]].
  */
 private class MutableActiveNote(val midiNote: MidiNote,
-                                var expressivePitchBend: Int = 0,
-                                var channelPressure: Int = 0,
-                                var slide: Int = 64) extends ActiveNote
+                                val expression: MutableMpeExpression = MutableMpeExpression()) extends ActiveNote
 
 private case class ImmutableActiveNote(midiNote: MidiNote,
-                                       expressivePitchBend: Int = 0,
-                                       channelPressure: Int = 0,
-                                       slide: Int = 64) extends ActiveNote
+                                       expression: ImmutableMpeExpression = ImmutableMpeExpression()) extends ActiveNote
 
 case class DroppedNotes(channel: Int,
                         notes: Seq[MidiNote],
@@ -206,12 +216,12 @@ class MpeChannelAllocator(val zone: MpeZone,
       val dropped = DroppedNotes(channel, state.notes.init.map(_.midiNote).toSeq, state.group.get)
       state.notes.clear()
       state.notes += lastNote
-      lastNote.expressivePitchBend = pitchBend
+      lastNote.expression.pitchBend = pitchBend
       Some(dropped)
     } else {
       // Update the pitch bend for the most recent note
       if (state.notes.nonEmpty) {
-        state.notes.last.expressivePitchBend = pitchBend
+        state.notes.last.expression.pitchBend = pitchBend
       }
       None
     }
@@ -264,7 +274,7 @@ class MpeChannelAllocator(val zone: MpeZone,
     Math.abs(pitchBend) > expressionPitchBendThreshold
 
   private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
-    state.notes.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
+    state.notes.exists(n => isHighExpressivePitchBend(n.expression.pitchBend))
   }
 
   private def pitchClassGroupChannels: Seq[ChannelState] =
@@ -282,7 +292,7 @@ class MpeChannelAllocator(val zone: MpeZone,
                          expressivePitchBend: Int,
                          time: Long,
                          targetGroup: Option[ChannelGroup] = None): AllocationResult = {
-    val newNote = new MutableActiveNote(midiNote, expressivePitchBend)
+    val newNote = new MutableActiveNote(midiNote, MutableMpeExpression(expressivePitchBend))
     val existingNotes = state.notes.toSeq
 
     if (state.notes.isEmpty) {
@@ -294,7 +304,7 @@ class MpeChannelAllocator(val zone: MpeZone,
 
     // Check if existing notes on this channel have high expressive pitch bend
     val dropped = if (state.notes.size > 1) {
-      val existingHighBend = existingNotes.exists(n => isHighExpressivePitchBend(n.expressivePitchBend))
+      val existingHighBend = existingNotes.exists(n => isHighExpressivePitchBend(n.expression.pitchBend))
       val newHighBend = isHighExpressivePitchBend(expressivePitchBend)
       if (existingHighBend || newHighBend) {
         val toDrop = DroppedNotes(state.channel, existingNotes.map(_.midiNote), state.group.get)

@@ -344,7 +344,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
                                      tuningOffsetCents: Double): Int = {
     val notes = alloc.activeNotes(channel)
     val avgExpressiveBend = if (notes.nonEmpty) {
-      Math.round(notes.map(_.expressivePitchBend).sum.toDouble / notes.size).toInt
+      Math.round(notes.map(_.expression.pitchBend).sum.toDouble / notes.size).toInt
     } else {
       0
     }
