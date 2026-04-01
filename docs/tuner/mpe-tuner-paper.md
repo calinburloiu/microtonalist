@@ -168,7 +168,9 @@ For each Zone, the available Member Channels are logically partitioned into two 
 
 - **Expression Group**: Channels available for notes whose pitch class is already represented in the Pitch Class Group, or for notes that cannot be accommodated in the Pitch Class Group because all its channels are occupied. This group accommodates scenarios where multiple notes of the same pitch class must coexist with different expressive pitch bends—for example, when a note is bent away from its original pitch and a new note at that original pitch is initiated.
 
-Channels are not statically assigned to groups. Any unoccupied channel may be dynamically assigned to either group as notes are allocated. The group assignment of a channel is determined at the moment a note is placed on it and persists for the lifetime of that channel's occupancy.
+Unoccupied Member Channels are not considered to be part of any group. Group assignment occurs dynamically: any
+unoccupied channel may be assigned to either group as notes are allocated. The group assignment of a channel is
+determined at the moment a note is placed on it and persists for the lifetime of that channel's occupancy.
 
 ### 4.3 Group Size Allocation
 
@@ -183,7 +185,15 @@ The number of channels allocated to each group depends on the total number of Me
 
 The rationale for these sizes is as follows. The Pitch Class Group must be large enough to cover the maximum number of distinct pitch classes likely to be sounding simultaneously. Notably, for a single Zone with 15 Member Channels, the Pitch Class Group has 12 channels—exactly the number required to represent all 12 pitch classes of a standard keyboard simultaneously. The Expression Group provides a small buffer for expressive duplication of pitch classes. When only one Member Channel is available, the Expression Group is necessarily empty, and the Tuner operates with strict one-note-per-pitch-class behavior.
 
-### 4.4 Allocation Algorithm
+### 4.4 High Expressive Pitch Bend
+
+A threshold value `t`, measured in cents, defines the boundary between small expressive gestures (vibrato, subtle
+inflections) and large pitch bends. The value of `t` represents the absolute pitch deviation from the tuned pitch caused
+by the expressive pitch bend. A note whose expressive pitch bend causes a deviation exceeding `t` in either direction is
+considered to have a **high expressive pitch bend**. The recommended value is `t = 50` cents (half a semitone): any note
+bent more than 50 cents up or down from its tuned pitch has a high expressive pitch bend.
+
+### 4.5 Allocation Algorithm
 
 When a new note arrives, the MPE Tuner executes the following allocation procedure:
 
@@ -194,12 +204,15 @@ When a new note arrives, the MPE Tuner executes the following allocation procedu
 3. **Expression Group full**: If no unoccupied channel is available in the Expression Group—and the Pitch Class Group either has an active note with the new note's pitch class or has all channels occupied—assign the new note to any channel (from either group) that already holds active notes with the same pitch class.
 
 4. **Tie-breaking among candidates**: When multiple channels are valid candidates at any step, the following criteria are applied in order, consistent with the MPE Specification's recommendations [1, §3.2]:
-   - Prefer the channel with the lowest count of active notes.
+   - Prefer channels that don't have high expressive pitch bend.
+   - Among them, prefer the channel with the lowest count of active notes.
    - Among channels with equal active note counts, prefer the channel with the oldest last Note Off (i.e., the channel that has been idle the longest).
+   - If the oldest last Note Off is equal among channels, select the oldest channel, which is the one with the most
+     recent onset time that is oldest among all candidates.
 
 5. **Preserving input channel allocation (MPE input only)**: When the input is MPE, the Tuner should attempt to preserve the input's channel assignment for a new note, provided that doing so does not violate the pitch-class invariant or the group constraints. Only when the constraints require it should the Tuner reallocate a note to a different channel.
 
-### 4.5 Pitch Bend Computation for Shared Channels
+### 4.6 Pitch Bend Computation for Shared Channels
 
 When a Member Channel holds multiple active notes (necessarily of the same pitch class), the output Pitch Bend for that channel is computed as follows:
 
@@ -211,11 +224,11 @@ The averaging of expressive pitch bends is a necessary compromise when multiple 
 
 This behavior aligns with the MPE Specification's suggestion of "gentle degradation of pitch control when all Channels are occupied" [1, §3.2].
 
-### 4.6 Comparison with Standard MPE Allocation
+### 4.7 Comparison with Standard MPE Allocation
 
 The MPE Tuner's allocation strategy departs from the MPE Specification's recommendations in several important respects. Each departure is motivated by the requirement to maintain precise intonation.
 
-#### 4.6.1 Channel Sharing Before Exhaustion
+#### 4.7.1 Channel Sharing Before Exhaustion
 
 The MPE Specification recommends:
 
@@ -225,15 +238,15 @@ The MPE Tuner does **not** follow this recommendation unconditionally. Because t
 
 This departure is essential: blindly assigning each note to a fresh channel without regard to pitch class would eventually require a single channel to carry conflicting tuning offsets, destroying intonation accuracy.
 
-#### 4.6.2 Prioritizing Intonation Over Note Preservation
+#### 4.7.2 Prioritizing Intonation Over Note Preservation
 
 The MPE Specification's allocation guidelines are designed to maximize polyphonic expressiveness and avoid dropping notes. The MPE Tuner inverts this priority: **correct intonation is never sacrificed to preserve an older note**. When channel resources are insufficient to maintain both intonation precision and all currently sounding notes, the Tuner drops notes (Section 5).
 
-#### 4.6.3 Gentle Degradation via Averaging
+#### 4.7.3 Gentle Degradation via Averaging
 
 The MPE Specification notes that one commercial implementation achieves gentle degradation by "switching to a mode where notes step discretely from one pitch to the next, permitting Pitch Bend to respond only to small vibrato gestures" [1, §3.2]. The MPE Tuner achieves an analogous effect through pitch bend averaging on shared channels: because notes sharing a channel must have the same pitch class (and hence the same tuning offset), and because high expressive pitch bends are constrained (Section 5.2), the effective Pitch Bend on a shared channel responds primarily to small gestures. More sophisticated implementations of the MPE Tuner may additionally implement discrete pitch stepping when a new note arrives on an occupied channel, smoothing the audible transition.
 
-#### 4.6.4 Same Note Number on Multiple Channels
+#### 4.7.4 Same Note Number on Multiple Channels
 
 The MPE Specification acknowledges the legitimacy of having the same Note Number active on multiple Channels:
 
@@ -241,7 +254,7 @@ The MPE Specification acknowledges the legitimacy of having the same Note Number
 
 The Expression Group was introduced specifically to support this use case. When a note's pitch class already occupies a channel in the Pitch Class Group, the Expression Group provides additional channels where the same pitch class can be sounded with a different expressive pitch bend, enabling scenarios such as the bent-then-restruck pattern described in the specification.
 
-#### 4.6.5 Master Channel Pitch Bend
+#### 4.7.5 Master Channel Pitch Bend
 
 The MPE Specification requires:
 
@@ -253,7 +266,10 @@ The MPE Tuner forwards Master Channel Pitch Bend as received, without modificati
 
 ## 5. Dropping Notes and Freeing Channels
 
-An acceptable cost of maintaining precise intonation is the occasional dropping of notes. This section specifies the conditions under which notes are dropped and the criteria for selecting which notes to drop.
+An acceptable cost of maintaining precise intonation is the occasional dropping of notes. This section specifies the
+conditions under which notes are dropped and the criteria for selecting which notes to drop. We maintain the principle
+that dropping is the last resort measure, used only when the fundamental invariants of intonation would otherwise be
+violated.
 
 In practice, note dropping should rarely occur for Zones with 7 or more Member Channels. Musical scales seldom contain more than 7 notes per octave, and even complex jazz chords rarely employ more than 7 distinct pitch classes simultaneously. In the ideal scenario of a single Zone with 15 Member Channels, the Pitch Class Group accommodates all 12 pitch classes and the Expression Group provides 3 additional channels for duplicate pitch classes; note dropping never occurs under these conditions, because the Pitch Class Group can always represent every pitch class of the chromatic scale. When two equal Zones are configured—the typical dual-Zone split allocates 7 Member Channels to each Zone—each Zone can support at least 7 simultaneous distinct pitch classes (5 in the Pitch Class Group and 2 in the Expression Group for `n = 7`), which suffices for the vast majority of musical contexts.
 
@@ -271,13 +287,14 @@ For a Zone configured with the maximum of 15 Member Channels, note dropping shou
 
 ### 5.2 Dropping Notes Due to High Expressive Pitch Bend
 
-A threshold value `t`, measured in cents, defines the boundary between small expressive gestures (vibrato, subtle inflections) and large pitch bends. The value of `t` represents the absolute pitch deviation from the tuned pitch caused by the expressive pitch bend. A note whose expressive pitch bend causes a deviation exceeding `t` in either direction is considered to have a **high expressive pitch bend**. The recommended value is `t = 50` cents (half a semitone): any note bent more than 50 cents up or down from its tuned pitch has a high expressive pitch bend.
-
 Notes are dropped in the following situations involving high expressive pitch bend:
 
 #### 5.2.1 Divergence on a Shared Channel
 
-When a channel holds multiple active notes and one of them develops a high expressive pitch bend, **all other notes on that channel are dropped**. The rationale is that the performer's intent is to bend a single note; the other notes sharing the channel would receive an unintended pitch deviation due to the averaged Pitch Bend computation (Section 4.5).
+When a channel holds multiple active notes and one of them develops a high expressive pitch bend, **all other notes on
+that channel are dropped**. The rationale is that the performer's intent is to bend a single note; the other notes
+sharing the channel would receive an unintended pitch deviation due to the averaged Pitch Bend computation (Section
+4.6).
 
 #### 5.2.2 New Note with High Expressive Pitch Bend on an Occupied Channel
 
@@ -294,7 +311,9 @@ When a new note is assigned to a channel that already contains an active note wi
 The following invariants are maintained at all times through the note-dropping mechanisms described above:
 
 1. All active notes on a shared channel have the same pitch class.
-2. An active note with a high expressive pitch bend (absolute deviation > `t`) is always the sole active note on its channel. No other notes may coexist with it: pre-existing notes are dropped, and the channel is freed before any new note is assigned to it.
+2. An active note with a high expressive pitch bend (absolute deviation > `t`) is always the sole active note on its
+   channel. No other notes may coexist with it: pre-existing notes are dropped, and the channel is freed before any new
+   note is assigned to it (Section 4.6).
 
 ---
 

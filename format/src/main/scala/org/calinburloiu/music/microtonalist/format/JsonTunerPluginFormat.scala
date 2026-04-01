@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,9 +19,13 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
-import play.api.libs.functional.syntax.toFunctionalBuilderOps
+import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*
+import play.api.libs.json.Reads.{max, min}
 
+/**
+ * JSON format for [[Tuner]] plugins, supporting MPE, Monophonic Pitch Bend, and MTS tuners.
+ */
 object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
   import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.*
@@ -47,7 +51,93 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   )(Tuple2.apply, identity)
   //@formatter:on
 
+  private val defaultMasterPbs = MpeZone.DefaultMasterPitchBendSensitivity
+  private val defaultMemberPbs = MpeZone.DefaultMemberPitchBendSensitivity
+
+  private val memberCountFormat: Format[Int] = {
+    val reads = __.read[Int](min(0) keepAnd max(15))
+    Format(reads, Writes.IntWrites)
+  }
+
+  private implicit val inputModeFormat: Format[MpeInputMode] = Format(
+    Reads[MpeInputMode] {
+      case JsString("nonMpe") => JsSuccess(MpeInputMode.NonMpe)
+      case JsString("mpe") => JsSuccess(MpeInputMode.Mpe)
+      case JsString(_) => JsError("error.expected.inputMode")
+      case _ => JsError("error.expected.jsstring")
+    },
+    Writes[MpeInputMode] {
+      case MpeInputMode.NonMpe => JsString("nonMpe")
+      case MpeInputMode.Mpe => JsString("mpe")
+    }
+  )
+
+  //@formatter:off
+  private val mpeZoneFormat: Format[(Int, PitchBendSensitivity, PitchBendSensitivity)] = (
+    (__ \ "memberCount").format[Int](memberCountFormat) and
+    (__ \ "masterPitchBendSensitivity").formatWithDefault[PitchBendSensitivity](defaultMasterPbs) and
+    (__ \ "memberPitchBendSensitivity").formatWithDefault[PitchBendSensitivity](defaultMemberPbs)
+  )(Tuple3.apply, identity)
+  //@formatter:on
+
+  private val mpeTunerReads: Reads[MpeTuner] = {
+    val zonesReads: Reads[(MpeZone, MpeZone)] = (__ \ "zones").readNullable[JsObject].flatMap {
+      case None =>
+        Reads.pure((MpeZone(MpeZoneType.Lower, 15), MpeZone(MpeZoneType.Upper, 0)))
+      case Some(_) =>
+        val lowerReads = (__ \ "zones" \ "lower").readNullable[(Int, PitchBendSensitivity, PitchBendSensitivity)](
+          mpeZoneFormat).map {
+          case Some((mc, masterPbs, memberPbs)) => MpeZone(MpeZoneType.Lower, mc, masterPbs, memberPbs)
+          case None => MpeZone(MpeZoneType.Lower, 15)
+        }
+        val upperReads = (__ \ "zones" \ "upper").readNullable[(Int, PitchBendSensitivity, PitchBendSensitivity)](
+          mpeZoneFormat).map {
+          case Some((mc, masterPbs, memberPbs)) => MpeZone(MpeZoneType.Upper, mc, masterPbs, memberPbs)
+          case None => MpeZone(MpeZoneType.Upper, 0)
+        }
+        for {
+          lower <- lowerReads
+          upper <- upperReads
+          _ <- Reads[JsValue] { _ =>
+            if (lower.isEnabled && upper.isEnabled &&
+              lower.memberChannels.toSet.intersect(upper.memberChannels.toSet).nonEmpty) {
+              JsError(__ \ "zones", "error.zones.overlap")
+            } else {
+              JsSuccess(JsNull)
+            }
+          }
+        } yield (lower, upper)
+    }
+
+    for {
+      inputMode <- (__ \ "inputMode").readWithDefault[MpeInputMode](MpeInputMode.NonMpe)
+      zones <- zonesReads
+    } yield new MpeTuner(zones, inputMode)
+  }
+
+  private val mpeTunerWrites: Writes[MpeTuner] = Writes[MpeTuner] { tuner =>
+    val (lower, upper) = tuner.zones
+    val zonesObj = Json.obj(
+      "lower" -> mpeZoneFormat.writes((lower.memberCount, lower.masterPitchBendSensitivity,
+        lower.memberPitchBendSensitivity)),
+      "upper" -> mpeZoneFormat.writes((upper.memberCount, upper.masterPitchBendSensitivity,
+        upper.memberPitchBendSensitivity))
+    )
+    Json.obj(
+      PropertyNameType -> MpeTuner.TypeName,
+      "inputMode" -> inputModeFormat.writes(tuner.inputMode),
+      "zones" -> zonesObj
+    )
+  }
+
+  private val mpeTunerFormat: Format[MpeTuner] = Format(mpeTunerReads, mpeTunerWrites)
+
   override val specs: TypeSpecs[Tuner] = Seq(
+    TypeSpec.withSettings[MpeTuner](
+      typeName = MpeTuner.TypeName,
+      format = mpeTunerFormat,
+      javaClass = classOf[MpeTuner]
+    ),
     TypeSpec.withSettings[MonophonicPitchBendTuner](
       typeName = MonophonicPitchBendTuner.TypeName,
       format = monophonicPitchBendTunerFormat,

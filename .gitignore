@@ -67,3 +67,6 @@ fabric.properties
 
 # Sample JSON
 json-schemas/v1/samples/
+
+# Claude Code
+.claude/worktrees/
