@@ -57,9 +57,6 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
   override val typeName: String = MpeTuner.TypeName
 
-  private val lowerZone: MpeZone = zones._1
-  private val upperZone: MpeZone = zones._2
-
   private val lowerAllocator: Option[MpeChannelAllocator] =
     if (lowerZone.isEnabled) Some(MpeChannelAllocator(lowerZone)) else None
   private val upperAllocator: Option[MpeChannelAllocator] =
@@ -130,11 +127,15 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     }
   }
 
+  private def lowerZone: MpeZone = zones._1
+
+  private def upperZone: MpeZone = zones._2
+
   private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
 
-    // Check for MCM (MPE Configuration Message): RPN 6 on channel 0 or 15
-    // MCM is CC 101=0, CC 100=6, CC 6=memberCount on master channel
+    // TODO #143 Check for MCM (MPE Configuration Message): RPN 6 on channel 0 or 15
+    //  MCM is CC 101=0, CC 100=6, CC 6=memberCount on master channel
 
     message match {
       case ScNoteOnMidiMessage(channel, midiNote, velocity) if velocity > 0 =>
