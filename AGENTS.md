@@ -278,7 +278,7 @@ for {
 } yield item * 2
 ```
 
-## Don't use `new` when instantiating a class
+## Avoid `new` when instantiating a class
 
 Wrong:
 
@@ -290,4 +290,57 @@ Correct:
 
 ```scala
 val c = MyClass(x, y)
+```
+
+## No `return`
+
+The `return` statement is deprecated in Scala 3. When a Scala idiomatic approach is cumbersome, use a `boundary.break`
+instead. A typical case is an early return, an initial condition in a method, where a Scala idiomatic `if` would cause
+most of the code to be overindented.
+
+Wrong:
+
+```scala
+class C {
+  def method(): Int = {
+    if (notValid) {
+      return -1
+    }
+
+    // Large block of code
+    // ...
+  }
+}
+```
+
+Correct:
+
+```scala
+class C {
+  def method(): Int = boundary {
+    if (notValid) {
+      boundary.break(-1)
+    }
+
+    // Large block of code
+    // ...
+  }
+}
+```
+
+## Class private internal backing variables for public getter / setter
+
+If a class has a public getter or setter that is backed by an internal `private` or `protected` variable, use the same
+name for the interval variable with the getter / setter but prefixed by an underscore.
+
+```scala
+class C {
+  private var _value: Int
+
+  def value: Int = _value
+
+  def value_=(newValue: Int): Unit = {
+    _value = newValue
+  }
+}
 ```
