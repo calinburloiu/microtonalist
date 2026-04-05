@@ -81,9 +81,9 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   //@formatter:on
 
   private val mpeTunerReads: Reads[MpeTuner] = {
-    val zonesReads: Reads[(MpeZone, MpeZone)] = (__ \ "zones").readNullable[JsObject].flatMap {
+    val zonesReads: Reads[MpeZones] = (__ \ "zones").readNullable[JsObject].flatMap {
       case None =>
-        Reads.pure((MpeZone(MpeZoneType.Lower, 15), MpeZone(MpeZoneType.Upper, 0)))
+        Reads.pure(MpeZones.DefaultZones)
       case Some(_) =>
         val lowerReads = (__ \ "zones" \ "lower").readNullable[(Int, PitchBendSensitivity, PitchBendSensitivity)](
           mpeZoneFormat).map {
@@ -99,24 +99,24 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
           lower <- lowerReads
           upper <- upperReads
           _ <- Reads[JsValue] { _ =>
-            if (lower.isEnabled && upper.isEnabled &&
-              lower.memberChannels.toSet.intersect(upper.memberChannels.toSet).nonEmpty) {
+            if (MpeZones.wouldOverlap(lower, upper)) {
               JsError(__ \ "zones", "error.zones.overlap")
             } else {
               JsSuccess(JsNull)
             }
           }
-        } yield (lower, upper)
+        } yield MpeZones(lower, upper)
     }
 
     for {
       inputMode <- (__ \ "inputMode").readWithDefault[MpeInputMode](MpeInputMode.NonMpe)
       zones <- zonesReads
-    } yield new MpeTuner(zones, inputMode)
+    } yield MpeTuner(zones, inputMode)
   }
 
   private val mpeTunerWrites: Writes[MpeTuner] = Writes[MpeTuner] { tuner =>
-    val (lower, upper) = tuner.zones
+    val lower = tuner.zones.lower
+    val upper = tuner.zones.upper
     val zonesObj = Json.obj(
       "lower" -> mpeZoneFormat.writes((lower.memberCount, lower.masterPitchBendSensitivity,
         lower.memberPitchBendSensitivity)),

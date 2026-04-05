@@ -166,7 +166,8 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
     tuner shouldBe a[MpeTuner]
     val mpe = tuner.asInstanceOf[MpeTuner]
     mpe.inputMode shouldBe expectedInputMode
-    val (lower, upper) = mpe.zones
+    val lower = mpe.zones.lower
+    val upper = mpe.zones.upper
     lower.memberCount shouldBe expectedLowerMemberCount
     upper.memberCount shouldBe expectedUpperMemberCount
     lower.masterPitchBendSensitivity shouldBe expectedLowerMasterPbs
@@ -234,20 +235,20 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
   }
 
   it should "serialize" in {
-    val tuner = new MpeTuner(
-      zones = (
+    val tuner = MpeTuner(
+      initialZones = MpeZones(
         MpeZone(MpeZoneType.Lower, 7),
         MpeZone(MpeZoneType.Upper, 7, PitchBendSensitivity(1), PitchBendSensitivity(12))
       ),
-      inputMode = MpeInputMode.NonMpe
+      initialInputMode = MpeInputMode.NonMpe
     )
     jsonPluginFormat.writes.writes(tuner) shouldEqual mpeTunerFullJson
   }
 
   it should "round-trip serialize then deserialize" in {
-    val original = new MpeTuner(
-      zones = (MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 5, PitchBendSensitivity(3))),
-      inputMode = MpeInputMode.Mpe
+    val original = MpeTuner(
+      initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 5, PitchBendSensitivity(3))),
+      initialInputMode = MpeInputMode.Mpe
     )
     val json = jsonPluginFormat.writes.writes(original)
     matchReads(reads, json, { tuner =>

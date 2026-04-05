@@ -17,13 +17,15 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.*
-import org.scalatest.Inside
+import org.scalactic.{Equality, TolerantNumerics}
+import org.scalatest.{Inside, OptionValues}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.matchers.should.Matchers.shouldEqual
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 
-class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
+class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValues {
 
   private implicit val defaultPbs: PitchBendSensitivity = PitchBendSensitivity(48)
   private val masterPbs: PitchBendSensitivity = PitchBendSensitivity(2)
@@ -31,6 +33,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
   import MidiNote.{A4, C4, C5, D4, E4, G4}
 
   private val inputChannel = 0
+
+  private val epsilon: Double = 2e-1
+  private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   // Quarter-comma meantone tuning (approximate offsets in cents)
   //@formatter:off
@@ -67,21 +72,21 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
   )
   //@formatter:on
 
-  private def defaultTuner: MpeTuner = new MpeTuner()
+  private def defaultTuner: MpeTuner = MpeTuner()
 
-  private def tuner7: MpeTuner = new MpeTuner(
-    zones = (MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0))
+  private def tuner7: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0))
   )
 
-  private def tuner3: MpeTuner = new MpeTuner(
-    zones = (MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0))
+  private def tuner3: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0))
   )
 
-  private def dualZoneTuner: MpeTuner = new MpeTuner(
-    zones = (MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 7))
+  private def dualZoneTuner: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 7))
   )
 
-  private def mpeTunerMpeInput: MpeTuner = new MpeTuner(inputMode = MpeInputMode.Mpe)
+  private def mpeTunerMpeInput: MpeTuner = MpeTuner(initialInputMode = MpeInputMode.Mpe)
 
   private abstract class TunerFixture(val tuner: MpeTuner = defaultTuner,
                                       initialTuning: Option[Tuning] = None) {
@@ -511,4 +516,240 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside {
       // A should be allocated
       extractNoteOns(output).map(_.midiNote) should contain(A4)
     }
+
+  // --- MCM Processing ---
+
+  behavior of "MpeTuner - MCM Processing"
+
+  /** Sends a complete MCM RPN sequence: CC#100=6, CC#101=0, CC#6=memberCount on the given channel. */
+  private def sendMcm(tuner: MpeTuner, channel: Int, memberCount: Int): Seq[MidiMessage] = {
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb).javaMessage)
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb).javaMessage)
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryMsb, memberCount).javaMessage)
+  }
+
+  it should "reconfigure lower zone on MCM received on channel 0" in new TunerFixture(dualZoneTuner) {
+    private val output = sendMcm(tuner, channel = 0, memberCount = 10)
+    // Should output MCM for the new lower zone with memberCount=10
+    private val ccs = extractCc(output)
+    ccs should contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 10)
+    )
+    tuner.zones.lower.memberCount shouldEqual 10
+    tuner.zones.upper.memberCount shouldEqual 4
+  }
+
+  it should "reconfigure upper zone on MCM received on channel 15" in new TunerFixture(dualZoneTuner) {
+    private val output = sendMcm(tuner, channel = 15, memberCount = 10)
+    // Should output MCM for the new upper zone with memberCount=10
+    private val ccs = extractCc(output)
+    ccs should contain inOrder(
+      ScCcMidiMessage(15, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(15, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(15, ScCcMidiMessage.DataEntryMsb, 10)
+    )
+    tuner.zones.lower.memberCount shouldEqual 4
+    tuner.zones.upper.memberCount shouldEqual 10
+  }
+
+  it should "stop all active notes when MCM is received" in new TunerFixture() {
+    tuner.process(ScNoteOnMidiMessage(inputChannel, C4).javaMessage)
+    tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMessage)
+    private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+    private val noteOffs = extractNoteOffs(output)
+    noteOffs.map(_.midiNote) should contain allOf(C4, E4)
+  }
+
+  it should "shrink other zone when MCM causes overlap" in new TunerFixture(dualZoneTuner) {
+    // dualZoneTuner: lower=7, upper=7
+    // MCM on ch 0 with memberCount=10 -> upper must shrink to 4
+    private val output = sendMcm(tuner, channel = 0, memberCount = 10)
+    private val ccs = extractCc(output)
+    // Upper zone MCM should show memberCount=4
+    ccs should contain inOrder(
+      ScCcMidiMessage(15, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(15, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(15, ScCcMidiMessage.DataEntryMsb, 4)
+    )
+    tuner.zones.lower.memberCount shouldEqual 10
+    tuner.zones.upper.memberCount shouldEqual 4
+  }
+
+  it should "disable zone when MCM with memberCount=0 is received" in new TunerFixture(dualZoneTuner) {
+    private val output = sendMcm(tuner, channel = 15, memberCount = 0)
+    private val ccs = extractCc(output)
+    // Upper zone MCM should be sent to the output even if the zone is disabled to inform the downstream device
+    ccs should contain(ScCcMidiMessage(15, ScCcMidiMessage.DataEntryMsb, 0))
+    // Lower zone MCM should still be present
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 7))
+  }
+
+  it should "not trigger MCM on incomplete RPN sequence" in new TunerFixture() {
+    // Send only CC#101=0 and CC#6=10 without CC#100
+    tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb).javaMessage)
+    private val output = tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 10).javaMessage)
+    // Should NOT contain MCM output (no Note Offs, no MCM messages for reconfiguration)
+    extractNoteOffs(output) shouldBe empty
+    extractCc(output) should not contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 10)
+    )
+  }
+
+  it should "not trigger MCM for non-MCM RPN (e.g. PBS RPN)" in new TunerFixture() {
+    // Send PBS RPN (MSB=0, LSB=0) instead of MCM RPN (MSB=0, LSB=6)
+    tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
+    private val output = tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 48).javaMessage)
+    // Should NOT contain MCM reconfiguration output
+    private val ccs = extractCc(output)
+    ccs.filter(cc => cc.number == ScCcMidiMessage.DataEntryMsb &&
+      cc.value == 15) shouldBe empty // no MCM with memberCount=15
+  }
+
+  it should "ignore MCM on non-master channel" in new TunerFixture() {
+    private val output = sendMcm(tuner, channel = 5, memberCount = 7)
+    // Should NOT trigger MCM processing
+    extractNoteOffs(output) shouldBe empty
+  }
+
+  it should "revert to initialZones on reset() after MCM" in new TunerFixture(dualZoneTuner) {
+    sendMcm(tuner, channel = 0, memberCount = 10)
+    // Reset should restore initial configuration
+    private val resetOutput = tuner.reset()
+    private val ccs = extractCc(resetOutput)
+    // Lower zone should be back to 7 members
+    ccs should contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 7)
+    )
+    // Upper zone should be back to 7 members
+    ccs should contain inOrder(
+      ScCcMidiMessage(15, ScCcMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      ScCcMidiMessage(15, ScCcMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      ScCcMidiMessage(15, ScCcMidiMessage.DataEntryMsb, 7)
+    )
+  }
+
+  it should "output PBS messages after each zone MCM messages for reconfigured zones" in new TunerFixture() {
+    private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+    private val ccs = extractCc(output)
+    // MCM should come before PBS
+    private val mcmIndex = ccs.indexWhere(cc =>
+      cc.channel == 0 && cc.number == ScCcMidiMessage.DataEntryMsb && cc.value == 7)
+    private val pbsIndex = ccs.indexWhere(cc =>
+      cc.channel == 0 && cc.number == ScCcMidiMessage.RpnLsb && cc.value == Rpn.PitchBendSensitivityLsb)
+    mcmIndex should be >= 0
+    pbsIndex should be >= 0
+    mcmIndex should be < pbsIndex
+  }
+
+  // --- PBS Processing ---
+
+  behavior of "MpeTuner - PBS Processing"
+
+  /** Sends a complete PBS RPN MSB sequence: CC#100=0, CC#101=0, CC#6=semitones on the given channel. */
+  private def sendPbsMsb(tuner: MpeTuner, channel: Int, semitones: Int): Seq[MidiMessage] = {
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryMsb, semitones).javaMessage)
+  }
+
+  /** Sends a PBS RPN LSB (cents) on the given channel, assuming RPN is already set to PBS. */
+  private def sendPbsLsb(tuner: MpeTuner, channel: Int, cents: Int): Seq[MidiMessage] = {
+    tuner.process(ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryLsb, cents).javaMessage)
+  }
+
+  it should "update master PBS on master channel" in new TunerFixture() {
+    private val output = sendPbsMsb(tuner, channel = 0, semitones = 12)
+    // Should forward PBS for the master channel with new sensitivity
+    private val ccs = extractCc(output)
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 12))
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+  }
+
+  it should "update member PBS and forward only on the received channel" in new TunerFixture(tuner7) {
+    // Send PBS on member channel 1 -> internal state updated for all members, but only forwarded on ch 1
+    private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+    private val dataEntryCcs = extractCc(output).filter(_.number == ScCcMidiMessage.DataEntryMsb)
+    dataEntryCcs should contain(ScCcMidiMessage(1, ScCcMidiMessage.DataEntryMsb, 24))
+    // Should NOT broadcast to other member channels
+    (2 to 7).foreach { ch =>
+      dataEntryCcs.filter(_.channel == ch) shouldBe empty
+    }
+    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+  }
+
+  it should "forward PBS on each channel when received on all member channels" in new TunerFixture(tuner7) {
+    // Sender broadcasts PBS to all member channels 1-7; each should be forwarded 1:1
+    private var output: Seq[MidiMessage] = Seq.empty
+    for (ch <- 1 to 7) {
+      output ++= sendPbsMsb(tuner, channel = ch, semitones = 24)
+    }
+    private val dataEntryCcs = extractCc(output).filter(cc =>
+      cc.number == ScCcMidiMessage.DataEntryMsb && cc.value == 24)
+
+    dataEntryCcs.size shouldEqual 7
+    dataEntryCcs.map(_.channel) should contain theSameElementsAs (1 to 7)
+  }
+
+  it should "recompute pitch bends on occupied channels after member PBS change" in
+    new TunerFixture(tuner7, Some(quarterCommaMeantone)) {
+      // Play a note to occupy a channel
+      private val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMessage)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+
+      // Change member PBS
+      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val pitchBends = extractPitchBends(pbsOutput)
+
+      // Should have a pitch bend update for the occupied channel
+      pitchBends.map(_.channel) should contain(noteChannel)
+
+      pitchBends.size shouldEqual 1
+      pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
+    }
+
+  it should "not affect other zone's PBS" in new TunerFixture(dualZoneTuner) {
+    // Send PBS on lower zone member channel 1
+    private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+    private val ccs = extractCc(output)
+    // Upper zone member channels (8-14) should NOT get the new PBS in this output
+    (8 to 14).foreach { ch =>
+      ccs.filter(cc => cc.channel == ch && cc.number == ScCcMidiMessage.DataEntryMsb &&
+        cc.value == 24) shouldBe empty
+    }
+  }
+
+  it should "handle PBS LSB (cents) update" in new TunerFixture() {
+    // First set the RPN to PBS
+    tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
+    // Send LSB
+    private val output = sendPbsLsb(tuner, channel = 0, cents = 50)
+    private val ccs = extractCc(output)
+    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryLsb, 50))
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
+      MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
+  }
+
+  it should "revert PBS to initial values on reset()" in new TunerFixture(tuner7) {
+    // Change member PBS
+    sendPbsMsb(tuner, channel = 1, semitones = 24)
+    // Reset
+    private val resetOutput = tuner.reset()
+    private val ccs = extractCc(resetOutput)
+    // Member channels should have default PBS (48 semitones)
+    (1 to 7).foreach { ch =>
+      ccs should contain inOrder(
+        ScCcMidiMessage(ch, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+        ScCcMidiMessage(ch, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+        ScCcMidiMessage(ch, ScCcMidiMessage.DataEntryMsb, 48)
+      )
+    }
+  }
 }

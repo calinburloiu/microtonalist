@@ -48,21 +48,26 @@ enum MpeInputMode {
  * by updating the Pitch Bend on all occupied Member Channels whenever the active Tuning
  * is modified.
  *
- * @param zones     A pair of [[MpeZone]] instances representing the Lower and Upper Zones.
- * @param inputMode Initial [[MpeInputMode]]. The tuner may switch to MPE mode automatically
- *                  upon receiving an MPE Configuration Message.
+ * The tuner processes incoming MPE Configuration Messages (MCM) and Pitch Bend Sensitivity (PBS)
+ * RPN messages to dynamically reconfigure zones and pitch bend ranges.
+ *
+ * @param initialZones     The initial [[MpeZones]] configuration for the Lower and Upper Zones.
+ * @param initialInputMode Initial [[MpeInputMode]]. The tuner switches to MPE mode automatically
+ *                         upon receiving an MPE Configuration Message.
  */
-class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
-               val inputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {
+class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
+               private val initialInputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {
 
   override val typeName: String = MpeTuner.TypeName
 
-  private val lowerAllocator: Option[MpeChannelAllocator] =
-    if (lowerZone.isEnabled) Some(MpeChannelAllocator(lowerZone)) else None
-  private val upperAllocator: Option[MpeChannelAllocator] =
-    if (upperZone.isEnabled) Some(MpeChannelAllocator(upperZone)) else None
+  // TODO #143 Consistent naming for current / curr. Maybe just prefix with _
+  private var _zones: MpeZones = initialZones
+  private var _inputMode: MpeInputMode = initialInputMode
 
-  private var currTuning: Tuning = Tuning.Standard
+  private var _tuning: Tuning = Tuning.Standard
+
+  private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
+  private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
   // Track which channel each note is on: (midiNote, inputChannel) -> outputChannel
   private val noteChannelMap: mutable.Map[(MidiNote, Int), Int] = mutable.Map.empty
@@ -76,45 +81,44 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   private val channelSlideMap: mutable.Map[Int, Int] = mutable.Map.empty
 
   // For non-MPE input, track the global expressive pitch bend from input
-  private var _globalExpressivePitchBend: Int = 0
+  private var globalExpressivePitchBend: Int = 0
+
+  // RPN state machine: tracks last received CC#100 (RPN LSB) and CC#101 (RPN MSB) per channel
+  private val rpnLsbState: mutable.Map[Int, Int] = mutable.Map.empty
+  private val rpnMsbState: mutable.Map[Int, Int] = mutable.Map.empty
+
+  /**
+   * @return current [[MpeZones]] configuration for the Lower and Upper Zones.
+   */
+  def zones: MpeZones = _zones
+
+  /**
+   * @return current input mode
+   */
+  def inputMode: MpeInputMode = _inputMode
+
+  /**
+   * @return current tuning
+   */
+  def tuning: Tuning = _tuning
 
   override def reset(): Seq[MidiMessage] = {
-    currTuning = Tuning.Standard
-    noteChannelMap.clear()
-    mpeInputChannelMap.clear()
-    channelExpressivePitchBend.clear()
-    channelPressureMap.clear()
-    channelSlideMap.clear()
-    _globalExpressivePitchBend = 0
-
-    lowerAllocator.foreach(_.reset())
-    upperAllocator.foreach(_.reset())
-
-    val buffer = mutable.Buffer[MidiMessage]()
-
-    // Output MPE Configuration Messages (MCM) for each enabled zone
-    if (lowerZone.isEnabled) {
-      buffer ++= mcmMessages(lowerZone)
-      buffer ++= pitchBendSensitivityMessages(lowerZone)
-    }
-    if (upperZone.isEnabled) {
-      buffer ++= mcmMessages(upperZone)
-      buffer ++= pitchBendSensitivityMessages(upperZone)
-    }
-
-    buffer.toSeq
+    _zones = initialZones
+    _inputMode = initialInputMode
+    resetState()
+    configurationMessages()
   }
 
   override def tune(tuning: Tuning): Seq[MidiMessage] = {
-    currTuning = tuning
+    _tuning = tuning
     val buffer = mutable.Buffer[MidiMessage]()
 
     // Update pitch bend on all occupied member channels
     lowerAllocator.foreach { alloc =>
-      updateTuningOnAllocator(alloc, lowerZone, buffer)
+      updateTuningOnZone(alloc, lowerZone, buffer)
     }
     upperAllocator.foreach { alloc =>
-      updateTuningOnAllocator(alloc, upperZone, buffer)
+      updateTuningOnZone(alloc, upperZone, buffer)
     }
 
     buffer.toSeq
@@ -127,15 +131,44 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     }
   }
 
-  private def lowerZone: MpeZone = zones._1
+  private def lowerZone: MpeZone = _zones.lower
 
-  private def upperZone: MpeZone = zones._2
+  private def upperZone: MpeZone = _zones.upper
+
+  /**
+   * Clears all internal mutable state and recreates allocators from `currentZones`.
+   */
+  private def resetState(): Unit = {
+    _tuning = Tuning.Standard
+    noteChannelMap.clear()
+    mpeInputChannelMap.clear()
+    channelExpressivePitchBend.clear()
+    channelPressureMap.clear()
+    channelSlideMap.clear()
+    globalExpressivePitchBend = 0
+    rpnLsbState.clear()
+    rpnMsbState.clear()
+
+    lowerAllocator = createAllocator(lowerZone)
+    upperAllocator = createAllocator(upperZone)
+  }
+
+  /**
+   * Returns MCM and PBS messages for all enabled zones in `currentZones`.
+   */
+  private def configurationMessages(): Seq[MidiMessage] = {
+    val buffer = mutable.Buffer[MidiMessage]()
+
+    buffer ++= mcmMessages(lowerZone)
+    buffer ++= pitchBendSensitivityMessages(lowerZone)
+    buffer ++= mcmMessages(upperZone)
+    buffer ++= pitchBendSensitivityMessages(upperZone)
+
+    buffer.toSeq
+  }
 
   private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
-
-    // TODO #143 Check for MCM (MPE Configuration Message): RPN 6 on channel 0 or 15
-    //  MCM is CC 101=0, CC 100=6, CC 6=memberCount on master channel
 
     message match {
       case ScNoteOnMidiMessage(channel, midiNote, velocity) if velocity > 0 =>
@@ -153,8 +186,10 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       case ScPolyPressureMidiMessage(channel, midiNote, value) =>
         processPolyPressure(buffer, channel, midiNote, value)
       case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PROGRAM_CHANGE =>
-        // Forward on master channel
-        forwardOnMasterChannel(buffer, shortMessage)
+        // Forward on the zone's master channel
+        resolveZoneMasterChannel(shortMessage.getChannel).foreach { masterCh =>
+          buffer += mapShortMessageChannel(shortMessage, _ => masterCh)
+        }
       case _ =>
         buffer += message
     }
@@ -189,8 +224,8 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
         }
 
         // Compute and send control dimensions before Note On
-        val tuningOffset = currTuning(midiNote.pitchClass)
-        // TODO #143 Is experssiveBend dead code?
+        val tuningOffset = _tuning(midiNote.pitchClass)
+        // TODO #143 Is expressiveBend dead code?
         val expressiveBend = if (inputMode == MpeInputMode.Mpe) {
           channelExpressivePitchBend.getOrElse(inputChannel, 0)
         } else {
@@ -236,7 +271,9 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     }
   }
 
-  private def processPitchBend(buffer: mutable.Buffer[MidiMessage], inputChannel: Int, pitchBendValue: Int): Unit = {
+  private def processPitchBend(buffer: mutable.Buffer[MidiMessage],
+                               inputChannel: Int,
+                               pitchBendValue: Int): Unit = {
     if (inputMode == MpeInputMode.Mpe) {
       // Check if it's a master channel
       if (isMasterChannel(inputChannel)) {
@@ -257,7 +294,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
           val zone = alloc.zone
           val pc = alloc.channelPitchClass(outChannel)
           pc.foreach { pitchClass =>
-            val tuningOffset = currTuning(pitchClass)
+            val tuningOffset = _tuning(pitchClass)
             val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
             buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
           }
@@ -265,7 +302,7 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
       }
     } else {
       // Non-MPE input: redirect pitch bend to master channel as zone-level pitch bend
-      _globalExpressivePitchBend = pitchBendValue
+      globalExpressivePitchBend = pitchBendValue
       if (lowerZone.isEnabled) {
         buffer += ScPitchBendMidiMessage(lowerZone.masterChannel, pitchBendValue).javaMessage
       }
@@ -277,24 +314,149 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 
   private def processCc(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                         ccNumber: Int, ccValue: Int): Unit = {
+    val rpnLsb = rpnLsbState.getOrElse(inputChannel, Rpn.NullLsb)
+    val rpnMsb = rpnMsbState.getOrElse(inputChannel, Rpn.NullMsb)
+    val isMcmRpn = rpnMsb == Rpn.MpeConfigurationMessageMsb && rpnLsb == Rpn.MpeConfigurationMessageLsb
+    val isPbsRpn = rpnMsb == Rpn.PitchBendSensitivityMsb && rpnLsb == Rpn.PitchBendSensitivityLsb
+
     ccNumber match {
+      // RPN state machine
+      case ScCcMidiMessage.RpnLsb =>
+        rpnLsbState(inputChannel) = ccValue
+        buffer += ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMessage
+      case ScCcMidiMessage.RpnMsb =>
+        rpnMsbState(inputChannel) = ccValue
+        buffer += ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMessage
+      case ScCcMidiMessage.DataEntryMsb if isMcmRpn && (inputChannel == 0 || inputChannel == 15) =>
+        processMcm(buffer, inputChannel, ccValue)
+      case ScCcMidiMessage.DataEntryMsb if isPbsRpn =>
+        processPbsMsb(buffer, inputChannel, ccValue)
+      case ScCcMidiMessage.DataEntryLsb if isPbsRpn =>
+        processPbsLsb(buffer, inputChannel, ccValue)
+
+      // MPE Slide - forward to appropriate member channel
       case ScCcMidiMessage.MpeSlide =>
-        // Slide - forward to appropriate member channel
         channelSlideMap(inputChannel) = ccValue
         forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
+      // Zone-level messages - forward on the master channel of the zone the input belongs to
       case ScCcMidiMessage.SustainPedal | ScCcMidiMessage.SostenutoPedal | ScCcMidiMessage.SoftPedal |
            ScCcMidiMessage.Modulation | ScCcMidiMessage.ResetAllControllers =>
-        // TODO #143 Zones are not mutually exclusive. Should compare inputChannel with zone ranges. Check for
-        //  similar problems.
-        // Zone-level messages - forward on master channel
-        if (lowerZone.isEnabled) {
-          buffer += ScCcMidiMessage(lowerZone.masterChannel, ccNumber, ccValue).javaMessage
-        } else if (upperZone.isEnabled) {
-          buffer += ScCcMidiMessage(upperZone.masterChannel, ccNumber, ccValue).javaMessage
-        }
+        forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
       case _ =>
-        // Forward as-is
-        forwardOnMasterChannel(buffer, ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMessage)
+        forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
+    }
+  }
+
+  /**
+   * Processes an incoming MPE Configuration Message (MCM).
+   *
+   * Stops all active notes, reconfigures zones (with overlap resolution), resets internal state,
+   * and outputs the new configuration messages downstream.
+   */
+  private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
+    assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
+    val (zoneType, newZone) = if (channel == 0)
+      (MpeZoneType.Lower, lowerZone.copy(memberCount = memberCount))
+    else
+      (MpeZoneType.Upper, upperZone.copy(memberCount = memberCount))
+
+    // Stop all active notes before reconfiguring
+    stopAllNotes(buffer)
+
+    // Update zones with overlap resolution
+    _zones = _zones.update(newZone)
+
+    // Reset internal state and recreate allocators
+    resetState()
+
+    // Forward configuration messages downstream
+    buffer ++= configurationMessages()
+
+    // Switch to MPE input mode
+    _inputMode = MpeInputMode.Mpe
+  }
+
+  /**
+   * Processes an incoming Pitch Bend Sensitivity RPN Data Entry MSB (semitones).
+   */
+  private def processPbsMsb(buffer: mutable.Buffer[MidiMessage], channel: Int, semitones: Int): Unit = {
+    findZoneForChannel(channel) match {
+      case Some((zone, isMaster)) =>
+        val updatedZone = if (isMaster) {
+          zone.copy(masterPitchBendSensitivity = zone.masterPitchBendSensitivity.copy(semitones = semitones))
+        } else {
+          zone.copy(memberPitchBendSensitivity = zone.memberPitchBendSensitivity.copy(semitones = semitones))
+        }
+        applyPbsUpdate(buffer, channel, ScCcMidiMessage.DataEntryMsb, semitones, updatedZone, isMaster)
+      case None =>
+        // Channel not in any zone, forward as-is
+        buffer += ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryMsb, semitones).javaMessage
+    }
+  }
+
+  /**
+   * Processes an incoming Pitch Bend Sensitivity RPN Data Entry LSB (cents).
+   */
+  private def processPbsLsb(buffer: mutable.Buffer[MidiMessage], channel: Int, cents: Int): Unit = {
+    findZoneForChannel(channel) match {
+      case Some((zone, isMaster)) =>
+        val updatedZone = if (isMaster) {
+          zone.copy(masterPitchBendSensitivity = zone.masterPitchBendSensitivity.copy(cents = cents))
+        } else {
+          zone.copy(memberPitchBendSensitivity = zone.memberPitchBendSensitivity.copy(cents = cents))
+        }
+        applyPbsUpdate(buffer, channel, ScCcMidiMessage.DataEntryLsb, cents, updatedZone, isMaster)
+      case None =>
+        // Channel not in any zone, forward as-is
+        buffer += ScCcMidiMessage(channel, ScCcMidiMessage.DataEntryLsb, cents).javaMessage
+    }
+  }
+
+  /**
+   * Applies a PBS update: updates the internal zone configuration, forwards the Data Entry message
+   * on the original channel, and recomputes pitch bends on occupied member channels if needed.
+   *
+   * The Data Entry CC is forwarded only on the original `channel` — not broadcast to all member
+   * channels. Per the MPE Specification, the sender is responsible for sending PBS to all member
+   * channels. Forwarding on each received channel preserves the 1:1 input-to-output ratio.
+   */
+  private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
+                             ccNumber: Int, ccValue: Int,
+                             updatedZone: MpeZone, isMaster: Boolean): Unit = {
+    _zones = _zones.update(updatedZone)
+
+    // Forward the Data Entry CC on the original channel only
+    buffer += ScCcMidiMessage(channel, ccNumber, ccValue).javaMessage
+
+    // Recompute pitch bends on occupied member channels if member PBS changed
+    if (!isMaster) {
+      val alloc = if (updatedZone.zoneType == MpeZoneType.Lower) lowerAllocator else upperAllocator
+      alloc.foreach(updateTuningOnZone(_, updatedZone, buffer))
+    }
+  }
+
+  /**
+   * Finds the zone and master/member status for a given channel.
+   *
+   * @return `Some((zone, isMaster))` if the channel belongs to a zone, `None` otherwise.
+   */
+  private def findZoneForChannel(channel: Int): Option[(MpeZone, Boolean)] = {
+    findChannelRole(lowerZone, channel).orElse(findChannelRole(upperZone, channel))
+  }
+
+  private def findChannelRole(zone: MpeZone, channel: Int): Option[(MpeZone, Boolean)] = {
+    if (!zone.isEnabled) None
+    else if (channel == zone.masterChannel) Some((zone, true))
+    else if (zone.memberChannels.contains(channel)) Some((zone, false))
+    else None
+  }
+
+  /**
+   * Sends Note Off for all active notes tracked in `noteChannelMap`.
+   */
+  private def stopAllNotes(buffer: mutable.Buffer[MidiMessage]): Unit = {
+    noteChannelMap.foreach { case ((midiNote, _), outChannel) =>
+      buffer += ScNoteOffMidiMessage(outChannel, midiNote).javaMessage
     }
   }
 
@@ -332,12 +494,38 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     }
   }
 
-  private def forwardOnMasterChannel(buffer: mutable.Buffer[MidiMessage], msg: ShortMessage): Unit = {
-    // TODO #143 Zones are not mutually exclusive.
-    if (lowerZone.isEnabled) {
-      buffer += mapShortMessageChannel(msg, _ => lowerZone.masterChannel)
-    } else if (upperZone.isEnabled) {
-      buffer += mapShortMessageChannel(msg, _ => upperZone.masterChannel)
+  /**
+   * Forwards a message on the master channel of the zone that the `inputChannel` belongs to.
+   *
+   * For non-MPE input, all messages are routed to the first enabled zone (lower preferred).
+   * For MPE input, the zone is determined by which zone's channel range contains `inputChannel`.
+   */
+  private def forwardOnZoneMasterChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
+                                         makeMessage: Int => ScMidiMessage): Unit = {
+    resolveZoneMasterChannel(inputChannel).foreach { masterCh =>
+      buffer += makeMessage(masterCh).javaMessage
+    }
+  }
+
+  /**
+   * Resolves the output channel for zone-level messages based on the `inputChannel`.
+   *
+   * For non-MPE input, returns the first enabled zone's master channel (lower preferred).
+   * For MPE input, determines the zone by checking which zone's channel range (master or member)
+   * contains `inputChannel` and returns that zone's master channel. If the input channel does not
+   * belong to any zone, it is outside the MPE zone structure and the message passes through on
+   * the original channel.
+   */
+  private def resolveZoneMasterChannel(inputChannel: Int): Option[Int] = {
+    if (inputMode == MpeInputMode.NonMpe) {
+      if (lowerZone.isEnabled) Some(lowerZone.masterChannel)
+      else if (upperZone.isEnabled) Some(upperZone.masterChannel)
+      else None
+    } else {
+      findZoneForChannel(inputChannel) match {
+        case Some((zone, _)) => Some(zone.masterChannel)
+        case None => Some(inputChannel)
+      }
     }
   }
 
@@ -355,13 +543,13 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
     clampValue(tuningPitchBend + avgExpressiveBend, ScPitchBendMidiMessage.MinValue, ScPitchBendMidiMessage.MaxValue)
   }
 
-  private def updateTuningOnAllocator(alloc: MpeChannelAllocator, zone: MpeZone,
+  private def updateTuningOnZone(alloc: MpeChannelAllocator, zone: MpeZone,
                                       buffer: mutable.Buffer[MidiMessage]): Unit = {
     // Only occupied channels have a pitch class assigned
     for (ch <- zone.memberChannels;
          pc <- alloc.channelPitchClass(ch)) {
       // TODO #143 Duplicated lines
-      val tuningOffset = currTuning(pc)
+      val tuningOffset = _tuning(pc)
       val totalPitchBend = computeOutputPitchBend(ch, alloc, zone, tuningOffset)
       buffer += ScPitchBendMidiMessage(ch, totalPitchBend).javaMessage
     }
@@ -379,22 +567,30 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
   }
 
   private def pitchBendSensitivityMessages(zone: MpeZone): Seq[MidiMessage] = {
-    val buffer = mutable.Buffer[MidiMessage]()
+    if (zone.isEnabled) {
+      val buffer = mutable.Buffer[MidiMessage]()
 
-    // Master channel PBS
-    buffer ++= PitchBendSensitivityMessages.create(zone.masterChannel, zone.masterPitchBendSensitivity)
+      // Master channel PBS
+      buffer ++= PitchBendSensitivityMessages.create(zone.masterChannel, zone.masterPitchBendSensitivity)
 
-    // Member channel PBS
-    zone.memberChannels.foreach { ch =>
-      buffer ++= PitchBendSensitivityMessages.create(ch, zone.memberPitchBendSensitivity)
+      // Member channel PBS
+      zone.memberChannels.foreach { ch =>
+        buffer ++= PitchBendSensitivityMessages.create(ch, zone.memberPitchBendSensitivity)
+      }
+
+      buffer.toSeq
+    } else {
+      Seq.empty
     }
+  }
 
-    buffer.toSeq
+  private def createAllocator(zone: MpeZone): Option[MpeChannelAllocator] = {
+    if (zone.isEnabled) Some(MpeChannelAllocator(zone)) else None
   }
 
   private def getAllocatorForInput(inputChannel: Int): Option[MpeChannelAllocator] = {
     // For non-MPE input, use the first enabled zone's allocator
-    if (inputMode == MpeInputMode.NonMpe) {
+    if (_inputMode == MpeInputMode.NonMpe) {
       lowerAllocator.orElse(upperAllocator)
     } else {
       // TODO #143 Duplicated lines
@@ -430,9 +626,4 @@ class MpeTuner(val zones: (MpeZone, MpeZone) = MpeTuner.DefaultZones,
 object MpeTuner {
   val TypeName: String = "mpe"
   val ExpressionPitchBendThreshold: Double = 50.0
-
-  val DefaultZones: (MpeZone, MpeZone) = (
-    MpeZone(MpeZoneType.Lower, 15),
-    MpeZone(MpeZoneType.Upper, 0)
-  )
 }
