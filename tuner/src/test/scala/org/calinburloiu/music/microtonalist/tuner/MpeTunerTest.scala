@@ -18,10 +18,10 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.*
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.{Inside, OptionValues}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.shouldEqual
+import org.scalatest.{Inside, OptionValues}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 
@@ -582,8 +582,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val ccs = extractCc(output)
     // Upper zone MCM should be sent to the output even if the zone is disabled to inform the downstream device
     ccs should contain(ScCcMidiMessage(15, ScCcMidiMessage.DataEntryMsb, 0))
-    // Lower zone MCM should still be present
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 7))
+    // Lower zone MCM should NOT be present because the lower zone was not affected
+    ccs should not contain ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 7)
   }
 
   it should "not trigger MCM on incomplete RPN sequence" in new TunerFixture() {
@@ -635,17 +635,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
-  it should "output PBS messages after each zone MCM messages for reconfigured zones" in new TunerFixture() {
+  it should "not output PBS messages after MCM" in new TunerFixture() {
     private val output = sendMcm(tuner, channel = 0, memberCount = 7)
     private val ccs = extractCc(output)
-    // MCM should come before PBS
-    private val mcmIndex = ccs.indexWhere(cc =>
-      cc.channel == 0 && cc.number == ScCcMidiMessage.DataEntryMsb && cc.value == 7)
-    private val pbsIndex = ccs.indexWhere(cc =>
-      cc.channel == 0 && cc.number == ScCcMidiMessage.RpnLsb && cc.value == Rpn.PitchBendSensitivityLsb)
-    mcmIndex should be >= 0
-    pbsIndex should be >= 0
-    mcmIndex should be < pbsIndex
+    // PBS RPN uses LSB=0, while MCM RPN uses LSB=6; no PBS RPN should appear in the output
+    private val pbsRpnMessages = ccs.filter(cc =>
+      cc.number == ScCcMidiMessage.RpnLsb && cc.value == Rpn.PitchBendSensitivityLsb)
+    pbsRpnMessages shouldBe empty
+  }
+
+  it should "reset PBS to defaults when MCM is received" in new TunerFixture(tuner7) {
+    // Set custom PBS on the lower zone
+    sendPbsMsb(tuner, channel = 0, semitones = 12)
+    sendPbsMsb(tuner, channel = 1, semitones = 24)
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+
+    // Receive MCM on the same zone
+    sendMcm(tuner, channel = 0, memberCount = 7)
+
+    // PBS should be reset to defaults per MPE spec Section 2.4
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
   }
 
   // --- PBS Processing ---
@@ -666,18 +677,27 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "update master PBS on master channel" in new TunerFixture() {
     private val output = sendPbsMsb(tuner, channel = 0, semitones = 12)
-    // Should forward PBS for the master channel with new sensitivity
+    // Should forward RPN setup and PBS for the master channel with new sensitivity
     private val ccs = extractCc(output)
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 12))
+    ccs should contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryMsb, 12)
+    )
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
   }
 
   it should "update member PBS and forward only on the received channel" in new TunerFixture(tuner7) {
     // Send PBS on member channel 1 -> internal state updated for all members, but only forwarded on ch 1
     private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
-    private val dataEntryCcs = extractCc(output).filter(_.number == ScCcMidiMessage.DataEntryMsb)
-    dataEntryCcs should contain(ScCcMidiMessage(1, ScCcMidiMessage.DataEntryMsb, 24))
+    private val ccs = extractCc(output)
+    ccs should contain inOrder(
+      ScCcMidiMessage(1, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      ScCcMidiMessage(1, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      ScCcMidiMessage(1, ScCcMidiMessage.DataEntryMsb, 24)
+    )
     // Should NOT broadcast to other member channels
+    private val dataEntryCcs = ccs.filter(_.number == ScCcMidiMessage.DataEntryMsb)
     (2 to 7).foreach { ch =>
       dataEntryCcs.filter(_.channel == ch) shouldBe empty
     }
@@ -732,7 +752,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Send LSB
     private val output = sendPbsLsb(tuner, channel = 0, cents = 50)
     private val ccs = extractCc(output)
-    ccs should contain(ScCcMidiMessage(0, ScCcMidiMessage.DataEntryLsb, 50))
+    // Should re-send RPN setup before Data Entry LSB
+    ccs should contain inOrder(
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      ScCcMidiMessage(0, ScCcMidiMessage.DataEntryLsb, 50)
+    )
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
       MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
   }

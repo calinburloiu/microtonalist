@@ -51,6 +51,8 @@ enum MpeInputMode {
  * The tuner processes incoming MPE Configuration Messages (MCM) and Pitch Bend Sensitivity (PBS)
  * RPN messages to dynamically reconfigure zones and pitch bend ranges.
  *
+ * For the technical specification check the white paper in `docs/tuner/mpe-tuner-paper.md`.
+ *
  * @param initialZones     The initial [[MpeZones]] configuration for the Lower and Upper Zones.
  * @param initialInputMode Initial [[MpeInputMode]]. The tuner switches to MPE mode automatically
  *                         upon receiving an MPE Configuration Message.
@@ -355,10 +357,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
+    // Per MPE spec Section 2.4, receiving MCM resets PBS to defaults
     val (zoneType, newZone) = if (channel == 0)
-      (MpeZoneType.Lower, lowerZone.copy(memberCount = memberCount))
+      (MpeZoneType.Lower, MpeZone(MpeZoneType.Lower, memberCount))
     else
-      (MpeZoneType.Upper, upperZone.copy(memberCount = memberCount))
+      (MpeZoneType.Upper, MpeZone(MpeZoneType.Upper, memberCount))
+
+    // Remember the other zone before update to detect overlap resolution changes
+    val otherZoneBefore = if (channel == 0) upperZone else lowerZone
 
     // Stop all active notes before reconfiguring
     stopAllNotes(buffer)
@@ -369,8 +375,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Reset internal state and recreate allocators
     resetState()
 
-    // Forward configuration messages downstream
-    buffer ++= configurationMessages()
+    // Forward MCM for the updated zone. PBS is not sent because the downstream receiver
+    // resets PBS to defaults upon receiving MCM (MPE spec Section 2.4).
+    val updatedZone = if (channel == 0) lowerZone else upperZone
+    buffer ++= mcmMessages(updatedZone)
+
+    // Forward MCM for the other zone only if it was changed by overlap resolution
+    val otherZoneAfter = if (channel == 0) upperZone else lowerZone
+    if (otherZoneAfter != otherZoneBefore) {
+      buffer ++= mcmMessages(otherZoneAfter)
+    }
 
     // Switch to MPE input mode
     _inputMode = MpeInputMode.Mpe
@@ -413,19 +427,27 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Applies a PBS update: updates the internal zone configuration, forwards the Data Entry message
-   * on the original channel, and recomputes pitch bends on occupied member channels if needed.
+   * Applies a PBS update: updates the internal zone configuration, forwards the RPN setup and
+   * Data Entry message on the original channel, and recomputes pitch bends on occupied member
+   * channels if needed.
    *
-   * The Data Entry CC is forwarded only on the original `channel` — not broadcast to all member
-   * channels. Per the MPE Specification, the sender is responsible for sending PBS to all member
-   * channels. Forwarding on each received channel preserves the 1:1 input-to-output ratio.
+   * The RPN and Data Entry CCs are forwarded only on the original `channel` — not broadcast to all
+   * member channels. Per the MPE Specification, the sender is responsible for sending PBS to all
+   * member channels. Forwarding on each received channel preserves the 1:1 input-to-output ratio.
+   *
+   * The RPN is always re-sent before the Data Entry to guard against interleaving from other
+   * devices that may have changed the active RPN on the output channel.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
                              updatedZone: MpeZone, isMaster: Boolean): Unit = {
     _zones = _zones.update(updatedZone)
 
-    // Forward the Data Entry CC on the original channel only
+    // Forward the RPN setup and Data Entry CC on the original channel only.
+    // The RPN is re-sent to guard against interleaving from other devices that may have changed the
+    // active RPN on this channel.
+    buffer += ScCcMidiMessage(channel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage
+    buffer += ScCcMidiMessage(channel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage
     buffer += ScCcMidiMessage(channel, ccNumber, ccValue).javaMessage
 
     // Recompute pitch bends on occupied member channels if member PBS changed
