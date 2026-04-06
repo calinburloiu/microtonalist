@@ -179,6 +179,15 @@ Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on mac
 * Currently, we use IntelliJ IDEA for formatting code with the default settings.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
 
+## Follow the TDD cycle: red/green/refactor
+
+Use strict Test Driven Development (TDD) by following the red/green/refactor cycle.
+
+Write a failing test first — if the compiler requires it, create the thinnest possible stub (`???` bodies, no logic) to
+get it to compile, then confirm the test fails for the right reason. Write only enough production code to make it pass,
+no more. Once green, refactor the structure and naming freely, keeping the suite green throughout. Never write logic
+without a preceding failing test, never commit red production code, and never mix refactoring with behavioral changes.
+
 ## Use brace syntax
 
 Use the old classic brace Scala syntax, not the new indentation Scala 3 syntax.
