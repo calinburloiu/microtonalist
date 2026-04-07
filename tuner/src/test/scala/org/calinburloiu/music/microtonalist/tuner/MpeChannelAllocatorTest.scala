@@ -44,10 +44,10 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   private val C6: MidiNote = C5 + 12
   private val C7: MidiNote = C5 + 24
 
-  // High pitch bend value (> 50 cents with 48 semitones sensitivity)
-  // 50 cents / (48*100 cents) * 8191 ≈ 85.3, so use 100
-  private val highPitchBend: Int = 200
-  private val lowPitchBend: Int = 50
+  // High expressive pitch bend in cents (> 50 cents threshold)
+  private val highPitchBendCents: Double = 100.0
+  // Low expressive pitch bend in cents (< 50 cents threshold)
+  private val lowPitchBendCents: Double = 25.0
 
   private def assertDroppedNotes(droppedNotes: Option[DroppedNotes], expectedNotes: Seq[MidiNote]): Unit = {
     droppedNotes.map(_.notes).getOrElse(Seq.empty) should contain theSameElementsAs expectedNotes
@@ -249,7 +249,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
     // Both channels have C. Make r1 high bend.
-    alloc.updateExpressivePitchBend(r1.channel, highPitchBend)
+    alloc.updateExpressivePitchBend(r1.channel, highPitchBendCents)
     // Third C should share with r2 (no high bend)
     val r3 = alloc.allocate(C3)
     r3.channel shouldBe r2.channel
@@ -343,7 +343,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
     // Now update pitch bend on shared channel to high value
-    val droppedNotes = alloc.updateExpressivePitchBend(sharedChannel, highPitchBend)
+    val droppedNotes = alloc.updateExpressivePitchBend(sharedChannel, highPitchBendCents)
     droppedNotes should not be empty
     alloc.activeNotes(sharedChannel).size shouldBe 1
   }
@@ -355,7 +355,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r3 = alloc.allocate(C3)
     val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
-    val droppedNotes = alloc.updateExpressivePitchBend(sharedChannel, lowPitchBend)
+    val droppedNotes = alloc.updateExpressivePitchBend(sharedChannel, lowPitchBendCents)
     droppedNotes shouldBe empty
   }
 
@@ -364,7 +364,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.allocate(C4)
     alloc.allocate(C5)
     // Both channels occupied with C. Third C must share.
-    val result = alloc.allocate(C3, expressivePitchBend = highPitchBend)
+    val result = alloc.allocate(C3, expressivePitchBendCents = highPitchBendCents)
     result.droppedNotes should not be empty
     alloc.activeNotes(result.channel).size shouldBe 1
   }
@@ -373,13 +373,13 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator2
     alloc.allocate(C4)
     alloc.allocate(C5)
-    val result = alloc.allocate(C3, expressivePitchBend = lowPitchBend)
+    val result = alloc.allocate(C3, expressivePitchBendCents = lowPitchBendCents)
     result.droppedNotes shouldBe empty
   }
 
   it should "free channel when new note is assigned to channel with existing high-bend note" in {
     val alloc = allocator2
-    val r1 = alloc.allocate(C4, expressivePitchBend = highPitchBend)
+    val r1 = alloc.allocate(C4, expressivePitchBendCents = highPitchBendCents)
     alloc.allocate(D4)
     // Third C must share. r1 has high bend.
     val result = alloc.allocate(C3)
@@ -389,7 +389,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
 
   it should "not free channel when new note is assigned to channel with existing low-bend note" in {
     val alloc = allocator2
-    alloc.allocate(C4, expressivePitchBend = lowPitchBend)
+    alloc.allocate(C4, expressivePitchBendCents = lowPitchBendCents)
     alloc.allocate(C5)
     val result = alloc.allocate(C3)
     result.droppedNotes shouldBe empty
@@ -402,7 +402,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val r3 = alloc.allocate(C3)
     val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
-    alloc.updateExpressivePitchBend(sharedChannel, highPitchBend)
+    alloc.updateExpressivePitchBend(sharedChannel, highPitchBendCents)
     alloc.activeNotes(sharedChannel).size shouldBe 1
   }
 

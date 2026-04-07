@@ -99,4 +99,6 @@ package object scmidi {
   }
 
   def clampValue(value: Int, min: Int, max: Int): Int = Math.max(min, Math.min(max, value))
+
+  def clampValue(value: Double, min: Double, max: Double): Double = Math.max(min, Math.min(max, value))
 }

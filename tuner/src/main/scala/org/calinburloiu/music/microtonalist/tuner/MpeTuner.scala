@@ -287,7 +287,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
         val allocator = getAllocatorForOutput(outChannel)
         allocator.foreach { alloc =>
-          val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendValue)
+          val pitchBendCents = ScPitchBendMidiMessage.convertValueToCents(
+            pitchBendValue, alloc.zone.memberPitchBendSensitivity)
+          val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendCents)
           droppedNotes.foreach { d =>
             d.notes.foreach { midiNote =>
               buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMessage
@@ -554,15 +556,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def computeOutputPitchBend(channel: Int, alloc: MpeChannelAllocator, zone: MpeZone,
                                      tuningOffsetCents: Double): Int = {
     val notes = alloc.activeNotes(channel)
-    val avgExpressiveBend = if (notes.nonEmpty) {
-      Math.round(notes.map(alloc.expressionFor(channel, _).pitchBend).sum.toDouble / notes.size).toInt
+    val avgExpressiveBendCents = if (notes.nonEmpty) {
+      notes.map(alloc.expressionFor(channel, _).pitchBendCents).sum / notes.size
     } else {
-      0
+      0.0
     }
 
-    val tuningPitchBend = ScPitchBendMidiMessage.convertCentsToValue(tuningOffsetCents,
-      zone.memberPitchBendSensitivity)
-    clampValue(tuningPitchBend + avgExpressiveBend, ScPitchBendMidiMessage.MinValue, ScPitchBendMidiMessage.MaxValue)
+    val totalCents = tuningOffsetCents + avgExpressiveBendCents
+    val pbs = zone.memberPitchBendSensitivity
+    val clampedCents = clampValue(totalCents, -pbs.totalCents, pbs.totalCents)
+    ScPitchBendMidiMessage.convertCentsToValue(clampedCents, pbs)
   }
 
   private def updateTuningOnZone(alloc: MpeChannelAllocator, zone: MpeZone,

@@ -762,6 +762,52 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
   }
 
+  it should "preserve intonation of active note with expressive pitch bend after PBS change" in
+    new TunerFixture(
+      MpeTuner(
+        initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0)),
+        initialInputMode = MpeInputMode.Mpe
+      ),
+      Some(quarterCommaMeantone)
+    ) {
+      // Play E4 on member channel 1: tuning offset for E is -14.0 cents
+      private val noteOutput = tuner.process(ScNoteOnMidiMessage(1, E4, 100).javaMessage)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+
+      // Send an expressive pitch bend on that channel (with default PBS=48 semitones)
+      // 500 MIDI value ≈ 500/8191 * 4800 ≈ 292.9 cents
+      private val expressiveBendMidiValue = 500
+      private val expressiveBendCents = ScPitchBendMidiMessage.convertValueToCents(
+        expressiveBendMidiValue, defaultPbs)
+      tuner.process(ScPitchBendMidiMessage(1, expressiveBendMidiValue).javaMessage)
+
+      // Now change member PBS from 48 to 24 semitones
+      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
+
+      pitchBends should not be empty
+      // The output pitch bend should still represent tuning offset + expressive bend in cents
+      // E tuning offset = -14.0, expressive = ~292.9 cents => total ≈ 278.9 cents
+      private val expectedCents = -14.0 + expressiveBendCents
+      private val newPbs = PitchBendSensitivity(24)
+      pitchBends.head.centsFor(newPbs) shouldEqual expectedCents
+    }
+
+  it should "preserve intonation of active note without expressive pitch bend after PBS change" in
+    new TunerFixture(tuner7, Some(quarterCommaMeantone)) {
+      // Play E4: tuning offset for E is -14.0 cents
+      private val noteOutput = tuner.process(ScNoteOnMidiMessage(inputChannel, E4).javaMessage)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+
+      // Change member PBS from 48 to 24 semitones
+      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
+
+      pitchBends should not be empty
+      // The output pitch bend should still represent -14.0 cents under the new PBS
+      pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
+    }
+
   it should "revert PBS to initial values on reset()" in new TunerFixture(tuner7) {
     // Change member PBS
     sendPbsMsb(tuner, channel = 1, semitones = 24)
