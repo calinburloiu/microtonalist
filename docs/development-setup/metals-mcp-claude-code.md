@@ -95,7 +95,7 @@ running for the entire Claude Code session — when you Ctrl-C it, the MCP serve
 
 ```bash
 cd ~/Development/microtonalist
-metals-standalone-client --verbose .
+metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude
 ```
 
 What happens behind the scenes:
