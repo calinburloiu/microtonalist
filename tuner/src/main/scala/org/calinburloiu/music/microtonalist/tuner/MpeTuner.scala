@@ -214,6 +214,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // TODO #143 Duplicated lines
         // Handle dropped notes
         result.droppedNotes.foreach { dropped =>
+          logger.trace(s"Dropping notes ${dropped.notes} on channel ${dropped.channel} (allocation overflow on new " +
+            s"Note On)")
           dropped.notes.foreach { midiNote =>
             buffer += ScNoteOffMidiMessage(dropped.channel, midiNote).javaMessage
           }
@@ -291,6 +293,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
             pitchBendValue, alloc.zone.memberPitchBendSensitivity)
           val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendCents)
           droppedNotes.foreach { d =>
+            logger.trace(s"Dropping notes ${d.notes.mkString(", ")} on channel ${d.channel} (expressive pitch bend " +
+              s"too high)")
             d.notes.foreach { midiNote =>
               buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMessage
             }
@@ -365,6 +369,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     else
       (MpeZoneType.Upper, MpeZone(MpeZoneType.Upper, memberCount))
 
+    logger.info(s"MCM received on channel $channel: configuring $zoneType zone with $memberCount member channel(s)...")
+
     // Remember the other zone before update to detect overlap resolution changes
     val otherZoneBefore = if (channel == 0) upperZone else lowerZone
 
@@ -380,11 +386,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Forward MCM for the updated zone. PBS is not sent because the downstream receiver
     // resets PBS to defaults upon receiving MCM (MPE spec Section 2.4).
     val updatedZone = if (channel == 0) lowerZone else upperZone
+    logger.info(s"$zoneType zone updated: $updatedZone")
     buffer ++= mcmMessages(updatedZone)
 
     // Forward MCM for the other zone only if it was changed by overlap resolution
     val otherZoneAfter = if (channel == 0) upperZone else lowerZone
     if (otherZoneAfter != otherZoneBefore) {
+      val otherZoneType = if (channel == 0) MpeZoneType.Upper else MpeZoneType.Lower
+      logger.info(s"$otherZoneType zone adjusted by overlap resolution: $otherZoneAfter")
       buffer ++= mcmMessages(otherZoneAfter)
     }
 
@@ -444,6 +453,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
                              ccNumber: Int, ccValue: Int,
                              updatedZone: MpeZone, isMaster: Boolean): Unit = {
     _zones = _zones.update(updatedZone)
+
+    if (logger.underlying.isInfoEnabled) {
+      val channelRole = if (isMaster) "master" else "member"
+      val pbsField = if (ccNumber == ScCcMidiMessage.DataEntryMsb) "semitones" else "cents"
+      logger.info(s"PBS updated on $channelRole channel $channel of ${updatedZone.zoneType} zone: $pbsField = $ccValue")
+    }
 
     // Forward the RPN setup and Data Entry CC on the original channel only.
     // The RPN is re-sent to guard against interleaving from other devices that may have changed the
