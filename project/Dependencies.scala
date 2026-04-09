@@ -21,10 +21,10 @@ object Dependencies {
   val coreMidi4jVersion = "1.6"
   val ficusVersion = "1.5.2"
   val guavaVersion = "33.4.0-jre"
-  val logbackVersion = "1.5.17"
+  val logbackVersion = "1.5.32"
   val playJsonVersion = "3.0.4"
   val scalaLoggingVersion = "3.9.5"
-  val scalaMockVersion = "7.2.0"
+  val scalaMockVersion = "7.5.5"
   val scalaTestVersion = "3.2.19"
 
   // # Dependency definitions
