@@ -229,18 +229,36 @@ All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.fo
 
 Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on macOS.
 
-# GitHub
+# Repository
 
 Use the **GitHub MCP plugin** (`mcp__plugin_github_github__*`) for all GitHub operations (issues, PRs, labels,
 milestones, etc.). Fall back to the `gh` CLI (`/usr/local/bin/gh`) only for features not available in the MCP, such as
 managing GitHub Projects (v2).
+
+## Labels
+
+The following labels are used for issues, PRs, and as branch name prefixes:
+
+- `feature` — a wholly new capability or component
+- `enhancement` — improvement to an existing feature
+- `bugfix` — fix for a defect
+- `refactoring` — restructuring existing code without changing behavior
+- `doc` — documentation-only changes
+- `poc` — proof of concept or experimental work
+
+## Branches
+
+Branch names use the format `<label>/<kebab-case-description>`, where `<label>` is one of the labels above. Examples:
+`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `enhancement/program-change-midi-msg-wrapper`.
+
+The label in the branch name determines the label to apply to the corresponding issue and PR.
 
 ## Issues
 
 When creating a new issue:
 
 - Assign the **microtonalist** GitHub project.
-- Add the appropriate label (e.g. `enhancement`, `bug`, `feature`, `documentation`, `poc`, `refactoring`).
+- Add the appropriate label (inferred from the branch name if available).
 - Check existing milestones (`mcp__plugin_github_github__list_releases` or similar). If a milestone name matches the
   scope of the new work, suggest adding it to the user before assigning.
 
