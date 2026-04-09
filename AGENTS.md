@@ -7,7 +7,7 @@ music with microtones. It supports various protocols for tuning output instrumen
 Monophonic Pitch Bend and MIDI Polyphonic Expression (MPE). It is built as a stand-alone multi-platform desktop
 application that runs on JVM. The code is written in Scala 3.
 
-# Metals MCP
+# Code Intelligence
 
 At the start of every conversation, check whether the Metals MCP is available by attempting to call
 `mcp__metals__list-modules`. If it is available, you have the following capabilities through it:
@@ -228,6 +228,50 @@ All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.fo
 6. Registers JVM shutdown hook for cleanup
 
 Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on macOS.
+
+# Repository
+
+Use the **GitHub MCP plugin** (`mcp__plugin_github_github__*`) for all GitHub operations (issues, PRs, labels,
+milestones, etc.). Fall back to the `gh` CLI (`/usr/local/bin/gh`) only for features not available in the MCP, such as
+managing GitHub Projects (v2).
+
+## Labels
+
+The following labels are used for issues, PRs, and as branch name prefixes:
+
+- `feature` — a wholly new capability or component
+- `enhancement` — improvement to an existing feature
+- `bugfix` — fix for a defect
+- `refactoring` — restructuring existing code without changing behavior
+- `doc` — documentation-only changes
+- `poc` — proof of concept or experimental work
+
+## Branches
+
+Branch names use the format `<label>/<kebab-case-description>`, where `<label>` is one of the labels above. Examples:
+`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `enhancement/program-change-midi-msg-wrapper`.
+
+The label in the branch name determines the label to apply to the corresponding issue and PR.
+
+## Issues
+
+When creating a new issue:
+
+- Assign the **microtonalist** GitHub project.
+- Add the appropriate label (inferred from the branch name if available).
+- Check existing milestones (`mcp__plugin_github_github__list_releases` or similar). If a milestone name matches the
+  scope of the new work, suggest adding it to the user before assigning.
+
+## Pull Requests
+
+When creating a new pull request:
+
+- **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`).
+- **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
+- **Draft state:** Always open new PRs as **draft**.
+- **Project:** Assign the **microtonalist** GitHub project.
+- **Label:** Use the same label as the linked issue.
+- **Milestone:** Use the same milestone as the linked issue, if one is set.
 
 # Coding Conventions
 
