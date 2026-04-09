@@ -18,9 +18,33 @@ At the start of every conversation, check whether the Metals MCP is available by
 - **Find usages** — find all references to a symbol across the project (`mcp__metals__get-usages`)
 - **Read source** — retrieve source of any symbol on the classpath, including JDK and library classes (
   `mcp__metals__get-source`)
-- **Read docs** — retrieve ScalaDoc for any symbol (`mcp__metals__get-docs`)
+- **Read docs** — retrieve ScalaDoc/JavaDoc for any symbol (`mcp__metals__get-docs`)
 - **Compile** — compile the full project or a single module (`mcp__metals__compile-full`, `mcp__metals__compile-module`)
 - **Dependency lookup** — find available versions of Maven dependencies via Coursier (`mcp__metals__find-dep`)
+
+Prefer the Metals MCP over calling `sbt` processes for compiling code as detailed in the Build section below.
+
+Prefer the Metals MCP over `grep` for symbol inspection, symbol search, finding usages, and understanding class/trait
+hierachy. Use symbol search to reduce duplicated code by finding already implemented functionality. Use the read docs
+functionality to understand external code.
+
+## Symbol search file focus
+
+`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` require a `fileInFocus` parameter — they cannot infer
+the build target without it. The search scope is limited to the classpath of the inferred build target, so always use a
+file from a module with the broadest classpath.
+
+The top-level modules and the representative files to use as `fileInFocus` for project-wide symbol searches are:
+
+- `app` — covers `appConfig`, `businessync`, `common`, `composition`, `intonation`, `format`, `scMidi`, `tuner`, `ui`:
+  `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
+- `cli` — separate executable covering `scMidi`; may contain symbols not in `app`:
+  `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
+- `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
+  `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
+
+For a full project-wide search, query all three in parallel. Only use a lower-level module file when intentionally
+scoping the search to that module's classpath.
 
 # Build
 
