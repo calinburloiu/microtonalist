@@ -66,7 +66,7 @@ package object scmidi {
     val B4: MidiNote = 71
     val C5: MidiNote = 72
 
-    val ConcertPitch: Int = A4
+    val ConcertPitch: MidiNote = A4
 
     def apply(pitchClass: PitchClass, octave: Int): MidiNote = {
       require(octave >= -1 && (octave < 9 || octave == 9 && pitchClass <= 7),

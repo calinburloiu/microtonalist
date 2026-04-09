@@ -7,11 +7,66 @@ music with microtones. It supports various protocols for tuning output instrumen
 Monophonic Pitch Bend and MIDI Polyphonic Expression (MPE). It is built as a stand-alone multi-platform desktop
 application that runs on JVM. The code is written in Scala 3.
 
+# Code Intelligence
+
+At the start of every conversation, check whether the Metals MCP is available by attempting to call
+`mcp__metals__list-modules`. If it is available, you have the following capabilities through it:
+
+- **Symbol inspection** — inspect classes, traits, objects, and methods by fully qualified name (`mcp__metals__inspect`)
+- **Symbol search** — search for symbols by name glob (`mcp__metals__glob-search`) or by type (
+  `mcp__metals__typed-glob-search`)
+- **Find usages** — find all references to a symbol across the project (`mcp__metals__get-usages`)
+- **Read source** — retrieve source of any symbol on the classpath, including JDK and library classes (
+  `mcp__metals__get-source`)
+- **Read docs** — retrieve ScalaDoc/JavaDoc for any symbol (`mcp__metals__get-docs`)
+- **Compile** — compile the full project or a single module (`mcp__metals__compile-full`, `mcp__metals__compile-module`)
+- **Dependency lookup** — find available versions of Maven dependencies via Coursier (`mcp__metals__find-dep`)
+
+Prefer the Metals MCP over calling `sbt` processes for compiling code as detailed in the Build section below.
+
+Prefer the Metals MCP over `grep` for symbol inspection, symbol search, finding usages, and understanding class/trait
+hierachy. Use symbol search to reduce duplicated code by finding already implemented functionality. Use the read docs
+functionality to understand external code.
+
+## Symbol search file focus
+
+`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` require a `fileInFocus` parameter — they cannot infer
+the build target without it. The search scope is limited to the classpath of the inferred build target, so always use a
+file from a module with the broadest classpath.
+
+The top-level modules and the representative files to use as `fileInFocus` for project-wide symbol searches are:
+
+- `app` — covers `appConfig`, `businessync`, `common`, `composition`, `intonation`, `format`, `scMidi`, `tuner`, `ui`:
+  `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
+- `cli` — separate executable covering `scMidi`; may contain symbols not in `app`:
+  `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
+- `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
+  `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
+
+For a full project-wide search, query all three in parallel. Only use a lower-level module file when intentionally
+scoping the search to that module's classpath.
+
 # Build
 
-The repository is built using SBT 1, Scala 3 and Java 23. It is split in multiple SBT projects that act as modules,
-libraries or separate executable applications. Each project is in the repository root. Check `build.sbt` for details.
+The repository is built using SBT 1, Scala 3, and Java 23. It is split into multiple SBT projects that act as modules,
+libraries, or separate executable applications. Each project is in the repository root. Check `build.sbt` for details.
 The `root` SBT project aggregates all the other projects. The executable application is in `app` SBT project.
+
+## Metals MCP warm-up
+
+At the start of every conversation, if the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
+to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
+semantic tools work correctly from the first query. Require sbt to be running as a BSP server beforehand (the user is
+responsible for that).
+
+## Compiling
+
+Prefer the Metals MCP for compiling when it is available:
+
+- Compile the whole project: `mcp__metals__compile-full`
+- Compile a single module `${MODULE}`: `mcp__metals__compile-module` with `module = "${MODULE}"`
+
+Fall back to `sbt` only when the Metals MCP is not available, or for a final full build or fat JAR assembly:
 
 Compiling the whole `root` project:
 
@@ -25,11 +80,11 @@ Building the fat JAR for the executable application:
 sbt assembly
 ```
 
-It is recommended to compile, build or test the whole project before committing changes.
+It is recommended to compile, build, or test the whole project before committing changes.
 
 For small changes, it is recommended to only compile individual SBT projects.
 
-Compiling a single SBT project `${PROJECT}`:
+Compiling a single SBT project `${PROJECT}` via sbt:
 
 ```bash
 sbt "${PROJECT}/compile"
@@ -44,6 +99,8 @@ test data if necessary.
 Conventionally, the tests for a given production class use the same package and class name is suffixed with `Test`. For
 example, the test class for `org.calinburloiu.music.intonation.RatioInterval` is
 `org.calinburloiu.music.intonation.RatioIntervalTest`.
+
+Currently, Metals MCP cannot run tests with this setup (with SBT and BSP). So run all tests by starting `sbt` processes.
 
 Running all tests:
 
@@ -114,7 +171,7 @@ app
 
 - `Tuning` — 12 optional cent offsets for pitch classes; `Tuning.Standard` is 12-EDO
 - `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; implementations
-  cover all MTS Octave variants, MPE and monophonic tuning via Pitch Bend
+  cover all MTS Octave variants, MPE, and monophonic tuning via Pitch Bend
 - `TuningChanger` (trait, Plugin) — decides when to change tuning by inspecting MIDI messages (e.g.,
   `PedalTuningChanger`)
 - `Track` — one instrument pipeline: input device → `TuningChangeProcessor` → `TunerProcessor` → output device
@@ -171,6 +228,50 @@ All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.fo
 6. Registers JVM shutdown hook for cleanup
 
 Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on macOS.
+
+# Repository
+
+Use the **GitHub MCP plugin** (`mcp__plugin_github_github__*`) for all GitHub operations (issues, PRs, labels,
+milestones, etc.). Fall back to the `gh` CLI (`/usr/local/bin/gh`) only for features not available in the MCP, such as
+managing GitHub Projects (v2).
+
+## Labels
+
+The following labels are used for issues, PRs, and as branch name prefixes:
+
+- `feature` — a wholly new capability or component
+- `enhancement` — improvement to an existing feature
+- `bugfix` — fix for a defect
+- `refactoring` — restructuring existing code without changing behavior
+- `doc` — documentation-only changes
+- `poc` — proof of concept or experimental work
+
+## Branches
+
+Branch names use the format `<label>/<kebab-case-description>`, where `<label>` is one of the labels above. Examples:
+`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `enhancement/program-change-midi-msg-wrapper`.
+
+The label in the branch name determines the label to apply to the corresponding issue and PR.
+
+## Issues
+
+When creating a new issue:
+
+- Assign the **microtonalist** GitHub project.
+- Add the appropriate label (inferred from the branch name if available).
+- Check existing milestones (`mcp__plugin_github_github__list_releases` or similar). If a milestone name matches the
+  scope of the new work, suggest adding it to the user before assigning.
+
+## Pull Requests
+
+When creating a new pull request:
+
+- **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`).
+- **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
+- **Draft state:** Always open new PRs as **draft**.
+- **Project:** Assign the **microtonalist** GitHub project.
+- **Label:** Use the same label as the linked issue.
+- **Milestone:** Use the same milestone as the linked issue, if one is set.
 
 # Coding Conventions
 

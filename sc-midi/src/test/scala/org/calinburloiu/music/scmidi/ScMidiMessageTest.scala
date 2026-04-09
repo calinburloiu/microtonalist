@@ -50,7 +50,7 @@ class ScMidiMessageTest extends AnyFlatSpec with Matchers {
     ScMidiMessage.fromJavaMessage(channelPressure) should equal(ScChannelPressureMidiMessage(channel, pressureValue))
     ScMidiMessage.fromJavaMessage(polyPressure) should equal(ScPolyPressureMidiMessage(channel, noteNumber,
       pressureValue))
-    ScMidiMessage.fromJavaMessage(programChange) should equal(ScUnsupportedMidiMessage(programChange))
+    ScMidiMessage.fromJavaMessage(programChange) should equal(ScProgramChangeMidiMessage(channel, 1))
   }
 
   it should "throw IllegalArgumentException for null input" in {
@@ -195,6 +195,44 @@ class ScChannelPressureMidiMessageTest extends AnyFlatSpec with Matchers {
   it should "reject invalid value" in {
     an[IllegalArgumentException] should be thrownBy ScChannelPressureMidiMessage(channel, 128)
     an[IllegalArgumentException] should be thrownBy ScChannelPressureMidiMessage(channel, -1)
+  }
+}
+
+class ScProgramChangeMidiMessageTest extends AnyFlatSpec with Matchers {
+  private val channel = 2
+  private val program = 42
+  private val javaMessage: MidiMessage = new ShortMessage(ShortMessage.PROGRAM_CHANGE, channel, program, 0)
+
+  behavior of "ScProgramChangeMidiMessage"
+
+  it should "create correct Java MIDI message" in {
+    val msg = ScProgramChangeMidiMessage(channel, program)
+    msg.javaMessage.getMessage should equal(javaMessage.getMessage)
+  }
+
+  it should "be created from a Java MidiMessage" in {
+    ScProgramChangeMidiMessage.fromJavaMessage(javaMessage) should equal(Some(ScProgramChangeMidiMessage(channel,
+      program)))
+  }
+
+  it should "be extracted from a valid Program Change message" in {
+    inside(javaMessage) {
+      case ScProgramChangeMidiMessage(`channel`, `program`) => succeed
+    }
+  }
+
+  it should "return None for non-Program-Change messages" in {
+    val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, channel, 60, 100)
+    ScProgramChangeMidiMessage.unapply(noteOn) shouldBe None
+  }
+
+  it should "reject invalid channel" in {
+    an[IllegalArgumentException] should be thrownBy ScProgramChangeMidiMessage(16, program)
+  }
+
+  it should "reject invalid program" in {
+    an[IllegalArgumentException] should be thrownBy ScProgramChangeMidiMessage(channel, 128)
+    an[IllegalArgumentException] should be thrownBy ScProgramChangeMidiMessage(channel, -1)
   }
 }
 
