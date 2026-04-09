@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ class MidiNoteTest extends AnyFlatSpec with Matchers {
     MidiNote(PitchClass.C, -1).number shouldEqual 0
     MidiNote(PitchClass.E, 0).number shouldEqual 16
     MidiNote(PitchClass.C, 3).number shouldEqual 48
-    MidiNote(PitchClass.C, 4).number shouldEqual MidiNote.C4
-    MidiNote(PitchClass.GSharp, 4).number shouldEqual MidiNote.GSharp4
-    MidiNote(PitchClass.C, 5).number shouldEqual MidiNote.C5
+    MidiNote(PitchClass.C, 4).number shouldEqual MidiNote.C4.number
+    MidiNote(PitchClass.GSharp, 4).number shouldEqual MidiNote.GSharp4.number
+    MidiNote(PitchClass.C, 5).number shouldEqual MidiNote.C5.number
     MidiNote(PitchClass.C, 9).number shouldEqual 120
     MidiNote(PitchClass.G, 9).number shouldEqual 127
 
