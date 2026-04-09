@@ -7,7 +7,7 @@ music with microtones. It supports various protocols for tuning output instrumen
 Monophonic Pitch Bend and MIDI Polyphonic Expression (MPE). It is built as a stand-alone multi-platform desktop
 application that runs on JVM. The code is written in Scala 3.
 
-# Metals MCP
+# Code Intelligence
 
 At the start of every conversation, check whether the Metals MCP is available by attempting to call
 `mcp__metals__list-modules`. If it is available, you have the following capabilities through it:
