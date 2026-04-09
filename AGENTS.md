@@ -229,6 +229,32 @@ All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.fo
 
 Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on macOS.
 
+# GitHub
+
+Use the **GitHub MCP plugin** (`mcp__plugin_github_github__*`) for all GitHub operations (issues, PRs, labels,
+milestones, etc.). Fall back to the `gh` CLI (`/usr/local/bin/gh`) only for features not available in the MCP, such as
+managing GitHub Projects (v2).
+
+## Issues
+
+When creating a new issue:
+
+- Assign the **microtonalist** GitHub project.
+- Add the appropriate label (e.g. `enhancement`, `bug`, `feature`, `documentation`, `poc`, `refactoring`).
+- Check existing milestones (`mcp__plugin_github_github__list_releases` or similar). If a milestone name matches the
+  scope of the new work, suggest adding it to the user before assigning.
+
+## Pull Requests
+
+When creating a new pull request:
+
+- **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`).
+- **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
+- **Draft state:** Always open new PRs as **draft**.
+- **Project:** Assign the **microtonalist** GitHub project.
+- **Label:** Use the same label as the linked issue.
+- **Milestone:** Use the same milestone as the linked issue, if one is set.
+
 # Coding Conventions
 
 * Indentation is done with 2 spaces.
