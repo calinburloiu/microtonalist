@@ -75,7 +75,26 @@ Using SBT (instead of Bloop) as the BSP server matters because — as the Metals
 it guarantees that whether you compile from the editor, from the terminal, or via an MCP
 tool call from Claude, everything sees the same compilation state.
 
-## 5. Warm up SBT (optional but recommended)
+## 5. Start with the automated script (recommended)
+
+The repository includes a helper script that automates steps 5–6 (SBT warm-up and Metals
+launch) in a single command. From the repo root:
+
+```bash
+./scripts/development/start-metals-mcp.sh
+```
+
+The script starts both SBT and `metals-standalone-client` as background processes, waits for
+`.mcp.json` to appear, and then warms up the build by sending `compile` to SBT. It blocks
+until interrupted (Ctrl-C) or until one of the processes exits, and cleans up both on
+shutdown.
+
+See [`scripts/development/README.md`](../../scripts/development/README.md) for details on
+running the script in the background and stopping it.
+
+If you prefer to run the steps manually, continue with steps 5a and 6 below.
+
+## 5a. Warm up SBT manually (optional but recommended)
 
 In a dedicated terminal, start an SBT shell from the repo root and leave it open for the
 duration of your Claude Code session:
@@ -88,7 +107,7 @@ sbt
 When Metals connects via BSP it will reuse this server, which makes the initial workspace
 import noticeably faster and keeps incremental compiles snappy.
 
-## 6. Start Metals headlessly with the standalone client
+## 6. Start Metals headlessly with the standalone client (manual)
 
 In a second terminal, from the repo root, launch the standalone client. Keep this process
 running for the entire Claude Code session — when you Ctrl-C it, the MCP server goes away.
@@ -167,9 +186,9 @@ almost instantly with success or precise diagnostics, which Claude can then act 
 
 ## 10. Recommended workflow with this repo
 
-1. Terminal A — `sbt` shell, kept warm.
-2. Terminal B — `metals-standalone-client --verbose .`, kept running.
-3. Terminal C — `claude`, your interactive session.
+1. Terminal A — `./scripts/development/start-metals-mcp.sh` (runs both SBT and Metals; or
+   start them manually in separate terminals as described in steps 5a and 6).
+2. Terminal B — `claude`, your interactive session.
 4. Let Claude prefer the Metals MCP tools (`compile-file`, `compile-module`, `test`,
    `inspect`, `get-usages`) over shelling out to `sbt`. Fall back to the `sbt` commands in
    `CLAUDE.md` for full builds (`sbt assembly`), running the `app`/`cli` executables, or
