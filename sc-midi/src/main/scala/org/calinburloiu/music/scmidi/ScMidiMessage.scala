@@ -35,7 +35,8 @@ object ScMidiMessage {
     ShortMessage.PITCH_BEND -> ScPitchBendMidiMessage.fromJavaMessage.unlift,
     ShortMessage.CONTROL_CHANGE -> ScCcMidiMessage.fromJavaMessage.unlift,
     ShortMessage.CHANNEL_PRESSURE -> ScChannelPressureMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.POLY_PRESSURE -> ScPolyPressureMidiMessage.fromJavaMessage.unlift
+    ShortMessage.POLY_PRESSURE -> ScPolyPressureMidiMessage.fromJavaMessage.unlift,
+    ShortMessage.PROGRAM_CHANGE -> ScProgramChangeMidiMessage.fromJavaMessage.unlift
   ).withDefaultValue(ScUnsupportedMidiMessage.apply)
 
   /**
@@ -295,6 +296,11 @@ object ScCcMidiMessage {
   /** All Notes Off controller number (#123). */
   val AllNotesOff: Int = 123
 
+  /** Bank Select MSB controller number (#0). */
+  val BankSelectMsb: Int = 0
+  /** Bank Select LSB controller number (#32). */
+  val BankSelectLsb: Int = 32
+
   /** Modulation Wheel controller number (#1). */
   val Modulation: Int = 1
   /** Sustain Pedal (Damper) controller number (#64). */
@@ -318,6 +324,35 @@ object ScCcMidiMessage {
 
   def fromJavaMessage(message: MidiMessage): Option[ScCcMidiMessage] =
     unapply(message).map { tuple => ScCcMidiMessage.apply.tupled(tuple) }
+}
+
+/**
+ * Represents a MIDI Program Change message.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ * @param program The program number (0-127).
+ */
+case class ScProgramChangeMidiMessage(channel: Int, program: Int) extends ScMidiMessage {
+  MidiRequirements.requireChannel(channel)
+  MidiRequirements.requireUnsigned7BitValue("program", program)
+
+  override lazy val javaMessage: ShortMessage =
+    new ShortMessage(ShortMessage.PROGRAM_CHANGE, channel, program, 0)
+}
+
+/**
+ * Companion object for [[ScProgramChangeMidiMessage]].
+ */
+object ScProgramChangeMidiMessage {
+  /** Extracts the channel and program number from a [[MidiMessage]] if it is a Program Change message. */
+  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
+    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PROGRAM_CHANGE =>
+      Some((shortMessage.getChannel, shortMessage.getData1))
+    case _ => None
+  }
+
+  def fromJavaMessage(message: MidiMessage): Option[ScProgramChangeMidiMessage] =
+    unapply(message).map { tuple => ScProgramChangeMidiMessage.apply.tupled(tuple) }
 }
 
 /**
