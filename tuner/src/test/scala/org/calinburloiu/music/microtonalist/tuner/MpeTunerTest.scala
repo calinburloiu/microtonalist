@@ -331,6 +331,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   }
 
   for ((ccName, ccNumber, ccValue) <- Seq(
+    ("Bank Select MSB", ScCcMidiMessage.BankSelectMsb, 1),
+    ("Bank Select LSB", ScCcMidiMessage.BankSelectLsb, 0),
     ("Reset All Controllers", ScCcMidiMessage.ResetAllControllers, 0),
     ("Modulation", ScCcMidiMessage.Modulation, 64),
     ("Sostenuto Pedal", ScCcMidiMessage.SostenutoPedal, 127),

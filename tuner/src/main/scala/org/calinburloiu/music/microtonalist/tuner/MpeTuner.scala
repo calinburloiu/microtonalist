@@ -347,8 +347,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         channelSlideMap(inputChannel) = ccValue
         forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
       // Zone-level messages - forward on the master channel of the zone the input belongs to
-      case ScCcMidiMessage.SustainPedal | ScCcMidiMessage.SostenutoPedal | ScCcMidiMessage.SoftPedal |
-           ScCcMidiMessage.Modulation | ScCcMidiMessage.ResetAllControllers =>
+      case cc if MpeTuner.ZoneLevelCcs.contains(cc) =>
         forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
       case _ =>
         forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
@@ -666,4 +665,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 object MpeTuner {
   val TypeName: String = "mpe"
   val ExpressionPitchBendThreshold: Double = 50.0
+
+  /** CC numbers that are zone-level messages and should be forwarded on the Master Channel. */
+  private val ZoneLevelCcs: Set[Int] = Set(
+    ScCcMidiMessage.BankSelectMsb,
+    ScCcMidiMessage.BankSelectLsb,
+    ScCcMidiMessage.Modulation,
+    ScCcMidiMessage.SustainPedal,
+    ScCcMidiMessage.SostenutoPedal,
+    ScCcMidiMessage.SoftPedal,
+    ScCcMidiMessage.ResetAllControllers
+  )
 }
