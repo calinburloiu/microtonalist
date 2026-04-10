@@ -270,12 +270,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Retune - member channel pitch bend should only reflect tuning, not expression
       private val tuneOutput = tuner.tune(quarterCommaMeantone)
-      if (tuneOutput.nonEmpty) {
-        val memberPbs = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
-        if (memberPbs.nonEmpty) {
-          memberPbs.head.value shouldBe initialPb
-        }
-      }
+      tuneOutput should not be empty
+      private val memberPbs = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
+      memberPbs should not be empty
+      memberPbs.head.value shouldBe initialPb
     }
 
   // --- 4.2.5 process() — Non-MPE to MPE Conversion ---
@@ -287,6 +285,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val noteChannel = extractNoteOns(noteOutput).head.channel
     private val output = tuner.process(ScPolyPressureMidiMessage(inputChannel, C4, 80).javaMessage)
     extractChannelPressure(output) should contain(ScChannelPressureMidiMessage(noteChannel, 80))
+    output.flatMap(ScPolyPressureMidiMessage.fromJavaMessage) shouldBe empty
   }
 
   it should "forward CC #74 to the appropriate member channel" in new TunerFixture() {
@@ -331,26 +330,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     msgs.exists(m => m.getCommand == ShortMessage.PROGRAM_CHANGE && m.getChannel == 0) shouldBe true
   }
 
-  it should "forward Reset All Controllers (CC #121) on Master Channel" in new TunerFixture() {
-    private val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.ResetAllControllers, 0)
-      .javaMessage)
-    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.ResetAllControllers, 0))
-  }
-
-  it should "forward Modulation (CC #1) on Master Channel" in new TunerFixture() {
-    private val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.Modulation, 64).javaMessage)
-    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.Modulation, 64))
-  }
-
-  it should "forward Sostenuto Pedal (CC #66) on Master Channel" in new TunerFixture() {
-    private val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SostenutoPedal, 127)
-      .javaMessage)
-    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.SostenutoPedal, 127))
-  }
-
-  it should "forward Soft Pedal (CC #67) on Master Channel" in new TunerFixture() {
-    private val output = tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SoftPedal, 127).javaMessage)
-    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.SoftPedal, 127))
+  for ((ccName, ccNumber, ccValue) <- Seq(
+    ("Reset All Controllers", ScCcMidiMessage.ResetAllControllers, 0),
+    ("Modulation", ScCcMidiMessage.Modulation, 64),
+    ("Sostenuto Pedal", ScCcMidiMessage.SostenutoPedal, 127),
+    ("Soft Pedal", ScCcMidiMessage.SoftPedal, 127)
+  )) {
+    it should s"forward $ccName (CC #$ccNumber) on Master Channel" in new TunerFixture() {
+      private val output = tuner.process(ScCcMidiMessage(inputChannel, ccNumber, ccValue).javaMessage)
+      extractCc(output) should contain(ScCcMidiMessage(0, ccNumber, ccValue))
+    }
   }
 
   // --- 4.2.7 process() — Pitch Bend Computation ---
