@@ -52,6 +52,109 @@
                 "pitchBendSensitivity": { "$ref": "#/$defs/pitchBendSensitivity" }
             }
         },
+        "mpeZone": {
+            "type": "object",
+            "title": "MPE Zone",
+            "description": "Configuration for an MPE zone, defining its size and pitch bend sensitivities.",
+            "properties": {
+                "memberCount": {
+                    "type": "integer",
+                    "title": "Member Count",
+                    "description": "The number of member channels in the zone (0-15). A member count of 0 means the zone is disabled.",
+                    "minimum": 0,
+                    "maximum": 15
+                },
+                "masterPitchBendSensitivity": {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/pitchBendSensitivity"
+                        },
+                        {
+                            "title": "Zone Master Channel Pitch Bend Sensitivity",
+                            "description": "Pitch bend sensitivity for the master channel of the zone. Default: 2 semitones.",
+                            "properties": {
+                                "semitoneCount": {
+                                    "default": 2
+                                }
+                            }
+                        }
+                    ]
+                },
+                "memberPitchBendSensitivity": {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/pitchBendSensitivity"
+                        },
+                        {
+                            "title": "Zone Member Channels Pitch Bend Sensitivity",
+                            "description": "Pitch bend sensitivity for the member channels of the zone. Default: 48 semitones.",
+                            "properties": {
+                                "semitoneCount": {
+                                    "default": 48
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "memberCount"
+            ]
+        },
+        "mpeSettings": {
+            "type": "object",
+            "title": "MPE Settings",
+            "description": "Settings specific to the MPE (MIDI Polyphonic Expression) tuner.",
+            "properties": {
+                "inputMode": {
+                    "type": "string",
+                    "title": "Input Mode",
+                    "description": "Defines how incoming MIDI messages are interpreted. Can be \"nonMpe\", for standard MIDI input or \"mpe\", for MPE input.",
+                    "enum": [
+                        "nonMpe",
+                        "mpe"
+                    ],
+                    "default": "nonMpe"
+                },
+                "zones": {
+                    "type": "object",
+                    "title": "MPE Zones",
+                    "description": "Configuration for the lower and upper MPE zones.",
+                    "properties": {
+                        "lower": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/mpeZone"
+                                },
+                                {
+                                    "title": "Lower Zone",
+                                    "properties": {
+                                        "memberCount": {
+                                            "default": 15
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "upper": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/mpeZone"
+                                },
+                                {
+                                    "title": "Upper Zone",
+                                    "properties": {
+                                        "memberCount": {
+                                            "default": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "mtsSettings": {
             "type": "object",
             "properties": {
@@ -75,9 +178,10 @@
         "type": {
             "type": "string",
             "title": "Tuner Type",
-            "description": "Name that serves as a unique identifier of the Tuner Type. The following values are allowed:\n- \"monophonicPitchBend\": Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent on, this tuner only supports and enforces monophonic playing.\n- \"mtsOctave1ByteNonRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 1-byte, non-real-time tuning protocol.\n- \"mtsOctave2ByteNonRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 2-byte, non-real-time tuning protocol.\n- \"mtsOctave1ByteRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 1-byte, real-time tuning protocol.\n- \"mtsOctave2ByteRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 2-byte, real-time tuning protocol.",
+            "description": "Name that serves as a unique identifier of the Tuner Type. The following values are allowed:\n- \"monophonicPitchBend\": Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent on, this tuner only supports and enforces monophonic playing.\n- \"mpe\": MIDI Polyphonic Expression (MPE) tuner that applies microtonal tunings to polyphonic MIDI streams.\n- \"mtsOctave1ByteNonRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 1-byte, non-real-time tuning protocol.\n- \"mtsOctave2ByteNonRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 2-byte, non-real-time tuning protocol.\n- \"mtsOctave1ByteRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 1-byte, real-time tuning protocol.\n- \"mtsOctave2ByteRealTime\": MIDI Tuning Standard (MTS) tuner for the octave-based, 2-byte, real-time tuning protocol.",
             "enum": [
                 "monophonicPitchBend",
+                "mpe",
                 "mtsOctave1ByteNonRealTime",
                 "mtsOctave2ByteNonRealTime",
                 "mtsOctave1ByteRealTime",
@@ -99,6 +203,21 @@
                     },
                     "then": {
                         "$ref": "#/$defs/monophonicPitchBendSettings"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "mpe"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/mpeSettings"
                     }
                 },
                 {
