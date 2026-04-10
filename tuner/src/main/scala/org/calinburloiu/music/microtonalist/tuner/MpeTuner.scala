@@ -187,10 +187,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         processChannelPressure(buffer, channel, value)
       case ScPolyPressureMidiMessage(channel, midiNote, value) =>
         processPolyPressure(buffer, channel, midiNote, value)
-      case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PROGRAM_CHANGE =>
+      case ScProgramChangeMidiMessage(channel, program) =>
         // Forward on the zone's master channel
-        resolveZoneMasterChannel(shortMessage.getChannel).foreach { masterCh =>
-          buffer += mapShortMessageChannel(shortMessage, _ => masterCh)
+        resolveZoneMasterChannel(channel).foreach { masterCh =>
+          buffer += ScProgramChangeMidiMessage(masterCh, program).javaMessage
         }
       case _ =>
         buffer += message
