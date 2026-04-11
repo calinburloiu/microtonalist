@@ -105,10 +105,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   def tuning: Tuning = _tuning
 
   override def reset(): Seq[MidiMessage] = {
+    val buffer = mutable.Buffer[MidiMessage]()
+    // Emit Note Off for every active note before switching input mode / zone layout,
+    // so downstream receivers are never left with hanging notes (MPE spec Section 2.1.4).
+    stopAllNotes(buffer)
     _zones = initialZones
     _inputMode = initialInputMode
     resetState()
-    configurationMessages()
+    buffer ++= configurationMessages()
+    buffer.toSeq
   }
 
   override def tune(tuning: Tuning): Seq[MidiMessage] = {
@@ -201,6 +206,20 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def processNoteOn(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                             midiNote: MidiNote, velocity: Int): Unit = {
+    if (_inputMode == MpeInputMode.Mpe && isMasterChannel(inputChannel)) {
+      // Master Channel notes are forwarded as-is: no allocator, no tuning offset, no control
+      // dimension setup. They play in 12-EDO (modulated only by Master Pitch Bend) because
+      // applying a per-pitch-class tuning offset on the Master Channel would affect every
+      // note in the Zone.
+      noteChannelMap((midiNote, inputChannel)) = inputChannel
+      buffer += ScNoteOnMidiMessage(inputChannel, midiNote, velocity).javaMessage
+    } else {
+      processMemberNoteOn(buffer, inputChannel, midiNote, velocity)
+    }
+  }
+
+  private def processMemberNoteOn(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
+                                  midiNote: MidiNote, velocity: Int): Unit = {
     val allocator = getAllocatorForInput(inputChannel)
     allocator match {
       case Some(alloc) =>

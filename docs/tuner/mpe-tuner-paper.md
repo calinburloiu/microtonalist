@@ -116,7 +116,10 @@ flowchart LR
 
 1. **Input Mode Detection**: Determines whether the incoming stream is MPE or non-MPE. The mode may be set via a non-MIDI configuration interface. Receipt of an MPE Configuration Message (MCM) shall cause the Tuner to switch to MPE input mode automatically.
 
-2. **Channel Allocation**: Assigns each incoming note to a Member Channel in the output Zone(s), following the dual-group allocation strategy described in Section 4.
+2. **Channel Allocation**: Assigns each incoming note that arrives on a Member Channel (in MPE input mode) or on any
+   channel (in non-MPE input mode) to a Member Channel in the output Zone(s), following the dual-group allocation
+   strategy described in Section 4. Notes received on a Master Channel in MPE input mode are exempt from allocation and
+   are forwarded as-is (see Section 3.4).
 
 3. **Tuning Application**: For each occupied Member Channel, computes the output Pitch Bend as the sum of the tuning offset for the channel's associated pitch class and the expressive pitch bend from the input.
 
@@ -125,7 +128,8 @@ flowchart LR
 The MPE Tuner accepts two classes of input:
 
 - **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.3).
-- **MPE input**: MIDI conforming to the MPE Specification, with notes already distributed across Member Channels within Zones.
+- **MPE input**: MIDI conforming to the MPE Specification, with notes primarily distributed across Member Channels
+  within Zones, and optionally on Master Channels as permitted by the specification (see Section 3.4).
 
 In both cases, the output is always MPE-conformant.
 
@@ -144,11 +148,54 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
 
 This initialization practice aligns with the MPE Specification's recommendation to prevent audible artifacts at note onset [1, §3.3.1].
 
+### 3.4 Master Channel Note Forwarding
+
+The MPE Specification permits Note On and Note Off messages on a Master Channel, and requires receivers to respond to
+them [1, §3.2]. A note placed on the Master Channel by an MPE sender is a deliberate choice: the sender opts out of the
+three dimensions of per-note expressive control delivered by Pitch Bend, Channel Pressure, and CC #74, accepting that
+any of these messages applied to the Master Channel will affect every sounding note in the Zone. In exchange, the sender
+gains access to a form of per-note pressure that is *only* available on the Master Channel: Polyphonic Key Pressure. The
+MPE Specification [1, §2.5] forbids Polyphonic Key Pressure on Member Channels but explicitly permits it on Master
+Channel notes, so a performer playing a Master Channel note retains per-note pressure through Polyphonic Key Pressure in
+place of the Channel Pressure dimension that Member Channel notes use.
+
+In MPE input mode, the MPE Tuner shall honor this sender intent: Note On and Note Off messages received on a Master
+Channel of an enabled Zone are forwarded on the same Master Channel without modification, bypassing the channel
+allocation procedure described in Section 4. The MPE Tuner shall not emit any Pitch Bend, CC #74, or Channel Pressure
+setup messages for a Master Channel Note On.
+
+A direct consequence of this behavior is that **notes forwarded on the Master Channel do not receive a per-pitch-class
+tuning offset**. They sound in 12-EDO, modulated only by the Master Channel Pitch Bend that the performer sends for
+expressive purposes (see Section 4.7.5). This is an unavoidable consequence of the pitch-class invariant (Section 4.1):
+the Master Channel's Pitch Bend is a Zone-level message that affects all Member Channel notes, so it cannot be used to
+encode a tuning offset for a specific pitch class without mistuning every other sounding note.
+
+The rationale for preserving sender intent rather than silently reallocating Master Channel notes to Member Channels is
+threefold:
+
+1. **Compliance with the MPE Specification.** Section 3.2 of the MPE Specification explicitly permits Master Channel
+   notes and requires that receivers play them. Silently relocating them would violate the sender's explicit channel
+   assignment.
+2. **Conservation of Member Channel resources.** Master Channel notes are, by design, notes that do not require per-note
+   control. Placing them on a Member Channel would consume a Pitch Class Group or Expression Group slot unnecessarily,
+   reducing the Zone's effective polyphony for notes that do require per-note control.
+3. **Preservation of Polyphonic Key Pressure compatibility.** The MPE Specification [1, §2.5] forbids Polyphonic Key
+   Pressure on Member Channels but allows it on Master Channel notes. Forwarding Master Channel notes as-is preserves
+   the ability to use Polyphonic Key Pressure on those notes.
+
+In non-MPE input mode the concept of a Master Channel does not apply to the input: every incoming note is allocated to a
+Member Channel regardless of the input channel number.
+
 ---
 
 ## 4. Allocation of Notes to Member Channels
 
 The channel allocation strategy is the central contribution of the MPE Tuner design. Standard MPE allocation strategies aim to maximize per-note expressiveness while gracefully handling polyphony overflow. The MPE Tuner reorders these priorities: **intonation precision is the primary objective**, even at the cost of dropping active notes or constraining expressive independence.
+
+The allocation rules in this section apply to notes that are candidates for tuning via per-channel Pitch Bend — that is,
+all notes received in non-MPE input mode, and all notes received on a Member Channel in MPE input mode. Notes received
+on a Master Channel in MPE input mode are forwarded as-is under the rules of Section 3.4 and are not subject to the
+allocation procedure described below.
 
 ### 4.1 Fundamental Invariant
 
@@ -449,6 +496,11 @@ These design decisions depart from certain recommendations of the MPE Specificat
 
 ```
 New note arrives with pitch class P
+│
+├─ Is input mode MPE AND is the input channel a Master Channel?
+│   ├─ YES → Forward Note On on the Master Channel as-is (Section 3.4);
+│   │        skip allocation, tuning offset, and control dimension setup
+│   └─ NO → Continue to allocation below
 │
 ├─ Does the Pitch Class Group have an unoccupied channel
 │  AND no occupied Pitch Class Group channel holds P?
