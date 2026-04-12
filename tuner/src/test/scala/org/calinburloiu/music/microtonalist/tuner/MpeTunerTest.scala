@@ -87,6 +87,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 7))
   )
 
+  private def tuner7MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
   private def mpeTunerMpeInput: MpeTuner = MpeTuner(initialInputMode = MpeInputMode.Mpe)
 
   private abstract class TunerFixture(val tuner: MpeTuner = defaultTuner,
@@ -638,42 +643,65 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   behavior of "MpeTuner - Worked Examples"
 
   it should "reproduce Section 8.1: Basic allocation in quarter-comma meantone" in
-    new TunerFixture(tuner7, Some(quarterCommaMeantone)) {
-      // 1. Note C4 arrives -> Pitch Class Group
-      private val out1 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+    new TunerFixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // 1. Note C4 arrives on input ch 1 -> Pitch Class Group; C has 0.0 cents offset
+      private val out1 = tuner.process(ScNoteOnMidiMessage(1, C4).javaMessage)
       private val ch1 = extractNoteOns(out1).head.channel
+      extractPitchBends(out1).head.cents shouldEqual 0.0
 
-      // 2. Note E4 arrives -> Pitch Class Group
-      private val out2 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
+      // 2. Note E4 arrives on input ch 2 -> Pitch Class Group; E has -14.0 cents offset
+      private val out2 = tuner.process(ScNoteOnMidiMessage(2, E4).javaMessage)
       private val ch2 = extractNoteOns(out2).head.channel
       ch2 should not equal ch1
+      extractPitchBends(out2).head.cents shouldEqual -14.0
 
-      // 3. Note G4 arrives -> Pitch Class Group
-      private val out3 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)
+      // 3. Note G4 arrives on input ch 3 -> Pitch Class Group; G has -3.0 cents offset
+      private val out3 = tuner.process(ScNoteOnMidiMessage(3, G4).javaMessage)
       private val ch3 = extractNoteOns(out3).head.channel
-      Set(ch1, ch2, ch3).size shouldBe 3
+      ch3 should not equal ch2
+      extractPitchBends(out3).head.cents shouldEqual -3.0
 
-      // 4. Second C4 arrives -> Expression Group
-      private val out4 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C5).javaMessage)
+      // 4. Second C (C5) arrives on input ch 4 -> Expression Group; C has 0.0 cents offset
+      private val out4 = tuner.process(ScNoteOnMidiMessage(4, C5).javaMessage)
       private val ch4 = extractNoteOns(out4).head.channel
-      ch4 should not equal ch1 // Different channel from first C
+      ch4 should not equal ch1
+      extractPitchBends(out4).head.cents shouldEqual 0.0
 
-      // 5. Performer bends second C4 - only ch4's pitch bend affected
-      // (This is tested implicitly through the MPE architecture)
+      // 5. Performer bends C5 on input ch 4 — only ch4's pitch bend is affected
+      private val expressiveBendValue = 1000
+      private val expressiveBendCents = ScPitchBendMidiMessage.convertValueToCents(expressiveBendValue, defaultPbs)
+      private val bendOut = tuner.process(ScPitchBendMidiMessage(4, expressiveBendValue).javaMessage)
+      private val pitchBends = extractPitchBends(bendOut)
+      pitchBends should have size 1
+      pitchBends.head.channel shouldBe ch4
+      pitchBends.head.cents shouldEqual (0.0 + expressiveBendCents)
     }
 
   it should "reproduce Section 8.2: Tuning change during performance" in
     new TunerFixture(tuner7, Some(quarterCommaMeantone)) {
-      tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
-      tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
-      tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)
-      tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C5).javaMessage)
+      private val chC = extractNoteOns(
+        tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)).head.channel
+      private val chE = extractNoteOns(
+        tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)).head.channel
+      private val chG = extractNoteOns(
+        tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)).head.channel
+      private val chC5 = extractNoteOns(
+        tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C5).javaMessage)).head.channel
 
       // Switch to Pythagorean tuning
       private val tuneOutput = tuner.tune(pythagoreanTuning)
       private val pitchBends = extractPitchBends(tuneOutput)
+
       // Should have pitch bend updates for all 4 occupied channels
-      pitchBends.size should be >= 4
+      pitchBends should have size 4
+
+      // Pythagorean offsets: C = 0.0, E = 8.0, G = 2.0
+      private val pbByChannel = pitchBends.map(pb => pb.channel -> pb.cents.round.toInt).toMap
+      pbByChannel(chC) shouldBe 0
+      pbByChannel(chE) shouldBe 8
+      pbByChannel(chG) shouldBe 2
+      // C5 shares pitch class C, so same offset
+      pbByChannel(chC5) shouldBe 0
     }
 
   it should "reproduce Section 8.3: Note dropping under channel exhaustion" in
