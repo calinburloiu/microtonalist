@@ -248,9 +248,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new TunerFixture(initialTuning = Some(quarterCommaMeantone)) {
       private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4, 100).javaMessage)
       private val msgs = extractScMidiMessages(output)
+      private val noteChannel = extractNoteOns(output).head.channel
 
       // Should have: PitchBend, CC#74, ChannelPressure, NoteOn
-      private val noteChannel = 1
       msgs should contain inOrder(
         ScPitchBendMidiMessage(noteChannel, 0),
         ScCcMidiMessage(noteChannel, ScCcMidiMessage.MpeSlide, 64),
