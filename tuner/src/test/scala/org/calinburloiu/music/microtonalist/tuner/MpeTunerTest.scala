@@ -116,6 +116,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractChannelPressure(output: Seq[MidiMessage]): Seq[ScChannelPressureMidiMessage] =
     output.flatMap(ScChannelPressureMidiMessage.fromJavaMessage)
 
+  private def extractPolyPressure(output: Seq[MidiMessage]): Seq[ScPolyPressureMidiMessage] =
+    output.flatMap(ScPolyPressureMidiMessage.fromJavaMessage)
+
   private def extractScMidiMessages(output: Seq[MidiMessage]): Seq[ScMidiMessage] =
     output.map(ScMidiMessage.fromJavaMessage)
 
@@ -530,6 +533,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // E4 should still be tracked as active
       private val offOutput2 = tuner.process(ScNoteOffMidiMessage(0, E4).javaMessage)
       extractNoteOffs(offOutput2) should contain(ScNoteOffMidiMessage(0, E4))
+    }
+
+  it should "forward Polyphonic Key Pressure as-is for Master Channel notes" in
+    new TunerFixture(mpeTunerMpeInput) {
+      tuner.process(ScNoteOnMidiMessage(0, C4, 100).javaMessage)
+      private val output = tuner.process(ScPolyPressureMidiMessage(0, C4, 80).javaMessage)
+      extractPolyPressure(output) should contain(ScPolyPressureMidiMessage(0, C4, 80))
+      extractChannelPressure(output) shouldBe empty
+    }
+
+  it should "drop Polyphonic Key Pressure received on a Member Channel in MPE input mode" in
+    new TunerFixture(mpeTunerMpeInput) {
+      tuner.process(ScNoteOnMidiMessage(mpeInputChannel, C4, 100).javaMessage)
+      private val output = tuner.process(ScPolyPressureMidiMessage(mpeInputChannel, C4, 80).javaMessage)
+      extractPolyPressure(output) shouldBe empty
+      extractChannelPressure(output) shouldBe empty
     }
 
   // --- 4.2.11 process() — Note Off Behavior ---

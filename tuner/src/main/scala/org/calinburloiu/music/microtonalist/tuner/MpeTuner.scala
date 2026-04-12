@@ -525,10 +525,19 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def processPolyPressure(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                   midiNote: MidiNote, pressure: Int): Unit = {
-    // TODO #143 For Non-MPE input, convert to Channel Pressure; for MPE input, filter out if not on Master Channel
-    // Convert Poly Pressure to Channel Pressure on the appropriate member channel
-    noteChannelMap.get((midiNote, inputChannel)).foreach { outChannel =>
-      buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMessage
+    if (_inputMode == MpeInputMode.Mpe) {
+      // MPE spec §2.5: Polyphonic Key Pressure must not be sent on Member Channels, but may
+      // be sent for notes on the Master Channel. Forward it as-is on the Master Channel;
+      // drop it silently on Member Channels.
+      if (isMasterChannel(inputChannel)) {
+        buffer += ScPolyPressureMidiMessage(inputChannel, midiNote, pressure).javaMessage
+      }
+    } else {
+      // Non-MPE input: convert Polyphonic Key Pressure to Channel Pressure on the allocated
+      // Member Channel, since MPE forbids Polyphonic Key Pressure on Member Channels.
+      noteChannelMap.get((midiNote, inputChannel)).foreach { outChannel =>
+        buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMessage
+      }
     }
   }
 
