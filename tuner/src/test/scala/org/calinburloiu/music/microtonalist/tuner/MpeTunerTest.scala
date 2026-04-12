@@ -364,10 +364,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   }
 
   it should "forward Program Change on Master Channel" in new TunerFixture() {
-    private val msg = new ShortMessage(ShortMessage.PROGRAM_CHANGE, nonMpeInputChannel, 5, 0)
-    private val output = tuner.process(msg)
-    private val msgs = extractShortMessages(output)
-    msgs.exists(m => m.getCommand == ShortMessage.PROGRAM_CHANGE && m.getChannel == 0) shouldBe true
+    private val output = tuner.process(ScProgramChangeMidiMessage(nonMpeInputChannel, 5).javaMessage)
+    private val programChanges = output.flatMap(ScProgramChangeMidiMessage.fromJavaMessage)
+    programChanges should contain(ScProgramChangeMidiMessage(0, 5))
   }
 
   for ((ccName, ccNumber, ccValue) <- Seq(
@@ -615,13 +614,23 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "not update released channel's pitch bend on tuning changes" in
     new TunerFixture(initialTuning = Some(quarterCommaMeantone)) {
-      private val noteOutput = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      tuner.process(ScNoteOffMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      // E has -14.0 cents offset; pythagorean E has 8.0 cents — non-zero in both tunings
+      private val noteOutputE = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
+      private val releasedChannel = extractNoteOns(noteOutputE).head.channel
 
+      // G stays active as a control
+      private val noteOutputG = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)
+      private val activeChannel = extractNoteOns(noteOutputG).head.channel
+
+      // Release E4
+      tuner.process(ScNoteOffMidiMessage(nonMpeInputChannel, E4).javaMessage)
+
+      // Retune — only the active channel (G) should get a pitch bend update
       private val tuneOutput = tuner.tune(pythagoreanTuning)
       private val pitchBends = extractPitchBends(tuneOutput)
-      pitchBends.map(_.channel) should not contain noteChannel
+      pitchBends should have size 1
+      pitchBends.head.channel shouldBe activeChannel
+      pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
     }
 
   it should "make channel available for reuse after Note Off" in new TunerFixture(tuner3) {
@@ -989,7 +998,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
       private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
 
-      pitchBends should not be empty
+      pitchBends should have size 1
       // The output pitch bend should still represent tuning offset + expressive bend in cents
       // E tuning offset = -14.0, expressive = ~292.9 cents => total ≈ 278.9 cents
       private val expectedCents = -14.0 + expressiveBendCents
@@ -1007,7 +1016,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
       private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
 
-      pitchBends should not be empty
+      pitchBends should have size 1
       // The output pitch bend should still represent -14.0 cents under the new PBS
       pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
     }
