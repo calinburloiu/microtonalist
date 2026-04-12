@@ -253,7 +253,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val noteChannel = 1
       msgs should contain inOrder(
         ScPitchBendMidiMessage(noteChannel, 0),
-        ScCcMidiMessage(noteChannel, 74, 64),
+        ScCcMidiMessage(noteChannel, ScCcMidiMessage.MpeSlide, 64),
         ScChannelPressureMidiMessage(noteChannel, 0),
         ScNoteOnMidiMessage(noteChannel, C4, 100)
       )
@@ -297,21 +297,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     pitchBends should contain(ScPitchBendMidiMessage(0, 1000)) // master channel 0
   }
 
-  it should "not affect member channel tuning pitch bend from expressive input" in
+  it should "not bleed master channel pitch bend into member channel tuning on retune" in
     new TunerFixture(initialTuning = Some(quarterCommaMeantone)) {
-      private val noteOutput = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      // E has -14.0 cents offset in quarter-comma meantone
+      private val noteOutput = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
       private val noteChannel = extractNoteOns(noteOutput).head.channel
-      private val initialPb = extractPitchBends(noteOutput).head.value
+      extractPitchBends(noteOutput).head.cents shouldEqual -14.0
 
-      // Send expressive pitch bend on input
+      // In NonMpe mode, pitch bend goes to the master channel as zone-level expression
       tuner.process(ScPitchBendMidiMessage(nonMpeInputChannel, 500).javaMessage)
 
-      // Retune - member channel pitch bend should only reflect tuning, not expression
-      private val tuneOutput = tuner.tune(quarterCommaMeantone)
-      tuneOutput should not be empty
-      private val memberPbs = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
-      memberPbs should not be empty
-      memberPbs.head.value shouldBe initialPb
+      // Retune — member channel pitch bend should only reflect tuning, not master expression
+      private val tuneOutput = tuner.tune(pythagoreanTuning)
+      private val memberPb = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
+      memberPb should have size 1
+      // Pythagorean E offset is 8.0 cents — no contamination from the master pitch bend
+      memberPb.head.cents.round.toInt shouldBe 8
     }
 
   // --- 4.2.5 process() — Non-MPE to MPE Conversion ---
@@ -329,8 +330,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "forward CC #74 to the appropriate member channel" in new TunerFixture() {
     private val noteOutput = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
     private val noteChannel = extractNoteOns(noteOutput).head.channel
-    private val output = tuner.process(ScCcMidiMessage(nonMpeInputChannel, 74, 100).javaMessage)
-    extractCc(output) should contain(ScCcMidiMessage(noteChannel, 74, 100))
+    private val output = tuner.process(ScCcMidiMessage(nonMpeInputChannel, ScCcMidiMessage.MpeSlide, 100).javaMessage)
+    extractCc(output) should contain(ScCcMidiMessage(noteChannel, ScCcMidiMessage.MpeSlide, 100))
   }
 
   it should "forward Channel Pressure to the appropriate member channel" in new TunerFixture() {
@@ -347,7 +348,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val noteChannel = 1
     // CC #74 should be 64 (default), Channel Pressure should be 0 (default)
     msgs should contain allOf(
-      ScCcMidiMessage(noteChannel, 74, 64),
+      ScCcMidiMessage(noteChannel, ScCcMidiMessage.MpeSlide, 64),
       ScChannelPressureMidiMessage(noteChannel, 0)
     )
   }
