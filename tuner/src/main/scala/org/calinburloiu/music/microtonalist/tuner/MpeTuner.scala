@@ -544,7 +544,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                      makeMessage: Int => ScMidiMessage): Unit = {
     if (inputMode == MpeInputMode.Mpe) {
-      // TODO #143 Defaulting to inputChannel is not correct. If should do nothing instead. To check for other
+      // TODO #143 Defaulting to inputChannel is not correct. It should do nothing instead. To check for other
       //  similar cases.
       val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
       buffer += makeMessage(outChannel).javaMessage

@@ -27,8 +27,8 @@ import javax.sound.midi.{MidiMessage, ShortMessage}
 
 class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValues {
 
-  private implicit val defaultPbs: PitchBendSensitivity = PitchBendSensitivity(48)
-  private val masterPbs: PitchBendSensitivity = PitchBendSensitivity(2)
+  private implicit val defaultPbs: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity
+  private val masterPbs: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity
 
   import MidiNote.{A4, C4, C5, D4, E4, G4}
 
@@ -384,31 +384,76 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "compute output pitch bend = tuning offset for single note on channel" in
     new TunerFixture(initialTuning = Some(quarterCommaMeantone)) {
-      private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
-      private val pitchBends = extractPitchBends(output)
-      // C has 0.0 offset in quarter-comma meantone, so pitch bend should be 0
-      pitchBends.head.value shouldBe 0
+      // C has 0.0 cents offset
+      private val outC = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      extractPitchBends(outC).head.cents shouldEqual 0.0
+
+      // E has -14.0 cents offset
+      private val outE = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
+      extractPitchBends(outE).head.cents shouldEqual -14.0
+
+      // D has -7.0 cents offset
+      private val outD = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, D4).javaMessage)
+      extractPitchBends(outD).head.cents shouldEqual -7.0
+
+      // G has -3.0 cents offset
+      private val outG = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)
+      extractPitchBends(outG).head.cents shouldEqual -3.0
     }
 
-  it should "clamp pitch bend to valid 14-bit signed range" in new TunerFixture() {
-    // Just verify no exception is thrown with extreme tuning
-    private val extremeTuning = Tuning("extreme", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-    tuner.tune(extremeTuning)
-    private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
-    output should not be empty
+  it should "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
+    // Use a small PBS (2 semitones = 200 cents) so that a large tuning offset exceeds the range
+    val smallPbs = PitchBendSensitivity(2)
+    val smallPbsTuner = MpeTuner(
+      initialZones = MpeZones(
+        MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = smallPbs),
+        MpeZone(MpeZoneType.Upper, 0)
+      )
+    )
+    new TunerFixture(smallPbsTuner) {
+      // B: exceeds ±200 cents PBS range
+      private val extremeTuning = Tuning("extreme", b = Some(500.0))
+      tuner.tune(extremeTuning)
+
+      // B should be clamped to max pitch bend value
+      private val outB = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, MidiNote.B4).javaMessage)
+      private val pbB = extractPitchBends(outB).head
+      pbB.value shouldBe ScPitchBendMidiMessage.MaxValue
+      pbB.centsFor(smallPbs) shouldEqual smallPbs.totalCents.toDouble
+
+      // C has 0.0 offset, should not be clamped
+      private val outC = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      extractPitchBends(outC).head.value shouldBe 0
+    }
   }
 
   // --- 4.2.8 process() — Dual-Group Allocation Integration ---
 
   behavior of "MpeTuner - process() Dual-Group Allocation"
 
+  // TODO #143 To properly assert pitch bend independence we need to test MPE input and actually use different
+  //  expression pitch bends
   it should "allocate second note with same pitch class to Expression Group with independent pitch bends" in
     new TunerFixture(initialTuning = Some(quarterCommaMeantone)) {
-      private val out1 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      // E has -14.0 cents offset in quarter-comma meantone
+      private val E5: MidiNote = MidiNote(E4 + 12)
+
+      private val out1 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
       private val ch1 = extractNoteOns(out1).head.channel
-      private val out2 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C5).javaMessage)
+      private val pb1 = extractPitchBends(out1).head
+
+      private val out2 = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E5).javaMessage)
       private val ch2 = extractNoteOns(out2).head.channel
+      private val pb2 = extractPitchBends(out2).head
+
+      // Notes should be on different channels
       ch1 should not equal ch2
+
+      // Both should have pitch bends reflecting the -14.0 cents tuning offset for E
+      pb1.channel shouldBe ch1
+      pb1.cents shouldEqual -14.0
+      pb2.channel shouldBe ch2
+      pb2.cents shouldEqual -14.0
     }
 
   // --- 4.2.9 process() — Note Dropping Integration ---
@@ -422,7 +467,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)
       private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, A4).javaMessage)
       private val noteOffs = extractNoteOffs(output)
-      noteOffs should not be empty
+      noteOffs should have size 1
+      // Dropped E4, not C4. The latter, although older, is the bass note which is excluded.
+      noteOffs.head.midiNote shouldEqual E4
     }
 
   it should "preserve boundary notes (highest/lowest) during channel exhaustion dropping" in new TunerFixture(tuner3) {
@@ -442,17 +489,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "process MPE input notes with tuning offsets applied" in
     new TunerFixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      private val output = tuner.process(ScNoteOnMidiMessage(1, C4, 100).javaMessage)
-      extractNoteOns(output) should not be empty
+      private val output = tuner.process(ScNoteOnMidiMessage(1, E4, 100).javaMessage)
+      extractPitchBends(output).head.cents shouldEqual -14.0
     }
 
   it should "treat per-note pitch bend as expressive pitch bend combined with tuning offset" in
     new TunerFixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      tuner.process(ScNoteOnMidiMessage(1, E4, 100).javaMessage)
+      // E has -14.0 cents offset in quarter-comma meantone
+      private val noteOutput = tuner.process(ScNoteOnMidiMessage(1, E4, 100).javaMessage)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+
+      private val expressiveBendCents = ScPitchBendMidiMessage.convertValueToCents(500, defaultPbs)
       private val output = tuner.process(ScPitchBendMidiMessage(1, 500).javaMessage)
-      private val pitchBends = extractPitchBends(output)
-      pitchBends should not be empty
-      // The pitch bend should combine tuning offset for E + expressive bend
+      private val pitchBend = extractPitchBends(output).filter(_.channel == noteChannel).head
+
+      // Output pitch bend should combine tuning offset for E (-14.0) + expressive bend
+      pitchBend.cents shouldEqual (-14.0 + expressiveBendCents)
     }
 
   it should "forward Master Channel pitch bend without modification" in new TunerFixture(mpeTunerMpeInput) {
@@ -566,12 +618,19 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.map(_.channel) should not contain noteChannel
     }
 
-  it should "make channel available for reuse after Note Off" in new TunerFixture() {
+  it should "make channel available for reuse after Note Off" in new TunerFixture(tuner3) {
+    // Fill all 3 member channels
     tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
-    tuner.process(ScNoteOffMidiMessage(nonMpeInputChannel, C4).javaMessage)
-    // Should be able to allocate a new note without issues
+    private val out = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage)
+    private val ch = extractNoteOns(out).head.channel
+    tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage)
+
+    // Release the second note
+    tuner.process(ScNoteOffMidiMessage(nonMpeInputChannel, E4).javaMessage)
+
+    // New note should reuse the released channel
     private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, D4).javaMessage)
-    extractNoteOns(output) should not be empty
+    extractNoteOns(output).head.channel shouldBe ch
   }
 
   // --- 4.2.12 Worked Examples from Paper ---
