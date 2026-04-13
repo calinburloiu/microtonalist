@@ -608,6 +608,27 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractChannelPressure(output) shouldBe empty
     }
 
+  it should "not forward CC #74 on an MPE input channel with no active note" in
+    new TunerFixture(tuner7MpeInput) {
+      // Send CC #74 on a member channel that has no active note
+      private val output = tuner.process(ScCcMidiMessage(mpeInputChannel, ScCcMidiMessage.MpeSlide, 100).javaMessage)
+      extractCc(output) shouldBe empty
+    }
+
+  it should "not forward Channel Pressure on an MPE input channel with no active note" in
+    new TunerFixture(tuner7MpeInput) {
+      // Send Channel Pressure on a member channel that has no active note
+      private val output = tuner.process(ScChannelPressureMidiMessage(mpeInputChannel, 90).javaMessage)
+      extractChannelPressure(output) shouldBe empty
+    }
+
+  it should "not forward Pitch Bend on an MPE input member channel with no active note" in
+    new TunerFixture(tuner7MpeInput) {
+      // Send Pitch Bend on a member channel that has no active note
+      private val output = tuner.process(ScPitchBendMidiMessage(mpeInputChannel, 4000).javaMessage)
+      extractPitchBends(output) shouldBe empty
+    }
+
   // --- 4.2.11 process() — Note Off Behavior ---
 
   behavior of "MpeTuner - process() Note Off Behavior"

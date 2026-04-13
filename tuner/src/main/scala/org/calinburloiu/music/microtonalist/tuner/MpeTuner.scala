@@ -62,7 +62,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   override val typeName: String = MpeTuner.TypeName
 
-  // TODO #143 Consistent naming for current / curr. Maybe just prefix with _
   private var _zones: MpeZones = initialZones
   private var _inputMode: MpeInputMode = initialInputMode
 
@@ -305,25 +304,26 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       } else {
         // Per-note pitch bend in MPE input - treat as expressive pitch bend
         channelExpressivePitchBend(inputChannel) = pitchBendValue
-        val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
-        val allocator = getAllocatorForOutput(outChannel)
-        allocator.foreach { alloc =>
-          val pitchBendCents = ScPitchBendMidiMessage.convertValueToCents(
-            pitchBendValue, alloc.zone.memberPitchBendSensitivity)
-          val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendCents)
-          droppedNotes.foreach { d =>
-            logger.trace(s"Dropping notes ${d.notes.mkString(", ")} on channel ${d.channel} (expressive pitch bend " +
-              s"too high)")
-            d.notes.foreach { midiNote =>
-              buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMessage
+        mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
+          val allocator = getAllocatorForOutput(outChannel)
+          allocator.foreach { alloc =>
+            val pitchBendCents = ScPitchBendMidiMessage.convertValueToCents(
+              pitchBendValue, alloc.zone.memberPitchBendSensitivity)
+            val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendCents)
+            droppedNotes.foreach { d =>
+              logger.trace(s"Dropping notes ${d.notes.mkString(", ")} on channel ${d.channel} (expressive pitch bend " +
+                s"too high)")
+              d.notes.foreach { midiNote =>
+                buffer += ScNoteOffMidiMessage(d.channel, midiNote).javaMessage
+              }
             }
-          }
-          val zone = alloc.zone
-          val pc = alloc.channelPitchClass(outChannel)
-          pc.foreach { pitchClass =>
-            val tuningOffset = _tuning(pitchClass)
-            val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
-            buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
+            val zone = alloc.zone
+            val pc = alloc.channelPitchClass(outChannel)
+            pc.foreach { pitchClass =>
+              val tuningOffset = _tuning(pitchClass)
+              val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
+              buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
+            }
           }
         }
       }
@@ -544,10 +544,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                      makeMessage: Int => ScMidiMessage): Unit = {
     if (inputMode == MpeInputMode.Mpe) {
-      // TODO #143 Defaulting to inputChannel is not correct. It should do nothing instead. To check for other
-      //  similar cases.
-      val outChannel = mpeInputChannelMap.getOrElse(inputChannel, inputChannel)
-      buffer += makeMessage(outChannel).javaMessage
+      mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
+        buffer += makeMessage(outChannel).javaMessage
+      }
     } else {
       // TODO #143 Not sure I follow why this is done.
       // For non-MPE, forward to all occupied member channels that have notes from this input
