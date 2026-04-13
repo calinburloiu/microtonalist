@@ -31,24 +31,23 @@ enum MpeZoneType {
 }
 
 /**
- * Represents an MPE Zone consisting of a Master Channel and one or more Member Channels.
+ * Structural properties of an MPE Zone: zone type, channel layout, and group sizes.
  *
- * MPE organizes MIDI Channels into one or two Zones.
- *
- * @param zoneType                   Whether this is a Lower or Upper Zone.
- * @param memberCount                The number of Member Channels in this Zone (0 to 15).
- * @param masterPitchBendSensitivity The Pitch Bend Sensitivity for the Master Channel.
- * @param memberPitchBendSensitivity The Pitch Bend Sensitivity for all Member Channels within this Zone.
+ * This trait captures the immutable structural aspects of an MPE Zone that do not change after zone configuration.
+ * It is separated from [[MpeZone]] to allow components that only need the zone structure (e.g.,
+ * [[MpeChannelAllocator]]) to depend on this trait without holding a reference to Pitch Bend Sensitivity
+ * configuration which may change through the lifetime of an [[MpeTuner]].
  */
-case class MpeZone(zoneType: MpeZoneType,
-                   memberCount: Int,
-                   masterPitchBendSensitivity: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity,
-                   memberPitchBendSensitivity: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity) {
-  require(memberCount >= 0 && memberCount <= 15,
-    s"memberCount must be between 0 and 15; got $memberCount")
+trait MpeZoneStructure {
+
+  /** Whether this is a Lower or Upper Zone. */
+  def zoneType: MpeZoneType
+
+  /** The number of Member Channels in this Zone (0 to 15). */
+  def memberCount: Int
 
   /** The 0-indexed MIDI channel number of the Master Channel for this Zone. */
-  val masterChannel: Int = zoneType match {
+  def masterChannel: Int = zoneType match {
     case MpeZoneType.Lower => 0
     case MpeZoneType.Upper => 15
   }
@@ -60,13 +59,13 @@ case class MpeZone(zoneType: MpeZoneType,
   }
 
   /** Whether the Zone is enabled (has at least one Member Channel). */
-  val isEnabled: Boolean = memberCount > 0
+  def isEnabled: Boolean = memberCount > 0
 
   /**
    * The number of Member Channels allocated to the Expression Group.
    *
    * The Expression Group is used for notes whose pitch class is already represented in the
-   * Pitch Class Group, or for notes that cannot be accommodated in the Pitch Class Group
+   * Pitch Class Group or for notes that cannot be accommodated in the Pitch Class Group
    * because all its channels are occupied.
    *
    * @see [[pitchClassGroupSize]]
@@ -87,6 +86,25 @@ case class MpeZone(zoneType: MpeZoneType,
    * @see [[expressionGroupSize]]
    */
   val pitchClassGroupSize: Int = memberCount - expressionGroupSize
+}
+
+/**
+ * Represents an MPE Zone consisting of a Master Channel and one or more Member Channels.
+ *
+ * MPE organizes MIDI Channels into one or two Zones.
+ *
+ * @param zoneType                   Whether this is a Lower or Upper Zone.
+ * @param memberCount                The number of Member Channels in this Zone (0 to 15).
+ * @param masterPitchBendSensitivity The Pitch Bend Sensitivity for the Master Channel.
+ * @param memberPitchBendSensitivity The Pitch Bend Sensitivity for all Member Channels within this Zone.
+ */
+case class MpeZone(zoneType: MpeZoneType,
+                   memberCount: Int,
+                   masterPitchBendSensitivity: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity,
+                   memberPitchBendSensitivity: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity)
+  extends MpeZoneStructure {
+  require(memberCount >= 0 && memberCount <= 15,
+    s"memberCount must be between 0 and 15; got $memberCount")
 }
 
 /**

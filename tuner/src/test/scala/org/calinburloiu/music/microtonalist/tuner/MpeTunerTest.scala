@@ -436,7 +436,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   behavior of "MpeTuner - process() Dual-Group Allocation"
 
-  // TODO #143 To properly assert pitch bend independence we need to test MPE input and actually use different
+  // TODO #154 To properly assert pitch bend independence we need to test MPE input and actually use different
   //  expression pitch bends
   it should "allocate second note with same pitch class to Expression Group with independent pitch bends" in
     new TunerFixture(initialTuning = Some(quarterCommaMeantone)) {

@@ -217,7 +217,7 @@ private class ChannelState(val channel: Int) {
  * @param expressionPitchBendCentsThreshold The absolute threshold in cents above which an expressive pitch bend is
  *                                          considered "high" and triggers note dropping on shared channels.
  */
-class MpeChannelAllocator(val zone: MpeZone,
+class MpeChannelAllocator(private val zone: MpeZoneStructure,
                           expressionPitchBendCentsThreshold: Double = 50.0) {
 
   import MpeChannelAllocator.*
@@ -232,6 +232,8 @@ class MpeChannelAllocator(val zone: MpeZone,
   }
 
   reset()
+
+  def zoneType: MpeZoneType = zone.zoneType
 
   /**
    * Allocates a channel for a new note.
