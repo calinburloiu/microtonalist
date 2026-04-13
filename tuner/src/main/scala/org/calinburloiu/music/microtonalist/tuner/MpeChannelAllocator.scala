@@ -276,8 +276,6 @@ class MpeChannelAllocator(val zone: MpeZone,
       .copy(droppedNotes = Some(dropped))
   }
 
-  // TODO #143 To map incoming channel to output channel?
-
   /**
    * Releases a note from a channel.
    *
