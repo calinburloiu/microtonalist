@@ -58,7 +58,7 @@ private case class ImmutableMpeExpression(pitchBendCents: Double = MpeExpression
                                           pressure: Int = MpeExpression.DefaultPressure,
                                           slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
 
-// TODO #143 Note expression is not currently updated
+// TODO #154 Note expression is not currently updated
 
 /**
  * Describes the notes that were removed from a channel as a side-effect of a new allocation.
@@ -78,7 +78,7 @@ case class DroppedNotes(channel: Int,
                         notes: Seq[MidiNote],
                         group: ChannelGroup)
 
-// TODO #143 Add a channelExpression field of type MpeExpression which will be set on the output channel before the
+// TODO #154 Add a channelExpression field of type MpeExpression which will be set on the output channel before the
 //  Note On message in MpeTuner. The new field is averaged across all channel notes from ChannelState.
 
 /**
@@ -99,7 +99,7 @@ case class AllocationResult(channel: Int, droppedNotes: Option[DroppedNotes] = N
  * @param channel The 0-indexed MIDI channel number this state object represents.
  */
 private class ChannelState(val channel: Int) {
-  // TODO #143 Switch to mutable.HashMap once the dropping logic in MpeChannelAllocator#updateExpressivePitchBend
+  // TODO #154 Switch to mutable.HashMap once the dropping logic in MpeChannelAllocator#updateExpressivePitchBend
   //  is fixed and lastAddedNote is no longer needed.
   private val _notes: mutable.LinkedHashMap[MidiNote, MutableMpeExpression] = mutable.LinkedHashMap.empty
   private var _pitchClass: Option[PitchClass] = None
@@ -149,7 +149,7 @@ private class ChannelState(val channel: Int) {
   /**
    * The most recently added note on this channel. Returns `None` if the channel is unoccupied.
    *
-   * TODO #143 Remove once the dropping logic in [[MpeChannelAllocator#updateExpressivePitchBend]] is
+   * TODO #154 Remove once the dropping logic in [[MpeChannelAllocator#updateExpressivePitchBend]] is
    * fixed and the internal storage is switched to [[mutable.HashMap]].
    */
   def lastAddedNote: Option[MidiNote] = _notes.lastOption.map(_._1)
@@ -286,7 +286,7 @@ class MpeChannelAllocator(val zone: MpeZone,
     channelStates(channel).removeNote(midiNote, nextTime())
   }
 
-  // TODO #143 Bad assumption that the last note is being bent. To map incoming channel to output channel.
+  // TODO #154 Bad assumption that the last note is being bent. To map incoming channel to output channel.
   //  Once fixed, remove lastAddedNote from ChannelState and switch its internal storage to mutable.HashMap.
 
   /**
