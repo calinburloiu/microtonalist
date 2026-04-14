@@ -309,8 +309,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       globalExpressivePitchBend = pitchBendValue
       if (lowerZone.isEnabled) {
         buffer += ScPitchBendMidiMessage(lowerZone.masterChannel, pitchBendValue).javaMessage
-      }
-      if (upperZone.isEnabled) {
+      } else if (upperZone.isEnabled) {
         buffer += ScPitchBendMidiMessage(upperZone.masterChannel, pitchBendValue).javaMessage
       }
     }

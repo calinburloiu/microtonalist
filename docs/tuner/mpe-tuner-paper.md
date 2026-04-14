@@ -127,7 +127,7 @@ flowchart LR
 
 The MPE Tuner accepts two classes of input:
 
-- **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.3).
+- **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.3). When two Zones are configured, non-MPE input is routed exclusively to a single Zone — the Lower Zone if it is enabled, otherwise the Upper Zone. This prevents ambiguity in channel allocation and zone-level message routing when the input has no Zone structure of its own.
 - **MPE input**: MIDI conforming to the MPE Specification, with notes primarily distributed across Member Channels
   within Zones, and optionally on Master Channels as permitted by the specification (see Section 3.4).
 
@@ -139,7 +139,7 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
 
 1. **Polyphonic Key Pressure to Channel Pressure**: In MPE, Polyphonic Key Pressure must not be sent on Member Channels [1, §2.5]. Any Polyphonic Key Pressure messages in the non-MPE input shall be converted to Channel Pressure messages on the appropriate Member Channels.
 
-2. **Pitch Bend Redirection to Master Channel**: In non-MPE input, Pitch Bend typically applies to all notes on a channel. This global pitch manipulation shall be redirected to the Master Channel of the output Zone, where it serves as Zone-level Pitch Bend affecting all notes equally.
+2. **Pitch Bend Redirection to Master Channel**: In non-MPE input, Pitch Bend typically applies to all notes on a channel. This global pitch manipulation shall be redirected to the Master Channel of the single output Zone selected for non-MPE input (see Section 3.2), where it serves as Zone-level Pitch Bend affecting all notes equally.
 
 3. **Control Dimension Initialization**: To maximize compatibility with MPE receivers, all three control dimensions (Pitch Bend, CC #74, and Channel Pressure) shall be sent before each Note On message, even when the input sender omitted some of them. When a control dimension was not present in the input, the MPE Tuner shall use the default values as documented in the MPE Specification:
    - **Pitch Bend**: center value (0x2000, i.e., no bend), combined with the tuning offset.
