@@ -213,12 +213,9 @@ private class ChannelState(val channel: Int) {
  * and an Expression Group to prioritize intonation precision over polyphony and expressive
  * independence when necessary.
  *
- * @param zone                              The MPE zone to allocate channels for.
- * @param expressionPitchBendCentsThreshold The absolute threshold in cents above which an expressive pitch bend is
- *                                          considered "high" and triggers note dropping on shared channels.
+ * @param zone The MPE zone to allocate channels for.
  */
-class MpeChannelAllocator(private val zone: MpeZoneStructure,
-                          expressionPitchBendCentsThreshold: Double = 50.0) {
+class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   import MpeChannelAllocator.*
 
@@ -369,7 +366,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure,
   def channelGroupOf(channel: Int): Option[ChannelGroup] = channelStates(channel).group
 
   private def isHighExpressivePitchBend(pitchBendCents: Double): Boolean =
-    Math.abs(pitchBendCents) > expressionPitchBendCentsThreshold
+    Math.abs(pitchBendCents) > ExpressionPitchBendThreshold
 
   private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
     state.notes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
@@ -446,6 +443,12 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure,
 }
 
 object MpeChannelAllocator {
+
+  /**
+   * The absolute threshold in cents above which an expressive pitch bend is considered "high" and triggers note
+   * dropping on shared channels.
+   */
+  private val ExpressionPitchBendThreshold: Double = 50.0
 
   /**
    * Logical partitioning of Member Channels into two groups to manage note allocation while

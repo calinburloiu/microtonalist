@@ -81,9 +81,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private val channelPressureMap: mutable.Map[Int, Int] = mutable.Map.empty
   private val channelSlideMap: mutable.Map[Int, Int] = mutable.Map.empty
 
-  // For non-MPE input, track the global expressive pitch bend from input
-  private var globalExpressivePitchBend: Int = 0
-
   // RPN state machine: tracks last received CC#100 (RPN LSB) and CC#101 (RPN MSB) per channel
   private val rpnLsbState: mutable.Map[Int, Int] = mutable.Map.empty
   private val rpnMsbState: mutable.Map[Int, Int] = mutable.Map.empty
@@ -147,7 +144,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     channelExpressivePitchBend.clear()
     channelPressureMap.clear()
     channelSlideMap.clear()
-    globalExpressivePitchBend = 0
     rpnLsbState.clear()
     rpnMsbState.clear()
 
@@ -236,13 +232,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
         // Compute and send control dimensions before Note On
         val tuningOffset = _tuning(midiNote.pitchClass)
-        // TODO #143 Is expressiveBend dead code?
-        val expressiveBend = if (inputMode == MpeInputMode.Mpe) {
-          channelExpressivePitchBend.getOrElse(inputChannel, 0)
-        } else {
-          0
-        }
-
         val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
         buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
 
@@ -306,7 +295,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       }
     } else {
       // Non-MPE input: redirect pitch bend to master channel as zone-level pitch bend
-      globalExpressivePitchBend = pitchBendValue
       if (lowerZone.isEnabled) {
         buffer += ScPitchBendMidiMessage(lowerZone.masterChannel, pitchBendValue).javaMessage
       } else if (upperZone.isEnabled) {
@@ -339,9 +327,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       case ScCcMidiMessage.MpeSlide =>
         channelSlideMap(inputChannel) = ccValue
         forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
-      // Zone-level messages - forward on the master channel of the zone the input belongs to
-      case cc if MpeTuner.ZoneLevelCcs.contains(cc) =>
-        forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
+      // All other CCs are forwarded on the master channel of the zone the input belongs to
       case _ =>
         forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
     }
@@ -679,16 +665,4 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
 object MpeTuner {
   val TypeName: String = "mpe"
-  val ExpressionPitchBendThreshold: Double = 50.0
-
-  /** CC numbers that are zone-level messages and should be forwarded on the Master Channel. */
-  private val ZoneLevelCcs: Set[Int] = Set(
-    ScCcMidiMessage.BankSelectMsb,
-    ScCcMidiMessage.BankSelectLsb,
-    ScCcMidiMessage.Modulation,
-    ScCcMidiMessage.SustainPedal,
-    ScCcMidiMessage.SostenutoPedal,
-    ScCcMidiMessage.SoftPedal,
-    ScCcMidiMessage.ResetAllControllers
-  )
 }
