@@ -33,6 +33,24 @@ trait ScMidiMessage {
   def javaMessage: MidiMessage
 }
 
+/**
+ * Type class for converting a Java [[javax.sound.midi.MidiMessage]] into a specific [[ScMidiMessage]] subtype.
+ *
+ * Implementations are typically provided by companion objects of [[ScMidiMessage]] subtypes, allowing
+ * type-safe conversion from the raw Java MIDI representation to the Scala-idiomatic one.
+ *
+ * @tparam T The target [[ScMidiMessage]] subtype produced by the conversion.
+ */
+trait FromJavaMidiMessageConverter[T] {
+  /**
+   * Attempts to convert the given Java [[MidiMessage]] to an instance of `T`.
+   *
+   * @param message The Java [[MidiMessage]] to convert.
+   * @return `Some(T)` if the message matches the expected type and command for `T`; `None` otherwise.
+   */
+  def fromJavaMessage(message: MidiMessage): Option[T]
+}
+
 object ScMidiMessage {
   private val FromJavaMessageMap: Map[Int, MidiMessage => ScMidiMessage] = Map(
     ShortMessage.NOTE_ON -> ScNoteOnMidiMessage.fromJavaMessage.unlift,
@@ -107,7 +125,7 @@ case class ScNoteOnMidiMessage(override val channel: Int,
 /**
  * Companion object for [[ScNoteOnMidiMessage]].
  */
-object ScNoteOnMidiMessage {
+object ScNoteOnMidiMessage extends FromJavaMidiMessageConverter[ScNoteOnMidiMessage] {
   /** The velocity value representing a Note Off via Note On (0). */
   val NoteOffVelocity: Int = 0x00
   /** The default velocity for Note On messages (64). */
@@ -120,7 +138,7 @@ object ScNoteOnMidiMessage {
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScNoteOnMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScNoteOnMidiMessage] =
     unapply(message).map { tuple => ScNoteOnMidiMessage.apply.tupled(tuple) }
 }
 
@@ -141,7 +159,7 @@ case class ScNoteOffMidiMessage(override val channel: Int,
 /**
  * Companion object for [[ScNoteOffMidiMessage]] used for pattern matching and default values.
  */
-object ScNoteOffMidiMessage {
+object ScNoteOffMidiMessage extends FromJavaMidiMessageConverter[ScNoteOffMidiMessage] {
   /** The default velocity for Note Off messages (64). */
   val DefaultVelocity: Int = 0x40
 
@@ -152,7 +170,7 @@ object ScNoteOffMidiMessage {
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScNoteOffMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScNoteOffMidiMessage] =
     unapply(message).map { tuple => ScNoteOffMidiMessage.apply.tupled(tuple) }
 }
 
@@ -195,7 +213,7 @@ case class ScPitchBendMidiMessage(channel: Int, value: Int) extends ScMidiMessag
 /**
  * Companion object for [[ScPitchBendMidiMessage]].
  */
-object ScPitchBendMidiMessage {
+object ScPitchBendMidiMessage extends FromJavaMidiMessageConverter[ScPitchBendMidiMessage] {
   /** The minimum signed 14-bit pitch bend value (-8192). */
   val MinValue: Int = MidiRequirements.MinSigned14BitValue
   /** The value representing no pitch bend (0). */
@@ -210,7 +228,7 @@ object ScPitchBendMidiMessage {
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScPitchBendMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScPitchBendMidiMessage] =
     unapply(message).map { tuple => ScPitchBendMidiMessage.apply.tupled(tuple) }
 
   /** Creates an [[ScPitchBendMidiMessage]] from a value in cents. */
@@ -295,7 +313,7 @@ case class ScCcMidiMessage(channel: Int, number: Int, value: Int) extends ScMidi
 /**
  * Companion object for [[ScCcMidiMessage]].
  */
-object ScCcMidiMessage {
+object ScCcMidiMessage extends FromJavaMidiMessageConverter[ScCcMidiMessage] {
   /** Registered Parameter Number (RPN) MSB controller number (#101). */
   val RpnMsb: Int = 101
   /** Registered Parameter Number (RPN) LSB controller number (#100). */
@@ -341,7 +359,7 @@ object ScCcMidiMessage {
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScCcMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScCcMidiMessage] =
     unapply(message).map { tuple => ScCcMidiMessage.apply.tupled(tuple) }
 }
 
@@ -365,7 +383,7 @@ case class ScProgramChangeMidiMessage(channel: Int, program: Int) extends ScMidi
 /**
  * Companion object for [[ScProgramChangeMidiMessage]].
  */
-object ScProgramChangeMidiMessage {
+object ScProgramChangeMidiMessage extends FromJavaMidiMessageConverter[ScProgramChangeMidiMessage] {
   /** Extracts the channel and program number from a [[MidiMessage]] if it is a Program Change message. */
   def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PROGRAM_CHANGE =>
@@ -373,7 +391,7 @@ object ScProgramChangeMidiMessage {
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScProgramChangeMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScProgramChangeMidiMessage] =
     unapply(message).map { tuple => ScProgramChangeMidiMessage.apply.tupled(tuple) }
 }
 
@@ -432,14 +450,14 @@ case class ScChannelPressureMidiMessage(channel: Int, value: Int) extends ScMidi
 /**
  * Companion object for [[ScChannelPressureMidiMessage]].
  */
-object ScChannelPressureMidiMessage {
+object ScChannelPressureMidiMessage extends FromJavaMidiMessageConverter[ScChannelPressureMidiMessage] {
   def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CHANNEL_PRESSURE =>
       Some((shortMessage.getChannel, shortMessage.getData1))
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScChannelPressureMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScChannelPressureMidiMessage] =
     unapply(message).map { tuple => ScChannelPressureMidiMessage.apply.tupled(tuple) }
 }
 
@@ -463,14 +481,14 @@ case class ScPolyPressureMidiMessage(channel: Int, midiNote: MidiNote, value: In
 /**
  * Companion object for [[ScPolyPressureMidiMessage]].
  */
-object ScPolyPressureMidiMessage {
+object ScPolyPressureMidiMessage extends FromJavaMidiMessageConverter[ScPolyPressureMidiMessage] {
   def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.POLY_PRESSURE =>
       Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
     case _ => None
   }
 
-  def fromJavaMessage(message: MidiMessage): Option[ScPolyPressureMidiMessage] =
+  override def fromJavaMessage(message: MidiMessage): Option[ScPolyPressureMidiMessage] =
     unapply(message).map { tuple => ScPolyPressureMidiMessage.apply.tupled(tuple) }
 }
 
