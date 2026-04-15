@@ -166,25 +166,21 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
 
-    message match {
-      case ScNoteOnMidiMessage(channel, midiNote, velocity) if velocity > 0 =>
-        processNoteOn(buffer, channel, midiNote, velocity)
-      case ScNoteOnMidiMessage(channel, midiNote, _) =>
-        processNoteOff(buffer, channel, midiNote, ScNoteOffMidiMessage.DefaultVelocity)
-      case ScNoteOffMidiMessage(channel, midiNote, velocity) =>
-        processNoteOff(buffer, channel, midiNote, velocity)
-      case ScPitchBendMidiMessage(channel, value) =>
-        processPitchBend(buffer, channel, value)
-      case ScCcMidiMessage(channel, number, value) =>
-        processCc(buffer, channel, number, value)
-      case ScChannelPressureMidiMessage(channel, value) =>
-        processChannelPressure(buffer, channel, value)
-      case ScPolyPressureMidiMessage(channel, midiNote, value) =>
-        processPolyPressure(buffer, channel, midiNote, value)
-      case ScProgramChangeMidiMessage(channel, program) =>
+    ScMidiMessage.fromJavaMessage(message) match {
+      case msg: ScNoteOnMidiMessage if msg.velocity > 0 =>
+        processNoteOn(buffer, msg)
+      case msg: ScNoteOnMidiMessage =>
+        // Note On with velocity 0 is a Note Off per MIDI spec.
+        processNoteOff(buffer, ScNoteOffMidiMessage(msg.channel, msg.midiNote))
+      case msg: ScNoteOffMidiMessage => processNoteOff(buffer, msg)
+      case msg: ScPitchBendMidiMessage => processPitchBend(buffer, msg)
+      case msg: ScCcMidiMessage => processCc(buffer, msg)
+      case msg: ScChannelPressureMidiMessage => processChannelPressure(buffer, msg)
+      case msg: ScPolyPressureMidiMessage => processPolyPressure(buffer, msg)
+      case msg: ScProgramChangeMidiMessage =>
         // Forward on the zone's master channel
-        resolveZoneMasterChannel(channel).foreach { masterCh =>
-          buffer += ScProgramChangeMidiMessage(masterCh, program).javaMessage
+        resolveZoneMasterChannel(msg.channel).foreach { masterCh =>
+          buffer += msg.copy(channel = masterCh).javaMessage
         }
       case _ =>
         buffer += message
@@ -193,23 +189,28 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     buffer.toSeq
   }
 
-  private def processNoteOn(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                            midiNote: MidiNote, velocity: Int): Unit = {
+  private def processNoteOn(buffer: mutable.Buffer[MidiMessage], msg: ScNoteOnMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val midiNote = msg.midiNote
+
     if (_inputMode == MpeInputMode.Mpe && isMasterChannel(inputChannel)) {
       // Master Channel notes are forwarded as-is: no allocator, no tuning offset, no control
       // dimension setup. They play in 12-EDO (modulated only by Master Pitch Bend) because
       // applying a per-pitch-class tuning offset on the Master Channel would affect every
       // note in the Zone.
       noteChannelMap((midiNote, inputChannel)) = inputChannel
-      buffer += ScNoteOnMidiMessage(inputChannel, midiNote, velocity).javaMessage
+      buffer += msg.javaMessage
     } else {
-      processMemberNoteOn(buffer, inputChannel, midiNote, velocity)
+      processMemberNoteOn(buffer, msg)
     }
   }
 
-  private def processMemberNoteOn(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                                  midiNote: MidiNote, velocity: Int): Unit = {
+  private def processMemberNoteOn(buffer: mutable.Buffer[MidiMessage], msg: ScNoteOnMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val midiNote = msg.midiNote
+    val velocity = msg.velocity
     val allocator = getAllocatorForInput(inputChannel)
+
     allocator match {
       case Some(alloc) =>
         val zone = currentZone(alloc)
@@ -253,8 +254,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processNoteOff(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                             midiNote: MidiNote, velocity: Int): Unit = {
+  private def processNoteOff(buffer: mutable.Buffer[MidiMessage], msg: ScNoteOffMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val midiNote = msg.midiNote
+    val velocity = msg.velocity
+
     noteChannelMap.remove((midiNote, inputChannel)) match {
       case Some(outChannel) =>
         val allocator = getAllocatorForOutput(outChannel)
@@ -269,18 +273,19 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
           }
         }
       case None =>
-        buffer += ScNoteOffMidiMessage(inputChannel, midiNote, velocity).javaMessage
+        buffer += msg.javaMessage
     }
   }
 
-  private def processPitchBend(buffer: mutable.Buffer[MidiMessage],
-                               inputChannel: Int,
-                               pitchBendValue: Int): Unit = {
+  private def processPitchBend(buffer: mutable.Buffer[MidiMessage], msg: ScPitchBendMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val pitchBendValue = msg.value
+
     if (inputMode == MpeInputMode.Mpe) {
       // Check if it's a master channel
       if (isMasterChannel(inputChannel)) {
         // Forward master channel pitch bend without modification
-        buffer += ScPitchBendMidiMessage(inputChannel, pitchBendValue).javaMessage
+        buffer += msg.javaMessage
       } else {
         // Per-note pitch bend in MPE input - treat as expressive pitch bend
         mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
@@ -304,8 +309,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processCc(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                        ccNumber: Int, ccValue: Int): Unit = {
+  private def processCc(buffer: mutable.Buffer[MidiMessage], msg: ScCcMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val ccNumber = msg.number
+    val ccValue = msg.value
     val rpnLsb = rpnLsbState.getOrElse(inputChannel, Rpn.NullLsb)
     val rpnMsb = rpnMsbState.getOrElse(inputChannel, Rpn.NullMsb)
     val isMcmRpn = rpnMsb == Rpn.MpeConfigurationMessageMsb && rpnLsb == Rpn.MpeConfigurationMessageLsb
@@ -470,8 +477,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processChannelPressure(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                                     pressure: Int): Unit = {
+  private def processChannelPressure(buffer: mutable.Buffer[MidiMessage],
+                                     msg: ScChannelPressureMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val pressure = msg.value
+
     if (inputMode == MpeInputMode.Mpe) {
       // Per-note pressure in MPE input: route to the allocated Member Channel.
       channelPressureMap(inputChannel) = pressure
@@ -484,14 +494,18 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processPolyPressure(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                                  midiNote: MidiNote, pressure: Int): Unit = {
+  private def processPolyPressure(buffer: mutable.Buffer[MidiMessage],
+                                  msg: ScPolyPressureMidiMessage): Unit = {
+    val inputChannel = msg.channel
+    val midiNote = msg.midiNote
+    val pressure = msg.value
+
     if (_inputMode == MpeInputMode.Mpe) {
       // MPE spec §2.5: Polyphonic Key Pressure must not be sent on Member Channels, but may
       // be sent for notes on the Master Channel. Forward it as-is on the Master Channel;
       // drop it silently on Member Channels.
       if (isMasterChannel(inputChannel)) {
-        buffer += ScPolyPressureMidiMessage(inputChannel, midiNote, pressure).javaMessage
+        buffer += msg.javaMessage
       }
     } else {
       // Non-MPE input: convert Polyphonic Key Pressure to Channel Pressure on the allocated
