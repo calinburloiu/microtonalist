@@ -289,6 +289,28 @@ get it to compile, then confirm the test fails for the right reason. Write only 
 no more. Once green, refactor the structure and naming freely, keeping the suite green throughout. Never write logic
 without a preceding failing test, never commit red production code, and never mix refactoring with behavioral changes.
 
+## No `if`s in tests
+
+Do not use `if` statements in test code. Tests should always assert the condition rather than conditionally executing
+assertions. An `if` silently skips assertions when the condition is false, hiding potential failures.
+
+Wrong:
+
+```scala
+val output = tuner.tune(tuning)
+if (output.nonEmpty) {
+  output.head.value shouldBe expected
+}
+```
+
+Correct:
+
+```scala
+val output = tuner.tune(tuning)
+output should not be empty
+output.head.value shouldBe expected
+```
+
 ## Use brace syntax
 
 Use the old classic brace Scala syntax, not the new indentation Scala 3 syntax.

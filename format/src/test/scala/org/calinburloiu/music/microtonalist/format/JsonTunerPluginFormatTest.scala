@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -124,5 +124,178 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
     it should s"serialize" in {
       jsonPluginFormat.writes.writes(tuner) shouldEqual mtsTunerJson
     }
+  }
+
+  behavior of "MpeTuner JSON plugin format"
+
+  private val mpeTunerFullJson = Json.obj(
+    "type" -> "mpe",
+    "inputMode" -> "nonMpe",
+    "zones" -> Json.obj(
+      "lower" -> Json.obj(
+        "memberCount" -> 7,
+        "masterPitchBendSensitivity" -> Json.obj(
+          "semitoneCount" -> 2,
+          "centCount" -> 0
+        ),
+        "memberPitchBendSensitivity" -> Json.obj(
+          "semitoneCount" -> 48,
+          "centCount" -> 0
+        )
+      ),
+      "upper" -> Json.obj(
+        "memberCount" -> 7,
+        "masterPitchBendSensitivity" -> Json.obj(
+          "semitoneCount" -> 1,
+          "centCount" -> 0
+        ),
+        "memberPitchBendSensitivity" -> Json.obj(
+          "semitoneCount" -> 12,
+          "centCount" -> 0
+        )
+      )
+    )
+  )
+
+  private def assertMpeTuner(tuner: Tuner, expectedInputMode: MpeInputMode,
+                             expectedLowerMemberCount: Int, expectedUpperMemberCount: Int,
+                             expectedLowerMasterPbs: PitchBendSensitivity = PitchBendSensitivity(2),
+                             expectedLowerMemberPbs: PitchBendSensitivity = PitchBendSensitivity(48),
+                             expectedUpperMasterPbs: PitchBendSensitivity = PitchBendSensitivity(2),
+                             expectedUpperMemberPbs: PitchBendSensitivity = PitchBendSensitivity(48)): Unit = {
+    tuner shouldBe a[MpeTuner]
+    val mpe = tuner.asInstanceOf[MpeTuner]
+    mpe.inputMode shouldBe expectedInputMode
+    val lower = mpe.zones.lower
+    val upper = mpe.zones.upper
+    lower.memberCount shouldBe expectedLowerMemberCount
+    upper.memberCount shouldBe expectedUpperMemberCount
+    lower.masterPitchBendSensitivity shouldBe expectedLowerMasterPbs
+    lower.memberPitchBendSensitivity shouldBe expectedLowerMemberPbs
+    upper.masterPitchBendSensitivity shouldBe expectedUpperMasterPbs
+    upper.memberPitchBendSensitivity shouldBe expectedUpperMemberPbs
+  }
+
+  it should "deserialize with all fields specified" in {
+    matchReads(reads, mpeTunerFullJson, { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.NonMpe, 7, 7,
+        expectedUpperMasterPbs = PitchBendSensitivity(1),
+        expectedUpperMemberPbs = PitchBendSensitivity(12))
+    })
+  }
+
+  it should "deserialize with default values (minimal JSON)" in {
+    matchReads(reads, Json.obj("type" -> "mpe"), { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.NonMpe, 15, 0)
+    })
+    matchReads(reads, JsString("mpe"), { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.NonMpe, 15, 0)
+    })
+  }
+
+  it should "deserialize with only lower zone specified" in {
+    val json = Json.obj(
+      "type" -> "mpe",
+      "zones" -> Json.obj(
+        "lower" -> Json.obj("memberCount" -> 10)
+      )
+    )
+    matchReads(reads, json, { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.NonMpe, 10, 0)
+    })
+  }
+
+  it should "deserialize with only upper zone specified and lower defaults to 15" in {
+    // When only upper is specified with memberCount that doesn't overlap with default lower (15),
+    // we need upper memberCount=0 or the zones must not overlap.
+    // With lower=15 (channels 1..15) and upper=5 (channels 10..14), they overlap -> error.
+    // So test with upper disabled (memberCount=0) or a non-overlapping config.
+    val json = Json.obj(
+      "type" -> "mpe",
+      "zones" -> Json.obj(
+        "upper" -> Json.obj("memberCount" -> 0)
+      )
+    )
+    matchReads(reads, json, { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.NonMpe, 15, 0)
+    })
+  }
+
+  it should "deserialize with zones but omitting pitch bend sensitivities" in {
+    val json = Json.obj(
+      "type" -> "mpe",
+      "zones" -> Json.obj(
+        "lower" -> Json.obj("memberCount" -> 7),
+        "upper" -> Json.obj("memberCount" -> 7)
+      )
+    )
+    matchReads(reads, json, { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.NonMpe, 7, 7)
+    })
+  }
+
+  it should "serialize" in {
+    val tuner = MpeTuner(
+      initialZones = MpeZones(
+        MpeZone(MpeZoneType.Lower, 7),
+        MpeZone(MpeZoneType.Upper, 7, PitchBendSensitivity(1), PitchBendSensitivity(12))
+      ),
+      initialInputMode = MpeInputMode.NonMpe
+    )
+    jsonPluginFormat.writes.writes(tuner) shouldEqual mpeTunerFullJson
+  }
+
+  it should "round-trip serialize then deserialize" in {
+    val original = MpeTuner(
+      initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 5, PitchBendSensitivity(3))),
+      initialInputMode = MpeInputMode.Mpe
+    )
+    val json = jsonPluginFormat.writes.writes(original)
+    matchReads(reads, json, { tuner =>
+      assertMpeTuner(tuner, MpeInputMode.Mpe, 7, 5,
+        expectedUpperMasterPbs = PitchBendSensitivity(3))
+    })
+  }
+
+  it should "fail to deserialize with invalid inputMode" in {
+    val json = Json.obj("type" -> "mpe", "inputMode" -> "invalid")
+    reads.reads(json) shouldBe a[JsError]
+  }
+
+  it should "fail to deserialize with memberCount out of range" in {
+    val json16 = Json.obj("type" -> "mpe", "zones" -> Json.obj(
+      "lower" -> Json.obj("memberCount" -> 16)))
+    reads.reads(json16) shouldBe a[JsError]
+
+    val jsonNeg = Json.obj("type" -> "mpe", "zones" -> Json.obj(
+      "lower" -> Json.obj("memberCount" -> -1)))
+    reads.reads(jsonNeg) shouldBe a[JsError]
+  }
+
+  it should "fail to deserialize with memberCount of wrong type" in {
+    val json = Json.obj("type" -> "mpe", "zones" -> Json.obj(
+      "lower" -> Json.obj("memberCount" -> "seven")))
+    reads.reads(json) shouldBe a[JsError]
+  }
+
+  it should "fail to deserialize with PBS semitoneCount out of uint7 range" in {
+    val json = Json.obj("type" -> "mpe", "zones" -> Json.obj(
+      "lower" -> Json.obj("memberCount" -> 7,
+        "masterPitchBendSensitivity" -> Json.obj("semitoneCount" -> 128))))
+    reads.reads(json) shouldBe a[JsError]
+  }
+
+  it should "fail to deserialize with PBS centCount out of uint7 range" in {
+    val json = Json.obj("type" -> "mpe", "zones" -> Json.obj(
+      "lower" -> Json.obj("memberCount" -> 7,
+        "memberPitchBendSensitivity" -> Json.obj("semitoneCount" -> 48, "centCount" -> 128))))
+    reads.reads(json) shouldBe a[JsError]
+  }
+
+  it should "fail to deserialize with overlapping zone channel ranges" in {
+    val json = Json.obj("type" -> "mpe", "zones" -> Json.obj(
+      "lower" -> Json.obj("memberCount" -> 10),
+      "upper" -> Json.obj("memberCount" -> 10)))
+    reads.reads(json) shouldBe a[JsError]
   }
 }
