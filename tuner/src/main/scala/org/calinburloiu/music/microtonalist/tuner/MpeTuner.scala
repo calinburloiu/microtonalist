@@ -75,9 +75,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   // Track input->output channel mapping for MPE input mode
   private val mpeInputChannelMap: mutable.Map[Int, Int] = mutable.Map.empty
 
-  // Per-channel expressive pitch bend tracking (for non-MPE input, per-note tracking)
-  // For MPE input, each member channel has its own expressive pitch bend
-  private val channelExpressivePitchBend: mutable.Map[Int, Int] = mutable.Map.empty
+  // Per-input-channel control dimension state used to seed the output Member Channel at Note On
+  // (MPE input mode only). Non-MPE inputs seed Member Channels with neutral defaults.
   private val channelPressureMap: mutable.Map[Int, Int] = mutable.Map.empty
   private val channelSlideMap: mutable.Map[Int, Int] = mutable.Map.empty
 
@@ -141,7 +140,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     _tuning = Tuning.Standard
     noteChannelMap.clear()
     mpeInputChannelMap.clear()
-    channelExpressivePitchBend.clear()
     channelPressureMap.clear()
     channelSlideMap.clear()
     rpnLsbState.clear()
@@ -235,12 +233,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
         buffer += ScPitchBendMidiMessage(outChannel, totalPitchBend).javaMessage
 
-        // CC #74 (slide) - default 64
-        val slide = channelSlideMap.getOrElse(inputChannel, 64)
+        // CC #74 (slide) and Channel Pressure: in MPE mode, seed the output Member Channel with
+        // the sender's last-known per-input-channel value so per-note articulation carries over
+        // across Note boundaries. In non-MPE mode, sender CC #74 / CP arrive on the Master Channel
+        // as Zone-level controls, so the Member Channel is initialized to neutral defaults
+        // (MPE spec §3.3.5 Initial-64 for CC #74, §3.3.4 CP=0) to avoid double-counting.
+        val slide = if (inputMode == MpeInputMode.Mpe) channelSlideMap.getOrElse(inputChannel, 64) else 64
         buffer += ScCcMidiMessage(outChannel, ScCcMidiMessage.MpeSlide, slide).javaMessage
 
-        // Channel Pressure - default 0
-        val pressure = channelPressureMap.getOrElse(inputChannel, 0)
+        val pressure = if (inputMode == MpeInputMode.Mpe) channelPressureMap.getOrElse(inputChannel, 0) else 0
         buffer += ScChannelPressureMidiMessage(outChannel, pressure).javaMessage
 
         // Note On
@@ -259,8 +260,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         val allocator = getAllocatorForOutput(outChannel)
         allocator.foreach(_.release(midiNote, outChannel))
         buffer += ScNoteOffMidiMessage(outChannel, midiNote, velocity).javaMessage
-        // TODO #143 Need to understand this
-        // Clean up MPE input channel map if no more notes on this input channel
+        // Remove the input→output routing only when no active note still uses that output channel.
+        // A stale entry would misroute subsequent expressive Pitch Bend / Channel Pressure / CC #74
+        // arriving on this input channel to an unrelated output note, corrupting its intonation.
         if (inputMode == MpeInputMode.Mpe) {
           if (!noteChannelMap.values.exists(_ == mpeInputChannelMap.getOrElse(inputChannel, -1))) {
             mpeInputChannelMap.remove(inputChannel)
@@ -281,7 +283,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         buffer += ScPitchBendMidiMessage(inputChannel, pitchBendValue).javaMessage
       } else {
         // Per-note pitch bend in MPE input - treat as expressive pitch bend
-        channelExpressivePitchBend(inputChannel) = pitchBendValue
         mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
           val allocator = getAllocatorForOutput(outChannel)
           allocator.foreach { alloc =>
@@ -323,10 +324,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       case ScCcMidiMessage.DataEntryMsb | ScCcMidiMessage.DataEntryLsb if isPbsRpn =>
         processPbs(buffer, inputChannel, ccNumber, ccValue)
 
-      // MPE Slide - forward to appropriate member channel
+      // CC #74 (MPE Slide / timbre): in MPE mode, route to the allocated Member Channel as
+      // per-note timbre; in non-MPE mode, route to the Zone's Master Channel as Zone-level timbre
+      // (MPE spec §2.6: CC #74 is both Note-Level and Zone-Level).
       case ScCcMidiMessage.MpeSlide =>
-        channelSlideMap(inputChannel) = ccValue
-        forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
+        if (inputMode == MpeInputMode.Mpe) {
+          channelSlideMap(inputChannel) = ccValue
+          forwardToMemberChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
+        } else {
+          forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ScCcMidiMessage.MpeSlide, ccValue))
+        }
       // All other CCs are forwarded on the master channel of the zone the input belongs to
       case _ =>
         forwardOnZoneMasterChannel(buffer, inputChannel, ScCcMidiMessage(_, ccNumber, ccValue))
@@ -465,8 +472,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def processChannelPressure(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                      pressure: Int): Unit = {
-    channelPressureMap(inputChannel) = pressure
-    forwardToMemberChannel(buffer, inputChannel, ScChannelPressureMidiMessage(_, pressure))
+    if (inputMode == MpeInputMode.Mpe) {
+      // Per-note pressure in MPE input: route to the allocated Member Channel.
+      channelPressureMap(inputChannel) = pressure
+      forwardToMemberChannel(buffer, inputChannel, ScChannelPressureMidiMessage(_, pressure))
+    } else {
+      // Non-MPE input: Channel Pressure applies to all notes on the input channel. Route to the
+      // Zone's Master Channel as Zone-level pressure (MPE spec §2.5: CP is both Note-Level and
+      // Zone-Level; receivers combine Master + Member data per sounding note).
+      forwardOnZoneMasterChannel(buffer, inputChannel, ScChannelPressureMidiMessage(_, pressure))
+    }
   }
 
   private def processPolyPressure(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
@@ -487,21 +502,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
+  /**
+   * Forwards a per-note control message (Channel Pressure, CC #74) to the output Member Channel
+   * that currently holds the note originated on `inputChannel`. MPE input mode only: in non-MPE
+   * mode these controls are routed to the Master Channel by the callers.
+   */
   private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
                                      makeMessage: Int => ScMidiMessage): Unit = {
-    if (inputMode == MpeInputMode.Mpe) {
-      mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
-        buffer += makeMessage(outChannel).javaMessage
-      }
-    } else {
-      // TODO #143 Not sure I follow why this is done.
-      // For non-MPE, forward to all occupied member channels that have notes from this input
-      val outChannels = noteChannelMap.collect {
-        case ((_, `inputChannel`), outCh) => outCh
-      }.toSet
-      outChannels.foreach { outCh =>
-        buffer += makeMessage(outCh).javaMessage
-      }
+    mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
+      buffer += makeMessage(outChannel).javaMessage
     }
   }
 

@@ -327,19 +327,50 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     output.flatMap(ScPolyPressureMidiMessage.fromJavaMessage) shouldBe empty
   }
 
-  it should "forward CC #74 to the appropriate member channel" in new TunerFixture() {
+  it should "redirect CC #74 to Master Channel as Zone-level timbre" in new TunerFixture() {
+    tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+    private val output = tuner.process(ScCcMidiMessage(nonMpeInputChannel, ScCcMidiMessage.MpeSlide, 100).javaMessage)
+    extractCc(output) should contain(ScCcMidiMessage(0, ScCcMidiMessage.MpeSlide, 100)) // master channel 0
+  }
+
+  it should "not forward CC #74 on any member channel in non-MPE mode" in new TunerFixture() {
     private val noteOutput = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
     private val noteChannel = extractNoteOns(noteOutput).head.channel
     private val output = tuner.process(ScCcMidiMessage(nonMpeInputChannel, ScCcMidiMessage.MpeSlide, 100).javaMessage)
-    extractCc(output) should contain(ScCcMidiMessage(noteChannel, ScCcMidiMessage.MpeSlide, 100))
+    extractCc(output).filter(cc => cc.number == ScCcMidiMessage.MpeSlide && cc.channel == noteChannel) shouldBe empty
   }
 
-  it should "forward Channel Pressure to the appropriate member channel" in new TunerFixture() {
+  it should "redirect Channel Pressure to Master Channel as Zone-level pressure" in new TunerFixture() {
+    tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+    private val output = tuner.process(ScChannelPressureMidiMessage(nonMpeInputChannel, 90).javaMessage)
+    extractChannelPressure(output) should contain(ScChannelPressureMidiMessage(0, 90)) // master channel 0
+  }
+
+  it should "not forward Channel Pressure on any member channel in non-MPE mode" in new TunerFixture() {
     private val noteOutput = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
     private val noteChannel = extractNoteOns(noteOutput).head.channel
     private val output = tuner.process(ScChannelPressureMidiMessage(nonMpeInputChannel, 90).javaMessage)
-    extractChannelPressure(output) should contain(ScChannelPressureMidiMessage(noteChannel, 90))
+    extractChannelPressure(output).filter(_.channel == noteChannel) shouldBe empty
   }
+
+  it should "initialize member channel CC #74 to default 64 even after sending CC #74 in non-MPE mode" in
+    new TunerFixture() {
+      // Sender sends CC #74 before Note On; value goes to Master Channel only
+      tuner.process(ScCcMidiMessage(nonMpeInputChannel, ScCcMidiMessage.MpeSlide, 120).javaMessage)
+      private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      private val noteChannel = extractNoteOns(output).head.channel
+      // Member channel must be initialized with neutral default (64), not the sender's value,
+      // to avoid double-counting with the Master Channel value.
+      extractCc(output) should contain(ScCcMidiMessage(noteChannel, ScCcMidiMessage.MpeSlide, 64))
+    }
+
+  it should "initialize member channel Channel Pressure to default 0 even after sending CP in non-MPE mode" in
+    new TunerFixture() {
+      tuner.process(ScChannelPressureMidiMessage(nonMpeInputChannel, 100).javaMessage)
+      private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
+      private val noteChannel = extractNoteOns(output).head.channel
+      extractChannelPressure(output) should contain(ScChannelPressureMidiMessage(noteChannel, 0))
+    }
 
   it should "initialize control dimensions before Note On even when input omits them" in new TunerFixture() {
     private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage)
