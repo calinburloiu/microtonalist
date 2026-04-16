@@ -21,11 +21,12 @@ import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.shouldEqual
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Inside, OptionValues}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 
-class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValues {
+class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValues with TableDrivenPropertyChecks {
 
   private implicit val defaultPbs: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity
   private val masterPbs: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity
@@ -434,16 +435,18 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     programChanges should contain(ScProgramChangeMidiMessage(0, 5))
   }
 
-  for ((ccName, ccNumber, ccValue) <- Seq(
-    ("Bank Select MSB", ScCcMidiMessage.BankSelectMsb, 1),
-    ("Bank Select LSB", ScCcMidiMessage.BankSelectLsb, 0),
-    ("Reset All Controllers", ScCcMidiMessage.ResetAllControllers, 0),
-    ("Modulation", ScCcMidiMessage.Modulation, 64),
-    ("Sostenuto Pedal", ScCcMidiMessage.SostenutoPedal, 127),
-    ("Soft Pedal", ScCcMidiMessage.SoftPedal, 127)
-  )) {
-    it should s"forward $ccName (CC #$ccNumber) on Master Channel" in new TunerFixture() {
-      private val output = tuner.process(ScCcMidiMessage(nonMpeInputChannel, ccNumber, ccValue).javaMessage)
+  it should "forward zone-level CCs on Master Channel" in new TunerFixture() {
+    private val zoneLevelCcs = Table(
+      ("ccName", "ccNumber", "ccValue"),
+      ("Bank Select MSB", ScCcMidiMessage.BankSelectMsb, 1),
+      ("Bank Select LSB", ScCcMidiMessage.BankSelectLsb, 0),
+      ("Reset All Controllers", ScCcMidiMessage.ResetAllControllers, 0),
+      ("Modulation", ScCcMidiMessage.Modulation, 64),
+      ("Sostenuto Pedal", ScCcMidiMessage.SostenutoPedal, 127),
+      ("Soft Pedal", ScCcMidiMessage.SoftPedal, 127)
+    )
+    forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
+      val output = tuner.process(ScCcMidiMessage(nonMpeInputChannel, ccNumber, ccValue).javaMessage)
       extractCc(output) should contain(ScCcMidiMessage(0, ccNumber, ccValue))
     }
   }
@@ -466,20 +469,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       programChanges should contain(ScProgramChangeMidiMessage(0, 5))
     }
 
-  for ((ccName, ccNumber, ccValue) <- Seq(
-    ("Bank Select MSB", ScCcMidiMessage.BankSelectMsb, 1),
-    ("Bank Select LSB", ScCcMidiMessage.BankSelectLsb, 0),
-    ("Reset All Controllers", ScCcMidiMessage.ResetAllControllers, 0),
-    ("Modulation", ScCcMidiMessage.Modulation, 64),
-    ("Sostenuto Pedal", ScCcMidiMessage.SostenutoPedal, 127),
-    ("Soft Pedal", ScCcMidiMessage.SoftPedal, 127)
-  )) {
-    it should s"forward $ccName (CC #$ccNumber) received on member channel to zone Master Channel" in
-      new TunerFixture(tuner7MpeInput) {
-        private val output = tuner.process(ScCcMidiMessage(mpeInputChannel, ccNumber, ccValue).javaMessage)
+  it should "forward zone-level CCs received on member channel to zone Master Channel" in
+    new TunerFixture(tuner7MpeInput) {
+      private val zoneLevelCcs = Table(
+        ("ccName", "ccNumber", "ccValue"),
+        ("Bank Select MSB", ScCcMidiMessage.BankSelectMsb, 1),
+        ("Bank Select LSB", ScCcMidiMessage.BankSelectLsb, 0),
+        ("Reset All Controllers", ScCcMidiMessage.ResetAllControllers, 0),
+        ("Modulation", ScCcMidiMessage.Modulation, 64),
+        ("Sostenuto Pedal", ScCcMidiMessage.SostenutoPedal, 127),
+        ("Soft Pedal", ScCcMidiMessage.SoftPedal, 127)
+      )
+      forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
+        val output = tuner.process(ScCcMidiMessage(mpeInputChannel, ccNumber, ccValue).javaMessage)
         extractCc(output) should contain(ScCcMidiMessage(0, ccNumber, ccValue))
       }
-  }
+    }
 
   it should "route zone-level CC to upper zone Master Channel when received on upper member channel" in
     new TunerFixture(dualZoneTunerMpeInput) {
