@@ -14,9 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.tuner.mpe
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.*
 
 import javax.sound.midi.{MidiMessage, ShortMessage}

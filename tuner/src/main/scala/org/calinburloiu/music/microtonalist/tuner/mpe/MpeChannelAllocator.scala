@@ -14,9 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.tuner.mpe
 
-import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
+import org.calinburloiu.music.microtonalist.tuner.*
+import org.calinburloiu.music.microtonalist.tuner.mpe.MpeChannelAllocator.ChannelGroup
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
 import scala.collection.mutable
@@ -239,6 +240,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param expressivePitchBendCents The initial expressive pitch bend in cents for the note.
    * @param preferredChannel         An optional preferred output channel (e.g., to preserve input
    *                                 allocation in MPE input mode).
+   *
    * @return [[AllocationResult]] containing the assigned channel and any notes that were dropped.
    */
   def allocate(midiNote: MidiNote,
