@@ -632,6 +632,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
+  // TODO #154 Wrong for the correct tuner version
   it should "average expressive pitch bends across notes sharing a single member channel" in
     new TunerFixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
       // tuner3: n=3 (PCG=1, EG=2). Input channels are 1..3 — the zone applies to input as well.
@@ -734,9 +735,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   }
 
   it should "preserve the highest note during channel exhaustion dropping" in new TunerFixture(tuner3) {
+    // Oldest not, but will not be dropped since it's the highest.
+    tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage) // highest
     tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, C4).javaMessage) // lowest
     tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, E4).javaMessage) // middle
-    tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, G4).javaMessage) // highest
     private val output = tuner.process(ScNoteOnMidiMessage(nonMpeInputChannel, A4).javaMessage)
     private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
     droppedNotes should not contain G4
@@ -766,14 +768,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "preserve the highest note during channel exhaustion dropping in MPE input mode" in
     new TunerFixture(tuner3MpeInput) {
+      // Oldest not, but will not be dropped since it's the highest.
+      tuner.process(ScNoteOnMidiMessage(3, G4).javaMessage) // highest
       tuner.process(ScNoteOnMidiMessage(1, C4).javaMessage) // lowest
       tuner.process(ScNoteOnMidiMessage(2, E4).javaMessage) // middle
-      tuner.process(ScNoteOnMidiMessage(3, G4).javaMessage) // highest
       private val output = tuner.process(ScNoteOnMidiMessage(1, A4).javaMessage)
       private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
       droppedNotes should not contain G4
     }
 
+  // TODO #154 Wrong for the correct tuner version
   it should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
     new TunerFixture(tuner3MpeInput) {
       // tuner3 in MPE input: PCG=1, EG=2. Input channels are 1..3.
@@ -789,10 +793,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val highBendValue = ScPitchBendMidiMessage.convertCentsToValue(highBendCents, defaultPbs)
       private val output = tuner.process(ScPitchBendMidiMessage(1, highBendValue).javaMessage)
       private val noteOffs = extractNoteOffs(output)
-      noteOffs.map(n => (n.channel, n.midiNote)) should contain((sharedChannel, E4))
-      noteOffs.map(n => (n.channel, n.midiNote)) should not contain((sharedChannel, E5))
+      noteOffs.map(n => (n.channel, n.midiNote)) should contain(sharedChannel, E4)
+      noteOffs.map(n => (n.channel, n.midiNote)) should not contain(sharedChannel, E5)
     }
 
+  // TODO #154 Wrong for the correct tuner version
   it should "drop existing notes when a new note is allocated to a channel holding a high-bend note" in
     new TunerFixture(tuner3MpeInput) {
       // E4 alone on a PCG channel; bend it past the high-bend threshold (50 cents).
