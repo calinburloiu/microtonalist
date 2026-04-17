@@ -391,6 +391,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   behavior of "MpeChannelAllocator - Note Dropping (High Expressive Pitch Bend)"
 
   it should "drop other notes when a note on a shared channel develops high expressive pitch bend" in {
+    // Given
     val alloc = allocator3 // PCG=1, EG=2
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
@@ -398,68 +399,88 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     // All channels have C. Add another C to share
     val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
+    // When
     // Now update pitch bend on shared channel to high value
     val droppedNotes = alloc.updateExpressivePitchBend(sharedChannel, highPitchBendCents)
+    // Then
     droppedNotes should not be empty
     alloc.activeNotes(sharedChannel) should contain theSameElementsAs Set(C6)
   }
 
   it should "not drop notes when expressive pitch bend is below threshold" in {
+    // Given
     val alloc = allocator3
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
     val r3 = alloc.allocate(C3)
     val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
+    // When
     val droppedNotes = alloc.updateExpressivePitchBend(sharedChannel, lowPitchBendCents)
+    // Then
     droppedNotes shouldBe empty
   }
 
   it should "drop existing notes when new note with high expressive pitch bend is assigned to occupied channel" in {
+    // Given
     val alloc = allocator2 // PCG=1, EG=1
     val r1 = alloc.allocate(C4)
     alloc.allocate(C5)
+    // When
     // Both channels occupied with C. Third C must share.
     val result = alloc.allocate(C3, expressivePitchBendCents = highPitchBendCents)
+    // Then
     assertDroppedNotes(result.droppedNotes, Seq(C4))
     result.channel shouldBe r1.channel
     alloc.activeNotes(result.channel) should contain theSameElementsAs Set(C3)
   }
 
   it should "not drop notes when new note with low expressive pitch bend is assigned to occupied channel" in {
+    // Given
     val alloc = allocator2
     alloc.allocate(C4)
     alloc.allocate(C5)
+    // When
     val result = alloc.allocate(C3, expressivePitchBendCents = lowPitchBendCents)
+    // Then
     result.droppedNotes shouldBe empty
   }
 
   it should "free channel when new note is assigned to channel with existing high-bend note" in {
+    // Given
     val alloc = allocator2
     val r1 = alloc.allocate(C4, expressivePitchBendCents = highPitchBendCents)
     alloc.allocate(D4)
+    // When
     // Third C must share. r1 has high bend.
     val result = alloc.allocate(C3)
+    // Then
     result.channel shouldEqual r1.channel
     assertDroppedNotes(result.droppedNotes, Seq(C4))
   }
 
   it should "not free channel when new note is assigned to channel with existing low-bend note" in {
+    // Given
     val alloc = allocator2
     alloc.allocate(C4, expressivePitchBendCents = lowPitchBendCents)
     alloc.allocate(C5)
+    // When
     val result = alloc.allocate(C3)
+    // Then
     result.droppedNotes shouldBe empty
   }
 
   it should "ensure a note with high expressive pitch bend is always sole note on its channel" in {
+    // Given
     val alloc = allocator3
     alloc.allocate(C4)
     alloc.allocate(C5)
     alloc.allocate(C3)
     val r4 = alloc.allocate(C6)
     val sharedChannel = r4.channel
+    // When
     alloc.updateExpressivePitchBend(sharedChannel, highPitchBendCents)
+    // Then
     alloc.activeNotes(sharedChannel) should contain theSameElementsAs Set(C6)
   }
 
@@ -468,10 +489,13 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   behavior of "MpeChannelAllocator - Channel Release"
 
   it should "make channel available for reuse when all notes have ended" in {
+    // Given
     val alloc = allocator2
     val r1 = alloc.allocate(C4)
     alloc.allocate(E4)
+    // When
     alloc.release(C4, r1.channel)
+    // Then
     alloc.isChannelOccupied(r1.channel) shouldBe false
     // New note can reuse the channel
     val r2 = alloc.allocate(D4)
@@ -480,13 +504,16 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   }
 
   it should "keep channel occupied until all notes receive Note Off" in {
+    // Given
     val alloc = allocator2 // PCG=1, EG=1
     val r1 = alloc.allocate(C4)
     alloc.allocate(C5) // goes to EG
     val r2 = alloc.allocate(C3) // must share
     val sharedChannel = r2.channel
     alloc.activeNotes(sharedChannel).size should be > 1
+    // When
     alloc.release(C3, sharedChannel)
+    // Then
     alloc.isChannelOccupied(sharedChannel) shouldBe true
   }
 
@@ -495,29 +522,42 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   behavior of "MpeChannelAllocator - MPE Input"
 
   it should "preserve input channel assignment when it doesn't violate constraints" in {
+    // Given
     val alloc = allocator15
+    // When
     val result = alloc.allocate(C4, preferredChannel = Some(5))
+    // Then
     result.channel shouldBe 5
   }
 
   it should "override input channel when it would violate pitch-class invariant" in {
+    // Given
     val alloc = allocator15
     alloc.allocate(D4, preferredChannel = Some(5)) // D on channel 5
+    // When
     // Try to put C on channel 5 - violates pitch-class invariant
     val result = alloc.allocate(C4, preferredChannel = Some(5))
+    // Then
     result.channel should not be 5
     // It should pick another channel (Pitch Class Group)
     alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
   }
 
   it should "ensure unoccupied channels have no group" in {
+    // Given
     val alloc = allocator15
+    // Then
     (1 to 15).foreach { c => alloc.channelGroupOf(c) shouldBe None }
+
+    // When
     val r1 = alloc.allocate(C4)
     val ch = r1.channel
+    // Then
     alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass)
 
+    // When
     alloc.release(C4, ch)
+    // Then
     alloc.channelGroupOf(ch) shouldBe None
   }
 }
