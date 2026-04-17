@@ -100,6 +100,10 @@ Conventionally, the tests for a given production class use the same package and 
 example, the test class for `org.calinburloiu.music.intonation.RatioInterval` is
 `org.calinburloiu.music.intonation.RatioIntervalTest`.
 
+The project uses `scalatest` library for testing and `scalamock` for mocking / stubbing. The “behavior-driven” style of
+development (BDD) is preferred for writting tests by making tests classes extend `org.scalatest.flatspec.AnyFlatSpec`
+and `org.scalatest.matchers.should.Matchers`.
+
 Currently, Metals MCP cannot run tests with this setup (with SBT and BSP). So run all tests by starting `sbt` processes.
 
 Running all tests:
@@ -288,6 +292,41 @@ Write a failing test first — if the compiler requires it, create the thinnest 
 get it to compile, then confirm the test fails for the right reason. Write only enough production code to make it pass,
 no more. Once green, refactor the structure and naming freely, keeping the suite green throughout. Never write logic
 without a preceding failing test, never commit red production code, and never mix refactoring with behavioral changes.
+
+## Use Given / When / Then comments in tests
+
+Tests cases should be written using the `Given` / `When` / `Then` format. Some tests may not have a `Given` section,
+while others may have multiple instances if the three.
+
+Wrong:
+
+```scala
+  it should "map just Cireșar scale" in {
+  val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
+  val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
+  val tuning = mapper.mapScale(ciresar, cTuningReference)
+
+  tuning.completedCount shouldEqual 8
+  tuning.eFlat shouldEqual 15.64
+}
+```
+
+Correct:
+
+```scala
+  it should "map just Cireșar scale" in {
+  // Given
+  val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
+  val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
+
+  // When
+  val tuning = mapper.mapScale(ciresar, cTuningReference)
+
+  // Then
+  tuning.completedCount shouldEqual 8
+  tuning.eFlat shouldEqual 15.64
+}
+```
 
 ## No `if`s in tests
 
