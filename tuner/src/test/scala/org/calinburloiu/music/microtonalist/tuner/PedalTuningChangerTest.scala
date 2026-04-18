@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
+import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.microtonalist.tuner.mts.MtsMessageGenerator
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, NoteOnScMidiMessage}
@@ -38,12 +38,12 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     defaultPedalTuningChanger.typeName shouldEqual "pedal"
   }
 
-  val customPreviousTuningCcTrigger: Cc = 60
-  val customNextTuningCcTrigger: Cc = 61
-  val customIndex1TuningCcTrigger: Cc = 10
-  val customIndex2TuningCcTrigger: Cc = 20
+  val customPreviousTuningCcTrigger: CcNumber = 60
+  val customNextTuningCcTrigger: CcNumber = 61
+  val customIndex1TuningCcTrigger: CcNumber = 10
+  val customIndex2TuningCcTrigger: CcNumber = 20
   val customThreshold = 16
-  private val customTuningChangeTriggers: TuningChangeTriggers[Cc] = TuningChangeTriggers(
+  private val customTuningChangeTriggers: TuningChangeTriggers[CcNumber] = TuningChangeTriggers(
     previous = Some(customPreviousTuningCcTrigger),
     next = Some(customNextTuningCcTrigger),
     index = Map(1 -> customIndex1TuningCcTrigger, 2 -> customIndex2TuningCcTrigger)
@@ -51,7 +51,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   val tuningChanger: PedalTuningChanger = PedalTuningChanger(customTuningChangeTriggers, customThreshold,
     triggersThru = false)
 
-  val testCases: Seq[(TuningChange, Cc)] = Seq(
+  val testCases: Seq[(TuningChange, CcNumber)] = Seq(
     (PreviousTuningChange, customPreviousTuningCcTrigger),
     (NextTuningChange, customNextTuningCcTrigger),
     (IndexTuningChange(1), customIndex1TuningCcTrigger),

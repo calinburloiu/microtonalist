@@ -22,8 +22,8 @@ import org.scalatest.matchers.should.Matchers
 
 class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
   val triggers: TuningChangeTriggers[PedalTuningChanger.Cc] = TuningChangeTriggers(
-    previous = Some(CcScMidiMessage.SoftPedal),
-    next = Some(CcScMidiMessage.SostenutoPedal),
+    previous = Some(Cc.SoftPedal),
+    next = Some(Cc.SostenutoPedal),
     index = Map(
       1 -> 10,
       2 -> 20
@@ -51,13 +51,13 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
   }
 
   "hasPreviousWithTrigger" should "return true if there is a trigger for previous tuning" in {
-    triggers.hasPreviousWithTrigger(CcScMidiMessage.SostenutoPedal) shouldBe false
-    triggers.hasPreviousWithTrigger(CcScMidiMessage.SoftPedal) shouldBe true
+    triggers.hasPreviousWithTrigger(Cc.SostenutoPedal) shouldBe false
+    triggers.hasPreviousWithTrigger(Cc.SoftPedal) shouldBe true
   }
 
   "hasNextWithTrigger" should "return true if there is a trigger for next tuning" in {
-    triggers.hasNextWithTrigger(CcScMidiMessage.SostenutoPedal) shouldBe true
-    triggers.hasNextWithTrigger(CcScMidiMessage.SoftPedal) shouldBe false
+    triggers.hasNextWithTrigger(Cc.SostenutoPedal) shouldBe true
+    triggers.hasNextWithTrigger(Cc.SoftPedal) shouldBe false
   }
 
   "hasIndexWithTrigger" should "return true if there is a trigger for tuning to specific index" in {
@@ -68,19 +68,19 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
   }
 
   "hasTrigger" should "return true if there is any trigger for given value" in {
-    triggers.hasTrigger(CcScMidiMessage.SoftPedal) shouldBe true
-    triggers.hasTrigger(CcScMidiMessage.SostenutoPedal) shouldBe true
+    triggers.hasTrigger(Cc.SoftPedal) shouldBe true
+    triggers.hasTrigger(Cc.SostenutoPedal) shouldBe true
     triggers.hasTrigger(10) shouldBe true
     triggers.hasTrigger(20) shouldBe true
 
-    triggers.hasTrigger(CcScMidiMessage.SustainPedal) shouldBe false
+    triggers.hasTrigger(Cc.SustainPedal) shouldBe false
   }
 
   "tuningChangeForTrigger" should "compute the tuning change operation for the given trigger" in {
-    triggers.tuningChangeForTrigger(CcScMidiMessage.SoftPedal) shouldEqual PreviousTuningChange
-    triggers.tuningChangeForTrigger(CcScMidiMessage.SostenutoPedal) shouldEqual NextTuningChange
+    triggers.tuningChangeForTrigger(Cc.SoftPedal) shouldEqual PreviousTuningChange
+    triggers.tuningChangeForTrigger(Cc.SostenutoPedal) shouldEqual NextTuningChange
     triggers.tuningChangeForTrigger(10) shouldEqual IndexTuningChange(1)
     triggers.tuningChangeForTrigger(20) shouldEqual IndexTuningChange(2)
-    triggers.tuningChangeForTrigger(CcScMidiMessage.SustainPedal) shouldEqual NoTuningChange
+    triggers.tuningChangeForTrigger(Cc.SustainPedal) shouldEqual NoTuningChange
   }
 }

@@ -27,8 +27,8 @@ import javax.sound.midi.{MidiMessage, Receiver}
 class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
   val noteTriggerMidiMessage: MidiMessage = NoteOnScMidiMessage(1, MidiNote.C4, 64).javaMessage
-  val ccTriggerMidiMessage: MidiMessage = CcScMidiMessage(1, CcScMidiMessage.SostenutoPedal, 32).javaMessage
-  val nonTriggerMidiMessage1: MidiMessage = CcScMidiMessage(1, CcScMidiMessage.Modulation, 96).javaMessage
+  val ccTriggerMidiMessage: MidiMessage = CcScMidiMessage(1, Cc.SostenutoPedal, 32).javaMessage
+  val nonTriggerMidiMessage1: MidiMessage = CcScMidiMessage(1, Cc.Modulation, 96).javaMessage
   val nonTriggerMidiMessage2: MidiMessage = NoteOnScMidiMessage(1, MidiNote.B4, 16).javaMessage
 
   abstract class Fixture(triggersThru: Boolean = false) {

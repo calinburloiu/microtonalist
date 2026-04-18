@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, MidiRequirements, Rpn}
+import org.calinburloiu.music.scmidi.message.{Cc, CcScMidiMessage, MidiRequirements, Rpn}
 
 import javax.sound.midi.MidiMessage
 
@@ -69,13 +69,13 @@ object PitchBendSensitivityMessages {
    */
   def create(channel: Int, pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
     Seq(
-      CcScMidiMessage(channel, CcScMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(channel, CcScMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(channel, CcScMidiMessage.DataEntryMsb, pitchBendSensitivity.semitones),
-      CcScMidiMessage(channel, CcScMidiMessage.DataEntryLsb, pitchBendSensitivity.cents),
+      CcScMidiMessage(channel, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(channel, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(channel, Cc.DataEntryMsb, pitchBendSensitivity.semitones),
+      CcScMidiMessage(channel, Cc.DataEntryLsb, pitchBendSensitivity.cents),
       // Setting cr number to Null to prevent accidental changes of values
-      CcScMidiMessage(channel, CcScMidiMessage.RpnLsb, Rpn.NullLsb),
-      CcScMidiMessage(channel, CcScMidiMessage.RpnMsb, Rpn.NullMsb)
+      CcScMidiMessage(channel, Cc.RpnLsb, Rpn.NullLsb),
+      CcScMidiMessage(channel, Cc.RpnMsb, Rpn.NullMsb)
     ).map(_.javaMessage)
   }
 }

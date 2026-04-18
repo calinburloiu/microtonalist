@@ -21,8 +21,7 @@ import javax.sound.midi.{MidiMessage, ShortMessage}
 /**
  * Represents a MIDI Control Change (CC) message with named, validated `number` and `value` parameters.
  *
- * The companion object provides constants for commonly used controller numbers (e.g. [[CcScMidiMessage.SustainPedal]],
- * [[CcScMidiMessage.RpnMsb]]), avoiding the magic numbers typical of raw Java MIDI code.
+ * CC number constants are available in the [[Cc]] object.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param number  The controller number (0-127).
@@ -40,44 +39,6 @@ case class CcScMidiMessage(channel: Int, number: Int, value: Int) extends ScMidi
  * Companion object for [[CcScMidiMessage]].
  */
 object CcScMidiMessage extends FromJavaMidiMessageConverter[CcScMidiMessage] {
-  /** Registered Parameter Number (RPN) MSB controller number (#101). */
-  val RpnMsb: Int = 101
-  /** Registered Parameter Number (RPN) LSB controller number (#100). */
-  val RpnLsb: Int = 100
-  /** Data Entry MSB controller number (#6). */
-  val DataEntryMsb: Int = 6
-  /** Data Entry LSB controller number (#38). */
-  val DataEntryLsb: Int = 38
-  /** Data Increment controller number (#96). */
-  val DataIncrement: Int = 96
-  /** Data Decrement controller number (#97). */
-  val DataDecrement: Int = 97
-  /** All Sound Off controller number (#120). */
-  val AllSoundOff: Int = 120
-  /** Reset All Controllers controller number (#121). */
-  val ResetAllControllers: Int = 121
-  /** All Notes Off controller number (#123). */
-  val AllNotesOff: Int = 123
-
-  /** Bank Select MSB controller number (#0). */
-  val BankSelectMsb: Int = 0
-  /** Bank Select LSB controller number (#32). */
-  val BankSelectLsb: Int = 32
-
-  /** Modulation Wheel controller number (#1). */
-  val Modulation: Int = 1
-  /** Sustain Pedal (Damper) controller number (#64). */
-  val SustainPedal: Int = 64
-  /** Sostenuto Pedal controller number (#66). */
-  val SostenutoPedal: Int = 66
-  /** Soft Pedal controller number (#67). */
-  val SoftPedal: Int = 67
-
-  /**
-   * Represents the MPE (MIDI Polyphonic Expression) Slide controller number (#74), also known as Timbre or Brightness.
-   */
-  val MpeSlide: Int = 74
-
   /** Extracts the channel, controller number, and value from a [[MidiMessage]] if it is a Control Change message. */
   def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
     case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CONTROL_CHANGE =>

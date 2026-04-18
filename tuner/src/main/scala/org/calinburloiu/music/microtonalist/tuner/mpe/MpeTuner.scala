@@ -242,7 +242,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // as Zone-level controls, so the Member Channel is initialized to neutral defaults
         // (MPE spec §3.3.5 Initial-64 for CC #74, §3.3.4 CP=0) to avoid double-counting.
         val slide = if (inputMode == MpeInputMode.Mpe) channelSlideMap.getOrElse(inputChannel, 64) else 64
-        buffer += CcScMidiMessage(outChannel, CcScMidiMessage.MpeSlide, slide).javaMessage
+        buffer += CcScMidiMessage(outChannel, Cc.MpeSlide, slide).javaMessage
 
         val pressure = if (inputMode == MpeInputMode.Mpe) channelPressureMap.getOrElse(inputChannel, 0) else 0
         buffer += ChannelPressureScMidiMessage(outChannel, pressure).javaMessage
@@ -322,26 +322,26 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     ccNumber match {
       // RPN state machine
-      case CcScMidiMessage.RpnLsb =>
+      case Cc.RpnLsb =>
         rpnLsbState(inputChannel) = ccValue
         buffer += CcScMidiMessage(inputChannel, ccNumber, ccValue).javaMessage
-      case CcScMidiMessage.RpnMsb =>
+      case Cc.RpnMsb =>
         rpnMsbState(inputChannel) = ccValue
         buffer += CcScMidiMessage(inputChannel, ccNumber, ccValue).javaMessage
-      case CcScMidiMessage.DataEntryMsb if isMcmRpn && (inputChannel == 0 || inputChannel == 15) =>
+      case Cc.DataEntryMsb if isMcmRpn && (inputChannel == 0 || inputChannel == 15) =>
         processMcm(buffer, inputChannel, ccValue)
-      case CcScMidiMessage.DataEntryMsb | CcScMidiMessage.DataEntryLsb if isPbsRpn =>
+      case Cc.DataEntryMsb | Cc.DataEntryLsb if isPbsRpn =>
         processPbs(buffer, inputChannel, ccNumber, ccValue)
 
       // CC #74 (MPE Slide / timbre): in MPE mode, route to the allocated Member Channel as
       // per-note timbre; in non-MPE mode, route to the Zone's Master Channel as Zone-level timbre
       // (MPE spec §2.6: CC #74 is both Note-Level and Zone-Level).
-      case CcScMidiMessage.MpeSlide =>
+      case Cc.MpeSlide =>
         if (inputMode == MpeInputMode.Mpe) {
           channelSlideMap(inputChannel) = ccValue
-          forwardToMemberChannel(buffer, inputChannel, CcScMidiMessage(_, CcScMidiMessage.MpeSlide, ccValue))
+          forwardToMemberChannel(buffer, inputChannel, CcScMidiMessage(_, Cc.MpeSlide, ccValue))
         } else {
-          forwardOnZoneMasterChannel(buffer, inputChannel, CcScMidiMessage(_, CcScMidiMessage.MpeSlide, ccValue))
+          forwardOnZoneMasterChannel(buffer, inputChannel, CcScMidiMessage(_, Cc.MpeSlide, ccValue))
         }
       // All other CCs are forwarded on the master channel of the zone the input belongs to
       case _ =>
@@ -403,7 +403,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     findZoneForChannel(channel) match {
       case Some((zone, isMaster)) =>
         val currentPbs = if (isMaster) zone.masterPitchBendSensitivity else zone.memberPitchBendSensitivity
-        val newPbs = if (ccNumber == CcScMidiMessage.DataEntryMsb) {
+        val newPbs = if (ccNumber == Cc.DataEntryMsb) {
           currentPbs.copy(semitones = ccValue)
         } else {
           currentPbs.copy(cents = ccValue)
@@ -436,15 +436,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     if (logger.underlying.isInfoEnabled) {
       val channelRole = if (isMaster) "master" else "member"
-      val pbsField = if (ccNumber == CcScMidiMessage.DataEntryMsb) "semitones" else "cents"
+      val pbsField = if (ccNumber == Cc.DataEntryMsb) "semitones" else "cents"
       logger.info(s"PBS updated on $channelRole channel $channel of ${updatedZone.zoneType} zone: $pbsField = $ccValue")
     }
 
     // Forward the RPN setup and Data Entry CC on the original channel only.
     // The RPN is re-sent to guard against interleaving from other devices that may have changed the
     // active RPN on this channel.
-    buffer += CcScMidiMessage(channel, CcScMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage
-    buffer += CcScMidiMessage(channel, CcScMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage
+    buffer += CcScMidiMessage(channel, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage
+    buffer += CcScMidiMessage(channel, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage
     buffer += CcScMidiMessage(channel, ccNumber, ccValue).javaMessage
 
     // Recompute pitch bends on occupied member channels if member PBS changed
@@ -624,11 +624,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def mcmMessages(zone: MpeZone): Seq[MidiMessage] = {
     // MCM: RPN 6 on master channel with data = memberCount
     Seq(
-      CcScMidiMessage(zone.masterChannel, CcScMidiMessage.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(zone.masterChannel, CcScMidiMessage.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(zone.masterChannel, CcScMidiMessage.DataEntryMsb, zone.memberCount),
-      CcScMidiMessage(zone.masterChannel, CcScMidiMessage.RpnLsb, Rpn.NullLsb),
-      CcScMidiMessage(zone.masterChannel, CcScMidiMessage.RpnMsb, Rpn.NullMsb)
+      CcScMidiMessage(zone.masterChannel, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(zone.masterChannel, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(zone.masterChannel, Cc.DataEntryMsb, zone.memberCount),
+      CcScMidiMessage(zone.masterChannel, Cc.RpnLsb, Rpn.NullLsb),
+      CcScMidiMessage(zone.masterChannel, Cc.RpnMsb, Rpn.NullMsb)
     ).map(_.javaMessage)
   }
 
