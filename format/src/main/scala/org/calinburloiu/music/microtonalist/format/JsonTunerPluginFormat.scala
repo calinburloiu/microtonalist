@@ -139,18 +139,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
       format = mpeTunerFormat,
       javaClass = classOf[MpeTuner]
     ),
-    TypeSpec.withSettings[MonophonicPitchBendTuner](
-      typeName = MonophonicPitchBendTuner.TypeName,
-      format = monophonicPitchBendTunerFormat,
-      javaClass = classOf[MonophonicPitchBendTuner],
-      defaultSettings = Json.obj(
-        "outputChannel" -> 1,
-        "pitchBendSensitivity" -> Json.obj(
-          "semitoneCount" -> 2,
-          "centCount" -> 0
-        )
-      )
-    ),
+    JsonMonophonicPitchBendTunerPluginFormating.spec,
     makeMtsTunerTypeSpec[MtsOctave1ByteNonRealTimeTuner](
       typeName = MtsTuner.MtsOctave1ByteNonRealTimeTunerTypeName,
       javaClass = classOf[MtsOctave1ByteNonRealTimeTuner],
