@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.ScCcMidiMessage
+import org.calinburloiu.music.scmidi.message.ScMidiCc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
-  val triggers: TuningChangeTriggers[PedalTuningChanger.Cc] = TuningChangeTriggers(
-    previous = Some(ScCcMidiMessage.SoftPedal),
-    next = Some(ScCcMidiMessage.SostenutoPedal),
+  val triggers: TuningChangeTriggers[PedalTuningChanger.CcNumber] = TuningChangeTriggers(
+    previous = Some(ScMidiCc.SoftPedal),
+    next = Some(ScMidiCc.SostenutoPedal),
     index = Map(
       1 -> 10,
       2 -> 20
@@ -32,15 +32,15 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
 
   "constructor" should "fail if there is no trigger configured" in {
     assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[PedalTuningChanger.Cc](
+      TuningChangeTriggers[PedalTuningChanger.CcNumber](
         previous = None,
         next = None,
-        index = Map.empty[Int, PedalTuningChanger.Cc]
+        index = Map.empty[Int, PedalTuningChanger.CcNumber]
       )
     }
 
     assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[PedalTuningChanger.Cc]()
+      TuningChangeTriggers[PedalTuningChanger.CcNumber]()
     }
   }
 
@@ -51,13 +51,13 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
   }
 
   "hasPreviousWithTrigger" should "return true if there is a trigger for previous tuning" in {
-    triggers.hasPreviousWithTrigger(ScCcMidiMessage.SostenutoPedal) shouldBe false
-    triggers.hasPreviousWithTrigger(ScCcMidiMessage.SoftPedal) shouldBe true
+    triggers.hasPreviousWithTrigger(ScMidiCc.SostenutoPedal) shouldBe false
+    triggers.hasPreviousWithTrigger(ScMidiCc.SoftPedal) shouldBe true
   }
 
   "hasNextWithTrigger" should "return true if there is a trigger for next tuning" in {
-    triggers.hasNextWithTrigger(ScCcMidiMessage.SostenutoPedal) shouldBe true
-    triggers.hasNextWithTrigger(ScCcMidiMessage.SoftPedal) shouldBe false
+    triggers.hasNextWithTrigger(ScMidiCc.SostenutoPedal) shouldBe true
+    triggers.hasNextWithTrigger(ScMidiCc.SoftPedal) shouldBe false
   }
 
   "hasIndexWithTrigger" should "return true if there is a trigger for tuning to specific index" in {
@@ -68,19 +68,19 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
   }
 
   "hasTrigger" should "return true if there is any trigger for given value" in {
-    triggers.hasTrigger(ScCcMidiMessage.SoftPedal) shouldBe true
-    triggers.hasTrigger(ScCcMidiMessage.SostenutoPedal) shouldBe true
+    triggers.hasTrigger(ScMidiCc.SoftPedal) shouldBe true
+    triggers.hasTrigger(ScMidiCc.SostenutoPedal) shouldBe true
     triggers.hasTrigger(10) shouldBe true
     triggers.hasTrigger(20) shouldBe true
 
-    triggers.hasTrigger(ScCcMidiMessage.SustainPedal) shouldBe false
+    triggers.hasTrigger(ScMidiCc.SustainPedal) shouldBe false
   }
 
   "tuningChangeForTrigger" should "compute the tuning change operation for the given trigger" in {
-    triggers.tuningChangeForTrigger(ScCcMidiMessage.SoftPedal) shouldEqual PreviousTuningChange
-    triggers.tuningChangeForTrigger(ScCcMidiMessage.SostenutoPedal) shouldEqual NextTuningChange
+    triggers.tuningChangeForTrigger(ScMidiCc.SoftPedal) shouldEqual PreviousTuningChange
+    triggers.tuningChangeForTrigger(ScMidiCc.SostenutoPedal) shouldEqual NextTuningChange
     triggers.tuningChangeForTrigger(10) shouldEqual IndexTuningChange(1)
     triggers.tuningChangeForTrigger(20) shouldEqual IndexTuningChange(2)
-    triggers.tuningChangeForTrigger(ScCcMidiMessage.SustainPedal) shouldEqual NoTuningChange
+    triggers.tuningChangeForTrigger(ScMidiCc.SustainPedal) shouldEqual NoTuningChange
   }
 }

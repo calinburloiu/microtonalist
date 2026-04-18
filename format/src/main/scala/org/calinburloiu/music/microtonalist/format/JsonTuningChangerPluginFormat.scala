@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
-import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
+import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
-import org.calinburloiu.music.scmidi.ScCcMidiMessage
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc}
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
 import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
@@ -37,21 +37,21 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
       case _ => JsError("error.expected.integer.positive")
     }
   }
-  private val indexTriggersReads: Reads[Map[Int, Int]] = Reads.mapReads[Int, Cc](tuningIndexKeyReads)(uint7Format)
+  private val indexTriggersReads: Reads[Map[Int, Int]] = Reads.mapReads[Int, CcNumber](tuningIndexKeyReads)(uint7Format)
   private val indexTriggersWrites: Writes[Map[Int, Int]] = Writes { map =>
     val convertedMap = map.map { case (k, v) => k.toString -> v }
     Json.toJson(convertedMap)
   }
 
   //@formatter:off
-  val ccTriggersFormat: Format[TuningChangeTriggers[Cc]] = (
-    (__ \ "previous").formatNullable[Cc](uint7Format) and
-    (__ \ "next").formatNullable[Cc](uint7Format) and
-    (__ \ "index").formatWithDefault[Map[Int, Cc]](Map.empty)(Format(indexTriggersReads, indexTriggersWrites))
+  val ccTriggersFormat: Format[TuningChangeTriggers[CcNumber]] = (
+    (__ \ "previous").formatNullable[CcNumber](uint7Format) and
+    (__ \ "next").formatNullable[CcNumber](uint7Format) and
+    (__ \ "index").formatWithDefault[Map[Int, CcNumber]](Map.empty)(Format(indexTriggersReads, indexTriggersWrites))
   )(TuningChangeTriggers.apply, Tuple.fromProductTyped)
 
   implicit val pedalTuningChangerFormat: Format[PedalTuningChanger] = (
-    (__ \ "triggers").format[TuningChangeTriggers[Cc]](ccTriggersFormat) and
+    (__ \ "triggers").format[TuningChangeTriggers[CcNumber]](ccTriggersFormat) and
     (__ \ "threshold").format[Int](min(0) keepAnd max(126)) and
     (__ \ "triggersThru").format[Boolean]
   )(PedalTuningChanger.apply, Tuple.fromProductTyped)
@@ -64,8 +64,8 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
       javaClass = classOf[PedalTuningChanger],
       defaultSettings = Json.obj(
         "triggers" -> Json.obj(
-          "previous" -> ScCcMidiMessage.SoftPedal,
-          "next" -> ScCcMidiMessage.SostenutoPedal
+          "previous" -> ScMidiCc.SoftPedal,
+          "next" -> ScMidiCc.SostenutoPedal
         ),
         "threshold" -> 0,
         "triggersThru" -> false

@@ -21,6 +21,8 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import org.calinburloiu.music.scmidi.message.NoteOnScMidiMessage
+
 import javax.sound.midi.{MidiMessage, Receiver}
 import scala.collection.mutable
 
@@ -40,11 +42,11 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
   class TestMidiProcessor(val factor: Int) extends MidiProcessor {
 
     override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = message match {
-      case ScNoteOnMidiMessage(channel, midiNote, velocity) =>
+      case NoteOnScMidiMessage(channel, midiNote, velocity) =>
         val newVelocity = Math.min(factor * velocity, 127)
         processedVelocities += Tuple2(factor, newVelocity)
 
-        Seq(ScNoteOnMidiMessage(channel, midiNote, newVelocity).javaMessage)
+        Seq(NoteOnScMidiMessage(channel, midiNote, newVelocity).javaMessage)
       case otherMessage => Seq(otherMessage)
     }
 
@@ -59,7 +61,7 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
     val outputReceiver: Stub[Receiver] = stub[Receiver]
     outputReceiver.send.returns {
-      case (ScNoteOnMidiMessage(_, _, velocity), ts) => outputVelocities += velocity
+      case (NoteOnScMidiMessage(_, _, velocity), ts) => outputVelocities += velocity
     }
 
     val midiSerialProcessor: MidiSerialProcessor
@@ -67,7 +69,7 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
     def send(velocity: Int): Unit = {
       if (shouldSetOutputReceiverOnSend) midiSerialProcessor.transmitter.receiver = Some(outputReceiver)
 
-      midiSerialProcessor.receiver.send(ScNoteOnMidiMessage(0, MidiNote.C4, velocity).javaMessage, 123L)
+      midiSerialProcessor.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, velocity).javaMessage, 123L)
     }
   }
 
@@ -133,7 +135,7 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
     // When
     midiSerialProcessor.transmitter.receiver = Some(outputReceiver)
-    midiSerialProcessor.receiver.send(ScNoteOnMidiMessage(0, MidiNote.C4, 1).javaMessage, 123L)
+    midiSerialProcessor.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, 1).javaMessage, 123L)
     // Then
     outputVelocities should contain theSameElementsAs Seq(15)
   }
@@ -161,7 +163,7 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
     midiSerialProcessor.processors = Seq(processor3x, processor5x)
 
     // When
-    midiSerialProcessor.receiver.send(ScNoteOnMidiMessage(0, MidiNote.C4, 7).javaMessage, 12L)
+    midiSerialProcessor.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, 7).javaMessage, 12L)
 
     // Then
     midiSerialProcessor.processors should contain theSameElementsAs Seq(processor3x, processor5x)

@@ -17,6 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
+import org.calinburloiu.music.scmidi.message.ScMidiMessage
 
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
