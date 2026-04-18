@@ -36,7 +36,8 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
 
   private type MtsTunerParamsTuple = (Boolean, Option[MidiDeviceId])
 
-  private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = PitchBendSensitivityFormat
+  private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] =
+    JsonCommonMidiFormat.pitchBendSensitivityFormat
 
   //@formatter:off
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (

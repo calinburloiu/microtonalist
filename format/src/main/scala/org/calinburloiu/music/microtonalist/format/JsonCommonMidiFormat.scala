@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.scmidi.MidiDeviceId
-import play.api.libs.functional.syntax.toApplicativeOps
+import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
+import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.Reads.{max, min}
-import play.api.libs.json.{Format, JsNumber, Json, Writes}
+import play.api.libs.json.*
 
 object JsonCommonMidiFormat {
   val midiDeviceIdFormat: Format[MidiDeviceId] = Json.format[MidiDeviceId]
@@ -28,4 +28,10 @@ object JsonCommonMidiFormat {
     (min(1) keepAnd max(16)).map(_ - 1),
     Writes { (channel: Int) => JsNumber(channel + 1) }
   )
+
+  val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = (
+    (__ \ "semitoneCount").format[Int](uint7Format) and
+      (__ \ "centCount").formatWithDefault[Int](0)(uint7Format)
+    )(PitchBendSensitivity.apply, Tuple.fromProductTyped)
+  //@formatter:on
 }

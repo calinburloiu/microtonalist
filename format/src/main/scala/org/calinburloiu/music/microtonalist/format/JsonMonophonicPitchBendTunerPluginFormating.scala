@@ -27,7 +27,8 @@ import play.api.libs.json.{Format, Json, __}
  */
 object JsonMonophonicPitchBendTunerPluginFormating {
 
-  private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = PitchBendSensitivityFormat
+  private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] =
+    JsonCommonMidiFormat.pitchBendSensitivityFormat
 
   //@formatter:off
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (
