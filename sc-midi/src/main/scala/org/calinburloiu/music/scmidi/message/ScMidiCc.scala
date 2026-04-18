@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi.message
 /**
  * Constants for MIDI Control Change (CC) controller numbers.
  */
-object Cc {
+object ScMidiCc {
   /** Registered Parameter Number (RPN) MSB controller number (#101). */
   val RpnMsb: Int = 101
   /** Registered Parameter Number (RPN) LSB controller number (#100). */

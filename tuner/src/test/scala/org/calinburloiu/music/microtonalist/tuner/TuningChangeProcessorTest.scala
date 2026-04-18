@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.message.{Cc, CcScMidiMessage, NoteOnScMidiMessage}
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, NoteOnScMidiMessage, ScMidiCc}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -27,8 +27,8 @@ import javax.sound.midi.{MidiMessage, Receiver}
 class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
   val noteTriggerMidiMessage: MidiMessage = NoteOnScMidiMessage(1, MidiNote.C4, 64).javaMessage
-  val ccTriggerMidiMessage: MidiMessage = CcScMidiMessage(1, Cc.SostenutoPedal, 32).javaMessage
-  val nonTriggerMidiMessage1: MidiMessage = CcScMidiMessage(1, Cc.Modulation, 96).javaMessage
+  val ccTriggerMidiMessage: MidiMessage = CcScMidiMessage(1, ScMidiCc.SostenutoPedal, 32).javaMessage
+  val nonTriggerMidiMessage1: MidiMessage = CcScMidiMessage(1, ScMidiCc.Modulation, 96).javaMessage
   val nonTriggerMidiMessage2: MidiMessage = NoteOnScMidiMessage(1, MidiNote.B4, 16).javaMessage
 
   abstract class Fixture(triggersThru: Boolean = false) {

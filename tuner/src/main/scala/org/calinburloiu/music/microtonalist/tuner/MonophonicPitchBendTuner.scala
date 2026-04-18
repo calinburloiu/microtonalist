@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, clampValue, mapShortMessageChannel}
-import org.calinburloiu.music.scmidi.message.{Cc, CcScMidiMessage, NoteOffScMidiMessage, NoteOnScMidiMessage, PitchBendScMidiMessage, Rpn}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -57,8 +57,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private var _sustainPedal: Int = 0
   private var _sostenutoPedal: Int = 0
-  private var _rpnLsb: Int = Rpn.NullLsb
-  private var _rpnMsb: Int = Rpn.NullMsb
+  private var _rpnLsb: Int = ScMidiRpn.NullLsb
+  private var _rpnMsb: Int = ScMidiRpn.NullMsb
 
   override def reset(): Seq[MidiMessage] = {
     this._resetState()
@@ -77,8 +77,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     _lastNoteOffVelocity = NoteOffScMidiMessage.DefaultVelocity
     _sustainPedal = 0
     _sostenutoPedal = 0
-    _rpnLsb = Rpn.NullLsb
-    _rpnMsb = Rpn.NullMsb
+    _rpnLsb = ScMidiRpn.NullLsb
+    _rpnMsb = ScMidiRpn.NullMsb
   }
 
   private def _init(): Seq[MidiMessage] = PitchBendSensitivityMessages.create(
@@ -110,22 +110,22 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       case PitchBendScMidiMessage(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
         applyPitchBend(buffer)
-      case CcScMidiMessage(_, Cc.SustainPedal, value) =>
+      case CcScMidiMessage(_, ScMidiCc.SustainPedal, value) =>
         _sustainPedal = value
         buffer += forwardMessage()
-      case CcScMidiMessage(_, Cc.SostenutoPedal, value) =>
+      case CcScMidiMessage(_, ScMidiCc.SostenutoPedal, value) =>
         _sostenutoPedal = value
         buffer += forwardMessage()
-      case CcScMidiMessage(_, Cc.RpnLsb, value) =>
+      case CcScMidiMessage(_, ScMidiCc.RpnLsb, value) =>
         _rpnLsb = value
         buffer += forwardMessage()
-      case CcScMidiMessage(_, Cc.RpnMsb, value) =>
+      case CcScMidiMessage(_, ScMidiCc.RpnMsb, value) =>
         _rpnMsb = value
         buffer += forwardMessage()
-      case CcScMidiMessage(_, Cc.DataEntryMsb, value) =>
+      case CcScMidiMessage(_, ScMidiCc.DataEntryMsb, value) =>
         buffer += forwardMessage()
         applyPitchBendSensitivityMsb(buffer, value)
-      case CcScMidiMessage(_, Cc.DataEntryLsb, value) =>
+      case CcScMidiMessage(_, ScMidiCc.DataEntryLsb, value) =>
         buffer += forwardMessage()
         applyPitchBendSensitivityLsb(buffer, value)
       case _ =>
@@ -148,7 +148,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def isSettingPitchBendSensitivity: Boolean =
-    _rpnLsb == Rpn.PitchBendSensitivityLsb && _rpnMsb == Rpn.PitchBendSensitivityMsb
+    _rpnLsb == ScMidiRpn.PitchBendSensitivityLsb && _rpnMsb == ScMidiRpn.PitchBendSensitivityMsb
 
   private def applyPitchBendSensitivityMsb(buffer: mutable.Buffer[MidiMessage], value: Int): Unit = {
     if (isSettingPitchBendSensitivity) {
@@ -247,15 +247,15 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    */
   private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
     if (_sustainPedal > 0) {
-      buffer += CcScMidiMessage(outputChannel, Cc.SustainPedal, 0).javaMessage
-      buffer += CcScMidiMessage(outputChannel, Cc.SustainPedal, _sustainPedal).javaMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, 0).javaMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, _sustainPedal).javaMessage
     }
 
     if (_sostenutoPedal > 0) {
       // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
       _sostenutoPedal = 0
 
-      buffer += CcScMidiMessage(outputChannel, Cc.SostenutoPedal, 0).javaMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SostenutoPedal, 0).javaMessage
     }
   }
 

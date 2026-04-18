@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.scmidi.message.{Cc, CcScMidiMessage}
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc}
 
 import javax.sound.midi.MidiMessage
 import scala.collection.mutable
@@ -123,8 +123,8 @@ object PedalTuningChanger {
   val TypeName: String = "pedal"
 
   val DefaultTriggers: TuningChangeTriggers[CcNumber] = TuningChangeTriggers(
-    previous = Some(Cc.SoftPedal),
-    next = Some(Cc.SostenutoPedal)
+    previous = Some(ScMidiCc.SoftPedal),
+    next = Some(ScMidiCc.SostenutoPedal)
   )
   val DefaultThreshold: Int = 0
   val DefaultTriggersThru: Boolean = false
@@ -143,8 +143,8 @@ object PedalTuningChanger {
    *                                if they should be filtered out.
    * @return An instance of `PedalTuningChanger` configured with the specified parameters.
    */
-  def apply(previousTuningCcTrigger: Int = Cc.SoftPedal,
-            nextTuningCcTrigger: Int = Cc.SostenutoPedal,
+  def apply(previousTuningCcTrigger: Int = ScMidiCc.SoftPedal,
+            nextTuningCcTrigger: Int = ScMidiCc.SostenutoPedal,
             threshold: Int = DefaultThreshold,
             triggersThru: Boolean = DefaultTriggersThru): PedalTuningChanger = {
     new PedalTuningChanger(

@@ -154,9 +154,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     val ccs = extractCc(output)
     // MCM: RPN LSB=6, RPN MSB=0, Data Entry MSB=memberCount on master channel 0
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 15)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 15)
     )
   }
 
@@ -170,9 +170,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Check that PBS is set on member channels 1..7
     (1 to 7).foreach { ch =>
       ccs should contain inOrder(
-        CcScMidiMessage(ch, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-        CcScMidiMessage(ch, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(ch, Cc.DataEntryMsb, 48)
+        CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 48)
       )
     }
   }
@@ -185,9 +185,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 2)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 2)
     )
   }
 
@@ -340,7 +340,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Should have: PitchBend, CC#74, ChannelPressure, NoteOn
       msgs should contain inOrder(
         PitchBendScMidiMessage(noteChannel, 0),
-        CcScMidiMessage(noteChannel, Cc.MpeSlide, 64),
+        CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 64),
         ChannelPressureScMidiMessage(noteChannel, 0),
         NoteOnScMidiMessage(noteChannel, C4, 100)
       )
@@ -465,9 +465,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Given
     tuner.process(NoteOnScMidiMessage(nonMpeInputChannel, C4).javaMessage)
     // When
-    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, Cc.MpeSlide, 100).javaMessage)
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.MpeSlide, 100).javaMessage)
     // Then
-    extractCc(output) should contain(CcScMidiMessage(0, Cc.MpeSlide, 100)) // master channel 0
+    extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.MpeSlide, 100)) // master channel 0
   }
 
   it should "not forward CC #74 on any member channel in non-MPE mode" in new TunerFixture() {
@@ -475,9 +475,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val noteOutput = tuner.process(NoteOnScMidiMessage(nonMpeInputChannel, C4).javaMessage)
     private val noteChannel = extractNoteOns(noteOutput).head.channel
     // When
-    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, Cc.MpeSlide, 100).javaMessage)
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.MpeSlide, 100).javaMessage)
     // Then
-    extractCc(output).filter(cc => cc.number == Cc.MpeSlide && cc.channel == noteChannel) shouldBe empty
+    extractCc(output).filter(cc => cc.number == ScMidiCc.MpeSlide && cc.channel == noteChannel) shouldBe empty
   }
 
   it should "redirect Channel Pressure to Master Channel as Zone-level pressure" in new TunerFixture() {
@@ -503,14 +503,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new TunerFixture() {
       // Given
       // Sender sends CC #74 before Note On; value goes to Master Channel only
-      tuner.process(CcScMidiMessage(nonMpeInputChannel, Cc.MpeSlide, 120).javaMessage)
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.MpeSlide, 120).javaMessage)
       // When
       private val output = tuner.process(NoteOnScMidiMessage(nonMpeInputChannel, C4).javaMessage)
       // Then
       private val noteChannel = extractNoteOns(output).head.channel
       // Member channel must be initialized with neutral default (64), not the sender's value,
       // to avoid double-counting with the Master Channel value.
-      extractCc(output) should contain(CcScMidiMessage(noteChannel, Cc.MpeSlide, 64))
+      extractCc(output) should contain(CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 64))
     }
 
   it should "initialize member channel Channel Pressure to default 0 even after sending CP in non-MPE mode" in
@@ -533,7 +533,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val noteChannel = 1
     // CC #74 should be 64 (default), Channel Pressure should be 0 (default)
     msgs should contain allOf(
-      CcScMidiMessage(noteChannel, Cc.MpeSlide, 64),
+      CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 64),
       ChannelPressureScMidiMessage(noteChannel, 0)
     )
   }
@@ -544,10 +544,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "forward Sustain Pedal (CC #64) on Master Channel" in new TunerFixture() {
     // When
-    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, Cc.SustainPedal, 127)
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.SustainPedal, 127)
       .javaMessage)
     // Then
-    extractCc(output) should contain(CcScMidiMessage(0, Cc.SustainPedal, 127))
+    extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 127))
   }
 
   it should "forward Program Change on Master Channel" in new TunerFixture() {
@@ -561,12 +561,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "forward zone-level CCs on Master Channel" in new TunerFixture() {
     private val zoneLevelCcs = Table(
       ("ccName", "ccNumber", "ccValue"),
-      ("Bank Select MSB", Cc.BankSelectMsb, 1),
-      ("Bank Select LSB", Cc.BankSelectLsb, 0),
-      ("Reset All Controllers", Cc.ResetAllControllers, 0),
-      ("Modulation", Cc.Modulation, 64),
-      ("Sostenuto Pedal", Cc.SostenutoPedal, 127),
-      ("Soft Pedal", Cc.SoftPedal, 127)
+      ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
+      ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
+      ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
+      ("Modulation", ScMidiCc.Modulation, 64),
+      ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
+      ("Soft Pedal", ScMidiCc.SoftPedal, 127)
     )
     forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
       // When
@@ -583,10 +583,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "forward Sustain Pedal (CC #64) received on member channel to zone Master Channel" in
     new TunerFixture(tuner7MpeInput) {
       // When
-      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, Cc.SustainPedal, 127)
+      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.SustainPedal, 127)
         .javaMessage)
       // Then
-      extractCc(output) should contain(CcScMidiMessage(0, Cc.SustainPedal, 127))
+      extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 127))
     }
 
   it should "forward Program Change received on member channel to zone Master Channel" in
@@ -602,12 +602,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new TunerFixture(tuner7MpeInput) {
       private val zoneLevelCcs = Table(
         ("ccName", "ccNumber", "ccValue"),
-        ("Bank Select MSB", Cc.BankSelectMsb, 1),
-        ("Bank Select LSB", Cc.BankSelectLsb, 0),
-        ("Reset All Controllers", Cc.ResetAllControllers, 0),
-        ("Modulation", Cc.Modulation, 64),
-        ("Sostenuto Pedal", Cc.SostenutoPedal, 127),
-        ("Soft Pedal", Cc.SoftPedal, 127)
+        ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
+        ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
+        ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
+        ("Modulation", ScMidiCc.Modulation, 64),
+        ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
+        ("Soft Pedal", ScMidiCc.SoftPedal, 127)
       )
       forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
         // When
@@ -621,9 +621,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new TunerFixture(dualZoneTunerMpeInput) {
       // When
       // upper zone: members 8-14, master 15
-      private val output = tuner.process(CcScMidiMessage(8, Cc.SustainPedal, 127).javaMessage)
+      private val output = tuner.process(CcScMidiMessage(8, ScMidiCc.SustainPedal, 127).javaMessage)
       // Then
-      extractCc(output) should contain(CcScMidiMessage(15, Cc.SustainPedal, 127))
+      extractCc(output) should contain(CcScMidiMessage(15, ScMidiCc.SustainPedal, 127))
     }
 
   it should "route Program Change to upper zone Master Channel when received on upper member channel" in
@@ -1001,7 +1001,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(NoteOnScMidiMessage(0, C4, 100).javaMessage)
       // Then
       extractPitchBends(output) shouldBe empty
-      extractCc(output).filter(_.number == Cc.MpeSlide) shouldBe empty
+      extractCc(output).filter(_.number == ScMidiCc.MpeSlide) shouldBe empty
       extractChannelPressure(output) shouldBe empty
     }
 
@@ -1116,7 +1116,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new TunerFixture(tuner7MpeInput) {
       // When
       // Send CC #74 on a member channel that has no active note
-      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, Cc.MpeSlide, 100).javaMessage)
+      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.MpeSlide, 100).javaMessage)
       // Then
       extractCc(output) shouldBe empty
     }
@@ -1145,9 +1145,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val noteOutput = tuner.process(NoteOnScMidiMessage(mpeInputChannel, C4).javaMessage)
       private val noteChannel = extractNoteOns(noteOutput).head.channel
       // When
-      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, Cc.MpeSlide, 100).javaMessage)
+      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.MpeSlide, 100).javaMessage)
       // Then
-      extractCc(output) should contain(CcScMidiMessage(noteChannel, Cc.MpeSlide, 100))
+      extractCc(output) should contain(CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 100))
     }
 
   it should "forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel" in
@@ -1165,13 +1165,13 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new TunerFixture(tuner7MpeInput) {
       // Given
       // Send CC #74 first (no active note, so forwarding is dropped) — but the per-input-channel value is recorded
-      tuner.process(CcScMidiMessage(mpeInputChannel, Cc.MpeSlide, 100).javaMessage)
+      tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.MpeSlide, 100).javaMessage)
       // When
       // Note On should seed the Member Channel CC #74 with the recorded value (not the neutral default 64)
       private val output = tuner.process(NoteOnScMidiMessage(mpeInputChannel, C4).javaMessage)
       // Then
       private val noteChannel = extractNoteOns(output).head.channel
-      extractCc(output) should contain(CcScMidiMessage(noteChannel, Cc.MpeSlide, 100))
+      extractCc(output) should contain(CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 100))
     }
 
   it should "seed Member Channel Channel Pressure from the per-input-channel value at Note On in MPE mode" in
@@ -1285,7 +1285,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // CC #74 / Channel Pressure / Pitch Bend on this input channel must NOT be forwarded to a
       // (now stale) member channel.
       private val ccOutput = tuner.process(
-        CcScMidiMessage(mpeInputChannel, Cc.MpeSlide, 100).javaMessage)
+        CcScMidiMessage(mpeInputChannel, ScMidiCc.MpeSlide, 100).javaMessage)
       extractCc(ccOutput) shouldBe empty
 
       private val cpOutput = tuner.process(ChannelPressureScMidiMessage(mpeInputChannel, 90).javaMessage)
@@ -1390,9 +1390,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   /** Sends a complete MCM RPN sequence: CC#100=6, CC#101=0, CC#6=memberCount on the given channel. */
   private def sendMcm(tuner: MpeTuner, channel: Int, memberCount: Int): Seq[MidiMessage] = {
-    tuner.process(CcScMidiMessage(channel, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb).javaMessage)
-    tuner.process(CcScMidiMessage(channel, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb).javaMessage)
-    tuner.process(CcScMidiMessage(channel, Cc.DataEntryMsb, memberCount).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, memberCount).javaMessage)
   }
 
   it should "reconfigure lower zone on MCM received on channel 0" in new TunerFixture(dualZoneTuner) {
@@ -1402,9 +1402,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Should output MCM for the new lower zone with memberCount=10
     private val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 10)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 10)
     )
     tuner.zones.lower.memberCount shouldEqual 10
     tuner.zones.upper.memberCount shouldEqual 4
@@ -1417,9 +1417,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Should output MCM for the new upper zone with memberCount=10
     private val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(15, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(15, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(15, Cc.DataEntryMsb, 10)
+      CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 10)
     )
     tuner.zones.lower.memberCount shouldEqual 4
     tuner.zones.upper.memberCount shouldEqual 10
@@ -1444,9 +1444,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val ccs = extractCc(output)
     // Upper zone MCM should show memberCount=4
     ccs should contain inOrder(
-      CcScMidiMessage(15, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(15, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(15, Cc.DataEntryMsb, 4)
+      CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 4)
     )
     tuner.zones.lower.memberCount shouldEqual 10
     tuner.zones.upper.memberCount shouldEqual 4
@@ -1458,33 +1458,33 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     private val ccs = extractCc(output)
     // Upper zone MCM should be sent to the output even if the zone is disabled to inform the downstream device
-    ccs should contain(CcScMidiMessage(15, Cc.DataEntryMsb, 0))
+    ccs should contain(CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 0))
     // Lower zone MCM should NOT be present because the lower zone was not affected
-    ccs should not contain CcScMidiMessage(0, Cc.DataEntryMsb, 7)
+    ccs should not contain CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7)
   }
 
   it should "not trigger MCM on incomplete RPN sequence" in new TunerFixture() {
     // Given - Send only CC#101=0 and CC#6=10 without CC#100
-    tuner.process(CcScMidiMessage(0, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb).javaMessage)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).javaMessage)
     // When
-    private val output = tuner.process(CcScMidiMessage(0, Cc.DataEntryMsb, 10).javaMessage)
+    private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 10).javaMessage)
     // Then - Should NOT contain MCM output (no Note Offs, no MCM messages for reconfiguration)
     extractNoteOffs(output) shouldBe empty
     extractCc(output) should not contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 10)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 10)
     )
   }
 
   it should "not trigger MCM for non-MCM RPN (e.g. PBS RPN)" in new TunerFixture() {
     // When - Send PBS RPN (MSB=0, LSB=0) instead of MCM RPN (MSB=0, LSB=6)
-    tuner.process(CcScMidiMessage(0, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
-    tuner.process(CcScMidiMessage(0, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
-    private val output = tuner.process(CcScMidiMessage(0, Cc.DataEntryMsb, 48).javaMessage)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).javaMessage)
+    private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 48).javaMessage)
     // Then - Should NOT contain MCM reconfiguration output
     private val ccs = extractCc(output)
-    ccs.filter(cc => cc.number == Cc.DataEntryMsb &&
+    ccs.filter(cc => cc.number == ScMidiCc.DataEntryMsb &&
       cc.value == 15) shouldBe empty // no MCM with memberCount=15
   }
 
@@ -1504,15 +1504,15 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val ccs = extractCc(resetOutput)
     // Lower zone should be back to 7 members
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 7)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7)
     )
     // Upper zone should be back to 7 members
     ccs should contain inOrder(
-      CcScMidiMessage(15, Cc.RpnLsb, Rpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(15, Cc.RpnMsb, Rpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(15, Cc.DataEntryMsb, 7)
+      CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 7)
     )
   }
 
@@ -1523,7 +1523,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val ccs = extractCc(output)
     // PBS RPN uses LSB=0, while MCM RPN uses LSB=6; no PBS RPN should appear in the output
     private val pbsRpnMessages = ccs.filter(cc =>
-      cc.number == Cc.RpnLsb && cc.value == Rpn.PitchBendSensitivityLsb)
+      cc.number == ScMidiCc.RpnLsb && cc.value == ScMidiRpn.PitchBendSensitivityLsb)
     pbsRpnMessages shouldBe empty
   }
 
@@ -1555,14 +1555,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   /** Sends a complete PBS RPN MSB sequence: CC#100=0, CC#101=0, CC#6=semitones on the given channel. */
   private def sendPbsMsb(tuner: MpeTuner, channel: Int, semitones: Int): Seq[MidiMessage] = {
-    tuner.process(CcScMidiMessage(channel, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
-    tuner.process(CcScMidiMessage(channel, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
-    tuner.process(CcScMidiMessage(channel, Cc.DataEntryMsb, semitones).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, semitones).javaMessage)
   }
 
   /** Sends a PBS RPN LSB (cents) on the given channel, assuming RPN is already set to PBS. */
   private def sendPbsLsb(tuner: MpeTuner, channel: Int, cents: Int): Seq[MidiMessage] = {
-    tuner.process(CcScMidiMessage(channel, Cc.DataEntryLsb, cents).javaMessage)
+    tuner.process(CcScMidiMessage(channel, ScMidiCc.DataEntryLsb, cents).javaMessage)
   }
 
   it should "update master PBS on master channel" in new TunerFixture() {
@@ -1572,9 +1572,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Should forward RPN setup and PBS for the master channel with new sensitivity
     private val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 12)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12)
     )
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
   }
@@ -1585,12 +1585,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     private val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(1, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(1, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(1, Cc.DataEntryMsb, 24)
+      CcScMidiMessage(1, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(1, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(1, ScMidiCc.DataEntryMsb, 24)
     )
     // Should NOT broadcast to other member channels
-    private val dataEntryCcs = ccs.filter(_.number == Cc.DataEntryMsb)
+    private val dataEntryCcs = ccs.filter(_.number == ScMidiCc.DataEntryMsb)
     (2 to 7).foreach { ch =>
       dataEntryCcs.filter(_.channel == ch) shouldBe empty
     }
@@ -1605,7 +1605,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
     // Then
     private val dataEntryCcs = extractCc(output).filter(cc =>
-      cc.number == Cc.DataEntryMsb && cc.value == 24)
+      cc.number == ScMidiCc.DataEntryMsb && cc.value == 24)
 
     dataEntryCcs.size shouldEqual 7
     dataEntryCcs.map(_.channel) should contain theSameElementsAs (1 to 7)
@@ -1632,23 +1632,23 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then - Upper zone member channels (8-14) should NOT get the new PBS in this output
     private val ccs = extractCc(output)
     (8 to 14).foreach { ch =>
-      ccs.filter(cc => cc.channel == ch && cc.number == Cc.DataEntryMsb &&
+      ccs.filter(cc => cc.channel == ch && cc.number == ScMidiCc.DataEntryMsb &&
         cc.value == 24) shouldBe empty
     }
   }
 
   it should "handle PBS LSB (cents) update" in new TunerFixture() {
     // Given - First set the RPN to PBS
-    tuner.process(CcScMidiMessage(0, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
-    tuner.process(CcScMidiMessage(0, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).javaMessage)
     // When - Send LSB
     private val output = sendPbsLsb(tuner, channel = 0, cents = 50)
     // Then - Should re-send RPN setup before Data Entry LSB
     private val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, Cc.DataEntryLsb, 50)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 50)
     )
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
       MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
@@ -1706,9 +1706,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val ccs = extractCc(resetOutput)
     (1 to 7).foreach { ch =>
       ccs should contain inOrder(
-        CcScMidiMessage(ch, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-        CcScMidiMessage(ch, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(ch, Cc.DataEntryMsb, 48)
+        CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 48)
       )
     }
   }
@@ -1719,9 +1719,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     private val ccs = extractCc(output)
     ccs should contain inOrder(
-      CcScMidiMessage(0, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, Cc.DataEntryMsb, 12)
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12)
     )
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
   }
@@ -1733,12 +1733,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       private val ccs = extractCc(output)
       ccs should contain inOrder(
-        CcScMidiMessage(1, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-        CcScMidiMessage(1, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(1, Cc.DataEntryMsb, 24)
+        CcScMidiMessage(1, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(1, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(1, ScMidiCc.DataEntryMsb, 24)
       )
       // Should NOT broadcast to other member channels
-      private val dataEntryCcs = ccs.filter(_.number == Cc.DataEntryMsb)
+      private val dataEntryCcs = ccs.filter(_.number == ScMidiCc.DataEntryMsb)
       (2 to 7).foreach { ch =>
         dataEntryCcs.filter(_.channel == ch) shouldBe empty
       }
@@ -1768,9 +1768,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val ccs = extractCc(resetOutput)
     (1 to 7).foreach { ch =>
       ccs should contain inOrder(
-        CcScMidiMessage(ch, Cc.RpnLsb, Rpn.PitchBendSensitivityLsb),
-        CcScMidiMessage(ch, Cc.RpnMsb, Rpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(ch, Cc.DataEntryMsb, 48)
+        CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 48)
       )
     }
   }

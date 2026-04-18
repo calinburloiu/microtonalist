@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi.message
 /**
  * MIDI Registered Parameter Numbers (RPN) utilities and constants.
  */
-object Rpn {
+object ScMidiRpn {
   /** Pitch Bend Sensitivity RPN MSB (#0). */
   val PitchBendSensitivityMsb: Int = 0x00
   /** Pitch Bend Sensitivity RPN LSB (#0). */

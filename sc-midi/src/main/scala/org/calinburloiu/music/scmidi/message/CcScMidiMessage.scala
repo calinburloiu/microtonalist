@@ -21,7 +21,7 @@ import javax.sound.midi.{MidiMessage, ShortMessage}
 /**
  * Represents a MIDI Control Change (CC) message with named, validated `number` and `value` parameters.
  *
- * CC number constants are available in the [[Cc]] object.
+ * CC number constants are available in the [[ScMidiCc]] object.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param number  The controller number (0-127).
