@@ -80,6 +80,3 @@ object ScMidiMessage {
     }
   }
 }
-
-/** Wraps a [[javax.sound.midi.MidiMessage]] that has no dedicated Scala-idiomatic counterpart. */
-case class UnsupportedScMidiMessage(override val javaMessage: MidiMessage) extends ScMidiMessage
