@@ -19,7 +19,6 @@ package org.calinburloiu.music.microtonalist.format
 import com.fasterxml.jackson.core.JsonParseException
 import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readTracksFromResources
 import org.calinburloiu.music.microtonalist.tuner.*
-import org.calinburloiu.music.microtonalist.tuner.mts.MtsOctave1ByteNonRealTimeTuner
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

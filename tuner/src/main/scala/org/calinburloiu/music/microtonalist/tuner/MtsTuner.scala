@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 Calin-Andrei Burloiu
+ * Copyright 2021 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner.mts
+package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.{Tuner, Tuning}
 import org.calinburloiu.music.scmidi.MidiDeviceId
 
 import javax.sound.midi.MidiMessage
