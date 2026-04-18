@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.*
+import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
@@ -68,13 +69,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       case shortMessage: ShortMessage => shortMessage
     }
 
-    def pitchBendOutput: Seq[ScPitchBendMidiMessage] = output.toSeq.flatMap(
-      ScPitchBendMidiMessage.fromJavaMessage)
+    def pitchBendOutput: Seq[PitchBendScMidiMessage] = output.toSeq.flatMap(
+      PitchBendScMidiMessage.fromJavaMessage)
 
     def sendNote(note: MidiNote, channel: Int = inputChannel): Seq[MidiMessage] = {
       Seq(
-        tuner.process(ScNoteOnMidiMessage(channel, note).javaMessage),
-        tuner.process(ScNoteOffMidiMessage(channel, note).javaMessage)
+        tuner.process(NoteOnScMidiMessage(channel, note).javaMessage),
+        tuner.process(NoteOffScMidiMessage(channel, note).javaMessage)
       ).flatten
     }
   }
@@ -87,7 +88,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   private def collectCcMessages(midiMessages: Seq[MidiMessage]): Seq[(Int, Int)] = {
     midiMessages.collect {
-      case ScCcMidiMessage(channel, number, value) =>
+      case CcScMidiMessage(channel, number, value) =>
         channel should equal(outputChannel)
         (number, value)
     }
@@ -109,12 +110,12 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
     ccMessages should contain inOrderOnly(
-      (ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
-      (ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
-      (ScCcMidiMessage.DataEntryMsb, customPitchBendSensitivity.semitones),
-      (ScCcMidiMessage.DataEntryLsb, customPitchBendSensitivity.cents),
-      (ScCcMidiMessage.RpnLsb, Rpn.NullLsb),
-      (ScCcMidiMessage.RpnMsb, Rpn.NullMsb)
+      (CcScMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb),
+      (CcScMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb),
+      (CcScMidiMessage.DataEntryMsb, customPitchBendSensitivity.semitones),
+      (CcScMidiMessage.DataEntryLsb, customPitchBendSensitivity.cents),
+      (CcScMidiMessage.RpnLsb, Rpn.NullLsb),
+      (CcScMidiMessage.RpnMsb, Rpn.NullMsb)
     )
   }
 
@@ -145,9 +146,9 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     // Send some Cs
     output ++= sendNote(MidiNote(PitchClass.C, 4))
     output ++= sendNote(MidiNote(PitchClass.C, 3))
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, MidiNote(PitchClass.C, 6)).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, MidiNote(PitchClass.C, 6)).javaMessage)
     // Send on of the "note off" as a note on with velocity 0
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, MidiNote(PitchClass.C, 6), 0).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, MidiNote(PitchClass.C, 6), 0).javaMessage)
 
     pitchBendOutput shouldBe empty
   }
@@ -161,7 +162,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output should have size 9
 
-    val result: Seq[ScPitchBendMidiMessage] = pitchBendOutput
+    val result: Seq[PitchBendScMidiMessage] = pitchBendOutput
     result should have size 3
 
     val expectedTuningValues: Seq[Double] = Seq(-16.67, -33.33, 16.67)
@@ -200,7 +201,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   behavior of "MonophonicPitchBendTuner when the tuning is changed"
 
   it should "not send pitch bend if a note is on and its tuning does not change" in new Fixture {
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).javaMessage)
     output.clear()
 
     output ++= tuner.tune(customTuning)
@@ -219,15 +220,15 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   }
 
   it should "send pitch bend if a note is on and its tuning changes" in new Fixture {
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).javaMessage)
     output.clear()
 
     output ++= tuner.tune(customTuning2)
 
     output should have size 1
     inside(output.head) {
-      case ScPitchBendMidiMessage(`outputChannel`, value) =>
-        value shouldEqual ScPitchBendMidiMessage.convertCentsToValue(-45.0, pitchBendSensitivity)
+      case PitchBendScMidiMessage(`outputChannel`, value) =>
+        value shouldEqual PitchBendScMidiMessage.convertCentsToValue(-45.0, pitchBendSensitivity)
     }
   }
 
@@ -247,51 +248,51 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "play monophonically even if no note off messages are sent" in new Fixture {
     output ++= tuner.tune(customTuning)
 
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteG4, 24).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteG4, 24).javaMessage)
     // The next autogenerated note-off messages with use the velocity below (last velocity)
     val lastNoteOffVelocity: Int = 72
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteG4, lastNoteOffVelocity).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteG4, lastNoteOffVelocity).javaMessage)
     output.clear()
 
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4, 48).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteDSharp4, 64).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4, 96).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 48).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteDSharp4, 64).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4, 96).javaMessage)
 
     val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
     outputNotes should have size 5
-    inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, 48) => note.number shouldEqual noteC4 }
-    inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, `lastNoteOffVelocity`) =>
+    inside(outputNotes.head) { case NoteOnScMidiMessage(_, note, 48) => note.number shouldEqual noteC4 }
+    inside(outputNotes(1)) { case NoteOffScMidiMessage(_, note, `lastNoteOffVelocity`) =>
       note.number shouldEqual noteC4
     }
-    inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, 64) => note.number shouldEqual noteDSharp4 }
-    inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, `lastNoteOffVelocity`) =>
+    inside(outputNotes(2)) { case NoteOnScMidiMessage(_, note, 64) => note.number shouldEqual noteDSharp4 }
+    inside(outputNotes(3)) { case NoteOffScMidiMessage(_, note, `lastNoteOffVelocity`) =>
       note.number shouldEqual noteDSharp4
     }
-    inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, 96) => note.number shouldEqual noteE4 }
+    inside(outputNotes(4)) { case NoteOnScMidiMessage(_, note, 96) => note.number shouldEqual noteE4 }
   }
 
   it should "always revert to the last note played while releasing simultaneous notes one by one" in new Fixture {
     output ++= tuner.tune(customTuning)
 
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4, 20).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4, 40).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteG4, 60).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteBb4, 80).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 20).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4, 40).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteG4, 60).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteBb4, 80).javaMessage)
 
     output.clear()
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteBb4, 85).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteE4, 65).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteG4, 45).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteC4, 25).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteBb4, 85).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteE4, 65).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteG4, 45).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4, 25).javaMessage)
 
     val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
     outputNotes should have size 5
     // Using the last note-on velocity sent, 80, for the auto-generated note-on messages
-    inside(outputNotes.head) { case ScNoteOffMidiMessage(_, note, 85) => note.number shouldEqual noteBb4 }
-    inside(outputNotes(1)) { case ScNoteOnMidiMessage(_, note, 80) => note.number shouldEqual noteG4 }
-    inside(outputNotes(2)) { case ScNoteOffMidiMessage(_, note, 45) => note.number shouldEqual noteG4 }
-    inside(outputNotes(3)) { case ScNoteOnMidiMessage(_, note, 80) => note.number shouldEqual noteC4 }
-    inside(outputNotes(4)) { case ScNoteOffMidiMessage(_, note, 25) => note.number shouldEqual noteC4 }
+    inside(outputNotes.head) { case NoteOffScMidiMessage(_, note, 85) => note.number shouldEqual noteBb4 }
+    inside(outputNotes(1)) { case NoteOnScMidiMessage(_, note, 80) => note.number shouldEqual noteG4 }
+    inside(outputNotes(2)) { case NoteOffScMidiMessage(_, note, 45) => note.number shouldEqual noteG4 }
+    inside(outputNotes(3)) { case NoteOnScMidiMessage(_, note, 80) => note.number shouldEqual noteC4 }
+    inside(outputNotes(4)) { case NoteOffScMidiMessage(_, note, 25) => note.number shouldEqual noteC4 }
   }
 
   it should "tune reverted notes when holding a non-microtonal note while playing a microtonal one and lifting it" in
@@ -299,18 +300,18 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       output ++= tuner.tune(customTuning)
       output.clear()
 
-      output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteG4).javaMessage)
-      output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteAb4).javaMessage)
-      output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteAb4).javaMessage)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteG4).javaMessage)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteAb4).javaMessage)
+      output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteAb4).javaMessage)
 
       output should have size 7
-      inside(output.head) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal(noteG4) }
-      inside(output(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal(noteG4) }
-      inside(output(2)) { case ScPitchBendMidiMessage(_, value) => value should be > 0 }
-      inside(output(3)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal(noteAb4) }
-      inside(output(4)) { case ScNoteOffMidiMessage(_, note, _) => note.number should equal(noteAb4) }
-      inside(output(5)) { case ScPitchBendMidiMessage(_, value) => value should be(0) }
-      inside(output(6)) { case ScNoteOnMidiMessage(_, note, _) => note.number should equal(noteG4) }
+      inside(output.head) { case NoteOnScMidiMessage(_, note, _) => note.number should equal(noteG4) }
+      inside(output(1)) { case NoteOffScMidiMessage(_, note, _) => note.number should equal(noteG4) }
+      inside(output(2)) { case PitchBendScMidiMessage(_, value) => value should be > 0 }
+      inside(output(3)) { case NoteOnScMidiMessage(_, note, _) => note.number should equal(noteAb4) }
+      inside(output(4)) { case NoteOffScMidiMessage(_, note, _) => note.number should equal(noteAb4) }
+      inside(output(5)) { case PitchBendScMidiMessage(_, value) => value should be(0) }
+      inside(output(6)) { case NoteOnScMidiMessage(_, note, _) => note.number should equal(noteG4) }
     }
 
   behavior of "MonophonicPitchBendTuner when it receives pitch bend messages"
@@ -319,7 +320,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= sendNote(noteC4)
     output.clear()
 
-    output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, -2020).javaMessage)
+    output ++= tuner.process(PitchBendScMidiMessage(inputChannel, -2020).javaMessage)
 
     output should have size 1
     pitchBendOutput should have size 1
@@ -328,17 +329,17 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
   it should "add the pitch bend received to the one computed for tuning a microtonal note" in new Fixture {
     output ++= tuner.tune(customTuning)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4, 96).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4, 96).javaMessage)
     output.clear()
 
     val expressionPitchBendCents: Double = 50
-    val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
+    val expressionPitchBendValue: Int = PitchBendScMidiMessage.convertCentsToValue(
       expressionPitchBendCents, semitonePitchBendSensitivity)
-    output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMessage)
+    output ++= tuner.process(PitchBendScMidiMessage(inputChannel, expressionPitchBendValue).javaMessage)
 
     output should have size 1
     pitchBendOutput should have size 1
-    ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, semitonePitchBendSensitivity) should equal(
+    PitchBendScMidiMessage.convertValueToCents(pitchBendOutput.head.value, semitonePitchBendSensitivity) should equal(
       customTuning(4) + expressionPitchBendCents)
   }
 
@@ -349,22 +350,22 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       output.clear()
 
       val expressionPitchBendCents: Double = 50
-      val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
+      val expressionPitchBendValue: Int = PitchBendScMidiMessage.convertCentsToValue(
         expressionPitchBendCents, semitonePitchBendSensitivity)
-      output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMessage)
+      output ++= tuner.process(PitchBendScMidiMessage(inputChannel, expressionPitchBendValue).javaMessage)
 
       output should have size 1
       pitchBendOutput should have size 1
-      ScPitchBendMidiMessage.convertValueToCents(pitchBendOutput.head.value, semitonePitchBendSensitivity) should equal(
+      PitchBendScMidiMessage.convertValueToCents(pitchBendOutput.head.value, semitonePitchBendSensitivity) should equal(
         customTuning(4) + expressionPitchBendCents)
     }
 
   it should "continue adding the last pitch bend received to the one for notes of different tunings" in new Fixture {
     val expressionPitchBendCents: Double = -25
-    val expressionPitchBendValue: Int = ScPitchBendMidiMessage.convertCentsToValue(
+    val expressionPitchBendValue: Int = PitchBendScMidiMessage.convertCentsToValue(
       expressionPitchBendCents, semitonePitchBendSensitivity)
     output ++= tuner.tune(customTuning)
-    output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, expressionPitchBendValue).javaMessage)
+    output ++= tuner.process(PitchBendScMidiMessage(inputChannel, expressionPitchBendValue).javaMessage)
     output.clear()
 
     output ++= sendNote(noteDSharp4)
@@ -374,7 +375,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     pitchBendOutput should have size 3
 
     val centResults: Seq[Double] = pitchBendOutput.map { message =>
-      ScPitchBendMidiMessage.convertValueToCents(message.value, semitonePitchBendSensitivity)
+      PitchBendScMidiMessage.convertValueToCents(message.value, semitonePitchBendSensitivity)
     }
     val expectedCentsResults: Seq[Double] = Seq(customTuning(3), customTuning(0), customTuning(4))
       .map(_ + expressionPitchBendCents)
@@ -387,17 +388,17 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning)
     output.clear()
 
-    output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MaxValue - 1).javaMessage)
+    output ++= tuner.process(PitchBendScMidiMessage(inputChannel, PitchBendScMidiMessage.MaxValue - 1).javaMessage)
     output ++= sendNote(noteDFlat4)
     pitchBendOutput should have size 2
-    pitchBendOutput(1).value should equal(ScPitchBendMidiMessage.MaxValue)
+    pitchBendOutput(1).value should equal(PitchBendScMidiMessage.MaxValue)
 
     output.clear()
 
-    output ++= tuner.process(ScPitchBendMidiMessage(inputChannel, ScPitchBendMidiMessage.MinValue + 1).javaMessage)
+    output ++= tuner.process(PitchBendScMidiMessage(inputChannel, PitchBendScMidiMessage.MinValue + 1).javaMessage)
     output ++= sendNote(noteA4)
     pitchBendOutput should have size 2
-    pitchBendOutput(1).value should equal(ScPitchBendMidiMessage.MinValue)
+    pitchBendOutput(1).value should equal(PitchBendScMidiMessage.MinValue)
   }
 
   behavior of "MonophonicPitchBendTuner when non-tuning-related MIDI messages are received"
@@ -406,13 +407,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning2)
     output.clear()
 
-    output ++= tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.Modulation, 34).javaMessage)
+    output ++= tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.Modulation, 34).javaMessage)
 
     output should have size 1
     inside(output.head) {
-      case ScCcMidiMessage(channel, number, 34) =>
+      case CcScMidiMessage(channel, number, 34) =>
         channel shouldEqual outputChannel
-        number shouldEqual ScCcMidiMessage.Modulation
+        number shouldEqual CcScMidiMessage.Modulation
     }
   }
 
@@ -422,73 +423,73 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning)
     output.clear()
 
-    output ++= tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SustainPedal, 64).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteC4).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMessage)
+    output ++= tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.SustainPedal, 64).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).javaMessage)
 
     shortMessageOutput should have size 9
     // Depress pedal
-    inside(shortMessageOutput.head) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 64) => }
+    inside(shortMessageOutput.head) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 64) => }
     // C on
-    inside(shortMessageOutput(1)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 0) => }
-    inside(shortMessageOutput(2)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 64) => }
-    inside(shortMessageOutput(3)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput(1)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 0) => }
+    inside(shortMessageOutput(2)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 64) => }
+    inside(shortMessageOutput(3)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
     // C off
-    inside(shortMessageOutput(4)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput(4)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(shortMessageOutput(5)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 0) => }
-    inside(shortMessageOutput(6)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 64) => }
-    inside(shortMessageOutput(7)) { case ScPitchBendMidiMessage(_, value) => value should be < 0 }
-    inside(shortMessageOutput(8)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+    inside(shortMessageOutput(5)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 0) => }
+    inside(shortMessageOutput(6)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 64) => }
+    inside(shortMessageOutput(7)) { case PitchBendScMidiMessage(_, value) => value should be < 0 }
+    inside(shortMessageOutput(8)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
   }
 
   it should "interrupt sustain pedal when holding notes in order to not violate monophony" in new Fixture {
     output ++= tuner.tune(customTuning)
     output.clear()
 
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMessage)
-    output ++= tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SustainPedal, 64).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteE4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).javaMessage)
+    output ++= tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.SustainPedal, 64).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteE4).javaMessage)
 
     shortMessageOutput should have size 10
     // Play C
-    inside(shortMessageOutput.head) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput.head) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(shortMessageOutput(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
-    inside(shortMessageOutput(2)) { case ScPitchBendMidiMessage(_, value) => value should be < 0 }
-    inside(shortMessageOutput(3)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+    inside(shortMessageOutput(1)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput(2)) { case PitchBendScMidiMessage(_, value) => value should be < 0 }
+    inside(shortMessageOutput(3)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
     // Depress pedal
-    inside(shortMessageOutput(4)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 64) => }
+    inside(shortMessageOutput(4)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 64) => }
     // Play C
-    inside(shortMessageOutput(5)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
-    inside(shortMessageOutput(6)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 0) => }
-    inside(shortMessageOutput(7)) { case ScCcMidiMessage(_, ScCcMidiMessage.SustainPedal, 64) => }
-    inside(shortMessageOutput(8)) { case ScPitchBendMidiMessage(_, value) => value shouldEqual 0 }
-    inside(shortMessageOutput(9)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput(5)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+    inside(shortMessageOutput(6)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 0) => }
+    inside(shortMessageOutput(7)) { case CcScMidiMessage(_, CcScMidiMessage.SustainPedal, 64) => }
+    inside(shortMessageOutput(8)) { case PitchBendScMidiMessage(_, value) => value shouldEqual 0 }
+    inside(shortMessageOutput(9)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
   }
 
   it should "stop sostenuto pedal in order to not violate monophony" in new Fixture {
     output ++= tuner.tune(customTuning)
     output.clear()
 
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteC4).javaMessage)
-    output ++= tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.SostenutoPedal, 64).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteC4).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.SostenutoPedal, 64).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).javaMessage)
 
     shortMessageOutput should have size 6
     // C on
-    inside(shortMessageOutput.head) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput.head) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
     // Depress pedal
-    inside(shortMessageOutput(1)) { case ScCcMidiMessage(_, ScCcMidiMessage.SostenutoPedal, 64) => }
+    inside(shortMessageOutput(1)) { case CcScMidiMessage(_, CcScMidiMessage.SostenutoPedal, 64) => }
     // C off
-    inside(shortMessageOutput(2)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+    inside(shortMessageOutput(2)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(shortMessageOutput(3)) { case ScCcMidiMessage(_, ScCcMidiMessage.SostenutoPedal, 0) => }
-    inside(shortMessageOutput(4)) { case ScPitchBendMidiMessage(_, value) => value should be < 0 }
-    inside(shortMessageOutput(5)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+    inside(shortMessageOutput(3)) { case CcScMidiMessage(_, CcScMidiMessage.SostenutoPedal, 0) => }
+    inside(shortMessageOutput(4)) { case PitchBendScMidiMessage(_, value) => value should be < 0 }
+    inside(shortMessageOutput(5)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
   }
 
   it should "change pitch bend sensitivity via MIDI RPN messages" in new Fixture {
@@ -496,22 +497,22 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     // Current pbs is 1 semitone (semitonePitchBendSensitivity)
     // Send RPN messages to change it to 2 semitones
-    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
-    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
-    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.DataEntryMsb, tonePitchBendSensitivity.semitones)
+    tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
+    tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.DataEntryMsb, tonePitchBendSensitivity.semitones)
       .javaMessage)
-    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.DataEntryLsb, tonePitchBendSensitivity.cents)
+    tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.DataEntryLsb, tonePitchBendSensitivity.cents)
       .javaMessage)
 
     // Play noteE4 (offset is -16.67 cents in customTuning)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).javaMessage)
 
     pitchBendOutput should have size 1
     // The pitch bend value should be calculated using the NEW pbs (2 semitones)
     // cents = -16.67, pbs = 2 semitones = 200 cents
     // value = cents / pbs * 8192 = -16.67 / 200 * 8192 = -682.8032 -> -683
     pitchBendOutput.head.value should equal(
-      ScPitchBendMidiMessage.convertCentsToValue(-16.67, tonePitchBendSensitivity)
+      PitchBendScMidiMessage.convertCentsToValue(-16.67, tonePitchBendSensitivity)
     )
   }
 
@@ -519,20 +520,20 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.tune(customTuning)
     // Play noteE4 (-16.67 cents) with default PBS (1 semitone = 100 cents)
     // value = -16.67 / 100 * 8192 = -1365.6 -> -1366
-    tuner.process(ScNoteOnMidiMessage(inputChannel, noteE4).javaMessage)
+    tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).javaMessage)
 
     // Send RPN messages to change it to 2 semitones
-    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
-    tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
+    tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.RpnLsb, Rpn.PitchBendSensitivityLsb).javaMessage)
+    tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.RpnMsb, Rpn.PitchBendSensitivityMsb).javaMessage)
     // MSB change
-    output ++= tuner.process(ScCcMidiMessage(inputChannel, ScCcMidiMessage.DataEntryMsb, tonePitchBendSensitivity
+    output ++= tuner.process(CcScMidiMessage(inputChannel, CcScMidiMessage.DataEntryMsb, tonePitchBendSensitivity
       .semitones).javaMessage)
 
     // It should have sent a new pitch bend message immediately after DataEntryMsb
     // value = -16.67 / 200 * 8192 = -683
     pitchBendOutput should have size 1
     pitchBendOutput.head.value should equal(
-      ScPitchBendMidiMessage.convertCentsToValue(-16.67, tonePitchBendSensitivity)
+      PitchBendScMidiMessage.convertCentsToValue(-16.67, tonePitchBendSensitivity)
     )
   }
 
@@ -571,17 +572,17 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning)
     output.clear()
 
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteBb4).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteA4).javaMessage)
-    output ++= tuner.process(ScNoteOffMidiMessage(inputChannel, noteBb4).javaMessage)
-    output ++= tuner.process(ScNoteOnMidiMessage(inputChannel, noteBb4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteBb4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteA4).javaMessage)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteBb4).javaMessage)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteBb4).javaMessage)
 
     val outputNotes: Seq[ShortMessage] = filterNotes(shortMessageOutput)
     outputNotes should have size 5
-    inside(outputNotes.head) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
-    inside(outputNotes(1)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
-    inside(outputNotes(2)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
-    inside(outputNotes(3)) { case ScNoteOffMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
-    inside(outputNotes(4)) { case ScNoteOnMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
+    inside(outputNotes.head) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
+    inside(outputNotes(1)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
+    inside(outputNotes(2)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
+    inside(outputNotes(3)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
+    inside(outputNotes(4)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
   }
 }

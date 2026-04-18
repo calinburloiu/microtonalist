@@ -18,7 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.microtonalist.tuner.mts.MtsMessageGenerator
-import org.calinburloiu.music.scmidi.{MidiNote, ScCcMidiMessage, ScNoteOnMidiMessage}
+import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, NoteOnScMidiMessage}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -57,7 +58,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     (IndexTuningChange(2), customIndex2TuningCcTrigger)
   )
   for ((tuningChange, cc) <- testCases) {
-    def createCcMessage(value: Int): ShortMessage = ScCcMidiMessage(1, cc, value).javaMessage
+    def createCcMessage(value: Int): ShortMessage = CcScMidiMessage(1, cc, value).javaMessage
 
     "decide" should s"not trigger a $tuningChange if CC value is below or equal to the threshold" in {
       tuningChanger.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
@@ -96,7 +97,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   "decide" should "return NoTuningChange for a Note On MIDI message" in {
-    val noteOnMessage = ScNoteOnMidiMessage(1, MidiNote.C4, 64).javaMessage
+    val noteOnMessage = NoteOnScMidiMessage(1, MidiNote.C4, 64).javaMessage
     tuningChanger.decide(noteOnMessage) shouldEqual NoTuningChange
   }
 
@@ -106,7 +107,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =
-    ScCcMidiMessage(1, customNextTuningCcTrigger, value).javaMessage
+    CcScMidiMessage(1, customNextTuningCcTrigger, value).javaMessage
 
   "isPressed" should "tell if the pedal for a CC trigger is pressed" in {
     tuningChanger.decide(createCcMessageForNext(customThreshold - 1))

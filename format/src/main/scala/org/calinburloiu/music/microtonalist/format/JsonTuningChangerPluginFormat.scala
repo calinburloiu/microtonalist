@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
 import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
-import org.calinburloiu.music.scmidi.ScCcMidiMessage
+import org.calinburloiu.music.scmidi.message.CcScMidiMessage
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
 import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
@@ -64,8 +64,8 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
       javaClass = classOf[PedalTuningChanger],
       defaultSettings = Json.obj(
         "triggers" -> Json.obj(
-          "previous" -> ScCcMidiMessage.SoftPedal,
-          "next" -> ScCcMidiMessage.SostenutoPedal
+          "previous" -> CcScMidiMessage.SoftPedal,
+          "next" -> CcScMidiMessage.SostenutoPedal
         ),
         "threshold" -> 0,
         "triggersThru" -> false

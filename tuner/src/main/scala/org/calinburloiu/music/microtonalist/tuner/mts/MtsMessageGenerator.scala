@@ -17,7 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner.mts
 
 import org.calinburloiu.music.microtonalist.tuner.Tuning
-import org.calinburloiu.music.scmidi.{PitchBendSensitivity, ScPitchBendMidiMessage}
+import org.calinburloiu.music.scmidi.PitchBendSensitivity
+import org.calinburloiu.music.scmidi.message.PitchBendScMidiMessage
 
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
@@ -106,7 +107,7 @@ private[tuner] object MtsOctaveMessageGenerator {
 
   @inline
   private def convertTuningValueToBytes(tuningValue: Double): (Byte, Byte) = {
-    val (lsb, msb) = ScPitchBendMidiMessage.convertCentsToDataBytes(tuningValue, semitonePitchBendSensitivity)
+    val (lsb, msb) = PitchBendScMidiMessage.convertCentsToDataBytes(tuningValue, semitonePitchBendSensitivity)
     (lsb.toByte, msb.toByte)
   }
 }
