@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.message.CcScMidiMessage
+import org.calinburloiu.music.scmidi.message.Cc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
-  val triggers: TuningChangeTriggers[PedalTuningChanger.Cc] = TuningChangeTriggers(
+  val triggers: TuningChangeTriggers[PedalTuningChanger.CcNumber] = TuningChangeTriggers(
     previous = Some(Cc.SoftPedal),
     next = Some(Cc.SostenutoPedal),
     index = Map(
@@ -32,15 +32,15 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
 
   "constructor" should "fail if there is no trigger configured" in {
     assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[PedalTuningChanger.Cc](
+      TuningChangeTriggers[PedalTuningChanger.CcNumber](
         previous = None,
         next = None,
-        index = Map.empty[Int, PedalTuningChanger.Cc]
+        index = Map.empty[Int, PedalTuningChanger.CcNumber]
       )
     }
 
     assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[PedalTuningChanger.Cc]()
+      TuningChangeTriggers[PedalTuningChanger.CcNumber]()
     }
   }
 

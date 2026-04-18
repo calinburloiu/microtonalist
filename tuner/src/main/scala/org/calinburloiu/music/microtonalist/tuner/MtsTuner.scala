@@ -14,10 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner.mts
+package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.{Tuner, Tuning}
 import org.calinburloiu.music.scmidi.MidiDeviceId
 
 import javax.sound.midi.MidiMessage

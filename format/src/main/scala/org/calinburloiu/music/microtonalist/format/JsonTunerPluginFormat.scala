@@ -18,8 +18,6 @@ package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.*
-import org.calinburloiu.music.microtonalist.tuner.mpe.*
-import org.calinburloiu.music.microtonalist.tuner.mts.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*

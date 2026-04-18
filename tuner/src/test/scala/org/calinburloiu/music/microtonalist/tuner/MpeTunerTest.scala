@@ -14,9 +14,8 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner.mpe
+package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}

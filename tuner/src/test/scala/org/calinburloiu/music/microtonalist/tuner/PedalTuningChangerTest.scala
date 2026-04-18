@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.microtonalist.tuner.mts.MtsMessageGenerator
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, NoteOnScMidiMessage}
 import org.scalatest.flatspec.AnyFlatSpec

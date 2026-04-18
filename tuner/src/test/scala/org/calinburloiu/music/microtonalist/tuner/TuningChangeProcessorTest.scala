@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, NoteOnScMidiMessage}
+import org.calinburloiu.music.scmidi.message.{Cc, CcScMidiMessage, NoteOnScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

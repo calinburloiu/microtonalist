@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.Cc
+import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
 import play.api.libs.json.*
 
@@ -29,7 +29,7 @@ class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
 
   behavior of "PedalTuningChanger JSON plugin format"
 
-  private val ccTriggers: TuningChangeTriggers[Cc] = TuningChangeTriggers(
+  private val ccTriggers: TuningChangeTriggers[CcNumber] = TuningChangeTriggers(
     previous = Some(100),
     next = Some(101),
     index = Map(

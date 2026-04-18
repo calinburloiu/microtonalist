@@ -14,9 +14,8 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner.mts
+package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.PitchBendSensitivity
 import org.calinburloiu.music.scmidi.message.PitchBendScMidiMessage
 
