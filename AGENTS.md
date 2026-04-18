@@ -243,8 +243,7 @@ managing GitHub Projects (v2).
 
 The following labels are used for issues, PRs, and as branch name prefixes:
 
-- `feature` — a wholly new capability or component
-- `enhancement` — improvement to an existing feature
+- `feature` — a capability or component
 - `bugfix` — fix for a defect
 - `refactoring` — restructuring existing code without changing behavior
 - `doc` — documentation-only changes
