@@ -16,7 +16,19 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ChannelPressureScMidiMessage, MidiRequirements, NoteOffScMidiMessage, NoteOnScMidiMessage, PitchBendScMidiMessage, PolyPressureScMidiMessage, ProgramChangeScMidiMessage, ScMidiCc, ScMidiMessage, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{
+  CcScMidiMessage,
+  ChannelPressureScMidiMessage,
+  MidiRequirements,
+  NoteOffScMidiMessage,
+  NoteOnScMidiMessage,
+  PitchBendScMidiMessage,
+  PolyPressureScMidiMessage,
+  ProgramChangeScMidiMessage,
+  ScMidiCc,
+  ScMidiMessage,
+  ScMidiRpn
+}
 
 import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.mutable
@@ -95,8 +107,9 @@ class ScMidiChannelStateTracker(
   }
 
   /**
-   * @return the most recent Polyphonic Key Pressure value recorded for an active note on the given channel,
-   *         or `None` if the note is not active.
+   * @return the most recent Polyphonic Key Pressure value for an active note on the given channel — `Some(0)` if
+   *         the note is active but no Polyphonic Key Pressure has been received for it yet, or `None` if the note
+   *         is not active.
    */
   def polyPressure(channel: Int, midiNote: MidiNote): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -152,7 +165,9 @@ class ScMidiChannelStateTracker(
         case Selector.Nrpn(m, _) => m
         case _                   => 0
       }
-      state.selector = Selector.Nrpn(msb, value)
+      state.selector =
+        if (msb == ScMidiRpn.NullMsb && value == ScMidiRpn.NullLsb) Selector.None
+        else Selector.Nrpn(msb, value)
     case ScMidiCc.DataEntryMsb => writeDataEntry(state, isMsb = true, value)
     case ScMidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)
     case ScMidiCc.DataIncrement => applyDataDelta(state, delta = 1)
@@ -162,11 +177,15 @@ class ScMidiChannelStateTracker(
 
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = state.selector match {
     case Selector.Rpn(rmsb, rlsb) =>
-      val (curMsb, curLsb) = state.rpnValues.getOrElse((rmsb, rlsb), (0, 0))
+      val (curMsb, curLsb) = state.rpnValues.get((rmsb, rlsb))
+        .orElse(resolvedRpnDefault(rmsb, rlsb))
+        .getOrElse((0, 0))
       val updated = if (isMsb) (value, curLsb) else (curMsb, value)
       state.rpnValues((rmsb, rlsb)) = updated
     case Selector.Nrpn(nmsb, nlsb) =>
-      val (curMsb, curLsb) = state.nrpnValues.getOrElse((nmsb, nlsb), (0, 0))
+      val (curMsb, curLsb) = state.nrpnValues.get((nmsb, nlsb))
+        .orElse(resolvedNrpnDefault(nmsb, nlsb))
+        .getOrElse((0, 0))
       val updated = if (isMsb) (value, curLsb) else (curMsb, value)
       state.nrpnValues((nmsb, nlsb)) = updated
     case Selector.None =>

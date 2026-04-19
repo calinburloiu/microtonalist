@@ -16,7 +16,17 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ChannelPressureScMidiMessage, NoteOffScMidiMessage, NoteOnScMidiMessage, PitchBendScMidiMessage, PolyPressureScMidiMessage, ProgramChangeScMidiMessage, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{
+  CcScMidiMessage,
+  ChannelPressureScMidiMessage,
+  NoteOffScMidiMessage,
+  NoteOnScMidiMessage,
+  PitchBendScMidiMessage,
+  PolyPressureScMidiMessage,
+  ProgramChangeScMidiMessage,
+  ScMidiCc,
+  ScMidiRpn
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -380,6 +390,18 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpn(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 50)))
   }
 
+  it should "seed the unrecorded RPN value from the resolved default when only Data Entry LSB is sent" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 50))
+
+    // Then
+    tracker.rpn(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 50)))
+  }
+
   it should "keep recorded RPN values when a different RPN is selected" in {
     // Given
     val tracker = ScMidiChannelStateTracker()
@@ -495,6 +517,21 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Then
     tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((1, 0)))
     tracker.nrpn(Channel, NrpnB._1, NrpnB._2) should equal(Some((2, 0)))
+  }
+
+  it should "ignore Data Entry after Null NRPN is selected" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 8))
+    selectNrpn(tracker, Channel, ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+
+    // Then
+    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((8, 0)))
+    tracker.nrpn(Channel, ScMidiRpn.NullMsb, ScMidiRpn.NullLsb) shouldBe None
   }
 
   behavior of "ScMidiChannelStateTracker Data Increment / Decrement"
