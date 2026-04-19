@@ -23,20 +23,22 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import javax.sound.midi.{MidiMessage, SysexMessage}
+import javax.sound.midi.MidiMessage
+import org.calinburloiu.music.scmidi.message.SysexScMidiMessage
 
-private class TestSysexMessage extends SysexMessage
+import scala.collection.immutable.ArraySeq
 
 class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
-    val sysexMessage: SysexMessage = stub[TestSysexMessage]("SysexMessage")
+    val sysExMessage: SysexScMidiMessage = SysexScMidiMessage(
+      ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x08, 0xF7).map(_.toByte)))
     val tuner: MtsTuner = new MtsTuner(mtsMessageGenerator, thru) {
       override val typeName: String = "test"
     }
 
-    mtsMessageGenerator.generate.when(*).returns(sysexMessage)
+    mtsMessageGenerator.generate.when(*).returns(sysExMessage)
   }
 
   "MtsTuner#tune" should "return the generated SysEx MTS message" in new Fixture {
@@ -44,7 +46,7 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
     val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
     mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
-    result shouldEqual Seq(sysexMessage)
+    result shouldEqual Seq(sysExMessage.javaMessage)
   }
 
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
