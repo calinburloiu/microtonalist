@@ -34,21 +34,27 @@ class TextMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "TextMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     TextMetaScMidiMessage(text).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     TextMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(TextMetaScMidiMessage(text)))
   }
 
   it should "be extracted from a valid Text meta event" in {
+    // When / Then
     inside(javaMessage) {
       case TextMetaScMidiMessage(`text`) => succeed
     }
   }
 
   it should "return None for non-Text messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     TextMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

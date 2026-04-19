@@ -27,20 +27,26 @@ class StopScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "StopScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     StopScMidiMessage.javaMessage.getStatus should equal(ShortMessage.STOP)
     StopScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     StopScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(StopScMidiMessage))
   }
 
   it should "be extracted from a valid Stop message" in {
+    // When / Then
     StopScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val start: MidiMessage = new ShortMessage(ShortMessage.START)
+
+    // When / Then
     StopScMidiMessage.unapply(start) shouldBe false
   }
 }

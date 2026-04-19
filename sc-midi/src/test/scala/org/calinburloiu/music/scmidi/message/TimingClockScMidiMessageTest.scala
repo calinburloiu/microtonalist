@@ -27,20 +27,26 @@ class TimingClockScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "TimingClockScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     TimingClockScMidiMessage.javaMessage.getStatus should equal(ShortMessage.TIMING_CLOCK)
     TimingClockScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     TimingClockScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(TimingClockScMidiMessage))
   }
 
   it should "be extracted from a valid Timing Clock message" in {
+    // When / Then
     TimingClockScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     TimingClockScMidiMessage.unapply(noteOn) shouldBe false
   }
 }

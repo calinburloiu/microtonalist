@@ -27,20 +27,26 @@ class ContinueScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "ContinueScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     ContinueScMidiMessage.javaMessage.getStatus should equal(ShortMessage.CONTINUE)
     ContinueScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     ContinueScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(ContinueScMidiMessage))
   }
 
   it should "be extracted from a valid Continue message" in {
+    // When / Then
     ContinueScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val start: MidiMessage = new ShortMessage(ShortMessage.START)
+
+    // When / Then
     ContinueScMidiMessage.unapply(start) shouldBe false
   }
 }

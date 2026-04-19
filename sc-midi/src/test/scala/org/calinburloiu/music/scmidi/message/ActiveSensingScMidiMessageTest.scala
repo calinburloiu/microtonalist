@@ -27,20 +27,26 @@ class ActiveSensingScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "ActiveSensingScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     ActiveSensingScMidiMessage.javaMessage.getStatus should equal(ShortMessage.ACTIVE_SENSING)
     ActiveSensingScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     ActiveSensingScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(ActiveSensingScMidiMessage))
   }
 
   it should "be extracted from a valid Active Sensing message" in {
+    // When / Then
     ActiveSensingScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val stop: MidiMessage = new ShortMessage(ShortMessage.STOP)
+
+    // When / Then
     ActiveSensingScMidiMessage.unapply(stop) shouldBe false
   }
 }

@@ -27,20 +27,26 @@ class SystemResetScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "SystemResetScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     SystemResetScMidiMessage.javaMessage.getStatus should equal(ShortMessage.SYSTEM_RESET)
     SystemResetScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     SystemResetScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(SystemResetScMidiMessage))
   }
 
   it should "be extracted from a valid System Reset message" in {
+    // When / Then
     SystemResetScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val activeSensing: MidiMessage = new ShortMessage(ShortMessage.ACTIVE_SENSING)
+
+    // When / Then
     SystemResetScMidiMessage.unapply(activeSensing) shouldBe false
   }
 }

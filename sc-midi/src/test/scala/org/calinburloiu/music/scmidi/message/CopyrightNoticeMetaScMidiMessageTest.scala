@@ -34,21 +34,27 @@ class CopyrightNoticeMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "CopyrightNoticeMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     CopyrightNoticeMetaScMidiMessage(text).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     CopyrightNoticeMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(CopyrightNoticeMetaScMidiMessage(text)))
   }
 
   it should "be extracted from a valid Copyright Notice meta event" in {
+    // When / Then
     inside(javaMessage) {
       case CopyrightNoticeMetaScMidiMessage(`text`) => succeed
     }
   }
 
   it should "return None for non-Copyright-Notice messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     CopyrightNoticeMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

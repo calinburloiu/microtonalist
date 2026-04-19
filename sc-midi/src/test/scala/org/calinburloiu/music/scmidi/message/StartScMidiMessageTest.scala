@@ -27,20 +27,26 @@ class StartScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "StartScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     StartScMidiMessage.javaMessage.getStatus should equal(ShortMessage.START)
     StartScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     StartScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(StartScMidiMessage))
   }
 
   it should "be extracted from a valid Start message" in {
+    // When / Then
     StartScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val timingClock: MidiMessage = new ShortMessage(ShortMessage.TIMING_CLOCK)
+
+    // When / Then
     StartScMidiMessage.unapply(timingClock) shouldBe false
   }
 }
