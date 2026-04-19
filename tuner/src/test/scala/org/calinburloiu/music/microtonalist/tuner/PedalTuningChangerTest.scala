@@ -102,7 +102,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
 
   it should "return NoTuningChange for a SysEx MIDI message" in {
     val sysExMessage = MtsMessageGenerator.Octave1ByteNonRealTime.generate(Tuning.Standard)
-    tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
+    tuningChanger.decide(sysExMessage.javaMessage) shouldEqual NoTuningChange
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =

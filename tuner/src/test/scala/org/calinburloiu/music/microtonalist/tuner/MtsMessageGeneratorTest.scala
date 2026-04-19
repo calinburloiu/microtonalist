@@ -44,8 +44,8 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double]): Unit = {
-    val sysexMessage = messageGenerator.generate(tuning)
-    val data = sysexMessage.getMessage
+    val sysExMessage = messageGenerator.generate(tuning)
+    val data = sysExMessage.javaMessage.getMessage
     val softTuning = new SoftTuning(data)
     val tuningValues = softTuning.getTuning
 
