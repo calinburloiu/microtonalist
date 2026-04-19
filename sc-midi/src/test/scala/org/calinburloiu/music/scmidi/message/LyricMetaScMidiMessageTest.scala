@@ -34,21 +34,27 @@ class LyricMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "LyricMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     LyricMetaScMidiMessage(text).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     LyricMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(LyricMetaScMidiMessage(text)))
   }
 
   it should "be extracted from a valid Lyric meta event" in {
+    // When / Then
     inside(javaMessage) {
       case LyricMetaScMidiMessage(`text`) => succeed
     }
   }
 
   it should "return None for non-Lyric messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     LyricMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

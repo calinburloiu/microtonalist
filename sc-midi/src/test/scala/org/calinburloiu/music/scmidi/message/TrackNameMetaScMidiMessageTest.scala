@@ -34,21 +34,27 @@ class TrackNameMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "TrackNameMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     TrackNameMetaScMidiMessage(name).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     TrackNameMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(TrackNameMetaScMidiMessage(name)))
   }
 
   it should "be extracted from a valid Track Name meta event" in {
+    // When / Then
     inside(javaMessage) {
       case TrackNameMetaScMidiMessage(`name`) => succeed
     }
   }
 
   it should "return None for non-Track-Name messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     TrackNameMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

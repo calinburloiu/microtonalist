@@ -35,25 +35,32 @@ class SetTempoMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "SetTempoMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     SetTempoMetaScMidiMessage(tempo).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     SetTempoMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(SetTempoMetaScMidiMessage(tempo)))
   }
 
   it should "be extracted from a valid Set Tempo meta event" in {
+    // When / Then
     inside(javaMessage) {
       case SetTempoMetaScMidiMessage(`tempo`) => succeed
     }
   }
 
   it should "return None for non-Set-Tempo messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     SetTempoMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "reject invalid tempo values" in {
+    // When / Then
     an[IllegalArgumentException] should be thrownBy SetTempoMetaScMidiMessage(1 << 24)
     an[IllegalArgumentException] should be thrownBy SetTempoMetaScMidiMessage(-1)
   }

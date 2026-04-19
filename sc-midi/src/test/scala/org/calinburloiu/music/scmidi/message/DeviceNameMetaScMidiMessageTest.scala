@@ -34,21 +34,27 @@ class DeviceNameMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "DeviceNameMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     DeviceNameMetaScMidiMessage(name).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     DeviceNameMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(DeviceNameMetaScMidiMessage(name)))
   }
 
   it should "be extracted from a valid Device Name meta event" in {
+    // When / Then
     inside(javaMessage) {
       case DeviceNameMetaScMidiMessage(`name`) => succeed
     }
   }
 
   it should "return None for non-Device-Name messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     DeviceNameMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

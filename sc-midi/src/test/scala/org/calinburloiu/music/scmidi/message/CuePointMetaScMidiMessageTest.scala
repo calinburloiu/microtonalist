@@ -34,21 +34,27 @@ class CuePointMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "CuePointMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     CuePointMetaScMidiMessage(text).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     CuePointMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(CuePointMetaScMidiMessage(text)))
   }
 
   it should "be extracted from a valid Cue Point meta event" in {
+    // When / Then
     inside(javaMessage) {
       case CuePointMetaScMidiMessage(`text`) => succeed
     }
   }
 
   it should "return None for non-Cue-Point messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     CuePointMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

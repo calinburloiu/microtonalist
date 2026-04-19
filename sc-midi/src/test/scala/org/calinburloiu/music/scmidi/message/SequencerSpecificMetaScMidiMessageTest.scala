@@ -35,22 +35,28 @@ class SequencerSpecificMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "SequencerSpecificMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     SequencerSpecificMetaScMidiMessage(data).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     SequencerSpecificMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(
       Some(SequencerSpecificMetaScMidiMessage(data)))
   }
 
   it should "be extracted from a valid Sequencer-Specific meta event" in {
+    // When / Then
     inside(javaMessage) {
       case SequencerSpecificMetaScMidiMessage(`data`) => succeed
     }
   }
 
   it should "return None for non-Sequencer-Specific messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     SequencerSpecificMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

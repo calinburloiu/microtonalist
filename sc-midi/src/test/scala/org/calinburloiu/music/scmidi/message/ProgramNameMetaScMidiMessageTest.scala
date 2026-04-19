@@ -34,21 +34,27 @@ class ProgramNameMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "ProgramNameMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     ProgramNameMetaScMidiMessage(name).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     ProgramNameMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(ProgramNameMetaScMidiMessage(name)))
   }
 
   it should "be extracted from a valid Program Name meta event" in {
+    // When / Then
     inside(javaMessage) {
       case ProgramNameMetaScMidiMessage(`name`) => succeed
     }
   }
 
   it should "return None for non-Program-Name messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     ProgramNameMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

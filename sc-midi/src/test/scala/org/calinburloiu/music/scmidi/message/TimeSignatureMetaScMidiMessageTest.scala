@@ -39,18 +39,21 @@ class TimeSignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "TimeSignatureMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     TimeSignatureMetaScMidiMessage(numerator, denominatorPowerOf2,
       midiClocksPerMetronomeTick, thirtySecondNotesPer24MidiClocks)
       .javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     TimeSignatureMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(
       Some(TimeSignatureMetaScMidiMessage(numerator, denominatorPowerOf2,
         midiClocksPerMetronomeTick, thirtySecondNotesPer24MidiClocks)))
   }
 
   it should "be extracted from a valid Time Signature meta event" in {
+    // When / Then
     inside(javaMessage) {
       case TimeSignatureMetaScMidiMessage(`numerator`, `denominatorPowerOf2`,
         `midiClocksPerMetronomeTick`, `thirtySecondNotesPer24MidiClocks`) => succeed
@@ -58,11 +61,15 @@ class TimeSignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   }
 
   it should "return None for non-Time-Signature messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     TimeSignatureMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "reject invalid field values" in {
+    // When / Then
     an[IllegalArgumentException] should be thrownBy TimeSignatureMetaScMidiMessage(256, 0, 0, 0)
     an[IllegalArgumentException] should be thrownBy TimeSignatureMetaScMidiMessage(0, -1, 0, 0)
   }

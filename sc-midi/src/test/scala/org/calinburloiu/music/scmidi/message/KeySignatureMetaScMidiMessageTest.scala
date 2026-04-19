@@ -34,31 +34,41 @@ class KeySignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "KeySignatureMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     KeySignatureMetaScMidiMessage(sharpsOrFlats, mode).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     KeySignatureMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(
       Some(KeySignatureMetaScMidiMessage(sharpsOrFlats, mode)))
   }
 
   it should "be extracted from a valid Key Signature meta event" in {
+    // When / Then
     inside(javaMessage) {
       case KeySignatureMetaScMidiMessage(`sharpsOrFlats`, `mode`) => succeed
     }
   }
 
   it should "round-trip a major key with sharps" in {
+    // Given
     val msg = KeySignatureMetaScMidiMessage(4, KeySignatureMode.Major)
+
+    // When / Then
     KeySignatureMetaScMidiMessage.fromJavaMessage(msg.javaMessage) should equal(Some(msg))
   }
 
   it should "return None for non-Key-Signature messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     KeySignatureMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "reject invalid sharpsOrFlats" in {
+    // When / Then
     an[IllegalArgumentException] should be thrownBy KeySignatureMetaScMidiMessage(8, KeySignatureMode.Major)
     an[IllegalArgumentException] should be thrownBy KeySignatureMetaScMidiMessage(-8, KeySignatureMode.Major)
   }

@@ -31,19 +31,25 @@ class EndOfTrackMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "EndOfTrackMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     EndOfTrackMetaScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     EndOfTrackMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(EndOfTrackMetaScMidiMessage))
   }
 
   it should "be extracted from a valid End Of Track meta event" in {
+    // When / Then
     EndOfTrackMetaScMidiMessage.unapply(javaMessage) shouldBe true
   }
 
   it should "return false from unapply for other messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     EndOfTrackMetaScMidiMessage.unapply(noteOn) shouldBe false
   }
 }

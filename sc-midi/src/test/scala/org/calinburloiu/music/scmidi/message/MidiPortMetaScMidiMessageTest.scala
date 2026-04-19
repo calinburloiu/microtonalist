@@ -33,25 +33,32 @@ class MidiPortMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "MidiPortMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     MidiPortMetaScMidiMessage(port).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     MidiPortMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(MidiPortMetaScMidiMessage(port)))
   }
 
   it should "be extracted from a valid MIDI Port meta event" in {
+    // When / Then
     inside(javaMessage) {
       case MidiPortMetaScMidiMessage(`port`) => succeed
     }
   }
 
   it should "return None for non-MIDI-Port messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     MidiPortMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "reject invalid port values" in {
+    // When / Then
     an[IllegalArgumentException] should be thrownBy MidiPortMetaScMidiMessage(128)
     an[IllegalArgumentException] should be thrownBy MidiPortMetaScMidiMessage(-1)
   }

@@ -33,26 +33,33 @@ class MidiChannelPrefixMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "MidiChannelPrefixMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     MidiChannelPrefixMetaScMidiMessage(channel).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     MidiChannelPrefixMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(
       Some(MidiChannelPrefixMetaScMidiMessage(channel)))
   }
 
   it should "be extracted from a valid MIDI Channel Prefix meta event" in {
+    // When / Then
     inside(javaMessage) {
       case MidiChannelPrefixMetaScMidiMessage(`channel`) => succeed
     }
   }
 
   it should "return None for non-MIDI-Channel-Prefix messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     MidiChannelPrefixMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "reject invalid channels" in {
+    // When / Then
     an[IllegalArgumentException] should be thrownBy MidiChannelPrefixMetaScMidiMessage(16)
     an[IllegalArgumentException] should be thrownBy MidiChannelPrefixMetaScMidiMessage(-1)
   }

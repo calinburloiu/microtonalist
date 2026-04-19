@@ -34,21 +34,27 @@ class InstrumentNameMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "InstrumentNameMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     InstrumentNameMetaScMidiMessage(name).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     InstrumentNameMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(InstrumentNameMetaScMidiMessage(name)))
   }
 
   it should "be extracted from a valid Instrument Name meta event" in {
+    // When / Then
     inside(javaMessage) {
       case InstrumentNameMetaScMidiMessage(`name`) => succeed
     }
   }
 
   it should "return None for non-Instrument-Name messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     InstrumentNameMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }

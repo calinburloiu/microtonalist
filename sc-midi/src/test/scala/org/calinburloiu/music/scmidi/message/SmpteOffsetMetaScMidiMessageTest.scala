@@ -37,27 +37,34 @@ class SmpteOffsetMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "SmpteOffsetMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     SmpteOffsetMetaScMidiMessage(hour, minute, second, frame, fractionalFrame).javaMessage.getMessage should equal(
       javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     SmpteOffsetMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(
       Some(SmpteOffsetMetaScMidiMessage(hour, minute, second, frame, fractionalFrame)))
   }
 
   it should "be extracted from a valid SMPTE Offset meta event" in {
+    // When / Then
     inside(javaMessage) {
       case SmpteOffsetMetaScMidiMessage(`hour`, `minute`, `second`, `frame`, `fractionalFrame`) => succeed
     }
   }
 
   it should "return None for non-SMPTE-Offset messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     SmpteOffsetMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "reject invalid field values" in {
+    // When / Then
     an[IllegalArgumentException] should be thrownBy SmpteOffsetMetaScMidiMessage(256, 0, 0, 0, 0)
     an[IllegalArgumentException] should be thrownBy SmpteOffsetMetaScMidiMessage(0, -1, 0, 0, 0)
   }

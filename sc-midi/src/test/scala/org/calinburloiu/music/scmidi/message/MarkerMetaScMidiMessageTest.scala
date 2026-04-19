@@ -34,21 +34,27 @@ class MarkerMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   behavior of "MarkerMetaScMidiMessage"
 
   it should "create correct Java MIDI message" in {
+    // When / Then
     MarkerMetaScMidiMessage(text).javaMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
+    // When / Then
     MarkerMetaScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(MarkerMetaScMidiMessage(text)))
   }
 
   it should "be extracted from a valid Marker meta event" in {
+    // When / Then
     inside(javaMessage) {
       case MarkerMetaScMidiMessage(`text`) => succeed
     }
   }
 
   it should "return None for non-Marker messages" in {
+    // Given
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
+
+    // When / Then
     MarkerMetaScMidiMessage.unapply(noteOn) shouldBe None
   }
 }
