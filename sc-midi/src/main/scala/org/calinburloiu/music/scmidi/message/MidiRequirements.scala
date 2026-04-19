@@ -40,4 +40,28 @@ object MidiRequirements {
       s"$name must be between $MinSigned14BitValue and $MaxSigned14BitValue; got $value"
     )
   }
+
+  /** Requires that the given value is an unsigned 14-bit integer (0 to 16383). */
+  def requireUnsigned14BitValue(name: String, value: Int): Unit =
+    require((value & 0xFFFFC000) == 0, s"$name must be between 0 and 16383; got $value")
+
+  /** Requires that the given value is an unsigned 24-bit integer (0 to 16777215). */
+  def requireUnsigned24BitValue(name: String, value: Int): Unit =
+    require((value & 0xFF000000) == 0, s"$name must be between 0 and 16777215; got $value")
+
+  /** Requires that the given value is an unsigned 16-bit integer (0 to 65535). */
+  def requireUnsigned16BitValue(name: String, value: Int): Unit =
+    require((value & 0xFFFF0000) == 0, s"$name must be between 0 and 65535; got $value")
+
+  /** Requires that the given value is an unsigned 4-bit integer (0 to 15). */
+  def requireUnsigned4BitValue(name: String, value: Int): Unit =
+    require((value & 0xFFFFFFF0) == 0, s"$name must be between 0 and 15; got $value")
+
+  /** Requires that the given value is an unsigned 3-bit integer (0 to 7). */
+  def requireUnsigned3BitValue(name: String, value: Int): Unit =
+    require((value & 0xFFFFFFF8) == 0, s"$name must be between 0 and 7; got $value")
+
+  /** Requires that the given value is an unsigned 8-bit integer (0 to 255). */
+  def requireUnsigned8BitValue(name: String, value: Int): Unit =
+    require((value & 0xFFFFFF00) == 0, s"$name must be between 0 and 255; got $value")
 }
