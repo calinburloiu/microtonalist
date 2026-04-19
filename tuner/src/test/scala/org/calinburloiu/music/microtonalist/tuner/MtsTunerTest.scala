@@ -24,7 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.MidiMessage
-import org.calinburloiu.music.scmidi.message.SysExScMidiMessage
+import org.calinburloiu.music.scmidi.message.SysexScMidiMessage
 
 import scala.collection.immutable.ArraySeq
 
@@ -32,7 +32,7 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
-    val sysExMessage: SysExScMidiMessage = SysExScMidiMessage(
+    val sysExMessage: SysexScMidiMessage = SysexScMidiMessage(
       ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x08, 0xF7).map(_.toByte)))
     val tuner: MtsTuner = new MtsTuner(mtsMessageGenerator, thru) {
       override val typeName: String = "test"

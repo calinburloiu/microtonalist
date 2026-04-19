@@ -24,7 +24,7 @@ import javax.sound.midi.{MetaMessage, MidiMessage, ShortMessage}
 
 class KeySignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
   private val sharpsOrFlats = -3
-  private val mode = KeySignatureMode.Minor
+  private val mode = ScMidiKeySignatureMode.Minor
   private val javaMessage: MidiMessage = {
     val m = new MetaMessage()
     m.setMessage(0x59, Array(sharpsOrFlats.toByte, 1.toByte), 2)
@@ -53,7 +53,7 @@ class KeySignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "round-trip a major key with sharps" in {
     // Given
-    val msg = KeySignatureMetaScMidiMessage(4, KeySignatureMode.Major)
+    val msg = KeySignatureMetaScMidiMessage(4, ScMidiKeySignatureMode.Major)
 
     // When / Then
     KeySignatureMetaScMidiMessage.fromJavaMessage(msg.javaMessage) should equal(Some(msg))
@@ -69,7 +69,7 @@ class KeySignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "reject invalid sharpsOrFlats" in {
     // When / Then
-    an[IllegalArgumentException] should be thrownBy KeySignatureMetaScMidiMessage(8, KeySignatureMode.Major)
-    an[IllegalArgumentException] should be thrownBy KeySignatureMetaScMidiMessage(-8, KeySignatureMode.Major)
+    an[IllegalArgumentException] should be thrownBy KeySignatureMetaScMidiMessage(8, ScMidiKeySignatureMode.Major)
+    an[IllegalArgumentException] should be thrownBy KeySignatureMetaScMidiMessage(-8, ScMidiKeySignatureMode.Major)
   }
 }

@@ -115,7 +115,7 @@ object ScMidiMessage {
         val key = if (status >= 0xF0) status else shortMessage.getCommand
         FromJavaMessageMap(key)(message)
       case sysexMessage: SysexMessage =>
-        SysExScMidiMessage.fromJavaMessage(sysexMessage).getOrElse(UnsupportedScMidiMessage(message))
+        SysexScMidiMessage.fromJavaMessage(sysexMessage).getOrElse(UnsupportedScMidiMessage(message))
       case metaMessage: MetaMessage =>
         FromMetaMessageMap(metaMessage.getType)(metaMessage)
       case _ => UnsupportedScMidiMessage(message)
@@ -677,7 +677,7 @@ case object SystemResetScMidiMessage extends ScMidiMessage
  *
  * @param data The full SysEx byte sequence.
  */
-case class SysExScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage {
+case class SysexScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage {
   override lazy val javaMessage: SysexMessage = {
     val bytes = data.toArray
     new SysexMessage(bytes, bytes.length)
@@ -685,17 +685,17 @@ case class SysExScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage {
 }
 
 /**
- * Companion object for [[SysExScMidiMessage]].
+ * Companion object for [[SysexScMidiMessage]].
  */
-object SysExScMidiMessage extends FromJavaMidiMessageConverter[SysExScMidiMessage] {
+object SysexScMidiMessage extends FromJavaMidiMessageConverter[SysexScMidiMessage] {
   /** Extracts the full SysEx byte sequence if the given [[MidiMessage]] is a [[SysexMessage]]. */
   def unapply(message: MidiMessage): Option[ArraySeq[Byte]] = message match {
     case sysexMessage: SysexMessage => Some(ArraySeq.unsafeWrapArray(sysexMessage.getMessage))
     case _ => None
   }
 
-  override def fromJavaMessage(message: MidiMessage): Option[SysExScMidiMessage] =
-    unapply(message).map(SysExScMidiMessage.apply)
+  override def fromJavaMessage(message: MidiMessage): Option[SysexScMidiMessage] =
+    unapply(message).map(SysexScMidiMessage.apply)
 }
 
 // ============================================================================
@@ -741,7 +741,7 @@ private object MetaScMidiMessage {
 }
 
 /** The mode of a musical key signature. */
-enum KeySignatureMode {
+enum ScMidiKeySignatureMode {
   case Major, Minor
 }
 
@@ -1142,13 +1142,13 @@ object TimeSignatureMetaScMidiMessage extends FromJavaMidiMessageConverter[TimeS
  * @param sharpsOrFlats Number of sharps (positive) or flats (negative); range -7 to 7.
  * @param mode          Whether the key is major or minor.
  */
-case class KeySignatureMetaScMidiMessage(sharpsOrFlats: Int, mode: KeySignatureMode) extends ScMidiMessage {
+case class KeySignatureMetaScMidiMessage(sharpsOrFlats: Int, mode: ScMidiKeySignatureMode) extends ScMidiMessage {
   require(sharpsOrFlats >= -7 && sharpsOrFlats <= 7,
     s"sharpsOrFlats must be between -7 and 7; got $sharpsOrFlats")
 
   override lazy val javaMessage: MetaMessage = MetaScMidiMessage.build(
     KeySignatureMetaScMidiMessage.MetaType,
-    Array(sharpsOrFlats.toByte, (if (mode == KeySignatureMode.Minor) 1 else 0).toByte)
+    Array(sharpsOrFlats.toByte, (if (mode == ScMidiKeySignatureMode.Minor) 1 else 0).toByte)
   )
 }
 
@@ -1158,11 +1158,11 @@ object KeySignatureMetaScMidiMessage extends FromJavaMidiMessageConverter[KeySig
   val MetaType: Int = 0x59
 
   /** Extracts the key signature fields if the given message is a Key Signature meta event. */
-  def unapply(message: MidiMessage): Option[(Int, KeySignatureMode)] = message match {
+  def unapply(message: MidiMessage): Option[(Int, ScMidiKeySignatureMode)] = message match {
     case m: MetaMessage if m.getType == MetaType =>
       val d = m.getData
       val sharps = d(0).toInt // signed
-      val mode = if ((d(1) & 0xFF) == 1) KeySignatureMode.Minor else KeySignatureMode.Major
+      val mode = if ((d(1) & 0xFF) == 1) ScMidiKeySignatureMode.Minor else ScMidiKeySignatureMode.Major
       Some((sharps, mode))
     case _ => None
   }

@@ -23,16 +23,16 @@ import org.scalatest.matchers.should.Matchers
 import javax.sound.midi.{MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
 
-class SysExScMidiMessageTest extends AnyFlatSpec with Matchers {
+class SysexScMidiMessageTest extends AnyFlatSpec with Matchers {
   private val bytes: Array[Byte] = Array(0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7).map(_.toByte)
   private val data: ArraySeq[Byte] = ArraySeq.unsafeWrapArray(bytes.clone())
   private val javaMessage: MidiMessage = new SysexMessage(bytes.clone(), bytes.length)
 
-  behavior of "SysExScMidiMessage"
+  behavior of "SysexScMidiMessage"
 
   it should "create correct Java MIDI message" in {
     // Given
-    val msg = SysExScMidiMessage(data)
+    val msg = SysexScMidiMessage(data)
 
     // When / Then
     msg.javaMessage.getMessage should equal(javaMessage.getMessage)
@@ -40,13 +40,13 @@ class SysExScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "be created from a Java MidiMessage" in {
     // When / Then
-    SysExScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(SysExScMidiMessage(data)))
+    SysexScMidiMessage.fromJavaMessage(javaMessage) should equal(Some(SysexScMidiMessage(data)))
   }
 
   it should "be extracted from a valid SysEx message" in {
     // When / Then
     inside(javaMessage) {
-      case SysExScMidiMessage(`data`) => succeed
+      case SysexScMidiMessage(`data`) => succeed
     }
   }
 
@@ -55,13 +55,13 @@ class SysExScMidiMessageTest extends AnyFlatSpec with Matchers {
     val noteOn: MidiMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
 
     // When / Then
-    SysExScMidiMessage.unapply(noteOn) shouldBe None
+    SysexScMidiMessage.unapply(noteOn) shouldBe None
   }
 
   it should "have structural equality via ArraySeq" in {
     // Given
-    val a = SysExScMidiMessage(ArraySeq.unsafeWrapArray(bytes.clone()))
-    val b = SysExScMidiMessage(ArraySeq.unsafeWrapArray(bytes.clone()))
+    val a = SysexScMidiMessage(ArraySeq.unsafeWrapArray(bytes.clone()))
+    val b = SysexScMidiMessage(ArraySeq.unsafeWrapArray(bytes.clone()))
 
     // When / Then
     a should equal(b)
