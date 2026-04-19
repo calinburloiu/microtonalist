@@ -24,6 +24,10 @@ object ScMidiCc {
   val RpnMsb: Int = 101
   /** Registered Parameter Number (RPN) LSB controller number (#100). */
   val RpnLsb: Int = 100
+  /** Non-Registered Parameter Number (NRPN) MSB controller number (#99). */
+  val NrpnMsb: Int = 99
+  /** Non-Registered Parameter Number (NRPN) LSB controller number (#98). */
+  val NrpnLsb: Int = 98
   /** Data Entry MSB controller number (#6). */
   val DataEntryMsb: Int = 6
   /** Data Entry LSB controller number (#38). */
@@ -46,6 +50,12 @@ object ScMidiCc {
 
   /** Modulation Wheel controller number (#1). */
   val Modulation: Int = 1
+  /** Channel Volume controller number (#7). */
+  val Volume: Int = 7
+  /** Pan controller number (#10). */
+  val Pan: Int = 10
+  /** Expression controller number (#11). */
+  val Expression: Int = 11
   /** Sustain Pedal (Damper) controller number (#64). */
   val SustainPedal: Int = 64
   /** Sostenuto Pedal controller number (#66). */
