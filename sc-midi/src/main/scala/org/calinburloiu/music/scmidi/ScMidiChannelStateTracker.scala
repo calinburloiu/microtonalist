@@ -16,19 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{
-  CcScMidiMessage,
-  ChannelPressureScMidiMessage,
-  MidiRequirements,
-  NoteOffScMidiMessage,
-  NoteOnScMidiMessage,
-  PitchBendScMidiMessage,
-  PolyPressureScMidiMessage,
-  ProgramChangeScMidiMessage,
-  ScMidiCc,
-  ScMidiMessage,
-  ScMidiRpn
-}
+import org.calinburloiu.music.scmidi.message.*
 
 import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.mutable
@@ -42,23 +30,25 @@ import scala.collection.mutable
  * may be supplied via the constructor; if not, the companion object's [[ScMidiChannelStateTracker.DefaultCcValues]],
  * [[ScMidiChannelStateTracker.DefaultRpnValues]], and [[ScMidiChannelStateTracker.DefaultNrpnValues]] are consulted.
  *
- * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads.
+ * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads. It should usually
+ * be used from a track thread.
  *
  * @param ccDefaults   per-CC-number default values that override the companion's defaults.
  * @param rpnDefaults  per-RPN default values that override the companion's defaults.
  * @param nrpnDefaults per-NRPN default values that override the companion's defaults.
  */
 @NotThreadSafe
-class ScMidiChannelStateTracker(
-  ccDefaults: Map[Int, Int] = Map.empty,
-  rpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
-  nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty
-) extends ScMidiReceiver {
+class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
+                                rpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
+                                nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty) extends ScMidiReceiver {
 
-  private val channelStates: Array[ChannelState] = Array.fill(ScMidiChannelStateTracker.ChannelCount)(ChannelState())
+  import ScMidiChannelStateTracker.*
+
+  private val channelStates: Array[ChannelState] = Array.fill(ChannelCount)(ChannelState())
   private var _closed: Boolean = false
 
   override def send(message: ScMidiMessage, timeStamp: Long = -1L): Unit = if (!_closed) message match {
+    // TODO #155 Is the default unapply suppressed?
     case noteOn: NoteOnScMidiMessage if noteOn.velocity == NoteOnScMidiMessage.NoteOffVelocity =>
       channelStates(noteOn.channel).activeNotes -= noteOn.midiNote
     case noteOn: NoteOnScMidiMessage =>
@@ -100,11 +90,18 @@ class ScMidiChannelStateTracker(
     channelStates(channel).activeNotes.keys.toSeq
   }
 
+  // TODO #155 Add method `def isNoteActive(channel: Int, midiNote: MidiNote): boolean`.
+
+  // TODO #155 Add separate methods `velocity` and `velocityOption` which return `Int` and `Option[Int]`, respectively.
+
   /** @return the velocity recorded for an active note on the given channel, or `None` if the note is not active. */
   def velocity(channel: Int, midiNote: MidiNote): Option[Int] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.get(midiNote).map(_.velocity)
   }
+
+  // TODO #155 Add separate methods `polyPressure` and `polyPressureOption` which return `Int` and `Option[Int]`,
+  //  respectively.
 
   /**
    * @return the most recent Polyphonic Key Pressure value for an active note on the given channel — `Some(0)` if
@@ -123,11 +120,13 @@ class ScMidiChannelStateTracker(
   }
 
   /**
-   * @return the recorded value of the given CC on the given channel, or a default if not set.
+   * Retrieves the recorded value of the given CC on the given channel, or a default if not set.
    *
-   *         Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `ccDefaults`,
-   *         then the companion's [[ScMidiChannelStateTracker.DefaultCcValues]]. If no value is found through any
-   *         of these, a [[NoSuchElementException]] is thrown.
+   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `ccDefaults`,
+   * then the companion's [[ScMidiChannelStateTracker.DefaultCcValues]]. If no value is found through any
+   * of these, a [[NoSuchElementException]] is thrown.
+   *
+   * @return the recorded value of the given CC on the given channel, or a default if not set.
    */
   def cc(channel: Int, ccNumber: Int, overrideDefaultValue: Option[Int] = None): Int = {
     ccOption(channel, ccNumber)
@@ -139,18 +138,18 @@ class ScMidiChannelStateTracker(
   }
 
   private def resolvedCcDefault(ccNumber: Int): Option[Int] =
-    ccDefaults.get(ccNumber).orElse(ScMidiChannelStateTracker.DefaultCcValues.get(ccNumber))
+    ccDefaults.get(ccNumber).orElse(DefaultCcValues.get(ccNumber))
 
   private def handleParameterCc(state: ChannelState, ccNumber: Int, value: Int): Unit = ccNumber match {
     case ScMidiCc.RpnMsb =>
       state.selector = state.selector match {
         case Selector.Rpn(_, lsb) => Selector.Rpn(value, lsb)
-        case _                    => Selector.Rpn(value, lsb = 0)
+        case _ => Selector.Rpn(value, lsb = 0)
       }
     case ScMidiCc.RpnLsb =>
       val msb = state.selector match {
         case Selector.Rpn(m, _) => m
-        case _                  => 0
+        case _ => 0
       }
       state.selector =
         if (msb == ScMidiRpn.NullMsb && value == ScMidiRpn.NullLsb) Selector.None
@@ -158,12 +157,12 @@ class ScMidiChannelStateTracker(
     case ScMidiCc.NrpnMsb =>
       state.selector = state.selector match {
         case Selector.Nrpn(_, lsb) => Selector.Nrpn(value, lsb)
-        case _                     => Selector.Nrpn(value, lsb = 0)
+        case _ => Selector.Nrpn(value, lsb = 0)
       }
     case ScMidiCc.NrpnLsb =>
       val msb = state.selector match {
         case Selector.Nrpn(m, _) => m
-        case _                   => 0
+        case _ => 0
       }
       state.selector =
         if (msb == ScMidiRpn.NullMsb && value == ScMidiRpn.NullLsb) Selector.None
@@ -172,7 +171,7 @@ class ScMidiChannelStateTracker(
     case ScMidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)
     case ScMidiCc.DataIncrement => applyDataDelta(state, delta = 1)
     case ScMidiCc.DataDecrement => applyDataDelta(state, delta = -1)
-    case _                     => // not part of the RPN/NRPN protocol
+    case _ => // not part of the RPN/NRPN protocol
   }
 
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = state.selector match {
@@ -203,30 +202,33 @@ class ScMidiChannelStateTracker(
 
   private def resolvedRpnDefault(parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] =
     rpnDefaults.get((parameterMsb, parameterLsb))
-      .orElse(ScMidiChannelStateTracker.DefaultRpnValues.get((parameterMsb, parameterLsb)))
+      .orElse(DefaultRpnValues.get((parameterMsb, parameterLsb)))
 
   private def resolvedNrpnDefault(parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] =
     nrpnDefaults.get((parameterMsb, parameterLsb))
-      .orElse(ScMidiChannelStateTracker.DefaultNrpnValues.get((parameterMsb, parameterLsb)))
+      .orElse(DefaultNrpnValues.get((parameterMsb, parameterLsb)))
 
   private def bumped(value: (Int, Int), delta: Int): (Int, Int) = {
     val combined = (value._1 << 7) | value._2
-    val clamped = math.max(0, math.min(ScMidiChannelStateTracker.Max14BitValue, combined + delta))
+    val clamped = math.max(0, math.min(Max14BitValue, combined + delta))
     ((clamped >> 7) & 0x7F, clamped & 0x7F)
   }
 
+  // TODO #155 `channelPressure` must return `Int`. If no value was received it should return `0`, the default value.
   /** @return the most recent Channel Pressure recorded on the given channel, or `None` if none has been received. */
   def channelPressure(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).channelPressure
   }
 
+  // TODO #155 `pitchBend` must return `Int`. If no value was received it should return `0`, the default value.
   /** @return the most recent Pitch Bend recorded on the given channel, or `None` if none has been received. */
   def pitchBend(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).pitchBend
   }
 
+  // TODO #155 `programChange` must return `Int`. If no value was received it should return `0`, the default value.
   /** @return the most recent Program Change recorded on the given channel, or `None` if none has been received. */
   def programChange(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -245,6 +247,9 @@ class ScMidiChannelStateTracker(
   def bankSelect(channel: Int): (Int, Int) =
     (cc(channel, message.ScMidiCc.BankSelectMsb), cc(channel, message.ScMidiCc.BankSelectLsb))
 
+  // TODO #155 Add separate getter methods for RPN and NRPM for optional and non-optional value. The latter should have
+  //  an `overrideDefaultValue` and resolve default in a similar way with the `cc` method.
+
   /**
    * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry
    *         (or Data Increment / Decrement) has updated this RPN.
@@ -262,38 +267,9 @@ class ScMidiChannelStateTracker(
     MidiRequirements.requireChannel(channel)
     channelStates(channel).nrpnValues.get((parameterMsb, parameterLsb))
   }
-
-  private class ActiveNote(val velocity: Int, var polyPressure: Int = 0)
-
-  private object ActiveNote {
-    def apply(velocity: Int): ActiveNote = new ActiveNote(velocity)
-  }
-
-  private class ChannelState {
-    val activeNotes: mutable.LinkedHashMap[MidiNote, ActiveNote] = mutable.LinkedHashMap.empty
-    val ccValues: mutable.Map[Int, Int] = mutable.Map.empty
-    val rpnValues: mutable.Map[(Int, Int), (Int, Int)] = mutable.Map.empty
-    val nrpnValues: mutable.Map[(Int, Int), (Int, Int)] = mutable.Map.empty
-    var selector: Selector = Selector.None
-    var channelPressure: Option[Int] = None
-    var pitchBend: Option[Int] = None
-    var programChange: Option[Int] = None
-  }
-
-  private enum Selector {
-    case None
-    case Rpn(msb: Int, lsb: Int)
-    case Nrpn(msb: Int, lsb: Int)
-  }
-
-  private object ChannelState {
-    def apply(): ChannelState = new ChannelState
-  }
 }
 
 object ScMidiChannelStateTracker {
-
-  import message.{ScMidiCc, ScMidiRpn}
 
   /** The number of MIDI channels (1..16, 0-indexed as 0..15). */
   private val ChannelCount: Int = 16
@@ -313,9 +289,13 @@ object ScMidiChannelStateTracker {
     ScMidiCc.Pan -> 64,
     ScMidiCc.Expression -> 127,
     ScMidiCc.SustainPedal -> 0,
+    ScMidiCc.SostenutoPedal -> 0,
+    ScMidiCc.SoftPedal -> 0,
     ScMidiCc.MpeSlide -> 64
   )
 
+  // TODO #155 This is not only used for Data Increment / Decrement, but also when retrieving a RPN value that was not
+  //  set
   /**
    * Default values for known Registered Parameter Numbers, used by Data Increment / Decrement when neither a
    * recorded value nor a constructor-supplied default is available for the currently selected RPN.
@@ -342,4 +322,24 @@ object ScMidiChannelStateTracker {
    * constructor's `nrpnDefaults` parameter.
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
+
+  private class ActiveNote(val velocity: Int, var polyPressure: Int = 0)
+
+  private class ChannelState {
+    val activeNotes: mutable.LinkedHashMap[MidiNote, ActiveNote] = mutable.LinkedHashMap.empty
+    val ccValues: mutable.Map[Int, Int] = mutable.Map.empty
+    val rpnValues: mutable.Map[(Int, Int), (Int, Int)] = mutable.Map.empty
+    val nrpnValues: mutable.Map[(Int, Int), (Int, Int)] = mutable.Map.empty
+    var selector: Selector = Selector.None
+    var channelPressure: Option[Int] = None
+    var pitchBend: Option[Int] = None
+    var programChange: Option[Int] = None
+  }
+
+  // TODO #155 Double check if initially the values are Null
+  private enum Selector {
+    case None
+    case Rpn(msb: Int, lsb: Int)
+    case Nrpn(msb: Int, lsb: Int)
+  }
 }
