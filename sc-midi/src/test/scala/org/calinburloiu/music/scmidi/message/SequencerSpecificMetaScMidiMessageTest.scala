@@ -36,7 +36,7 @@ class SequencerSpecificMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    SequencerSpecificMetaScMidiMessage(data).javaMessage.getMessage should equal(javaMessage.getMessage)
+    SequencerSpecificMetaScMidiMessage(data).toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

@@ -57,7 +57,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     (IndexTuningChange(2), customIndex2TuningCcTrigger)
   )
   for ((tuningChange, cc) <- testCases) {
-    def createCcMessage(value: Int): ShortMessage = CcScMidiMessage(1, cc, value).javaMessage
+    def createCcMessage(value: Int): ShortMessage = CcScMidiMessage(1, cc, value).toJavaMidiMessage
 
     "decide" should s"not trigger a $tuningChange if CC value is below or equal to the threshold" in {
       tuningChanger.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
@@ -96,17 +96,17 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   "decide" should "return NoTuningChange for a Note On MIDI message" in {
-    val noteOnMessage = NoteOnScMidiMessage(1, MidiNote.C4, 64).javaMessage
+    val noteOnMessage = NoteOnScMidiMessage(1, MidiNote.C4, 64).toJavaMidiMessage
     tuningChanger.decide(noteOnMessage) shouldEqual NoTuningChange
   }
 
   it should "return NoTuningChange for a SysEx MIDI message" in {
     val sysExMessage = MtsMessageGenerator.Octave1ByteNonRealTime.generate(Tuning.Standard)
-    tuningChanger.decide(sysExMessage.javaMessage) shouldEqual NoTuningChange
+    tuningChanger.decide(sysExMessage.toJavaMidiMessage) shouldEqual NoTuningChange
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =
-    CcScMidiMessage(1, customNextTuningCcTrigger, value).javaMessage
+    CcScMidiMessage(1, customNextTuningCcTrigger, value).toJavaMidiMessage
 
   "isPressed" should "tell if the pedal for a CC trigger is pressed" in {
     tuningChanger.decide(createCcMessageForNext(customThreshold - 1))

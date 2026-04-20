@@ -67,7 +67,7 @@ trait MidiProcessor extends AutoCloseable {
      * @throws IllegalStateException if the receiver is closed
      */
     def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-      send(scMessage.javaMessage, timeStamp)
+      send(scMessage.toJavaMidiMessage, timeStamp)
       this
     }
 

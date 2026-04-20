@@ -42,7 +42,7 @@ class TimeSignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
     // When / Then
     TimeSignatureMetaScMidiMessage(numerator, denominatorPowerOf2,
       midiClocksPerMetronomeTick, thirtySecondNotesPer24MidiClocks)
-      .javaMessage.getMessage should equal(javaMessage.getMessage)
+      .toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

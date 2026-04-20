@@ -35,7 +35,7 @@ class TrackNameMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    TrackNameMetaScMidiMessage(name).javaMessage.getMessage should equal(javaMessage.getMessage)
+    TrackNameMetaScMidiMessage(name).toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

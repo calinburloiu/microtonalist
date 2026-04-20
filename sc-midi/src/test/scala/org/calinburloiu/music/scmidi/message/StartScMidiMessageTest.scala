@@ -28,8 +28,8 @@ class StartScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    StartScMidiMessage.javaMessage.getStatus should equal(ShortMessage.START)
-    StartScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
+    StartScMidiMessage.toJavaMidiMessage.getStatus should equal(ShortMessage.START)
+    StartScMidiMessage.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

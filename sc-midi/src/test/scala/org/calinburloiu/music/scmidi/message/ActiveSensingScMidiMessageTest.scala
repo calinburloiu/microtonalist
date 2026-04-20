@@ -28,8 +28,8 @@ class ActiveSensingScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    ActiveSensingScMidiMessage.javaMessage.getStatus should equal(ShortMessage.ACTIVE_SENSING)
-    ActiveSensingScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
+    ActiveSensingScMidiMessage.toJavaMidiMessage.getStatus should equal(ShortMessage.ACTIVE_SENSING)
+    ActiveSensingScMidiMessage.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

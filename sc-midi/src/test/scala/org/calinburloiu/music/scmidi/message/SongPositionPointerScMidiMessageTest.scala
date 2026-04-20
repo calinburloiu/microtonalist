@@ -35,7 +35,7 @@ class SongPositionPointerScMidiMessageTest extends AnyFlatSpec with Matchers {
     val msg = SongPositionPointerScMidiMessage(position)
 
     // When / Then
-    msg.javaMessage.getMessage should equal(javaMessage.getMessage)
+    msg.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
@@ -59,8 +59,8 @@ class SongPositionPointerScMidiMessageTest extends AnyFlatSpec with Matchers {
     // When / Then
     val min = SongPositionPointerScMidiMessage(minPos)
     val max = SongPositionPointerScMidiMessage(maxPos)
-    SongPositionPointerScMidiMessage.fromJavaMessage(min.javaMessage) should equal(Some(min))
-    SongPositionPointerScMidiMessage.fromJavaMessage(max.javaMessage) should equal(Some(max))
+    SongPositionPointerScMidiMessage.fromJavaMessage(min.toJavaMidiMessage) should equal(Some(min))
+    SongPositionPointerScMidiMessage.fromJavaMessage(max.toJavaMidiMessage) should equal(Some(max))
   }
 
   it should "return None for non-Song-Position-Pointer messages" in {

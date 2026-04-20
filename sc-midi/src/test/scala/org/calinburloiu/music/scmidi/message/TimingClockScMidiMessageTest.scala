@@ -28,8 +28,8 @@ class TimingClockScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    TimingClockScMidiMessage.javaMessage.getStatus should equal(ShortMessage.TIMING_CLOCK)
-    TimingClockScMidiMessage.javaMessage.getMessage should equal(javaMessage.getMessage)
+    TimingClockScMidiMessage.toJavaMidiMessage.getStatus should equal(ShortMessage.TIMING_CLOCK)
+    TimingClockScMidiMessage.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

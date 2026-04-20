@@ -16,11 +16,10 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, ScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, ScMidiMessage}
 
 import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
 import scala.collection.mutable
@@ -56,7 +55,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
     // Create test MIDI message
     val testScMessage: ScMidiMessage = NoteOnScMidiMessage(1, 60, 100)
-    val testMessage: MidiMessage = testScMessage.javaMessage
+    val testMessage: MidiMessage = testScMessage.toJavaMidiMessage
     val testTimestamp = 123L
 
     // Create a stub receiver

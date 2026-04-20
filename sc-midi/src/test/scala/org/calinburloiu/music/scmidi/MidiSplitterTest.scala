@@ -16,12 +16,11 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.scmidi.message.{NoteOffScMidiMessage, NoteOnScMidiMessage}
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.shouldEqual
-
-import org.calinburloiu.music.scmidi.message.{NoteOffScMidiMessage, NoteOnScMidiMessage}
 
 import javax.sound.midi.{MidiMessage, Receiver}
 
@@ -83,8 +82,8 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
     splitter.multiTransmitter.receivers = receiverStubs
 
     // When
-    splitter.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, 69).javaMessage, 100L)
-    splitter.receiver.send(NoteOffScMidiMessage(0, MidiNote.C4, 63).javaMessage, 120L)
+    splitter.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, 69).toJavaMidiMessage, 100L)
+    splitter.receiver.send(NoteOffScMidiMessage(0, MidiNote.C4, 63).toJavaMidiMessage, 120L)
 
     // Then
     for (receiverStub <- receiverStubs) {

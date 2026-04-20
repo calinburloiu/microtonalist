@@ -37,7 +37,7 @@ class CcScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "be converted to a MidiMessage" in {
     // When / Then
-    CcScMidiMessage(channel, number, ccValue).javaMessage.getMessage should equal(javaMidiMessage.getMessage)
+    CcScMidiMessage(channel, number, ccValue).toJavaMidiMessage.getMessage should equal(javaMidiMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

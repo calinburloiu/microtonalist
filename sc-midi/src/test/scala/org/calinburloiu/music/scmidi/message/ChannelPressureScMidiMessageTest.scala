@@ -34,7 +34,7 @@ class ChannelPressureScMidiMessageTest extends AnyFlatSpec with Matchers {
     val msg = ChannelPressureScMidiMessage(channel, pressure)
 
     // When / Then
-    msg.javaMessage.getMessage should equal(javaMessage.getMessage)
+    msg.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

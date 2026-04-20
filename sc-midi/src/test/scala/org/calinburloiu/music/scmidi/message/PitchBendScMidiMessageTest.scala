@@ -49,7 +49,7 @@ class PitchBendScMidiMessageTest extends AnyFlatSpec with TableDrivenPropertyChe
   it should "be converted to a MidiMessage" in {
     // When / Then
     forAll(table) { (javaMidiMessage, scalaPitchBendMessage) =>
-      scalaPitchBendMessage.javaMessage.getMessage should equal(javaMidiMessage.getMessage)
+      scalaPitchBendMessage.toJavaMidiMessage.getMessage should equal(javaMidiMessage.getMessage)
     }
   }
 

@@ -46,19 +46,19 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
     val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
     mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
-    result shouldEqual Seq(sysExMessage.javaMessage)
+    result shouldEqual Seq(sysExMessage.toJavaMidiMessage)
   }
 
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
     // Given
-    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).javaMessage
+    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).toJavaMidiMessage
     // Then
     tuner.process(message) shouldEqual Seq(message)
   }
 
   it should "return the received MIDI message if thru is false" in new Fixture(thru = false) {
     // Given
-    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).javaMessage
+    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).toJavaMidiMessage
     // Then
     tuner.process(message) shouldBe empty
   }
