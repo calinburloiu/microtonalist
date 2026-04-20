@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.sun.media.sound.SoftTuning
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers

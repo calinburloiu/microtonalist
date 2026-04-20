@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, NoteOnScMidiMessage}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -57,7 +58,8 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     (IndexTuningChange(2), customIndex2TuningCcTrigger)
   )
   for ((tuningChange, cc) <- testCases) {
-    def createCcMessage(value: Int): ShortMessage = CcScMidiMessage(1, cc, value).asJava
+    def createCcMessage(value: Int): ShortMessage =
+      CcScMidiMessage(1, cc, value).asJava.asInstanceOf[ShortMessage]
 
     "decide" should s"not trigger a $tuningChange if CC value is below or equal to the threshold" in {
       tuningChanger.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
@@ -106,7 +108,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   def createCcMessageForNext(value: Int): ShortMessage =
-    CcScMidiMessage(1, customNextTuningCcTrigger, value).asJava
+    CcScMidiMessage(1, customNextTuningCcTrigger, value).asJava.asInstanceOf[ShortMessage]
 
   "isPressed" should "tell if the pedal for a CC trigger is pressed" in {
     tuningChanger.decide(createCcMessageForNext(customThreshold - 1))

@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{NoteOffScMidiMessage, NoteOnScMidiMessage}
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -91,7 +92,7 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
 
       val Seq(callForNoteOn, callForNoteOff) = receiverStub.send.calls
 
-      callForNoteOn._1 match {
+      callForNoteOn._1.asScala match {
         case NoteOnScMidiMessage(channel, note, velocity) =>
           channel shouldEqual 0
           note.number shouldEqual MidiNote.C4.number
@@ -100,7 +101,7 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
       }
       callForNoteOn._2 shouldEqual 100L
 
-      callForNoteOff._1 match {
+      callForNoteOff._1.asScala match {
         case NoteOffScMidiMessage(channel, note, velocity) =>
           channel shouldEqual 0
           note.number shouldEqual MidiNote.C4.number

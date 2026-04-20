@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, ScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

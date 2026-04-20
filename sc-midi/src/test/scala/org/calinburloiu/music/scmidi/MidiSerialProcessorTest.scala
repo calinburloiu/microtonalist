@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.NoteOnScMidiMessage
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.BeforeAndAfter
@@ -40,13 +41,13 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
   class TestMidiProcessor(val factor: Int) extends MidiProcessor {
 
-    override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = message match {
+    override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = message.asScala match {
       case NoteOnScMidiMessage(channel, midiNote, velocity) =>
         val newVelocity = Math.min(factor * velocity, 127)
         processedVelocities += Tuple2(factor, newVelocity)
 
         Seq(NoteOnScMidiMessage(channel, midiNote, newVelocity).asJava)
-      case otherMessage => Seq(otherMessage)
+      case _ => Seq(message)
     }
 
     override def close(): Unit = {}
@@ -60,7 +61,10 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
     val outputReceiver: Stub[Receiver] = stub[Receiver]
     outputReceiver.send.returns {
-      case (NoteOnScMidiMessage(_, _, velocity), ts) => outputVelocities += velocity
+      case (msg, ts) => msg.asScala match {
+        case NoteOnScMidiMessage(_, _, velocity) => outputVelocities += velocity
+        case _ =>
+      }
     }
 
     val midiSerialProcessor: MidiSerialProcessor

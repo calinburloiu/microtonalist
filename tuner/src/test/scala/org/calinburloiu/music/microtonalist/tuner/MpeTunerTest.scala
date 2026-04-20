@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -118,28 +119,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     output.collect { case sm: ShortMessage => sm }
 
   private def extractPitchBends(output: Seq[MidiMessage]): Seq[PitchBendScMidiMessage] =
-    output.flatMap(PitchBendScMidiMessage.fromJavaMessage)
+    output.map(_.asScala).collect { case m: PitchBendScMidiMessage => m }
 
   private def extractNoteOns(output: Seq[MidiMessage]): Seq[NoteOnScMidiMessage] =
-    output.flatMap(NoteOnScMidiMessage.fromJavaMessage).filter(_.velocity > 0)
+    output.map(_.asScala).collect { case m: NoteOnScMidiMessage => m }.filter(_.velocity > 0)
 
   private def extractNoteOffs(output: Seq[MidiMessage]): Seq[NoteOffScMidiMessage] =
-    output.collect {
+    output.map(_.asScala).collect {
       case NoteOffScMidiMessage(ch, note, velocity) => NoteOffScMidiMessage(ch, note, velocity)
       case NoteOnScMidiMessage(ch, note, 0) => NoteOffScMidiMessage(ch, note)
     }
 
   private def extractCc(output: Seq[MidiMessage]): Seq[CcScMidiMessage] =
-    output.flatMap(CcScMidiMessage.fromJavaMessage)
+    output.map(_.asScala).collect { case m: CcScMidiMessage => m }
 
   private def extractChannelPressure(output: Seq[MidiMessage]): Seq[ChannelPressureScMidiMessage] =
-    output.flatMap(ChannelPressureScMidiMessage.fromJavaMessage)
+    output.map(_.asScala).collect { case m: ChannelPressureScMidiMessage => m }
 
   private def extractPolyPressure(output: Seq[MidiMessage]): Seq[PolyPressureScMidiMessage] =
-    output.flatMap(PolyPressureScMidiMessage.fromJavaMessage)
+    output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m }
 
   private def extractScMidiMessages(output: Seq[MidiMessage]): Seq[ScMidiMessage] =
-    output.map(ScMidiMessage.fromJavaMessage)
+    output.map(_.asScala)
 
   // --- 4.2.1 reset() ---
 
@@ -458,7 +459,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val output = tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C4, 80).asJava)
     // Then
     extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
-    output.flatMap(PolyPressureScMidiMessage.fromJavaMessage) shouldBe empty
+    output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
   }
 
   it should "redirect CC #74 to Master Channel as Zone-level timbre" in new TunerFixture() {
@@ -554,7 +555,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // When
     private val output = tuner.process(ProgramChangeScMidiMessage(nonMpeInputChannel, 5).asJava)
     // Then
-    private val programChanges = output.flatMap(ProgramChangeScMidiMessage.fromJavaMessage)
+    private val programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
     programChanges should contain(ProgramChangeScMidiMessage(0, 5))
   }
 
@@ -594,7 +595,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // When
       private val output = tuner.process(ProgramChangeScMidiMessage(mpeInputChannel, 5).asJava)
       // Then
-      private val programChanges = output.flatMap(ProgramChangeScMidiMessage.fromJavaMessage)
+      private val programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
       programChanges should contain(ProgramChangeScMidiMessage(0, 5))
     }
 
@@ -631,7 +632,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // When
       private val output = tuner.process(ProgramChangeScMidiMessage(8, 5).asJava)
       // Then
-      private val programChanges = output.flatMap(ProgramChangeScMidiMessage.fromJavaMessage)
+      private val programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
       programChanges should contain(ProgramChangeScMidiMessage(15, 5))
     }
 

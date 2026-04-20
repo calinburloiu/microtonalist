@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -167,7 +168,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
 
-    ScMidiMessage.fromJavaMessage(message) match {
+    message.asScala match {
       case msg: NoteOnScMidiMessage if msg.velocity > 0 =>
         processNoteOn(buffer, msg)
       case msg: NoteOnScMidiMessage =>

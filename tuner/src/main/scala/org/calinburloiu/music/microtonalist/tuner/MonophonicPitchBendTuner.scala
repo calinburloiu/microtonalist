@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
@@ -96,7 +97,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
     val buffer = mutable.Buffer[MidiMessage]()
 
-    message match {
+    message.asScala match {
       case NoteOnScMidiMessage(_, note, 0) =>
         turnNoteOff(buffer, note, 0)
       case NoteOnScMidiMessage(_, note, velocity) =>
@@ -290,7 +291,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (_unsentPitchBend) {
       _unsentPitchBend = false
 
-      Some(PitchBendScMidiMessage(outputChannel, currPitchBend).asJava)
+      Some(PitchBendScMidiMessage(outputChannel, currPitchBend).asJava.asInstanceOf[ShortMessage])
     } else {
       None
     }

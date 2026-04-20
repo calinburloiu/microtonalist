@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, SysexScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -44,7 +45,8 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
     val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
     mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
-    result shouldEqual Seq(sysExMessage.asJava)
+    result should have size 1
+    result.head.getMessage shouldEqual sysExMessage.asJava.getMessage
   }
 
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
