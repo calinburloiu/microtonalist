@@ -28,8 +28,8 @@ class ContinueScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    ContinueScMidiMessage.toJavaMidiMessage.getStatus should equal(ShortMessage.CONTINUE)
-    ContinueScMidiMessage.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    ContinueScMidiMessage.asJava.getStatus should equal(ShortMessage.CONTINUE)
+    ContinueScMidiMessage.asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

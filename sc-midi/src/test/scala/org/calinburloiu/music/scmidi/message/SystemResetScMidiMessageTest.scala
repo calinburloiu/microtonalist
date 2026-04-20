@@ -28,8 +28,8 @@ class SystemResetScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    SystemResetScMidiMessage.toJavaMidiMessage.getStatus should equal(ShortMessage.SYSTEM_RESET)
-    SystemResetScMidiMessage.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    SystemResetScMidiMessage.asJava.getStatus should equal(ShortMessage.SYSTEM_RESET)
+    SystemResetScMidiMessage.asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

@@ -45,7 +45,7 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
 
   def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double]): Unit = {
     val sysExMessage = messageGenerator.generate(tuning)
-    val data = sysExMessage.toJavaMidiMessage.getMessage
+    val data = sysExMessage.asJava.getMessage
     val softTuning = new SoftTuning(data)
     val tuningValues = softTuning.getTuning
 

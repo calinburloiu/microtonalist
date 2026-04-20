@@ -28,8 +28,8 @@ class TuneRequestScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    TuneRequestScMidiMessage.toJavaMidiMessage.getStatus should equal(ShortMessage.TUNE_REQUEST)
-    TuneRequestScMidiMessage.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    TuneRequestScMidiMessage.asJava.getStatus should equal(ShortMessage.TUNE_REQUEST)
+    TuneRequestScMidiMessage.asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

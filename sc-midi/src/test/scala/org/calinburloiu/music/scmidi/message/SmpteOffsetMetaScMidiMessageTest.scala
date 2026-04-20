@@ -38,7 +38,7 @@ class SmpteOffsetMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    SmpteOffsetMetaScMidiMessage(hour, minute, second, frame, fractionalFrame).toJavaMidiMessage.getMessage should
+    SmpteOffsetMetaScMidiMessage(hour, minute, second, frame, fractionalFrame).asJava.getMessage should
       equal(
       javaMessage.getMessage)
   }

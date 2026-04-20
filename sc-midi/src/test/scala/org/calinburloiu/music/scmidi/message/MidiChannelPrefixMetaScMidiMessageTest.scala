@@ -34,7 +34,7 @@ class MidiChannelPrefixMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    MidiChannelPrefixMetaScMidiMessage(channel).toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    MidiChannelPrefixMetaScMidiMessage(channel).asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

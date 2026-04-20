@@ -35,7 +35,7 @@ class DeviceNameMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    DeviceNameMetaScMidiMessage(name).toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    DeviceNameMetaScMidiMessage(name).asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

@@ -41,7 +41,7 @@ class NoteScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "be converted to a MidiMessage" in {
     // When / Then
-    NoteOnScMidiMessage(channel, noteNumber, velocity).toJavaMidiMessage.getMessage should equal(javaNoteOnMessage
+    NoteOnScMidiMessage(channel, noteNumber, velocity).asJava.getMessage should equal(javaNoteOnMessage
       .getMessage)
   }
 
@@ -62,7 +62,7 @@ class NoteScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "be converted to a MidiMessage" in {
     // When / Then
-    NoteOffScMidiMessage(channel, noteNumber, velocity).toJavaMidiMessage.getMessage should equal(javaNoteOffMessage
+    NoteOffScMidiMessage(channel, noteNumber, velocity).asJava.getMessage should equal(javaNoteOffMessage
       .getMessage)
   }
 

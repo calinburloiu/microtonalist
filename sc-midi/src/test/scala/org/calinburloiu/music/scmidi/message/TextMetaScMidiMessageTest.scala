@@ -35,7 +35,7 @@ class TextMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    TextMetaScMidiMessage(text).toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    TextMetaScMidiMessage(text).asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

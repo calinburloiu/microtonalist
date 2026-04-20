@@ -35,7 +35,7 @@ class SysexScMidiMessageTest extends AnyFlatSpec with Matchers {
     val msg = SysexScMidiMessage(data)
 
     // When / Then
-    msg.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    msg.asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

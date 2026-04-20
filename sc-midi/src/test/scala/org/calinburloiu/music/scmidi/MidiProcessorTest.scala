@@ -55,7 +55,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
     // Create test MIDI message
     val testScMessage: ScMidiMessage = NoteOnScMidiMessage(1, 60, 100)
-    val testMessage: MidiMessage = testScMessage.toJavaMidiMessage
+    val testMessage: MidiMessage = testScMessage.asJava
     val testTimestamp = 123L
 
     // Create a stub receiver

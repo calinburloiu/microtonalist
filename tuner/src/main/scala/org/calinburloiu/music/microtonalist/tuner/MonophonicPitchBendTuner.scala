@@ -182,7 +182,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def applyNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     _lastNoteOnVelocity = velocity
 
-    buffer += NoteOnScMidiMessage(outputChannel, note, velocity).toJavaMidiMessage
+    buffer += NoteOnScMidiMessage(outputChannel, note, velocity).asJava
   }
 
   private def turnNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
@@ -203,11 +203,11 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (velocity > 0) {
       _lastNoteOffVelocity = velocity
 
-      buffer += NoteOffScMidiMessage(outputChannel, note, velocity).toJavaMidiMessage
+      buffer += NoteOffScMidiMessage(outputChannel, note, velocity).asJava
     } else {
       _lastNoteOffVelocity = NoteOffScMidiMessage.DefaultVelocity
 
-      buffer += NoteOnScMidiMessage(outputChannel, note, 0).toJavaMidiMessage
+      buffer += NoteOnScMidiMessage(outputChannel, note, 0).asJava
     }
   }
 
@@ -247,15 +247,15 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    */
   private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
     if (_sustainPedal > 0) {
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, 0).toJavaMidiMessage
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, _sustainPedal).toJavaMidiMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, 0).asJava
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, _sustainPedal).asJava
     }
 
     if (_sostenutoPedal > 0) {
       // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
       _sostenutoPedal = 0
 
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SostenutoPedal, 0).toJavaMidiMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SostenutoPedal, 0).asJava
     }
   }
 
@@ -290,7 +290,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (_unsentPitchBend) {
       _unsentPitchBend = false
 
-      Some(PitchBendScMidiMessage(outputChannel, currPitchBend).toJavaMidiMessage)
+      Some(PitchBendScMidiMessage(outputChannel, currPitchBend).asJava)
     } else {
       None
     }

@@ -35,7 +35,7 @@ class KeySignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
 
   it should "create correct Java MIDI message" in {
     // When / Then
-    KeySignatureMetaScMidiMessage(sharpsOrFlats, mode).toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    KeySignatureMetaScMidiMessage(sharpsOrFlats, mode).asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {
@@ -56,7 +56,7 @@ class KeySignatureMetaScMidiMessageTest extends AnyFlatSpec with Matchers {
     val msg = KeySignatureMetaScMidiMessage(4, ScMidiKeySignatureMode.Major)
 
     // When / Then
-    KeySignatureMetaScMidiMessage.fromJavaMessage(msg.toJavaMidiMessage) should equal(Some(msg))
+    KeySignatureMetaScMidiMessage.fromJavaMessage(msg.asJava) should equal(Some(msg))
   }
 
   it should "return None for non-Key-Signature messages" in {

@@ -33,7 +33,7 @@ class SongSelectScMidiMessageTest extends AnyFlatSpec with Matchers {
     val msg = SongSelectScMidiMessage(song)
 
     // When / Then
-    msg.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    msg.asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

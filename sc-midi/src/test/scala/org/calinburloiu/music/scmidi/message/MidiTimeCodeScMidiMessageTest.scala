@@ -35,7 +35,7 @@ class MidiTimeCodeScMidiMessageTest extends AnyFlatSpec with Matchers {
     val msg = MidiTimeCodeScMidiMessage(messageType, values)
 
     // When / Then
-    msg.toJavaMidiMessage.getMessage should equal(javaMessage.getMessage)
+    msg.asJava.getMessage should equal(javaMessage.getMessage)
   }
 
   it should "be created from a Java MidiMessage" in {

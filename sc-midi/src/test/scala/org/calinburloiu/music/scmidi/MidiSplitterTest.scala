@@ -82,8 +82,8 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
     splitter.multiTransmitter.receivers = receiverStubs
 
     // When
-    splitter.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, 69).toJavaMidiMessage, 100L)
-    splitter.receiver.send(NoteOffScMidiMessage(0, MidiNote.C4, 63).toJavaMidiMessage, 120L)
+    splitter.receiver.send(NoteOnScMidiMessage(0, MidiNote.C4, 69).asJava, 100L)
+    splitter.receiver.send(NoteOffScMidiMessage(0, MidiNote.C4, 63).asJava, 120L)
 
     // Then
     for (receiverStub <- receiverStubs) {

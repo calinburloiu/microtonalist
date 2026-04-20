@@ -18,14 +18,12 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.message.NoteOnScMidiMessage
+import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, SysexScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.MidiMessage
-import org.calinburloiu.music.scmidi.message.SysexScMidiMessage
-
 import scala.collection.immutable.ArraySeq
 
 class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
@@ -46,19 +44,19 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
     val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
     mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
-    result shouldEqual Seq(sysExMessage.toJavaMidiMessage)
+    result shouldEqual Seq(sysExMessage.asJava)
   }
 
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
     // Given
-    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).toJavaMidiMessage
+    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).asJava
     // Then
     tuner.process(message) shouldEqual Seq(message)
   }
 
   it should "return the received MIDI message if thru is false" in new Fixture(thru = false) {
     // Given
-    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).toJavaMidiMessage
+    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).asJava
     // Then
     tuner.process(message) shouldBe empty
   }
