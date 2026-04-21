@@ -18,8 +18,6 @@ package org.calinburloiu.music.scmidi.message
 
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity}
 
-import javax.sound.midi.{MetaMessage, MidiMessage, ShortMessage, SysexMessage}
-
 import scala.collection.immutable.ArraySeq
 
 /**
@@ -27,101 +25,30 @@ import scala.collection.immutable.ArraySeq
  *
  * Unlike Java's [[javax.sound.midi.MidiMessage]] (and its subclasses like [[javax.sound.midi.ShortMessage]]),
  * which expose raw byte data and mutable state, `ScMidiMessage` subtypes are immutable case classes with named,
- * validated parameters, Scala pattern matching support via `unapply`, and convenient factory methods for
- * bidirectional conversion with Java messages.
+ * validated parameters and Scala pattern matching support.
+ *
+ * Use [[JavaMidiConverters]] to convert between `ScMidiMessage` and [[javax.sound.midi.MidiMessage]].
  */
-sealed trait ScMidiMessage {
-  /** The underlying [[javax.sound.midi.MidiMessage]]. */
-  def javaMessage: MidiMessage
-}
+sealed trait ScMidiMessage
 
 /**
- * Type class for converting a Java [[javax.sound.midi.MidiMessage]] into a specific [[ScMidiMessage]] subtype.
+ * Base class for all MIDI channel messages (both Voice and Mode). Subtypes carry a validated
+ * `channel` field (0-15).
  *
- * Implementations are typically provided by companion objects of [[ScMidiMessage]] subtypes, allowing
- * type-safe conversion from the raw Java MIDI representation to the Scala-idiomatic one.
- *
- * @tparam T The target [[ScMidiMessage]] subtype produced by the conversion.
+ * @param channel The 0-indexed MIDI channel (0-15).
  */
-trait FromJavaMidiMessageConverter[T] {
-  /**
-   * Attempts to convert the given Java [[MidiMessage]] to an instance of `T`.
-   *
-   * @param message The Java [[MidiMessage]] to convert.
-   * @return `Some(T)` if the message matches the expected type and command for `T`; `None` otherwise.
-   */
-  def fromJavaMessage(message: MidiMessage): Option[T]
+sealed abstract class ChannelScMidiMessage(val channel: Int) extends ScMidiMessage {
+  MidiRequirements.requireChannel(channel)
 }
 
-object ScMidiMessage {
-  private val FromJavaMessageMap: Map[Int, MidiMessage => ScMidiMessage] = Map(
-    ShortMessage.NOTE_ON -> NoteOnScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.NOTE_OFF -> NoteOffScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.PITCH_BEND -> PitchBendScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.CONTROL_CHANGE -> CcScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.CHANNEL_PRESSURE -> ChannelPressureScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.POLY_PRESSURE -> PolyPressureScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.PROGRAM_CHANGE -> ProgramChangeScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.MIDI_TIME_CODE -> MidiTimeCodeScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.SONG_POSITION_POINTER -> SongPositionPointerScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.SONG_SELECT -> SongSelectScMidiMessage.fromJavaMessage.unlift,
-    ShortMessage.TUNE_REQUEST -> ((_: MidiMessage) => TuneRequestScMidiMessage),
-    ShortMessage.TIMING_CLOCK -> ((_: MidiMessage) => TimingClockScMidiMessage),
-    ShortMessage.START -> ((_: MidiMessage) => StartScMidiMessage),
-    ShortMessage.CONTINUE -> ((_: MidiMessage) => ContinueScMidiMessage),
-    ShortMessage.STOP -> ((_: MidiMessage) => StopScMidiMessage),
-    ShortMessage.ACTIVE_SENSING -> ((_: MidiMessage) => ActiveSensingScMidiMessage),
-    ShortMessage.SYSTEM_RESET -> ((_: MidiMessage) => SystemResetScMidiMessage)
-  ).withDefaultValue(UnsupportedScMidiMessage.apply)
+/** Base trait for MIDI System Common messages. */
+sealed trait SysCommonScMidiMessage extends ScMidiMessage
 
-  private val FromMetaMessageMap: Map[Int, MidiMessage => ScMidiMessage] = Map(
-    SequenceNumberMetaScMidiMessage.MetaType -> SequenceNumberMetaScMidiMessage.fromJavaMessage.unlift,
-    TextMetaScMidiMessage.MetaType -> TextMetaScMidiMessage.fromJavaMessage.unlift,
-    CopyrightNoticeMetaScMidiMessage.MetaType -> CopyrightNoticeMetaScMidiMessage.fromJavaMessage.unlift,
-    TrackNameMetaScMidiMessage.MetaType -> TrackNameMetaScMidiMessage.fromJavaMessage.unlift,
-    InstrumentNameMetaScMidiMessage.MetaType -> InstrumentNameMetaScMidiMessage.fromJavaMessage.unlift,
-    LyricMetaScMidiMessage.MetaType -> LyricMetaScMidiMessage.fromJavaMessage.unlift,
-    MarkerMetaScMidiMessage.MetaType -> MarkerMetaScMidiMessage.fromJavaMessage.unlift,
-    CuePointMetaScMidiMessage.MetaType -> CuePointMetaScMidiMessage.fromJavaMessage.unlift,
-    ProgramNameMetaScMidiMessage.MetaType -> ProgramNameMetaScMidiMessage.fromJavaMessage.unlift,
-    DeviceNameMetaScMidiMessage.MetaType -> DeviceNameMetaScMidiMessage.fromJavaMessage.unlift,
-    MidiChannelPrefixMetaScMidiMessage.MetaType -> MidiChannelPrefixMetaScMidiMessage.fromJavaMessage.unlift,
-    MidiPortMetaScMidiMessage.MetaType -> MidiPortMetaScMidiMessage.fromJavaMessage.unlift,
-    EndOfTrackMetaScMidiMessage.MetaType -> ((_: MidiMessage) => EndOfTrackMetaScMidiMessage),
-    SetTempoMetaScMidiMessage.MetaType -> SetTempoMetaScMidiMessage.fromJavaMessage.unlift,
-    SmpteOffsetMetaScMidiMessage.MetaType -> SmpteOffsetMetaScMidiMessage.fromJavaMessage.unlift,
-    TimeSignatureMetaScMidiMessage.MetaType -> TimeSignatureMetaScMidiMessage.fromJavaMessage.unlift,
-    KeySignatureMetaScMidiMessage.MetaType -> KeySignatureMetaScMidiMessage.fromJavaMessage.unlift,
-    SequencerSpecificMetaScMidiMessage.MetaType -> SequencerSpecificMetaScMidiMessage.fromJavaMessage.unlift
-  ).withDefaultValue(UnsupportedScMidiMessage.apply)
+/** Base trait for MIDI System Real-Time messages. */
+sealed trait SysRealTimeScMidiMessage extends ScMidiMessage
 
-  /**
-   * Converts a Java [[MidiMessage]] to the corresponding [[ScMidiMessage]] subtype.
-   *
-   * Supported message types are mapped to their Scala-idiomatic counterparts (e.g.
-   * [[javax.sound.midi.ShortMessage]] with command `NOTE_ON` becomes [[NoteOnScMidiMessage]]).
-   * Unrecognized messages are wrapped in [[UnsupportedScMidiMessage]].
-   *
-   * @param message The Java [[MidiMessage]] to convert. Must not be null.
-   * @return The [[ScMidiMessage]] instance.
-   * @throws IllegalArgumentException if the message is null.
-   */
-  def fromJavaMessage(message: MidiMessage): ScMidiMessage = {
-    require(message != null, "message must not be null")
-
-    message match {
-      case shortMessage: ShortMessage =>
-        val status = shortMessage.getStatus
-        val key = if (status >= 0xF0) status else shortMessage.getCommand
-        FromJavaMessageMap(key)(message)
-      case sysexMessage: SysexMessage =>
-        SysexScMidiMessage.fromJavaMessage(sysexMessage).getOrElse(UnsupportedScMidiMessage(message))
-      case metaMessage: MetaMessage =>
-        FromMetaMessageMap(metaMessage.getType)(metaMessage)
-      case _ => UnsupportedScMidiMessage(message)
-    }
-  }
-}
+/** Base trait for Standard MIDI File (SMF) Meta messages. */
+sealed trait MetaScMidiMessage extends ScMidiMessage
 
 // ============================================================================
 // Channel Voice Messages
@@ -136,17 +63,12 @@ object ScMidiMessage {
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
-abstract class NoteScMidiMessage(val channel: Int,
+abstract class NoteScMidiMessage(channel: Int,
                                  val midiNote: MidiNote,
-                                 val velocity: Int = NoteOnScMidiMessage.DefaultVelocity) extends ScMidiMessage {
-  MidiRequirements.requireChannel(channel)
+                                 val velocity: Int = NoteOnScMidiMessage.DefaultVelocity)
+  extends ChannelScMidiMessage(channel) {
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
-
-  override def javaMessage: ShortMessage = new ShortMessage(midiCommand, channel, midiNote.number, velocity)
-
-  /** The MIDI command for this note message (e.g., [[ShortMessage.NOTE_ON]]). */
-  protected val midiCommand: Int
 }
 
 /**
@@ -159,28 +81,16 @@ abstract class NoteScMidiMessage(val channel: Int,
 case class NoteOnScMidiMessage(override val channel: Int,
                                override val midiNote: MidiNote,
                                override val velocity: Int = NoteOnScMidiMessage.DefaultVelocity)
-  extends NoteScMidiMessage(channel, midiNote, velocity) {
-  override protected val midiCommand: Int = ShortMessage.NOTE_ON
-}
+  extends NoteScMidiMessage(channel, midiNote, velocity)
 
 /**
  * Companion object for [[NoteOnScMidiMessage]].
  */
-object NoteOnScMidiMessage extends FromJavaMidiMessageConverter[NoteOnScMidiMessage] {
+object NoteOnScMidiMessage {
   /** The velocity value representing a Note Off via Note On (0). */
   val NoteOffVelocity: Int = 0x00
   /** The default velocity for Note On messages (64). */
   val DefaultVelocity: Int = 0x40
-
-  /** Extracts the channel, MIDI note, and velocity from a [[MidiMessage]] if it is a Note On message. */
-  def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.NOTE_ON =>
-      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[NoteOnScMidiMessage] =
-    unapply(message).map { tuple => NoteOnScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -193,26 +103,14 @@ object NoteOnScMidiMessage extends FromJavaMidiMessageConverter[NoteOnScMidiMess
 case class NoteOffScMidiMessage(override val channel: Int,
                                 override val midiNote: MidiNote,
                                 override val velocity: Int = NoteOffScMidiMessage.DefaultVelocity)
-  extends NoteScMidiMessage(channel, midiNote, velocity) {
-  override protected val midiCommand: Int = ShortMessage.NOTE_OFF
-}
+  extends NoteScMidiMessage(channel, midiNote, velocity)
 
 /**
- * Companion object for [[NoteOffScMidiMessage]] used for pattern matching and default values.
+ * Companion object for [[NoteOffScMidiMessage]] used for default values.
  */
-object NoteOffScMidiMessage extends FromJavaMidiMessageConverter[NoteOffScMidiMessage] {
+object NoteOffScMidiMessage {
   /** The default velocity for Note Off messages (64). */
   val DefaultVelocity: Int = 0x40
-
-  /** Extracts the channel, MIDI note, and velocity from a [[MidiMessage]] if it is a Note Off message. */
-  def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.NOTE_OFF =>
-      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[NoteOffScMidiMessage] =
-    unapply(message).map { tuple => NoteOffScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -223,28 +121,10 @@ object NoteOffScMidiMessage extends FromJavaMidiMessageConverter[NoteOffScMidiMe
  * @param midiNote The MIDI note to which the pressure applies.
  * @param value    The pressure value (0-127).
  */
-case class PolyPressureScMidiMessage(channel: Int, midiNote: MidiNote, value: Int) extends ScMidiMessage {
-  MidiRequirements.requireChannel(channel)
+case class PolyPressureScMidiMessage(override val channel: Int, midiNote: MidiNote, value: Int)
+  extends ChannelScMidiMessage(channel) {
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("value", value)
-
-  override lazy val javaMessage: ShortMessage =
-    new ShortMessage(ShortMessage.POLY_PRESSURE, channel, midiNote.number, value)
-}
-
-/**
- * Companion object for [[PolyPressureScMidiMessage]].
- */
-object PolyPressureScMidiMessage extends FromJavaMidiMessageConverter[PolyPressureScMidiMessage] {
-  /** Extracts the channel, MIDI note, and value from a [[MidiMessage]] if it is a Poly Pressure message. */
-  def unapply(message: MidiMessage): Option[(Int, MidiNote, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.POLY_PRESSURE =>
-      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[PolyPressureScMidiMessage] =
-    unapply(message).map { tuple => PolyPressureScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -256,27 +136,10 @@ object PolyPressureScMidiMessage extends FromJavaMidiMessageConverter[PolyPressu
  * @param number  The controller number (0-127).
  * @param value   The controller value (0-127).
  */
-case class CcScMidiMessage(channel: Int, number: Int, value: Int) extends ScMidiMessage {
-  MidiRequirements.requireChannel(channel)
+case class CcScMidiMessage(override val channel: Int, number: Int, value: Int)
+  extends ChannelScMidiMessage(channel) {
   MidiRequirements.requireUnsigned7BitValue("number", number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number, value)
-}
-
-/**
- * Companion object for [[CcScMidiMessage]].
- */
-object CcScMidiMessage extends FromJavaMidiMessageConverter[CcScMidiMessage] {
-  /** Extracts the channel, controller number, and value from a [[MidiMessage]] if it is a Control Change message. */
-  def unapply(message: MidiMessage): Option[(Int, Int, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CONTROL_CHANGE =>
-      Some((shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[CcScMidiMessage] =
-    unapply(message).map { tuple => CcScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -288,27 +151,9 @@ object CcScMidiMessage extends FromJavaMidiMessageConverter[CcScMidiMessage] {
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param program The program number (0-127).
  */
-case class ProgramChangeScMidiMessage(channel: Int, program: Int) extends ScMidiMessage {
-  MidiRequirements.requireChannel(channel)
+case class ProgramChangeScMidiMessage(override val channel: Int, program: Int)
+  extends ChannelScMidiMessage(channel) {
   MidiRequirements.requireUnsigned7BitValue("program", program)
-
-  override lazy val javaMessage: ShortMessage =
-    new ShortMessage(ShortMessage.PROGRAM_CHANGE, channel, program, 0)
-}
-
-/**
- * Companion object for [[ProgramChangeScMidiMessage]].
- */
-object ProgramChangeScMidiMessage extends FromJavaMidiMessageConverter[ProgramChangeScMidiMessage] {
-  /** Extracts the channel and program number from a [[MidiMessage]] if it is a Program Change message. */
-  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PROGRAM_CHANGE =>
-      Some((shortMessage.getChannel, shortMessage.getData1))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[ProgramChangeScMidiMessage] =
-    unapply(message).map { tuple => ProgramChangeScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -317,26 +162,9 @@ object ProgramChangeScMidiMessage extends FromJavaMidiMessageConverter[ProgramCh
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param value   The pressure value (0-127).
  */
-case class ChannelPressureScMidiMessage(channel: Int, value: Int) extends ScMidiMessage {
-  MidiRequirements.requireChannel(channel)
+case class ChannelPressureScMidiMessage(override val channel: Int, value: Int)
+  extends ChannelScMidiMessage(channel) {
   MidiRequirements.requireUnsigned7BitValue("value", value)
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.CHANNEL_PRESSURE, channel, value, 0)
-}
-
-/**
- * Companion object for [[ChannelPressureScMidiMessage]].
- */
-object ChannelPressureScMidiMessage extends FromJavaMidiMessageConverter[ChannelPressureScMidiMessage] {
-  /** Extracts the channel and value from a [[MidiMessage]] if it is a Channel Pressure message. */
-  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.CHANNEL_PRESSURE =>
-      Some((shortMessage.getChannel, shortMessage.getData1))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[ChannelPressureScMidiMessage] =
-    unapply(message).map { tuple => ChannelPressureScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -349,17 +177,12 @@ object ChannelPressureScMidiMessage extends FromJavaMidiMessageConverter[Channel
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param value   The signed 14-bit pitch bend value (-8192 to 8191).
  */
-case class PitchBendScMidiMessage(channel: Int, value: Int) extends ScMidiMessage {
+case class PitchBendScMidiMessage(override val channel: Int, value: Int)
+  extends ChannelScMidiMessage(channel) {
 
   import PitchBendScMidiMessage.*
 
-  MidiRequirements.requireChannel(channel)
   MidiRequirements.requireSigned14BitValue("value", value)
-
-  override lazy val javaMessage: ShortMessage = {
-    val (data1, data2) = convertValueToDataBytes(value)
-    new ShortMessage(ShortMessage.PITCH_BEND, channel, data1, data2)
-  }
 
   /** Calculates the pitch bend in cents based on the given pitch bend sensitivity. */
   def centsFor(pitchBendSensitivity: PitchBendSensitivity): Double = convertValueToCents(value, pitchBendSensitivity)
@@ -378,23 +201,13 @@ case class PitchBendScMidiMessage(channel: Int, value: Int) extends ScMidiMessag
 /**
  * Companion object for [[PitchBendScMidiMessage]].
  */
-object PitchBendScMidiMessage extends FromJavaMidiMessageConverter[PitchBendScMidiMessage] {
+object PitchBendScMidiMessage {
   /** The minimum signed 14-bit pitch bend value (-8192). */
   val MinValue: Int = MidiRequirements.MinSigned14BitValue
   /** The value representing no pitch bend (0). */
   val NoPitchBendValue: Int = 0
   /** The maximum signed 14-bit pitch bend value (8191). */
   val MaxValue: Int = MidiRequirements.MaxSigned14BitValue
-
-  /** Extracts the channel and value from a [[MidiMessage]] if it is a Pitch Bend message. */
-  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getCommand == ShortMessage.PITCH_BEND =>
-      Some((shortMessage.getChannel, convertDataBytesToValue(shortMessage.getData1, shortMessage.getData2)))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[PitchBendScMidiMessage] =
-    unapply(message).map { tuple => PitchBendScMidiMessage.apply.tupled(tuple) }
 
   /** Creates a [[PitchBendScMidiMessage]] from a value in cents. */
   def fromCents(channel: Int,
@@ -469,26 +282,9 @@ object PitchBendScMidiMessage extends FromJavaMidiMessageConverter[PitchBendScMi
  * @param messageType The message type nibble (0-7).
  * @param values      The values nibble (0-15).
  */
-case class MidiTimeCodeScMidiMessage(messageType: Int, values: Int) extends ScMidiMessage {
+case class MidiTimeCodeScMidiMessage(messageType: Int, values: Int) extends SysCommonScMidiMessage {
   MidiRequirements.requireUnsigned3BitValue("messageType", messageType)
   MidiRequirements.requireUnsigned4BitValue("values", values)
-
-  override lazy val javaMessage: ShortMessage =
-    new ShortMessage(ShortMessage.MIDI_TIME_CODE, (messageType << 4) | values, 0)
-}
-
-/** Companion object for [[MidiTimeCodeScMidiMessage]]. */
-object MidiTimeCodeScMidiMessage extends FromJavaMidiMessageConverter[MidiTimeCodeScMidiMessage] {
-  /** Extracts the message type and values from a [[MidiMessage]] if it is a MIDI Time Code Quarter Frame message. */
-  def unapply(message: MidiMessage): Option[(Int, Int)] = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.MIDI_TIME_CODE =>
-      val data1 = shortMessage.getData1
-      Some(((data1 >> 4) & 0x07, data1 & 0x0F))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[MidiTimeCodeScMidiMessage] =
-    unapply(message).map { tuple => MidiTimeCodeScMidiMessage.apply.tupled(tuple) }
 }
 
 /**
@@ -497,27 +293,8 @@ object MidiTimeCodeScMidiMessage extends FromJavaMidiMessageConverter[MidiTimeCo
  *
  * @param position The song position in MIDI beats (0-16383).
  */
-case class SongPositionPointerScMidiMessage(position: Int) extends ScMidiMessage {
+case class SongPositionPointerScMidiMessage(position: Int) extends SysCommonScMidiMessage {
   MidiRequirements.requireUnsigned14BitValue("position", position)
-
-  override lazy val javaMessage: ShortMessage = {
-    val lsb = position & 0x7F
-    val msb = (position >> 7) & 0x7F
-    new ShortMessage(ShortMessage.SONG_POSITION_POINTER, lsb, msb)
-  }
-}
-
-/** Companion object for [[SongPositionPointerScMidiMessage]]. */
-object SongPositionPointerScMidiMessage extends FromJavaMidiMessageConverter[SongPositionPointerScMidiMessage] {
-  /** Extracts the 14-bit position from a [[MidiMessage]] if it is a Song Position Pointer message. */
-  def unapply(message: MidiMessage): Option[Int] = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.SONG_POSITION_POINTER =>
-      Some((shortMessage.getData2 << 7) | shortMessage.getData1)
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SongPositionPointerScMidiMessage] =
-    unapply(message).map(SongPositionPointerScMidiMessage.apply)
 }
 
 /**
@@ -525,144 +302,38 @@ object SongPositionPointerScMidiMessage extends FromJavaMidiMessageConverter[Son
  *
  * @param song The song number (0-127).
  */
-case class SongSelectScMidiMessage(song: Int) extends ScMidiMessage {
+case class SongSelectScMidiMessage(song: Int) extends SysCommonScMidiMessage {
   MidiRequirements.requireUnsigned7BitValue("song", song)
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.SONG_SELECT, song, 0)
-}
-
-/** Companion object for [[SongSelectScMidiMessage]]. */
-object SongSelectScMidiMessage extends FromJavaMidiMessageConverter[SongSelectScMidiMessage] {
-  /** Extracts the song number from a [[MidiMessage]] if it is a Song Select message. */
-  def unapply(message: MidiMessage): Option[Int] = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.SONG_SELECT =>
-      Some(shortMessage.getData1)
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SongSelectScMidiMessage] =
-    unapply(message).map(SongSelectScMidiMessage.apply)
 }
 
 /**
  * Represents a MIDI Tune Request message, requesting that analog synthesizers retune their oscillators.
  */
-case object TuneRequestScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[TuneRequestScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.TUNE_REQUEST)
-
-  /** Returns `true` if the given [[MidiMessage]] is a Tune Request message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.TUNE_REQUEST => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[TuneRequestScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object TuneRequestScMidiMessage extends SysCommonScMidiMessage
 
 // ============================================================================
 // System Real-Time Messages
 // ============================================================================
 
 /** Represents a MIDI Timing Clock message, transmitted at a rate of 24 per quarter note while playing. */
-case object TimingClockScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[TimingClockScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.TIMING_CLOCK)
-
-  /** Returns `true` if the given [[MidiMessage]] is a Timing Clock message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.TIMING_CLOCK => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[TimingClockScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object TimingClockScMidiMessage extends SysRealTimeScMidiMessage
 
 /** Represents a MIDI Start message, instructing the receiver to start playback from the beginning. */
-case object StartScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[StartScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.START)
-
-  /** Returns `true` if the given [[MidiMessage]] is a Start message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.START => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[StartScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object StartScMidiMessage extends SysRealTimeScMidiMessage
 
 /** Represents a MIDI Continue message, instructing the receiver to resume playback from the current position. */
-case object ContinueScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[ContinueScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.CONTINUE)
-
-  /** Returns `true` if the given [[MidiMessage]] is a Continue message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.CONTINUE => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[ContinueScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object ContinueScMidiMessage extends SysRealTimeScMidiMessage
 
 /** Represents a MIDI Stop message, instructing the receiver to stop playback. */
-case object StopScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[StopScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.STOP)
-
-  /** Returns `true` if the given [[MidiMessage]] is a Stop message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.STOP => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[StopScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object StopScMidiMessage extends SysRealTimeScMidiMessage
 
 /**
  * Represents a MIDI Active Sensing message, sent every 300ms or less to indicate that the connection is still active.
  */
-case object ActiveSensingScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[ActiveSensingScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.ACTIVE_SENSING)
-
-  /** Returns `true` if the given [[MidiMessage]] is an Active Sensing message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.ACTIVE_SENSING => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[ActiveSensingScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object ActiveSensingScMidiMessage extends SysRealTimeScMidiMessage
 
 /** Represents a MIDI System Reset message, instructing the receiver to reset to its power-up state. */
-case object SystemResetScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[SystemResetScMidiMessage.type] {
-
-  override lazy val javaMessage: ShortMessage = new ShortMessage(ShortMessage.SYSTEM_RESET)
-
-  /** Returns `true` if the given [[MidiMessage]] is a System Reset message. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case shortMessage: ShortMessage if shortMessage.getStatus == ShortMessage.SYSTEM_RESET => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SystemResetScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
-}
+case object SystemResetScMidiMessage extends SysRealTimeScMidiMessage
 
 // ============================================================================
 // System Exclusive
@@ -677,68 +348,11 @@ case object SystemResetScMidiMessage extends ScMidiMessage
  *
  * @param data The full SysEx byte sequence.
  */
-case class SysexScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage {
-  override lazy val javaMessage: SysexMessage = {
-    val bytes = data.toArray
-    new SysexMessage(bytes, bytes.length)
-  }
-}
-
-/**
- * Companion object for [[SysexScMidiMessage]].
- */
-object SysexScMidiMessage extends FromJavaMidiMessageConverter[SysexScMidiMessage] {
-  /** Extracts the full SysEx byte sequence if the given [[MidiMessage]] is a [[SysexMessage]]. */
-  def unapply(message: MidiMessage): Option[ArraySeq[Byte]] = message match {
-    case sysexMessage: SysexMessage => Some(ArraySeq.unsafeWrapArray(sysexMessage.getMessage))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SysexScMidiMessage] =
-    unapply(message).map(SysexScMidiMessage.apply)
-}
+case class SysExScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage
 
 // ============================================================================
 // Meta Messages (Standard MIDI File)
 // ============================================================================
-
-/** Internal helpers for building [[javax.sound.midi.MetaMessage]] instances. */
-private object MetaScMidiMessage {
-  /**
-   * String encoding used by text-bearing SMF meta events. The SMF spec formally specifies ASCII, but 8-bit bytes
-   * are used in practice; ISO-8859-1 round-trips every byte losslessly.
-   */
-  val TextEncoding: String = "ISO-8859-1"
-
-  /** Builds a [[MetaMessage]] from a meta type byte and payload bytes. */
-  def build(metaType: Int, data: Array[Byte]): MetaMessage = {
-    val msg = new MetaMessage()
-    msg.setMessage(metaType, data, data.length)
-    msg
-  }
-
-  /** Encodes an `Int` as a big-endian byte sequence of the given width. */
-  def bigEndian(value: Int, numBytes: Int): Array[Byte] = {
-    val bytes = new Array[Byte](numBytes)
-    var i = 0
-    while (i < numBytes) {
-      bytes(i) = ((value >> (8 * (numBytes - 1 - i))) & 0xFF).toByte
-      i += 1
-    }
-    bytes
-  }
-
-  /** Decodes a big-endian unsigned integer from the given bytes. */
-  def fromBigEndian(bytes: Array[Byte]): Int = {
-    var value = 0
-    var i = 0
-    while (i < bytes.length) {
-      value = (value << 8) | (bytes(i) & 0xFF)
-      i += 1
-    }
-    value
-  }
-}
 
 /** The mode of a musical key signature. */
 enum ScMidiKeySignatureMode {
@@ -750,206 +364,100 @@ enum ScMidiKeySignatureMode {
  *
  * @param number The sequence number (0 to 65535, 2 bytes big-endian).
  */
-case class SequenceNumberMetaScMidiMessage(number: Int) extends ScMidiMessage {
+case class SequenceNumberMetaScMidiMessage(number: Int) extends MetaScMidiMessage {
   MidiRequirements.requireUnsigned16BitValue("number", number)
-  override lazy val javaMessage: MetaMessage =
-    MetaScMidiMessage.build(SequenceNumberMetaScMidiMessage.MetaType, MetaScMidiMessage.bigEndian(number, 2))
 }
 
 /** Companion object for [[SequenceNumberMetaScMidiMessage]]. */
-object SequenceNumberMetaScMidiMessage extends FromJavaMidiMessageConverter[SequenceNumberMetaScMidiMessage] {
+object SequenceNumberMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x00
-
-  /** Extracts the sequence number if the given message is a Sequence Number meta event. */
-  def unapply(message: MidiMessage): Option[Int] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(MetaScMidiMessage.fromBigEndian(m.getData))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SequenceNumberMetaScMidiMessage] =
-    unapply(message).map(SequenceNumberMetaScMidiMessage.apply)
 }
 
 /**
  * Base case for text-bearing SMF meta events.
- *
- * @param metaType The SMF meta event type byte.
- * @param text     The textual payload.
  */
-sealed abstract class TextBearingMetaScMidiMessage(metaType: Int, text: String) extends ScMidiMessage {
-  override lazy val javaMessage: MetaMessage =
-    MetaScMidiMessage.build(metaType, text.getBytes(MetaScMidiMessage.TextEncoding))
-}
+sealed abstract class TextBearingMetaScMidiMessage extends MetaScMidiMessage
 
 /** Represents a Text SMF meta event (type `0x01`). */
-case class TextMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage(TextMetaScMidiMessage.MetaType, text)
+case class TextMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[TextMetaScMidiMessage]]. */
-object TextMetaScMidiMessage extends FromJavaMidiMessageConverter[TextMetaScMidiMessage] {
+object TextMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x01
-
-  /** Extracts the text if the given message is a Text meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[TextMetaScMidiMessage] =
-    unapply(message).map(TextMetaScMidiMessage.apply)
 }
 
 /** Represents a Copyright Notice SMF meta event (type `0x02`). */
-case class CopyrightNoticeMetaScMidiMessage(text: String)
-  extends TextBearingMetaScMidiMessage(CopyrightNoticeMetaScMidiMessage.MetaType, text)
+case class CopyrightNoticeMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[CopyrightNoticeMetaScMidiMessage]]. */
-object CopyrightNoticeMetaScMidiMessage extends FromJavaMidiMessageConverter[CopyrightNoticeMetaScMidiMessage] {
+object CopyrightNoticeMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x02
-
-  /** Extracts the text if the given message is a Copyright Notice meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[CopyrightNoticeMetaScMidiMessage] =
-    unapply(message).map(CopyrightNoticeMetaScMidiMessage.apply)
 }
 
 /** Represents a Track Name SMF meta event (type `0x03`). */
-case class TrackNameMetaScMidiMessage(name: String)
-  extends TextBearingMetaScMidiMessage(TrackNameMetaScMidiMessage.MetaType, name)
+case class TrackNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[TrackNameMetaScMidiMessage]]. */
-object TrackNameMetaScMidiMessage extends FromJavaMidiMessageConverter[TrackNameMetaScMidiMessage] {
+object TrackNameMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x03
-
-  /** Extracts the name if the given message is a Track Name meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[TrackNameMetaScMidiMessage] =
-    unapply(message).map(TrackNameMetaScMidiMessage.apply)
 }
 
 /** Represents an Instrument Name SMF meta event (type `0x04`). */
-case class InstrumentNameMetaScMidiMessage(name: String)
-  extends TextBearingMetaScMidiMessage(InstrumentNameMetaScMidiMessage.MetaType, name)
+case class InstrumentNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[InstrumentNameMetaScMidiMessage]]. */
-object InstrumentNameMetaScMidiMessage extends FromJavaMidiMessageConverter[InstrumentNameMetaScMidiMessage] {
+object InstrumentNameMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x04
-
-  /** Extracts the name if the given message is an Instrument Name meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[InstrumentNameMetaScMidiMessage] =
-    unapply(message).map(InstrumentNameMetaScMidiMessage.apply)
 }
 
 /** Represents a Lyric SMF meta event (type `0x05`). */
-case class LyricMetaScMidiMessage(text: String)
-  extends TextBearingMetaScMidiMessage(LyricMetaScMidiMessage.MetaType, text)
+case class LyricMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[LyricMetaScMidiMessage]]. */
-object LyricMetaScMidiMessage extends FromJavaMidiMessageConverter[LyricMetaScMidiMessage] {
+object LyricMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x05
-
-  /** Extracts the text if the given message is a Lyric meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[LyricMetaScMidiMessage] =
-    unapply(message).map(LyricMetaScMidiMessage.apply)
 }
 
 /** Represents a Marker SMF meta event (type `0x06`). */
-case class MarkerMetaScMidiMessage(text: String)
-  extends TextBearingMetaScMidiMessage(MarkerMetaScMidiMessage.MetaType, text)
+case class MarkerMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[MarkerMetaScMidiMessage]]. */
-object MarkerMetaScMidiMessage extends FromJavaMidiMessageConverter[MarkerMetaScMidiMessage] {
+object MarkerMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x06
-
-  /** Extracts the text if the given message is a Marker meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[MarkerMetaScMidiMessage] =
-    unapply(message).map(MarkerMetaScMidiMessage.apply)
 }
 
 /** Represents a Cue Point SMF meta event (type `0x07`). */
-case class CuePointMetaScMidiMessage(text: String)
-  extends TextBearingMetaScMidiMessage(CuePointMetaScMidiMessage.MetaType, text)
+case class CuePointMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[CuePointMetaScMidiMessage]]. */
-object CuePointMetaScMidiMessage extends FromJavaMidiMessageConverter[CuePointMetaScMidiMessage] {
+object CuePointMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x07
-
-  /** Extracts the text if the given message is a Cue Point meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[CuePointMetaScMidiMessage] =
-    unapply(message).map(CuePointMetaScMidiMessage.apply)
 }
 
 /** Represents a Program Name SMF meta event (type `0x08`). */
-case class ProgramNameMetaScMidiMessage(name: String)
-  extends TextBearingMetaScMidiMessage(ProgramNameMetaScMidiMessage.MetaType, name)
+case class ProgramNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[ProgramNameMetaScMidiMessage]]. */
-object ProgramNameMetaScMidiMessage extends FromJavaMidiMessageConverter[ProgramNameMetaScMidiMessage] {
+object ProgramNameMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x08
-
-  /** Extracts the name if the given message is a Program Name meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[ProgramNameMetaScMidiMessage] =
-    unapply(message).map(ProgramNameMetaScMidiMessage.apply)
 }
 
 /** Represents a Device Name SMF meta event (type `0x09`). */
-case class DeviceNameMetaScMidiMessage(name: String)
-  extends TextBearingMetaScMidiMessage(DeviceNameMetaScMidiMessage.MetaType, name)
+case class DeviceNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
 
 /** Companion object for [[DeviceNameMetaScMidiMessage]]. */
-object DeviceNameMetaScMidiMessage extends FromJavaMidiMessageConverter[DeviceNameMetaScMidiMessage] {
+object DeviceNameMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x09
-
-  /** Extracts the name if the given message is a Device Name meta event. */
-  def unapply(message: MidiMessage): Option[String] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(new String(m.getData, MetaScMidiMessage.TextEncoding))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[DeviceNameMetaScMidiMessage] =
-    unapply(message).map(DeviceNameMetaScMidiMessage.apply)
 }
 
 /**
@@ -957,25 +465,14 @@ object DeviceNameMetaScMidiMessage extends FromJavaMidiMessageConverter[DeviceNa
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  */
-case class MidiChannelPrefixMetaScMidiMessage(channel: Int) extends ScMidiMessage {
+case class MidiChannelPrefixMetaScMidiMessage(channel: Int) extends MetaScMidiMessage {
   MidiRequirements.requireChannel(channel)
-  override lazy val javaMessage: MetaMessage =
-    MetaScMidiMessage.build(MidiChannelPrefixMetaScMidiMessage.MetaType, Array(channel.toByte))
 }
 
 /** Companion object for [[MidiChannelPrefixMetaScMidiMessage]]. */
-object MidiChannelPrefixMetaScMidiMessage extends FromJavaMidiMessageConverter[MidiChannelPrefixMetaScMidiMessage] {
+object MidiChannelPrefixMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x20
-
-  /** Extracts the channel if the given message is a MIDI Channel Prefix meta event. */
-  def unapply(message: MidiMessage): Option[Int] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(m.getData()(0) & 0xFF)
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[MidiChannelPrefixMetaScMidiMessage] =
-    unapply(message).map(MidiChannelPrefixMetaScMidiMessage.apply)
 }
 
 /**
@@ -983,43 +480,20 @@ object MidiChannelPrefixMetaScMidiMessage extends FromJavaMidiMessageConverter[M
  *
  * @param port The MIDI port number (0-127).
  */
-case class MidiPortMetaScMidiMessage(port: Int) extends ScMidiMessage {
+case class MidiPortMetaScMidiMessage(port: Int) extends MetaScMidiMessage {
   MidiRequirements.requireUnsigned7BitValue("port", port)
-  override lazy val javaMessage: MetaMessage =
-    MetaScMidiMessage.build(MidiPortMetaScMidiMessage.MetaType, Array(port.toByte))
 }
 
 /** Companion object for [[MidiPortMetaScMidiMessage]]. */
-object MidiPortMetaScMidiMessage extends FromJavaMidiMessageConverter[MidiPortMetaScMidiMessage] {
+object MidiPortMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x21
-
-  /** Extracts the port if the given message is a MIDI Port meta event. */
-  def unapply(message: MidiMessage): Option[Int] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(m.getData()(0) & 0xFF)
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[MidiPortMetaScMidiMessage] =
-    unapply(message).map(MidiPortMetaScMidiMessage.apply)
 }
 
 /** Represents the End Of Track SMF meta event (type `0x2F`). */
-case object EndOfTrackMetaScMidiMessage extends ScMidiMessage
-  with FromJavaMidiMessageConverter[EndOfTrackMetaScMidiMessage.type] {
+case object EndOfTrackMetaScMidiMessage extends MetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x2F
-
-  override lazy val javaMessage: MetaMessage = MetaScMidiMessage.build(MetaType, Array.emptyByteArray)
-
-  /** Returns `true` if the given [[MidiMessage]] is an End Of Track meta event. */
-  def unapply(message: MidiMessage): Boolean = message match {
-    case m: MetaMessage if m.getType == MetaType => true
-    case _ => false
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[EndOfTrackMetaScMidiMessage.type] =
-    if (unapply(message)) Some(this) else None
 }
 
 /**
@@ -1027,25 +501,14 @@ case object EndOfTrackMetaScMidiMessage extends ScMidiMessage
  *
  * @param microsecondsPerQuarterNote Tempo in microseconds per quarter note (0 to 16777215, 24-bit).
  */
-case class SetTempoMetaScMidiMessage(microsecondsPerQuarterNote: Int) extends ScMidiMessage {
+case class SetTempoMetaScMidiMessage(microsecondsPerQuarterNote: Int) extends MetaScMidiMessage {
   MidiRequirements.requireUnsigned24BitValue("microsecondsPerQuarterNote", microsecondsPerQuarterNote)
-  override lazy val javaMessage: MetaMessage =
-    MetaScMidiMessage.build(SetTempoMetaScMidiMessage.MetaType, MetaScMidiMessage.bigEndian(microsecondsPerQuarterNote, 3))
 }
 
 /** Companion object for [[SetTempoMetaScMidiMessage]]. */
-object SetTempoMetaScMidiMessage extends FromJavaMidiMessageConverter[SetTempoMetaScMidiMessage] {
+object SetTempoMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x51
-
-  /** Extracts the tempo value if the given message is a Set Tempo meta event. */
-  def unapply(message: MidiMessage): Option[Int] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(MetaScMidiMessage.fromBigEndian(m.getData))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SetTempoMetaScMidiMessage] =
-    unapply(message).map(SetTempoMetaScMidiMessage.apply)
 }
 
 /**
@@ -1061,34 +524,18 @@ case class SmpteOffsetMetaScMidiMessage(hour: Int,
                                         minute: Int,
                                         second: Int,
                                         frame: Int,
-                                        fractionalFrame: Int) extends ScMidiMessage {
+                                        fractionalFrame: Int) extends MetaScMidiMessage {
   MidiRequirements.requireUnsigned8BitValue("hour", hour)
   MidiRequirements.requireUnsigned8BitValue("minute", minute)
   MidiRequirements.requireUnsigned8BitValue("second", second)
   MidiRequirements.requireUnsigned8BitValue("frame", frame)
   MidiRequirements.requireUnsigned8BitValue("fractionalFrame", fractionalFrame)
-
-  override lazy val javaMessage: MetaMessage = MetaScMidiMessage.build(
-    SmpteOffsetMetaScMidiMessage.MetaType,
-    Array(hour.toByte, minute.toByte, second.toByte, frame.toByte, fractionalFrame.toByte)
-  )
 }
 
 /** Companion object for [[SmpteOffsetMetaScMidiMessage]]. */
-object SmpteOffsetMetaScMidiMessage extends FromJavaMidiMessageConverter[SmpteOffsetMetaScMidiMessage] {
+object SmpteOffsetMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x54
-
-  /** Extracts the SMPTE offset fields if the given message is an SMPTE Offset meta event. */
-  def unapply(message: MidiMessage): Option[(Int, Int, Int, Int, Int)] = message match {
-    case m: MetaMessage if m.getType == MetaType =>
-      val d = m.getData
-      Some((d(0) & 0xFF, d(1) & 0xFF, d(2) & 0xFF, d(3) & 0xFF, d(4) & 0xFF))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SmpteOffsetMetaScMidiMessage] =
-    unapply(message).map { t => SmpteOffsetMetaScMidiMessage.apply.tupled(t) }
 }
 
 /**
@@ -1102,38 +549,17 @@ object SmpteOffsetMetaScMidiMessage extends FromJavaMidiMessageConverter[SmpteOf
 case class TimeSignatureMetaScMidiMessage(numerator: Int,
                                           denominatorPowerOf2: Int,
                                           midiClocksPerMetronomeTick: Int,
-                                          thirtySecondNotesPer24MidiClocks: Int) extends ScMidiMessage {
+                                          thirtySecondNotesPer24MidiClocks: Int) extends MetaScMidiMessage {
   MidiRequirements.requireUnsigned8BitValue("numerator", numerator)
   MidiRequirements.requireUnsigned8BitValue("denominatorPowerOf2", denominatorPowerOf2)
   MidiRequirements.requireUnsigned8BitValue("midiClocksPerMetronomeTick", midiClocksPerMetronomeTick)
   MidiRequirements.requireUnsigned8BitValue("thirtySecondNotesPer24MidiClocks", thirtySecondNotesPer24MidiClocks)
-
-  override lazy val javaMessage: MetaMessage = MetaScMidiMessage.build(
-    TimeSignatureMetaScMidiMessage.MetaType,
-    Array(
-      numerator.toByte,
-      denominatorPowerOf2.toByte,
-      midiClocksPerMetronomeTick.toByte,
-      thirtySecondNotesPer24MidiClocks.toByte
-    )
-  )
 }
 
 /** Companion object for [[TimeSignatureMetaScMidiMessage]]. */
-object TimeSignatureMetaScMidiMessage extends FromJavaMidiMessageConverter[TimeSignatureMetaScMidiMessage] {
+object TimeSignatureMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x58
-
-  /** Extracts the time signature fields if the given message is a Time Signature meta event. */
-  def unapply(message: MidiMessage): Option[(Int, Int, Int, Int)] = message match {
-    case m: MetaMessage if m.getType == MetaType =>
-      val d = m.getData
-      Some((d(0) & 0xFF, d(1) & 0xFF, d(2) & 0xFF, d(3) & 0xFF))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[TimeSignatureMetaScMidiMessage] =
-    unapply(message).map { t => TimeSignatureMetaScMidiMessage.apply.tupled(t) }
 }
 
 /**
@@ -1142,33 +568,15 @@ object TimeSignatureMetaScMidiMessage extends FromJavaMidiMessageConverter[TimeS
  * @param sharpsOrFlats Number of sharps (positive) or flats (negative); range -7 to 7.
  * @param mode          Whether the key is major or minor.
  */
-case class KeySignatureMetaScMidiMessage(sharpsOrFlats: Int, mode: ScMidiKeySignatureMode) extends ScMidiMessage {
+case class KeySignatureMetaScMidiMessage(sharpsOrFlats: Int, mode: ScMidiKeySignatureMode) extends MetaScMidiMessage {
   require(sharpsOrFlats >= -7 && sharpsOrFlats <= 7,
     s"sharpsOrFlats must be between -7 and 7; got $sharpsOrFlats")
-
-  override lazy val javaMessage: MetaMessage = MetaScMidiMessage.build(
-    KeySignatureMetaScMidiMessage.MetaType,
-    Array(sharpsOrFlats.toByte, (if (mode == ScMidiKeySignatureMode.Minor) 1 else 0).toByte)
-  )
 }
 
 /** Companion object for [[KeySignatureMetaScMidiMessage]]. */
-object KeySignatureMetaScMidiMessage extends FromJavaMidiMessageConverter[KeySignatureMetaScMidiMessage] {
+object KeySignatureMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x59
-
-  /** Extracts the key signature fields if the given message is a Key Signature meta event. */
-  def unapply(message: MidiMessage): Option[(Int, ScMidiKeySignatureMode)] = message match {
-    case m: MetaMessage if m.getType == MetaType =>
-      val d = m.getData
-      val sharps = d(0).toInt // signed
-      val mode = if ((d(1) & 0xFF) == 1) ScMidiKeySignatureMode.Minor else ScMidiKeySignatureMode.Major
-      Some((sharps, mode))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[KeySignatureMetaScMidiMessage] =
-    unapply(message).map { t => KeySignatureMetaScMidiMessage.apply.tupled(t) }
 }
 
 /**
@@ -1176,29 +584,24 @@ object KeySignatureMetaScMidiMessage extends FromJavaMidiMessageConverter[KeySig
  *
  * @param data Opaque sequencer-specific payload.
  */
-case class SequencerSpecificMetaScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage {
-  override lazy val javaMessage: MetaMessage =
-    MetaScMidiMessage.build(SequencerSpecificMetaScMidiMessage.MetaType, data.toArray)
-}
+case class SequencerSpecificMetaScMidiMessage(data: ArraySeq[Byte]) extends MetaScMidiMessage
 
 /** Companion object for [[SequencerSpecificMetaScMidiMessage]]. */
-object SequencerSpecificMetaScMidiMessage extends FromJavaMidiMessageConverter[SequencerSpecificMetaScMidiMessage] {
+object SequencerSpecificMetaScMidiMessage {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x7F
-
-  /** Extracts the payload bytes if the given message is a Sequencer-Specific meta event. */
-  def unapply(message: MidiMessage): Option[ArraySeq[Byte]] = message match {
-    case m: MetaMessage if m.getType == MetaType => Some(ArraySeq.unsafeWrapArray(m.getData))
-    case _ => None
-  }
-
-  override def fromJavaMessage(message: MidiMessage): Option[SequencerSpecificMetaScMidiMessage] =
-    unapply(message).map(SequencerSpecificMetaScMidiMessage.apply)
 }
 
 // ============================================================================
 // Fallback
 // ============================================================================
 
-/** Wraps a [[javax.sound.midi.MidiMessage]] that has no dedicated Scala-idiomatic counterpart. */
-case class UnsupportedScMidiMessage(override val javaMessage: MidiMessage) extends ScMidiMessage
+/**
+ * Wraps the raw bytes of a [[javax.sound.midi.MidiMessage]] that has no dedicated Scala-idiomatic counterpart.
+ *
+ * [[JavaMidiConverters]] can reconstruct the original Java message (a `ShortMessage`, `SysexMessage`, or
+ * `MetaMessage`, detected from the status byte) via `asJava`.
+ *
+ * @param data The full byte sequence of the original Java `MidiMessage` (as returned by `MidiMessage.getMessage`).
+ */
+case class UnsupportedScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage

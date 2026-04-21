@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
@@ -96,7 +97,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
     val buffer = mutable.Buffer[MidiMessage]()
 
-    message match {
+    message.asScala match {
       case NoteOnScMidiMessage(_, note, 0) =>
         turnNoteOff(buffer, note, 0)
       case NoteOnScMidiMessage(_, note, velocity) =>
@@ -182,7 +183,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def applyNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     _lastNoteOnVelocity = velocity
 
-    buffer += NoteOnScMidiMessage(outputChannel, note, velocity).javaMessage
+    buffer += NoteOnScMidiMessage(outputChannel, note, velocity).asJava
   }
 
   private def turnNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
@@ -203,11 +204,11 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (velocity > 0) {
       _lastNoteOffVelocity = velocity
 
-      buffer += NoteOffScMidiMessage(outputChannel, note, velocity).javaMessage
+      buffer += NoteOffScMidiMessage(outputChannel, note, velocity).asJava
     } else {
       _lastNoteOffVelocity = NoteOffScMidiMessage.DefaultVelocity
 
-      buffer += NoteOnScMidiMessage(outputChannel, note, 0).javaMessage
+      buffer += NoteOnScMidiMessage(outputChannel, note, 0).asJava
     }
   }
 
@@ -247,15 +248,15 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    */
   private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
     if (_sustainPedal > 0) {
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, 0).javaMessage
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, _sustainPedal).javaMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, 0).asJava
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, _sustainPedal).asJava
     }
 
     if (_sostenutoPedal > 0) {
       // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
       _sostenutoPedal = 0
 
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SostenutoPedal, 0).javaMessage
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SostenutoPedal, 0).asJava
     }
   }
 
@@ -290,7 +291,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (_unsentPitchBend) {
       _unsentPitchBend = false
 
-      Some(PitchBendScMidiMessage(outputChannel, currPitchBend).javaMessage)
+      Some(PitchBendScMidiMessage(outputChannel, currPitchBend).asJava.asInstanceOf[ShortMessage])
     } else {
       None
     }
