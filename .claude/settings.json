@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(sendmidi *)",
-      "Bash(receivemidi *)"
-    ]
-  }
-}
