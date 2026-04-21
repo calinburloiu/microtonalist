@@ -984,6 +984,77 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.channelPressure(OtherChannel) should equal(Some(70))
   }
 
+  behavior of "ScMidiChannelStateTracker reset"
+
+  it should "clear all per-channel state across all channels" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, NoteE4, velocity = 110))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
+    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.BankSelectMsb, value = 3))
+    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
+    tracker.send(PitchBendScMidiMessage(OtherChannel, value = 1234))
+    tracker.send(ProgramChangeScMidiMessage(Channel, program = 7))
+    selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+    selectNrpn(tracker, OtherChannel, NrpnA._1, NrpnA._2)
+    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.DataEntryMsb, value = 5))
+
+    // When
+    tracker.reset()
+
+    // Then
+    for (channel <- 0 to 15) {
+      tracker.activeNoteSet(channel) shouldBe empty
+      tracker.ccOption(channel, ScMidiCc.VolumeMsb) shouldBe None
+      tracker.ccOption(channel, ScMidiCc.BankSelectMsb) shouldBe None
+      tracker.channelPressure(channel) shouldBe None
+      tracker.pitchBend(channel) shouldBe None
+      tracker.programChange(channel) shouldBe None
+    }
+    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe None
+    tracker.nrpn(OtherChannel, NrpnA._1, NrpnA._2) shouldBe None
+  }
+
+  it should "clear the RPN/NRPN selector so subsequent Data Entry is ignored" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+
+    // When
+    tracker.reset()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+
+    // Then
+    tracker.rpn(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) shouldBe None
+  }
+
+  it should "leave isClosed unchanged when called on an open tracker" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // When
+    tracker.reset()
+
+    // Then
+    tracker.isClosed shouldBe false
+  }
+
+  it should "be a no-op after close" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 100))
+    tracker.close()
+
+    // When
+    tracker.reset()
+
+    // Then
+    tracker.activeNoteSet(Channel) should contain only NoteC4
+    tracker.isClosed shouldBe true
+  }
+
   it should "still record Channel Mode CC numbers in ccValues" in {
     // Given
     val tracker = ScMidiChannelStateTracker()

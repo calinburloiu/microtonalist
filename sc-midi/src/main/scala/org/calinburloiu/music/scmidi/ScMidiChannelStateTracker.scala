@@ -76,6 +76,20 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     _closed = true
   }
 
+  /**
+   * Clears all per-channel state on every channel, returning the tracker to the same state as a freshly constructed
+   * instance. Constructor-supplied defaults are preserved. No-op once [[close]] has been called.
+   *
+   * Unlike the Reset All Controllers Channel Mode message — which the MIDI 1.0 spec scopes to a single channel and
+   * leaves Bank Select, Volume, Pan, Program Change, and recorded RPN/NRPN values intact — this method wipes
+   * everything.
+   */
+  def reset(): Unit = if (!_closed) {
+    for (channel <- 0 until ChannelCount) {
+      channelStates(channel) = ChannelState()
+    }
+  }
+
   /** @return whether [[close]] has been called on this tracker. */
   def isClosed: Boolean = _closed
 
