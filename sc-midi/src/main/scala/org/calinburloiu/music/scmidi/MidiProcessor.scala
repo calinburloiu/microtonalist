@@ -18,6 +18,7 @@ package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 import org.calinburloiu.music.scmidi.message.ScMidiMessage
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
@@ -67,7 +68,7 @@ trait MidiProcessor extends AutoCloseable {
      * @throws IllegalStateException if the receiver is closed
      */
     def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
-      send(scMessage.javaMessage, timeStamp)
+      send(scMessage.asJava, timeStamp)
       this
     }
 

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.PitchBendSensitivity
-import org.calinburloiu.music.scmidi.message.{PitchBendScMidiMessage, SysexScMidiMessage}
+import org.calinburloiu.music.scmidi.message.{PitchBendScMidiMessage, SysExScMidiMessage}
 
 import java.nio.ByteBuffer
 import javax.sound.midi.{ShortMessage, SysexMessage}
@@ -31,7 +31,7 @@ import scala.collection.immutable.ArraySeq
  * for each pitch class in an equal-tempered 12-tone scale.
  */
 trait MtsMessageGenerator {
-  def generate(tuning: Tuning): SysexScMidiMessage
+  def generate(tuning: Tuning): SysExScMidiMessage
 }
 
 /**
@@ -63,7 +63,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     form
   )
 
-  override def generate(tuning: Tuning): SysexScMidiMessage = {
+  override def generate(tuning: Tuning): SysExScMidiMessage = {
     val buffer = ByteBuffer.allocate(byteCount)
 
     // # Header
@@ -78,7 +78,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     // # Footer
     buffer.put(ShortMessage.END_OF_EXCLUSIVE.toByte)
 
-    SysexScMidiMessage(ArraySeq.unsafeWrapArray(buffer.array()))
+    SysExScMidiMessage(ArraySeq.unsafeWrapArray(buffer.array()))
   }
 
   private def put1ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {

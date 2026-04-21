@@ -18,21 +18,20 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.message.NoteOnScMidiMessage
+import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, SysExScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.MidiMessage
-import org.calinburloiu.music.scmidi.message.SysexScMidiMessage
-
 import scala.collection.immutable.ArraySeq
 
 class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
-    val sysExMessage: SysexScMidiMessage = SysexScMidiMessage(
+    val sysExMessage: SysExScMidiMessage = SysExScMidiMessage(
       ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x08, 0xF7).map(_.toByte)))
     val tuner: MtsTuner = new MtsTuner(mtsMessageGenerator, thru) {
       override val typeName: String = "test"
@@ -46,19 +45,20 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
     val result: Seq[MidiMessage] = tuner.tune(TestTunings.justCMaj)
     // Then
     mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
-    result shouldEqual Seq(sysExMessage.javaMessage)
+    result should have size 1
+    result.head.getMessage shouldEqual sysExMessage.asJava.getMessage
   }
 
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
     // Given
-    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).javaMessage
+    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).asJava
     // Then
     tuner.process(message) shouldEqual Seq(message)
   }
 
   it should "return the received MIDI message if thru is false" in new Fixture(thru = false) {
     // Given
-    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).javaMessage
+    val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).asJava
     // Then
     tuner.process(message) shouldBe empty
   }
