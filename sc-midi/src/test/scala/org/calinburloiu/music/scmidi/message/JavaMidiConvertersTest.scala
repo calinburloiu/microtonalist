@@ -69,7 +69,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     (ActiveSensingScMidiMessage, new ShortMessage(ShortMessage.ACTIVE_SENSING)),
     (SystemResetScMidiMessage, new ShortMessage(ShortMessage.SYSTEM_RESET)),
     // Sysex
-    (SysexScMidiMessage(ArraySeq.unsafeWrapArray(sysexBytes)), new SysexMessage(sysexBytes, sysexBytes.length)),
+    (SysExScMidiMessage(ArraySeq.unsafeWrapArray(sysexBytes)), new SysexMessage(sysexBytes, sysexBytes.length)),
     // Meta
     (SequenceNumberMetaScMidiMessage(0x1234), metaMsg(0x00, Array(0x12.toByte, 0x34.toByte))),
     (TextMetaScMidiMessage("hello"), metaMsg(0x01, textBytes("hello"))),

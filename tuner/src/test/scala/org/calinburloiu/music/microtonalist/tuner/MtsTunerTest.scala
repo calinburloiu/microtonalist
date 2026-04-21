@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, SysexScMidiMessage}
+import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, SysExScMidiMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -31,7 +31,7 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
 
   abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
-    val sysExMessage: SysexScMidiMessage = SysexScMidiMessage(
+    val sysExMessage: SysExScMidiMessage = SysExScMidiMessage(
       ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x08, 0xF7).map(_.toByte)))
     val tuner: MtsTuner = new MtsTuner(mtsMessageGenerator, thru) {
       override val typeName: String = "test"

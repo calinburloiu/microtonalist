@@ -329,7 +329,7 @@ case object SystemResetScMidiMessage extends ScMidiMessage
  *
  * @param data The full SysEx byte sequence.
  */
-case class SysexScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage
+case class SysExScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage
 
 // ============================================================================
 // Meta Messages (Standard MIDI File)

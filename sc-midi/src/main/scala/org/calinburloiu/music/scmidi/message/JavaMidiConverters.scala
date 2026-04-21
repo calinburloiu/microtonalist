@@ -71,7 +71,7 @@ object JavaMidiConverters {
           val key = if (status >= 0xF0) status else shortMessage.getCommand
           FromShortMap(key)(shortMessage)
         case sysexMessage: SysexMessage =>
-          SysexScMidiMessage(ArraySeq.unsafeWrapArray(sysexMessage.getMessage))
+          SysExScMidiMessage(ArraySeq.unsafeWrapArray(sysexMessage.getMessage))
         case metaMessage: MetaMessage =>
           FromMetaMap(metaMessage.getType)(metaMessage)
         case _ => toUnsupported(message)
@@ -127,7 +127,7 @@ object JavaMidiConverters {
     entry(StopScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.STOP) },
     entry(ActiveSensingScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.ACTIVE_SENSING) },
     entry(SystemResetScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.SYSTEM_RESET) },
-    entry(classOf[SysexScMidiMessage]) { m =>
+    entry(classOf[SysExScMidiMessage]) { m =>
       val bytes = m.data.toArray
       new SysexMessage(bytes, bytes.length)
     },
