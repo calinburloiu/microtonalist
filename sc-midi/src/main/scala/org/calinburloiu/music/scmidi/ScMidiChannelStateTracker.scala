@@ -62,6 +62,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
       val state = channelStates(cc.channel)
       state.ccValues(cc.number) = cc.value
       handleParameterCc(state, cc.number, cc.value)
+      handleChannelModeCc(state, cc.number)
     case channelPressure: ChannelPressureScMidiMessage =>
       channelStates(channelPressure.channel).channelPressure = Some(channelPressure.value)
     case pitchBend: PitchBendScMidiMessage =>
@@ -174,6 +175,17 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case _ => // not part of the RPN/NRPN protocol
   }
 
+  private def handleChannelModeCc(state: ChannelState, ccNumber: Int): Unit = ccNumber match {
+    case ScMidiCc.AllSoundOff | ScMidiCc.AllNotesOff =>
+      state.activeNotes.clear()
+    case ScMidiCc.ResetAllControllers =>
+      ResetAllControllersCcNumbers.foreach(state.ccValues.remove)
+      state.channelPressure = None
+      state.pitchBend = None
+      state.selector = Selector.None
+    case _ =>
+  }
+
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = state.selector match {
     case Selector.Rpn(rmsb, rlsb) =>
       val (curMsb, curLsb) = state.rpnValues.get((rmsb, rlsb))
@@ -276,6 +288,23 @@ object ScMidiChannelStateTracker {
 
   /** Maximum 14-bit value (`(127 << 7) | 127`). */
   private val Max14BitValue: Int = (1 << 14) - 1
+
+  /**
+   * CC numbers cleared on Reset All Controllers (MIDI 1.0 RP-015). Bank Select, Volume, Pan, and Program Change are
+   * intentionally preserved.
+   */
+  private val ResetAllControllersCcNumbers: Set[Int] = Set(
+    ScMidiCc.ModulationMsb,
+    ScMidiCc.ModulationLsb,
+    ScMidiCc.ExpressionMsb,
+    ScMidiCc.ExpressionLsb,
+    ScMidiCc.SustainPedal,
+    ScMidiCc.PortamentoPedal,
+    ScMidiCc.SostenutoPedal,
+    ScMidiCc.SoftPedal,
+    ScMidiCc.LegatoFootswitch,
+    ScMidiCc.Hold2Pedal
+  )
 
   /**
    * Default values for known Control Change controllers, used by [[ScMidiChannelStateTracker.cc]] when a recorded

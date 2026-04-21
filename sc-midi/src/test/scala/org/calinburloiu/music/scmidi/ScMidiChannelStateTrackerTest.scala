@@ -859,4 +859,143 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy tracker.rpn(-1, 0, 0)
     an[IllegalArgumentException] should be thrownBy tracker.nrpn(16, 0, 0)
   }
+
+  behavior of "ScMidiChannelStateTracker Channel Mode messages"
+
+  it should "cancel active notes on the channel when All Sound Off is received" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, NoteE4, velocity = 110))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, NoteG4, velocity = 90))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+
+    // Then
+    tracker.activeNoteSet(Channel) shouldBe empty
+    tracker.activeNoteSet(OtherChannel) should contain only NoteG4
+  }
+
+  it should "cancel active notes on the channel when All Notes Off is received" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, NoteG4, velocity = 90))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+
+    // Then
+    tracker.activeNoteSet(Channel) shouldBe empty
+    tracker.activeNoteSet(OtherChannel) should contain only NoteG4
+  }
+
+  it should "clear resettable CCs when Reset All Controllers is received" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ExpressionMsb, value = 50))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SustainPedal, value = 127))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.PortamentoPedal, value = 127))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SostenutoPedal, value = 127))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SoftPedal, value = 127))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.LegatoFootswitch, value = 127))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.Hold2Pedal, value = 127))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+    // Then
+    tracker.ccOption(Channel, ScMidiCc.ModulationMsb) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.ExpressionMsb) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.SustainPedal) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.PortamentoPedal) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.SostenutoPedal) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.SoftPedal) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.LegatoFootswitch) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.Hold2Pedal) shouldBe None
+  }
+
+  it should "clear Channel Pressure and Pitch Bend when Reset All Controllers is received" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
+    tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+    // Then
+    tracker.channelPressure(Channel) shouldBe None
+    tracker.pitchBend(Channel) shouldBe None
+  }
+
+  it should "clear the RPN/NRPN selector when Reset All Controllers is received" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+
+    // Then — the selector was cleared, so the new Data Entry must not affect the previous RPN
+    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
+      equal(Some((12, 0)))
+  }
+
+  it should "preserve Bank Select, Volume, Pan, Program Change, and RPN/NRPN values on Reset All Controllers" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.BankSelectMsb, value = 3))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.PanMsb, value = 32))
+    tracker.send(ProgramChangeScMidiMessage(Channel, program = 7))
+    selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+    // Then
+    tracker.ccOption(Channel, ScMidiCc.BankSelectMsb) should equal(Some(3))
+    tracker.ccOption(Channel, ScMidiCc.VolumeMsb) should equal(Some(90))
+    tracker.ccOption(Channel, ScMidiCc.PanMsb) should equal(Some(32))
+    tracker.programChange(Channel) should equal(Some(7))
+    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
+      equal(Some((12, 0)))
+  }
+
+  it should "scope Reset All Controllers to the channel it was received on" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
+    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.ModulationMsb, value = 90))
+    tracker.send(ChannelPressureScMidiMessage(OtherChannel, value = 70))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+    // Then
+    tracker.ccOption(Channel, ScMidiCc.ModulationMsb) shouldBe None
+    tracker.ccOption(OtherChannel, ScMidiCc.ModulationMsb) should equal(Some(90))
+    tracker.channelPressure(OtherChannel) should equal(Some(70))
+  }
+
+  it should "still record Channel Mode CC numbers in ccValues" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+
+    // Then
+    tracker.ccOption(Channel, ScMidiCc.AllSoundOff) should equal(Some(0))
+    tracker.ccOption(Channel, ScMidiCc.ResetAllControllers) should equal(Some(0))
+    tracker.ccOption(Channel, ScMidiCc.AllNotesOff) should equal(Some(0))
+  }
 }

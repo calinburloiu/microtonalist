@@ -66,10 +66,16 @@ object ScMidiCc {
   val ExpressionLsb: Int = 43
   /** Sustain Pedal (Damper) controller number (#64). */
   val SustainPedal: Int = 64
+  /** Portamento Pedal controller number (#65). */
+  val PortamentoPedal: Int = 65
   /** Sostenuto Pedal controller number (#66). */
   val SostenutoPedal: Int = 66
   /** Soft Pedal controller number (#67). */
   val SoftPedal: Int = 67
+  /** Legato Footswitch controller number (#68). */
+  val LegatoFootswitch: Int = 68
+  /** Hold 2 Pedal controller number (#69). */
+  val Hold2Pedal: Int = 69
 
   /**
    * MPE (MIDI Polyphonic Expression) Slide controller number (#74), also known as Timbre or Brightness.
