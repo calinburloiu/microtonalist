@@ -168,7 +168,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When / Then
-    tracker.ccOption(Channel, ScMidiCc.Modulation) shouldBe None
+    tracker.ccOption(Channel, ScMidiCc.ModulationMsb) shouldBe None
   }
 
   it should "record the value of a Control Change message" in {
@@ -176,11 +176,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When
-    tracker.send(CcScMidiMessage(Channel, number = ScMidiCc.Modulation, value = 42))
+    tracker.send(CcScMidiMessage(Channel, number = ScMidiCc.ModulationMsb, value = 42))
 
     // Then
-    tracker.ccOption(Channel, ScMidiCc.Modulation) should equal(Some(42))
-    tracker.cc(Channel, ScMidiCc.Modulation) should equal(42)
+    tracker.ccOption(Channel, ScMidiCc.ModulationMsb) should equal(Some(42))
+    tracker.cc(Channel, ScMidiCc.ModulationMsb) should equal(42)
   }
 
   it should "track CC values independently per channel" in {
@@ -188,12 +188,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When
-    tracker.send(CcScMidiMessage(Channel, number = ScMidiCc.Volume, value = 80))
-    tracker.send(CcScMidiMessage(OtherChannel, number = ScMidiCc.Volume, value = 50))
+    tracker.send(CcScMidiMessage(Channel, number = ScMidiCc.VolumeMsb, value = 80))
+    tracker.send(CcScMidiMessage(OtherChannel, number = ScMidiCc.VolumeMsb, value = 50))
 
     // Then
-    tracker.cc(Channel, ScMidiCc.Volume) should equal(80)
-    tracker.cc(OtherChannel, ScMidiCc.Volume) should equal(50)
+    tracker.cc(Channel, ScMidiCc.VolumeMsb) should equal(80)
+    tracker.cc(OtherChannel, ScMidiCc.VolumeMsb) should equal(50)
   }
 
   it should "fall back to the companion's DefaultCcValues for known CCs when nothing is recorded" in {
@@ -201,9 +201,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When / Then
-    tracker.cc(Channel, ScMidiCc.Volume) should equal(100)
-    tracker.cc(Channel, ScMidiCc.Pan) should equal(64)
-    tracker.cc(Channel, ScMidiCc.Expression) should equal(127)
+    tracker.cc(Channel, ScMidiCc.VolumeMsb) should equal(100)
+    tracker.cc(Channel, ScMidiCc.PanMsb) should equal(64)
+    tracker.cc(Channel, ScMidiCc.ExpressionMsb) should equal(127)
     tracker.cc(Channel, ScMidiCc.SustainPedal) should equal(0)
   }
 
@@ -224,16 +224,16 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // When / Then
     tracker.cc(Channel, unknownCc, overrideDefaultValue = Some(33)) should equal(33)
     // override also wins over the companion default
-    tracker.cc(Channel, ScMidiCc.Volume, overrideDefaultValue = Some(7)) should equal(7)
+    tracker.cc(Channel, ScMidiCc.VolumeMsb, overrideDefaultValue = Some(7)) should equal(7)
   }
 
   it should "prefer the recorded value over override and defaults" in {
     // Given
     val tracker = ScMidiChannelStateTracker()
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.Volume, value = 12))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 12))
 
     // When / Then
-    tracker.cc(Channel, ScMidiCc.Volume, overrideDefaultValue = Some(99)) should equal(12)
+    tracker.cc(Channel, ScMidiCc.VolumeMsb, overrideDefaultValue = Some(99)) should equal(12)
   }
 
   it should "honor a constructor-supplied ccDefault for an unknown CC" in {
@@ -247,10 +247,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "let constructor-supplied ccDefaults override the companion's defaults" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(ccDefaults = Map(ScMidiCc.Volume -> 5))
+    val tracker = ScMidiChannelStateTracker(ccDefaults = Map(ScMidiCc.VolumeMsb -> 5))
 
     // When / Then
-    tracker.cc(Channel, ScMidiCc.Volume) should equal(5)
+    tracker.cc(Channel, ScMidiCc.VolumeMsb) should equal(5)
   }
 
   behavior of "ScMidiChannelStateTracker Channel Pressure / Pitch Bend / Program Change tracking"
@@ -770,7 +770,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Given
     val tracker = ScMidiChannelStateTracker()
     tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 100))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.Volume, value = 90))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
     tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
 
     // When
@@ -778,7 +778,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.velocity(Channel, NoteC4) should equal(Some(100))
-    tracker.ccOption(Channel, ScMidiCc.Volume) should equal(Some(90))
+    tracker.ccOption(Channel, ScMidiCc.VolumeMsb) should equal(Some(90))
     tracker.pitchBend(Channel) should equal(Some(1234))
   }
 
@@ -828,8 +828,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When / Then
-    an[IllegalArgumentException] should be thrownBy tracker.ccOption(-1, ScMidiCc.Volume)
-    an[IllegalArgumentException] should be thrownBy tracker.cc(16, ScMidiCc.Volume)
+    an[IllegalArgumentException] should be thrownBy tracker.ccOption(-1, ScMidiCc.VolumeMsb)
+    an[IllegalArgumentException] should be thrownBy tracker.cc(16, ScMidiCc.VolumeMsb)
   }
 
   it should "throw on channelPressure / pitchBend / programChange with an invalid channel" in {

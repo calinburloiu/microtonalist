@@ -29,7 +29,7 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
 
   val noteTriggerMidiMessage: MidiMessage = NoteOnScMidiMessage(1, MidiNote.C4, 64).asJava
   val ccTriggerMidiMessage: MidiMessage = CcScMidiMessage(1, ScMidiCc.SostenutoPedal, 32).asJava
-  val nonTriggerMidiMessage1: MidiMessage = CcScMidiMessage(1, ScMidiCc.Modulation, 96).asJava
+  val nonTriggerMidiMessage1: MidiMessage = CcScMidiMessage(1, ScMidiCc.ModulationMsb, 96).asJava
   val nonTriggerMidiMessage2: MidiMessage = NoteOnScMidiMessage(1, MidiNote.B4, 16).asJava
 
   abstract class Fixture(triggersThru: Boolean = false) {

@@ -565,7 +565,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
       ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
       ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
-      ("Modulation", ScMidiCc.Modulation, 64),
+      ("Modulation", ScMidiCc.ModulationMsb, 64),
       ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
       ("Soft Pedal", ScMidiCc.SoftPedal, 127)
     )
@@ -606,7 +606,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
         ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
         ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
-        ("Modulation", ScMidiCc.Modulation, 64),
+        ("Modulation", ScMidiCc.ModulationMsb, 64),
         ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
         ("Soft Pedal", ScMidiCc.SoftPedal, 127)
       )

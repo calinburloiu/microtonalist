@@ -48,14 +48,22 @@ object ScMidiCc {
   /** Bank Select LSB controller number (#32). */
   val BankSelectLsb: Int = 32
 
-  /** Modulation Wheel controller number (#1). */
-  val Modulation: Int = 1
-  /** Channel Volume controller number (#7). */
-  val Volume: Int = 7
-  /** Pan controller number (#10). */
-  val Pan: Int = 10
-  /** Expression controller number (#11). */
-  val Expression: Int = 11
+  /** Modulation Wheel MSB controller number (#1). */
+  val ModulationMsb: Int = 1
+  /** Modulation Wheel LSB controller number (#33). */
+  val ModulationLsb: Int = 33
+  /** Channel Volume MSB controller number (#7). */
+  val VolumeMsb: Int = 7
+  /** Channel Volume LSB controller number (#39). */
+  val VolumeLsb: Int = 39
+  /** Pan MSB controller number (#10). */
+  val PanMsb: Int = 10
+  /** Pan LSB controller number (#42). */
+  val PanLsb: Int = 42
+  /** Expression MSB controller number (#11). */
+  val ExpressionMsb: Int = 11
+  /** Expression LSB controller number (#43). */
+  val ExpressionLsb: Int = 43
   /** Sustain Pedal (Damper) controller number (#64). */
   val SustainPedal: Int = 64
   /** Sostenuto Pedal controller number (#66). */
