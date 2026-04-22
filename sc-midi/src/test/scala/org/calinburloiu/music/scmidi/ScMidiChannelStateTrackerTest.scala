@@ -355,6 +355,29 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe None
   }
 
+  it should "initially have no RPN/NRPN selected" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // Then
+    tracker.selector(Channel) shouldEqual Selector.None
+    tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual ScMidiRpn.NullMsb
+    tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual ScMidiRpn.NullLsb
+  }
+
+  it should "select a RPN" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // When
+    selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+
+    // Then
+    tracker.selector(Channel) shouldEqual Selector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+    tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual ScMidiRpn.FineTuningMsb
+    tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual ScMidiRpn.FineTuningLsb
+  }
+
   it should "record an RPN value via Data Entry MSB after RPN selection" in {
     // Given
     val tracker = ScMidiChannelStateTracker()
@@ -487,6 +510,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       equal(Some((24, 0)))
   }
 
+  // TODO #155 Are tests for NRPN tracking on par with those for RPN tracking? They should be similar.
   behavior of "ScMidiChannelStateTracker NRPN tracking"
 
   private val NrpnA = (10, 20)
@@ -503,6 +527,19 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // When / Then
     tracker.nrpn(Channel, NrpnA._1, NrpnA._2) shouldBe None
+  }
+
+  it should "select a NRPN" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // When
+    selectNrpn(tracker, Channel, 1, 2)
+
+    // Then
+    tracker.selector(Channel) shouldEqual Selector.Nrpn(1, 2)
+    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 1
+    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 2
   }
 
   it should "record an NRPN value via Data Entry MSB after NRPN selection" in {

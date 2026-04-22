@@ -241,6 +241,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   // TODO #155 `channelPressure` must return `Int`. If no value was received it should return `0`, the default value.
+
   /** @return the most recent Channel Pressure recorded on the given channel, or `None` if none has been received. */
   def channelPressure(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -248,6 +249,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   // TODO #155 `pitchBend` must return `Int`. If no value was received it should return `0`, the default value.
+
   /** @return the most recent Pitch Bend recorded on the given channel, or `None` if none has been received. */
   def pitchBend(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -255,6 +257,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   // TODO #155 `programChange` must return `Int`. If no value was received it should return `0`, the default value.
+
   /** @return the most recent Program Change recorded on the given channel, or `None` if none has been received. */
   def programChange(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -276,7 +279,8 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   // TODO #155 Add separate getter methods for RPN and NRPM for optional and non-optional value. The latter should have
   //  an `overrideDefaultValue` and resolve default in a similar way with the `cc` method.
 
-  // TODO #155 Add ScalaDoc
+  // TODO #155 Add ScalaDoc. Maybe find a better name for the method and return type. It's not clear what "selector"
+  //  refers to.
   def selector(channel: Int): Selector = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).selector
