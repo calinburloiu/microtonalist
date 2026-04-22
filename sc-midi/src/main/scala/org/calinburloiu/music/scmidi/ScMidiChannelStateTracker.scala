@@ -180,7 +180,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
         case _ => 0
       }
       state.selector =
-        if (msb == ScMidiRpn.NullMsb && value == ScMidiRpn.NullLsb) Selector.None
+        if (msb == ScMidiNrpn.NullMsb && value == ScMidiNrpn.NullLsb) Selector.None
         else Selector.Nrpn(msb, value)
     case ScMidiCc.DataEntryMsb => writeDataEntry(state, isMsb = true, value)
     case ScMidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)

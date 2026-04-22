@@ -16,17 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{
-  CcScMidiMessage,
-  ChannelPressureScMidiMessage,
-  NoteOffScMidiMessage,
-  NoteOnScMidiMessage,
-  PitchBendScMidiMessage,
-  PolyPressureScMidiMessage,
-  ProgramChangeScMidiMessage,
-  ScMidiCc,
-  ScMidiRpn
-}
+import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -524,14 +514,14 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 8))
-    selectNrpn(tracker, Channel, ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
+    selectNrpn(tracker, Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
 
     // When
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
 
     // Then
     tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((8, 0)))
-    tracker.nrpn(Channel, ScMidiRpn.NullMsb, ScMidiRpn.NullLsb) shouldBe None
+    tracker.nrpn(Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb) shouldBe None
   }
 
   behavior of "ScMidiChannelStateTracker Data Increment / Decrement"
