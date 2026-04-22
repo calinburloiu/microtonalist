@@ -159,12 +159,12 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case ScMidiCc.RpnMsb =>
       state.selector = state.selector match {
         case Selector.Rpn(_, lsb) => Selector.Rpn(value, lsb)
-        case _ => Selector.Rpn(value, lsb = 0)
+        case _ => Selector.Rpn(value, lsb = ScMidiRpn.NullLsb)
       }
     case ScMidiCc.RpnLsb =>
       val msb = state.selector match {
         case Selector.Rpn(m, _) => m
-        case _ => 0
+        case _ => ScMidiRpn.NullMsb
       }
       state.selector =
         if (msb == ScMidiRpn.NullMsb && value == ScMidiRpn.NullLsb) Selector.None
@@ -172,12 +172,12 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case ScMidiCc.NrpnMsb =>
       state.selector = state.selector match {
         case Selector.Nrpn(_, lsb) => Selector.Nrpn(value, lsb)
-        case _ => Selector.Nrpn(value, lsb = 0)
+        case _ => Selector.Nrpn(value, lsb = ScMidiNrpn.NullLsb)
       }
     case ScMidiCc.NrpnLsb =>
       val msb = state.selector match {
         case Selector.Nrpn(m, _) => m
-        case _ => 0
+        case _ => ScMidiNrpn.NullMsb
       }
       state.selector =
         if (msb == ScMidiNrpn.NullMsb && value == ScMidiNrpn.NullLsb) Selector.None
@@ -276,6 +276,12 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   // TODO #155 Add separate getter methods for RPN and NRPM for optional and non-optional value. The latter should have
   //  an `overrideDefaultValue` and resolve default in a similar way with the `cc` method.
 
+  // TODO #155 Add ScalaDoc
+  def selector(channel: Int): Selector = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).selector
+  }
+
   /**
    * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry
    *         (or Data Increment / Decrement) has updated this RPN.
@@ -338,7 +344,11 @@ object ScMidiChannelStateTracker {
     ScMidiCc.SustainPedal -> 0,
     ScMidiCc.SostenutoPedal -> 0,
     ScMidiCc.SoftPedal -> 0,
-    ScMidiCc.MpeSlide -> 64
+    ScMidiCc.MpeSlide -> 64,
+    ScMidiCc.RpnMsb -> ScMidiRpn.NullMsb,
+    ScMidiCc.RpnLsb -> ScMidiRpn.NullLsb,
+    ScMidiCc.NrpnMsb -> ScMidiNrpn.NullMsb,
+    ScMidiCc.NrpnLsb -> ScMidiNrpn.NullLsb,
   )
 
   // TODO #155 This is not only used for Data Increment / Decrement, but also when retrieving a RPN value that was not
@@ -370,6 +380,13 @@ object ScMidiChannelStateTracker {
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
 
+  // TODO #155 Add ScalaDoc
+  enum Selector {
+    case None
+    case Rpn(msb: Int, lsb: Int)
+    case Nrpn(msb: Int, lsb: Int)
+  }
+
   private class ActiveNote(val velocity: Int, var polyPressure: Int = 0)
 
   private class ChannelState {
@@ -381,12 +398,5 @@ object ScMidiChannelStateTracker {
     var channelPressure: Option[Int] = None
     var pitchBend: Option[Int] = None
     var programChange: Option[Int] = None
-  }
-
-  // TODO #155 Double check if initially the values are Null
-  private enum Selector {
-    case None
-    case Rpn(msb: Int, lsb: Int)
-    case Nrpn(msb: Int, lsb: Int)
   }
 }

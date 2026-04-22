@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.Selector
 import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -28,7 +29,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   private val NoteE4: MidiNote = 64
   private val NoteG4: MidiNote = 67
 
-  behavior of "ScMidiChannelStateTracker"
+  behavior of "ScMidiChannelStateTracker per note tracking"
 
   it should "have no active notes on any channel when empty" in {
     // Given
@@ -408,6 +409,42 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpn(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 0)))
   }
 
+  it should "ignore data changes when an initial RPN has only MSB selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+
+    // Then
+    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
+    tracker.selector(Channel) shouldEqual Selector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb)
+    tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual 0
+    tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual ScMidiRpn.NullLsb
+  }
+
+  it should "ignore data changes when an initial RPN has only LSB selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+
+    // Then
+    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
+    tracker.selector(Channel) shouldEqual Selector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual ScMidiRpn.NullMsb
+    tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual 0
+  }
+
   it should "ignore Data Entry when no RPN/NRPN is selected" in {
     // Given
     val tracker = ScMidiChannelStateTracker()
@@ -522,6 +559,42 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Then
     tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((8, 0)))
     tracker.nrpn(Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb) shouldBe None
+  }
+
+  it should "ignore data changes when an initial NRPN has only MSB selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, 0))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+
+    // Then
+    tracker.nrpn(Channel, 0, 0) shouldBe empty
+    tracker.selector(Channel) shouldEqual Selector.Nrpn(0, ScMidiNrpn.NullLsb)
+    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 0
+    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual ScMidiNrpn.NullLsb
+  }
+
+  it should "ignore data changes when an initial NRPN has only LSB selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, 0))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+
+    // Then
+    tracker.nrpn(Channel, 0, 0) shouldBe empty
+    tracker.selector(Channel) shouldEqual Selector.Nrpn(ScMidiRpn.NullMsb, 0)
+    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual ScMidiNrpn.NullMsb
+    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 0
   }
 
   behavior of "ScMidiChannelStateTracker Data Increment / Decrement"
