@@ -50,7 +50,9 @@ object ScMidiRpn {
   /** Tuning Program Select RPN LSB (#3). */
   val TuningProgramSelectLsb: Int = 0x03
 
+  /** MPE Configuration Message (MCM) RPN LSB (#6). */
   val MpeConfigurationMessageLsb: Int = 0x06
 
+  /** MPE Configuration Message (MCM) RPN MSB (#0). */
   val MpeConfigurationMessageMsb: Int = 0x00
 }

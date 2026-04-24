@@ -192,9 +192,8 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * @return the current RPN/NRPN selector state on the given channel. [[RpnSelector.None]] is returned when no
-   *         parameter
-   *         is selected — for instance before any RPN/NRPN CC messages have been received, or after a Reset All
-   *         Controllers or Null RPN/NRPN has been applied.
+   *         parameter is selected — for instance before any RPN/NRPN CC messages have been received, or after a
+   *         Reset All Controllers or Null RPN/NRPN has been applied.
    */
   def rpnSelector(channel: Int): RpnSelector = {
     MidiRequirements.requireChannel(channel)
@@ -306,29 +305,29 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = state.rpnSelector match {
-    case RpnSelector.Rpn(rmsb, rlsb) =>
+    case RpnSelector.Rpn(rmsb, rlsb) if rmsb != ScMidiRpn.NullMsb && rlsb != ScMidiRpn.NullLsb =>
       val (curMsb, curLsb) = state.rpnValues.get((rmsb, rlsb))
         .orElse(resolvedRpnDefault(rmsb, rlsb))
         .getOrElse((0, 0))
       val updated = if (isMsb) (value, curLsb) else (curMsb, value)
       state.rpnValues((rmsb, rlsb)) = updated
-    case RpnSelector.Nrpn(nmsb, nlsb) =>
+    case RpnSelector.Nrpn(nmsb, nlsb) if nmsb != ScMidiNrpn.NullMsb && nlsb != ScMidiNrpn.NullLsb =>
       val (curMsb, curLsb) = state.nrpnValues.get((nmsb, nlsb))
         .orElse(resolvedNrpnDefault(nmsb, nlsb))
         .getOrElse((0, 0))
       val updated = if (isMsb) (value, curLsb) else (curMsb, value)
       state.nrpnValues((nmsb, nlsb)) = updated
-    case RpnSelector.None =>
+    case _ =>
   }
 
   private def applyDataDelta(state: ChannelState, delta: Int): Unit = state.rpnSelector match {
-    case RpnSelector.Rpn(rmsb, rlsb) =>
+    case RpnSelector.Rpn(rmsb, rlsb) if rmsb != ScMidiRpn.NullMsb && rlsb != ScMidiRpn.NullLsb =>
       state.rpnValues.get((rmsb, rlsb)).orElse(resolvedRpnDefault(rmsb, rlsb))
         .foreach { starting => state.rpnValues((rmsb, rlsb)) = bumped(starting, delta) }
-    case RpnSelector.Nrpn(nmsb, nlsb) =>
+    case RpnSelector.Nrpn(nmsb, nlsb) if nmsb != ScMidiNrpn.NullMsb && nlsb != ScMidiNrpn.NullLsb =>
       state.nrpnValues.get((nmsb, nlsb)).orElse(resolvedNrpnDefault(nmsb, nlsb))
         .foreach { starting => state.nrpnValues((nmsb, nlsb)) = bumped(starting, delta) }
-    case RpnSelector.None =>
+    case _ =>
   }
 
   private def resolvedRpnDefault(parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] =
@@ -355,10 +354,15 @@ object ScMidiChannelStateTracker {
   private val Max14BitValue: Int = (1 << 14) - 1
 
   /**
-   * CC numbers cleared on Reset All Controllers (MIDI 1.0 RP-015). Bank Select, Volume, Pan, and Program Change are
-   * intentionally preserved.
+   * CC numbers cleared from `ccValues` on Reset All Controllers (MIDI 1.0 RP-015). Bank Select, Volume, Pan, and
+   * Program Change are intentionally preserved. In addition to clearing these CC values, the handler also resets
+   * Channel Pressure, Pitch Bend, and the RPN/NRPN selector to their default states.
    */
   private val ResetAllControllersCcNumbers: Set[Int] = Set(
+    ScMidiCc.DataEntryMsb,
+    ScMidiCc.DataEntryLsb,
+    ScMidiCc.DataIncrement,
+    ScMidiCc.DataDecrement,
     ScMidiCc.ModulationMsb,
     ScMidiCc.ModulationLsb,
     ScMidiCc.ExpressionMsb,

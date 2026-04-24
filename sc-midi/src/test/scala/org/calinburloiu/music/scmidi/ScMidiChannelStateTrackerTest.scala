@@ -432,6 +432,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
+    tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb) shouldBe empty
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb)
     tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual 0
     tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual ScMidiRpn.NullLsb
@@ -449,6 +450,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
+    tracker.rpnOption(Channel, ScMidiRpn.NullMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.PitchBendSensitivityLsb)
     tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual ScMidiRpn.NullMsb
     tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual 0
@@ -793,6 +795,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.nrpnOption(Channel, 0, 0) shouldBe empty
+    tracker.nrpnOption(Channel, 0, ScMidiNrpn.NullLsb) shouldBe empty
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(0, ScMidiNrpn.NullLsb)
     tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 0
     tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual ScMidiNrpn.NullLsb
@@ -810,6 +813,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.nrpnOption(Channel, 0, 0) shouldBe empty
+    tracker.nrpnOption(Channel, ScMidiNrpn.NullMsb, 0) shouldBe empty
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 0)
     tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual ScMidiNrpn.NullMsb
     tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 0
@@ -936,13 +940,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   behavior of "ScMidiChannelStateTracker channel validation"
 
-  it should "throw on activeNoteSet with an invalid channel" in new TrackerFixture {
+  it should "throw on activeNotes with an invalid channel" in new TrackerFixture {
     // When / Then
     an[IllegalArgumentException] should be thrownBy tracker.activeNotes(-1)
     an[IllegalArgumentException] should be thrownBy tracker.activeNotes(16)
   }
 
-  it should "throw on activeNoteSeq with an invalid channel" in new TrackerFixture {
+  it should "throw on orderedActiveNotes with an invalid channel" in new TrackerFixture {
     // When / Then
     an[IllegalArgumentException] should be thrownBy tracker.orderedActiveNotes(-1)
     an[IllegalArgumentException] should be thrownBy tracker.orderedActiveNotes(16)
@@ -1041,6 +1045,24 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.ccOption(Channel, ScMidiCc.LegatoFootswitch) shouldBe None
     tracker.ccOption(Channel, ScMidiCc.Hold2Pedal) shouldBe None
   }
+
+  it should "clear Data Entry, Data Increment, and Data Decrement CCs when Reset All Controllers is received" in
+    new TrackerFixture {
+      // Given
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 34))
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+
+      // When
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+      // Then
+      tracker.ccOption(Channel, ScMidiCc.DataEntryMsb) shouldBe None
+      tracker.ccOption(Channel, ScMidiCc.DataEntryLsb) shouldBe None
+      tracker.ccOption(Channel, ScMidiCc.DataIncrement) shouldBe None
+      tracker.ccOption(Channel, ScMidiCc.DataDecrement) shouldBe None
+    }
 
   it should "clear Channel Pressure, Pitch Bend, and the RPN/NRPN selector when Reset All Controllers is received" in
     new TrackerFixture {
