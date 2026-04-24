@@ -27,6 +27,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   private val Channel = 3
   private val OtherChannel = 7
 
+  private val NrpnA = (10, 20)
+  private val NrpnB = (10, 21)
+
   private trait TrackerFixture {
     val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
   }
@@ -685,9 +688,6 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   }
 
   behavior of "ScMidiChannelStateTracker NRPN tracking"
-
-  private val NrpnA = (10, 20)
-  private val NrpnB = (10, 21)
 
   private def selectNrpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
     tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
