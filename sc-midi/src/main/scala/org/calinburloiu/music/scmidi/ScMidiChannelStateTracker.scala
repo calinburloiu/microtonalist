@@ -135,6 +135,19 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     channelStates(channel).activeNotes.get(midiNote).map(_.polyPressure)
   }
 
+  /** @return the most recent Channel Pressure recorded on the given channel, or `0` if none has been received. */
+  def channelPressure(channel: Int): Int = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).channelPressure.getOrElse(0)
+  }
+
+  /** @return the most recent Pitch Bend recorded on the given channel, or `0` (no pitch bend) if none has been
+   *          received. */
+  def pitchBend(channel: Int): Int = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).pitchBend.getOrElse(0)
+  }
+
   /** @return the recorded value of the given CC on the given channel, or `None` if it has not been set. */
   def ccOption(channel: Int, ccNumber: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -156,6 +169,91 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
       .orElse(resolvedCcDefault(ccNumber))
       .getOrElse(throw new NoSuchElementException(
         s"No value, override, or default available for CC $ccNumber on channel $channel"
+      ))
+  }
+
+  /**
+   * Convenience getter that returns the current Bank Select MSB and LSB on the given channel as a tuple.
+   *
+   * Each value is resolved through [[cc]], so it benefits from the same default-fallback behaviour as any other
+   * CC: a recorded value is preferred, then the constructor's `ccDefaults`, then the companion's defaults
+   * (`(0, 0)` by default).
+   *
+   * @return `(msb, lsb)` for Bank Select on the given channel.
+   */
+  def bankSelect(channel: Int): (Int, Int) =
+    (cc(channel, message.ScMidiCc.BankSelectMsb), cc(channel, message.ScMidiCc.BankSelectLsb))
+
+  /** @return the most recent Program Change recorded on the given channel, or `0` if none has been received. */
+  def programChange(channel: Int): Int = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).programChange.getOrElse(0)
+  }
+
+  /**
+   * @return the current RPN/NRPN selector state on the given channel. [[RpnSelector.None]] is returned when no
+   *         parameter
+   *         is selected — for instance before any RPN/NRPN CC messages have been received, or after a Reset All
+   *         Controllers or Null RPN/NRPN has been applied.
+   */
+  def rpnSelector(channel: Int): RpnSelector = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).rpnSelector
+  }
+
+  /**
+   * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry
+   *         (or Data Increment / Decrement) has updated this RPN.
+   */
+  def rpnOption(channel: Int, parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).rpnValues.get((parameterMsb, parameterLsb))
+  }
+
+  /**
+   * Retrieves the `(valueMsb, valueLsb)` for the given RPN on the given channel, or a default if not recorded.
+   *
+   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `rpnDefaults`,
+   * then the companion's [[ScMidiChannelStateTracker.DefaultRpnValues]]. If no value is found through any of these,
+   * a [[NoSuchElementException]] is thrown.
+   *
+   * @return the `(valueMsb, valueLsb)` for the given RPN, or a default if not recorded.
+   */
+  def rpn(channel: Int, parameterMsb: Int, parameterLsb: Int,
+          overrideDefaultValue: Option[(Int, Int)] = None): (Int, Int) = {
+    rpnOption(channel, parameterMsb, parameterLsb)
+      .orElse(overrideDefaultValue)
+      .orElse(resolvedRpnDefault(parameterMsb, parameterLsb))
+      .getOrElse(throw new NoSuchElementException(
+        s"No value, override, or default available for RPN ($parameterMsb, $parameterLsb) on channel $channel"
+      ))
+  }
+
+  /**
+   * @return the recorded `(valueMsb, valueLsb)` for the given NRPN on the given channel, or `None` if no Data Entry
+   *         (or Data Increment / Decrement) has updated this NRPN.
+   */
+  def nrpnOption(channel: Int, parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).nrpnValues.get((parameterMsb, parameterLsb))
+  }
+
+  /**
+   * Retrieves the `(valueMsb, valueLsb)` for the given NRPN on the given channel, or a default if not recorded.
+   *
+   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `nrpnDefaults`,
+   * then the companion's [[ScMidiChannelStateTracker.DefaultNrpnValues]]. If no value is found through any of these,
+   * a [[NoSuchElementException]] is thrown.
+   *
+   * @return the `(valueMsb, valueLsb)` for the given NRPN, or a default if not recorded.
+   */
+  def nrpn(channel: Int, parameterMsb: Int, parameterLsb: Int,
+           overrideDefaultValue: Option[(Int, Int)] = None): (Int, Int) = {
+    nrpnOption(channel, parameterMsb, parameterLsb)
+      .orElse(overrideDefaultValue)
+      .orElse(resolvedNrpnDefault(parameterMsb, parameterLsb))
+      .getOrElse(throw new NoSuchElementException(
+        s"No value, override, or default available for NRPN ($parameterMsb, $parameterLsb) on channel $channel"
       ))
   }
 
@@ -245,104 +343,6 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     val combined = (value._1 << 7) | value._2
     val clamped = math.max(0, math.min(Max14BitValue, combined + delta))
     ((clamped >> 7) & 0x7F, clamped & 0x7F)
-  }
-
-  /** @return the most recent Channel Pressure recorded on the given channel, or `0` if none has been received. */
-  def channelPressure(channel: Int): Int = {
-    MidiRequirements.requireChannel(channel)
-    channelStates(channel).channelPressure.getOrElse(0)
-  }
-
-  /** @return the most recent Pitch Bend recorded on the given channel, or `0` (no pitch bend) if none has been
-   *          received. */
-  def pitchBend(channel: Int): Int = {
-    MidiRequirements.requireChannel(channel)
-    channelStates(channel).pitchBend.getOrElse(0)
-  }
-
-  /** @return the most recent Program Change recorded on the given channel, or `0` if none has been received. */
-  def programChange(channel: Int): Int = {
-    MidiRequirements.requireChannel(channel)
-    channelStates(channel).programChange.getOrElse(0)
-  }
-
-  /**
-   * Convenience getter that returns the current Bank Select MSB and LSB on the given channel as a tuple.
-   *
-   * Each value is resolved through [[cc]], so it benefits from the same default-fallback behaviour as any other
-   * CC: a recorded value is preferred, then the constructor's `ccDefaults`, then the companion's defaults
-   * (`(0, 0)` by default).
-   *
-   * @return `(msb, lsb)` for Bank Select on the given channel.
-   */
-  def bankSelect(channel: Int): (Int, Int) =
-    (cc(channel, message.ScMidiCc.BankSelectMsb), cc(channel, message.ScMidiCc.BankSelectLsb))
-
-  /**
-   * @return the current RPN/NRPN selector state on the given channel. [[RpnSelector.None]] is returned when no
-   *         parameter
-   *         is selected — for instance before any RPN/NRPN CC messages have been received, or after a Reset All
-   *         Controllers or Null RPN/NRPN has been applied.
-   */
-  def rpnSelector(channel: Int): RpnSelector = {
-    MidiRequirements.requireChannel(channel)
-    channelStates(channel).rpnSelector
-  }
-
-  /**
-   * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry
-   *         (or Data Increment / Decrement) has updated this RPN.
-   */
-  def rpnOption(channel: Int, parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] = {
-    MidiRequirements.requireChannel(channel)
-    channelStates(channel).rpnValues.get((parameterMsb, parameterLsb))
-  }
-
-  /**
-   * Retrieves the `(valueMsb, valueLsb)` for the given RPN on the given channel, or a default if not recorded.
-   *
-   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `rpnDefaults`,
-   * then the companion's [[ScMidiChannelStateTracker.DefaultRpnValues]]. If no value is found through any of these,
-   * a [[NoSuchElementException]] is thrown.
-   *
-   * @return the `(valueMsb, valueLsb)` for the given RPN, or a default if not recorded.
-   */
-  def rpn(channel: Int, parameterMsb: Int, parameterLsb: Int,
-          overrideDefaultValue: Option[(Int, Int)] = None): (Int, Int) = {
-    rpnOption(channel, parameterMsb, parameterLsb)
-      .orElse(overrideDefaultValue)
-      .orElse(resolvedRpnDefault(parameterMsb, parameterLsb))
-      .getOrElse(throw new NoSuchElementException(
-        s"No value, override, or default available for RPN ($parameterMsb, $parameterLsb) on channel $channel"
-      ))
-  }
-
-  /**
-   * @return the recorded `(valueMsb, valueLsb)` for the given NRPN on the given channel, or `None` if no Data Entry
-   *         (or Data Increment / Decrement) has updated this NRPN.
-   */
-  def nrpnOption(channel: Int, parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] = {
-    MidiRequirements.requireChannel(channel)
-    channelStates(channel).nrpnValues.get((parameterMsb, parameterLsb))
-  }
-
-  /**
-   * Retrieves the `(valueMsb, valueLsb)` for the given NRPN on the given channel, or a default if not recorded.
-   *
-   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `nrpnDefaults`,
-   * then the companion's [[ScMidiChannelStateTracker.DefaultNrpnValues]]. If no value is found through any of these,
-   * a [[NoSuchElementException]] is thrown.
-   *
-   * @return the `(valueMsb, valueLsb)` for the given NRPN, or a default if not recorded.
-   */
-  def nrpn(channel: Int, parameterMsb: Int, parameterLsb: Int,
-           overrideDefaultValue: Option[(Int, Int)] = None): (Int, Int) = {
-    nrpnOption(channel, parameterMsb, parameterLsb)
-      .orElse(overrideDefaultValue)
-      .orElse(resolvedNrpnDefault(parameterMsb, parameterLsb))
-      .getOrElse(throw new NoSuchElementException(
-        s"No value, override, or default available for NRPN ($parameterMsb, $parameterLsb) on channel $channel"
-      ))
   }
 }
 
