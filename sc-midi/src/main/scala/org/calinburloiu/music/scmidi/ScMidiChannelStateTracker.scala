@@ -48,11 +48,12 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   private var _closed: Boolean = false
 
   override def send(message: ScMidiMessage, timeStamp: Long = -1L): Unit = if (!_closed) message match {
-    // TODO #155 Is the default unapply suppressed?
-    case noteOn: NoteOnScMidiMessage if noteOn.velocity == NoteOnScMidiMessage.NoteOffVelocity =>
-      channelStates(noteOn.channel).activeNotes -= noteOn.midiNote
-    case noteOn: NoteOnScMidiMessage =>
-      channelStates(noteOn.channel).activeNotes(noteOn.midiNote) = ActiveNote(noteOn.velocity)
+    // TODO #155 Refactor the following case statements by using extractors where possible, similar to how
+    //  NoteOnScMidiMessage is done below.
+    case NoteOnScMidiMessage(channel, midiNote, NoteOnScMidiMessage.NoteOffVelocity) =>
+      channelStates(channel).activeNotes -= midiNote
+    case NoteOnScMidiMessage(channel, midiNote, velocity) =>
+      channelStates(channel).activeNotes(midiNote) = ActiveNote(velocity)
     case noteOff: NoteOffScMidiMessage =>
       channelStates(noteOff.channel).activeNotes -= noteOff.midiNote
     case polyPressure: PolyPressureScMidiMessage =>
@@ -94,13 +95,13 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   def isClosed: Boolean = _closed
 
   /** @return the set of currently active notes on the given channel. */
-  def activeNoteSet(channel: Int): Set[MidiNote] = {
+  def activeNotes(channel: Int): Set[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keySet.toSet
   }
 
   /** @return the currently active notes on the given channel, in the order they were turned on. */
-  def activeNoteSeq(channel: Int): Seq[MidiNote] = {
+  def orderedActiveNotes(channel: Int): Seq[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keys.toSeq
   }
@@ -279,7 +280,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   // TODO #155 Add separate getter methods for RPN and NRPM for optional and non-optional value. The latter should have
   //  an `overrideDefaultValue` and resolve default in a similar way with the `cc` method.
 
-  // TODO #155 Add ScalaDoc. Maybe find a better name for the method and return type. It's not clear what "selector"
+  // TODO #155 Add ScalaDoc. Maybe find a better name for the method and the return type. It's not clear what "selector"
   //  refers to.
   def selector(channel: Int): Selector = {
     MidiRequirements.requireChannel(channel)
@@ -384,7 +385,7 @@ object ScMidiChannelStateTracker {
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
 
-  // TODO #155 Add ScalaDoc
+  // TODO #155 Add ScalaDoc because it's a public declaration.
   enum Selector {
     case None
     case Rpn(msb: Int, lsb: Int)

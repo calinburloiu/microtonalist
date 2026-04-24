@@ -37,7 +37,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // When / Then
     for (channel <- 0 to 15) {
-      tracker.activeNoteSet(channel) shouldBe empty
+      tracker.activeNotes(channel) shouldBe empty
     }
   }
 
@@ -49,7 +49,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 100))
 
     // Then
-    tracker.activeNoteSet(Channel) should contain only NoteC4
+    tracker.activeNotes(Channel) should contain only NoteC4
     tracker.velocity(Channel, NoteC4) should equal(Some(100))
   }
 
@@ -62,7 +62,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOffScMidiMessage(Channel, NoteC4))
 
     // Then
-    tracker.activeNoteSet(Channel) shouldBe empty
+    tracker.activeNotes(Channel) shouldBe empty
     tracker.velocity(Channel, NoteC4) shouldBe None
   }
 
@@ -75,7 +75,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = NoteOnScMidiMessage.NoteOffVelocity))
 
     // Then
-    tracker.activeNoteSet(Channel) shouldBe empty
+    tracker.activeNotes(Channel) shouldBe empty
   }
 
   it should "preserve insertion order of active notes" in {
@@ -88,7 +88,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnScMidiMessage(Channel, NoteE4, velocity = 70))
 
     // Then
-    tracker.activeNoteSeq(Channel) should contain theSameElementsInOrderAs Seq(NoteG4, NoteC4, NoteE4)
+    tracker.orderedActiveNotes(Channel) should contain theSameElementsInOrderAs Seq(NoteG4, NoteC4, NoteE4)
   }
 
   it should "track active notes independently per channel" in {
@@ -100,8 +100,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnScMidiMessage(OtherChannel, NoteE4, velocity = 110))
 
     // Then
-    tracker.activeNoteSet(Channel) should contain only NoteC4
-    tracker.activeNoteSet(OtherChannel) should contain only NoteE4
+    tracker.activeNotes(Channel) should contain only NoteC4
+    tracker.activeNotes(OtherChannel) should contain only NoteE4
     tracker.velocity(Channel, NoteE4) shouldBe None
     tracker.velocity(OtherChannel, NoteC4) shouldBe None
   }
@@ -136,7 +136,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.polyPressure(Channel, NoteC4) shouldBe None
-    tracker.activeNoteSet(Channel) shouldBe empty
+    tracker.activeNotes(Channel) shouldBe empty
   }
 
   it should "reset Polyphonic Key Pressure to its default when a note is re-triggered with Note On" in {
@@ -857,7 +857,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOffScMidiMessage(Channel, NoteC4))
 
     // Then
-    tracker.activeNoteSet(Channel) should contain only NoteC4
+    tracker.activeNotes(Channel) should contain only NoteC4
     tracker.velocity(Channel, NoteC4) should equal(Some(100))
   }
 
@@ -896,8 +896,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When / Then
-    an[IllegalArgumentException] should be thrownBy tracker.activeNoteSet(-1)
-    an[IllegalArgumentException] should be thrownBy tracker.activeNoteSet(16)
+    an[IllegalArgumentException] should be thrownBy tracker.activeNotes(-1)
+    an[IllegalArgumentException] should be thrownBy tracker.activeNotes(16)
   }
 
   it should "throw on activeNoteSeq with an invalid channel" in {
@@ -905,8 +905,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker = ScMidiChannelStateTracker()
 
     // When / Then
-    an[IllegalArgumentException] should be thrownBy tracker.activeNoteSeq(-1)
-    an[IllegalArgumentException] should be thrownBy tracker.activeNoteSeq(16)
+    an[IllegalArgumentException] should be thrownBy tracker.orderedActiveNotes(-1)
+    an[IllegalArgumentException] should be thrownBy tracker.orderedActiveNotes(16)
   }
 
   it should "throw on velocity / polyPressure with an invalid channel" in {
@@ -968,8 +968,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
 
     // Then
-    tracker.activeNoteSet(Channel) shouldBe empty
-    tracker.activeNoteSet(OtherChannel) should contain only NoteG4
+    tracker.activeNotes(Channel) shouldBe empty
+    tracker.activeNotes(OtherChannel) should contain only NoteG4
   }
 
   it should "cancel active notes on the channel when All Notes Off is received" in {
@@ -982,8 +982,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
 
     // Then
-    tracker.activeNoteSet(Channel) shouldBe empty
-    tracker.activeNoteSet(OtherChannel) should contain only NoteG4
+    tracker.activeNotes(Channel) shouldBe empty
+    tracker.activeNotes(OtherChannel) should contain only NoteG4
   }
 
   it should "clear resettable CCs when Reset All Controllers is received" in {
@@ -1101,7 +1101,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     for (channel <- 0 to 15) {
-      tracker.activeNoteSet(channel) shouldBe empty
+      tracker.activeNotes(channel) shouldBe empty
       tracker.ccOption(channel, ScMidiCc.VolumeMsb) shouldBe None
       tracker.ccOption(channel, ScMidiCc.BankSelectMsb) shouldBe None
       tracker.channelPressure(channel) shouldBe None
@@ -1146,7 +1146,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.reset()
 
     // Then
-    tracker.activeNoteSet(Channel) should contain only NoteC4
+    tracker.activeNotes(Channel) should contain only NoteC4
     tracker.isClosed shouldBe true
   }
 
