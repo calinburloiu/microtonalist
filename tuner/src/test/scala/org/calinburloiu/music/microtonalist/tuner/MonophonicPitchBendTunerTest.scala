@@ -414,13 +414,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.tune(customTuning2)
     output.clear()
 
-    output ++= tuner.process(CcScMidiMessage(inputChannel, ScMidiCc.Modulation, 34).asJava)
+    output ++= tuner.process(CcScMidiMessage(inputChannel, ScMidiCc.ModulationMsb, 34).asJava)
 
     output should have size 1
     inside(output.head.asScala) {
       case CcScMidiMessage(channel, number, 34) =>
         channel shouldEqual outputChannel
-        number shouldEqual ScMidiCc.Modulation
+        number shouldEqual ScMidiCc.ModulationMsb
     }
   }
 

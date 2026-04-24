@@ -24,6 +24,10 @@ object ScMidiCc {
   val RpnMsb: Int = 101
   /** Registered Parameter Number (RPN) LSB controller number (#100). */
   val RpnLsb: Int = 100
+  /** Non-Registered Parameter Number (NRPN) MSB controller number (#99). */
+  val NrpnMsb: Int = 99
+  /** Non-Registered Parameter Number (NRPN) LSB controller number (#98). */
+  val NrpnLsb: Int = 98
   /** Data Entry MSB controller number (#6). */
   val DataEntryMsb: Int = 6
   /** Data Entry LSB controller number (#38). */
@@ -44,14 +48,34 @@ object ScMidiCc {
   /** Bank Select LSB controller number (#32). */
   val BankSelectLsb: Int = 32
 
-  /** Modulation Wheel controller number (#1). */
-  val Modulation: Int = 1
+  /** Modulation Wheel MSB controller number (#1). */
+  val ModulationMsb: Int = 1
+  /** Modulation Wheel LSB controller number (#33). */
+  val ModulationLsb: Int = 33
+  /** Channel Volume MSB controller number (#7). */
+  val VolumeMsb: Int = 7
+  /** Channel Volume LSB controller number (#39). */
+  val VolumeLsb: Int = 39
+  /** Pan MSB controller number (#10). */
+  val PanMsb: Int = 10
+  /** Pan LSB controller number (#42). */
+  val PanLsb: Int = 42
+  /** Expression MSB controller number (#11). */
+  val ExpressionMsb: Int = 11
+  /** Expression LSB controller number (#43). */
+  val ExpressionLsb: Int = 43
   /** Sustain Pedal (Damper) controller number (#64). */
   val SustainPedal: Int = 64
+  /** Portamento Pedal controller number (#65). */
+  val PortamentoPedal: Int = 65
   /** Sostenuto Pedal controller number (#66). */
   val SostenutoPedal: Int = 66
   /** Soft Pedal controller number (#67). */
   val SoftPedal: Int = 67
+  /** Legato Footswitch controller number (#68). */
+  val LegatoFootswitch: Int = 68
+  /** Hold 2 Pedal controller number (#69). */
+  val Hold2Pedal: Int = 69
 
   /**
    * MPE (MIDI Polyphonic Expression) Slide controller number (#74), also known as Timbre or Brightness.

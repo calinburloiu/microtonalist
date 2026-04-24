@@ -20,6 +20,11 @@ package org.calinburloiu.music.scmidi.message
  * MIDI Registered Parameter Numbers (RPN) utilities and constants.
  */
 object ScMidiRpn {
+  /** Null RPN MSB (#127). */
+  val NullMsb: Int = 0x7F
+  /** Null RPN LSB (#127). */
+  val NullLsb: Int = 0x7F
+
   /** Pitch Bend Sensitivity RPN MSB (#0). */
   val PitchBendSensitivityMsb: Int = 0x00
   /** Pitch Bend Sensitivity RPN LSB (#0). */
@@ -45,12 +50,9 @@ object ScMidiRpn {
   /** Tuning Program Select RPN LSB (#3). */
   val TuningProgramSelectLsb: Int = 0x03
 
+  /** MPE Configuration Message (MCM) RPN LSB (#6). */
   val MpeConfigurationMessageLsb: Int = 0x06
 
+  /** MPE Configuration Message (MCM) RPN MSB (#0). */
   val MpeConfigurationMessageMsb: Int = 0x00
-
-  /** Null RPN MSB (#127). */
-  val NullMsb: Int = 0x7F
-  /** Null RPN LSB (#127). */
-  val NullLsb: Int = 0x7F
 }
