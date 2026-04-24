@@ -102,7 +102,14 @@ example, the test class for `org.calinburloiu.music.intonation.RatioInterval` is
 
 The project uses `scalatest` library for testing and `scalamock` for mocking / stubbing. The “behavior-driven” style of
 development (BDD) is preferred for writting tests by making tests classes extend `org.scalatest.flatspec.AnyFlatSpec`
-and `org.scalatest.matchers.should.Matchers`.
+and `org.scalatest.matchers.should.Matchers`. When using this style of tests, test cases are grouped in behavior
+sections by using `behavior of`. When adding a new test case to a behavior-driven suite consider the following:
+
+* Analyze the current behavior section in the test file.
+* Determine if there is an existing behavior section that is appropriate for the new test and if not create a new
+  behavior section.
+* Add the test in the determined section near a similar test. If there isn't a similar one, add it at the end of the
+  behavior section.
 
 Currently, Metals MCP cannot run tests with this setup (with SBT and BSP). So run all tests by starting `sbt` processes.
 

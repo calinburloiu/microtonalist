@@ -152,6 +152,18 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.polyPressure(Channel, NoteC4) should equal(Some(0))
   }
 
+  it should "overwrite the velocity of an active note when a Note On is re-sent" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 50))
+
+    // When
+    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 120))
+
+    // Then
+    tracker.velocity(Channel, NoteC4) should equal(Some(120))
+  }
+
   behavior of "ScMidiChannelStateTracker Control Change tracking"
 
   it should "return None for ccOption when the CC has not been set" in {
@@ -510,132 +522,6 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       equal(Some((24, 0)))
   }
 
-  // TODO #155 Are tests for NRPN tracking on par with those for RPN tracking? They should be similar.
-  behavior of "ScMidiChannelStateTracker NRPN tracking"
-
-  private val NrpnA = (10, 20)
-  private val NrpnB = (10, 21)
-
-  private def selectNrpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
-    tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
-    tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb))
-  }
-
-  it should "return None for an NRPN that has not been written" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-
-    // When / Then
-    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) shouldBe None
-  }
-
-  it should "select a NRPN" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-
-    // When
-    selectNrpn(tracker, Channel, 1, 2)
-
-    // Then
-    tracker.selector(Channel) shouldEqual Selector.Nrpn(1, 2)
-    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 1
-    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 2
-  }
-
-  it should "record an NRPN value via Data Entry MSB after NRPN selection" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-
-    // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
-
-    // Then
-    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((17, 0)))
-  }
-
-  it should "let NRPN selection take over a previous RPN selection" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-
-    // When
-    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 5))
-
-    // Then
-    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe None
-    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((5, 0)))
-  }
-
-  it should "keep recorded NRPN values when a different NRPN is selected" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 1))
-
-    // When
-    selectNrpn(tracker, Channel, NrpnB._1, NrpnB._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 2))
-
-    // Then
-    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((1, 0)))
-    tracker.nrpn(Channel, NrpnB._1, NrpnB._2) should equal(Some((2, 0)))
-  }
-
-  it should "ignore Data Entry after Null NRPN is selected" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 8))
-    selectNrpn(tracker, Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
-
-    // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
-
-    // Then
-    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((8, 0)))
-    tracker.nrpn(Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb) shouldBe None
-  }
-
-  it should "ignore data changes when an initial NRPN has only MSB selection" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, 0))
-
-    // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
-
-    // Then
-    tracker.nrpn(Channel, 0, 0) shouldBe empty
-    tracker.selector(Channel) shouldEqual Selector.Nrpn(0, ScMidiNrpn.NullLsb)
-    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 0
-    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual ScMidiNrpn.NullLsb
-  }
-
-  it should "ignore data changes when an initial NRPN has only LSB selection" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, 0))
-
-    // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
-
-    // Then
-    tracker.nrpn(Channel, 0, 0) shouldBe empty
-    tracker.selector(Channel) shouldEqual Selector.Nrpn(ScMidiRpn.NullMsb, 0)
-    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual ScMidiNrpn.NullMsb
-    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 0
-  }
-
-  behavior of "ScMidiChannelStateTracker Data Increment / Decrement"
-
   it should "increment the recorded RPN value by 1 (combined 14-bit)" in {
     // Given
     val tracker = ScMidiChannelStateTracker()
@@ -790,6 +676,129 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.ccOption(Channel, ScMidiCc.DataDecrement) should equal(Some(1))
   }
 
+  behavior of "ScMidiChannelStateTracker NRPN tracking"
+
+  private val NrpnA = (10, 20)
+  private val NrpnB = (10, 21)
+
+  private def selectNrpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
+    tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
+    tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb))
+  }
+
+  it should "return None for an NRPN that has not been written" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // When / Then
+    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) shouldBe None
+  }
+
+  it should "select a NRPN" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+
+    // When
+    selectNrpn(tracker, Channel, 1, 2)
+
+    // Then
+    tracker.selector(Channel) shouldEqual Selector.Nrpn(1, 2)
+    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 1
+    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 2
+  }
+
+  it should "record an NRPN value via Data Entry MSB after NRPN selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+
+    // Then
+    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((17, 0)))
+  }
+
+  it should "let NRPN selection take over a previous RPN selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+
+    // When
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 5))
+
+    // Then
+    tracker.rpn(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe None
+    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((5, 0)))
+  }
+
+  it should "keep recorded NRPN values when a different NRPN is selected" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 1))
+
+    // When
+    selectNrpn(tracker, Channel, NrpnB._1, NrpnB._2)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 2))
+
+    // Then
+    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((1, 0)))
+    tracker.nrpn(Channel, NrpnB._1, NrpnB._2) should equal(Some((2, 0)))
+  }
+
+  it should "ignore Data Entry after Null NRPN is selected" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 8))
+    selectNrpn(tracker, Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+
+    // Then
+    tracker.nrpn(Channel, NrpnA._1, NrpnA._2) should equal(Some((8, 0)))
+    tracker.nrpn(Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb) shouldBe None
+  }
+
+  it should "ignore data changes when an initial NRPN has only MSB selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, 0))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+
+    // Then
+    tracker.nrpn(Channel, 0, 0) shouldBe empty
+    tracker.selector(Channel) shouldEqual Selector.Nrpn(0, ScMidiNrpn.NullLsb)
+    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 0
+    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual ScMidiNrpn.NullLsb
+  }
+
+  it should "ignore data changes when an initial NRPN has only LSB selection" in {
+    // Given
+    val tracker = ScMidiChannelStateTracker()
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, 0))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+
+    // Then
+    tracker.nrpn(Channel, 0, 0) shouldBe empty
+    tracker.selector(Channel) shouldEqual Selector.Nrpn(ScMidiRpn.NullMsb, 0)
+    tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual ScMidiNrpn.NullMsb
+    tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 0
+  }
+
   it should "increment a recorded NRPN value with constructor-supplied default" in {
     // Given
     val tracker = ScMidiChannelStateTracker(
@@ -814,20 +823,6 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.nrpn(Channel, NrpnA._1, NrpnA._2) shouldBe None
-  }
-
-  behavior of "ScMidiChannelStateTracker (continued)"
-
-  it should "overwrite the velocity of an active note when a Note On is re-sent" in {
-    // Given
-    val tracker = ScMidiChannelStateTracker()
-    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 50))
-
-    // When
-    tracker.send(NoteOnScMidiMessage(Channel, NoteC4, velocity = 120))
-
-    // Then
-    tracker.velocity(Channel, NoteC4) should equal(Some(120))
   }
 
   behavior of "ScMidiChannelStateTracker close"
