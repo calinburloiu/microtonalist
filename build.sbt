@@ -210,6 +210,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= compilerOptions,
   resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
   libraryDependencies ++= commonDependencies,
+  Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
 )
 
 lazy val assemblySettings = Seq(
