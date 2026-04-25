@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, clampValue, mapShortMessageChannel}
+import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, ScMidiChannelStateTracker, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -39,12 +39,14 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   require(0 <= outputChannel && outputChannel <= 15,
     s"Output MIDI channel must be between 0 and 15, but was $outputChannel!")
 
+  import MonophonicPitchBendTuner.TrackedChannel
+
   override val typeName: String = MonophonicPitchBendTuner.TypeName
 
   private var _currTuning: Tuning = Tuning.Standard
   private var _pitchBendSensitivity: PitchBendSensitivity = defaultPitchBendSensitivity
 
-  private val noteStack: mutable.Stack[MidiNote] = mutable.Stack()
+  private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
   private var _lastSingleNote: MidiNote = 0
 
   /** Pitch bend applied by the performer to the current note before applying the extra tuning value */
@@ -56,11 +58,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private var _lastNoteOnVelocity = NoteOnScMidiMessage.DefaultVelocity
   private var _lastNoteOffVelocity = NoteOffScMidiMessage.DefaultVelocity
 
-  private var _sustainPedal: Int = 0
-  private var _sostenutoPedal: Int = 0
-  private var _rpnLsb: Int = ScMidiRpn.NullLsb
-  private var _rpnMsb: Int = ScMidiRpn.NullMsb
-
   override def reset(): Seq[MidiMessage] = {
     this._resetState()
     this._init()
@@ -69,17 +66,13 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def _resetState(): Unit = {
     _currTuning = Tuning.Standard
     _pitchBendSensitivity = defaultPitchBendSensitivity
-    noteStack.clear()
+    tracker.reset()
     _lastSingleNote = 0
     _currExpressionPitchBend = 0
     _currTuningPitchBend = 0
     _unsentPitchBend = false
     _lastNoteOnVelocity = NoteOnScMidiMessage.DefaultVelocity
     _lastNoteOffVelocity = NoteOffScMidiMessage.DefaultVelocity
-    _sustainPedal = 0
-    _sostenutoPedal = 0
-    _rpnLsb = ScMidiRpn.NullLsb
-    _rpnMsb = ScMidiRpn.NullMsb
   }
 
   private def _init(): Seq[MidiMessage] = PitchBendSensitivityMessages.create(
@@ -96,8 +89,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     val forwardMessage = () => mapShortMessageChannel(message, _ => outputChannel)
 
     val buffer = mutable.Buffer[MidiMessage]()
+    val scMessage = message.asScala
 
-    message.asScala match {
+    scMessage match {
       case NoteOnScMidiMessage(_, note, 0) =>
         turnNoteOff(buffer, note, 0)
       case NoteOnScMidiMessage(_, note, velocity) =>
@@ -111,18 +105,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       case PitchBendScMidiMessage(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
         applyPitchBend(buffer)
-      case CcScMidiMessage(_, ScMidiCc.SustainPedal, value) =>
-        _sustainPedal = value
-        buffer += forwardMessage()
-      case CcScMidiMessage(_, ScMidiCc.SostenutoPedal, value) =>
-        _sostenutoPedal = value
-        buffer += forwardMessage()
-      case CcScMidiMessage(_, ScMidiCc.RpnLsb, value) =>
-        _rpnLsb = value
-        buffer += forwardMessage()
-      case CcScMidiMessage(_, ScMidiCc.RpnMsb, value) =>
-        _rpnMsb = value
-        buffer += forwardMessage()
       case CcScMidiMessage(_, ScMidiCc.DataEntryMsb, value) =>
         buffer += forwardMessage()
         applyPitchBendSensitivityMsb(buffer, value)
@@ -133,7 +115,22 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
         buffer += forwardMessage()
     }
 
+    sendToTracker(scMessage)
     buffer.toSeq
+  }
+
+  private def sendToTracker(scMessage: ScMidiMessage): Unit = {
+    val normalized = scMessage match {
+      case m: NoteOnScMidiMessage => m.copy(channel = TrackedChannel)
+      case m: NoteOffScMidiMessage => m.copy(channel = TrackedChannel)
+      case m: PitchBendScMidiMessage => m.copy(channel = TrackedChannel)
+      case m: CcScMidiMessage => m.copy(channel = TrackedChannel)
+      case m: ChannelPressureScMidiMessage => m.copy(channel = TrackedChannel)
+      case m: PolyPressureScMidiMessage => m.copy(channel = TrackedChannel)
+      case m: ProgramChangeScMidiMessage => m.copy(channel = TrackedChannel)
+      case m => m
+    }
+    tracker.send(normalized)
   }
 
   private def currTuning: Tuning = _currTuning
@@ -149,7 +146,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def isSettingPitchBendSensitivity: Boolean =
-    _rpnLsb == ScMidiRpn.PitchBendSensitivityLsb && _rpnMsb == ScMidiRpn.PitchBendSensitivityMsb
+    tracker.rpnSelector(TrackedChannel) == ScMidiChannelStateTracker.RpnSelector.Rpn(
+      ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
   private def applyPitchBendSensitivityMsb(buffer: mutable.Buffer[MidiMessage], value: Int): Unit = {
     if (isSettingPitchBendSensitivity) {
@@ -176,9 +174,10 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     }
   }
 
-  private def lastNote: MidiNote = noteStack.headOption.getOrElse(_lastSingleNote)
+  private def lastNote: MidiNote =
+    tracker.orderedActiveNotes(TrackedChannel).lastOption.getOrElse(_lastSingleNote)
 
-  private def isAnyNoteOn: Boolean = noteStack.nonEmpty
+  private def isAnyNoteOn: Boolean = tracker.orderedActiveNotes(TrackedChannel).nonEmpty
 
   private def applyNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
     _lastNoteOnVelocity = velocity
@@ -196,8 +195,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     interruptPedals(buffer)
     applyPitchBend(buffer)
     applyNoteOn(buffer, note, velocity)
-
-    noteStack.push(note)
   }
 
   private def applyNoteOff(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
@@ -213,33 +210,29 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def turnNoteOff(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int): Unit = {
-    if (!isAnyNoteOn) {
-      // Unexpected note off message! According to the internal state no note is known to be on.
-      return
-    }
-
-    if (note == noteStack.head) {
+    val notes = tracker.orderedActiveNotes(TrackedChannel)
+    if (notes.nonEmpty && notes.last == note) {
       applyNoteOff(buffer, note, velocity)
 
-      val oldOffset = currTuning(lastNote.pitchClass)
-      noteStack.pop()
-      // Play the next note from the top of the stack if available
-      if (isAnyNoteOn) {
-        val newOffset = currTuning(lastNote.pitchClass)
+      val oldOffset = currTuning(note.pitchClass)
+      val notesAfter = notes.init
+      // Play the next note from the previous one held down, if available
+      if (notesAfter.nonEmpty) {
+        val newLast = notesAfter.last
+        val newOffset = currTuning(newLast.pitchClass)
         if (oldOffset != newOffset) {
           currTuningPitchBend = PitchBendScMidiMessage.convertCentsToValue(newOffset, pitchBendSensitivity)
         }
 
         interruptPedals(buffer)
         applyPitchBend(buffer)
-        applyNoteOn(buffer, lastNote, _lastNoteOnVelocity)
+        applyNoteOn(buffer, newLast, _lastNoteOnVelocity)
       } else {
         _lastSingleNote = note
       }
-    } else {
-      // Removed from the tail of the stack
-      noteStack -= note
     }
+    // Otherwise: either no note is on (unexpected note off) or the released note is not the active one;
+    // tracker.send at the end of process will handle removing the note from the active set if needed.
   }
 
   /**
@@ -247,14 +240,17 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    * by stopping the sustained notes.
    */
   private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
-    if (_sustainPedal > 0) {
+    val sustain = tracker.cc(TrackedChannel, ScMidiCc.SustainPedal, Some(0))
+    if (sustain > 0) {
       buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, 0).asJava
-      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, _sustainPedal).asJava
+      buffer += CcScMidiMessage(outputChannel, ScMidiCc.SustainPedal, sustain).asJava
     }
 
-    if (_sostenutoPedal > 0) {
-      // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again
-      _sostenutoPedal = 0
+    val sostenuto = tracker.cc(TrackedChannel, ScMidiCc.SostenutoPedal, Some(0))
+    if (sostenuto > 0) {
+      // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again.
+      // Replay a SostenutoPedal=0 to the tracker to reflect the interrupted state internally.
+      tracker.send(CcScMidiMessage(TrackedChannel, ScMidiCc.SostenutoPedal, 0))
 
       buffer += CcScMidiMessage(outputChannel, ScMidiCc.SostenutoPedal, 0).asJava
     }
@@ -304,4 +300,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
 object MonophonicPitchBendTuner {
   val TypeName: String = "monophonicPitchBend"
+
+  /** Channel used internally to track per-channel state in the [[ScMidiChannelStateTracker]]. */
+  private val TrackedChannel: Int = 0
 }

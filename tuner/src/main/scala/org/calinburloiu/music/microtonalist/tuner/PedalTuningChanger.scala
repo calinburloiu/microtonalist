@@ -148,7 +148,7 @@ object PedalTuningChanger {
             nextTuningCcTrigger: Int = ScMidiCc.SostenutoPedal,
             threshold: Int = DefaultThreshold,
             triggersThru: Boolean = DefaultTriggersThru): PedalTuningChanger = {
-    new PedalTuningChanger(
+    PedalTuningChanger(
       TuningChangeTriggers(next = Some(nextTuningCcTrigger), previous = Some(previousTuningCcTrigger)),
       threshold, triggersThru
     )
