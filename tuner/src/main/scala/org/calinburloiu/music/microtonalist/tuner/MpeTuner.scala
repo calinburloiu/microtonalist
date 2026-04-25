@@ -177,7 +177,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       case msg: ProgramChangeScMidiMessage =>
         // Forward on the zone's master channel
         resolveZoneMasterChannel(msg.channel).foreach { masterCh =>
-          buffer += msg.copy(channel = masterCh).asJava
+          buffer += msg.mapChannel(_ => masterCh).asJava
         }
       case _ =>
         buffer += message
