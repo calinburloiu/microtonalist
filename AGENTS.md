@@ -259,7 +259,7 @@ The following labels are used for issues, PRs, and as branch name prefixes:
 ## Branches
 
 Branch names use the format `<label>/<kebab-case-description>`, where `<label>` is one of the labels above. Examples:
-`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `enhancement/program-change-midi-msg-wrapper`.
+`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `refactoring/program-change-midi-msg-wrapper`.
 
 The label in the branch name determines the label to apply to the corresponding issue and PR.
 
