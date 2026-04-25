@@ -318,7 +318,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     ccNumber match {
       // RPN state machine — the selector is tracked by `tracker`; just forward the message
       case ScMidiCc.RpnLsb | ScMidiCc.RpnMsb =>
-        buffer += CcScMidiMessage(inputChannel, ccNumber, ccValue).asJava
+        buffer += msg.asJava
       case ScMidiCc.DataEntryMsb if isMcmRpn && (inputChannel == 0 || inputChannel == 15) =>
         processMcm(buffer, inputChannel, ccValue)
       case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if isPbsRpn =>
