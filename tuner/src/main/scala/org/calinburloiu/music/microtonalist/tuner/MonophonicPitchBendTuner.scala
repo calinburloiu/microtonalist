@@ -128,6 +128,16 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def sendToTracker(scMessage: ScMidiMessage): Unit = {
+    // Re-pressing an already-active note must move it to the most-recently-inserted position so
+    // that `tracker.orderedActiveNotes(...).last` continues to reflect the audibly sounding note.
+    // The tracker stores active notes in a `LinkedHashMap`, which keeps the original position
+    // when an existing key is updated, so explicitly remove the note first.
+    scMessage match {
+      case m: NoteOnScMidiMessage if m.velocity > 0 && tracker.isNoteActive(trackedChannel, m.midiNote) =>
+        tracker.send(NoteOffScMidiMessage(trackedChannel, m.midiNote))
+      case _ =>
+    }
+
     val normalized = scMessage match {
       case m: NoteOnScMidiMessage => m.copy(channel = trackedChannel)
       case m: NoteOffScMidiMessage => m.copy(channel = trackedChannel)
