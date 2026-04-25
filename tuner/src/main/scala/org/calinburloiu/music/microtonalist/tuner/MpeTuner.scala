@@ -508,9 +508,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Forwards `msg` to the output Member Channel that currently holds the note originated on
-   * `msg.channel`, rewriting the channel via [[ChannelScMidiMessage.mapChannel]]. MPE input mode
-   * only: in non-MPE mode these controls are routed to the Master Channel by the callers.
+   * Forwards `msg` to the output Member Channel that currently holds the note originated on `msg.channel`. MPE input
+   * mode only: in non-MPE mode these controls are routed to the Master Channel by the callers.
    */
   private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], msg: ChannelScMidiMessage): Unit = {
     mpeInputChannelMap.get(msg.channel).foreach { outChannel =>
@@ -519,8 +518,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Forwards `msg` on the master channel of the zone that `msg.channel` belongs to, rewriting the
-   * channel via [[ChannelScMidiMessage.mapChannel]].
+   * Forwards `msg` on the master channel of the zone that `msg.channel` belongs to.
    *
    * For non-MPE input, all messages are routed to the first enabled zone (lower preferred).
    * For MPE input, the zone is determined by which zone's channel range contains `msg.channel`.

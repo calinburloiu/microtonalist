@@ -20,7 +20,55 @@ import org.calinburloiu.music.scmidi.MidiNote
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ScMidiMessageValidationTest extends AnyFlatSpec with Matchers {
+class ScMidiMessageTest extends AnyFlatSpec with Matchers {
+
+  behavior of "NoteOnScMidiMessage"
+
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = NoteOnScMidiMessage(3, MidiNote(60), 96)
+
+    // When
+    val mapped = original.mapChannel(_ + 5)
+
+    // Then
+    mapped shouldBe NoteOnScMidiMessage(8, MidiNote(60), 96)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val noteOn = NoteOnScMidiMessage(0, MidiNote(60))
+
+    // When
+    val mapped: NoteOnScMidiMessage = noteOn.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
+  }
+
+  behavior of "NoteOffScMidiMessage"
+
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = NoteOffScMidiMessage(3, MidiNote(60), 80)
+
+    // When
+    val mapped = original.mapChannel(_ => 10)
+
+    // Then
+    mapped shouldBe NoteOffScMidiMessage(10, MidiNote(60), 80)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val noteOff = NoteOffScMidiMessage(0, MidiNote(60))
+
+    // When
+    val mapped: NoteOffScMidiMessage = noteOff.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
+  }
 
   behavior of "PolyPressureScMidiMessage"
 
@@ -28,6 +76,52 @@ class ScMidiMessageValidationTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy PolyPressureScMidiMessage(16, MidiNote(60), 80)
     an[IllegalArgumentException] should be thrownBy PolyPressureScMidiMessage(0, MidiNote(60), 128)
     an[IllegalArgumentException] should be thrownBy PolyPressureScMidiMessage(0, MidiNote(60), -1)
+  }
+
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = PolyPressureScMidiMessage(2, MidiNote(60), 100)
+
+    // When
+    val mapped = original.mapChannel(_ => 7)
+
+    // Then
+    mapped shouldBe PolyPressureScMidiMessage(7, MidiNote(60), 100)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val polyPressure = PolyPressureScMidiMessage(0, MidiNote(60), 80)
+
+    // When
+    val mapped: PolyPressureScMidiMessage = polyPressure.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
+  }
+
+  behavior of "CcScMidiMessage"
+
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = CcScMidiMessage(0, ScMidiCc.SustainPedal, 64)
+
+    // When
+    val mapped = original.mapChannel(_ => 9)
+
+    // Then
+    mapped shouldBe CcScMidiMessage(9, ScMidiCc.SustainPedal, 64)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val cc = CcScMidiMessage(0, ScMidiCc.ModulationMsb, 32)
+
+    // When
+    val mapped: CcScMidiMessage = cc.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
   }
 
   behavior of "ProgramChangeScMidiMessage"
@@ -38,12 +132,80 @@ class ScMidiMessageValidationTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy ProgramChangeScMidiMessage(0, -1)
   }
 
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = ProgramChangeScMidiMessage(4, 42)
+
+    // When
+    val mapped = original.mapChannel(_ => 0)
+
+    // Then
+    mapped shouldBe ProgramChangeScMidiMessage(0, 42)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val programChange = ProgramChangeScMidiMessage(0, 5)
+
+    // When
+    val mapped: ProgramChangeScMidiMessage = programChange.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
+  }
+
   behavior of "ChannelPressureScMidiMessage"
 
   it should "reject invalid channel and value" in {
     an[IllegalArgumentException] should be thrownBy ChannelPressureScMidiMessage(16, 0)
     an[IllegalArgumentException] should be thrownBy ChannelPressureScMidiMessage(0, 128)
     an[IllegalArgumentException] should be thrownBy ChannelPressureScMidiMessage(0, -1)
+  }
+
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = ChannelPressureScMidiMessage(5, 110)
+
+    // When
+    val mapped = original.mapChannel(_ => 1)
+
+    // Then
+    mapped shouldBe ChannelPressureScMidiMessage(1, 110)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val channelPressure = ChannelPressureScMidiMessage(0, 64)
+
+    // When
+    val mapped: ChannelPressureScMidiMessage = channelPressure.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
+  }
+
+  behavior of "PitchBendScMidiMessage"
+
+  it should "rewrite the channel via mapChannel" in {
+    // Given
+    val original = PitchBendScMidiMessage(6, -2048)
+
+    // When
+    val mapped = original.mapChannel(_ => 11)
+
+    // Then
+    mapped shouldBe PitchBendScMidiMessage(11, -2048)
+  }
+
+  it should "preserve the concrete subtype when mapping the channel" in {
+    // Given
+    val pitchBend = PitchBendScMidiMessage(0, 0)
+
+    // When
+    val mapped: PitchBendScMidiMessage = pitchBend.mapChannel(_ => 1)
+
+    // Then
+    mapped.channel shouldBe 1
   }
 
   behavior of "MidiTimeCodeScMidiMessage"

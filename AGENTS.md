@@ -259,7 +259,7 @@ The following labels are used for issues, PRs, and as branch name prefixes:
 ## Branches
 
 Branch names use the format `<label>/<kebab-case-description>`, where `<label>` is one of the labels above. Examples:
-`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `enhancement/program-change-midi-msg-wrapper`.
+`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `refactoring/program-change-midi-msg-wrapper`.
 
 The label in the branch name determines the label to apply to the corresponding issue and PR.
 
@@ -302,7 +302,7 @@ without a preceding failing test, never commit red production code, and never mi
 ## Use Given / When / Then comments in tests
 
 Tests cases should be written using the `Given` / `When` / `Then` format. Some tests may not have a `Given` section,
-while others may have multiple instances if the three.
+while others may have multiple instances if the three. It's acceptable to combine two, like `When / Then` in some cases.
 
 Wrong:
 
@@ -333,6 +333,11 @@ Correct:
   tuning.eFlat shouldEqual 15.64
 }
 ```
+
+## Use fixtures to reduce duplication in test cases setup
+
+Simplify the setup of test cases, typically the `Given` section, by using `trait` or `abstract class` fixtures. They
+should contain code that repeats in many test cases. But be mindful not to sacrifice readability.
 
 ## No `if`s in tests
 
