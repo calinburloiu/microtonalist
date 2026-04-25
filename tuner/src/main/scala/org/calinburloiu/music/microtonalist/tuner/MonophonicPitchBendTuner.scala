@@ -139,13 +139,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     }
 
     val normalized = scMessage match {
-      case m: NoteOnScMidiMessage => m.copy(channel = trackedChannel)
-      case m: NoteOffScMidiMessage => m.copy(channel = trackedChannel)
-      case m: PitchBendScMidiMessage => m.copy(channel = trackedChannel)
-      case m: CcScMidiMessage => m.copy(channel = trackedChannel)
-      case m: ChannelPressureScMidiMessage => m.copy(channel = trackedChannel)
-      case m: PolyPressureScMidiMessage => m.copy(channel = trackedChannel)
-      case m: ProgramChangeScMidiMessage => m.copy(channel = trackedChannel)
+      case m: ChannelScMidiMessage => m.mapChannel(_ => trackedChannel)
       case m => m
     }
     tracker.send(normalized)

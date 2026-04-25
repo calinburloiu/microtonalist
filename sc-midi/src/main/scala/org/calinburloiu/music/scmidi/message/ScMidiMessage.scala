@@ -39,6 +39,15 @@ sealed trait ScMidiMessage
  */
 sealed abstract class ChannelScMidiMessage(val channel: Int) extends ScMidiMessage {
   MidiRequirements.requireChannel(channel)
+
+  /**
+   * Returns a copy of this message with its `channel` rewritten by applying `map` to the current channel.
+   *
+   * The returned value has the same concrete subtype as `this`.
+   *
+   * @param map Function from the current channel (0-15) to the new channel (0-15).
+   */
+  def mapChannel(map: Int => Int): ChannelScMidiMessage
 }
 
 /** Base trait for MIDI System Common messages. */
@@ -81,7 +90,10 @@ abstract class NoteScMidiMessage(channel: Int,
 case class NoteOnScMidiMessage(override val channel: Int,
                                override val midiNote: MidiNote,
                                override val velocity: Int = NoteOnScMidiMessage.DefaultVelocity)
-  extends NoteScMidiMessage(channel, midiNote, velocity)
+  extends NoteScMidiMessage(channel, midiNote, velocity) {
+
+  override def mapChannel(map: Int => Int): NoteOnScMidiMessage = copy(channel = map(channel))
+}
 
 /**
  * Companion object for [[NoteOnScMidiMessage]].
@@ -103,7 +115,10 @@ object NoteOnScMidiMessage {
 case class NoteOffScMidiMessage(override val channel: Int,
                                 override val midiNote: MidiNote,
                                 override val velocity: Int = NoteOffScMidiMessage.DefaultVelocity)
-  extends NoteScMidiMessage(channel, midiNote, velocity)
+  extends NoteScMidiMessage(channel, midiNote, velocity) {
+
+  override def mapChannel(map: Int => Int): NoteOffScMidiMessage = copy(channel = map(channel))
+}
 
 /**
  * Companion object for [[NoteOffScMidiMessage]] used for default values.
@@ -125,6 +140,8 @@ case class PolyPressureScMidiMessage(override val channel: Int, midiNote: MidiNo
   extends ChannelScMidiMessage(channel) {
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("value", value)
+
+  override def mapChannel(map: Int => Int): PolyPressureScMidiMessage = copy(channel = map(channel))
 }
 
 /**
@@ -140,6 +157,8 @@ case class CcScMidiMessage(override val channel: Int, number: Int, value: Int)
   extends ChannelScMidiMessage(channel) {
   MidiRequirements.requireUnsigned7BitValue("number", number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
+
+  override def mapChannel(map: Int => Int): CcScMidiMessage = copy(channel = map(channel))
 }
 
 /**
@@ -154,6 +173,8 @@ case class CcScMidiMessage(override val channel: Int, number: Int, value: Int)
 case class ProgramChangeScMidiMessage(override val channel: Int, program: Int)
   extends ChannelScMidiMessage(channel) {
   MidiRequirements.requireUnsigned7BitValue("program", program)
+
+  override def mapChannel(map: Int => Int): ProgramChangeScMidiMessage = copy(channel = map(channel))
 }
 
 /**
@@ -165,6 +186,8 @@ case class ProgramChangeScMidiMessage(override val channel: Int, program: Int)
 case class ChannelPressureScMidiMessage(override val channel: Int, value: Int)
   extends ChannelScMidiMessage(channel) {
   MidiRequirements.requireUnsigned7BitValue("value", value)
+
+  override def mapChannel(map: Int => Int): ChannelPressureScMidiMessage = copy(channel = map(channel))
 }
 
 /**
@@ -196,6 +219,8 @@ case class PitchBendScMidiMessage(override val channel: Int, value: Int)
    * @return The pitch bend amount in cents.
    */
   def cents(implicit pitchBendSensitivity: PitchBendSensitivity): Double = centsFor(pitchBendSensitivity)
+
+  override def mapChannel(map: Int => Int): PitchBendScMidiMessage = copy(channel = map(channel))
 }
 
 /**

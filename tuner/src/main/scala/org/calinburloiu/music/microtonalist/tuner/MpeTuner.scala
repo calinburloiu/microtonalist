@@ -177,7 +177,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       case msg: ProgramChangeScMidiMessage =>
         // Forward on the zone's master channel
         resolveZoneMasterChannel(msg.channel).foreach { masterCh =>
-          buffer += msg.copy(channel = masterCh).asJava
+          buffer += msg.mapChannel(_ => masterCh).asJava
         }
       case _ =>
         buffer += message
@@ -329,13 +329,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // (MPE spec §2.6: CC #74 is both Note-Level and Zone-Level).
       case ScMidiCc.MpeSlide =>
         if (inputMode == MpeInputMode.Mpe) {
-          forwardToMemberChannel(buffer, inputChannel, CcScMidiMessage(_, ScMidiCc.MpeSlide, ccValue))
+          forwardToMemberChannel(buffer, msg)
         } else {
-          forwardOnZoneMasterChannel(buffer, inputChannel, CcScMidiMessage(_, ScMidiCc.MpeSlide, ccValue))
+          forwardOnZoneMasterChannel(buffer, msg)
         }
       // All other CCs are forwarded on the master channel of the zone the input belongs to
       case _ =>
-        forwardOnZoneMasterChannel(buffer, inputChannel, CcScMidiMessage(_, ccNumber, ccValue))
+        forwardOnZoneMasterChannel(buffer, msg)
     }
   }
 
@@ -476,12 +476,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     if (inputMode == MpeInputMode.Mpe) {
       // Per-note pressure in MPE input: route to the allocated Member Channel.
-      forwardToMemberChannel(buffer, inputChannel, ChannelPressureScMidiMessage(_, pressure))
+      forwardToMemberChannel(buffer, msg)
     } else {
       // Non-MPE input: Channel Pressure applies to all notes on the input channel. Route to the
       // Zone's Master Channel as Zone-level pressure (MPE spec §2.5: CP is both Note-Level and
       // Zone-Level; receivers combine Master + Member data per sounding note).
-      forwardOnZoneMasterChannel(buffer, inputChannel, ChannelPressureScMidiMessage(_, pressure))
+      forwardOnZoneMasterChannel(buffer, msg)
     }
   }
 
@@ -508,27 +508,27 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Forwards a per-note control message (Channel Pressure, CC #74) to the output Member Channel
-   * that currently holds the note originated on `inputChannel`. MPE input mode only: in non-MPE
-   * mode these controls are routed to the Master Channel by the callers.
+   * Forwards `msg` to the output Member Channel that currently holds the note originated on
+   * `msg.channel`, rewriting the channel via [[ChannelScMidiMessage.mapChannel]]. MPE input mode
+   * only: in non-MPE mode these controls are routed to the Master Channel by the callers.
    */
-  private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                                     makeMessage: Int => ScMidiMessage): Unit = {
-    mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
-      buffer += makeMessage(outChannel).asJava
+  private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], msg: ChannelScMidiMessage): Unit = {
+    mpeInputChannelMap.get(msg.channel).foreach { outChannel =>
+      buffer += msg.mapChannel(_ => outChannel).asJava
     }
   }
 
   /**
-   * Forwards a message on the master channel of the zone that the `inputChannel` belongs to.
+   * Forwards `msg` on the master channel of the zone that `msg.channel` belongs to, rewriting the
+   * channel via [[ChannelScMidiMessage.mapChannel]].
    *
    * For non-MPE input, all messages are routed to the first enabled zone (lower preferred).
-   * For MPE input, the zone is determined by which zone's channel range contains `inputChannel`.
+   * For MPE input, the zone is determined by which zone's channel range contains `msg.channel`.
    */
-  private def forwardOnZoneMasterChannel(buffer: mutable.Buffer[MidiMessage], inputChannel: Int,
-                                         makeMessage: Int => ScMidiMessage): Unit = {
-    resolveZoneMasterChannel(inputChannel).foreach { masterCh =>
-      buffer += makeMessage(masterCh).asJava
+  private def forwardOnZoneMasterChannel(buffer: mutable.Buffer[MidiMessage],
+                                         msg: ChannelScMidiMessage): Unit = {
+    resolveZoneMasterChannel(msg.channel).foreach { masterCh =>
+      buffer += msg.mapChannel(_ => masterCh).asJava
     }
   }
 
