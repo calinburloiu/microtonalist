@@ -94,22 +94,23 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     val scMessage = message.asScala
 
     // `turnNoteOn` / `turnNoteOff` need to know which notes were held down *before* this message.
-    // Capture the pre-state once, then update the tracker so all other reads (CC values, RPN selector,
-    // Channel Pressure, etc.) see fresh state during the rest of the handling.
-    val preNotes = tracker.orderedActiveNotes(trackedChannel)
+    // Capture the pre-message state once, then update the tracker so all other reads (CC values,
+    // RPN selector, Channel Pressure, etc.) see fresh state during the rest of the handling.
+    val prevNotes = tracker.orderedActiveNotes(trackedChannel)
+    val prevLastNote = prevNotes.lastOption.getOrElse(_lastSingleNote)
     sendToTracker(scMessage)
 
     scMessage match {
       case NoteOnScMidiMessage(_, note, 0) =>
-        turnNoteOff(buffer, note, 0, preNotes)
+        turnNoteOff(buffer, note, 0, prevNotes)
       case NoteOnScMidiMessage(_, note, velocity) =>
         // Only monophonic playing is allowed, if a note is on, turn it off
-        if (preNotes.nonEmpty) {
-          applyNoteOff(buffer, preNotes.last, _lastNoteOffVelocity)
+        if (prevNotes.nonEmpty) {
+          applyNoteOff(buffer, prevLastNote, _lastNoteOffVelocity)
         }
-        turnNoteOn(buffer, note, velocity, preNotes)
+        turnNoteOn(buffer, note, velocity, prevLastNote)
       case NoteOffScMidiMessage(_, note, velocity) =>
-        turnNoteOff(buffer, note, velocity, preNotes)
+        turnNoteOff(buffer, note, velocity, prevNotes)
       case PitchBendScMidiMessage(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
         applyPitchBend(buffer)
@@ -193,11 +194,10 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def turnNoteOn(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int,
-                         preNotes: Seq[MidiNote]): Unit = {
+                         prevLastNote: MidiNote): Unit = {
     // Update currTuningPitchBend by comparing against the tuning offset of the previously held note
-    val prevLast = preNotes.lastOption.getOrElse(_lastSingleNote)
     val newOffset = currTuning(note.pitchClass)
-    if (currTuning(prevLast.pitchClass) != newOffset) {
+    if (currTuning(prevLastNote.pitchClass) != newOffset) {
       currTuningPitchBend = PitchBendScMidiMessage.convertCentsToValue(newOffset, pitchBendSensitivity)
     }
 
@@ -219,8 +219,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def turnNoteOff(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int,
-                          preNotes: Seq[MidiNote]): Unit = {
-    if (preNotes.nonEmpty && preNotes.last == note) {
+                          prevNotes: Seq[MidiNote]): Unit = {
+    if (prevNotes.nonEmpty && prevNotes.last == note) {
       applyNoteOff(buffer, note, velocity)
 
       val oldOffset = currTuning(note.pitchClass)
