@@ -592,4 +592,28 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(outputNotes(3)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteA4 }
     inside(outputNotes(4)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
   }
+
+  it should "revert to a still-held note after re-pressing then releasing an already-played note" in
+    new Fixture {
+      // Given a microtonal tuning so pitch-bend updates are observable
+      output ++= tuner.tune(customTuning)
+      output.clear()
+
+      // When holding C, then E, then re-articulating C while E is still held, then releasing C
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).asJava)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).asJava)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).asJava)
+      output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4).asJava)
+
+      // Then the last release should turn off C and revert to the still-held E
+      val outputNotes: Seq[ScMidiMessage] = filterNotes(scMidiOutput)
+      outputNotes should have size 7
+      inside(outputNotes.head) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+      inside(outputNotes(1)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+      inside(outputNotes(2)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+      inside(outputNotes(3)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+      inside(outputNotes(4)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+      inside(outputNotes(5)) { case NoteOffScMidiMessage(_, note, _) => note.number shouldEqual noteC4 }
+      inside(outputNotes(6)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteE4 }
+    }
 }

@@ -77,14 +77,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   // Track input->output channel mapping for MPE input mode
   private val mpeInputChannelMap: mutable.Map[Int, Int] = mutable.Map.empty
 
-  // Per-input-channel control dimension state used to seed the output Member Channel at Note On
-  // (MPE input mode only). Non-MPE inputs seed Member Channels with neutral defaults.
-  private val channelPressureMap: mutable.Map[Int, Int] = mutable.Map.empty
-  private val channelSlideMap: mutable.Map[Int, Int] = mutable.Map.empty
-
-  // RPN state machine: tracks last received CC#100 (RPN LSB) and CC#101 (RPN MSB) per channel
-  private val rpnLsbState: mutable.Map[Int, Int] = mutable.Map.empty
-  private val rpnMsbState: mutable.Map[Int, Int] = mutable.Map.empty
+  // Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
+  // timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
+  // (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
+  private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
 
   /**
    * @return current [[MpeZones]] configuration for the Lower and Upper Zones.
@@ -142,10 +138,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     _tuning = Tuning.Standard
     noteChannelMap.clear()
     mpeInputChannelMap.clear()
-    channelPressureMap.clear()
-    channelSlideMap.clear()
-    rpnLsbState.clear()
-    rpnMsbState.clear()
+    tracker.reset()
 
     lowerAllocator = createAllocator(lowerZone)
     upperAllocator = createAllocator(upperZone)
@@ -167,8 +160,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
+    val scMessage = message.asScala
+    tracker.send(scMessage)
 
-    message.asScala match {
+    scMessage match {
       case msg: NoteOnScMidiMessage if msg.velocity > 0 =>
         processNoteOn(buffer, msg)
       case msg: NoteOnScMidiMessage =>
@@ -241,10 +236,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // across Note boundaries. In non-MPE mode, sender CC #74 / CP arrive on the Master Channel
         // as Zone-level controls, so the Member Channel is initialized to neutral defaults
         // (MPE spec §3.3.5 Initial-64 for CC #74, §3.3.4 CP=0) to avoid double-counting.
-        val slide = if (inputMode == MpeInputMode.Mpe) channelSlideMap.getOrElse(inputChannel, 64) else 64
+        val slide = if (inputMode == MpeInputMode.Mpe) tracker.cc(inputChannel, ScMidiCc.MpeSlide) else 64
         buffer += CcScMidiMessage(outChannel, ScMidiCc.MpeSlide, slide).asJava
 
-        val pressure = if (inputMode == MpeInputMode.Mpe) channelPressureMap.getOrElse(inputChannel, 0) else 0
+        val pressure = if (inputMode == MpeInputMode.Mpe) tracker.channelPressure(inputChannel) else 0
         buffer += ChannelPressureScMidiMessage(outChannel, pressure).asJava
 
         // Note On
@@ -315,19 +310,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val inputChannel = msg.channel
     val ccNumber = msg.number
     val ccValue = msg.value
-    val rpnLsb = rpnLsbState.getOrElse(inputChannel, ScMidiRpn.NullLsb)
-    val rpnMsb = rpnMsbState.getOrElse(inputChannel, ScMidiRpn.NullMsb)
-    val isMcmRpn = rpnMsb == ScMidiRpn.MpeConfigurationMessageMsb && rpnLsb == ScMidiRpn.MpeConfigurationMessageLsb
-    val isPbsRpn = rpnMsb == ScMidiRpn.PitchBendSensitivityMsb && rpnLsb == ScMidiRpn.PitchBendSensitivityLsb
+    val isMcmRpn = tracker.rpnSelector(inputChannel) == ScMidiChannelStateTracker.RpnSelector.Rpn(
+      ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+    val isPbsRpn = tracker.rpnSelector(inputChannel) == ScMidiChannelStateTracker.RpnSelector.Rpn(
+      ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
     ccNumber match {
-      // RPN state machine
-      case ScMidiCc.RpnLsb =>
-        rpnLsbState(inputChannel) = ccValue
-        buffer += CcScMidiMessage(inputChannel, ccNumber, ccValue).asJava
-      case ScMidiCc.RpnMsb =>
-        rpnMsbState(inputChannel) = ccValue
-        buffer += CcScMidiMessage(inputChannel, ccNumber, ccValue).asJava
+      // RPN state machine — the selector is tracked by `tracker`; just forward the message
+      case ScMidiCc.RpnLsb | ScMidiCc.RpnMsb =>
+        buffer += msg.asJava
       case ScMidiCc.DataEntryMsb if isMcmRpn && (inputChannel == 0 || inputChannel == 15) =>
         processMcm(buffer, inputChannel, ccValue)
       case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if isPbsRpn =>
@@ -338,7 +329,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // (MPE spec §2.6: CC #74 is both Note-Level and Zone-Level).
       case ScMidiCc.MpeSlide =>
         if (inputMode == MpeInputMode.Mpe) {
-          channelSlideMap(inputChannel) = ccValue
           forwardToMemberChannel(buffer, inputChannel, CcScMidiMessage(_, ScMidiCc.MpeSlide, ccValue))
         } else {
           forwardOnZoneMasterChannel(buffer, inputChannel, CcScMidiMessage(_, ScMidiCc.MpeSlide, ccValue))
@@ -486,7 +476,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     if (inputMode == MpeInputMode.Mpe) {
       // Per-note pressure in MPE input: route to the allocated Member Channel.
-      channelPressureMap(inputChannel) = pressure
       forwardToMemberChannel(buffer, inputChannel, ChannelPressureScMidiMessage(_, pressure))
     } else {
       // Non-MPE input: Channel Pressure applies to all notes on the input channel. Route to the
