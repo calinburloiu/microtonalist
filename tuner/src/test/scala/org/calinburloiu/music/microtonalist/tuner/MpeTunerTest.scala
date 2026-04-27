@@ -326,12 +326,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val chG = extractNoteOns(noteOutG).head.channel
 
       // Apply small expressive pitch bends (under the high-bend threshold) per note in MPE mode
-      private val storedBendCentsE = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(20.0, defaultPbs), defaultPbs)
-      private val storedBendCentsG = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(-30.0, defaultPbs), defaultPbs)
-      pitchBend(1, 20.0)
-      pitchBend(2, -30.0)
+      private val eExprCents = 20.0
+      private val gExprCents = -30.0
+      pitchBend(1, eExprCents)
+      pitchBend(2, gExprCents)
 
       // When
       // Switch tuning — output PB on each channel must combine new tuning offset + expressive bend.
@@ -339,8 +337,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val tuneOutput = tuner.tune(pythagoreanTuning)
       // Then
       private val pbByChannel = extractPitchBends(tuneOutput).map(pb => pb.channel -> pb.value).toMap
-      private val expectedE = PitchBendScMidiMessage.convertCentsToValue(8.0 + storedBendCentsE, defaultPbs)
-      private val expectedG = PitchBendScMidiMessage.convertCentsToValue(2.0 + storedBendCentsG, defaultPbs)
+      private val expectedE = PitchBendScMidiMessage.convertCentsToValue(8.0 + eExprCents, defaultPbs)
+      private val expectedG = PitchBendScMidiMessage.convertCentsToValue(2.0 + gExprCents, defaultPbs)
       pbByChannel(chE) shouldBe expectedE
       pbByChannel(chG) shouldBe expectedG
     }
@@ -755,10 +753,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val sharedChannel = extractNoteOns(outE4).head.channel
 
       // Send a non-high expressive bend on input ch 1 (E4 is the only note on that channel).
-      private val firstBendCents = 30.0
-      private val storedFirstBendCents = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(firstBendCents, defaultPbs), defaultPbs)
-      pitchBend(1, firstBendCents)
+      private val eExprCents = 30.0
+      pitchBend(1, eExprCents)
 
       // Fill remaining member channels with distinct pitch classes.
       noteOn(2, G4)
@@ -771,10 +767,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val sharedPb = extractPitchBends(outE5).filter(_.channel == sharedChannel)
       sharedPb should have size 1
 
-      // E5 enters with expressive bend = 0; average of (storedFirstBendCents, 0) = storedFirstBendCents / 2.
+      // E5 enters with expressive bend = 0; average of (eExprCents, 0) = eExprCents / 2.
       // Output PB = tuning offset for E (-14.0) + average expressive bend.
       // Compare on MIDI values to sidestep the cents↔value roundtrip resolution.
-      private val expected = PitchBendScMidiMessage.convertCentsToValue(-14.0 + storedFirstBendCents / 2, defaultPbs)
+      private val expected = PitchBendScMidiMessage.convertCentsToValue(-14.0 + eExprCents / 2, defaultPbs)
       sharedPb.head.value shouldBe expected
     }
 
@@ -796,17 +792,15 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // When
       // Send a non-high expressive pitch bend on the EG input channel
-      private val expressiveBendCents = 30.0
-      private val storedBendCents = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(expressiveBendCents, defaultPbs), defaultPbs)
-      private val bendOutput = pitchBend(2, expressiveBendCents)
+      private val eExprCents = 30.0
+      private val bendOutput = pitchBend(2, eExprCents)
       // Then
       private val pitchBends = extractPitchBends(bendOutput)
 
       // Only the EG channel should receive an updated pitch bend; the PCG channel must not.
       pitchBends.map(_.channel) should contain(egChannel)
       pitchBends.map(_.channel) should not contain pcgChannel
-      pitchBends.filter(_.channel == egChannel).head.cents shouldEqual (-14.0 + storedBendCents)
+      pitchBends.filter(_.channel == egChannel).head.cents shouldEqual (-14.0 + eExprCents)
     }
   it should "allocate second note with same pitch class to Expression Group with independent pitch bends" in
     new Fixture(initialTuning = Some(quarterCommaMeantone)) {
@@ -978,16 +972,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val noteOutput = noteOn(1, E4, 100)
       private val noteChannel = extractNoteOns(noteOutput).head.channel
 
-      private val expressiveBendCents = 290.0
-      private val storedBendCents = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(expressiveBendCents, defaultPbs), defaultPbs)
+      private val eExprCents = 290.0
       // When
-      private val output = pitchBend(1, expressiveBendCents)
+      private val output = pitchBend(1, eExprCents)
       // Then
       private val pitchBendMsg = extractPitchBends(output).filter(_.channel == noteChannel).head
 
       // Output pitch bend should combine tuning offset for E (-14.0) + expressive bend
-      pitchBendMsg.cents shouldEqual (-14.0 + storedBendCents)
+      pitchBendMsg.cents shouldEqual (-14.0 + eExprCents)
     }
 
   it should "forward Master Channel pitch bend without modification" in new Fixture(mpeTunerMpeInput) {
@@ -1340,14 +1332,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractPitchBends(out4).head.cents shouldEqual 0.0
 
       // 5. Performer bends C5 on input ch 4 — only ch4's pitch bend is affected
-      private val expressiveBendCents = 586.0
-      private val storedBendCents = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(expressiveBendCents, defaultPbs), defaultPbs)
-      private val bendOut = pitchBend(4, expressiveBendCents)
+      private val cExprCents = 586.0
+      private val bendOut = pitchBend(4, cExprCents)
       private val pitchBends = extractPitchBends(bendOut)
       pitchBends should have size 1
       pitchBends.head.channel shouldBe ch4
-      pitchBends.head.cents shouldEqual (0.0 + storedBendCents)
+      pitchBends.head.cents shouldEqual (0.0 + cExprCents)
     }
 
   it should "reproduce Section 8.2: Tuning change during performance" in
@@ -1677,10 +1667,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val noteOutput = noteOn(1, E4, 100)
       private val noteChannel = extractNoteOns(noteOutput).head.channel
       // Send an expressive pitch bend of ~293 cents on that channel (with default PBS=48 semitones)
-      private val expressiveBendCents = 293.0
-      private val storedBendCents = PitchBendScMidiMessage.convertValueToCents(
-        PitchBendScMidiMessage.convertCentsToValue(expressiveBendCents, defaultPbs), defaultPbs)
-      pitchBend(1, expressiveBendCents)
+      private val eExprCents = 293.0
+      pitchBend(1, eExprCents)
       // When - Now change member PBS from 48 to 24 semitones
       private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
       // Then
@@ -1688,7 +1676,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends should have size 1
       // The output pitch bend should still represent tuning offset + expressive bend in cents.
       // E tuning offset = -14.0 cents; total ≈ -14 + 293 = 279 cents.
-      private val expectedCents = -14.0 + storedBendCents
+      private val expectedCents = -14.0 + eExprCents
       private val newPbs = PitchBendSensitivity(24)
       pitchBends.head.centsFor(newPbs) shouldEqual expectedCents
     }
