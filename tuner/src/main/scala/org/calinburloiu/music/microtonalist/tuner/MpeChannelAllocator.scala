@@ -219,6 +219,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   import MpeChannelAllocator.*
 
+  // TODO #154 Should we use a TreeMap and order channels for prioritizing allocation and note dropping?
   private val channelStates: Map[Int, ChannelState] = zone.memberChannels.map(ch => ch -> ChannelState(ch)).toMap
 
   private var _time: Long = 0L
