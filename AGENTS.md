@@ -139,6 +139,39 @@ For example:
 sbt "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
 ```
 
+# Coverage
+
+Code coverage is measured via [scoverage](https://github.com/scoverage/sbt-scoverage). Each SBT project has
+per-module statement and branch thresholds configured in `build.sbt` via the `coverageSettings` helper.
+
+The project-wide target is **80% statement and branch coverage for every module**. Modules that have not yet
+reached 80% are configured with their current coverage minus a 3% buffer and an open issue tracking the work
+needed to reach 80%.
+
+**Per-module coverage must never decrease below the configured threshold.** When changing code in a module:
+
+- The threshold in `build.sbt` is a floor, not a target. It can stay flat or be raised toward 80%, but never lowered.
+- If your change reduces coverage below the configured threshold, add tests so it stays at or above the threshold.
+- If your change raises coverage, you may raise the threshold in `build.sbt` accordingly. Once both statement and
+  branch reach 80%, switch the module to `coverageSettings(stmt = 80, branch = 80)` and close the tracking issue.
+
+## Running coverage
+
+Per-module coverage report (HTML + XML):
+
+```bash
+sbt "coverage; test; coverageReport"
+```
+
+Project-wide aggregated report (HTML + XML at `target/scala-3.6.3/scoverage-report/`):
+
+```bash
+sbt "coverage; test; coverageReport; coverageAggregate"
+```
+
+Per-module reports are written to `<module>/target/scala-3.6.3/scoverage-report/index.html`. The aggregate report
+combines coverage data from each module's tests as well as the tests of dependent modules.
+
 # Architecture
 
 ## Module Overview
