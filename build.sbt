@@ -12,6 +12,7 @@ lazy val root = (project in file("."))
     appConfig,
     businessync,
     cli,
+    common,
     ui,
     composition,
     tuner,
@@ -102,8 +103,8 @@ lazy val common = (project in file("common"))
     libraryDependencies ++= Seq(
       guava,
     ),
-    // TODO #175 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 26, branch = 47),
+    // TODO #175 Raise branch coverage to 80%.
+    coverageSettings(stmt = 80, branch = 72),
   )
 
 lazy val businessync = (project in file("businessync"))

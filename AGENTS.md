@@ -152,8 +152,9 @@ needed to reach 80%.
 
 - The threshold in `build.sbt` is a floor, not a target. It can stay flat or be raised toward 80%, but never lowered.
 - If your change reduces coverage below the configured threshold, add tests so it stays at or above the threshold.
-- If your change raises coverage, you may raise the threshold in `build.sbt` accordingly. Once both statement and
-  branch reach 80%, switch the module to `coverageSettings(stmt = 80, branch = 80)` and close the tracking issue.
+- If your change raises coverage, you may raise the threshold in `build.sbt` accordingly, but keep the 3% buffer. Once
+  both statement and branch reach 80%, switch the module to `coverageSettings(stmt = 80, branch = 80)` and close the
+  tracking issue.
 
 ## Running coverage
 
@@ -300,7 +301,11 @@ The label in the branch name determines the label to apply to the corresponding 
 
 When creating a new issue:
 
-- Assign the **microtonalist** GitHub project.
+- **Always** add the issue to the **microtonalist** GitHub project (Projects v2). The GitHub MCP does not support
+  Projects v2, so use the `gh` CLI:
+  ```bash
+  gh project item-add 1 --owner calinburloiu --url https://github.com/calinburloiu/microtonalist/issues/<issue_number>
+  ```
 - Add the appropriate label (inferred from the branch name if available).
 - Check existing milestones (`mcp__plugin_github_github__list_releases` or similar). If a milestone name matches the
   scope of the new work, suggest adding it to the user before assigning.
