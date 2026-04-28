@@ -13,6 +13,7 @@ lazy val root = (project in file("."))
     businessync,
     cli,
     common,
+    commonTestUtils,
     ui,
     composition,
     tuner,
@@ -28,12 +29,13 @@ lazy val root = (project in file("."))
 
 lazy val app = (project in file("app"))
   .dependsOn(
-    appConfig % "compile->compile;test->test",
+    appConfig,
     businessync,
-    common % "compile->compile;test->test",
+    common,
+    commonTestUtils % Test,
     composition,
     intonation,
-    format % "compile->compile;test->test",
+    format,
     scMidi,
     tuner,
     ui,
@@ -96,6 +98,9 @@ lazy val ui = (project in file("ui"))
   )
 
 lazy val common = (project in file("common"))
+  .dependsOn(
+    commonTestUtils % Test,
+  )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-common",
@@ -105,6 +110,15 @@ lazy val common = (project in file("common"))
     ),
     // TODO #175 Raise branch coverage to 80%.
     coverageSettings(stmt = 80, branch = 72),
+  )
+
+lazy val commonTestUtils = (project in file("common-test-utils"))
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-common-test-utils",
+    commonSettings,
+    // Test infrastructure — exclude from coverage measurement.
+    coverageEnabled := false,
   )
 
 lazy val businessync = (project in file("businessync"))
@@ -122,7 +136,7 @@ lazy val businessync = (project in file("businessync"))
 lazy val composition = (project in file("composition"))
   .dependsOn(
     intonation,
-    tuner % "compile->compile;test->test",
+    tuner,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -149,7 +163,8 @@ lazy val tuner = (project in file("tuner"))
 
 lazy val format = (project in file("format"))
   .dependsOn(
-    common % "compile->compile;test->test",
+    common,
+    commonTestUtils % Test,
     composition,
     tuner,
   )
@@ -243,9 +258,6 @@ lazy val commonSettings = Seq(
   resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
   libraryDependencies ++= commonDependencies,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
-  // Required when running tests with scoverage instrumentation: the default ScalaLibrary layering can
-  // fail to load test classes shared via "test->test" inter-module dependencies.
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
 )
 
 lazy val assemblySettings = Seq(

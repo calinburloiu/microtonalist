@@ -22,7 +22,7 @@ import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{JustIntonationStandard, RatioInterval, RatiosScale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.TuningList
-import org.calinburloiu.music.microtonalist.format.{FormatModule, FormatTestUtils}
+import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -37,8 +37,7 @@ class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
 
   it should "successfully create a tuning sequence out of 'minor-major.mtlist' file" in {
     val compositionResource = "app/minor-major.mtlist"
-    val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
-      .defaultCompositionRepo)
+    val composition = formatModule.defaultCompositionRepo.read(CommonTestUtils.uriOfResource(compositionResource))
     val tuningList = TuningList.fromComposition(composition)
 
     val justMinorThirdOffset = 15.64 // cents
@@ -102,8 +101,7 @@ class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
 
   it should "successfully create a tuning sequence out of \"La Cornu\" composition  file" in {
     val compositionResource = "app/La-Cornu--Calin-Andrei-Burloiu--72edo.mtlist"
-    val composition = FormatTestUtils.readCompositionFromResources(compositionResource, formatModule
-      .defaultCompositionRepo)
+    val composition = formatModule.defaultCompositionRepo.read(CommonTestUtils.uriOfResource(compositionResource))
     val tunings = TuningList.fromComposition(composition).tunings
 
     tunings.size shouldEqual 3
@@ -155,8 +153,8 @@ class TuningSeqMappingIntegrationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "successfully create a tuning sequence for a a composition with global settings, baseUrl and a $ref" in {
-    val composition = FormatTestUtils.readCompositionFromResources("app/huseyni.mtlist",
-      formatModule.defaultCompositionRepo)
+    val composition =
+      formatModule.defaultCompositionRepo.read(CommonTestUtils.uriOfResource("app/huseyni.mtlist"))
 
     composition.intonationStandard shouldEqual JustIntonationStandard
     composition.tuningReference.basePitchClass.number shouldEqual 2

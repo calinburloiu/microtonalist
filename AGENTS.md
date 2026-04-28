@@ -161,17 +161,47 @@ needed to reach 80%.
 Per-module coverage report (HTML + XML):
 
 ```bash
-sbt "coverage; test; coverageReport"
+sbt "clean; coverage; test; coverageReport"
 ```
 
 Project-wide aggregated report (HTML + XML at `target/scala-3.6.3/scoverage-report/`):
 
 ```bash
-sbt "coverage; test; coverageReport; coverageAggregate"
+sbt "clean; coverage; test; coverageReport; coverageAggregate"
 ```
 
 Per-module reports are written to `<module>/target/scala-3.6.3/scoverage-report/index.html`. The aggregate report
 combines coverage data from each module's tests as well as the tests of dependent modules.
+
+`clean` is needed before `coverage` because scoverage instruments classes during compilation. If a class was already
+compiled without instrumentation, the incremental compiler may skip recompiling it and the resulting build will be a
+mix of instrumented and uninstrumented classes — producing wrong coverage numbers and, on Scala 3, occasional TASTy /
+class-loading errors. A fresh build guarantees every class is instrumented consistently.
+
+## Coverage and `assembly` / `run`
+
+While `coverage` is enabled in an sbt session, every compiled class contains calls into the scoverage runtime
+(`scoverage.Invoker.invoked`). The scoverage runtime is `% Provided` at compile time and is **not** included in the
+fat JAR produced by `sbt assembly`, so an assembled JAR built under `coverage` will fail at runtime with
+`NoClassDefFoundError: scoverage.Invoker$`. Same for `sbt run`.
+
+The `coverage` flag is session-scoped, so a separate sbt invocation for `assembly` / `run` is fine. **Never combine
+`coverage` and `assembly` / `run` in the same sbt invocation.** If you need to do both, run `clean` between them or
+use two separate sbt sessions.
+
+## Shared test utilities
+
+When a test helper is needed across multiple modules, do **not** use sbt's `test->test` configuration dependencies —
+they break scoverage instrumentation under the default class-loader layering. Instead, put the shared helper in the
+`common-test-utils` module (or create a similar `*-test-utils` module if a different scope is required) and depend on
+it from `Test` scope:
+
+```scala
+lazy val myModule = (project in file("my-module"))
+  .dependsOn(commonTestUtils % Test)
+```
+
+Test-utility modules have `coverageEnabled := false` so that they do not appear in coverage reports.
 
 # Architecture
 
