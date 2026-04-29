@@ -36,6 +36,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   import MidiNote.{A4, C4, C5, D4, E4, G4}
 
   private val C3: MidiNote = MidiNote(C4 - 12)
+  private val E1: MidiNote = MidiNote(E4 - 36)
+  private val E2: MidiNote = MidiNote(E4 - 24)
+  private val E3: MidiNote = MidiNote(E4 - 12)
   private val E5: MidiNote = MidiNote(E4 + 12)
 
   private val nonMpeInputChannel = 0
@@ -103,6 +106,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialInputMode = MpeInputMode.Mpe
   )
 
+  private def tuner4MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
   private def dualZoneTunerMpeInput: MpeTuner = MpeTuner(
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 7)),
     initialInputMode = MpeInputMode.Mpe
@@ -166,6 +174,82 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.process(CcScMidiMessage(channel, ScMidiCc.MpeSlide, value).asJava)
     }
   }
+
+
+  // TODO #154 Move new tests for their own category
+  ////////////////////////////////
+
+  behavior of "MpeTuner - Dropping on high expressive pitch bend"
+
+  it should "drop a channel with high expressive PB to make room for an incoming note with low expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(130.0))
+      noteOn(4, E4, pbCents = Some(140.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(20.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  it should "drop a channel with high expressive PB to make room for an incoming note with high expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(130.0))
+      noteOn(4, E4, pbCents = Some(140.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  it should "drop a channel with low expressive PB to make room for an incoming note with high expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(30.0))
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  it should "prefer to drop a channel with low expressive PB to make room for an incoming note with high expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      noteOn(1, E1, pbCents = Some(110.0))
+      private val e3Output = noteOn(3, E3, pbCents = Some(30.0))
+      private val e3OutputChannel = extractNoteOns(e3Output).head.channel
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e3OutputChannel, E3, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  ////////////////////////////////
 
   // --- 4.2.1 reset() ---
 
