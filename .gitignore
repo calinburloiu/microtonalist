@@ -24,6 +24,7 @@ hs_err_pid*
 # SBT
 dist/*
 target/
+coverage-reports/
 lib_managed/
 src_managed/
 project/boot/

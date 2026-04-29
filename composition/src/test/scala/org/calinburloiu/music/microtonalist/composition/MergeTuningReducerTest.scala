@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 
 class MergeTuningReducerTest extends AnyFlatSpec with Matchers {
 
-  import org.calinburloiu.music.microtonalist.tuner.TestTunings.*
+  import org.calinburloiu.music.microtonalist.composition.TestTunings.*
 
   private val reducer = MergeTuningReducer()
 
