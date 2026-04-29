@@ -193,7 +193,7 @@ lazy val intonation = (project in file("intonation"))
     libraryDependencies ++= Seq(
       guava,
     ),
-    // TODO #? Raise toward 80% statement coverage.
+    // TODO #185 Raise toward 80% statement coverage.
     coverageSettings(stmt = 72, branch = 80),
   )
 
