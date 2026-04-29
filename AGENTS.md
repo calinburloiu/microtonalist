@@ -176,8 +176,8 @@ and the bugs they work around. There is also a `coverageCheck` command used by C
 
 After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
 scoverage leaves in `target/`. Leaving instrumented binaries around will make any subsequent `sbt run` / `sbt assembly`
-invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$` (see the section below). Use `sbt clean`
-after a project-wide coverage run, or `sbt "<module>/clean"` after a single-module run.
+invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use `sbt clean` after a project-wide
+coverage run, or `sbt "<module>/clean"` after a single-module run.
 
 ```bash
 sbt coverageAll

@@ -96,7 +96,7 @@ object Coverage {
           "coverageAllRestore" ::
           saved
       case _ =>
-        System.err.println("[error] Usage: coverageModule <module>")
+        state.globalLogging.full.error("Usage: coverageModule <module>")
         state.fail
     }
   }
