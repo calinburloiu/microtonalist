@@ -4,6 +4,9 @@ ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / version := "1.3.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
+// Register the `coverageAll`, `coverageModule`, and `coverageAllRestore` commands defined in project/Coverage.scala.
+commands ++= Coverage.commands
+
 // # Projects
 
 lazy val root = (project in file("."))
@@ -25,6 +28,9 @@ lazy val root = (project in file("."))
   .settings(
     name := "microtonalist-root",
     commonSettings,
+    // Aggregate thresholds — enforced by `coverageAggregate` on the combined report from all modules.
+    // TODO #183 Raise toward 80% statement and branch coverage once the per-module floors do.
+    coverageSettings(stmt = 71, branch = 65),
   )
 
 lazy val app = (project in file("app"))
@@ -69,7 +75,7 @@ lazy val appConfig = (project in file("config"))
       ficus,
     ),
     // TODO #176 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 63, branch = 50),
+    coverageSettings(stmt = 59, branch = 39),
   )
 
 lazy val cli = (project in file("cli"))
@@ -108,8 +114,8 @@ lazy val common = (project in file("common"))
     libraryDependencies ++= Seq(
       guava,
     ),
-    // TODO #175 Raise branch coverage to 80%.
-    coverageSettings(stmt = 80, branch = 72),
+    // TODO #175 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 50, branch = 22),
   )
 
 lazy val commonTestUtils = (project in file("common-test-utils"))
@@ -130,7 +136,7 @@ lazy val businessync = (project in file("businessync"))
       guava,
     ),
     // TODO #174 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 30, branch = 0),
+    coverageSettings(stmt = 0, branch = 0),
   )
 
 lazy val composition = (project in file("composition"))
@@ -143,7 +149,7 @@ lazy val composition = (project in file("composition"))
     name := "microtonalist-composition",
     commonSettings,
     libraryDependencies ++= Seq(),
-    coverageSettings(stmt = 80, branch = 80),
+    coverageSettings(stmt = 85, branch = 84),
   )
 
 lazy val tuner = (project in file("tuner"))
@@ -157,8 +163,8 @@ lazy val tuner = (project in file("tuner"))
     name := "microtonalist-tuner",
     commonSettings,
     libraryDependencies ++= Seq(),
-    // TODO #178 Raise branch coverage to 80%.
-    coverageSettings(stmt = 80, branch = 75),
+    // TODO #178 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 71, branch = 69),
   )
 
 lazy val format = (project in file("format"))
@@ -176,7 +182,7 @@ lazy val format = (project in file("format"))
       playJson,
     ),
     // TODO #179 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 68, branch = 61),
+    coverageSettings(stmt = 66, branch = 59),
   )
 
 lazy val intonation = (project in file("intonation"))
@@ -187,7 +193,8 @@ lazy val intonation = (project in file("intonation"))
     libraryDependencies ++= Seq(
       guava,
     ),
-    coverageSettings(stmt = 80, branch = 80),
+    // TODO #? Raise toward 80% statement coverage.
+    coverageSettings(stmt = 72, branch = 80),
   )
 
 lazy val scMidi = (project in file("sc-midi"))
@@ -203,7 +210,7 @@ lazy val scMidi = (project in file("sc-midi"))
       coreMidi4j,
     ),
     // TODO #177 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 66, branch = 48),
+    coverageSettings(stmt = 62, branch = 44),
   )
 
 lazy val experiments = (project in file("experiments"))

@@ -155,28 +155,57 @@ needed to reach 80%.
 - If your change raises coverage, you may raise the threshold in `build.sbt` accordingly, but keep the 3% buffer. Once
   both statement and branch reach 80%, switch the module to `coverageSettings(stmt = 80, branch = 80)` and close the
   tracking issue.
+- **New files must always meet the 80% statement and branch coverage target on their own**, regardless of the module's
+  current threshold. The per-module floor exists to track legacy code paying down toward 80%; it is not a license for
+  newly authored code to ship under-tested.
 
 ## Running coverage
 
-Per-module coverage report (HTML + XML):
+**Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
+configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
+
+- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`.
+- **Smaller changes scoped to a single module** — run the single-module form documented further below.
+
+After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
+scoverage leaves in `target/`. Leaving instrumented binaries around will make any subsequent `sbt run` / `sbt assembly`
+invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$` (see the section below). Use `sbt clean`
+after a project-wide coverage run, or `sbt "${MODULE}/clean"` after a single-module run.
+
+Use the `coverageAll` sbt command to run the full project-wide coverage workflow (per-module reports + aggregate at
+`target/scala-3.6.3/scoverage-report/`):
 
 ```bash
-sbt "clean; coverage; test; coverageReport"
+sbt coverageAll
+sbt clean
 ```
 
-Project-wide aggregated report (HTML + XML at `target/scala-3.6.3/scoverage-report/`):
+`coverageAll` is defined in `build.sbt`. It runs a two-pass build:
 
-```bash
-sbt "clean; coverage; test; coverageReport; coverageAggregate"
-```
+1. `clean; compile` — populates `target/` with non-instrumented `.class`/`.tasty` files.
+2. `coverage; test; coverageReport; coverageAggregate` — recompiles with scoverage instrumentation, runs tests, and
+   produces reports.
+
+The two-pass form is needed to work around a Scala 3.6.3 + sbt-scoverage 2.x bug where a single-invocation
+`clean; coverage; test` fails on a cold cache with TASTy/companion-class errors when many modules cross-compile under
+instrumentation (see [scoverage/sbt-scoverage#517](https://github.com/scoverage/sbt-scoverage/issues/517) and
+[#511](https://github.com/scoverage/sbt-scoverage/issues/511)). Compiling once without instrumentation lays down a
+valid TASTy baseline that the instrumented second pass can read. The command also serializes compile tasks
+(`Tags.limit(Tags.Compile, 1)`) for the coverage session as belt-and-braces protection against
+[sbt#1673](https://github.com/sbt/sbt/issues/1673); this less-performant restriction is scoped to the coverage run only,
+so normal builds keep full parallelism.
 
 Per-module reports are written to `<module>/target/scala-3.6.3/scoverage-report/index.html`. The aggregate report
 combines coverage data from each module's tests as well as the tests of dependent modules.
 
-`clean` is needed before `coverage` because scoverage instruments classes during compilation. If a class was already
-compiled without instrumentation, the incremental compiler may skip recompiling it and the resulting build will be a
-mix of instrumented and uninstrumented classes — producing wrong coverage numbers and, on Scala 3, occasional TASTy /
-class-loading errors. A fresh build guarantees every class is instrumented consistently.
+For a single-module check (e.g. while iterating on tests for one module), the single-invocation form works because the
+multi-module cross-compile is what triggers the bug. Follow it with a module-local `clean` to drop the instrumented
+binaries:
+
+```bash
+sbt "clean; coverage; intonation/test; intonation/coverageReport"
+sbt "intonation/clean"
+```
 
 ## Coverage and `assembly` / `run`
 
