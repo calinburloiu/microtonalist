@@ -19,8 +19,8 @@ import sbt.Keys.*
 import scoverage.ScoverageKeys.coverageEnabled
 
 /**
- * `coverageAll`, `coverageModule <module>`, and `coverageCheck` sbt commands — run the coverage workflow with a
- * two-pass build.
+ * `coverageAll`, `coverageModule <module>`, `coverageCheck`, and `coverageClean` sbt commands — run the coverage
+ * workflow with a two-pass build (and clean up the reports directory).
  *
  * Single-invocation `clean; coverage; test` reliably fails on this multi-project
  * Scala 3.6.3 + sbt-scoverage 2.x setup with TASTy/companion-class errors (see
@@ -38,6 +38,11 @@ import scoverage.ScoverageKeys.coverageEnabled
  * only the named module's tests are run in the second pass. This gives accurate per-module
  * coverage that is not inflated by tests from other modules exercising the same code.
  *
+ * `coverageClean` deletes the `coverage-reports/` directory at the repo root. The reports directory is
+ * configured via `coverageDataDir` in `build.sbt` to live outside `target/` so it survives `sbt clean`
+ * (which is recommended after a coverage run to remove instrumented `.class`/`.tasty` files). Use
+ * `coverageClean` when you want to discard the persisted reports themselves.
+ *
  * `coverageCheck` is intended for CI: it runs the same two-pass workflow as `coverageAll`
  * but disables HTML and Cobertura report output for speed. XML output is kept on because
  * `coverageAggregate` reads each subproject's XML to combine their coverage data. Per-module
@@ -52,7 +57,8 @@ import scoverage.ScoverageKeys.coverageEnabled
  */
 object Coverage {
 
-  val commands: Seq[Command] = Seq(coverageAll, coverageModule, coverageCheck, coverageAllRestore)
+  val commands: Seq[Command] =
+    Seq(coverageAll, coverageModule, coverageCheck, coverageClean, coverageAllRestore)
 
   private val savedRestrictions = AttributeKey[Seq[Tags.Rule]](
     "coverageAllSavedRestrictions",
@@ -108,6 +114,19 @@ object Coverage {
       "coverageAggregate" ::
       "coverageAllRestore" ::
       saved
+  }
+
+  private def coverageClean: Command = Command.command("coverageClean") { state =>
+    val baseDir = Project.extract(state).get(LocalRootProject / baseDirectory)
+    val reportsDir = baseDir / "coverage-reports"
+    val log = state.globalLogging.full
+    if (reportsDir.exists()) {
+      IO.delete(reportsDir)
+      log.info(s"Deleted $reportsDir")
+    } else {
+      log.info(s"$reportsDir does not exist; nothing to delete")
+    }
+    state
   }
 
   private def snapshotSettings(state: State): State = {

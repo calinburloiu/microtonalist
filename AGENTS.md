@@ -164,59 +164,35 @@ needed to reach 80%.
 **Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
 configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
 
-- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`.
-- **Smaller changes scoped to a single module** — run the single-module form documented further below.
+- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
+  plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
+  modules.
+- **Smaller changes scoped to a single module** — run `sbt "coverageModule <module>"`, where `<module>` is the sbt
+  project ID (e.g. `intonation`, `tuner`, `appConfig`). Only the named module's tests run, so coverage is not
+  inflated by tests from other modules exercising the same code.
+
+Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details
+and the bugs they work around. There is also a `coverageCheck` command used by CI.
 
 After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
 scoverage leaves in `target/`. Leaving instrumented binaries around will make any subsequent `sbt run` / `sbt assembly`
 invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$` (see the section below). Use `sbt clean`
-after a project-wide coverage run, or `sbt "${MODULE}/clean"` after a single-module run.
-
-Use the `coverageAll` sbt command to run the full project-wide coverage workflow (per-module reports + aggregate at
-`target/scala-3.6.3/scoverage-report/`):
+after a project-wide coverage run, or `sbt "<module>/clean"` after a single-module run.
 
 ```bash
 sbt coverageAll
 sbt clean
 ```
 
-`coverageAll` is defined in `build.sbt`. It runs a two-pass build:
-
-1. `clean; compile` — populates `target/` with non-instrumented `.class`/`.tasty` files.
-2. `coverage; test; coverageReport; coverageAggregate` — recompiles with scoverage instrumentation, runs tests, and
-   produces reports.
-
-The two-pass form is needed to work around a Scala 3.6.3 + sbt-scoverage 2.x bug where a single-invocation
-`clean; coverage; test` fails on a cold cache with TASTy/companion-class errors when many modules cross-compile under
-instrumentation (see [scoverage/sbt-scoverage#517](https://github.com/scoverage/sbt-scoverage/issues/517) and
-[#511](https://github.com/scoverage/sbt-scoverage/issues/511)). Compiling once without instrumentation lays down a
-valid TASTy baseline that the instrumented second pass can read. The command also serializes compile tasks
-(`Tags.limit(Tags.Compile, 1)`) for the coverage session as belt-and-braces protection against
-[sbt#1673](https://github.com/sbt/sbt/issues/1673); this less-performant restriction is scoped to the coverage run only,
-so normal builds keep full parallelism.
-
-Per-module reports are written to `<module>/target/scala-3.6.3/scoverage-report/index.html`. The aggregate report
-combines coverage data from each module's tests as well as the tests of dependent modules.
-
-For a single-module check (e.g. while iterating on tests for one module), the single-invocation form works because the
-multi-module cross-compile is what triggers the bug. Follow it with a module-local `clean` to drop the instrumented
-binaries:
-
 ```bash
-sbt "clean; coverage; intonation/test; intonation/coverageReport"
+sbt "coverageModule intonation"
 sbt "intonation/clean"
 ```
 
-## Coverage and `assembly` / `run`
-
-While `coverage` is enabled in an sbt session, every compiled class contains calls into the scoverage runtime
-(`scoverage.Invoker.invoked`). The scoverage runtime is `% Provided` at compile time and is **not** included in the
-fat JAR produced by `sbt assembly`, so an assembled JAR built under `coverage` will fail at runtime with
-`NoClassDefFoundError: scoverage.Invoker$`. Same for `sbt run`.
-
-The `coverage` flag is session-scoped, so a separate sbt invocation for `assembly` / `run` is fine. **Never combine
-`coverage` and `assembly` / `run` in the same sbt invocation.** If you need to do both, run `clean` between them or
-use two separate sbt sessions.
+Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
+via `coverageDataDir` in `build.sbt`); the aggregate is at `coverage-reports/root/scoverage-report/`. The
+`coverage-reports/` directory lives outside `target/`, so `sbt clean` does **not** wipe it — reports remain
+browsable after the post-coverage cleanup. Run `sbt coverageClean` to discard the persisted reports explicitly.
 
 ## Shared test utilities
 
