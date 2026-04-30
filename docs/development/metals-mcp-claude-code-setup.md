@@ -1,4 +1,4 @@
-# Metals MCP with Claude Code (headless, SBT as BSP)
+# Metals MCP with Claude Code Setup (headless, SBT as BSP)
 
 This guide explains how to run [Scala Metals](https://scalameta.org/metals/) **headlessly**
 (without a graphical editor) so that its built-in MCP (Model Context Protocol) server is
