@@ -81,16 +81,33 @@ The repository includes a helper script that automates steps 5–6 (SBT warm-up 
 launch) in a single command. From the repo root:
 
 ```bash
-./scripts/development/start-metals-mcp.sh
+./scripts/development/start-metals-mcp.sh                # foreground (Ctrl-C to stop)
+./scripts/development/start-metals-mcp.sh --background   # detach, exit immediately
 ```
 
 The script starts both SBT and `metals-standalone-client` as background processes, waits for
-`.mcp.json` to appear, and then warms up the build by sending `compile` to SBT. It blocks
-until interrupted (Ctrl-C) or until one of the processes exits, and cleans up both on
-shutdown.
+`.mcp.json` to appear, and then warms up the build by sending `compile` to SBT. The
+foreground form blocks until interrupted (Ctrl-C) or until one of the processes exits, and
+cleans up both on shutdown. The `--background` (`-d`) form detaches the script under
+`nohup`, records its PID at `logs/start-metals-mcp.pid`, and returns immediately so you can
+continue working in the same terminal. A second `--background` invocation while one is
+already running is refused.
 
-See [`scripts/development/README.md`](../../scripts/development/README.md) for details on
-running the script in the background and stopping it.
+The SBT it launches uses `-Dmicrotonalist.targetSuffix=-bsp`, so its compiled outputs live
+under `<project>/target-bsp/` rather than `<project>/target/`. Any ad-hoc CLI `sbt`
+invocations a developer issues without that property continue to use `<project>/target/`,
+so the two never collide on the same `classes/` tree. See
+[issue #186](https://github.com/calinburloiu/microtonalist/issues/186) for the failure mode
+that motivated this isolation, and `targetSuffixOverride` in `build.sbt` for the
+implementation.
+
+To stop a backgrounded run:
+
+```bash
+./scripts/development/stop-metals-mcp.sh
+```
+
+See [`scripts/development/README.md`](../../scripts/development/README.md) for details.
 
 If you prefer to run the steps manually, continue with steps 5a and 6 below.
 
@@ -186,14 +203,16 @@ almost instantly with success or precise diagnostics, which Claude can then act 
 
 ## 10. Recommended workflow with this repo
 
-1. Terminal A — `./scripts/development/start-metals-mcp.sh` (runs both SBT and Metals; or
-   start them manually in separate terminals as described in steps 5a and 6).
+1. Terminal A — `./scripts/development/start-metals-mcp.sh --background` (or run it in the
+   foreground, or start the components manually in separate terminals as described in steps
+   5a and 6).
 2. Terminal B — `claude`, your interactive session.
-4. Let Claude prefer the Metals MCP tools (`compile-file`, `compile-module`, `test`,
-   `inspect`, `get-usages`) over shelling out to `sbt`. Fall back to the `sbt` commands in
-   `CLAUDE.md` for full builds (`sbt assembly`), running the `app`/`cli` executables, or
-   anything sensitive to JVM startup (e.g. options in `.sbtopts`).
-5. After editing `build.sbt` or `project/*.sbt`, ask Claude to call `import-build` (or
+3. Let Claude prefer the Metals MCP tools (`compile-file`, `compile-module`, `test`,
+   `inspect`, `get-usages`) over shelling out to `sbt`. When an `sbt` command is needed,
+   run it through the sbt thin client `sbtn` so it is dispatched into the running BSP
+   server rather than spawning a second sbt JVM that races the server on the same `target/`
+   tree. See the "sbt invocations" section in `CLAUDE.md`.
+4. After editing `build.sbt` or `project/*.sbt`, ask Claude to call `import-build` (or
    restart the standalone client) so Metals re-imports.
 
 ## 11. Troubleshooting
