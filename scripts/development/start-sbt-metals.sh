@@ -16,11 +16,16 @@
 #
 
 #
-# start-metals-mcp.sh — launch Metals MCP headlessly for this workspace.
+# start-sbt-metals.sh — launch the sbt+BSP and Metals MCP development stack.
 #
 # Starts, as background processes:
-#   1. `sbt` (interactive shell), which also hosts SBT's BSP server so Metals
-#      can reuse a single warm SBT process.
+#   1. `sbt` (interactive shell). This single sbt JVM hosts both the BSP
+#      server that Metals connects to and the sbt server that `sbtn` (the
+#      thin client) connects to. It is launched with
+#      `-Dmicrotonalist.targetSuffix=-bsp` so every project writes to
+#      `<project>/target-bsp/` instead of `<project>/target/`. This isolates
+#      its outputs from any ad-hoc CLI `sbt` invocation a developer might
+#      issue concurrently — see issue #186.
 #   2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude`,
 #      which drives Metals as a headless LSP client and makes Metals write
 #      `.mcp.json` at the repo root for Claude Code to pick up.
@@ -35,6 +40,12 @@
 # The script blocks until interrupted (Ctrl-C or SIGTERM) or until one of the
 # background processes exits. On shutdown it stops both background processes.
 #
+# Usage:
+#   ./start-sbt-metals.sh                  # foreground (Ctrl-C to stop)
+#   ./start-sbt-metals.sh --background     # detach; pair with stop-sbt-metals.sh
+#   ./start-sbt-metals.sh -d               # short alias for --background
+#   ./start-sbt-metals.sh --force          # bypass orphan-sbt-server check
+#
 # See docs/development-setup/metals-mcp-claude-code.md for the full setup.
 
 set -uo pipefail
@@ -46,10 +57,50 @@ cd "$repo_root"
 logs_dir="$repo_root/logs"
 sbt_log="$logs_dir/sbt.log"
 metals_log="$logs_dir/metals-standalone-client.log"
+script_log="$logs_dir/start-sbt-metals.log"
 sbt_fifo="$logs_dir/.sbt-stdin.fifo"
+pid_file="$logs_dir/start-sbt-metals.pid"
 
-log() { echo "[start-metals-mcp] $*"; }
-err() { echo "[start-metals-mcp] $*" >&2; }
+background=0
+force=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--background) background=1; shift ;;
+    -f|--force) force=1; shift ;;
+    -h|--help)
+      cat <<'EOF'
+start-sbt-metals.sh — launch the sbt+BSP and Metals MCP development stack.
+
+Usage:
+  ./start-sbt-metals.sh                  Run in foreground; Ctrl-C to stop.
+  ./start-sbt-metals.sh --background     Detach; pair with stop-sbt-metals.sh.
+  ./start-sbt-metals.sh -d               Short alias for --background.
+  ./start-sbt-metals.sh --force          Bypass the orphan-sbt-server check.
+  ./start-sbt-metals.sh -f               Short alias for --force.
+  ./start-sbt-metals.sh -h | --help      Show this help.
+
+The PID of the running script is recorded at logs/start-sbt-metals.pid so
+stop-sbt-metals.sh can find it. A second invocation while one is already
+running is refused.
+
+If a stray sbt server is already running for this project (typically left
+behind by an `sbtn` invocation made before this script was started), the
+script refuses to launch — `sbtn` would route to the stray server instead
+of to the BSP server we are about to start. Stop the stray server first,
+or pass --force to launch anyway.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "[start-sbt-metals] Unknown argument: $1" >&2
+      echo "[start-sbt-metals] Usage: $0 [--background|-d] [--force|-f]" >&2
+      exit 2
+      ;;
+  esac
+done
+
+log() { echo "[start-sbt-metals] $*"; }
+err() { echo "[start-sbt-metals] $*" >&2; }
 
 # Sanity-check required commands.
 for cmd in sbt metals-standalone-client; do
@@ -60,6 +111,62 @@ for cmd in sbt metals-standalone-client; do
 done
 
 mkdir -p "$logs_dir"
+
+# Refuse to start a second instance.
+if [[ -f "$pid_file" ]]; then
+  existing_pid="$(cat "$pid_file" 2>/dev/null || true)"
+  if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+    err "start-sbt-metals.sh is already running as PID $existing_pid (see $pid_file)."
+    err "Use scripts/development/stop-sbt-metals.sh to stop it first."
+    exit 1
+  fi
+  log "Stale PID file at $pid_file (no live process); removing."
+  rm -f "$pid_file"
+fi
+
+# Detect a stray sbt server for THIS project (typically left by an earlier
+# `sbtn` invocation made before this script was started). `sbtn` routes to
+# whichever sbt server owns the build's deterministic socket dir, so a stray
+# one would defeat the BSP server we are about to start. The active socket
+# (if any) is recorded in project/target/active.json.
+active_json="$repo_root/project/target/active.json"
+if [[ -f "$active_json" ]]; then
+  sock_path="$(grep -oE 'local://[^"]+' "$active_json" 2>/dev/null | head -1 | sed 's|^local://||')"
+  if [[ -n "$sock_path" && -S "$sock_path" ]]; then
+    orphan_pid="$(lsof -t "$sock_path" 2>/dev/null | head -1 || true)"
+    if [[ -n "$orphan_pid" ]] && kill -0 "$orphan_pid" 2>/dev/null; then
+      if [[ "$force" -eq 1 ]]; then
+        log "--force passed; continuing despite existing sbt server PID $orphan_pid (socket: $sock_path)."
+      else
+        err "An existing sbt server is already running for this project as PID $orphan_pid"
+        err "(socket: $sock_path)."
+        err "Starting the BSP server now would not help — sbtn would still route to PID $orphan_pid."
+        err ""
+        err "Stop the stray server first, e.g.:"
+        err "  kill $orphan_pid"
+        err "Or override with --force (not recommended)."
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+# Background mode: re-exec self detached and let the child record its own PID
+# below. We do NOT write the PID file from the parent — if we did, the re-execed
+# child's own double-start guard would trip on its own PID. The --force flag is
+# propagated so the child does not re-do the orphan check (we just passed it).
+if [[ "$background" -eq 1 ]]; then
+  rm -f "$script_log"
+  nohup "${BASH_SOURCE[0]}" --force >"$script_log" 2>&1 &
+  bg_pid=$!
+  disown "$bg_pid" 2>/dev/null || true
+  log "Launched in background as PID $bg_pid (log: $script_log)."
+  log "Stop with: $script_dir/stop-sbt-metals.sh"
+  exit 0
+fi
+
+# Foreground (or re-execed background child): record own PID for stop-sbt-metals.sh.
+echo "$$" > "$pid_file"
 
 # Discard older logs.
 rm -f "$sbt_log" "$metals_log"
@@ -107,6 +214,7 @@ cleanup() {
   fi
 
   rm -f "$sbt_fifo"
+  rm -f "$pid_file"
   wait 2>/dev/null || true
   log "Done."
 }
@@ -121,7 +229,11 @@ log "Logs:      $logs_dir"
 # we open the writer end below. Backgrounded SBT's stdin redirection will
 # block on open() until the parent opens FD 9 for writing.
 log "Starting SBT (log: $sbt_log)..."
-sbt <"$sbt_fifo" >"$sbt_log" 2>&1 &
+# `-Dmicrotonalist.targetSuffix=-bsp` routes every project's `target` to
+# `<project>/target-bsp/` so this BSP-server SBT does not share `classes/` dirs
+# with ad-hoc CLI sbt invocations. See issue #186 and `targetSuffixOverride` in
+# build.sbt.
+sbt -Dmicrotonalist.targetSuffix=-bsp <"$sbt_fifo" >"$sbt_log" 2>&1 &
 sbt_pid=$!
 log "SBT PID: $sbt_pid"
 
@@ -165,10 +277,11 @@ else
 fi
 
 echo
-log "Metals MCP is running."
+log "Development stack is running."
 log "  Tail SBT log:    tail -f $sbt_log"
 log "  Tail Metals log: tail -f $metals_log"
 log "Launch Claude Code from $repo_root in another terminal and run /mcp to verify."
+log "Use 'sbtn …' to dispatch sbt commands into this server (see AGENTS.md)."
 log "Press Ctrl-C to stop."
 
 # Block until either child exits (or until we are signalled).

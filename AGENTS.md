@@ -52,12 +52,54 @@ The repository is built using SBT 1, Scala 3, and Java 23. It is split into mult
 libraries, or separate executable applications. Each project is in the repository root. Check `build.sbt` for details.
 The `root` SBT project aggregates all the other projects. The executable application is in `app` SBT project.
 
+## sbt invocations: prefer the BSP server via `sbtn`
+
+The development stack started by `scripts/development/start-sbt-metals.sh` runs a single long-lived sbt JVM that
+hosts both the BSP server Metals connects to *and* the sbt server `sbtn` (the thin client) connects to. Run all
+sbt commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time —
+spawning duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental
+state. The per-project `target` isolation described at the end of this section is belt-and-braces protection: it
+keeps a stray second `sbt` from racing the BSP server on the same `classes/` tree (which is what produced the
+TASTy load errors in issue #186), but routing through `sbtn` is the primary fix.
+
+**Once-per-session check** (do this with the Metals MCP warm-up below; do NOT repeat before every sbt call):
+
+1. **Detect the running stack.** Check whether `logs/start-sbt-metals.pid` exists and names a live process:
+   ```bash
+   pid="$(cat logs/start-sbt-metals.pid 2>/dev/null)" && [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+   ```
+2. **Auto-start if absent.** If no live PID, start the stack in the background:
+   ```bash
+   ./scripts/development/start-sbt-metals.sh --background
+   ```
+   Then wait until `.mcp.json` appears at the repo root (timeout ~3 minutes). The script refuses to launch when
+   it detects another sbt server already running for this project (e.g. an orphan left by a prior `sbtn`
+   invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` if you have
+   reason to override.
+3. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
+   confirming `logs/sbt.log` grew. If `logs/sbt.log` did not grow, `sbtn` connected to a different sbt server —
+   investigate before continuing.
+4. **Fall back to `sbt`** only if step 2 fails to produce `.mcp.json` within the timeout. In that case note in
+   your response why the stack could not be started so the user can investigate.
+
+After this session-start check, every subsequent sbt command in the conversation should just use `sbtn …` —
+trust that the stack is up unless a command unexpectedly fails (e.g. with a connect error), in which case re-run
+the check.
+
+To stop the background stack: `./scripts/development/stop-sbt-metals.sh`.
+
+The BSP-server sbt is launched with `-Dmicrotonalist.targetSuffix=-bsp` (see `targetSuffixOverride` in `build.sbt`),
+so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. CLI sbt invocations
+without that property continue to use `<project>/target/`. The two trees never collide; `sbt clean` and
+`sbtn clean` each clean the active tree.
+
 ## Metals MCP warm-up
 
 At the start of every conversation, if the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
 to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
-semantic tools work correctly from the first query. Require sbt to be running as a BSP server beforehand (the user is
-responsible for that).
+semantic tools work correctly from the first query. Combine this with the "sbt invocations" check above: if no
+development stack is running yet, run `scripts/development/start-sbt-metals.sh --background` first so the BSP
+server, the sbt server, and Metals come up together.
 
 ## Compiling
 
@@ -66,18 +108,20 @@ Prefer the Metals MCP for compiling when it is available:
 - Compile the whole project: `mcp__metals__compile-full`
 - Compile a single module `${MODULE}`: `mcp__metals__compile-module` with `module = "${MODULE}"`
 
-Fall back to `sbt` only when the Metals MCP is not available, or for a final full build or fat JAR assembly:
+Fall back to `sbt` only when the Metals MCP is not available, or for a final full build or fat JAR assembly. Use
+`sbtn` rather than spawning a fresh `sbt` JVM whenever the BSP server is up — see "sbt invocations: prefer the BSP
+server via `sbtn`" above.
 
 Compiling the whole `root` project:
 
 ```bash
-sbt compile
+sbtn compile
 ```
 
 Building the fat JAR for the executable application:
 
 ```bash
-sbt assembly
+sbtn assembly
 ```
 
 It is recommended to compile, build, or test the whole project before committing changes.
@@ -87,7 +131,7 @@ For small changes, it is recommended to only compile individual SBT projects.
 Compiling a single SBT project `${PROJECT}` via sbt:
 
 ```bash
-sbt "${PROJECT}/compile"
+sbtn "${PROJECT}/compile"
 ```
 
 # Test
@@ -111,12 +155,13 @@ sections by using `behavior of`. When adding a new test case to a behavior-drive
 * Add the test in the determined section near a similar test. If there isn't a similar one, add it at the end of the
   behavior section.
 
-Currently, Metals MCP cannot run tests with this setup (with SBT and BSP). So run all tests by starting `sbt` processes.
+Currently, Metals MCP cannot run tests with this setup (with SBT and BSP). So run all tests through `sbtn` so they
+execute on the BSP server (see "sbt invocations: prefer the BSP server via `sbtn`" above).
 
 Running all tests:
 
 ```bash
-sbt test
+sbtn test
 ```
 
 For small changes, it is recommended to only test individual files or SBT projects.
@@ -124,19 +169,19 @@ For small changes, it is recommended to only test individual files or SBT projec
 Testing a single SBT project `${PROJECT}`:
 
 ```bash
-sbt "${PROJECT}/test"
+sbtn "${PROJECT}/test"
 ```
 
 Testing a single test class `${CLASS}` (declared with fully qualified name) in an SBT project `${PROJECT}`:
 
 ```bash
-sbt "${PROJECT}/testOnly ${CLASS}"
+sbtn "${PROJECT}/testOnly ${CLASS}"
 ```
 
 For example:
 
 ```bash
-sbt "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
+sbtn "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
 ```
 
 # Coverage
@@ -164,29 +209,30 @@ needed to reach 80%.
 **Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
 configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
 
-- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
+- **Larger or multi-module changes** — run the full project-wide workflow with `sbtn coverageAll`. Per-module reports
   plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
   modules.
-- **Smaller changes scoped to a single module** — run `sbt "coverageModule <module>"`, where `<module>` is the sbt
+- **Smaller changes scoped to a single module** — run `sbtn "coverageModule <module>"`, where `<module>` is the sbt
   project ID (e.g. `intonation`, `tuner`, `appConfig`). Only the named module's tests run, so coverage is not
   inflated by tests from other modules exercising the same code.
 
 Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details
-and the bugs they work around. There is also a `coverageCheck` command used by CI.
+and the bugs they work around. They are server-side commands, so `sbtn` relays them to the running BSP server
+exactly as a direct `sbt` invocation would. There is also a `coverageCheck` command used by CI.
 
 After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
-scoverage leaves in `target/`. Leaving instrumented binaries around will make any subsequent `sbt run` / `sbt assembly`
-invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use `sbt clean` after a project-wide
-coverage run, or `sbt "<module>/clean"` after a single-module run.
+scoverage leaves in the active `target` tree. Leaving instrumented binaries around will make any subsequent
+`sbtn run` / `sbtn assembly` invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use
+`sbtn clean` after a project-wide coverage run, or `sbtn "<module>/clean"` after a single-module run.
 
 ```bash
-sbt coverageAll
-sbt clean
+sbtn coverageAll
+sbtn clean
 ```
 
 ```bash
-sbt "coverageModule intonation"
-sbt "intonation/clean"
+sbtn "coverageModule intonation"
+sbtn "intonation/clean"
 ```
 
 Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
