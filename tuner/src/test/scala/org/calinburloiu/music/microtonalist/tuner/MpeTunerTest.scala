@@ -136,11 +136,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractCc(output: Seq[MidiMessage]): Seq[CcScMidiMessage] =
     output.map(_.asScala).collect { case m: CcScMidiMessage => m }
 
-  private def extractChannelPressure(output: Seq[MidiMessage]): Seq[ChannelPressureScMidiMessage] =
+  private def extractChannelPressures(output: Seq[MidiMessage]): Seq[ChannelPressureScMidiMessage] =
     output.map(_.asScala).collect { case m: ChannelPressureScMidiMessage => m }
 
   private def extractPolyPressure(output: Seq[MidiMessage]): Seq[PolyPressureScMidiMessage] =
     output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m }
+
+  private def extractSlides(output: Seq[MidiMessage]): Seq[CcScMidiMessage] =
+    extractCc(output).filter(_.number == ScMidiCc.MpeSlide)
 
   private def extractScMidiMessages(output: Seq[MidiMessage]): Seq[ScMidiMessage] =
     output.map(_.asScala)
@@ -247,6 +250,62 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractNoteOffs(output) shouldEqual Seq(
         NoteOffScMidiMessage(e3OutputChannel, E3, NoteOffScMidiMessage.DefaultVelocity)
       )
+    }
+
+  behavior of "MpeTuner - Averaging expression parameters"
+
+  it should "average the expression pitch bend value of all active notes on a member channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(-20.0))
+
+      // Then
+      private val outputPitchBends = extractPitchBends(output)
+      outputPitchBends should have size 1
+      outputPitchBends.head.channel shouldEqual e1OutputChannel
+      outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e - 5.0)
+    }
+
+  it should "average the channel pressure value of all active notes on a member channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pressure = Some(32))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+
+      // When
+      private val output = noteOn(2, E2, pressure = Some(96))
+
+      // Then
+      private val outputPressures = extractChannelPressures(output)
+      outputPressures should have size 1
+      outputPressures.head.channel shouldEqual e1OutputChannel
+      outputPressures.head.value shouldEqual 64
+    }
+
+  it should "average the MPE slide (CC #74) value of all active notes on a member channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, slide = Some(48))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+
+      // When
+      private val output = noteOn(2, E2, pressure = Some(16))
+
+      // Then
+      private val outputSlides = extractSlides(output)
+      outputSlides should have size 1
+      outputSlides.head.channel shouldEqual e1OutputChannel
+      outputSlides.head.value shouldEqual 32
     }
 
   ////////////////////////////////
@@ -559,7 +618,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // When
     private val output = tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C4, 80).asJava)
     // Then
-    extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
+    extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
     output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
   }
 
@@ -588,7 +647,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // When
     private val output = pressure(nonMpeInputChannel, 90)
     // Then
-    extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(0, 90)) // master channel 0
+    extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(0, 90)) // master channel 0
   }
 
   it should "not forward Channel Pressure on any member channel in non-MPE mode" in new Fixture {
@@ -598,7 +657,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // When
     private val output = pressure(nonMpeInputChannel, 90)
     // Then
-    extractChannelPressure(output).filter(_.channel == noteChannel) shouldBe empty
+    extractChannelPressures(output).filter(_.channel == noteChannel) shouldBe empty
   }
 
   it should "initialize member channel CC #74 to default 64 even after sending CC #74 in non-MPE mode" in
@@ -623,7 +682,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = noteOn(nonMpeInputChannel, C4)
       // Then
       private val noteChannel = extractNoteOns(output).head.channel
-      extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 0))
+      extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 0))
     }
 
   it should "initialize control dimensions before Note On even when input omits them" in new Fixture {
@@ -1094,7 +1153,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       extractPitchBends(output) shouldBe empty
       extractCc(output).filter(_.number == ScMidiCc.MpeSlide) shouldBe empty
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "forward Note Off received on Lower Master Channel on the same Master Channel" in
@@ -1190,7 +1249,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(PolyPressureScMidiMessage(0, C4, 80).asJava)
       // Then
       extractPolyPressure(output) should contain(PolyPressureScMidiMessage(0, C4, 80))
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "drop Polyphonic Key Pressure received on a Member Channel in MPE input mode" in
@@ -1201,7 +1260,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(PolyPressureScMidiMessage(mpeInputChannel, C4, 80).asJava)
       // Then
       extractPolyPressure(output) shouldBe empty
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "not forward CC #74 on an MPE input channel with no active note" in
@@ -1219,7 +1278,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Send Channel Pressure on a member channel that has no active note
       private val output = pressure(mpeInputChannel, 90)
       // Then
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "not forward Pitch Bend on an MPE input member channel with no active note" in
@@ -1250,7 +1309,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // When
       private val output = pressure(mpeInputChannel, 90)
       // Then
-      extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
+      extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
     }
 
   it should "seed Member Channel CC #74 from the per-input-channel value at Note On in MPE mode" in
@@ -1274,7 +1333,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = noteOn(mpeInputChannel, C4)
       // Then
       private val noteChannel = extractNoteOns(output).head.channel
-      extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
+      extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
     }
 
   // --- 4.2.11 process() — Note Off Behavior ---
@@ -1380,7 +1439,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(ccOutput) shouldBe empty
 
       private val cpOutput = pressure(mpeInputChannel, 90)
-      extractChannelPressure(cpOutput) shouldBe empty
+      extractChannelPressures(cpOutput) shouldBe empty
 
       private val pbOutput = tuner.process(PitchBendScMidiMessage(mpeInputChannel, 4000).asJava)
       extractPitchBends(pbOutput) shouldBe empty
