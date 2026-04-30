@@ -262,7 +262,7 @@ lazy val compilerOptions = Seq(
 
 // When `-Dmicrotonalist.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
 // becomes `<project>/target<suffix>` instead of the default `<project>/target`. Used by
-// `scripts/development/start-metals-mcp.sh` (with suffix `-bsp`) so the sbt server backing Metals
+// `scripts/development/start-sbt-metals.sh` (with suffix `-bsp`) so the sbt server backing Metals
 // writes to a different tree than ad-hoc CLI sbt invocations and the two never collide on the same
 // `classes/` directory. `sbt clean` follows the active `target` setting, so each tree is cleaned
 // independently. See https://github.com/calinburloiu/microtonalist/issues/186.

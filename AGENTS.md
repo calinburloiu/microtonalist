@@ -54,45 +54,50 @@ The `root` SBT project aggregates all the other projects. The executable applica
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
-Before running any `sbt …` command, ensure the Metals BSP server (the long-lived sbt process backing both Metals MCP
-and Claude Code) is running, and route the command through it via the sbt thin client `sbtn`. This avoids a second
-sbt JVM writing to the same `target/scala-3.6.3/classes/` tree as the BSP server, which can produce TASTy load
-errors (see issue #186 for the failure mode).
+The development stack started by `scripts/development/start-sbt-metals.sh` runs a single long-lived sbt JVM that
+hosts both the BSP server Metals connects to *and* the sbt server `sbtn` (the thin client) connects to. Run all
+sbt commands through `sbtn` so they execute in that one JVM. A second `sbt …` invoked from the CLI spawns its
+own JVM and writes into the same `target/scala-3.6.3/classes/` tree as the BSP server, which can produce TASTy
+load errors (see issue #186 for the failure mode).
 
-Procedure to follow before every sbt invocation:
+**Once-per-session check** (do this with the Metals MCP warm-up below; do NOT repeat before every sbt call):
 
-1. **Detect the running server.** Check whether `logs/start-metals-mcp.pid` exists and names a live process:
+1. **Detect the running stack.** Check whether `logs/start-sbt-metals.pid` exists and names a live process:
    ```bash
-   pid="$(cat logs/start-metals-mcp.pid 2>/dev/null)" && [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+   pid="$(cat logs/start-sbt-metals.pid 2>/dev/null)" && [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
    ```
-2. **Auto-start if absent.** If no live PID, start the BSP server in the background:
+2. **Auto-start if absent.** If no live PID, start the stack in the background:
    ```bash
-   ./scripts/development/start-metals-mcp.sh --background
+   ./scripts/development/start-sbt-metals.sh --background
    ```
-   Then wait until `.mcp.json` appears at the repo root (timeout up to ~3 minutes).
-3. **Use `sbtn` for the command.** Once the server is up, run the command via `sbtn …`. Confirm the first command
-   was actually relayed into the running server by tailing `logs/sbt.log` and checking that the command and its
-   output appear there. If `logs/sbt.log` does not grow, `sbtn` started its own JVM — investigate before continuing.
-4. **Fall back to `sbt`** only if step 2 fails to produce `.mcp.json` within the timeout. In that case, note in your
-   response why the BSP server could not be started so the user can investigate.
+   Then wait until `.mcp.json` appears at the repo root (timeout ~3 minutes). The script refuses to launch when
+   it detects another sbt server already running for this project (e.g. an orphan left by a prior `sbtn`
+   invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` if you have
+   reason to override.
+3. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
+   confirming `logs/sbt.log` grew. If `logs/sbt.log` did not grow, `sbtn` connected to a different sbt server —
+   investigate before continuing.
+4. **Fall back to `sbt`** only if step 2 fails to produce `.mcp.json` within the timeout. In that case note in
+   your response why the stack could not be started so the user can investigate.
 
-To stop the background server: `./scripts/development/stop-metals-mcp.sh`.
+After this session-start check, every subsequent sbt command in the conversation should just use `sbtn …` —
+trust that the stack is up unless a command unexpectedly fails (e.g. with a connect error), in which case re-run
+the check.
+
+To stop the background stack: `./scripts/development/stop-sbt-metals.sh`.
 
 The BSP-server sbt is launched with `-Dmicrotonalist.targetSuffix=-bsp` (see `targetSuffixOverride` in `build.sbt`),
 so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. CLI sbt invocations
 without that property continue to use `<project>/target/`. The two trees never collide; `sbt clean` and
 `sbtn clean` each clean the active tree.
 
-> **Caveat:** [sbt/sbt#6096](https://github.com/sbt/sbt/issues/6096) reports `sbtn` hanging against a server started
-> via `sbt -bsp`. Our `start-metals-mcp.sh` launches sbt as a normal interactive shell with BSP enabled, not via
-> `sbt -bsp`, so we should not be affected — but flag it if you see hangs.
-
 ## Metals MCP warm-up
 
 At the start of every conversation, if the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
 to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
-semantic tools work correctly from the first query. Require sbt to be running as a BSP server beforehand (the user is
-responsible for that).
+semantic tools work correctly from the first query. Combine this with the "sbt invocations" check above: if no
+development stack is running yet, run `scripts/development/start-sbt-metals.sh --background` first so the BSP
+server, the sbt server, and Metals come up together.
 
 ## Compiling
 

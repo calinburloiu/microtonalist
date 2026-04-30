@@ -81,15 +81,17 @@ The repository includes a helper script that automates steps 5–6 (SBT warm-up 
 launch) in a single command. From the repo root:
 
 ```bash
-./scripts/development/start-metals-mcp.sh                # foreground (Ctrl-C to stop)
-./scripts/development/start-metals-mcp.sh --background   # detach, exit immediately
+./scripts/development/start-sbt-metals.sh                # foreground (Ctrl-C to stop)
+./scripts/development/start-sbt-metals.sh --background   # detach, exit immediately
 ```
 
-The script starts both SBT and `metals-standalone-client` as background processes, waits for
-`.mcp.json` to appear, and then warms up the build by sending `compile` to SBT. The
+The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
+and the sbt server that the thin client `sbtn` connects to) and `metals-standalone-client` as
+background processes, waits for `.mcp.json` to appear, and then warms up the build by sending
+`compile` to SBT. The
 foreground form blocks until interrupted (Ctrl-C) or until one of the processes exits, and
 cleans up both on shutdown. The `--background` (`-d`) form detaches the script under
-`nohup`, records its PID at `logs/start-metals-mcp.pid`, and returns immediately so you can
+`nohup`, records its PID at `logs/start-sbt-metals.pid`, and returns immediately so you can
 continue working in the same terminal. A second `--background` invocation while one is
 already running is refused.
 
@@ -104,7 +106,7 @@ implementation.
 To stop a backgrounded run:
 
 ```bash
-./scripts/development/stop-metals-mcp.sh
+./scripts/development/stop-sbt-metals.sh
 ```
 
 See [`scripts/development/README.md`](../../scripts/development/README.md) for details.
@@ -203,7 +205,7 @@ almost instantly with success or precise diagnostics, which Claude can then act 
 
 ## 10. Recommended workflow with this repo
 
-1. Terminal A — `./scripts/development/start-metals-mcp.sh --background` (or run it in the
+1. Terminal A — `./scripts/development/start-sbt-metals.sh --background` (or run it in the
    foreground, or start the components manually in separate terminals as described in steps
    5a and 6).
 2. Terminal B — `claude`, your interactive session.

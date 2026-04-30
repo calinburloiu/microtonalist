@@ -16,23 +16,23 @@
 #
 
 #
-# stop-metals-mcp.sh — stop a running `start-metals-mcp.sh`.
+# stop-sbt-metals.sh — stop a running `start-sbt-metals.sh`.
 #
-# Reads the PID from `logs/start-metals-mcp.pid`, sends SIGTERM, waits up to
+# Reads the PID from `logs/start-sbt-metals.pid`, sends SIGTERM, waits up to
 # 10 seconds for the process to exit, then escalates to SIGKILL if needed.
 # Removes the PID file on success. Idempotent: a missing PID file or a stale
 # PID (no live process) is a no-op success.
 #
-# Pair with `start-metals-mcp.sh --background`.
+# Pair with `start-sbt-metals.sh --background`.
 
 set -uo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 
-pid_file="$repo_root/logs/start-metals-mcp.pid"
+pid_file="$repo_root/logs/start-sbt-metals.pid"
 
-log() { echo "[stop-metals-mcp] $*"; }
+log() { echo "[stop-sbt-metals] $*"; }
 
 if [[ ! -f "$pid_file" ]]; then
   log "No PID file at $pid_file; nothing to stop."
