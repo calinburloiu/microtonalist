@@ -56,9 +56,11 @@ The `root` SBT project aggregates all the other projects. The executable applica
 
 The development stack started by `scripts/development/start-sbt-metals.sh` runs a single long-lived sbt JVM that
 hosts both the BSP server Metals connects to *and* the sbt server `sbtn` (the thin client) connects to. Run all
-sbt commands through `sbtn` so they execute in that one JVM. A second `sbt …` invoked from the CLI spawns its
-own JVM and writes into the same `target/scala-3.6.3/classes/` tree as the BSP server, which can produce TASTy
-load errors (see issue #186 for the failure mode).
+sbt commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time —
+spawning duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental
+state. The per-project `target` isolation described at the end of this section is belt-and-braces protection: it
+keeps a stray second `sbt` from racing the BSP server on the same `classes/` tree (which is what produced the
+TASTy load errors in issue #186), but routing through `sbtn` is the primary fix.
 
 **Once-per-session check** (do this with the Metals MCP warm-up below; do NOT repeat before every sbt call):
 
