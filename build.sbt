@@ -260,6 +260,18 @@ lazy val compilerOptions = Seq(
   "-experimental"
 )
 
+// When `-Dmicrotonalist.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
+// becomes `<project>/target<suffix>` instead of the default `<project>/target`. Used by
+// `scripts/development/start-sbt-metals.sh` (with suffix `-bsp`) so the sbt server backing Metals
+// writes to a different tree than ad-hoc CLI sbt invocations and the two never collide on the same
+// `classes/` directory. `sbt clean` follows the active `target` setting, so each tree is cleaned
+// independently. See https://github.com/calinburloiu/microtonalist/issues/186.
+lazy val targetSuffixOverride: Seq[Setting[?]] =
+  sys.props.get("microtonalist.targetSuffix").filter(_.nonEmpty) match {
+    case Some(suffix) => Seq(target := baseDirectory.value / s"target$suffix")
+    case None         => Seq.empty
+  }
+
 lazy val commonSettings = Seq(
   javacOptions ++= Seq(
     "-source", "23", "-target", "23",
@@ -268,7 +280,7 @@ lazy val commonSettings = Seq(
   resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
   libraryDependencies ++= commonDependencies,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
-)
+) ++ targetSuffixOverride
 
 lazy val assemblySettings = Seq(
   assembly / assemblyJarName := name.value + ".jar",

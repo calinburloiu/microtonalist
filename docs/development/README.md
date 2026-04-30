@@ -136,15 +136,15 @@ Metals MCP provides Claude Code with Scala code intelligence through the
    chmod +x ~/.local/bin/metals-standalone-client
    ```
 
-2. From the repo root, start the Metals MCP server:
+2. From the repo root, start the development stack (sbt + BSP server + Metals MCP):
 
    ```bash
-   ./scripts/development/start-metals-mcp.sh
+   ./scripts/development/start-sbt-metals.sh
    ```
 
    This starts SBT and Metals as background processes. Once ready, it generates a `.mcp.json` file at the repo root
    (gitignored) that Claude Code picks up automatically. The script can also be
-   [run in the background](../../scripts/development/README.md#start-metals-mcpsh).
+   [run in the background](../../scripts/development/README.md#start-sbt-metalssh).
 
 3. In another terminal, launch Claude Code:
 
