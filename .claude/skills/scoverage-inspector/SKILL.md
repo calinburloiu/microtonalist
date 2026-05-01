@@ -100,6 +100,16 @@ Use `coverageModules` (varargs) so the whole set runs in one
 paying that cost per module. This command is defined in
 `project/Coverage.scala`.
 
+**Per-module-only by design — caller tests are excluded.** `coverageModules <m>`
+runs only `<m>/test`, so the report reflects what `<m>`'s own tests cover, not
+what the entire codebase covers. If the user wants `Scale`'s coverage including
+all callers (e.g. tests in `composition` or `tuner` that exercise `Scale`),
+that's a different question — point them to `sbt coverageAll`, which produces
+an aggregate report at `coverage-reports/root/scoverage-report/` that combines
+each module's tests with its dependents'. The freshness script intentionally
+ignores edits in dependent modules because re-running `coverageModules <m>`
+after such an edit would produce identical numbers.
+
 **Do not** run `sbt coverageClean` first — the `clean` at the start of
 `coverageModules` already wipes stale instrumentation under
 `target/scoverage-data`, and the trailing `clean` removes instrumented
