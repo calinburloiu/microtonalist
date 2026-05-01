@@ -104,11 +104,18 @@ paying that cost per module. This command is defined in
 runs only `<m>/test`, so the report reflects what `<m>`'s own tests cover, not
 what the entire codebase covers. If the user wants `Scale`'s coverage including
 all callers (e.g. tests in `composition` or `tuner` that exercise `Scale`),
-that's a different question — point them to `sbt coverageAll`, which produces
-an aggregate report at `coverage-reports/root/scoverage-report/` that combines
-each module's tests with its dependents'. The freshness script intentionally
-ignores edits in dependent modules because re-running `coverageModules <m>`
-after such an edit would produce identical numbers.
+they want the **aggregate** report instead:
+
+- Run `sbt coverageAll` (no `coverageModules` shortcut covers this case — the
+  aggregate is built by `coverageAggregate` from every module's report).
+- Then pass `--aggregate` to all four scripts (see step 4). The scripts then
+  read `coverage-reports/root/scoverage-report/scoverage.xml` and the freshness
+  check considers edits in **any** module, since any change can move the
+  aggregate numbers.
+
+Without `--aggregate`, the freshness script intentionally ignores edits in
+dependent modules because re-running `coverageModules <m>` after such an edit
+would produce identical numbers.
 
 **Do not** run `sbt coverageClean` first — the `clean` at the start of
 `coverageModules` already wipes stale instrumentation under
@@ -127,22 +134,30 @@ All three readers stream the XML with `xml.etree.iterparse` (constant
 memory, terse output). Pick the script that matches the question — don't
 print everything by default.
 
+Add `--aggregate` to any of these scripts when the user wants caller-test
+coverage (see the note in step 3). Without `--aggregate` the script reads
+the per-module report; with it, the script reads
+`coverage-reports/root/scoverage-report/scoverage.xml`. The `<module>` arg
+stays in the same position either way; in aggregate mode it's used to
+filter the module summary to that module's classes (and is informational
+for the per-class scripts, which look up by FQN).
+
 **Module overview** — overall + one line per class:
 
 ```bash
-python3 .claude/skills/scoverage-inspector/scripts/module_summary.py <module>
+python3 .claude/skills/scoverage-inspector/scripts/module_summary.py <module> [--aggregate]
 ```
 
 **Single class, percentages only** (overall + per-method):
 
 ```bash
-python3 .claude/skills/scoverage-inspector/scripts/class_summary.py <module> <FQN>
+python3 .claude/skills/scoverage-inspector/scripts/class_summary.py <module> <FQN> [--aggregate]
 ```
 
 **Single class, uncovered source lines only** (compressed ranges):
 
 ```bash
-python3 .claude/skills/scoverage-inspector/scripts/class_uncovered_lines.py <module> <FQN>
+python3 .claude/skills/scoverage-inspector/scripts/class_uncovered_lines.py <module> <FQN> [--aggregate]
 ```
 
 The summary and uncovered-lines scripts are split intentionally — when

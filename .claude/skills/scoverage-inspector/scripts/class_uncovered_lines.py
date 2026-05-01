@@ -2,7 +2,12 @@
 """Print compressed source-line ranges for uncovered statements in a class.
 
 Usage:
-    class_uncovered_lines.py <module> <fully.qualified.ClassName> [--root REPO]
+    class_uncovered_lines.py <module> <fully.qualified.ClassName> [--root REPO] [--aggregate]
+
+Per-module mode (default): reads coverage-reports/<module>/scoverage-report/scoverage.xml.
+Aggregate mode (--aggregate): reads coverage-reports/root/scoverage-report/scoverage.xml,
+which factors in tests from modules that depend on <module>. The <module> arg is
+informational in aggregate mode.
 
 Output:
     class=<FQN>  file=<path>
@@ -45,9 +50,15 @@ def main() -> int:
     parser.add_argument("module")
     parser.add_argument("fqn")
     parser.add_argument("--root", default=os.getcwd())
+    parser.add_argument(
+        "--aggregate",
+        action="store_true",
+        help="read the cross-module aggregate report at coverage-reports/root/",
+    )
     args = parser.parse_args()
 
-    xml = Path(args.root) / "coverage-reports" / args.module / "scoverage-report" / "scoverage.xml"
+    report_module = "root" if args.aggregate else args.module
+    xml = Path(args.root) / "coverage-reports" / report_module / "scoverage-report" / "scoverage.xml"
     if not xml.exists():
         print(f"error: {xml} does not exist", file=sys.stderr)
         return 2
