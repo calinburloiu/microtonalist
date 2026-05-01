@@ -226,7 +226,7 @@ exception to the "prefer `sbtn`" rule above.
 After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
 scoverage leaves in the active `target` tree. Leaving instrumented binaries around will make any subsequent
 `sbtn run` / `sbtn assembly` invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use
-`sbt clean` after a project-wide coverage run, or `sbt "<module>/clean"` after a single-module run.
+`sbt clean` after a coverage run.
 
 ```bash
 sbt coverageAll
@@ -235,7 +235,7 @@ sbt clean
 
 ```bash
 sbt "coverageModules intonation"
-sbt "intonation/clean"
+sbt "clean"
 ```
 
 ```bash
