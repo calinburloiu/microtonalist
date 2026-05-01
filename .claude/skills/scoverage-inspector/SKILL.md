@@ -90,33 +90,43 @@ unrelated modules' reports for no benefit.
 question — that runs every module's tests and is exactly what
 `coverageModules` exists to avoid.
 
-### 4. Read only what was asked
+### 4. Delegate script execution to a Haiku subagent
 
-All three readers stream the XML with `xml.etree.iterparse` (constant
-memory, terse output). Pick the script that matches the question — don't
-print everything by default.
+Running the inspection scripts is purely mechanical — no reasoning needed.
+Spawn a **Haiku** subagent via the `Agent` tool so the cheap work stays out
+of your (more expensive) main context turns:
 
-**Module overview** — overall + one line per class:
+```
+Agent(
+  subagent_type = "general-purpose",
+  model         = "haiku",
+  prompt        = """
+You are a coverage-report reader. In the repo at <absolute-path-to-repo>,
+run each of the following commands exactly and return their complete stdout.
+Do nothing else.
 
-```bash
-python3 .claude/skills/scoverage-inspector/scripts/module_summary.py <module>
+<commands>
+python3 .claude/skills/scoverage-inspector/scripts/<script> <args>
+...
+</commands>
+"""
+)
 ```
 
-**Single class, percentages only** (overall + per-method):
+Batch all the scripts you need for this query into one agent call — one
+Haiku invocation per question, not one per script. The agent returns a few
+hundred bytes of text; use that as your source of truth.
 
-```bash
-python3 .claude/skills/scoverage-inspector/scripts/class_summary.py <module> <FQN>
-```
+Available scripts and when to use each:
 
-**Single class, uncovered source lines only** (compressed ranges):
+| Script | When |
+|---|---|
+| `module_summary.py <module>` | User asked for a module overview |
+| `class_summary.py <module> <FQN>` | User needs stmt/branch % for one class |
+| `class_uncovered_lines.py <module> <FQN>` | User needs uncovered lines for one class |
 
-```bash
-python3 .claude/skills/scoverage-inspector/scripts/class_uncovered_lines.py <module> <FQN>
-```
-
-The summary and uncovered-lines scripts are split intentionally — when
-you only need percentages, don't pay for streaming every uncovered
-statement, and vice versa.
+When you need both summary and uncovered lines for the same class, include
+both commands in the single Haiku prompt — don't spawn two agents.
 
 ### 5. Cite findings as `file:line`
 
