@@ -212,9 +212,10 @@ configured threshold still holds and that any new files meet the 80% target. Pic
 - **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
   plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
   modules.
-- **Smaller changes scoped to a single module** — run `sbt "coverageModule <module>"`, where `<module>` is the sbt
-  project ID (e.g. `intonation`, `tuner`, `appConfig`). Only the named module's tests run, so coverage is not
-  inflated by tests from other modules exercising the same code.
+- **Smaller changes scoped to one or a few modules** — run `sbt "coverageModules <module> [<module> ...]"`, where each
+  `<module>` is an sbt project ID (e.g. `intonation`, `tuner`, `appConfig`). At least one module must be supplied. Only
+  the listed modules' tests run, so coverage is not inflated by tests from other modules exercising the same code, and
+  all listed modules share a single coverage session rather than paying the clean+instrument cost per module.
 
 Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
 There is also a `coverageCheck` command used by CI.
@@ -230,7 +231,11 @@ sbt coverageAll
 ```
 
 ```bash
-sbt "coverageModule intonation"
+sbt "coverageModules intonation"
+```
+
+```bash
+sbt "coverageModules tuner intonation"
 ```
 
 Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
