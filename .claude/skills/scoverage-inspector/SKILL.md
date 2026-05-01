@@ -106,8 +106,14 @@ what the entire codebase covers. If the user wants `Scale`'s coverage including
 all callers (e.g. tests in `composition` or `tuner` that exercise `Scale`),
 they want the **aggregate** report instead:
 
-- Run `sbt coverageAll` (no `coverageModules` shortcut covers this case — the
-  aggregate is built by `coverageAggregate` from every module's report).
+- Run it the same way as `coverageModules`, teeing to the same log file:
+
+  ```bash
+  mkdir -p logs/skills/scoverage-inspector && sbt coverageAll 2>&1 | tee logs/skills/scoverage-inspector/last-sbt-run.log
+  ```
+
+  No `coverageModules` shortcut covers this case — the aggregate is built by
+  `coverageAggregate` from every module's report, so `coverageAll` is required.
 - Then pass `--aggregate` to all four scripts (see step 4). The scripts then
   read `coverage-reports/root/scoverage-report/scoverage.xml` and the freshness
   check considers edits in **any** module, since any change can move the
