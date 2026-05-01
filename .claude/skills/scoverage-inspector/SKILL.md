@@ -13,26 +13,42 @@ description: |
 
 # scoverage-inspector
 
+## For the main agent: delegate to Haiku
+
+When this skill triggers, **do not execute the workflow yourself**. Instead,
+spawn a single Haiku subagent that executes the full workflow and returns the
+answer. This keeps all the mechanical tool calls (Metals MCP, Bash, script
+reads) out of your expensive main-agent turns.
+
+```
+Agent(
+  subagent_type = "general-purpose",
+  model         = "haiku",
+  prompt        = """
+You are executing a coverage inspection for the microtonalist Scala project.
+
+User's question: <USER_QUESTION_VERBATIM>
+
+Repo root: <ABSOLUTE_CWD>
+
+Read the Workflow section of `<ABSOLUTE_CWD>/.claude/skills/scoverage-inspector/SKILL.md`
+and follow it exactly to answer the user's question. Return a concise answer
+with coverage percentages and uncovered line numbers cited as `file:line`.
+"""
+)
+```
+
+Return Haiku's response verbatim. Do not add your own commentary.
+
+---
+
+## Workflow (executed by the Haiku subagent)
+
 Helps you answer "is this class covered, and where are the gaps?" without
 slurping `coverage-reports/<module>/scoverage-report/scoverage.xml` (~3000
 lines / ~200 KB per module) into the conversation. The XML has no
 off-the-shelf summary CLI, so this skill bundles four small Python stdlib
 scripts that stream the file and emit a few hundred bytes each.
-
-## When to use this skill
-
-- The user asks about coverage of one or more specific classes/files.
-- The user asks how the coverage of a module looks overall.
-- After you edit Scala code, before reporting the task done, to verify the
-  module's `coverageMinimumStmtTotal` / `coverageMinimumBranchTotal` floor
-  in `build.sbt` still holds and any new files meet the 80% target.
-- Any "what's missing in tests for X" / "where are the uncovered lines"
-  question.
-
-If the user only asks for a full project run (e.g. "run `sbt coverageAll`"),
-defer to that — this skill is for *focused* coverage inspection.
-
-## Workflow
 
 ### 1. Resolve target classes → sbt module IDs
 
@@ -90,43 +106,33 @@ unrelated modules' reports for no benefit.
 question — that runs every module's tests and is exactly what
 `coverageModules` exists to avoid.
 
-### 4. Delegate script execution to a Haiku subagent
+### 4. Read only what was asked
 
-Running the inspection scripts is purely mechanical — no reasoning needed.
-Spawn a **Haiku** subagent via the `Agent` tool so the cheap work stays out
-of your (more expensive) main context turns:
+All three readers stream the XML with `xml.etree.iterparse` (constant
+memory, terse output). Pick the script that matches the question — don't
+print everything by default.
 
-```
-Agent(
-  subagent_type = "general-purpose",
-  model         = "haiku",
-  prompt        = """
-You are a coverage-report reader. In the repo at <absolute-path-to-repo>,
-run each of the following commands exactly and return their complete stdout.
-Do nothing else.
+**Module overview** — overall + one line per class:
 
-<commands>
-python3 .claude/skills/scoverage-inspector/scripts/<script> <args>
-...
-</commands>
-"""
-)
+```bash
+python3 .claude/skills/scoverage-inspector/scripts/module_summary.py <module>
 ```
 
-Batch all the scripts you need for this query into one agent call — one
-Haiku invocation per question, not one per script. The agent returns a few
-hundred bytes of text; use that as your source of truth.
+**Single class, percentages only** (overall + per-method):
 
-Available scripts and when to use each:
+```bash
+python3 .claude/skills/scoverage-inspector/scripts/class_summary.py <module> <FQN>
+```
 
-| Script | When |
-|---|---|
-| `module_summary.py <module>` | User asked for a module overview |
-| `class_summary.py <module> <FQN>` | User needs stmt/branch % for one class |
-| `class_uncovered_lines.py <module> <FQN>` | User needs uncovered lines for one class |
+**Single class, uncovered source lines only** (compressed ranges):
 
-When you need both summary and uncovered lines for the same class, include
-both commands in the single Haiku prompt — don't spawn two agents.
+```bash
+python3 .claude/skills/scoverage-inspector/scripts/class_uncovered_lines.py <module> <FQN>
+```
+
+The summary and uncovered-lines scripts are split intentionally — when
+you only need percentages, don't pay for streaming every uncovered
+statement, and vice versa.
 
 ### 5. Cite findings as `file:line`
 
@@ -152,6 +158,8 @@ renders as a clickable location. Do not paste raw XML into the response.
 
 User: "Are `Scale` and `MtsTuner` well covered? Where are the gaps?"
 
+Main agent spawns a Haiku subagent with that question. Haiku:
+
 1. `mcp__metals__inspect` resolves `org.calinburloiu.music.intonation.Scale`
    → `intonation/src/main/scala/...` → module `intonation`.
 2. `mcp__metals__inspect` resolves
@@ -161,4 +169,6 @@ User: "Are `Scale` and `MtsTuner` well covered? Where are the gaps?"
 5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`
    then `class_uncovered_lines.py intonation ...Scale`.
 6. Same pair for `MtsTuner` in `tuner`.
-7. Report numbers per class and cite uncovered lines as `file:line`.
+7. Returns numbers per class with uncovered lines as `file:line`.
+
+Main agent returns Haiku's answer verbatim.
