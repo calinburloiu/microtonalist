@@ -212,25 +212,35 @@ configured threshold still holds and that any new files meet the 80% target. Pic
 - **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
   plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
   modules.
-- **Smaller changes scoped to a single module** — run `sbt "coverageModule <module>"`, where `<module>` is the sbt
-  project ID (e.g. `intonation`, `tuner`, `appConfig`). Only the named module's tests run, so coverage is not
-  inflated by tests from other modules exercising the same code.
+- **Smaller changes scoped to one or a few modules** — run `sbt "coverageModules <module> [<module> ...]"`, where
+  each `<module>` is an sbt project ID (e.g. `intonation`, `tuner`, `appConfig`). At least one module must be
+  supplied. Only the listed modules' tests run, so coverage is not inflated by tests from other modules exercising
+  the same code, and all listed modules share a single coverage session.
 
-Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
-There is also a `coverageCheck` command used by CI.
+Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details
+and the bugs they work around. There is also a `coverageCheck` command used by CI.
 
-**Coverage commands currently do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is
-the one exception to the "prefer `sbtn`" rule above.
+**Coverage commands do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is the one
+exception to the "prefer `sbtn`" rule above.
 
-Each command ends with a `clean` that removes instrumented `.class`/`.tasty` files from `target/` automatically,
-so no manual clean is needed after a coverage run.
+After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
+scoverage leaves in the active `target` tree. Leaving instrumented binaries around will make any subsequent
+`sbt run` / `sbt assembly` invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use
+`sbt clean` after a coverage run.
 
 ```bash
 sbt coverageAll
+sbt clean
 ```
 
 ```bash
-sbt "coverageModule intonation"
+sbt "coverageModules intonation"
+sbt "clean"
+```
+
+```bash
+sbt "coverageModules tuner intonation"
+sbt clean
 ```
 
 Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
