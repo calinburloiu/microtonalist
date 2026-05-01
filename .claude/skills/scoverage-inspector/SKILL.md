@@ -92,7 +92,7 @@ If everything is fresh, skip step 3 entirely and go straight to step 4.
 ### 3. Run coverage for stale/missing modules — single batched invocation
 
 ```bash
-sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/scoverage-inspector-skill-last-sbt-run.log
+mkdir -p logs/skills/scoverage-inspector && sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/last-sbt-run.log
 ```
 
 Use `coverageModules` (varargs) so the whole set runs in one
@@ -170,7 +170,7 @@ Main agent spawns a Haiku subagent with that question. Haiku:
 2. `mcp__metals__inspect` resolves
    `org.calinburloiu.music.microtonalist.tuner.MtsTuner` → module `tuner`.
 3. `coverage_freshness.py intonation` → 0; `coverage_freshness.py tuner` → 1.
-4. `sbt "coverageModules tuner" 2>&1 | tee logs/scoverage-inspector-skill-last-sbt-run.log` (intonation skipped — already fresh).
+4. `sbt "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/last-sbt-run.log` (intonation skipped — already fresh).
 5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`
    then `class_uncovered_lines.py intonation ...Scale`.
 6. Same pair for `MtsTuner` in `tuner`.
