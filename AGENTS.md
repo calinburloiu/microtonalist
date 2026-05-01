@@ -209,33 +209,36 @@ needed to reach 80%.
 **Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
 configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
 
-- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
+- **Larger or multi-module changes** — run the full project-wide workflow with `sbtn coverageAll`. Per-module reports
   plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
   modules.
-- **Smaller changes scoped to one or a few modules** — run `sbt "coverageModules <module> [<module> ...]"`, where each
-  `<module>` is an sbt project ID (e.g. `intonation`, `tuner`, `appConfig`). At least one module must be supplied. Only
-  the listed modules' tests run, so coverage is not inflated by tests from other modules exercising the same code, and
-  all listed modules share a single coverage session rather than paying the clean+instrument cost per module.
+- **Smaller changes scoped to one or a few modules** — run `sbtn "coverageModules <module> [<module> ...]"`, where
+  each `<module>` is an sbt project ID (e.g. `intonation`, `tuner`, `appConfig`). At least one module must be
+  supplied. Only the listed modules' tests run, so coverage is not inflated by tests from other modules exercising
+  the same code, and all listed modules share a single coverage session.
 
-Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
-There is also a `coverageCheck` command used by CI.
+Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details
+and the bugs they work around. They are server-side commands, so `sbtn` relays them to the running BSP server
+exactly as a direct `sbt` invocation would. There is also a `coverageCheck` command used by CI.
 
-**Coverage commands currently do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is
-the one exception to the "prefer `sbtn`" rule above.
-
-Each command ends with a `clean` that removes instrumented `.class`/`.tasty` files from `target/` automatically,
-so no manual clean is needed after a coverage run.
+After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
+scoverage leaves in the active `target` tree. Leaving instrumented binaries around will make any subsequent
+`sbtn run` / `sbtn assembly` invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use
+`sbtn clean` after a project-wide coverage run, or `sbtn "<module>/clean"` after a single-module run.
 
 ```bash
-sbt coverageAll
+sbtn coverageAll
+sbtn clean
 ```
 
 ```bash
-sbt "coverageModules intonation"
+sbtn "coverageModules intonation"
+sbtn "intonation/clean"
 ```
 
 ```bash
-sbt "coverageModules tuner intonation"
+sbtn "coverageModules tuner intonation"
+sbtn clean
 ```
 
 Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
