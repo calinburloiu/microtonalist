@@ -116,17 +116,21 @@ Create the log directory once before the first sbt invocation:
 mkdir -p logs/skills/scoverage-inspector
 ```
 
+All sbt coverage commands must be run with `-Dmicrotonalist.targetSuffix=-scoverage` which forces the target
+subdirectories to have `-scoverage` suffix, being named `target-scoverage` instead of `target`. This avoids clashes with
+concurrent builds that are not instrumented for coverage such as a build from an IDE.
+
 Initial run (`N=1`):
 
 ```bash
-sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log
+sbt -Dmicrotonalist.targetSuffix=-scoverage "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log
 ```
 
 Retry run (`N=2`), only if the initial failure matches the TASTy/companion-class
 symptoms described in the failure-handling subsection below:
 
 ```bash
-sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-2.log
+sbt -Dmicrotonalist.targetSuffix=-scoverage "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-2.log
 ```
 
 Use `coverageModules` (varargs) so the whole set runs in one
@@ -143,7 +147,7 @@ they want the **aggregate** report instead:
 - Run it the same way as `coverageModules`, using the numbered log scheme:
 
   ```bash
-  sbt coverageAll 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log
+  sbt -Dmicrotonalist.targetSuffix=-scoverage coverageAll 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log
   ```
 
   No `coverageModules` shortcut covers this case — the aggregate is built by
@@ -173,14 +177,14 @@ Without `--aggregate`, the freshness script intentionally ignores edits in
 dependent modules because re-running `coverageModules <m>` after such an edit
 would produce identical numbers.
 
-**Do not** run `sbt coverageClean` first — the `clean` at the start of
+**Do not** run `sbt -Dmicrotonalist.targetSuffix=-scoverage coverageClean` first — the `clean` at the start of
 `coverageModules` already wipes stale instrumentation under
 `target/scoverage-data`, and the trailing `clean` removes instrumented
 `.class`/`.tasty` files. `coverage-reports/` lives outside `target/` and
 is preserved on purpose. Forcing `coverageClean` would just invalidate
 unrelated modules' reports for no benefit.
 
-**Do not** use `sbt coverageAll` for a focused "check these classes"
+**Do not** use `sbt -Dmicrotonalist.targetSuffix=-scoverage coverageAll` for a focused "check these classes"
 question — that runs every module's tests and is exactly what
 `coverageModules` exists to avoid.
 
@@ -190,14 +194,14 @@ All three readers stream the XML with `xml.etree.iterparse` (constant
 memory, terse output). Run **only the script(s) that directly answer the
 question** — never run a script whose output the user did not ask for:
 
-| User asks for…                              | Script(s) to run                                    |
-|---------------------------------------------|-----------------------------------------------------|
-| Module-level percentage(s) only             | `module_summary.py … --overall-only`                |
-| Module overview with per-class breakdown    | `module_summary.py …`                               |
-| A class's percentage(s) only               | `class_summary.py … --overall-only`                 |
-| A class's percentages + method breakdown    | `class_summary.py …`                                |
-| Where are the gaps / uncovered lines        | `class_uncovered_lines.py …`                        |
-| Both percentages AND gaps for a class       | `class_summary.py …` **then** `class_uncovered_lines.py …` |
+| User asks for…                           | Script(s) to run                                           |
+|------------------------------------------|------------------------------------------------------------|
+| Module-level percentage(s) only          | `module_summary.py … --overall-only`                       |
+| Module overview with per-class breakdown | `module_summary.py …`                                      |
+| A class's percentage(s) only             | `class_summary.py … --overall-only`                        |
+| A class's percentages + method breakdown | `class_summary.py …`                                       |
+| Where are the gaps / uncovered lines     | `class_uncovered_lines.py …`                               |
+| Both percentages AND gaps for a class    | `class_summary.py …` **then** `class_uncovered_lines.py …` |
 
 Add `--aggregate` to any of these scripts when the user wants caller-test
 coverage (see the note in step 3). Without `--aggregate` the script reads
@@ -276,8 +280,8 @@ Main agent spawns a Haiku subagent with that question. Haiku:
    `org.calinburloiu.music.microtonalist.tuner.MtsTuner` → module `tuner`.
 3. `coverage_freshness.py intonation` → 0; `coverage_freshness.py tuner` → 1.
 4. `mkdir -p logs/skills/scoverage-inspector`, then
-   `sbt "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log` (intonation skipped — already
-   fresh).
+   `sbt -Dmicrotonalist.targetSuffix=-scoverage "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log` (
+   intonation skipped — already fresh).
 5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`,
    then `class_uncovered_lines.py intonation ...Scale`.
 6. Same pair for `MtsTuner` in `tuner`.
