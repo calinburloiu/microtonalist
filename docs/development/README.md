@@ -51,6 +51,30 @@ Verify:
 sbt --version
 ```
 
+### Python 3 (optional, for AI-assisted coverage tooling)
+
+Python ≥ 3.10 is needed only by the `scoverage-inspector` Claude Code skill, which ships small helper scripts that
+parse `coverage-reports/*/scoverage-report/scoverage.xml` cheaply. The scripts use the standard library only — no
+`pip install` or virtualenv is required.
+
+macOS 14+ ships Python 3 by default. Otherwise:
+
+```bash
+# Homebrew (macOS)
+brew install python
+
+# SDKMAN!
+sdk install java  # for reference; for Python prefer Homebrew/pyenv
+```
+
+Verify:
+
+```bash
+python3 --version
+```
+
+You can skip this entirely if you don't use the skill.
+
 ### Coursier (optional, for Metals)
 
 [Coursier](https://get-coursier.io/docs/cli-installation) is needed to install Metals for Claude Code integration. If

@@ -204,39 +204,16 @@ needed to reach 80%.
   current threshold. The per-module floor exists to track legacy code paying down toward 80%; it is not a license for
   newly authored code to ship under-tested.
 
-## Running coverage
+For coverage inquiries — checking a class's coverage, finding gaps, verifying a module still meets its threshold —
+use the `scoverage-inspector` skill rather than running `sbt coverage…` by hand.
 
-**Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
-configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
+Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage + Scala 3 bug
+documented in [`docs/development/scoverage-issue.md`](docs/development/scoverage-issue.md). If the
+`scoverage-inspector` skill reports such a failure, **stop and wait for user input** rather than retrying or
+modifying code.
 
-- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
-  plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
-  modules.
-- **Smaller changes scoped to a single module** — run `sbt "coverageModule <module>"`, where `<module>` is the sbt
-  project ID (e.g. `intonation`, `tuner`, `appConfig`). Only the named module's tests run, so coverage is not
-  inflated by tests from other modules exercising the same code.
-
-Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
-There is also a `coverageCheck` command used by CI.
-
-**Coverage commands currently do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is
-the one exception to the "prefer `sbtn`" rule above.
-
-Each command ends with a `clean` that removes instrumented `.class`/`.tasty` files from `target/` automatically,
-so no manual clean is needed after a coverage run.
-
-```bash
-sbt coverageAll
-```
-
-```bash
-sbt "coverageModule intonation"
-```
-
-Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
-via `coverageDataDir` in `build.sbt`); the aggregate is at `coverage-reports/root/scoverage-report/`. The
-`coverage-reports/` directory lives outside `target/`, so `sbt clean` does **not** wipe it — reports remain
-browsable after the post-coverage cleanup. Run `sbt coverageClean` to discard the persisted reports explicitly.
+For the manual `sbt coverageAll` / `sbt coverageModules` workflow (running coverage outside the skill, CI's
+`coverageCheck`, post-run `clean` rules), see [`docs/development/coverage.md`](docs/development/coverage.md).
 
 ## Shared test utilities
 
