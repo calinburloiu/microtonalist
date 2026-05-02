@@ -217,8 +217,13 @@ configured threshold still holds and that any new files meet the 80% target. Pic
   supplied. Only the listed modules' tests run, so coverage is not inflated by tests from other modules exercising
   the same code, and all listed modules share a single coverage session.
 
-Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details
-and the bugs they work around. There is also a `coverageCheck` command used by CI.
+Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
+There is also a `coverageCheck` command used by CI.
+
+The two-pass workflow exists to work around a known sbt-scoverage + Scala 3 multi-module compile bug. If a coverage
+command fails with TASTy/companion-class errors, `Not found: type X`, or `NoClassDefFoundError` at test runtime, see
+[`docs/development/scoverage-issue.md`](docs/development/scoverage-issue.md) before assuming it is a code defect — the
+typical response is to retry the command, not to change source code.
 
 **Coverage commands do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is the one
 exception to the "prefer `sbtn`" rule above.
