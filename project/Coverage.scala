@@ -39,10 +39,11 @@ import scoverage.ScoverageKeys.coverageEnabled
  * code. At least one module must be supplied. All listed modules' tests run inside a single `coverage` session,
  * then each produces its own `coverageReport`.
  *
- * `coverageClean` deletes the `coverage-reports/` directory at the repo root. The reports directory is
- * configured via `coverageDataDir` in `build.sbt` to live outside `target/` so it survives `sbt clean`
- * (which is recommended after a coverage run to remove instrumented `.class`/`.tasty` files). Use
- * `coverageClean` when you want to discard the persisted reports themselves.
+ * `coverageClean` deletes both the `coverage-reports/` directory at the repo root and every per-project
+ * `target-scoverage/` directory. `coverage-reports/` is configured via `coverageDataDir` in `build.sbt` to live
+ * outside `target/` so it survives `sbt clean`. `target-scoverage/` holds the instrumented `.class`/`.tasty`
+ * files produced during coverage runs (see target isolation below). Use `coverageClean` when you want to discard
+ * all coverage artefacts — reports and instrumented class files — in one shot.
  *
  * `coverageCheck` is intended for CI: it runs the same two-pass workflow as `coverageAll`
  * but disables HTML and Cobertura report output for speed. XML output is kept on because
@@ -50,8 +51,16 @@ import scoverage.ScoverageKeys.coverageEnabled
  * thresholds are enforced by `coverageReport` (each subproject with `coverageFailOnMinimum`)
  * and the aggregate threshold by `coverageAggregate` against the root project's settings.
  *
- * All three commands snapshot the settings they modify — `Global / concurrentRestrictions`
- * and per-project `coverageEnabled` — on entry, and `coverageAllRestore` re-applies the
+ * == Target isolation ==
+ *
+ * All three commands redirect every project's `target` to `<project-base>/target-scoverage/` for the duration of
+ * the run, regardless of the `microtonalist.targetSuffix` system property. This keeps instrumented class files
+ * completely separate from the regular (`target/`) and BSP (`target-bsp/`) trees so that neither `sbt clean` nor
+ * the Metals incremental compiler ever sees instrumented bytecode. `coverageAllRestore` resets `target` to its
+ * original value at the end.
+ *
+ * All three commands snapshot the settings they modify — `Global / concurrentRestrictions`,
+ * per-project `coverageEnabled`, and per-project `target` — on entry, and `coverageAllRestore` re-applies the
  * snapshot at the end. `coverageCheck` additionally toggles `coverageOutputHTML` /
  * `coverageOutputCobertura` for the duration of the run; those are not snapshotted because
  * CI invocations are one-shot, but a local user can `reload` to drop them.
@@ -61,6 +70,8 @@ object Coverage {
   val commands: Seq[Command] =
     Seq(coverageAll, coverageModules, coverageCheck, coverageClean, coverageAllRestore)
 
+  private val coverageTargetName = "target-scoverage"
+
   private val savedRestrictions = AttributeKey[Seq[Tags.Rule]](
     "coverageAllSavedRestrictions",
     "Snapshot of Global / concurrentRestrictions captured on coverageAll entry.",
@@ -69,6 +80,11 @@ object Coverage {
   private val savedCoverageEnabled = AttributeKey[Map[ProjectRef, Boolean]](
     "coverageAllSavedCoverageEnabled",
     "Snapshot of per-project coverageEnabled values captured on coverageAll entry.",
+  )
+
+  private val savedTargets = AttributeKey[Map[ProjectRef, File]](
+    "coverageAllSavedTargets",
+    "Snapshot of per-project target directories captured on coverageAll entry.",
   )
 
   private def coverageAll: Command = Command.command("coverageAll") { state =>
@@ -120,15 +136,29 @@ object Coverage {
   }
 
   private def coverageClean: Command = Command.command("coverageClean") { state =>
-    val baseDir = Project.extract(state).get(LocalRootProject / baseDirectory)
-    val reportsDir = baseDir / "coverage-reports"
+    val extracted = Project.extract(state)
+    val data = extracted.structure.data
+    val baseDir = extracted.get(LocalRootProject / baseDirectory)
     val log = state.globalLogging.full
+
+    val reportsDir = baseDir / "coverage-reports"
     if (reportsDir.exists()) {
       IO.delete(reportsDir)
       log.info(s"Deleted $reportsDir")
     } else {
       log.info(s"$reportsDir does not exist; nothing to delete")
     }
+
+    extracted.structure.allProjectRefs.foreach { ref =>
+      (ref / baseDirectory).get(data).foreach { projBaseDir =>
+        val targetDir = projBaseDir / coverageTargetName
+        if (targetDir.exists()) {
+          IO.delete(targetDir)
+          log.info(s"Deleted $targetDir")
+        }
+      }
+    }
+
     state
   }
 
@@ -139,9 +169,23 @@ object Coverage {
     val originalCoverageEnabled = extracted.structure.allProjectRefs.flatMap { ref =>
       (ref / coverageEnabled).get(data).map(ref -> _)
     }.toMap
-    state
+    val originalTargets = extracted.structure.allProjectRefs.flatMap { ref =>
+      (ref / target).get(data).map(ref -> _)
+    }.toMap
+
+    val stateWithSnapshots = state
       .put(savedRestrictions, originalRestrictions)
       .put(savedCoverageEnabled, originalCoverageEnabled)
+      .put(savedTargets, originalTargets)
+
+    val targetSettings: Seq[Setting[?]] = extracted.structure.allProjectRefs.flatMap { ref =>
+      (ref / baseDirectory).get(data).map { baseDir =>
+        ref / target := baseDir / coverageTargetName
+      }
+    }
+
+    if (targetSettings.isEmpty) stateWithSnapshots
+    else extracted.appendWithSession(targetSettings, stateWithSnapshots)
   }
 
   private def coverageAllRestore: Command = Command.command("coverageAllRestore") { state =>
@@ -154,10 +198,15 @@ object Coverage {
       state.attributes.get(savedCoverageEnabled)
         .map(_.toSeq.map { case (ref, value) => ref / coverageEnabled := value })
         .getOrElse(Seq.empty)
+    val targetSettings: Seq[Setting[?]] =
+      state.attributes.get(savedTargets)
+        .map(_.toSeq.map { case (ref, value) => ref / target := value })
+        .getOrElse(Seq.empty)
     val cleanState = state
       .remove(savedRestrictions)
       .remove(savedCoverageEnabled)
-    val toApply = restrictionsSetting ++ coverageEnabledSettings
+      .remove(savedTargets)
+    val toApply = restrictionsSetting ++ coverageEnabledSettings ++ targetSettings
     if (toApply.isEmpty) cleanState
     else extracted.appendWithSession(toApply, cleanState)
   }

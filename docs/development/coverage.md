@@ -45,27 +45,25 @@ is to retry the command, not to change source code.
 **Coverage commands do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is the one
 exception to the "prefer `sbtn`" rule in `AGENTS.md`.
 
-After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
-scoverage leaves in the active `target` tree. Leaving instrumented binaries around will make any subsequent
-`sbt run` / `sbt assembly` invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use
-`sbt clean` after a coverage run.
+Coverage commands redirect every project's `target` to `target-scoverage/` for the duration of the run,
+regardless of the `microtonalist.targetSuffix` system property. This keeps instrumented `.class`/`.tasty` files
+completely separate from the regular `target/` and BSP `target-bsp/` trees, so **no post-run `sbt clean` is
+required** — neither the incremental compiler nor `sbt run` / `sbt assembly` will see instrumented bytecode.
 
 ```bash
 sbt coverageAll
-sbt clean
 ```
 
 ```bash
 sbt "coverageModules intonation"
-sbt "clean"
 ```
 
 ```bash
 sbt "coverageModules tuner intonation"
-sbt clean
 ```
 
 Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
-via `coverageDataDir` in `build.sbt`); the aggregate is at `coverage-reports/root/scoverage-report/`. The
-`coverage-reports/` directory lives outside `target/`, so `sbt clean` does **not** wipe it — reports remain
-browsable after the post-coverage cleanup. Run `sbt coverageClean` to discard the persisted reports explicitly.
+via `coverageDataDir` in `build.sbt`); the aggregate is at `coverage-reports/root/scoverage-report/`. Both
+`coverage-reports/` and the per-project `target-scoverage/` directories live outside the normal `target/` tree, so
+`sbt clean` does **not** wipe them. Run `sbt coverageClean` to discard all coverage artefacts — reports and
+instrumented class files — in one shot.

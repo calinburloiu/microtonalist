@@ -207,13 +207,18 @@ needed to reach 80%.
 For coverage inquiries — checking a class's coverage, finding gaps, verifying a module still meets its threshold —
 use the `scoverage-inspector` skill rather than running `sbt coverage…` by hand.
 
+Coverage commands (`coverageAll`, `coverageModules`, `coverageCheck`) redirect every project's `target` to
+`target-scoverage/` for the duration of the run, keeping instrumented class files isolated from the regular and
+BSP trees. No `sbt clean` is needed after a coverage run; use `sbt coverageClean` to discard all coverage
+artefacts (reports and instrumented class files) when needed.
+
 Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage + Scala 3 bug
 documented in [`docs/development/scoverage-issue.md`](docs/development/scoverage-issue.md). If the
 `scoverage-inspector` skill reports such a failure, **stop and wait for user input** rather than retrying or
 modifying code.
 
 For the manual `sbt coverageAll` / `sbt coverageModules` workflow (running coverage outside the skill, CI's
-`coverageCheck`, post-run `clean` rules), see [`docs/development/coverage.md`](docs/development/coverage.md).
+`coverageCheck`, target isolation, and `coverageClean`), see [`docs/development/coverage.md`](docs/development/coverage.md).
 
 ## Shared test utilities
 
