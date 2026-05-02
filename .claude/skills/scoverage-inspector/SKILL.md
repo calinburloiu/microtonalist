@@ -275,8 +275,10 @@ Main agent spawns a Haiku subagent with that question. Haiku:
 2. `mcp__metals__inspect` resolves
    `org.calinburloiu.music.microtonalist.tuner.MtsTuner` → module `tuner`.
 3. `coverage_freshness.py intonation` → 0; `coverage_freshness.py tuner` → 1.
-4. `mkdir -p logs/skills/scoverage-inspector && sbt "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log` (intonation skipped — already fresh).
-5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`
+4. `mkdir -p logs/skills/scoverage-inspector`, then
+   `sbt "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log` (intonation skipped — already
+   fresh).
+5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`,
    then `class_uncovered_lines.py intonation ...Scale`.
 6. Same pair for `MtsTuner` in `tuner`.
 7. Returns numbers per class with uncovered lines as `file:line`.
