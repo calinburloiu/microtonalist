@@ -118,7 +118,7 @@ mkdir -p logs/skills/scoverage-inspector
 
 All sbt coverage commands must be run with `-Dmicrotonalist.targetSuffix=-scoverage` which forces the target
 subdirectories to have `-scoverage` suffix, being named `target-scoverage` instead of `target`. This avoids clashes with
-concurrent builds that are not instrumented for coverage such as a build from an IDE.
+concurrent builds that don't include code instrumented for coverage such as a build from an IDE.
 
 Initial run (`N=1`):
 
