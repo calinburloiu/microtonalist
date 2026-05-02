@@ -45,6 +45,8 @@ def main() -> int:
         return 2
 
     module_marker = f"/{args.module}/src/"
+    # When module is "root" in aggregate mode, include all classes (root has no source files of its own)
+    show_all_modules = args.aggregate and args.module == "root"
 
     aggregate_overall_stmt = aggregate_overall_branch = "?"
     rows: list[tuple[str, float, float, int, int, int]] = []
@@ -73,7 +75,7 @@ def main() -> int:
                 elem.clear()
             elif elem.tag == "class" and current_class is not None:
                 include = True
-                if args.aggregate:
+                if args.aggregate and not show_all_modules:
                     include = bool(class_source and module_marker in class_source)
                 if include:
                     rows.append((
@@ -90,7 +92,11 @@ def main() -> int:
 
     rows.sort(key=lambda r: (r[1], r[2], -r[3]))
 
-    if args.aggregate:
+    if args.aggregate and show_all_modules:
+        overall_stmt_str = aggregate_overall_stmt
+        overall_branch_str = aggregate_overall_branch
+        source = "root aggregate, all modules"
+    elif args.aggregate:
         total_stmts = sum(r[4] for r in rows)
         invoked_stmts = sum(r[5] for r in rows)
         if total_stmts:
