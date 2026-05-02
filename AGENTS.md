@@ -204,54 +204,16 @@ needed to reach 80%.
   current threshold. The per-module floor exists to track legacy code paying down toward 80%; it is not a license for
   newly authored code to ship under-tested.
 
-## Running coverage
+For coverage inquiries — checking a class's coverage, finding gaps, verifying a module still meets its threshold —
+use the `scoverage-inspector` skill rather than running `sbt coverage…` by hand.
 
-**Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
-configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
+Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage + Scala 3 bug
+documented in [`docs/development/scoverage-issue.md`](docs/development/scoverage-issue.md). If the
+`scoverage-inspector` skill reports such a failure, **stop and wait for user input** rather than retrying or
+modifying code.
 
-- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
-  plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
-  modules.
-- **Smaller changes scoped to one or a few modules** — run `sbt "coverageModules <module> [<module> ...]"`, where
-  each `<module>` is an sbt project ID (e.g. `intonation`, `tuner`, `appConfig`). At least one module must be
-  supplied. Only the listed modules' tests run, so coverage is not inflated by tests from other modules exercising
-  the same code, and all listed modules share a single coverage session.
-
-Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
-There is also a `coverageCheck` command used by CI.
-
-The two-pass workflow exists to work around a known sbt-scoverage + Scala 3 multi-module compile bug. If a coverage
-command fails with TASTy/companion-class errors, `Not found: type X`, or `NoClassDefFoundError` at test runtime, see
-[`docs/development/scoverage-issue.md`](docs/development/scoverage-issue.md) before assuming it is a code defect — the
-typical response is to retry the command, not to change source code.
-
-**Coverage commands do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is the one
-exception to the "prefer `sbtn`" rule above.
-
-After **every** coverage run, follow up with a `clean` to remove the instrumented `.class`/`.tasty` files that
-scoverage leaves in the active `target` tree. Leaving instrumented binaries around will make any subsequent
-`sbt run` / `sbt assembly` invocation fail at runtime with `NoClassDefFoundError: scoverage.Invoker$`. Use
-`sbt clean` after a coverage run.
-
-```bash
-sbt coverageAll
-sbt clean
-```
-
-```bash
-sbt "coverageModules intonation"
-sbt "clean"
-```
-
-```bash
-sbt "coverageModules tuner intonation"
-sbt clean
-```
-
-Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
-via `coverageDataDir` in `build.sbt`); the aggregate is at `coverage-reports/root/scoverage-report/`. The
-`coverage-reports/` directory lives outside `target/`, so `sbt clean` does **not** wipe it — reports remain
-browsable after the post-coverage cleanup. Run `sbt coverageClean` to discard the persisted reports explicitly.
+For the manual `sbt coverageAll` / `sbt coverageModules` workflow (running coverage outside the skill, CI's
+`coverageCheck`, post-run `clean` rules), see [`docs/development/coverage.md`](docs/development/coverage.md).
 
 ## Shared test utilities
 

@@ -36,6 +36,25 @@ helper scripts with RELATIVE paths from the repo root (e.g.
 `python3 .claude/skills/scoverage-inspector/scripts/coverage_freshness.py <module>`).
 Never construct absolute paths to the scripts.
 
+**You are read-only with one exception: you may write log files under
+`logs/skills/scoverage-inspector/`. You must not edit any other file —
+not source code, not config, not `build.sbt`, not the helper Python
+scripts, not this SKILL.md.**
+
+**If anything looks wrong — sbt failure, Python script error, suspicious
+0% coverage where 0% does not make sense, missing report, any unexpected
+output — stop and report it back to the main agent. Do not investigate
+or fix. The main agent (or user) will handle it.**
+
+**You may retry an `sbt coverage…` command at most once, and only if the
+failure mentions TASTy files, `error while loading`, `Not found: type`,
+`does not take parameters`, `is not a member of object`, or
+`NoClassDefFoundError` at test runtime. Any other failure → report and
+stop, do not retry.**
+
+**When you report back to the main agent, list every sbt log file you
+wrote so a human or the main agent can inspect them.**
+
 Read the Workflow section of `.claude/skills/scoverage-inspector/SKILL.md`
 and follow it exactly to answer the user's question. Return a concise answer
 with coverage percentages and uncovered line numbers cited as `file:line`.
@@ -91,8 +110,23 @@ If everything is fresh, skip step 3 entirely and go straight to step 4.
 
 ### 3. Run coverage for stale/missing modules — single batched invocation
 
+Create the log directory once before the first sbt invocation:
+
 ```bash
-mkdir -p logs/skills/scoverage-inspector && sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/last-sbt-run.log
+mkdir -p logs/skills/scoverage-inspector
+```
+
+Initial run (`N=1`):
+
+```bash
+sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log
+```
+
+Retry run (`N=2`), only if the initial failure matches the TASTy/companion-class
+symptoms described in the failure-handling subsection below:
+
+```bash
+sbt "coverageModules <m1> <m2> ..." 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-2.log
 ```
 
 Use `coverageModules` (varargs) so the whole set runs in one
@@ -106,10 +140,10 @@ what the entire codebase covers. If the user wants `Scale`'s coverage including
 all callers (e.g. tests in `composition` or `tuner` that exercise `Scale`),
 they want the **aggregate** report instead:
 
-- Run it the same way as `coverageModules`, teeing to the same log file:
+- Run it the same way as `coverageModules`, using the numbered log scheme:
 
   ```bash
-  mkdir -p logs/skills/scoverage-inspector && sbt coverageAll 2>&1 | tee logs/skills/scoverage-inspector/last-sbt-run.log
+  sbt coverageAll 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log
   ```
 
   No `coverageModules` shortcut covers this case — the aggregate is built by
@@ -118,6 +152,22 @@ they want the **aggregate** report instead:
   read `coverage-reports/root/scoverage-report/scoverage.xml` and the freshness
   check considers edits in **any** module, since any change can move the
   aggregate numbers.
+
+#### Failure handling
+
+**Retry rule:** if the sbt run fails and the output mentions TASTy files,
+`error while loading`, `Not found: type`, `does not take parameters`,
+`is not a member of object`, or `NoClassDefFoundError` at test runtime,
+retry **once** using `sbt-run-2.log`. Any other failure — stop and report
+back to the main agent. Do not retry more than once for any reason.
+
+**Escalation rule:** any unexpected outcome (non-TASTy sbt failure, Python
+script error, suspicious 0% coverage, missing report) must be reported back
+to the main agent verbatim. Do not investigate or fix it yourself.
+
+**Always report log paths:** when returning your answer (success or failure),
+list every `sbt-run-N.log` file you wrote so the main agent or user can
+inspect them.
 
 Without `--aggregate`, the freshness script intentionally ignores edits in
 dependent modules because re-running `coverageModules <m>` after such an edit
@@ -151,14 +201,20 @@ for the per-class scripts, which look up by FQN).
 **Module overview** — overall + one line per class:
 
 ```bash
-python3 .claude/skills/scoverage-inspector/scripts/module_summary.py <module> [--aggregate]
+python3 .claude/skills/scoverage-inspector/scripts/module_summary.py <module> [--aggregate] [--overall-only]
 ```
+
+Use `--overall-only` to suppress the per-class rows when you only need the
+module's headline percentages (saves tokens).
 
 **Single class, percentages only** (overall + per-method):
 
 ```bash
-python3 .claude/skills/scoverage-inspector/scripts/class_summary.py <module> <FQN> [--aggregate]
+python3 .claude/skills/scoverage-inspector/scripts/class_summary.py <module> <FQN> [--aggregate] [--overall-only]
 ```
+
+Use `--overall-only` to suppress the per-method rows when you only need the
+class headline percentages.
 
 **Single class, uncovered source lines only** (compressed ranges):
 
@@ -189,6 +245,10 @@ renders as a clickable location. Do not paste raw XML into the response.
   bug.
 - **Don't print the full module summary when the user asked about one
   class.** Use `class_summary.py` / `class_uncovered_lines.py` instead.
+- **Don't try to fix sbt/scoverage failures by editing code.** Report
+  and stop. Let the main agent or user decide what to do.
+- **Don't reuse the same log file across retries.** Each sbt invocation
+  gets its own numbered log: `sbt-run-1.log`, `sbt-run-2.log`.
 
 ## Example session
 

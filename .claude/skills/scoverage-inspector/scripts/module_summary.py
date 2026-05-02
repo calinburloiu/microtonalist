@@ -36,6 +36,11 @@ def main() -> int:
         action="store_true",
         help="read the cross-module aggregate report and filter to <module>'s classes",
     )
+    parser.add_argument(
+        "--overall-only",
+        action="store_true",
+        help="print only the module header line; suppress per-class rows",
+    )
     args = parser.parse_args()
 
     report_module = "root" if args.aggregate else args.module
@@ -114,9 +119,10 @@ def main() -> int:
         f"module={args.module}  stmt={overall_stmt_str}%  branch={overall_branch_str}%"
         f"  classes={len(rows)}  source={source}"
     )
-    name_w = max((len(r[0]) for r in rows), default=20)
-    for name, stmt, branch, unc, _, _ in rows:
-        print(f"  {name:<{name_w}}  stmt={stmt:6.2f}%  branch={branch:6.2f}%  uncovered-stmts={unc}")
+    if not args.overall_only:
+        name_w = max((len(r[0]) for r in rows), default=20)
+        for name, stmt, branch, unc, _, _ in rows:
+            print(f"  {name:<{name_w}}  stmt={stmt:6.2f}%  branch={branch:6.2f}%  uncovered-stmts={unc}")
     return 0
 
 
