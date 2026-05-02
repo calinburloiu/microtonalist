@@ -187,8 +187,17 @@ question — that runs every module's tests and is exactly what
 ### 4. Read only what was asked
 
 All three readers stream the XML with `xml.etree.iterparse` (constant
-memory, terse output). Pick the script that matches the question — don't
-print everything by default.
+memory, terse output). Run **only the script(s) that directly answer the
+question** — never run a script whose output the user did not ask for:
+
+| User asks for…                              | Script(s) to run                                    |
+|---------------------------------------------|-----------------------------------------------------|
+| Module-level percentage(s) only             | `module_summary.py … --overall-only`                |
+| Module overview with per-class breakdown    | `module_summary.py …`                               |
+| A class's percentage(s) only               | `class_summary.py … --overall-only`                 |
+| A class's percentages + method breakdown    | `class_summary.py …`                                |
+| Where are the gaps / uncovered lines        | `class_uncovered_lines.py …`                        |
+| Both percentages AND gaps for a class       | `class_summary.py …` **then** `class_uncovered_lines.py …` |
 
 Add `--aggregate` to any of these scripts when the user wants caller-test
 coverage (see the note in step 3). Without `--aggregate` the script reads
@@ -245,6 +254,11 @@ renders as a clickable location. Do not paste raw XML into the response.
   bug.
 - **Don't print the full module summary when the user asked about one
   class.** Use `class_summary.py` / `class_uncovered_lines.py` instead.
+- **Don't run `class_uncovered_lines.py` when the user only asked for
+  percentages.** The table in step 4 is the decision rule — follow it
+  exactly. "What's the coverage?" → `class_summary.py --overall-only`.
+  "Where are the gaps?" → `class_uncovered_lines.py`. Only run both when
+  both were asked for.
 - **Don't try to fix sbt/scoverage failures by editing code.** Report
   and stop. Let the main agent or user decide what to do.
 - **Don't reuse the same log file across retries.** Each sbt invocation
@@ -261,7 +275,7 @@ Main agent spawns a Haiku subagent with that question. Haiku:
 2. `mcp__metals__inspect` resolves
    `org.calinburloiu.music.microtonalist.tuner.MtsTuner` → module `tuner`.
 3. `coverage_freshness.py intonation` → 0; `coverage_freshness.py tuner` → 1.
-4. `sbt "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/last-sbt-run.log` (intonation skipped — already fresh).
+4. `mkdir -p logs/skills/scoverage-inspector && sbt "coverageModules tuner" 2>&1 | tee logs/skills/scoverage-inspector/sbt-run-1.log` (intonation skipped — already fresh).
 5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`
    then `class_uncovered_lines.py intonation ...Scale`.
 6. Same pair for `MtsTuner` in `tuner`.
