@@ -213,7 +213,7 @@ documented in [`docs/development/scoverage-issue.md`](docs/development/scoverage
 modifying code.
 
 For the manual `sbt coverageAll` / `sbt coverageModules` workflow (running coverage outside the skill, CI's
-`coverageCheck`, post-run `clean` rules), see [`docs/development/coverage.md`](docs/development/coverage.md). Note that
+`coverageCheck`), see [`docs/development/coverage.md`](docs/development/coverage.md). Note that
 it is recommended to set a suffix for build target subdirectories to avoid clashes with concurrent builds that don't
 include code instrumented for coverage such as a build from an IDE.
 
