@@ -26,6 +26,7 @@ hs_err_pid*
 dist/*
 target/
 target-bsp/
+target-scoverage/
 coverage-reports/
 lib_managed/
 src_managed/

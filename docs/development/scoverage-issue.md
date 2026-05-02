@@ -91,19 +91,14 @@ generally succeed.
 ## What's already done about it
 
 The `coverageAll` / `coverageModules` / `coverageCheck` commands in
-[`project/Coverage.scala`](../../project/Coverage.scala) implement a two-pass
-build that is meant to side-step the bug:
+[`project/Coverage.scala`](../../project/Coverage.scala) use a single-pass
+workflow: `clean; coverage; test; coverageReport[; coverageAggregate]`.
+The leading `clean` ensures a cold, non-instrumented cache is not carried over
+from a previous build, which reduces (but does not eliminate) the chance of
+hitting the race.
 
-1. `clean; compile` — populates `target/` with **non-instrumented**
-   `.class`/`.tasty` files so a fully valid TASTy set exists on disk.
-2. `set Global / concurrentRestrictions += Tags.limit(Tags.Compile, 1)` then
-   `coverage; test; coverageReport[; coverageAggregate]` — recompiles with
-   instrumentation, with compile-task parallelism serialized as
-   belt-and-braces protection against sbt#1673 / sbt-scoverage#108.
-
-This makes the failure rare in practice but does not fully eliminate it. When
-you do hit it, recognize it for what it is and retry rather than chasing it
-as a code defect.
+When you do hit it, recognize it for what it is and retry rather than chasing
+it as a code defect.
 
 ## What does *not* help
 
@@ -115,8 +110,8 @@ These were tried during the original investigation and did not fix the bug:
 - Disabling parallel test execution.
 - Lowering compile-task parallelism alone.
 
-The only reliable mitigations are the two-pass workflow encoded in the
-custom commands and, if it still fails, retrying.
+The only reliable mitigation is retrying — the bug is non-deterministic on cold caches; warm runs generally
+succeed.
 
 [#183]: https://github.com/calinburloiu/microtonalist/issues/183
 
