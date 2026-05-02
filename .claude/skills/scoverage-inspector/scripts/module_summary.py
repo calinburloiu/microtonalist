@@ -36,6 +36,11 @@ def main() -> int:
         action="store_true",
         help="read the cross-module aggregate report and filter to <module>'s classes",
     )
+    parser.add_argument(
+        "--overall-only",
+        action="store_true",
+        help="print only the module header line; suppress per-class rows",
+    )
     args = parser.parse_args()
 
     report_module = "root" if args.aggregate else args.module
@@ -45,6 +50,8 @@ def main() -> int:
         return 2
 
     module_marker = f"/{args.module}/src/"
+    # When module is "root" in aggregate mode, include all classes (root has no source files of its own)
+    show_all_modules = args.aggregate and args.module == "root"
 
     aggregate_overall_stmt = aggregate_overall_branch = "?"
     rows: list[tuple[str, float, float, int, int, int]] = []
@@ -73,7 +80,7 @@ def main() -> int:
                 elem.clear()
             elif elem.tag == "class" and current_class is not None:
                 include = True
-                if args.aggregate:
+                if args.aggregate and not show_all_modules:
                     include = bool(class_source and module_marker in class_source)
                 if include:
                     rows.append((
@@ -90,7 +97,11 @@ def main() -> int:
 
     rows.sort(key=lambda r: (r[1], r[2], -r[3]))
 
-    if args.aggregate:
+    if args.aggregate and show_all_modules:
+        overall_stmt_str = aggregate_overall_stmt
+        overall_branch_str = aggregate_overall_branch
+        source = "root aggregate, all modules"
+    elif args.aggregate:
         total_stmts = sum(r[4] for r in rows)
         invoked_stmts = sum(r[5] for r in rows)
         if total_stmts:
@@ -108,9 +119,10 @@ def main() -> int:
         f"module={args.module}  stmt={overall_stmt_str}%  branch={overall_branch_str}%"
         f"  classes={len(rows)}  source={source}"
     )
-    name_w = max((len(r[0]) for r in rows), default=20)
-    for name, stmt, branch, unc, _, _ in rows:
-        print(f"  {name:<{name_w}}  stmt={stmt:6.2f}%  branch={branch:6.2f}%  uncovered-stmts={unc}")
+    if not args.overall_only:
+        name_w = max((len(r[0]) for r in rows), default=20)
+        for name, stmt, branch, unc, _, _ in rows:
+            print(f"  {name:<{name_w}}  stmt={stmt:6.2f}%  branch={branch:6.2f}%  uncovered-stmts={unc}")
     return 0
 
 

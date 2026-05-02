@@ -23,16 +23,16 @@ import scoverage.ScoverageKeys.coverageEnabled
  * the coverage workflow with a two-pass build (and clean up the reports directory).
  *
  * Single-invocation `clean; coverage; test` reliably fails on this multi-project
- * Scala 3.6.3 + sbt-scoverage 2.x setup with TASTy/companion-class errors (see
- * https://github.com/scoverage/sbt-scoverage/issues/517 and
- * https://github.com/scoverage/sbt-scoverage/issues/511). The first pass compiles
- * the project without instrumentation so the on-disk TASTy is valid before
- * `coverageEnabled := true` triggers an instrumented recompile in the second pass.
+ * Scala 3.6.3 + sbt-scoverage 2.x setup with TASTy/companion-class errors. See
+ * `docs/development/scoverage-issue.md` for the symptom shapes, the working
+ * theory of the root cause, and how to recognize a recurrence. The first pass
+ * here compiles the project without instrumentation so the on-disk TASTy is
+ * valid before `coverageEnabled := true` triggers an instrumented recompile in
+ * the second pass.
  *
  * For `coverageAll`, the first pass compiles all modules in parallel; then
  * compile-task parallelism is serialized for the instrumented second pass as
- * belt-and-braces protection against https://github.com/sbt/sbt/issues/1673 /
- * sbt-scoverage#108.
+ * belt-and-braces protection against the same family of bugs.
  *
  * `coverageModules <module> [<module> ...]` runs the same two-pass workflow but only the named modules' tests are
  * run, giving accurate per-module coverage that is not inflated by tests from other modules exercising the same

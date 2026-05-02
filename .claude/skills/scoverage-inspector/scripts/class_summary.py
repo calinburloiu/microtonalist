@@ -41,6 +41,11 @@ def main() -> int:
         action="store_true",
         help="read the cross-module aggregate report at coverage-reports/root/",
     )
+    parser.add_argument(
+        "--overall-only",
+        action="store_true",
+        help="print only the class header line; suppress per-method rows",
+    )
     args = parser.parse_args()
 
     report_module = "root" if args.aggregate else args.module
@@ -80,9 +85,10 @@ def main() -> int:
         f"  stmt={float(class_attrs.get('statement-rate', '0') or 0):6.2f}%"
         f"  branch={float(class_attrs.get('branch-rate', '0') or 0):6.2f}%"
     )
-    name_w = max((len(m[0]) for m in methods), default=10)
-    for name, stmt, branch in methods:
-        print(f"  {name:<{name_w}}  stmt={stmt:6.2f}%  branch={branch:6.2f}%")
+    if not args.overall_only:
+        name_w = max((len(m[0]) for m in methods), default=10)
+        for name, stmt, branch in methods:
+            print(f"  {name:<{name_w}}  stmt={stmt:6.2f}%  branch={branch:6.2f}%")
     return 0
 
 
