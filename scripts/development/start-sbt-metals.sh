@@ -22,7 +22,7 @@
 #   1. `sbt` (interactive shell). This single sbt JVM hosts both the BSP
 #      server that Metals connects to and the sbt server that `sbtn` (the
 #      thin client) connects to. It is launched with
-#      `-Dmicrotonalist.targetSuffix=-bsp` so every project writes to
+#      `-Dmicrotonalist.build.targetSuffix=-bsp` so every project writes to
 #      `<project>/target-bsp/` instead of `<project>/target/`. This isolates
 #      its outputs from any ad-hoc CLI `sbt` invocation a developer might
 #      issue concurrently — see issue #186.
@@ -229,11 +229,11 @@ log "Logs:      $logs_dir"
 # we open the writer end below. Backgrounded SBT's stdin redirection will
 # block on open() until the parent opens FD 9 for writing.
 log "Starting SBT (log: $sbt_log)..."
-# `-Dmicrotonalist.targetSuffix=-bsp` routes every project's `target` to
+# `-Dmicrotonalist.build.targetSuffix=-bsp` routes every project's `target` to
 # `<project>/target-bsp/` so this BSP-server SBT does not share `classes/` dirs
 # with ad-hoc CLI sbt invocations. See issue #186 and `targetSuffixOverride` in
 # build.sbt.
-sbt -Dmicrotonalist.targetSuffix=-bsp <"$sbt_fifo" >"$sbt_log" 2>&1 &
+sbt -Dmicrotonalist.build.targetSuffix=-bsp <"$sbt_fifo" >"$sbt_log" 2>&1 &
 sbt_pid=$!
 log "SBT PID: $sbt_pid"
 

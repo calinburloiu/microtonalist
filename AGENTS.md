@@ -88,7 +88,8 @@ the check.
 
 To stop the background stack: `./scripts/development/stop-sbt-metals.sh`.
 
-The BSP-server sbt is launched with `-Dmicrotonalist.targetSuffix=-bsp` (see `targetSuffixOverride` in `build.sbt`),
+The BSP-server sbt is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in
+`build.sbt`),
 so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. CLI sbt invocations
 without that property continue to use `<project>/target/`. The two trees never collide; `sbt clean` and
 `sbtn clean` each clean the active tree.
