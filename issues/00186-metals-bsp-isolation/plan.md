@@ -47,7 +47,7 @@ Add to `build.sbt` (next to existing `commonSettings`):
 
 ```scala
 lazy val targetSuffixOverride: Seq[Setting[?]] =
-  sys.props.get("microtonalist.targetSuffix").filter(_.nonEmpty) match {
+  sys.props.get("microtonalist.build.targetSuffix").filter(_.nonEmpty) match {
     case Some(suffix) => Seq(target := baseDirectory.value / s"target$suffix")
     case None         => Seq.empty
   }
@@ -61,7 +61,7 @@ lazy val commonSettings = Seq(
 subprojects. `target` is a per-project key in sbt 1.x, so `ThisBuild / target` does
 not propagate — verified in practice.
 
-When the BSP-server sbt is started with `-Dmicrotonalist.targetSuffix=-bsp`, every
+When the BSP-server sbt is started with `-Dmicrotonalist.build.targetSuffix=-bsp`, every
 project compiles to `<project>/target-bsp/` instead of `<project>/target/`. CLI sbt
 runs without the property and uses the standard `target/`. The two trees never
 collide. `sbt clean` removes the *current* `target` setting's directory, so each
@@ -74,7 +74,7 @@ at `coverage-reports/<project-id>/` and is unaffected.
 
 a. **Pass the system property to sbt:**
    ```bash
-   sbt -Dmicrotonalist.targetSuffix=-bsp <"$sbt_fifo" >"$sbt_log" 2>&1 &
+   sbt -Dmicrotonalist.build.targetSuffix=-bsp <"$sbt_fifo" >"$sbt_log" 2>&1 &
    ```
 
 b. **Add `--background` / `-d` flag.** When passed, the script `nohup`-re-execs
@@ -127,26 +127,26 @@ use `sbtn` instead of `sbt`.
   `start-sbt-metals.sh --background` and `stop-sbt-metals.sh`. Add a section
   for `stop-sbt-metals.sh`.
 - In `metals-mcp-claude-code.md` step 5, document `--background`/`-d` and the
-  `-Dmicrotonalist.targetSuffix=-bsp` isolation.
+  `-Dmicrotonalist.build.targetSuffix=-bsp` isolation.
 - In step 10 (recommended workflow), tell users to run sbt commands via
   `sbtn` when the server is up.
 
 ## Files changed
 
-| File | Change |
-|---|---|
-| `build.sbt` | Add `targetSuffixOverride` system-property reader, append to `commonSettings`. |
-| `.gitignore` | Add `target-bsp/`. |
-| `scripts/development/start-sbt-metals.sh` | Pass `-Dmicrotonalist.targetSuffix=-bsp` to sbt; add `--background`/`-d` flag; refuse double-start; PID-file handling. |
-| `scripts/development/stop-sbt-metals.sh` | New. |
-| `scripts/development/README.md` | Replace manual nohup recipe; document stop script. |
-| `docs/development-setup/metals-mcp-claude-code.md` | Document new flag, isolation, and `sbtn` workflow. |
-| `CLAUDE.md` | New "sbt invocations" subsection; switch Compile/Test/Coverage examples to `sbtn`. |
+| File                                               | Change                                                                                                                       |
+|----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `build.sbt`                                        | Add `targetSuffixOverride` system-property reader, append to `commonSettings`.                                               |
+| `.gitignore`                                       | Add `target-bsp/`.                                                                                                           |
+| `scripts/development/start-sbt-metals.sh`          | Pass `-Dmicrotonalist.build.targetSuffix=-bsp` to sbt; add `--background`/`-d` flag; refuse double-start; PID-file handling. |
+| `scripts/development/stop-sbt-metals.sh`           | New.                                                                                                                         |
+| `scripts/development/README.md`                    | Replace manual nohup recipe; document stop script.                                                                           |
+| `docs/development-setup/metals-mcp-claude-code.md` | Document new flag, isolation, and `sbtn` workflow.                                                                           |
+| `CLAUDE.md`                                        | New "sbt invocations" subsection; switch Compile/Test/Coverage examples to `sbtn`.                                           |
 
 ## Verification (executed during implementation)
 
 1. **Build override smoke test (no Metals running):** ✅
-   - `sbt -Dmicrotonalist.targetSuffix=-bsp 'show tuner/target' …` →
+    - `sbt -Dmicrotonalist.build.targetSuffix=-bsp 'show tuner/target' …` →
      `…/tuner/target-bsp` (and same for `businessync`, `app`).
    - Without the property → `…/tuner/target` (default).
 

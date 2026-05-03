@@ -25,7 +25,7 @@ needed to reach 80%.
 
 The project introduces custom coverage commands. It is recommended to set a suffix for build target subdirectories to
 avoid clashes with concurrent builds that don't include code instrumented for coverage such as a build from an IDE.
-You can do that by adding `-Dmicrotonalist.targetSuffix=-scoverage` for example to every sbt CLI command used for
+You can do that by adding `-Dmicrotonalist.build.targetSuffix=-scoverage` for example to every sbt CLI command used for
 coverage. There are known issues with IntelliJ IDEA while running scoverage without custom target subdirectories.
 
 **Run coverage as the final step of any code-changing task, before committing**, to verify that the module's

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Calin-Andrei Burloiu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 import Dependencies.*
 
 ThisBuild / scalaVersion := "3.6.3"
@@ -260,14 +276,14 @@ lazy val compilerOptions = Seq(
   "-experimental"
 )
 
-// When `-Dmicrotonalist.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
+// When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
 // becomes `<project>/target<suffix>` instead of the default `<project>/target`. Used by
 // `scripts/development/start-sbt-metals.sh` (with suffix `-bsp`) so the sbt server backing Metals
 // writes to a different tree than ad-hoc CLI sbt invocations and the two never collide on the same
 // `classes/` directory. `sbt clean` follows the active `target` setting, so each tree is cleaned
 // independently. See https://github.com/calinburloiu/microtonalist/issues/186.
 lazy val targetSuffixOverride: Seq[Setting[?]] =
-  sys.props.get("microtonalist.targetSuffix").filter(_.nonEmpty) match {
+  sys.props.get("microtonalist.build.targetSuffix").filter(_.nonEmpty) match {
     case Some(suffix) => Seq(target := baseDirectory.value / s"target$suffix")
     case None         => Seq.empty
   }

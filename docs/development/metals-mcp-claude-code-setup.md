@@ -95,7 +95,7 @@ cleans up both on shutdown. The `--background` (`-d`) form detaches the script u
 continue working in the same terminal. A second `--background` invocation while one is
 already running is refused.
 
-The SBT it launches uses `-Dmicrotonalist.targetSuffix=-bsp`, so its compiled outputs live
+The SBT it launches uses `-Dmicrotonalist.build.targetSuffix=-bsp`, so its compiled outputs live
 under `<project>/target-bsp/` rather than `<project>/target/`. Any ad-hoc CLI `sbt`
 invocations a developer issues without that property continue to use `<project>/target/`,
 so the two never collide on the same `classes/` tree. See

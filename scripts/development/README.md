@@ -16,11 +16,11 @@ for background and prerequisites (Metals, Coursier, `metals-standalone-client`).
 
 The script starts two background processes and then blocks:
 
-1. `sbt -Dmicrotonalist.targetSuffix=-bsp` — a single sbt JVM that hosts the
+1. `sbt -Dmicrotonalist.build.targetSuffix=-bsp` — a single sbt JVM that hosts the
    BSP server (used by Metals) and the sbt server (used by `sbtn`). Both human
    developers and Claude Code should issue sbt commands as `sbtn …` so they are
    dispatched into this JVM rather than spawning a second one.
-   The `-Dmicrotonalist.targetSuffix=-bsp` system property routes every project's
+   The `-Dmicrotonalist.build.targetSuffix=-bsp` system property routes every project's
    `target` directory to `<project>/target-bsp/` (see `targetSuffixOverride` in
    `build.sbt`), so this BSP-server sbt does not share `classes/` directories
    with any ad-hoc CLI `sbt` invocations issued without that property. See
