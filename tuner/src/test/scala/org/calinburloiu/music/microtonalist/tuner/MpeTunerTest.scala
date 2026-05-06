@@ -107,7 +107,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   )
 
   private def tuner4MpeInput: MpeTuner = MpeTuner(
-    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0)),
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 4), MpeZone(MpeZoneType.Upper, 0)),
     initialInputMode = MpeInputMode.Mpe
   )
 
