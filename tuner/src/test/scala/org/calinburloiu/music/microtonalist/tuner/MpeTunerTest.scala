@@ -33,7 +33,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private implicit val defaultPbs: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity
   private val masterPbs: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity
 
-  import MidiNote.{A4, C4, C5, D4, E4, G4}
+  import MidiNote.{A4, C4, C5, D4, E4, F4, G4}
 
   private val C3: MidiNote = MidiNote(C4 - 12)
   private val E1: MidiNote = MidiNote(E4 - 36)
@@ -123,6 +123,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   private def extractPitchBends(output: Seq[MidiMessage]): Seq[PitchBendScMidiMessage] =
     output.map(_.asScala).collect { case m: PitchBendScMidiMessage => m }
+
+  private def extractPitchBendsWithCents(output: Seq[MidiMessage]): Seq[(Int, Double)] =
+    extractPitchBends(output).map(msg => (msg.channel, msg.cents))
 
   private def extractNoteOns(output: Seq[MidiMessage]): Seq[NoteOnScMidiMessage] =
     output.map(_.asScala).collect { case m: NoteOnScMidiMessage => m }.filter(_.velocity > 0)
@@ -263,13 +266,19 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOn(4, E4)
 
       // When
-      private val output = noteOn(2, E2, pbCents = Some(-20.0))
-
+      private var output = noteOn(2, E2, pbCents = Some(-20.0))
       // Then
-      private val outputPitchBends = extractPitchBends(output)
+      private var outputPitchBends = extractPitchBends(output)
       outputPitchBends should have size 1
       outputPitchBends.head.channel shouldEqual e1OutputChannel
       outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e - 5.0)
+
+      // When
+      output = pitchBend(2, 30.0)
+      // Then
+      outputPitchBends = extractPitchBends(output)
+      outputPitchBends.head.channel shouldEqual e1OutputChannel
+      outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e + 20.0)
     }
 
   it should "average the channel pressure value of all active notes on a member channel" in
@@ -281,13 +290,20 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOn(4, E4)
 
       // When
-      private val output = noteOn(2, E2, pressure = Some(96))
-
+      private var output = noteOn(2, E2, pressure = Some(96))
       // Then
-      private val outputPressures = extractChannelPressures(output)
+      private var outputPressures = extractChannelPressures(output)
       outputPressures should have size 1
       outputPressures.head.channel shouldEqual e1OutputChannel
       outputPressures.head.value shouldEqual 64
+
+      // When
+      output = pressure(2, 16)
+      // Then
+      outputPressures = extractChannelPressures(output)
+      outputPressures should have size 1
+      outputPressures.head.channel shouldEqual e1OutputChannel
+      outputPressures.head.value shouldEqual 24
     }
 
   it should "average the MPE slide (CC #74) value of all active notes on a member channel" in
@@ -299,14 +315,90 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOn(4, E4)
 
       // When
-      private val output = noteOn(2, E2, pressure = Some(16))
-
+      private var output = noteOn(2, E2, pressure = Some(16))
       // Then
-      private val outputSlides = extractSlides(output)
+      private var outputSlides = extractSlides(output)
       outputSlides should have size 1
       outputSlides.head.channel shouldEqual e1OutputChannel
       outputSlides.head.value shouldEqual 32
+
+      // When
+      output = slide(2, 96)
+      // Then
+      outputSlides = extractSlides(output)
+      outputSlides should have size 1
+      outputSlides.head.channel shouldEqual e1OutputChannel
+      outputSlides.head.value shouldEqual 72
     }
+
+  behavior of "MpeTuner - distributing expression parameters"
+
+  private abstract class DistributeFixture extends Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+    private val output1: Seq[MidiMessage] = noteOn(1, D4)
+    private val output2: Seq[MidiMessage] = noteOn(1, E4)
+
+    private val output3: Seq[MidiMessage] = noteOn(3, F4)
+    private val output4: Seq[MidiMessage] = noteOn(3, G4)
+    private val output1bis: Seq[MidiMessage] = noteOn(3, D4)
+
+    protected val output1Channel: Int = extractNoteOns(output1).head.channel
+    protected val output2Channel: Int = extractNoteOns(output2).head.channel
+    protected val output3Channel: Int = extractNoteOns(output3).head.channel
+    protected val output4Channel: Int = extractNoteOns(output4).head.channel
+    private val output1bisChannel: Int = extractNoteOns(output1bis).head.channel
+
+    output1bisChannel shouldEqual output1Channel
+  }
+
+  it should "distribute the pitch bend values of the input channel" in new DistributeFixture {
+    // When
+    private val pitchBends1 = extractPitchBends(pitchBend(1, 10.0))
+    private val pitchBends3 = extractPitchBends(pitchBend(3, 30.0))
+
+    // Then
+    pitchBends1.map(_.channel) shouldEqual Seq(output1Channel, output2Channel)
+    pitchBends1.head.cents shouldEqual (quarterCommaMeantone.d + 10.0)
+    pitchBends1(1).cents shouldEqual (quarterCommaMeantone.e + 10.0)
+
+    pitchBends3.map(_.channel) shouldEqual Seq(output3Channel, output4Channel, output1Channel)
+    pitchBends3.head.cents shouldEqual (quarterCommaMeantone.f + 30.0)
+    pitchBends3(1).cents shouldEqual (quarterCommaMeantone.g + 30.0)
+    pitchBends3(2).cents shouldEqual (quarterCommaMeantone.d + 20.0)
+  }
+
+  it should "distribute the channel pressure values of the input channel" in new DistributeFixture {
+    // When
+    private val channelPressures1 = extractChannelPressures(pressure(1, 10))
+    private val channelPressures3 = extractChannelPressures(pressure(3, 30))
+
+    // Then
+    channelPressures1 should contain theSameElementsAs Seq(
+      ChannelPressureScMidiMessage(output1Channel, 10),
+      ChannelPressureScMidiMessage(output2Channel, 10)
+    )
+    channelPressures3 should contain theSameElementsAs Seq(
+      ChannelPressureScMidiMessage(output3Channel, 30),
+      ChannelPressureScMidiMessage(output4Channel, 30),
+      ChannelPressureScMidiMessage(output1Channel, 20)
+    )
+  }
+
+  it should "distribute the slide values of the input channel" in new DistributeFixture {
+    // When
+    private val slides1 = extractSlides(slide(1, 10))
+    private val slides3 = extractSlides(slide(3, 30))
+
+    // Then
+    slides1 should contain theSameElementsAs Seq(
+      CcScMidiMessage(output1Channel, ScMidiCc.MpeSlide, 10),
+      CcScMidiMessage(output2Channel, ScMidiCc.MpeSlide, 10)
+    )
+    slides3 should contain theSameElementsAs Seq(
+      CcScMidiMessage(output3Channel, ScMidiCc.MpeSlide, 30),
+      CcScMidiMessage(output4Channel, ScMidiCc.MpeSlide, 30),
+      CcScMidiMessage(output1Channel, ScMidiCc.MpeSlide, 20)
+    )
+  }
 
   ////////////////////////////////
 
