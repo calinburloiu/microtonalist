@@ -124,8 +124,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractPitchBends(output: Seq[MidiMessage]): Seq[PitchBendScMidiMessage] =
     output.map(_.asScala).collect { case m: PitchBendScMidiMessage => m }
 
-  private def extractPitchBendsWithCents(output: Seq[MidiMessage]): Seq[(Int, Double)] =
-    extractPitchBends(output).map(msg => (msg.channel, msg.cents))
+  private def extractPitchBendsWithCents(output: Seq[MidiMessage]): Seq[(Int, Int)] =
+    extractPitchBends(output).map(msg => (msg.channel, msg.cents.round.toInt))
 
   private def extractNoteOns(output: Seq[MidiMessage]): Seq[NoteOnScMidiMessage] =
     output.map(_.asScala).collect { case m: NoteOnScMidiMessage => m }.filter(_.velocity > 0)
@@ -672,10 +672,17 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend" in new Fixture {
     // When
-    private val output = tuner.process(PitchBendScMidiMessage(nonMpeInputChannel, 1000).asJava)
+    private var output = pitchBend(nonMpeInputChannel, 50.0)
     // Then
-    private val pitchBends = extractPitchBends(output)
-    pitchBends should contain(PitchBendScMidiMessage(0, 1000)) // master channel 0
+    private var pitchBends = extractPitchBendsWithCents(output)
+    pitchBends should contain theSameElementsAs Seq((0, 50))
+
+    // When
+    noteOn(nonMpeInputChannel, E4)
+    output = pitchBend(nonMpeInputChannel, 25.0)
+    // Then
+    pitchBends = extractPitchBendsWithCents(output)
+    pitchBends should contain theSameElementsAs Seq((0, 25))
   }
 
   it should "not bleed master channel pitch bend into member channel tuning on retune" in
@@ -699,6 +706,40 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       memberPb.head.cents.round.toInt shouldBe 8
     }
 
+  behavior of "MpeTuner - process() Non-MPE Channel Pressure"
+
+  it should "redirect input Channel Pressure to Master Channel as Zone-level Pitch Bend" in new Fixture {
+    // When
+    private var output = pressure(nonMpeInputChannel, 32)
+    // Then
+    private var channelPressures = extractChannelPressures(output)
+    channelPressures should contain theSameElementsAs Seq(ChannelPressureScMidiMessage(0, 32))
+
+    // When
+    noteOn(nonMpeInputChannel, E4)
+    output = pressure(nonMpeInputChannel, 25)
+    // Then
+    channelPressures = extractChannelPressures(output)
+    channelPressures should contain theSameElementsAs Seq(ChannelPressureScMidiMessage(0, 25))
+  }
+
+  behavior of "MpeTuner - process() Non-MPE Slide CC #74"
+
+  it should "redirect input Slide CC #74 to Master Channel as Zone-level Pitch Bend" in new Fixture {
+    // When
+    private var output = slide(nonMpeInputChannel, 72)
+    // Then
+    private var slides = extractSlides(output)
+    slides should contain theSameElementsAs Seq(CcScMidiMessage(0, ScMidiCc.MpeSlide, 72))
+
+    // When
+    noteOn(nonMpeInputChannel, E4)
+    output = slide(nonMpeInputChannel, 96)
+    // Then
+    slides = extractSlides(output)
+    slides should contain theSameElementsAs Seq(CcScMidiMessage(0, ScMidiCc.MpeSlide, 96))
+  }
+
   // --- 4.2.5 process() — Non-MPE to MPE Conversion ---
 
   behavior of "MpeTuner - process() Non-MPE to MPE Conversion"
@@ -712,44 +753,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
     output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
-  }
-
-  it should "redirect CC #74 to Master Channel as Zone-level timbre" in new Fixture {
-    // Given
-    noteOn(nonMpeInputChannel, C4)
-    // When
-    private val output = slide(nonMpeInputChannel, 100)
-    // Then
-    extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.MpeSlide, 100)) // master channel 0
-  }
-
-  it should "not forward CC #74 on any member channel in non-MPE mode" in new Fixture {
-    // Given
-    private val noteOutput = noteOn(nonMpeInputChannel, C4)
-    private val noteChannel = extractNoteOns(noteOutput).head.channel
-    // When
-    private val output = slide(nonMpeInputChannel, 100)
-    // Then
-    extractCc(output).filter(cc => cc.number == ScMidiCc.MpeSlide && cc.channel == noteChannel) shouldBe empty
-  }
-
-  it should "redirect Channel Pressure to Master Channel as Zone-level pressure" in new Fixture {
-    // Given
-    noteOn(nonMpeInputChannel, C4)
-    // When
-    private val output = pressure(nonMpeInputChannel, 90)
-    // Then
-    extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(0, 90)) // master channel 0
-  }
-
-  it should "not forward Channel Pressure on any member channel in non-MPE mode" in new Fixture {
-    // Given
-    private val noteOutput = noteOn(nonMpeInputChannel, C4)
-    private val noteChannel = extractNoteOns(noteOutput).head.channel
-    // When
-    private val output = pressure(nonMpeInputChannel, 90)
-    // Then
-    extractChannelPressures(output).filter(_.channel == noteChannel) shouldBe empty
   }
 
   it should "initialize member channel CC #74 to default 64 even after sending CC #74 in non-MPE mode" in
