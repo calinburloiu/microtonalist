@@ -22,9 +22,10 @@ coverage where 0% does not make sense, missing report, any unexpected output —
 stop and report it back verbatim. Do not investigate or fix. The main agent or
 user will decide what to do.**
 
-**When you report back (success or failure), list every log file written during
-this run.** The wrapper scripts print each log path before invoking sbt;
-capture those paths and surface them in your final answer.
+**When you report back (success or failure), cite the log path the wrapper
+printed** (e.g. `log: logs/skills/scoverage-inspector/sbt-run.log`). If you
+retried, also cite `sbt-run-previous.log` — the wrapper rotates the failed
+attempt's log there before starting the retry.
 
 ---
 
@@ -72,27 +73,16 @@ If everything is fresh, skip step 3 entirely and go straight to step 4.
 **Never invoke `sbt` or `sbtn` directly.** Use the provided wrapper scripts.
 They bake in the required `-Dmicrotonalist.build.targetSuffix=-scoverage`
 isolation flag (so writes land in `target-scoverage/` and never collide with
-the BSP server's `target-bsp/`), create the log directory, auto-number the
-log file, and print the log path before running sbt so it is captured even if
-sbt crashes mid-run.
+the BSP server's `target-bsp/`), create the log directory, rotate the
+previous run's log to `sbt-run-previous.log` and write the new run to
+`sbt-run.log`, and print the log path before running sbt so it is captured
+even if sbt crashes mid-run.
 
 **For specific modules (the common case):**
 
-Initial run:
-
 ```bash
 .claude/skills/scoverage-inspector/scripts/run_coverage_modules.sh <m1> [<m2> ...]
 ```
-
-Retry only if the failure mentions TASTy files, `error while loading`,
-`Not found: type`, `does not take parameters`, `is not a member of object`,
-or `NoClassDefFoundError` at test runtime — retry **at most once**:
-
-```bash
-.claude/skills/scoverage-inspector/scripts/run_coverage_modules.sh <m1> [<m2> ...]
-```
-
-Any other failure → stop and report. Do not retry.
 
 **For aggregate (caller-test) coverage** — only when the user explicitly asks
 for coverage including tests in other modules:
@@ -101,7 +91,12 @@ for coverage including tests in other modules:
 .claude/skills/scoverage-inspector/scripts/run_coverage_all.sh
 ```
 
-Same retry rule applies.
+**Retry rule:** if the run fails and the output mentions TASTy files,
+`error while loading`, `Not found: type`, `does not take parameters`,
+`is not a member of object`, or `NoClassDefFoundError` at test runtime, run
+the same command again — **at most once**. The wrapper rotates the failed
+run's log to `sbt-run-previous.log` so both runs remain inspectable. Any
+other failure → stop and report. Do not retry.
 
 **Per-module-only by design.** `run_coverage_modules.sh` runs only the named
 modules' own tests, so the report reflects what those modules' own tests cover.
@@ -187,7 +182,7 @@ User: "Are `Scale` and `MtsTuner` well covered? Where are the gaps?"
 3. `coverage_freshness.py intonation` → 0 (fresh);
    `coverage_freshness.py tuner` → 1 (stale).
 4. `.claude/skills/scoverage-inspector/scripts/run_coverage_modules.sh tuner`
-   (intonation skipped — fresh). Script prints `log: logs/skills/scoverage-inspector/sbt-run-3.log`.
+   (intonation skipped — fresh). Script prints `log: logs/skills/scoverage-inspector/sbt-run.log`.
 5. `class_summary.py intonation org.calinburloiu.music.intonation.Scale`,
    then `class_uncovered_lines.py intonation …Scale`.
 6. Same pair for `MtsTuner` in `tuner`.

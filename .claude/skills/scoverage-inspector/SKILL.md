@@ -55,18 +55,4 @@ Return the subagent's response verbatim. Do not add your own commentary.
 The full workflow — freshness check, coverage build via wrapper scripts,
 report parsing, and anti-patterns — lives in the system prompt of
 `.claude/agents/scoverage-inspector.md`. That file is the single source of
-truth; see it for step-by-step instructions.
-
-### Quick-reference: which script answers which question
-
-| User asks for…                            | Script(s) to run                                            |
-|-------------------------------------------|-------------------------------------------------------------|
-| Module-level percentage(s) only           | `module_summary.py … --overall-only`                        |
-| Module overview with per-class breakdown  | `module_summary.py …`                                       |
-| A class's percentage(s) only            | `class_summary.py … --overall-only`                         |
-| A class's percentages + method breakdown  | `class_summary.py …`                                        |
-| Where are the gaps / uncovered lines      | `class_uncovered_lines.py …`                                |
-| Both percentages AND gaps for a class    | `class_summary.py …` **then** `class_uncovered_lines.py …`  |
-
-Add `--aggregate` to any script for caller-test (cross-module) coverage;
-use `run_coverage_all.sh` instead of `run_coverage_modules.sh` in step 3.
+truth.
