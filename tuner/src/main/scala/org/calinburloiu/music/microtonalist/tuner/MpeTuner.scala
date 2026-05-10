@@ -72,10 +72,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
   private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
-  // Track which channel each note is on: (midiNote, inputChannel) -> outputChannel
-  private val noteChannelMap: mutable.Map[(MidiNote, Int), Int] = mutable.Map.empty
-  // Track input->output channel mapping for MPE input mode
-  private val mpeInputChannelMap: mutable.Map[Int, Int] = mutable.Map.empty
+  // Track which output channel each active note is on, keyed by input channel and then by note:
+  //   inputChannel -> (midiNote -> outputChannel)
+  // The nested layout makes it cheap to enumerate all output channels currently fed by a given
+  // input channel — required for fanning out expressive Pitch Bend / CC #74 / Channel Pressure
+  // when the pitch-class invariant has split that input channel's notes onto multiple output
+  // channels (MPE input mode only).
+  private val channelNoteMap: mutable.Map[Int, mutable.Map[MidiNote, Int]] = mutable.Map.empty
 
   // Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
   // timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
@@ -136,8 +139,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def resetState(): Unit = {
     _tuning = Tuning.Standard
-    noteChannelMap.clear()
-    mpeInputChannelMap.clear()
+    channelNoteMap.clear()
     tracker.reset()
 
     lowerAllocator = createAllocator(lowerZone)
@@ -195,7 +197,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // dimension setup. They play in 12-EDO (modulated only by Master Pitch Bend) because
       // applying a per-pitch-class tuning offset on the Master Channel would affect every
       // note in the Zone.
-      noteChannelMap((midiNote, inputChannel)) = inputChannel
+      trackNote(inputChannel, midiNote, inputChannel)
       buffer += msg.asJava
     } else {
       processMemberNoteOn(buffer, msg)
@@ -218,13 +220,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         val outChannel = result.channel
 
         // Handle dropped notes
-        emitDroppedNoteOffs(buffer, result.droppedNotes, "allocation overflow on new Note On")
+        if (result.droppedNotes.isDefined) {
+          emitDroppedNoteOffs(buffer, result.droppedNotes.get, "allocation overflow on new Note On")
+        }
 
         // Track the note
-        noteChannelMap((midiNote, inputChannel)) = outChannel
-        if (inputMode == MpeInputMode.Mpe) {
-          mpeInputChannelMap(inputChannel) = outChannel
-        }
+        trackNote(inputChannel, midiNote, outChannel)
 
         // Compute and send control dimensions before Note On
         val tuningOffset = _tuning(midiNote.pitchClass)
@@ -256,21 +257,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val midiNote = msg.midiNote
     val velocity = msg.velocity
 
-    noteChannelMap.remove((midiNote, inputChannel)) match {
+    untrackNote(inputChannel, midiNote) match {
       case Some(outChannel) =>
         val allocator = getAllocatorForOutput(outChannel)
         allocator.foreach(_.release(midiNote, outChannel))
         buffer += NoteOffScMidiMessage(outChannel, midiNote, velocity).asJava
-        // Remove the input→output routing only when no active note still uses that output channel.
-        // A stale entry would misroute subsequent expressive Pitch Bend / Channel Pressure / CC #74
-        // arriving on this input channel to an unrelated output note, corrupting its intonation.
-        if (inputMode == MpeInputMode.Mpe) {
-          if (!noteChannelMap.values.exists(_ == mpeInputChannelMap.getOrElse(inputChannel, -1))) {
-            mpeInputChannelMap.remove(inputChannel)
-          }
-        }
+      // $COVERAGE-OFF$ Defensive branch: only reached on phantom Note Offs (mid-stream MCM/reset clearing tracking,
+      // or stale Note Offs from a sender after MIDI panic). Not exercised by tests.
       case None =>
-        buffer += msg.asJava
+        logger.warn(s"Dropping Note Off for $midiNote on input channel $inputChannel: no matching Note On tracked")
+      // $COVERAGE-ON$
     }
   }
 
@@ -284,14 +280,19 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // Forward master channel pitch bend without modification
         buffer += msg.asJava
       } else {
-        // Per-note pitch bend in MPE input - treat as expressive pitch bend
-        mpeInputChannelMap.get(inputChannel).foreach { outChannel =>
+        // Per-note pitch bend in MPE input - treat as expressive pitch bend.
+        // The pitch-class invariant may have split this input channel's notes onto multiple
+        // output channels; per the MPE Specification, expressive Pitch Bend on a Member Channel
+        // applies to every note on that channel, so it must be forwarded to all of them.
+        outputChannelsFor(inputChannel).foreach { outChannel =>
           val allocator = getAllocatorForOutput(outChannel)
           allocator.foreach { alloc =>
             val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
               pitchBendValue, currentZone(alloc).memberPitchBendSensitivity)
             val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendCents)
-            emitDroppedNoteOffs(buffer, droppedNotes, "expressive pitch bend too high")
+            if (droppedNotes.isDefined) {
+              emitDroppedNoteOffs(buffer, droppedNotes.get, "expressive pitch bend too high")
+            }
             emitTuningPitchBend(buffer, outChannel, alloc)
           }
         }
@@ -461,12 +462,38 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Sends Note Off for all active notes tracked in `noteChannelMap`.
+   * Sends Note Off for all active notes tracked in `channelNoteMap`.
    */
   private def stopAllNotes(buffer: mutable.Buffer[MidiMessage]): Unit = {
-    noteChannelMap.foreach { case ((midiNote, _), outChannel) =>
+    for {
+      notes <- channelNoteMap.values
+      (midiNote, outChannel) <- notes
+    } {
       buffer += NoteOffScMidiMessage(outChannel, midiNote).asJava
     }
+  }
+
+  private def trackNote(inputChannel: Int, midiNote: MidiNote, outChannel: Int): Unit = {
+    channelNoteMap.getOrElseUpdate(inputChannel, mutable.Map.empty).update(midiNote, outChannel)
+  }
+
+  private def untrackNote(inputChannel: Int, midiNote: MidiNote): Option[Int] = {
+    channelNoteMap.get(inputChannel).flatMap { notes =>
+      val removedOutputChannel = notes.remove(midiNote)
+      if (notes.isEmpty) channelNoteMap.remove(inputChannel)
+      removedOutputChannel
+    }
+  }
+
+  /**
+   * Returns the set of output channels currently holding notes routed from `inputChannel`.
+   *
+   * In MPE input mode, the pitch-class invariant may force notes from a single input Member Channel to be split onto
+   * multiple output Member Channels. Callers that forward expressive controls (Pitch Bend, CC #74, Channel Pressure)
+   * must fan the message out to every entry in this set.
+   */
+  private def outputChannelsFor(inputChannel: Int): Set[Int] = {
+    channelNoteMap.get(inputChannel).map(_.values.toSet).getOrElse(Set.empty)
   }
 
   private def processChannelPressure(buffer: mutable.Buffer[MidiMessage],
@@ -501,18 +528,25 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     } else {
       // Non-MPE input: convert Polyphonic Key Pressure to Channel Pressure on the allocated
       // Member Channel, since MPE forbids Polyphonic Key Pressure on Member Channels.
-      noteChannelMap.get((midiNote, inputChannel)).foreach { outChannel =>
+      for {
+        notes <- channelNoteMap.get(inputChannel)
+        outChannel <- notes.get(midiNote)
+      } {
         buffer += ChannelPressureScMidiMessage(outChannel, pressure).asJava
       }
     }
   }
 
   /**
-   * Forwards `msg` to the output Member Channel that currently holds the note originated on `msg.channel`. MPE input
+   * Forwards `msg` to every output Member Channel that currently holds a note originated on `msg.channel`. MPE input
    * mode only: in non-MPE mode these controls are routed to the Master Channel by the callers.
+   *
+   * The pitch-class invariant may have split a single input channel's notes onto multiple output channels; the MPE
+   * Specification states that Channel Pressure and CC #74 on a Member Channel apply to every note on that channel, so
+   * the message is fanned out to all of them.
    */
   private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], msg: ChannelScMidiMessage): Unit = {
-    mpeInputChannelMap.get(msg.channel).foreach { outChannel =>
+    outputChannelsFor(msg.channel).foreach { outChannel =>
       buffer += msg.mapChannel(_ => outChannel).asJava
     }
   }
@@ -570,13 +604,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   /**
    * Emits Note Off messages for dropped notes, if any.
    */
-  private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMessage], droppedNotes: Option[DroppedNotes],
+  private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMessage], droppedNotes: DroppedNotes,
                                   reason: String): Unit = {
-    droppedNotes.foreach { dropped =>
-      logger.trace(s"Dropping notes ${dropped.notes} on channel ${dropped.channel} ($reason)")
-      dropped.notes.foreach { midiNote =>
-        buffer += NoteOffScMidiMessage(dropped.channel, midiNote).asJava
-      }
+    logger.trace(s"Dropping notes ${droppedNotes.notes} on channel ${droppedNotes.channel} ($reason)")
+    droppedNotes.notes.foreach { midiNote =>
+      buffer += NoteOffScMidiMessage(droppedNotes.channel, midiNote).asJava
     }
   }
 

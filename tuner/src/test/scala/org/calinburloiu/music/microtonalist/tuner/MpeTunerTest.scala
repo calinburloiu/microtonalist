@@ -1249,6 +1249,81 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     extractPitchBends(output) should contain(PitchBendScMidiMessage(0, 1000))
   }
 
+  it should "split notes with different pitch classes from the same MPE input channel onto different output channels" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      // C4 on input ch 2 — allocator honors the input channel hint, places C4 on output ch 2.
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+
+      // When
+      // E4 on the same input ch 2 — different pitch class, so the pitch-class invariant prevents
+      // sharing output ch 2 with C4. The allocator must split E4 onto a different output channel.
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      // Then
+      ch1 shouldBe 2
+      ch2 should not be ch1
+      ch2 should (be >= 1 and be <= 7)
+    }
+
+  it should "fan out expressive Pitch Bend to all output channels for split notes from same MPE input channel" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      private val exprCents = 30.0
+      // When
+      private val output = pitchBend(2, exprCents)
+
+      // Then
+      // Both output channels must receive the expressive bend on top of their tuning offset.
+      // C: 0.0 cents, E: -14.0 cents in quarter-comma meantone.
+      private val pbs = extractPitchBends(output)
+      private val ch1Pb = pbs.find(_.channel == ch1).value
+      private val ch2Pb = pbs.find(_.channel == ch2).value
+      ch1Pb.cents shouldEqual (0.0 + exprCents)
+      ch2Pb.cents shouldEqual (-14.0 + exprCents)
+    }
+
+  it should "fan out CC #74 to all output channels for split notes from same MPE input channel" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      // When
+      private val output = slide(2, 100)
+
+      // Then
+      private val slides = extractSlides(output).map(cc => (cc.channel, cc.value)).toSet
+      slides should contain((ch1, 100))
+      slides should contain((ch2, 100))
+    }
+
+  it should "fan out Channel Pressure to all output channels for split notes from same MPE input channel" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      // When
+      private val output = pressure(2, 90)
+
+      // Then
+      private val cps = extractChannelPressures(output).map(cp => (cp.channel, cp.value)).toSet
+      cps should contain((ch1, 90))
+      cps should contain((ch2, 90))
+    }
+
   behavior of "MpeTuner - process() MPE Input Master Channel Notes"
 
   it should "forward Note On received on Lower Master Channel on the same Master Channel" in
