@@ -42,6 +42,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private val E5: MidiNote = MidiNote(E4 + 12)
 
   private val nonMpeInputChannel = 0
+  private val nonMpeInputChannel2 = 3
   private val mpeInputChannel: Int = 1
 
   private val epsilon: Double = 2e-1
@@ -752,6 +753,17 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val output = tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C4, 80).asJava)
     // Then
     extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
+    output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
+  }
+
+  it should "ignore Polyphonic Key Pressure for non-active notes" in new Fixture {
+    // Given
+    private val noteOutput = noteOn(nonMpeInputChannel, C4)
+    private val noteChannel = extractNoteOns(noteOutput).head.channel
+    // When
+    private val output = tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, D4, 80).asJava)
+    // Then
+    extractChannelPressures(output) shouldBe empty
     output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
   }
 
