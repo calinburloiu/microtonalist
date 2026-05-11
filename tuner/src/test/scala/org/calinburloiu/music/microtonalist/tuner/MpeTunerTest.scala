@@ -110,6 +110,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialInputMode = MpeInputMode.Mpe
   )
 
+  private def tuner1MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 1), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
+  private def tuner2MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 2), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
   private def tuner3MpeInput: MpeTuner = MpeTuner(
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0)),
     initialInputMode = MpeInputMode.Mpe
@@ -1173,6 +1183,30 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       droppedNotes should not contain G4
     }
 
+  ignore should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+    " 2 candidate channels in MPE input mode" in new Fixture(tuner2MpeInput) {
+    // Given
+    noteOn(2, G4) // highest
+    noteOn(1, C4) // lowest
+    // When
+    private val output = noteOn(1, E4)
+    // Then
+    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+    droppedNotes should contain(C4)
+  }
+
+  it should "free a single channel during exhaustion dropping when there is a single member channel in MPE input " +
+    "mode" in
+    new Fixture(tuner1MpeInput) {
+      // Given
+      noteOn(1, C4)
+      // When
+      private val output = noteOn(1, E4)
+      // Then
+      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+      droppedNotes should contain(C4)
+    }
+
   // TODO #154 Wrong for the correct tuner version
   it should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
     new Fixture(tuner3MpeInput) {
@@ -1515,6 +1549,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(output) should contain(CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 100))
     }
 
+  // TODO #154 Do we have a similar test for PB?
   it should "seed Member Channel Channel Pressure from the per-input-channel value at Note On in MPE mode" in
     new Fixture(tuner7MpeInput) {
       // Given
@@ -1633,6 +1668,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractPitchBends(pbOutput) shouldBe empty
     }
 
+  // TODO #154 Check consistency with the paper and better reference sections by name
   behavior of "MpeTuner - Worked Examples"
 
   it should "reproduce Section 8.1: Basic allocation in quarter-comma meantone" in
