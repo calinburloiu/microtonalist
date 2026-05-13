@@ -275,6 +275,48 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
+  ignore should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(30.0))
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // Will share
+      private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
+      private val e2OutputChannel = extractNoteOns(e1Output).head.channel
+      e1OutputChannel shouldEqual e2OutputChannel
+
+      // When
+      private val output = pitchBend(1, 101.0)
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E2, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  it should "not drop other notes on a shared channel when one note develops a low expressive pitch bend" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(30.0))
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // Will share
+      private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
+      private val e2OutputChannel = extractNoteOns(e1Output).head.channel
+      e1OutputChannel shouldEqual e2OutputChannel
+
+      // When
+      private val output = pitchBend(1, 49.0)
+
+      // Then
+      extractNoteOffs(output) shouldBe empty
+    }
+
   behavior of "MpeTuner - Averaging expression parameters"
 
   ignore should "average the expression pitch bend value of all active notes on a member channel" in
@@ -997,36 +1039,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
-  // TODO #154 Wrong for the correct tuner version
-  it should "average expressive pitch bends across notes sharing a single member channel" in
-    new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // tuner3: n=3 (PCG=1, EG=2). Input channels are 1..3 — the zone applies to input as well.
-      private val outE4 = noteOn(1, E4)
-      private val sharedChannel = extractNoteOns(outE4).head.channel
-
-      // Send a non-high expressive bend on input ch 1 (E4 is the only note on that channel).
-      private val eExprCents = 30.0
-      pitchBend(1, eExprCents)
-
-      // Fill remaining member channels with distinct pitch classes.
-      noteOn(2, G4)
-      noteOn(3, C4)
-
-      // When
-      // E5 (same pitch class as E4) arrives on input ch 1 — shares the same output channel.
-      private val outE5 = noteOn(1, E5)
-      // Then
-      private val sharedPb = extractPitchBends(outE5).filter(_.channel == sharedChannel)
-      sharedPb should have size 1
-
-      // E5 enters with expressive bend = 0; average of (eExprCents, 0) = eExprCents / 2.
-      // Output PB = tuning offset for E (-14.0) + average expressive bend.
-      // Compare on MIDI values to sidestep the cents↔value roundtrip resolution.
-      private val expected = PitchBendScMidiMessage.convertCentsToValue(-14.0 + eExprCents / 2, defaultPbs)
-      sharedPb.head.value shouldBe expected
-    }
-
   behavior of "MpeTuner - process() Dual-Group Allocation"
 
   it should "leave Pitch Class Group channel unaffected when bending Expression Group channel of same pitch class" in
@@ -1207,8 +1219,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       droppedNotes should contain(C4)
     }
 
-  // TODO #154 Wrong for the correct tuner version
-  it should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
+  ignore should "drop all notes on a shared channel with a common input channel when a high expressive pitch bend is " +
+    "received on it" in
     new Fixture(tuner3MpeInput) {
       // Given
       // tuner3 in MPE input: PCG=1, EG=2. Input channels are 1..3.
@@ -1223,30 +1235,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // High expressive pitch bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4.
       private val output = pitchBend(1, 100.0)
       // Then
-      private val noteOffs = extractNoteOffs(output)
-      noteOffs.map(n => (n.channel, n.midiNote)) should contain(sharedChannel, E4)
-      noteOffs.map(n => (n.channel, n.midiNote)) should not contain(sharedChannel, E5)
-    }
-
-  // TODO #154 Wrong for the correct tuner version
-  it should "drop existing notes when a new note is allocated to a channel holding a high-bend note" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      // E4 alone on a PCG channel; bend it past the high-bend threshold (50 cents).
-      private val outE4 = noteOn(1, E4)
-      private val pcgChannel = extractNoteOns(outE4).head.channel
-      pitchBend(1, 100.0)
-
-      // Fill remaining channels so the next E forces allocator sharing on pcgChannel.
-      noteOn(2, G4)
-      noteOn(3, C4)
-
-      // When
-      // New E5 lands on pcgChannel via sharing. Channel must be freed because E4 has high bend.
-      private val output = noteOn(1, E5)
-      // Then
-      extractNoteOffs(output) should contain(NoteOffScMidiMessage(pcgChannel, E4))
-      extractNoteOns(output).map(n => (n.channel, n.midiNote)) should contain((pcgChannel, E5))
+      private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
+      noteOffs should contain theSameElementsAs Seq(
+        (sharedChannel, E4),
+        (sharedChannel, E5)
+      )
     }
 
   behavior of "MpeTuner - process() MPE Input"
@@ -1668,10 +1661,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractPitchBends(pbOutput) shouldBe empty
     }
 
-  // TODO #154 Check consistency with the paper and better reference sections by name
   behavior of "MpeTuner - Worked Examples"
 
-  it should "reproduce Section 8.1: Basic allocation in quarter-comma meantone" in
+  it should "reproduce paper section \"Basic allocation in quarter-comma meantone\"" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // 1. Note C4 arrives on input ch 1 -> Pitch Class Group; C has 0.0 cents offset
       private val out1 = noteOn(1, C4)
@@ -1705,7 +1697,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.head.cents shouldEqual (0.0 + cExprCents)
     }
 
-  it should "reproduce Section 8.2: Tuning change during performance" in
+  it should "reproduce paper section \"Tuning change during performance\"" in
     new Fixture(tuner7, Some(quarterCommaMeantone)) {
       // Given
       private val chC = extractNoteOns(noteOn(nonMpeInputChannel, C4)).head.channel
@@ -1731,7 +1723,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pbByChannel(chC5) shouldBe 0
     }
 
-  it should "reproduce Section 8.3: Note dropping under channel exhaustion" in
+  it should "reproduce paper section \"Note dropping under channel exhaustion\"" in
     new Fixture(tuner3, Some(quarterCommaMeantone)) {
       // Given
       // C, E, G on 3 channels
