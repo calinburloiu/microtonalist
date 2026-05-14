@@ -33,12 +33,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private implicit val defaultPbs: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity
   private val masterPbs: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity
 
-  import MidiNote.{A4, C4, C5, D4, E4, G4}
+  import MidiNote.{A4, C4, C5, D4, E4, F4, G4}
 
   private val C3: MidiNote = MidiNote(C4 - 12)
+  private val E1: MidiNote = MidiNote(E4 - 36)
+  private val E2: MidiNote = MidiNote(E4 - 24)
+  private val E3: MidiNote = MidiNote(E4 - 12)
   private val E5: MidiNote = MidiNote(E4 + 12)
 
   private val nonMpeInputChannel = 0
+  private val nonMpeInputChannel2 = 3
   private val mpeInputChannel: Int = 1
 
   private val epsilon: Double = 2e-1
@@ -85,6 +89,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0))
   )
 
+  private def tuner1: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 1), MpeZone(MpeZoneType.Upper, 0))
+  )
+
+  private def tuner2: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 2), MpeZone(MpeZoneType.Upper, 0))
+  )
+
   private def tuner3: MpeTuner = MpeTuner(
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0))
   )
@@ -98,8 +110,23 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialInputMode = MpeInputMode.Mpe
   )
 
+  private def tuner1MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 1), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
+  private def tuner2MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 2), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
   private def tuner3MpeInput: MpeTuner = MpeTuner(
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 3), MpeZone(MpeZoneType.Upper, 0)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
+  private def tuner4MpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 4), MpeZone(MpeZoneType.Upper, 0)),
     initialInputMode = MpeInputMode.Mpe
   )
 
@@ -116,6 +143,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractPitchBends(output: Seq[MidiMessage]): Seq[PitchBendScMidiMessage] =
     output.map(_.asScala).collect { case m: PitchBendScMidiMessage => m }
 
+  private def extractPitchBendsWithCents(output: Seq[MidiMessage]): Seq[(Int, Int)] =
+    extractPitchBends(output).map(msg => (msg.channel, msg.cents.round.toInt))
+
   private def extractNoteOns(output: Seq[MidiMessage]): Seq[NoteOnScMidiMessage] =
     output.map(_.asScala).collect { case m: NoteOnScMidiMessage => m }.filter(_.velocity > 0)
 
@@ -128,11 +158,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractCc(output: Seq[MidiMessage]): Seq[CcScMidiMessage] =
     output.map(_.asScala).collect { case m: CcScMidiMessage => m }
 
-  private def extractChannelPressure(output: Seq[MidiMessage]): Seq[ChannelPressureScMidiMessage] =
+  private def extractChannelPressures(output: Seq[MidiMessage]): Seq[ChannelPressureScMidiMessage] =
     output.map(_.asScala).collect { case m: ChannelPressureScMidiMessage => m }
 
   private def extractPolyPressure(output: Seq[MidiMessage]): Seq[PolyPressureScMidiMessage] =
     output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m }
+
+  private def extractSlides(output: Seq[MidiMessage]): Seq[CcScMidiMessage] =
+    extractCc(output).filter(_.number == ScMidiCc.MpeSlide)
 
   private def extractScMidiMessages(output: Seq[MidiMessage]): Seq[ScMidiMessage] =
     output.map(_.asScala)
@@ -167,7 +200,269 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
-  // --- 4.2.1 reset() ---
+
+  // TODO #154 Move new tests for their own category
+  ////////////////////////////////
+
+  behavior of "MpeTuner - Dropping on high expressive pitch bend"
+
+  ignore should "drop a channel with high expressive PB to make room for an incoming note with low expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(130.0))
+      noteOn(4, E4, pbCents = Some(140.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(20.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  ignore should "drop a channel with high expressive PB to make room for an incoming note with high expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(130.0))
+      noteOn(4, E4, pbCents = Some(140.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  ignore should "drop a channel with low expressive PB to make room for an incoming note with high expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(30.0))
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  ignore should "prefer to drop a channel with low expressive PB to make room for an incoming note with high " +
+    "expression PB" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      noteOn(1, E1, pbCents = Some(110.0))
+      private val e3Output = noteOn(3, E3, pbCents = Some(30.0))
+      private val e3OutputChannel = extractNoteOns(e3Output).head.channel
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // When
+      private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e3OutputChannel, E3, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  ignore should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(30.0))
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // Will share
+      private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
+      private val e2OutputChannel = extractNoteOns(e1Output).head.channel
+      e1OutputChannel shouldEqual e2OutputChannel
+
+      // When
+      private val output = pitchBend(1, 101.0)
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(e1OutputChannel, E2, NoteOffScMidiMessage.DefaultVelocity)
+      )
+    }
+
+  it should "not drop other notes on a shared channel when one note develops a low expressive pitch bend" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3, pbCents = Some(30.0))
+      noteOn(4, E4, pbCents = Some(40.0))
+
+      // Will share
+      private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
+      private val e2OutputChannel = extractNoteOns(e1Output).head.channel
+      e1OutputChannel shouldEqual e2OutputChannel
+
+      // When
+      private val output = pitchBend(1, 49.0)
+
+      // Then
+      extractNoteOffs(output) shouldBe empty
+    }
+
+  behavior of "MpeTuner - Averaging expression parameters"
+
+  ignore should "average the expression pitch bend value of all active notes on a member channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+
+      // When
+      private var output = noteOn(2, E2, pbCents = Some(-20.0))
+      // Then
+      private var outputPitchBends = extractPitchBends(output)
+      outputPitchBends should have size 1
+      outputPitchBends.head.channel shouldEqual e1OutputChannel
+      outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e - 5.0)
+
+      // When
+      output = pitchBend(2, 30.0)
+      // Then
+      outputPitchBends = extractPitchBends(output)
+      outputPitchBends.head.channel shouldEqual e1OutputChannel
+      outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e + 20.0)
+    }
+
+  ignore should "average the channel pressure value of all active notes on a member channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, pressure = Some(32))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+
+      // When
+      private var output = noteOn(2, E2, pressure = Some(96))
+      // Then
+      private var outputPressures = extractChannelPressures(output)
+      outputPressures should have size 1
+      outputPressures.head.channel shouldEqual e1OutputChannel
+      outputPressures.head.value shouldEqual 64
+
+      // When
+      output = pressure(2, 16)
+      // Then
+      outputPressures = extractChannelPressures(output)
+      outputPressures should have size 1
+      outputPressures.head.channel shouldEqual e1OutputChannel
+      outputPressures.head.value shouldEqual 24
+    }
+
+  ignore should "average the MPE slide (CC #74) value of all active notes on a member channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val e1Output = noteOn(1, E1, slide = Some(48))
+      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+
+      // When
+      private var output = noteOn(2, E2, pressure = Some(16))
+      // Then
+      private var outputSlides = extractSlides(output)
+      outputSlides should have size 1
+      outputSlides.head.channel shouldEqual e1OutputChannel
+      outputSlides.head.value shouldEqual 32
+
+      // When
+      output = slide(2, 96)
+      // Then
+      outputSlides = extractSlides(output)
+      outputSlides should have size 1
+      outputSlides.head.channel shouldEqual e1OutputChannel
+      outputSlides.head.value shouldEqual 72
+    }
+
+  behavior of "MpeTuner - distributing expression parameters"
+
+  private abstract class DistributeFixture extends Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+    private val output1: Seq[MidiMessage] = noteOn(1, D4)
+    private val output2: Seq[MidiMessage] = noteOn(1, E4)
+
+    private val output3: Seq[MidiMessage] = noteOn(3, F4)
+    private val output4: Seq[MidiMessage] = noteOn(3, G4)
+    private val output1bis: Seq[MidiMessage] = noteOn(3, D4)
+
+    protected val output1Channel: Int = extractNoteOns(output1).head.channel
+    protected val output2Channel: Int = extractNoteOns(output2).head.channel
+    protected val output3Channel: Int = extractNoteOns(output3).head.channel
+    protected val output4Channel: Int = extractNoteOns(output4).head.channel
+    private val output1bisChannel: Int = extractNoteOns(output1bis).head.channel
+
+    output1bisChannel shouldEqual output1Channel
+  }
+
+  ignore should "distribute the pitch bend values of the input channel" in new DistributeFixture {
+    // When
+    private val pitchBends1 = extractPitchBends(pitchBend(1, 10.0))
+    private val pitchBends3 = extractPitchBends(pitchBend(3, 30.0))
+
+    // Then
+    pitchBends1.map(_.channel) shouldEqual Seq(output1Channel, output2Channel)
+    pitchBends1.head.cents shouldEqual (quarterCommaMeantone.d + 10.0)
+    pitchBends1(1).cents shouldEqual (quarterCommaMeantone.e + 10.0)
+
+    pitchBends3.map(_.channel) shouldEqual Seq(output3Channel, output4Channel, output1Channel)
+    pitchBends3.head.cents shouldEqual (quarterCommaMeantone.f + 30.0)
+    pitchBends3(1).cents shouldEqual (quarterCommaMeantone.g + 30.0)
+    pitchBends3(2).cents shouldEqual (quarterCommaMeantone.d + 20.0)
+  }
+
+  ignore should "distribute the channel pressure values of the input channel" in new DistributeFixture {
+    // When
+    private val channelPressures1 = extractChannelPressures(pressure(1, 10))
+    private val channelPressures3 = extractChannelPressures(pressure(3, 30))
+
+    // Then
+    channelPressures1 should contain theSameElementsAs Seq(
+      ChannelPressureScMidiMessage(output1Channel, 10),
+      ChannelPressureScMidiMessage(output2Channel, 10)
+    )
+    channelPressures3 should contain theSameElementsAs Seq(
+      ChannelPressureScMidiMessage(output3Channel, 30),
+      ChannelPressureScMidiMessage(output4Channel, 30),
+      ChannelPressureScMidiMessage(output1Channel, 20)
+    )
+  }
+
+  ignore should "distribute the slide values of the input channel" in new DistributeFixture {
+    // When
+    private val slides1 = extractSlides(slide(1, 10))
+    private val slides3 = extractSlides(slide(3, 30))
+
+    // Then
+    slides1 should contain theSameElementsAs Seq(
+      CcScMidiMessage(output1Channel, ScMidiCc.MpeSlide, 10),
+      CcScMidiMessage(output2Channel, ScMidiCc.MpeSlide, 10)
+    )
+    slides3 should contain theSameElementsAs Seq(
+      CcScMidiMessage(output3Channel, ScMidiCc.MpeSlide, 30),
+      CcScMidiMessage(output4Channel, ScMidiCc.MpeSlide, 30),
+      CcScMidiMessage(output1Channel, ScMidiCc.MpeSlide, 20)
+    )
+  }
+
+  ///////////////////////
 
   behavior of "MpeTuner - reset()"
 
@@ -259,8 +554,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     extractNoteOffs(resetOutput) shouldBe empty
   }
 
-  // --- 4.2.2 tune() ---
-
   behavior of "MpeTuner - tune()"
 
   it should "store tuning but output no messages when no active notes" in new Fixture {
@@ -342,8 +635,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pbByChannel(chE) shouldBe expectedE
       pbByChannel(chG) shouldBe expectedG
     }
-
-  // --- 4.2.3 process() — Non-MPE Input, Basic Note Handling ---
 
   behavior of "MpeTuner - process() Non-MPE Basic"
 
@@ -431,16 +722,21 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     extractNoteOns(out2).map(_.channel) should contain(2)
   }
 
-  // --- 4.2.4 process() — Non-MPE Input, Pitch Bend Handling ---
-
   behavior of "MpeTuner - process() Non-MPE Pitch Bend"
 
   it should "redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend" in new Fixture {
     // When
-    private val output = tuner.process(PitchBendScMidiMessage(nonMpeInputChannel, 1000).asJava)
+    private var output = pitchBend(nonMpeInputChannel, 50.0)
     // Then
-    private val pitchBends = extractPitchBends(output)
-    pitchBends should contain(PitchBendScMidiMessage(0, 1000)) // master channel 0
+    private var pitchBends = extractPitchBendsWithCents(output)
+    pitchBends should contain theSameElementsAs Seq((0, 50))
+
+    // When
+    noteOn(nonMpeInputChannel, E4)
+    output = pitchBend(nonMpeInputChannel, 25.0)
+    // Then
+    pitchBends = extractPitchBendsWithCents(output)
+    pitchBends should contain theSameElementsAs Seq((0, 25))
   }
 
   it should "not bleed master channel pitch bend into member channel tuning on retune" in
@@ -464,7 +760,39 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       memberPb.head.cents.round.toInt shouldBe 8
     }
 
-  // --- 4.2.5 process() — Non-MPE to MPE Conversion ---
+  behavior of "MpeTuner - process() Non-MPE Channel Pressure"
+
+  it should "redirect input Channel Pressure to Master Channel as Zone-level Pitch Bend" in new Fixture {
+    // When
+    private var output = pressure(nonMpeInputChannel, 32)
+    // Then
+    private var channelPressures = extractChannelPressures(output)
+    channelPressures should contain theSameElementsAs Seq(ChannelPressureScMidiMessage(0, 32))
+
+    // When
+    noteOn(nonMpeInputChannel, E4)
+    output = pressure(nonMpeInputChannel, 25)
+    // Then
+    channelPressures = extractChannelPressures(output)
+    channelPressures should contain theSameElementsAs Seq(ChannelPressureScMidiMessage(0, 25))
+  }
+
+  behavior of "MpeTuner - process() Non-MPE Slide CC #74"
+
+  it should "redirect input Slide CC #74 to Master Channel as Zone-level Pitch Bend" in new Fixture {
+    // When
+    private var output = slide(nonMpeInputChannel, 72)
+    // Then
+    private var slides = extractSlides(output)
+    slides should contain theSameElementsAs Seq(CcScMidiMessage(0, ScMidiCc.MpeSlide, 72))
+
+    // When
+    noteOn(nonMpeInputChannel, E4)
+    output = slide(nonMpeInputChannel, 96)
+    // Then
+    slides = extractSlides(output)
+    slides should contain theSameElementsAs Seq(CcScMidiMessage(0, ScMidiCc.MpeSlide, 96))
+  }
 
   behavior of "MpeTuner - process() Non-MPE to MPE Conversion"
 
@@ -475,46 +803,19 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // When
     private val output = tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C4, 80).asJava)
     // Then
-    extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
+    extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 80))
     output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
   }
 
-  it should "redirect CC #74 to Master Channel as Zone-level timbre" in new Fixture {
-    // Given
-    noteOn(nonMpeInputChannel, C4)
-    // When
-    private val output = slide(nonMpeInputChannel, 100)
-    // Then
-    extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.MpeSlide, 100)) // master channel 0
-  }
-
-  it should "not forward CC #74 on any member channel in non-MPE mode" in new Fixture {
+  it should "ignore Polyphonic Key Pressure for non-active notes" in new Fixture {
     // Given
     private val noteOutput = noteOn(nonMpeInputChannel, C4)
     private val noteChannel = extractNoteOns(noteOutput).head.channel
     // When
-    private val output = slide(nonMpeInputChannel, 100)
+    private val output = tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, D4, 80).asJava)
     // Then
-    extractCc(output).filter(cc => cc.number == ScMidiCc.MpeSlide && cc.channel == noteChannel) shouldBe empty
-  }
-
-  it should "redirect Channel Pressure to Master Channel as Zone-level pressure" in new Fixture {
-    // Given
-    noteOn(nonMpeInputChannel, C4)
-    // When
-    private val output = pressure(nonMpeInputChannel, 90)
-    // Then
-    extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(0, 90)) // master channel 0
-  }
-
-  it should "not forward Channel Pressure on any member channel in non-MPE mode" in new Fixture {
-    // Given
-    private val noteOutput = noteOn(nonMpeInputChannel, C4)
-    private val noteChannel = extractNoteOns(noteOutput).head.channel
-    // When
-    private val output = pressure(nonMpeInputChannel, 90)
-    // Then
-    extractChannelPressure(output).filter(_.channel == noteChannel) shouldBe empty
+    extractChannelPressures(output) shouldBe empty
+    output.map(_.asScala).collect { case m: PolyPressureScMidiMessage => m } shouldBe empty
   }
 
   it should "initialize member channel CC #74 to default 64 even after sending CC #74 in non-MPE mode" in
@@ -539,7 +840,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = noteOn(nonMpeInputChannel, C4)
       // Then
       private val noteChannel = extractNoteOns(output).head.channel
-      extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 0))
+      extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 0))
     }
 
   it should "initialize control dimensions before Note On even when input omits them" in new Fixture {
@@ -555,8 +856,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ChannelPressureScMidiMessage(noteChannel, 0)
     )
   }
-
-  // --- 4.2.6 process() — Zone-Level Messages ---
 
   behavior of "MpeTuner - process() Zone-Level Messages"
 
@@ -593,8 +892,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(output) should contain(CcScMidiMessage(0, ccNumber, ccValue))
     }
   }
-
-  // --- 4.2.6.1 process() — Zone-Level Messages MPE Input ---
 
   behavior of "MpeTuner - process() Zone-Level Messages MPE Input"
 
@@ -652,8 +949,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
       programChanges should contain(ProgramChangeScMidiMessage(15, 5))
     }
-
-  // --- 4.2.7 process() — Pitch Bend Computation ---
 
   behavior of "MpeTuner - process() Pitch Bend Computation"
 
@@ -744,38 +1039,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
-  // TODO #154 Wrong for the correct tuner version
-  it should "average expressive pitch bends across notes sharing a single member channel" in
-    new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // tuner3: n=3 (PCG=1, EG=2). Input channels are 1..3 — the zone applies to input as well.
-      private val outE4 = noteOn(1, E4)
-      private val sharedChannel = extractNoteOns(outE4).head.channel
-
-      // Send a non-high expressive bend on input ch 1 (E4 is the only note on that channel).
-      private val eExprCents = 30.0
-      pitchBend(1, eExprCents)
-
-      // Fill remaining member channels with distinct pitch classes.
-      noteOn(2, G4)
-      noteOn(3, C4)
-
-      // When
-      // E5 (same pitch class as E4) arrives on input ch 1 — shares the same output channel.
-      private val outE5 = noteOn(1, E5)
-      // Then
-      private val sharedPb = extractPitchBends(outE5).filter(_.channel == sharedChannel)
-      sharedPb should have size 1
-
-      // E5 enters with expressive bend = 0; average of (eExprCents, 0) = eExprCents / 2.
-      // Output PB = tuning offset for E (-14.0) + average expressive bend.
-      // Compare on MIDI values to sidestep the cents↔value roundtrip resolution.
-      private val expected = PitchBendScMidiMessage.convertCentsToValue(-14.0 + eExprCents / 2, defaultPbs)
-      sharedPb.head.value shouldBe expected
-    }
-
-  // --- 4.2.8 process() — Dual-Group Allocation Integration ---
-
   behavior of "MpeTuner - process() Dual-Group Allocation"
 
   it should "leave Pitch Class Group channel unaffected when bending Expression Group channel of same pitch class" in
@@ -825,8 +1088,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pb2.cents shouldEqual -14.0
     }
 
-  // --- 4.2.9 process() — Note Dropping Integration ---
-
   behavior of "MpeTuner - process() Note Dropping"
 
   it should "trigger note dropping with Note Off output for dropped notes on channel exhaustion" in
@@ -868,6 +1129,29 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
     droppedNotes should not contain G4
   }
+
+  ignore should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+    " 2 candidate channels" in new Fixture(tuner2) {
+    // Given
+    noteOn(nonMpeInputChannel, G4) // highest
+    noteOn(nonMpeInputChannel, C4) // lowest
+    // When
+    private val output = noteOn(nonMpeInputChannel, E4)
+    // Then
+    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+    droppedNotes should contain(C4)
+  }
+
+  it should "free a single channel during exhaustion dropping when there is a single member channel" in
+    new Fixture(tuner1) {
+      // Given
+      noteOn(nonMpeInputChannel, C4)
+      // When
+      private val output = noteOn(nonMpeInputChannel, E4)
+      // Then
+      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+      droppedNotes should contain(C4)
+    }
 
   it should "trigger note dropping with Note Off output for dropped notes on channel exhaustion in MPE input mode" in
     new Fixture(tuner3MpeInput) {
@@ -911,8 +1195,32 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       droppedNotes should not contain G4
     }
 
-  // TODO #154 Wrong for the correct tuner version
-  it should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
+  ignore should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+    " 2 candidate channels in MPE input mode" in new Fixture(tuner2MpeInput) {
+    // Given
+    noteOn(2, G4) // highest
+    noteOn(1, C4) // lowest
+    // When
+    private val output = noteOn(1, E4)
+    // Then
+    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+    droppedNotes should contain(C4)
+  }
+
+  it should "free a single channel during exhaustion dropping when there is a single member channel in MPE input " +
+    "mode" in
+    new Fixture(tuner1MpeInput) {
+      // Given
+      noteOn(1, C4)
+      // When
+      private val output = noteOn(1, E4)
+      // Then
+      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+      droppedNotes should contain(C4)
+    }
+
+  ignore should "drop all notes on a shared channel with a common input channel when a high expressive pitch bend is " +
+    "received on it" in
     new Fixture(tuner3MpeInput) {
       // Given
       // tuner3 in MPE input: PCG=1, EG=2. Input channels are 1..3.
@@ -927,33 +1235,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // High expressive pitch bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4.
       private val output = pitchBend(1, 100.0)
       // Then
-      private val noteOffs = extractNoteOffs(output)
-      noteOffs.map(n => (n.channel, n.midiNote)) should contain(sharedChannel, E4)
-      noteOffs.map(n => (n.channel, n.midiNote)) should not contain(sharedChannel, E5)
+      private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
+      noteOffs should contain theSameElementsAs Seq(
+        (sharedChannel, E4),
+        (sharedChannel, E5)
+      )
     }
-
-  // TODO #154 Wrong for the correct tuner version
-  it should "drop existing notes when a new note is allocated to a channel holding a high-bend note" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      // E4 alone on a PCG channel; bend it past the high-bend threshold (50 cents).
-      private val outE4 = noteOn(1, E4)
-      private val pcgChannel = extractNoteOns(outE4).head.channel
-      pitchBend(1, 100.0)
-
-      // Fill remaining channels so the next E forces allocator sharing on pcgChannel.
-      noteOn(2, G4)
-      noteOn(3, C4)
-
-      // When
-      // New E5 lands on pcgChannel via sharing. Channel must be freed because E4 has high bend.
-      private val output = noteOn(1, E5)
-      // Then
-      extractNoteOffs(output) should contain(NoteOffScMidiMessage(pcgChannel, E4))
-      extractNoteOns(output).map(n => (n.channel, n.midiNote)) should contain((pcgChannel, E5))
-    }
-
-  // --- 4.2.10 process() — MPE Input Mode ---
 
   behavior of "MpeTuner - process() MPE Input"
 
@@ -989,7 +1276,80 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     extractPitchBends(output) should contain(PitchBendScMidiMessage(0, 1000))
   }
 
-  // --- 4.2.10.1 process() — MPE Input Master Channel Notes ---
+  it should "split notes with different pitch classes from the same MPE input channel onto different output channels" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      // C4 on input ch 2 — allocator honors the input channel hint, places C4 on output ch 2.
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+
+      // When
+      // E4 on the same input ch 2 — different pitch class, so the pitch-class invariant prevents
+      // sharing output ch 2 with C4. The allocator must split E4 onto a different output channel.
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      // Then
+      ch1 shouldBe 2
+      ch2 should not be ch1
+      ch2 should (be >= 1 and be <= 7)
+    }
+
+  it should "fan out expressive Pitch Bend to all output channels for split notes from same MPE input channel" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      private val exprCents = 30.0
+      // When
+      private val output = pitchBend(2, exprCents)
+
+      // Then
+      // Both output channels must receive the expressive bend on top of their tuning offset.
+      // C: 0.0 cents, E: -14.0 cents in quarter-comma meantone.
+      private val pbs = extractPitchBends(output)
+      private val ch1Pb = pbs.find(_.channel == ch1).value
+      private val ch2Pb = pbs.find(_.channel == ch2).value
+      ch1Pb.cents shouldEqual (0.0 + exprCents)
+      ch2Pb.cents shouldEqual (-14.0 + exprCents)
+    }
+
+  it should "fan out CC #74 to all output channels for split notes from same MPE input channel" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      // When
+      private val output = slide(2, 100)
+
+      // Then
+      private val slides = extractSlides(output).map(cc => (cc.channel, cc.value)).toSet
+      slides should contain((ch1, 100))
+      slides should contain((ch2, 100))
+    }
+
+  it should "fan out Channel Pressure to all output channels for split notes from same MPE input channel" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      private val out1 = noteOn(2, C4)
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val out2 = noteOn(2, E4)
+      private val ch2 = extractNoteOns(out2).head.channel
+
+      // When
+      private val output = pressure(2, 90)
+
+      // Then
+      private val cps = extractChannelPressures(output).map(cp => (cp.channel, cp.value)).toSet
+      cps should contain((ch1, 90))
+      cps should contain((ch2, 90))
+    }
 
   behavior of "MpeTuner - process() MPE Input Master Channel Notes"
 
@@ -1010,7 +1370,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       extractPitchBends(output) shouldBe empty
       extractCc(output).filter(_.number == ScMidiCc.MpeSlide) shouldBe empty
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "forward Note Off received on Lower Master Channel on the same Master Channel" in
@@ -1106,7 +1466,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(PolyPressureScMidiMessage(0, C4, 80).asJava)
       // Then
       extractPolyPressure(output) should contain(PolyPressureScMidiMessage(0, C4, 80))
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "drop Polyphonic Key Pressure received on a Member Channel in MPE input mode" in
@@ -1117,7 +1477,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(PolyPressureScMidiMessage(mpeInputChannel, C4, 80).asJava)
       // Then
       extractPolyPressure(output) shouldBe empty
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "not forward CC #74 on an MPE input channel with no active note" in
@@ -1135,7 +1495,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Send Channel Pressure on a member channel that has no active note
       private val output = pressure(mpeInputChannel, 90)
       // Then
-      extractChannelPressure(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
     }
 
   it should "not forward Pitch Bend on an MPE input member channel with no active note" in
@@ -1166,7 +1526,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // When
       private val output = pressure(mpeInputChannel, 90)
       // Then
-      extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
+      extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
     }
 
   it should "seed Member Channel CC #74 from the per-input-channel value at Note On in MPE mode" in
@@ -1182,6 +1542,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(output) should contain(CcScMidiMessage(noteChannel, ScMidiCc.MpeSlide, 100))
     }
 
+  // TODO #154 Do we have a similar test for PB?
   it should "seed Member Channel Channel Pressure from the per-input-channel value at Note On in MPE mode" in
     new Fixture(tuner7MpeInput) {
       // Given
@@ -1190,10 +1551,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = noteOn(mpeInputChannel, C4)
       // Then
       private val noteChannel = extractNoteOns(output).head.channel
-      extractChannelPressure(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
+      extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(noteChannel, 90))
     }
-
-  // --- 4.2.11 process() — Note Off Behavior ---
 
   behavior of "MpeTuner - process() Note Off Behavior"
 
@@ -1296,17 +1655,15 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(ccOutput) shouldBe empty
 
       private val cpOutput = pressure(mpeInputChannel, 90)
-      extractChannelPressure(cpOutput) shouldBe empty
+      extractChannelPressures(cpOutput) shouldBe empty
 
       private val pbOutput = tuner.process(PitchBendScMidiMessage(mpeInputChannel, 4000).asJava)
       extractPitchBends(pbOutput) shouldBe empty
     }
 
-  // --- 4.2.12 Worked Examples from Paper ---
-
   behavior of "MpeTuner - Worked Examples"
 
-  it should "reproduce Section 8.1: Basic allocation in quarter-comma meantone" in
+  it should "reproduce paper section \"Basic allocation in quarter-comma meantone\"" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // 1. Note C4 arrives on input ch 1 -> Pitch Class Group; C has 0.0 cents offset
       private val out1 = noteOn(1, C4)
@@ -1340,7 +1697,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.head.cents shouldEqual (0.0 + cExprCents)
     }
 
-  it should "reproduce Section 8.2: Tuning change during performance" in
+  it should "reproduce paper section \"Tuning change during performance\"" in
     new Fixture(tuner7, Some(quarterCommaMeantone)) {
       // Given
       private val chC = extractNoteOns(noteOn(nonMpeInputChannel, C4)).head.channel
@@ -1366,7 +1723,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pbByChannel(chC5) shouldBe 0
     }
 
-  it should "reproduce Section 8.3: Note dropping under channel exhaustion" in
+  it should "reproduce paper section \"Note dropping under channel exhaustion\"" in
     new Fixture(tuner3, Some(quarterCommaMeantone)) {
       // Given
       // C, E, G on 3 channels
@@ -1384,8 +1741,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // A should be allocated
       extractNoteOns(output).map(_.midiNote) should contain(A4)
     }
-
-  // --- MCM Processing ---
 
   behavior of "MpeTuner - MCM Processing"
 
@@ -1549,8 +1904,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
     tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
   }
-
-  // --- PBS Processing ---
 
   behavior of "MpeTuner - PBS Processing"
 
