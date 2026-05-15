@@ -5,52 +5,49 @@ emit Note Off for every active Member Channel note before resetting state,emit N
 not emit Note Off messages on reset when no notes are active,
 == tune() ==,
 store tuning but output no messages when no active notes,
-output updated Pitch Bend on each occupied member channel,output updated Pitch Bend on each occupied member channel
-correctly retune notes of different pitch classes on different channels,
+retune notes of different pitch classes with correct offsets on each occupied member channel,output updated Pitch Bend on each occupied member channel
 ,recompute pitch bend = new tuning offset + current expressive pitch bend on each occupied channel
 ,not retune Master Channel notes on tune() call
 not update released channel's pitch bend on tuning changes,not update released channel's pitch bend on tuning changes
 "reproduce paper section ""Tuning change during performance""",
 == process() - Basic ==,
 "output Pitch Bend, CC #74, Channel Pressure, then Note On for single Note On",
-output Note Off on the correct member channel,forward Note Off received on Lower Master Channel on the same Master Channel
-allocate multiple notes with distinct pitch classes to separate member channels,split notes with different pitch classes from the same MPE input channel onto different output channels
 preserve Note On velocity,
+output Note Off on the correct member channel,
 preserve Note Off velocity,preserve Note Off velocity
 treat Note On with velocity 0 as Note Off,
-correctly allocate notes from any input channel,
+initialize control dimensions before Note On even when input omits them,
 initialize member channel CC #74 to default 64 even after sending CC #74,seed Member Channel CC #74 from the per-input-channel value at Note On
 initialize member channel Channel Pressure to default 0 even after sending CP,seed Member Channel Channel Pressure from the per-input-channel value at Note On
-initialize control dimensions before Note On even when input omits them,
-compute output pitch bend = tuning offset for single note on channel,compute output pitch bend = tuning offset for single note on channel
-clamp pitch bend to valid range when tuning offset exceeds PBS,clamp pitch bend to valid range when tuning offset exceeds PBS
+allocate multiple notes with distinct pitch classes to separate member channels,split notes with different pitch classes from the same MPE input channel onto different output channels
+correctly allocate notes from any input channel,
 allocate second note with same pitch class to Expression Group with independent pitch bends,leave Pitch Class Group channel unaffected when bending Expression Group channel of same pitch class
 make channel available for reuse after Note Off,make channel available for reuse after Note Off
-,process MPE input notes with tuning offsets applied
-,forward Note On received on Lower Master Channel on the same Master Channel
-,"not emit Pitch Bend, CC #74, or Channel Pressure setup for Master Channel Note On"
+compute output pitch bend = tuning offset for single note on channel,compute output Pitch Bend equal to tuning offset for each pitch class
+clamp pitch bend to valid range when tuning offset exceeds PBS,clamp pitch bend to valid range when tuning offset exceeds PBS
+,forward Note On/Off on Lower Master Channel without emitting member-channel setup messages
 ,forward Note On/Off received on Upper Master Channel on the same Master Channel
-,route member channel notes to their own zone in dual-zone
-,not consume Member Channel slots for Master Channel notes
 ,allow multiple active notes on the Master Channel concurrently
+,not consume Member Channel slots for Master Channel notes
+,route member channel notes to their own zone in dual-zone
 ,"reproduce paper section ""Basic allocation in quarter-comma meantone"""
 == process() - Expression ==,
-redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend,forward Master Channel pitch bend without modification
+redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend,treat per-note pitch bend as expressive pitch bend combined with tuning offset
 not bleed master channel pitch bend into member channel tuning on retune,
-redirect input Channel Pressure to Master Channel as Zone-level Pitch Bend,
-redirect input Slide CC #74 to Master Channel as Zone-level Pitch Bend,
-convert Polyphonic Key Pressure to Channel Pressure on member channel,drop Polyphonic Key Pressure received on a Member Channel
-ignore Polyphonic Key Pressure for non-active notes,forward Polyphonic Key Pressure as-is for Master Channel notes
-,treat per-note pitch bend as expressive pitch bend combined with tuning offset
+redirect input Channel Pressure to Master Channel as Zone-level Channel Pressure,
+redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74,
 ,fan out expressive Pitch Bend to all output channels for split notes from same MPE input channel
 ,fan out CC #74 to all output channels for split notes from same MPE input channel
 ,fan out Channel Pressure to all output channels for split notes from same MPE input channel
-,not forward CC #74 on an MPE input channel with no active note
-,not forward Channel Pressure on an MPE input channel with no active note
-,not forward Pitch Bend on an MPE input member channel with no active note
 ,forward CC #74 to the allocated Member Channel when an active note exists on MPE input channel
 ,forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel
+,not forward Pitch Bend on an MPE input member channel with no active note
+,not forward CC #74 on an MPE input channel with no active note
+,not forward Channel Pressure on an MPE input channel with no active note
 ,not forward expressive controls from an input channel after its notes have been released
+,forward Master Channel pitch bend without modification
+ignore Polyphonic Key Pressure for non-active notes,forward Polyphonic Key Pressure as-is for Master Channel notes
+convert Polyphonic Key Pressure to Channel Pressure on member channel,drop Polyphonic Key Pressure received on a Member Channel
 ,average the expression pitch bend value of all active notes on a member channel
 ,average the channel pressure value of all active notes on a member channel
 ,average the MPE slide (CC #74) value of all active notes on a member channel
@@ -58,11 +55,11 @@ ignore Polyphonic Key Pressure for non-active notes,forward Polyphonic Key Press
 ,distribute the channel pressure values of the input channel
 ,distribute the slide values of the input channel
 == process() - Note Dropping ==,
-trigger note dropping with Note Off output for dropped notes on channel exhaustion,trigger note dropping with Note Off output for dropped notes on channel exhaustion
-preserve the lowest note during channel exhaustion dropping,preserve the lowest note during channel exhaustion dropping
-preserve the highest note during channel exhaustion dropping,preserve the highest note during channel exhaustion dropping
-preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels,preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels
-free a single channel during exhaustion dropping when there is a single member channel,free a single channel during exhaustion dropping when there is a single member channel
+free a single channel during exhaustion dropping when there is a single member channel,trigger note dropping with Note Off output for dropped notes on channel exhaustion
+trigger note dropping with Note Off output for dropped notes on channel exhaustion,preserve the lowest note during channel exhaustion dropping
+preserve the lowest note during channel exhaustion dropping,preserve the highest note during channel exhaustion dropping
+preserve the highest note during channel exhaustion dropping,preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels
+preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels,free a single channel during exhaustion dropping when there is a single member channel
 "reproduce paper section ""Note dropping under channel exhaustion""",
 ,drop a channel with high expressive PB to make room for an incoming note with low expression PB
 ,drop a channel with high expressive PB to make room for an incoming note with high expression PB
@@ -72,33 +69,33 @@ free a single channel during exhaustion dropping when there is a single member c
 ,not drop other notes on a shared channel when one note develops a low expressive pitch bend
 ,drop all notes on a shared channel with a common input channel when a high expressive pitch bend is received on it
 == process() - Zone-level Messages ==,
-forward Sustain Pedal (CC #64) on Master Channel,forward Sustain Pedal (CC #64) received on member channel to zone Master Channel
+forward zone-level CCs on Master Channel,forward Sustain Pedal (CC #64) received on member channel to zone Master Channel
+forward Sustain Pedal (CC #64) on Master Channel,forward zone-level CCs received on member channel to zone Master Channel
 forward Program Change on Master Channel,forward Program Change received on member channel to zone Master Channel
-forward zone-level CCs on Master Channel,forward zone-level CCs received on member channel to zone Master Channel
 ,route zone-level CC to upper zone Master Channel when received on upper member channel
 ,route Program Change to upper zone Master Channel when received on upper member channel
 == MCM Processing ==,
 output MPE Configuration Message (MCM) for the configured zone,
 reconfigure lower zone on MCM received on channel 0,
 reconfigure upper zone on MCM received on channel 15,
-stop all active notes when MCM is received,
-shrink other zone when MCM causes overlap,
 disable zone when MCM with memberCount=0 is received,
+shrink other zone when MCM causes overlap,
+stop all active notes when MCM is received,
+reset PBS to defaults when MCM is received,
+not output PBS messages after MCM,
 not trigger MCM on incomplete RPN sequence,
 not trigger MCM for non-MCM RPN (e.g. PBS RPN),
 ignore MCM on non-master channel,
-revert to initialZones on reset() after MCM,
-not output PBS messages after MCM,
 switch input mode to MPE automatically when an MCM is received,
-reset PBS to defaults when MCM is received,
+revert to initialZones on reset() after MCM,
 == PBS Processing ==,
-output RPN 0 (Pitch Bend Sensitivity) on all member channels,
 output RPN 0 on master channel with configured master pitch bend sensitivity,
+output RPN 0 (Pitch Bend Sensitivity) on all member channels,
 update master PBS on master channel,update master PBS on master channel
 update member PBS and forward only on the received channel,update member PBS and forward only on the received channel
 forward PBS on each channel when received on all member channels,
-recompute pitch bends on occupied channels after member PBS change,recompute pitch bends on occupied channels after member PBS change
-not affect other zone's PBS,
 handle PBS LSB (cents) update,
-preserve intonation of active note without expressive pitch bend after PBS change,preserve intonation of active note with expressive pitch bend after PBS change
+"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend","recompute pitch bends on occupied channels after member PBS change"
+,preserve intonation of active note with expressive pitch bend after PBS change
+not affect other zone's PBS,
 revert PBS to initial values on reset(),revert PBS to initial values on reset()
