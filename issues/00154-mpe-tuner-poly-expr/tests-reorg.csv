@@ -75,27 +75,34 @@ forward Program Change on Master Channel,forward Program Change received on memb
 ,route zone-level CC to upper zone Master Channel when received on upper member channel
 ,route Program Change to upper zone Master Channel when received on upper member channel
 == MCM Processing ==,
-output MPE Configuration Message (MCM) for the configured zone,
-reconfigure lower zone on MCM received on channel 0,
-reconfigure upper zone on MCM received on channel 15,
-disable zone when MCM with memberCount=0 is received,
-shrink other zone when MCM causes overlap,
-stop all active notes when MCM is received,
-reset PBS to defaults when MCM is received,
-not output PBS messages after MCM,
-not trigger MCM on incomplete RPN sequence,
-not trigger MCM for non-MCM RPN (e.g. PBS RPN),
-ignore MCM on non-master channel,
+,output MPE Configuration Message (MCM) for the configured zone
+,reconfigure lower zone on MCM received on channel 0
+,reconfigure upper zone on MCM received on channel 15
+,disable zone when MCM with memberCount=0 is received
+,shrink other zone when MCM causes overlap
+,stop all active notes when MCM is received
+,reset PBS to defaults when MCM is received
+,not output PBS messages after MCM
+,not trigger MCM on incomplete RPN sequence
+,not trigger MCM for non-MCM RPN (e.g. PBS RPN)
+,ignore MCM on non-master channel
 switch input mode to MPE automatically when an MCM is received,
-revert to initialZones on reset() after MCM,
+,revert to initialZones on reset() after MCM
 == PBS Processing ==,
 output RPN 0 on master channel with configured master pitch bend sensitivity,
 output RPN 0 (Pitch Bend Sensitivity) on all member channels,
 update master PBS on master channel,update master PBS on master channel
-update member PBS and forward only on the received channel,update member PBS and forward only on the received channel
-forward PBS on each channel when received on all member channels,
+update master PBS and forward to lower zone master channel when PBS arrives on any input channel,
+update master PBS and forward to upper zone master channel when only upper zone is enabled,
+route PBS to lower zone master in dual-zone setup regardless of input channel,
+,update member PBS and forward only on the received channel
+,forward PBS on each channel when received on all member channels
+handle PBS LSB (cents) update by forwarding to master channel,
 handle PBS LSB (cents) update,
-"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend","recompute pitch bends on occupied channels after member PBS change"
-,preserve intonation of active note with expressive pitch bend after PBS change
+not update member PBS when PBS is received in non-MPE mode,
+not affect the other zone's master PBS in dual-zone setup,
 not affect other zone's PBS,
+"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend","recompute pitch bends on occupied channels after member PBS change"
+,"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend"
+,preserve intonation of active note with expressive pitch bend after PBS change
 revert PBS to initial values on reset(),revert PBS to initial values on reset()

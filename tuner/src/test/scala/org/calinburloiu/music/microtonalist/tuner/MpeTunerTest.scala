@@ -1803,9 +1803,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   behavior of "MpeTuner - MCM Processing - Non-MPE Input"
 
+  // ---- Mode switching ----
+
+  it should "switch input mode to MPE automatically when an MCM is received" in new Fixture {
+    // Given
+    tuner.inputMode shouldBe MpeInputMode.NonMpe
+    // When
+    sendMcm(tuner, channel = 0, memberCount = 7)
+    // Then
+    tuner.inputMode shouldBe MpeInputMode.Mpe
+  }
+
+  behavior of "MpeTuner - MCM Processing - MPE Input"
+
   // ---- MCM emission on reset ----
 
-  it should "output MPE Configuration Message (MCM) for the configured zone" in new Fixture(defaultTuner) {
+  it should "output MPE Configuration Message (MCM) for the configured zone" in new Fixture(mpeTunerMpeInput) {
     // When
     private val output = tuner.reset()
     // Then
@@ -1820,7 +1833,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- MCM-driven zone reconfiguration ----
 
-  it should "reconfigure lower zone on MCM received on channel 0" in new Fixture(dualZoneTuner) {
+  it should "reconfigure lower zone on MCM received on channel 0" in new Fixture(dualZoneTunerMpeInput) {
     // When
     private val output = sendMcm(tuner, channel = 0, memberCount = 10)
     // Then
@@ -1835,7 +1848,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.upper.memberCount shouldEqual 4
   }
 
-  it should "reconfigure upper zone on MCM received on channel 15" in new Fixture(dualZoneTuner) {
+  it should "reconfigure upper zone on MCM received on channel 15" in new Fixture(dualZoneTunerMpeInput) {
     // When
     private val output = sendMcm(tuner, channel = 15, memberCount = 10)
     // Then
@@ -1850,7 +1863,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.upper.memberCount shouldEqual 10
   }
 
-  it should "disable zone when MCM with memberCount=0 is received" in new Fixture(dualZoneTuner) {
+  it should "disable zone when MCM with memberCount=0 is received" in new Fixture(dualZoneTunerMpeInput) {
     // When
     private val output = sendMcm(tuner, channel = 15, memberCount = 0)
     // Then
@@ -1861,8 +1874,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     ccs should not contain CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7)
   }
 
-  it should "shrink other zone when MCM causes overlap" in new Fixture(dualZoneTuner) {
-    // dualZoneTuner: lower=7, upper=7
+  it should "shrink other zone when MCM causes overlap" in new Fixture(dualZoneTunerMpeInput) {
+    // dualZoneTunerMpeInput: lower=7, upper=7
     // When - MCM on ch 0 with memberCount=10 -> upper must shrink to 4
     private val output = sendMcm(tuner, channel = 0, memberCount = 10)
     // Then
@@ -1879,10 +1892,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Effects on active notes / other state ----
 
-  it should "stop all active notes when MCM is received" in new Fixture {
-    // Given
-    noteOn(nonMpeInputChannel, C4)
-    noteOn(nonMpeInputChannel, E4)
+  it should "stop all active notes when MCM is received" in new Fixture(mpeTunerMpeInput) {
+    // Given - Play notes on MPE member channels
+    noteOn(2, C4)
+    noteOn(2, E4)
     // When
     private val output = sendMcm(tuner, channel = 0, memberCount = 7)
     // Then
@@ -1890,10 +1903,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     noteOffs.map(_.midiNote) should contain allOf(C4, E4)
   }
 
-  it should "reset PBS to defaults when MCM is received" in new Fixture(tuner7) {
-    // Given - Set custom master PBS on the lower zone (non-MPE mode always routes PBS to master)
+  it should "reset PBS to defaults when MCM is received" in new Fixture(tuner7MpeInput) {
+    // Given - Set custom PBS on the lower zone
     sendPbsMsb(tuner, channel = 0, semitones = 12)
+    sendPbsMsb(tuner, channel = 1, semitones = 24)
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
     // When - Receive MCM on the same zone
     sendMcm(tuner, channel = 0, memberCount = 7)
     // Then - PBS should be reset to defaults per MPE spec Section 2.4
@@ -1901,7 +1916,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
   }
 
-  it should "not output PBS messages after MCM" in new Fixture {
+  it should "not output PBS messages after MCM" in new Fixture(mpeTunerMpeInput) {
     // When
     private val output = sendMcm(tuner, channel = 0, memberCount = 7)
     // Then
@@ -1914,7 +1929,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- RPN sequence validation gating ----
 
-  it should "not trigger MCM on incomplete RPN sequence" in new Fixture {
+  it should "not trigger MCM on incomplete RPN sequence" in new Fixture(mpeTunerMpeInput) {
     // Given - Send only CC#101=0 and CC#6=10 without CC#100
     tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).asJava)
     // When
@@ -1928,7 +1943,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
-  it should "not trigger MCM for non-MCM RPN (e.g. PBS RPN)" in new Fixture {
+  it should "not trigger MCM for non-MCM RPN (e.g. PBS RPN)" in new Fixture(mpeTunerMpeInput) {
     // When - Send PBS RPN (MSB=0, LSB=0) instead of MCM RPN (MSB=0, LSB=6)
     tuner.process(CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava)
     tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava)
@@ -1941,27 +1956,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Channel-of-receipt gating ----
 
-  it should "ignore MCM on non-master channel" in new Fixture {
+  it should "ignore MCM on non-master channel" in new Fixture(mpeTunerMpeInput) {
     // When
     private val output = sendMcm(tuner, channel = 5, memberCount = 7)
     // Then - Should NOT trigger MCM processing
     extractNoteOffs(output) shouldBe empty
   }
 
-  // ---- Mode switching ----
-
-  it should "switch input mode to MPE automatically when an MCM is received" in new Fixture {
-    // Given
-    tuner.inputMode shouldBe MpeInputMode.NonMpe
-    // When
-    sendMcm(tuner, channel = 0, memberCount = 7)
-    // Then
-    tuner.inputMode shouldBe MpeInputMode.Mpe
-  }
-
   // ---- Revert on reset ----
 
-  it should "revert to initialZones on reset() after MCM" in new Fixture(dualZoneTuner) {
+  it should "revert to initialZones on reset() after MCM" in new Fixture(dualZoneTunerMpeInput) {
     // Given
     sendMcm(tuner, channel = 0, memberCount = 10)
     // When - Reset should restore initial configuration
