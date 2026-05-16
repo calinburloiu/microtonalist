@@ -1891,11 +1891,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   }
 
   it should "reset PBS to defaults when MCM is received" in new Fixture(tuner7) {
-    // Given - Set custom PBS on the lower zone
+    // Given - Set custom master PBS on the lower zone (non-MPE mode always routes PBS to master)
     sendPbsMsb(tuner, channel = 0, semitones = 12)
-    sendPbsMsb(tuner, channel = 1, semitones = 24)
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
     // When - Receive MCM on the same zone
     sendMcm(tuner, channel = 0, memberCount = 7)
     // Then - PBS should be reset to defaults per MPE spec Section 2.4
@@ -1991,54 +1989,66 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "update master PBS on master channel" in new Fixture {
     // When
     private val output = sendPbsMsb(tuner, channel = 0, semitones = 12)
-    // Then
-    // Should forward RPN setup and PBS for the master channel with new sensitivity
+    // Then - Should forward PBS Data Entry to the master channel
     private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12)
-    )
+    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12))
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
   }
 
-  // ---- Member-channel PBS update & forwarding ----
-
-  // TODO #154 In Non-MPE mode there is no incoming member channel, only output member channel. PBS in this mode
-  //  should only be forwarded to Master Channel
-  it should "update member PBS and forward only on the received channel" in new Fixture(tuner7) {
-    // When - Send PBS on member channel 1 -> internal state updated for all members, but only forwarded on ch 1
-    private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
-    // Then
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcScMidiMessage(1, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(1, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(1, ScMidiCc.DataEntryMsb, 24)
-    )
-    // Should NOT broadcast to other member channels
-    private val dataEntryCcs = ccs.filter(_.number == ScMidiCc.DataEntryMsb)
-    (2 to 7).foreach { ch =>
-      dataEntryCcs.filter(_.channel == ch) shouldBe empty
+  it should "update master PBS and forward to lower zone master channel when PBS arrives on any input channel" in {
+    val inputChannels = Table("inputChannel", 0, 5, 10, 15)
+    forAll(inputChannels) { inputChannel =>
+      // Given
+      val tuner = tuner7
+      // When
+      val output = sendPbsMsb(tuner, channel = inputChannel, semitones = 12)
+      // Then
+      val ccs = extractCc(output)
+      ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12))
+      ccs.map(_.channel) should contain only 0
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
     }
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
   }
 
-  it should "forward PBS on each channel when received on all member channels" in new Fixture(tuner7) {
-    // When - Sender broadcasts PBS to all member channels 1-7; each should be forwarded 1:1
-    private var output: Seq[MidiMessage] = Seq.empty
-    for (ch <- 1 to 7) {
-      output ++= sendPbsMsb(tuner, channel = ch, semitones = 24)
-    }
+  it should "update master PBS and forward to upper zone master channel when only upper zone is enabled" in {
+    // Given - Upper-zone-only tuner
+    val tuner = MpeTuner(
+      initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 7))
+    )
+    // When - PBS on an arbitrary input channel
+    val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
     // Then
-    private val dataEntryCcs = extractCc(output).filter(cc =>
-      cc.number == ScMidiCc.DataEntryMsb && cc.value == 24)
+    val ccs = extractCc(output)
+    ccs should contain(CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 12))
+    tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+  }
 
-    dataEntryCcs.size shouldEqual 7
-    dataEntryCcs.map(_.channel) should contain theSameElementsAs (1 to 7)
+  it should "route PBS to lower zone master in dual-zone setup regardless of input channel" in {
+    // Given
+    val tuner = dualZoneTuner
+    // When - PBS arrives on channel 12 (would be an upper zone member in MPE mode)
+    val output = sendPbsMsb(tuner, channel = 12, semitones = 12)
+    // Then - Non-MPE mode always routes to lower zone master (ch 0)
+    val ccs = extractCc(output)
+    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12))
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
   }
 
   // ---- LSB (cents) handling ----
+
+  it should "handle PBS LSB (cents) update by forwarding to master channel" in {
+    // Given - Set RPN to PBS on a non-master channel
+    val tuner = tuner7
+    tuner.process(CcScMidiMessage(5, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava)
+    tuner.process(CcScMidiMessage(5, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava)
+    // When - Send LSB on the same non-master channel
+    val output = tuner.process(CcScMidiMessage(5, ScMidiCc.DataEntryLsb, 50).asJava)
+    // Then - Should be forwarded to master channel (ch 0)
+    val ccs = extractCc(output)
+    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 50))
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
+      MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
+  }
 
   it should "handle PBS LSB (cents) update" in new Fixture {
     // Given - First set the RPN to PBS
@@ -2046,52 +2056,50 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava)
     // When - Send LSB
     private val output = sendPbsLsb(tuner, channel = 0, cents = 50)
-    // Then - Should re-send RPN setup before Data Entry LSB
+    // Then
     private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 50)
-    )
+    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 50))
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
       MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
   }
 
-  // ---- Pitch-bend recomputation after PBS change ----
-
-  it should "emit a single recomputed pitch bend on each occupied channel after member PBS change, " +
-    "preserving intonation of an active note without expressive pitch bend" in
-    new Fixture(tuner7, Some(quarterCommaMeantone)) {
-      // Given - Play E4: tuning offset for E is -14.0 cents
-      private val noteOutput = noteOn(nonMpeInputChannel, E4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When - Change member PBS from 48 to 24 semitones
-      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
-      // Then - A single recomputed pitch bend on the occupied channel
-      private val pitchBends = extractPitchBends(pbsOutput)
-      pitchBends.size shouldEqual 1
-      pitchBends.map(_.channel) should contain(noteChannel)
-      // The output pitch bend should still represent -14.0 cents under the new PBS
-      pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
-    }
-
   // ---- Zone isolation of PBS ----
 
+  it should "not update member PBS when PBS is received in non-MPE mode" in {
+    // Given
+    val tuner = tuner7
+    // When - Send PBS on various channels
+    sendPbsMsb(tuner, channel = 1, semitones = 12)
+    sendPbsMsb(tuner, channel = 5, semitones = 24)
+    // Then - Member PBS should remain at default
+    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+  }
+
+  it should "not affect the other zone's master PBS in dual-zone setup" in {
+    // Given
+    val tuner = dualZoneTuner
+    // When - Send PBS (routes to lower zone master in non-MPE mode)
+    sendPbsMsb(tuner, channel = 5, semitones = 12)
+    // Then
+    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+    tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+  }
+
   it should "not affect other zone's PBS" in new Fixture(dualZoneTuner) {
-    // When - Send PBS on lower zone member channel 1
+    // When - Send PBS on any channel in non-MPE dual-zone mode
     private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
-    // Then - Upper zone member channels (8-14) should NOT get the new PBS in this output
+    // Then - Routed to lower zone master (ch 0); no PBS messages on upper zone channels
     private val ccs = extractCc(output)
+    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 24))
     (8 to 14).foreach { ch =>
-      ccs.filter(cc => cc.channel == ch && cc.number == ScMidiCc.DataEntryMsb &&
-        cc.value == 24) shouldBe empty
+      ccs.filter(cc => cc.channel == ch && cc.number == ScMidiCc.DataEntryMsb) shouldBe empty
     }
   }
 
   // ---- Revert on reset ----
 
   it should "revert PBS to initial values on reset()" in new Fixture(tuner7) {
-    // Given - Change member PBS
+    // Given - Change master PBS (in non-MPE mode PBS always updates master)
     sendPbsMsb(tuner, channel = 1, semitones = 24)
     // When
     private val resetOutput = tuner.reset()
@@ -2115,11 +2123,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val output = sendPbsMsb(tuner, channel = 0, semitones = 12)
     // Then
     private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12)
-    )
+    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12))
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
   }
 
@@ -2131,11 +2135,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
       // Then
       private val ccs = extractCc(output)
-      ccs should contain inOrder(
-        CcScMidiMessage(1, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-        CcScMidiMessage(1, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(1, ScMidiCc.DataEntryMsb, 24)
-      )
+      ccs should contain(CcScMidiMessage(1, ScMidiCc.DataEntryMsb, 24))
       // Should NOT broadcast to other member channels
       private val dataEntryCcs = ccs.filter(_.number == ScMidiCc.DataEntryMsb)
       (2 to 7).foreach { ch =>
@@ -2143,6 +2143,19 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       }
       tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
     }
+
+  it should "forward PBS on each channel when received on all member channels" in new Fixture(tuner7MpeInput) {
+    // When - Sender broadcasts PBS to all member channels 1-7; each should be forwarded 1:1
+    private var output: Seq[MidiMessage] = Seq.empty
+    for (ch <- 1 to 7) {
+      output ++= sendPbsMsb(tuner, channel = ch, semitones = 24)
+    }
+    // Then
+    private val dataEntryCcs = extractCc(output).filter(cc =>
+      cc.number == ScMidiCc.DataEntryMsb && cc.value == 24)
+    dataEntryCcs.size shouldEqual 7
+    dataEntryCcs.map(_.channel) should contain theSameElementsAs (1 to 7)
+  }
 
   // ---- Pitch-bend recomputation after PBS change ----
 
@@ -2184,6 +2197,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val expectedCents = -14.0 + eExprCents
       private val newPbs = PitchBendSensitivity(24)
       pitchBends.head.centsFor(newPbs) shouldEqual expectedCents
+    }
+
+  it should "emit a single recomputed pitch bend on each occupied channel after member PBS change, " +
+    "preserving intonation of an active note without expressive pitch bend" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given - Play E4 on MPE member channel 2: tuning offset for E is -14.0 cents
+      private val noteOutput = noteOn(2, E4)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+      // When - Change member PBS from 48 to 24 semitones
+      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      // Then - A single recomputed pitch bend on the occupied channel
+      private val pitchBends = extractPitchBends(pbsOutput)
+      pitchBends.size shouldEqual 1
+      pitchBends.map(_.channel) should contain(noteChannel)
+      // The output pitch bend should still represent -14.0 cents under the new PBS
+      pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
     }
 
   // ---- Revert on reset ----

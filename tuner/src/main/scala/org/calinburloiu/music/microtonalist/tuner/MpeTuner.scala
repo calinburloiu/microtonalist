@@ -317,9 +317,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
     ccNumber match {
-      // RPN state machine — the selector is tracked by `tracker`; just forward the message
+      // RPN state machine — the selector is tracked by `tracker`; forward the message.
+      // In non-MPE input mode, RPN selectors are redirected to the Zone's Master Channel so they
+      // arrive on the same channel as the subsequent Data Entry (which `processPbs` routes there).
       case ScMidiCc.RpnLsb | ScMidiCc.RpnMsb =>
-        buffer += msg.asJava
+        if (inputMode == MpeInputMode.NonMpe) {
+          forwardOnZoneMasterChannel(buffer, msg)
+        } else {
+          buffer += msg.asJava
+        }
       case ScMidiCc.DataEntryMsb if isMcmRpn && (inputChannel == 0 || inputChannel == 15) =>
         processMcm(buffer, inputChannel, ccValue)
       case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if isPbsRpn =>
@@ -388,37 +394,47 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   /**
    * Processes an incoming Pitch Bend Sensitivity RPN Data Entry MSB (semitones) or LSB (cents).
+   *
+   * In non-MPE input mode, all PBS input is treated as a zone-level master PBS update and forwarded
+   * to the routing Zone's Master Channel (lower preferred), regardless of the input channel.
+   * In MPE input mode, the zone and master/member role are determined by the input channel.
    */
   private def processPbs(buffer: mutable.Buffer[MidiMessage], channel: Int,
                          ccNumber: Int, ccValue: Int): Unit = {
-    findZoneForChannel(channel) match {
-      case Some((zone, isMaster)) =>
-        val currentPbs = if (isMaster) zone.masterPitchBendSensitivity else zone.memberPitchBendSensitivity
-        val newPbs = if (ccNumber == ScMidiCc.DataEntryMsb) {
-          currentPbs.copy(semitones = ccValue)
-        } else {
-          currentPbs.copy(cents = ccValue)
-        }
-        val updatedZone = if (isMaster) zone.copy(masterPitchBendSensitivity = newPbs)
-        else zone.copy(memberPitchBendSensitivity = newPbs)
-        applyPbsUpdate(buffer, channel, ccNumber, ccValue, updatedZone, isMaster)
-      case None =>
-        // Channel not in any zone, forward as-is
-        buffer += CcScMidiMessage(channel, ccNumber, ccValue).asJava
+    if (inputMode == MpeInputMode.NonMpe) {
+      val routingZoneOpt =
+        if (lowerZone.isEnabled) Some(lowerZone)
+        else if (upperZone.isEnabled) Some(upperZone)
+        else None
+      routingZoneOpt.foreach { zone =>
+        val currentPbs = zone.masterPitchBendSensitivity
+        val newPbs = if (ccNumber == ScMidiCc.DataEntryMsb) currentPbs.copy(semitones = ccValue)
+                     else currentPbs.copy(cents = ccValue)
+        val updatedZone = zone.copy(masterPitchBendSensitivity = newPbs)
+        applyPbsUpdate(buffer, zone.masterChannel, ccNumber, ccValue, updatedZone, isMaster = true)
+      }
+    } else {
+      findZoneForChannel(channel) match {
+        case Some((zone, isMaster)) =>
+          val currentPbs = if (isMaster) zone.masterPitchBendSensitivity else zone.memberPitchBendSensitivity
+          val newPbs = if (ccNumber == ScMidiCc.DataEntryMsb) currentPbs.copy(semitones = ccValue)
+                       else currentPbs.copy(cents = ccValue)
+          val updatedZone = if (isMaster) zone.copy(masterPitchBendSensitivity = newPbs)
+                            else zone.copy(memberPitchBendSensitivity = newPbs)
+          applyPbsUpdate(buffer, channel, ccNumber, ccValue, updatedZone, isMaster)
+        case None =>
+          buffer += CcScMidiMessage(channel, ccNumber, ccValue).asJava
+      }
     }
   }
 
   /**
-   * Applies a PBS update: updates the internal zone configuration, forwards the RPN setup and
-   * Data Entry message on the original channel, and recomputes pitch bends on occupied member
-   * channels if needed.
+   * Applies a PBS update: updates the internal zone configuration, forwards the Data Entry message
+   * on the target channel, and recomputes pitch bends on occupied member channels if needed.
    *
-   * The RPN and Data Entry CCs are forwarded only on the original `channel` — not broadcast to all
-   * member channels. Per the MPE Specification, the sender is responsible for sending PBS to all
-   * member channels. Forwarding on each received channel preserves the 1:1 input-to-output ratio.
-   *
-   * The RPN is always re-sent before the Data Entry to guard against interleaving from other
-   * devices that may have changed the active RPN on the output channel.
+   * The Data Entry CC is forwarded only on `channel` — not broadcast to all member channels.
+   * Per the MPE Specification, the sender is responsible for sending PBS to all member channels;
+   * the tuner forwards each received Data Entry on the destination channel 1:1.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
@@ -431,11 +447,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       logger.info(s"PBS updated on $channelRole channel $channel of ${updatedZone.zoneType} zone: $pbsField = $ccValue")
     }
 
-    // Forward the RPN setup and Data Entry CC on the original channel only.
-    // The RPN is re-sent to guard against interleaving from other devices that may have changed the
-    // active RPN on this channel.
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava
     buffer += CcScMidiMessage(channel, ccNumber, ccValue).asJava
 
     // Recompute pitch bends on occupied member channels if member PBS changed
