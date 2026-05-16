@@ -238,6 +238,35 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   behavior of "MpeTuner - reset() - Non-MPE Input"
 
+  // ---- RPN 0 emission on reset ----
+
+  it should "output RPN 0 on master channel with configured master pitch bend sensitivity" in new Fixture {
+    // When
+    private val output = tuner.reset()
+    // Then
+    private val ccs = extractCc(output)
+    ccs should contain inOrder(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 2)
+    )
+  }
+
+  it should "output RPN 0 (Pitch Bend Sensitivity) on all member channels" in new Fixture(tuner7) {
+    // When
+    private val output = tuner.reset()
+    // Then
+    private val ccs = extractCc(output)
+    // Check that PBS is set on member channels 1..7
+    (1 to 7).foreach { ch =>
+      ccs should contain inOrder(
+        CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 48)
+      )
+    }
+  }
+
   // ---- State teardown ----
 
   it should "clear internal state after reset" in new Fixture(initialTuning = Some(quarterCommaMeantone)) {
@@ -1957,35 +1986,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   behavior of "MpeTuner - PBS Processing - Non-MPE Input"
 
-  // ---- RPN 0 emission on reset ----
-
-  it should "output RPN 0 on master channel with configured master pitch bend sensitivity" in new Fixture {
-    // When
-    private val output = tuner.reset()
-    // Then
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 2)
-    )
-  }
-
-  it should "output RPN 0 (Pitch Bend Sensitivity) on all member channels" in new Fixture(tuner7) {
-    // When
-    private val output = tuner.reset()
-    // Then
-    private val ccs = extractCc(output)
-    // Check that PBS is set on member channels 1..7
-    (1 to 7).foreach { ch =>
-      ccs should contain inOrder(
-        CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-        CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 48)
-      )
-    }
-  }
-
   // ---- Master-channel PBS update ----
 
   it should "update master PBS on master channel" in new Fixture {
@@ -2004,6 +2004,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Member-channel PBS update & forwarding ----
 
+  // TODO #154 In Non-MPE mode there is no incoming member channel, only output member channel. PBS in this mode
+  //  should only be forwarded to Master Channel
   it should "update member PBS and forward only on the received channel" in new Fixture(tuner7) {
     // When - Send PBS on member channel 1 -> internal state updated for all members, but only forwarded on ch 1
     private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
