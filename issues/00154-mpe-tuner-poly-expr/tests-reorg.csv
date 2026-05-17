@@ -1,5 +1,7 @@
 Non-MPE Input,MPE Input
-== reset() ==,
+== reset() ==
+output RPN 0 on master channel with configured master pitch bend sensitivity,
+output RPN 0 (Pitch Bend Sensitivity) on all member channels,,
 clear internal state after reset,
 emit Note Off for every active Member Channel note before resetting state,emit Note Off for active Master Channel notes before resetting state
 not emit Note Off messages on reset when no notes are active,
@@ -46,8 +48,8 @@ redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74,
 ,not forward Channel Pressure on an MPE input channel with no active note
 ,not forward expressive controls from an input channel after its notes have been released
 ,forward Master Channel pitch bend without modification
-ignore Polyphonic Key Pressure for non-active notes,forward Polyphonic Key Pressure as-is for Master Channel notes
 convert Polyphonic Key Pressure to Channel Pressure on member channel,drop Polyphonic Key Pressure received on a Member Channel
+ignore Polyphonic Key Pressure for non-active notes,forward Polyphonic Key Pressure as-is for Master Channel notes
 ,average the expression pitch bend value of all active notes on a member channel
 ,average the channel pressure value of all active notes on a member channel
 ,average the MPE slide (CC #74) value of all active notes on a member channel
@@ -89,20 +91,17 @@ forward Program Change on Master Channel,forward Program Change received on memb
 switch input mode to MPE automatically when an MCM is received,
 ,revert to initialZones on reset() after MCM
 == PBS Processing ==,
-output RPN 0 on master channel with configured master pitch bend sensitivity,
-output RPN 0 (Pitch Bend Sensitivity) on all member channels,
-update master PBS on master channel,update master PBS on master channel
+,update master PBS on master channel
 update master PBS and forward to lower zone master channel when PBS arrives on any input channel,
 update master PBS and forward to upper zone master channel when only upper zone is enabled,
 route PBS to lower zone master in dual-zone setup regardless of input channel,
 ,update member PBS and forward only on the received channel
-,forward PBS on each channel when received on all member channels
-handle PBS LSB (cents) update by forwarding to master channel,
-handle PBS LSB (cents) update,
-not update member PBS when PBS is received in non-MPE mode,
-not affect the other zone's master PBS in dual-zone setup,
+,forward PBS on each channel once when received on all member channels
+handle PBS LSB (cents) update by forwarding to master channel,handle PBS LSB (cents) update on master channel
+,handle PBS LSB (cents) update on member channel
+not update member PBS,
 not affect other zone's PBS,
-"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend","recompute pitch bends on occupied channels after member PBS change"
-,"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend"
+,recompute pitch bends on occupied channels after member PBS change
 ,preserve intonation of active note with expressive pitch bend after PBS change
+,"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend"
 revert PBS to initial values on reset(),revert PBS to initial values on reset()
