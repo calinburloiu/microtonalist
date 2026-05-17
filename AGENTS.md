@@ -150,6 +150,9 @@ development (BDD) is preferred for writting tests by making tests classes extend
 and `org.scalatest.matchers.should.Matchers`. When using this style of tests, test cases are grouped in behavior
 sections by using `behavior of`. When adding a new test case to a behavior-driven suite consider the following:
 
+* **Check the test class ScalaDoc first.** Some test classes carry a ScalaDoc comment that documents
+  class-specific conventions — categories, subgroup structure, test-naming rules.
+  When present, those conventions take precedence over the general guidance below.
 * Analyze the current behavior section in the test file.
 * Determine if there is an existing behavior section that is appropriate for the new test and if not create a new
   behavior section.

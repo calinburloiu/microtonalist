@@ -282,8 +282,9 @@ The CSV makes the asymmetry visible at a glance:
   additions: "clear internal state" and "no-op when empty" in MPE mode.
 - **Zone-level Messages** is symmetric for the three forwarding tests; only MPE
   has upper-zone routing variants.
-- **MCM Processing - MPE Input has zero tests.** Worth asking whether
-  re-receiving an MCM while already in MPE mode should be tested separately.
+- **MCM Processing - MPE Input** — gap closed in PR #202: 12 of 13 MCM tests
+  moved to the MPE Input section; only the auto-mode-switch test remains under
+  Non-MPE Input.
 - Several MPE-only tests in `process() - Basic` could plausibly have Non-MPE
   counterparts (preserve Note On velocity in both modes, treat Note On with
   velocity 0 as Note Off in both modes, etc.) — listed as gaps on the MPE side
