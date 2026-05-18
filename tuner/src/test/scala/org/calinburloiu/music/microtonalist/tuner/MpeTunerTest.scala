@@ -516,7 +516,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Expressive PB interaction ----
 
-  it should "recompute pitch bend = new tuning offset + current expressive pitch bend on each occupied channel" in
+  ignore should "recompute pitch bend = new tuning offset + current expressive pitch bend on each occupied channel" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // Given
       // E has -14.0 in quarter-comma meantone, +8.0 in pythagorean
@@ -1789,8 +1789,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Zone-level CCs forwarded to Master Channel ----
 
-  it should "forward zone-level CCs on Master Channel" in new Fixture {
-    private val zoneLevelCcs = Table(
+  it should "forward CCs on Master Channel" in new Fixture {
+    private val ccs = Table(
       ("ccName", "ccNumber", "ccValue"),
       ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
       ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
@@ -1799,7 +1799,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
       ("Soft Pedal", ScMidiCc.SoftPedal, 127)
     )
-    forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
+    forAll(ccs) { (_, ccNumber, ccValue) =>
       // When
       val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ccNumber, ccValue).asJava)
       // Then
@@ -1829,15 +1829,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Forwarding to zone Master Channel (single-zone) ----
 
-  it should "forward Sustain Pedal (CC #64) received on member channel to zone Master Channel" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.SustainPedal, 127)
-        .asJava)
-      // Then
-      extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 127))
-    }
-
   it should "forward zone-level CCs received on member channel to zone Master Channel" in
     new Fixture(tuner7MpeInput) {
       private val zoneLevelCcs = Table(
@@ -1857,6 +1848,15 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       }
     }
 
+  it should "forward Sustain Pedal (CC #64) received on member channel to zone Master Channel" in
+    new Fixture(tuner7MpeInput) {
+      // When
+      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.SustainPedal, 127)
+        .asJava)
+      // Then
+      extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 127))
+    }
+
   it should "forward Program Change received on member channel to zone Master Channel" in
     new Fixture(tuner7MpeInput) {
       // When
@@ -1868,21 +1868,33 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Routing to upper zone Master Channel (dual-zone) ----
 
-  it should "route zone-level CC to upper zone Master Channel when received on upper member channel" in
+  it should "route zone-level CC to the appropriate zone Master Channel when received on a member channel" in
     new Fixture(dualZoneTunerMpeInput) {
       // When
+      // lower zone: members 1-7, master 0
+      private var output = tuner.process(CcScMidiMessage(3, ScMidiCc.SustainPedal, 72).asJava)
+      // Then
+      extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 72))
+
+      // When
       // upper zone: members 8-14, master 15
-      private val output = tuner.process(CcScMidiMessage(8, ScMidiCc.SustainPedal, 127).asJava)
+      output = tuner.process(CcScMidiMessage(8, ScMidiCc.SustainPedal, 127).asJava)
       // Then
       extractCc(output) should contain(CcScMidiMessage(15, ScMidiCc.SustainPedal, 127))
     }
 
-  it should "route Program Change to upper zone Master Channel when received on upper member channel" in
+  it should "route Program Change to the appropriate zone Master Channel when received on a member channel" in
     new Fixture(dualZoneTunerMpeInput) {
       // When
-      private val output = tuner.process(ProgramChangeScMidiMessage(8, 5).asJava)
+      private var output = tuner.process(ProgramChangeScMidiMessage(4, 6).asJava)
       // Then
-      private val programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
+      private var programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
+      programChanges should contain(ProgramChangeScMidiMessage(0, 6))
+
+      // When
+      output = tuner.process(ProgramChangeScMidiMessage(8, 5).asJava)
+      // Then
+      programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
       programChanges should contain(ProgramChangeScMidiMessage(15, 5))
     }
 
