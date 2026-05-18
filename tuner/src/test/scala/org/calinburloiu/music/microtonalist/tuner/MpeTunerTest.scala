@@ -411,7 +411,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Retune of active notes ----
 
-  it should "retune notes of different pitch classes with correct offsets on each occupied member channel" in
+  it should "output updated Pitch Bend on each occupied member channel" in
     new Fixture(initialTuning = Some(quarterCommaMeantone)) {
       // Given
       private val out1 = noteOn(nonMpeInputChannel, C4)
@@ -485,6 +485,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   behavior of "MpeTuner - tune() - MPE Input"
 
+  // ---- Output messages when idle ----
+
+  it should "store tuning but output no messages when no active notes" in new Fixture(tuner7MpeInput) {
+    // When
+    private val output = tuner.tune(quarterCommaMeantone)
+    // Then
+    tuner.tuning shouldEqual quarterCommaMeantone
+    extractPitchBends(output) shouldBe empty
+  }
+
   // ---- Member-channel retune ----
 
   it should "output updated Pitch Bend on each occupied member channel" in
@@ -510,15 +520,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // Given
       // E has -14.0 in quarter-comma meantone, +8.0 in pythagorean
-      private val noteOutE = noteOn(1, E4)
+      private val eExprCents = 20.0
+      private val noteOutE = noteOn(1, E4, pbCents = Some(eExprCents))
       private val chE = extractNoteOns(noteOutE).head.channel
       private val noteOutG = noteOn(2, G4)
       private val chG = extractNoteOns(noteOutG).head.channel
 
       // Apply small expressive pitch bends (under the high-bend threshold) per note in MPE mode
-      private val eExprCents = 20.0
       private val gExprCents = -30.0
-      pitchBend(1, eExprCents)
       pitchBend(2, gExprCents)
 
       // When
