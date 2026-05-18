@@ -265,7 +265,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- RPN 0 emission on reset ----
 
-  it should "output RPN 0 on master channel with configured master pitch bend sensitivity" in new Fixture {
+  it should "output Pitch Bend Sensitivity on all channels" in new Fixture(tuner7) {
     // When
     private val output = tuner.reset()
     // Then
@@ -275,14 +275,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 2)
     )
-  }
-
-  it should "output RPN 0 (Pitch Bend Sensitivity) on all member channels" in new Fixture(tuner7) {
-    // When
-    private val output = tuner.reset()
-    // Then
-    private val ccs = extractCc(output)
-    // Check that PBS is set on member channels 1..7
     (1 to 7).foreach { ch =>
       ccs should contain inOrder(
         CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
@@ -333,18 +325,77 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   behavior of "MpeTuner - reset() - MPE Input"
 
-  it should "emit Note Off for active Master Channel notes before resetting state" in
+  // ---- RPN 0 emission on reset ----
+
+  it should "output Pitch Bend Sensitivity on all channels" in new Fixture(tuner7) {
+    // When
+    private val output = tuner.reset()
+    // Then
+    private val ccs = extractCc(output)
+    ccs should contain inOrder(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 2)
+    )
+    (1 to 7).foreach { ch =>
+      ccs should contain inOrder(
+        CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 48)
+      )
+    }
+  }
+
+  // ---- State teardown ----
+
+  it should "clear internal state after reset" in new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+    // Given
+    // Play a note
+    noteOn(1, C4, pbCents = Some(50.0), pressure = Some(32))
+    slide(2, 64)
+
+    // When
+    // Reset should clear everything
+    tuner.reset()
+
+    // Then
+    // tune() with no active notes should produce no pitch bend messages
+    private var output = tuner.tune(pythagoreanTuning)
+    extractPitchBends(output) shouldBe empty
+
+    // Expressive values are reset
+    output = noteOn(1, C4)
+    extractPitchBendsWithCents(output) should contain(1, 0)
+    extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(1, MpeExpression.DefaultPressure))
+
+    private val output2 = noteOn(2, D4)
+    extractSlides(output2) should contain(CcScMidiMessage(2, ScMidiCc.MpeSlide, MpeExpression.DefaultSlide))
+  }
+
+  it should "emit Note Off for all channel notes before resetting state" in
     new Fixture(mpeTunerMpeInput) {
       // Given
-      noteOn(0, C4)
-      noteOn(0, E4)
+      private val out0 = noteOn(0, C4)
+      private val out1 = noteOn(1, E4)
+      private val out2 = noteOn(2, G4)
+      private val ch0 = extractNoteOns(out0).head.channel
+      private val ch1 = extractNoteOns(out1).head.channel
+      private val ch2 = extractNoteOns(out2).head.channel
       // When
       private val resetOutput = tuner.reset()
       // Then
       private val noteOffs = extractNoteOffs(resetOutput)
-      noteOffs should contain(NoteOffScMidiMessage(0, C4))
-      noteOffs should contain(NoteOffScMidiMessage(0, E4))
+      noteOffs should contain(NoteOffScMidiMessage(ch0, C4))
+      noteOffs should contain(NoteOffScMidiMessage(ch1, E4))
+      noteOffs should contain(NoteOffScMidiMessage(ch2, G4))
     }
+
+  it should "not emit Note Off messages on reset when no notes are active" in new Fixture {
+    // When
+    private val resetOutput = tuner.reset()
+    // Then
+    extractNoteOffs(resetOutput) shouldBe empty
+  }
 
   behavior of "MpeTuner - tune() - Non-MPE Input"
 

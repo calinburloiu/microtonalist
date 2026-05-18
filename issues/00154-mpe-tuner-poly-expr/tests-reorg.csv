@@ -1,7 +1,6 @@
 Non-MPE Input,MPE Input
-== reset() ==
-output RPN 0 on master channel with configured master pitch bend sensitivity,
-output RPN 0 (Pitch Bend Sensitivity) on all member channels,,
+== reset() ==,
+output Pitch Bend Sensitivity on all channels,
 clear internal state after reset,
 emit Note Off for every active Member Channel note before resetting state,emit Note Off for active Master Channel notes before resetting state
 not emit Note Off messages on reset when no notes are active,
