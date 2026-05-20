@@ -34,20 +34,19 @@ clamp pitch bend to valid range when tuning offset exceeds PBS,clamp pitch bend 
 == process() - Expression ==,
 redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend,treat per-note pitch bend as expressive pitch bend combined with tuning offset
 not bleed master channel pitch bend into member channel tuning on retune,
-redirect input Channel Pressure to Master Channel as Zone-level Channel Pressure,
-redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74,
+redirect input Channel Pressure to Master Channel as Zone-level Channel Pressure,forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel
+redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74,forward CC #74 to the allocated Member Channel when an active note exists on MPE input channel
 ,fan out expressive Pitch Bend to all output channels for split notes from same MPE input channel
 ,fan out CC #74 to all output channels for split notes from same MPE input channel
 ,fan out Channel Pressure to all output channels for split notes from same MPE input channel
-,forward CC #74 to the allocated Member Channel when an active note exists on MPE input channel
-,forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel
 ,not forward Pitch Bend on an MPE input member channel with no active note
 ,not forward CC #74 on an MPE input channel with no active note
 ,not forward Channel Pressure on an MPE input channel with no active note
 ,not forward expressive controls from an input channel after its notes have been released
 ,forward Master Channel pitch bend without modification
 convert Polyphonic Key Pressure to Channel Pressure on member channel,drop Polyphonic Key Pressure received on a Member Channel
-ignore Polyphonic Key Pressure for non-active notes,forward Polyphonic Key Pressure as-is for Master Channel notes
+,forward Polyphonic Key Pressure as-is for Master Channel notes
+ignore Polyphonic Key Pressure for non-active notes,
 ,average the expression pitch bend value of all active notes on a member channel
 ,average the channel pressure value of all active notes on a member channel
 ,average the MPE slide (CC #74) value of all active notes on a member channel
