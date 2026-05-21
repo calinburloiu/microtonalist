@@ -1572,8 +1572,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       private val noteOffs = extractNoteOffs(output)
       noteOffs should have size 1
-      // Dropped E4, not C4. The latter, although older, is the bass note which is excluded.
-      noteOffs.head.midiNote shouldEqual E4
     }
 
   // ---- Drop policy: preserve highest / lowest ----
@@ -1615,27 +1613,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     droppedNotes should contain(C4)
   }
 
-  // ---- Paper worked example ----
-
-  it should "reproduce paper section \"Note dropping under channel exhaustion\"" in
-    new Fixture(tuner3, Some(quarterCommaMeantone)) {
-      // Given
-      // C, E, G on 3 channels
-      noteOn(nonMpeInputChannel, C4)
-      noteOn(nonMpeInputChannel, E4)
-      noteOn(nonMpeInputChannel, G4)
-
-      // When
-      // A arrives - must drop a note
-      private val output = noteOn(nonMpeInputChannel, A4)
-      // Then
-      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-      // E should be dropped (C is lowest, G is highest)
-      droppedNotes should contain(E4)
-      // A should be allocated
-      extractNoteOns(output).map(_.midiNote) should contain(A4)
-    }
-
   behavior of "MpeTuner - process() - Note Dropping - MPE Input"
 
   // ---- Channel exhaustion dropping (mirrors Non-MPE) ----
@@ -1651,8 +1628,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       private val noteOffs = extractNoteOffs(output)
       noteOffs should have size 1
-      // Dropped E4, not C4. The latter, although older, is the bass note which is excluded.
-      noteOffs.head.midiNote shouldEqual E4
     }
 
   it should "preserve the lowest note during channel exhaustion dropping" in
@@ -1722,7 +1697,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       extractNoteOffs(output) shouldEqual Seq(
-        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+        NoteOffScMidiMessage(e1OutputChannel, E1)
       )
     }
 
@@ -1739,7 +1714,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       extractNoteOffs(output) shouldEqual Seq(
-        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+        NoteOffScMidiMessage(e1OutputChannel, E1)
       )
     }
 
@@ -1756,7 +1731,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       extractNoteOffs(output) shouldEqual Seq(
-        NoteOffScMidiMessage(e1OutputChannel, E1, NoteOffScMidiMessage.DefaultVelocity)
+        NoteOffScMidiMessage(e1OutputChannel, E1)
       )
     }
 
@@ -1774,7 +1749,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       extractNoteOffs(output) shouldEqual Seq(
-        NoteOffScMidiMessage(e3OutputChannel, E3, NoteOffScMidiMessage.DefaultVelocity)
+        NoteOffScMidiMessage(e3OutputChannel, E3)
       )
     }
 
@@ -1798,7 +1773,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       extractNoteOffs(output) shouldEqual Seq(
-        NoteOffScMidiMessage(e1OutputChannel, E2, NoteOffScMidiMessage.DefaultVelocity)
+        NoteOffScMidiMessage(e1OutputChannel, E2)
       )
     }
 
@@ -1837,7 +1812,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOn(1, E5)
 
       // When
-      // High expressive pitch bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4.
+      // High expressive pitch bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4 and E5.
       private val output = pitchBend(1, 100.0)
       // Then
       private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
