@@ -59,7 +59,6 @@ trigger note dropping with Note Off output for dropped notes on channel exhausti
 preserve the lowest note during channel exhaustion dropping,preserve the lowest note during channel exhaustion dropping
 preserve the highest note during channel exhaustion dropping,preserve the highest note during channel exhaustion dropping
 preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels,preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels
-"reproduce paper section ""Note dropping under channel exhaustion""",
 ,drop a channel with high expressive PB to make room for an incoming note with low expression PB
 ,drop a channel with high expressive PB to make room for an incoming note with high expression PB
 ,drop a channel with low expressive PB to make room for an incoming note with high expression PB
