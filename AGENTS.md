@@ -67,7 +67,7 @@ TASTy load errors in issue #186), but routing through `sbtn` is the primary fix.
 1. **Detect the running stack** with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not).
 2. **Auto-start if absent.** If status reports the stack is not running, start it in the background (the default):
    ```bash
-   ./bin/microtonalist-dev-stack start
+   bin/microtonalist-dev-stack start
    ```
    Then wait until `.mcp.json` appears at the repo root (timeout ~3 minutes). The script refuses to launch when
    it detects another sbt server already running for this project (e.g. an orphan left by a prior `sbtn`
@@ -83,7 +83,7 @@ After this session-start check, every subsequent sbt command in the conversation
 trust that the stack is up unless a command unexpectedly fails (e.g. with a connect error), in which case re-run
 the check.
 
-To stop the background stack: `./bin/microtonalist-dev-stack stop`.
+To stop the background stack: `bin/microtonalist-dev-stack stop`.
 
 The BSP-server sbt is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in
 `build.sbt`),
@@ -96,7 +96,7 @@ without that property continue to use `<project>/target/`. The two trees never c
 At the start of every conversation, if the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
 to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
 semantic tools work correctly from the first query. Combine this with the "sbt invocations" check above: if no
-development stack is running yet, run `./bin/microtonalist-dev-stack start` first so the BSP server, the sbt
+development stack is running yet, run `bin/microtonalist-dev-stack start` first so the BSP server, the sbt
 server, and Metals come up together.
 
 ## Compiling

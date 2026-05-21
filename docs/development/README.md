@@ -143,7 +143,7 @@ Two integrations enhance Claude Code's capabilities in this project:
 
 Metals MCP provides Claude Code with Scala code intelligence through the
 [Model Context Protocol](https://modelcontextprotocol.io/). For the full background and detailed instructions, see
-[metals-mcp-claude-code.md](metals-mcp-claude-code.md).
+[metals-mcp-claude-code.md](metals-mcp-claude-code-setup.md).
 
 #### Quick start
 
@@ -163,7 +163,7 @@ Metals MCP provides Claude Code with Scala code intelligence through the
 2. From the repo root, start the development stack (sbt + BSP server + Metals MCP):
 
    ```bash
-   ./bin/microtonalist-dev-stack start
+   bin/microtonalist-dev-stack start
    ```
 
    This launches SBT and Metals as background processes (the default) and returns immediately. Once ready,

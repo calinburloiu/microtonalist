@@ -17,9 +17,9 @@ for background and prerequisites (Metals, Coursier, `metals-standalone-client`).
 Three subcommands:
 
 ```bash
-./bin/microtonalist-dev-stack start    # launch (background by default)
-./bin/microtonalist-dev-stack stop     # stop the running stack
-./bin/microtonalist-dev-stack status   # exit 0 if running, 1 if not
+bin/microtonalist-dev-stack start    # launch (background by default)
+bin/microtonalist-dev-stack stop     # stop the running stack
+bin/microtonalist-dev-stack status   # exit 0 if running, 1 if not
 ```
 
 ### `start`
@@ -67,7 +67,7 @@ Older logs are discarded on each `start`.
 #### Background (default)
 
 ```bash
-./bin/microtonalist-dev-stack start
+bin/microtonalist-dev-stack start
 ```
 
 The script handles `nohup`, log redirection, PID-file recording, and `disown`
@@ -89,7 +89,7 @@ tail -f logs/sbt.log
 Pass `--foreground` to attach in the current terminal:
 
 ```bash
-./bin/microtonalist-dev-stack start --foreground
+bin/microtonalist-dev-stack start --foreground
 ```
 
 The script blocks until you stop it. Press **Ctrl-C** to shut it down — the
@@ -104,7 +104,7 @@ escalates to SIGKILL if needed, then removes the PID file. Idempotent: a
 missing PID file or a stale PID is a no-op success.
 
 ```bash
-./bin/microtonalist-dev-stack stop
+bin/microtonalist-dev-stack stop
 ```
 
 The `start` trap (triggered by SIGTERM) will:
@@ -137,7 +137,7 @@ Verifies the stack is alive via the PID file. Exit code 0 if running, 1 if
 not (no PID file, empty PID file, or stale PID).
 
 ```bash
-./bin/microtonalist-dev-stack status
+bin/microtonalist-dev-stack status
 ```
 
 Useful both for human spot-checks and for scripted / agent session-start

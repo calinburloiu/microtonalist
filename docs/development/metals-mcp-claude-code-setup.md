@@ -81,8 +81,8 @@ The repository includes a helper script that automates steps 5–6 (SBT warm-up 
 launch) in a single command. From the repo root:
 
 ```bash
-./bin/microtonalist-dev-stack start              # background (default)
-./bin/microtonalist-dev-stack start --foreground # attach in this terminal (Ctrl-C to stop)
+bin/microtonalist-dev-stack start              # background (default)
+bin/microtonalist-dev-stack start --foreground # attach in this terminal (Ctrl-C to stop)
 ```
 
 The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
@@ -105,8 +105,8 @@ implementation.
 To check whether the stack is running, or to stop it:
 
 ```bash
-./bin/microtonalist-dev-stack status   # exit 0 if running, 1 if not
-./bin/microtonalist-dev-stack stop
+bin/microtonalist-dev-stack status   # exit 0 if running, 1 if not
+bin/microtonalist-dev-stack stop
 ```
 
 See [`bin/README.md`](../../bin/README.md#microtonalist-dev-stack) for details.
@@ -205,7 +205,7 @@ almost instantly with success or precise diagnostics, which Claude can then act 
 
 ## 10. Recommended workflow with this repo
 
-1. Terminal A — `./bin/microtonalist-dev-stack start` (background by default; pass
+1. Terminal A — `bin/microtonalist-dev-stack start` (background by default; pass
    `--foreground` to attach, or start the components manually in separate terminals as
    described in steps 5a and 6).
 2. Terminal B — `claude`, your interactive session.
