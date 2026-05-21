@@ -2,6 +2,11 @@
 
 Resolves [#186](https://github.com/calinburloiu/microtonalist/issues/186).
 
+> **Note:** This plan references `scripts/development/start-sbt-metals.sh` and
+> `scripts/development/stop-sbt-metals.sh` as they existed at the time. The two
+> scripts were later renamed and consolidated into a single `bin/microtonalist-dev-stack`
+> command (with `start`, `stop`, and `status` subcommands).
+
 ## Context
 
 When `sbt` runs as Metals' BSP server (started by `scripts/development/start-sbt-metals.sh`)

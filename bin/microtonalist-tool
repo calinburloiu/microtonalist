@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-# Copyright 2025 Calin-Andrei Burloiu
+# Copyright 2026 Calin-Andrei Burloiu
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 SCALA_VERSION=3.6.3
 
 SCRIPT_PATH="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd )"
-JAR="${SCRIPT_PATH}/../app/target/scala-${SCALA_VERSION}/microtonalist-app.jar"
+JAR="${SCRIPT_PATH}/../cli/target/scala-${SCALA_VERSION}/microtonalist-cli.jar"
 
 java -jar "$JAR" "$@"
 

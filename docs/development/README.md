@@ -163,12 +163,13 @@ Metals MCP provides Claude Code with Scala code intelligence through the
 2. From the repo root, start the development stack (sbt + BSP server + Metals MCP):
 
    ```bash
-   ./scripts/development/start-sbt-metals.sh
+   ./bin/microtonalist-dev-stack start
    ```
 
    This starts SBT and Metals as background processes. Once ready, it generates a `.mcp.json` file at the repo root
-   (gitignored) that Claude Code picks up automatically. The script can also be
-   [run in the background](../../scripts/development/README.md#start-sbt-metalssh).
+   (gitignored) that Claude Code picks up automatically. You can check the status with
+   `./bin/microtonalist-dev-stack status` and stop it with `./bin/microtonalist-dev-stack stop`. For more details,
+   see [`bin/README.md`](../../bin/README.md).
 
 3. In another terminal, launch Claude Code:
 

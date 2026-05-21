@@ -54,7 +54,7 @@ The `root` SBT project aggregates all the other projects. The executable applica
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
-The development stack started by `scripts/development/start-sbt-metals.sh` runs a single long-lived sbt JVM that
+The development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that
 hosts both the BSP server Metals connects to *and* the sbt server `sbtn` (the thin client) connects to. Run all
 sbt commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time —
 spawning duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental
@@ -64,13 +64,13 @@ TASTy load errors in issue #186), but routing through `sbtn` is the primary fix.
 
 **Once-per-session check** (do this with the Metals MCP warm-up below; do NOT repeat before every sbt call):
 
-1. **Detect the running stack.** Check whether `logs/start-sbt-metals.pid` exists and names a live process:
+1. **Detect the running stack.** Check if the stack is running:
    ```bash
-   pid="$(cat logs/start-sbt-metals.pid 2>/dev/null)" && [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+   bin/microtonalist-dev-stack status
    ```
-2. **Auto-start if absent.** If no live PID, start the stack in the background:
+2. **Auto-start if absent.** If the stack is not running, start it in the background:
    ```bash
-   ./scripts/development/start-sbt-metals.sh --background
+   bin/microtonalist-dev-stack start
    ```
    Then wait until `.mcp.json` appears at the repo root (timeout ~3 minutes). The script refuses to launch when
    it detects another sbt server already running for this project (e.g. an orphan left by a prior `sbtn`
@@ -86,7 +86,7 @@ After this session-start check, every subsequent sbt command in the conversation
 trust that the stack is up unless a command unexpectedly fails (e.g. with a connect error), in which case re-run
 the check.
 
-To stop the background stack: `./scripts/development/stop-sbt-metals.sh`.
+To stop the background stack: `bin/microtonalist-dev-stack stop`.
 
 The BSP-server sbt is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in
 `build.sbt`),
@@ -99,7 +99,7 @@ without that property continue to use `<project>/target/`. The two trees never c
 At the start of every conversation, if the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
 to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
 semantic tools work correctly from the first query. Combine this with the "sbt invocations" check above: if no
-development stack is running yet, run `scripts/development/start-sbt-metals.sh --background` first so the BSP
+development stack is running yet, run `bin/microtonalist-dev-stack start` first so the BSP
 server, the sbt server, and Metals come up together.
 
 ## Compiling
