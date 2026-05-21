@@ -81,19 +81,18 @@ The repository includes a helper script that automates steps 5–6 (SBT warm-up 
 launch) in a single command. From the repo root:
 
 ```bash
-./scripts/development/start-sbt-metals.sh                # foreground (Ctrl-C to stop)
-./scripts/development/start-sbt-metals.sh --background   # detach, exit immediately
+bin/microtonalist-dev-stack start              # background (default)
+bin/microtonalist-dev-stack start --foreground # attach in this terminal (Ctrl-C to stop)
 ```
 
 The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
 and the sbt server that the thin client `sbtn` connects to) and `metals-standalone-client` as
 background processes, waits for `.mcp.json` to appear, and then warms up the build by sending
-`compile` to SBT. The
-foreground form blocks until interrupted (Ctrl-C) or until one of the processes exits, and
-cleans up both on shutdown. The `--background` (`-d`) form detaches the script under
-`nohup`, records its PID at `logs/start-sbt-metals.pid`, and returns immediately so you can
-continue working in the same terminal. A second `--background` invocation while one is
-already running is refused.
+`compile` to SBT. The default (background) form detaches the script under `nohup`, records its
+PID at `logs/microtonalist-dev-stack.pid`, and returns immediately so you can continue working
+in the same terminal. The `--foreground` form attaches in the current terminal and blocks until
+interrupted (Ctrl-C) or until one of the processes exits, cleaning up both on shutdown. A
+second `start` while one is already running is refused.
 
 The SBT it launches uses `-Dmicrotonalist.build.targetSuffix=-bsp`, so its compiled outputs live
 under `<project>/target-bsp/` rather than `<project>/target/`. Any ad-hoc CLI `sbt`
@@ -103,13 +102,14 @@ so the two never collide on the same `classes/` tree. See
 that motivated this isolation, and `targetSuffixOverride` in `build.sbt` for the
 implementation.
 
-To stop a backgrounded run:
+To check whether the stack is running, or to stop it:
 
 ```bash
-./scripts/development/stop-sbt-metals.sh
+bin/microtonalist-dev-stack status   # exit 0 if running, 1 if not
+bin/microtonalist-dev-stack stop
 ```
 
-See [`scripts/development/README.md`](../../scripts/development/README.md) for details.
+See [`bin/README.md`](../../bin/README.md#microtonalist-dev-stack) for details.
 
 If you prefer to run the steps manually, continue with steps 5a and 6 below.
 
@@ -205,9 +205,9 @@ almost instantly with success or precise diagnostics, which Claude can then act 
 
 ## 10. Recommended workflow with this repo
 
-1. Terminal A — `./scripts/development/start-sbt-metals.sh --background` (or run it in the
-   foreground, or start the components manually in separate terminals as described in steps
-   5a and 6).
+1. Terminal A — `bin/microtonalist-dev-stack start` (background by default; pass
+   `--foreground` to attach, or start the components manually in separate terminals as
+   described in steps 5a and 6).
 2. Terminal B — `claude`, your interactive session.
 3. Let Claude prefer the Metals MCP tools (`compile-file`, `compile-module`, `test`,
    `inspect`, `get-usages`) over shelling out to `sbt`. When an `sbt` command is needed,

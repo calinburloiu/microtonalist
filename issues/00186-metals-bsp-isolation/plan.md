@@ -2,6 +2,16 @@
 
 Resolves [#186](https://github.com/calinburloiu/microtonalist/issues/186).
 
+> **Historical note (2026-05-21).** This plan refers to the original development-stack
+> scripts `scripts/development/start-sbt-metals.sh` and
+> `scripts/development/stop-sbt-metals.sh`. After this issue shipped, they were moved
+> to `bin/` and then consolidated into a single `bin/microtonalist-dev-stack` with
+> `start` / `stop` / `status` subcommands (see issue #205). The plan text below has
+> not been updated; map references mentally as:
+> `start-sbt-metals.sh [--background]` → `bin/microtonalist-dev-stack start`,
+> `stop-sbt-metals.sh` → `bin/microtonalist-dev-stack stop`, and the manual
+> `logs/start-sbt-metals.pid` check → `bin/microtonalist-dev-stack status`.
+
 ## Context
 
 When `sbt` runs as Metals' BSP server (started by `scripts/development/start-sbt-metals.sh`)

@@ -1,0 +1,399 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+#
+# microtonalist-dev-stack — manage the sbt+BSP and Metals MCP development stack.
+#
+# Subcommands:
+#   start [--foreground] [--force|-f]
+#       Launch the development stack. Background by default; pass --foreground
+#       to attach (Ctrl-C to stop). --force / -f bypasses the orphan-sbt-server
+#       guard.
+#   stop
+#       Stop a running stack. Reads logs/microtonalist-dev-stack.pid, sends
+#       SIGTERM, waits up to 10s, escalates to SIGKILL if needed. Idempotent.
+#   status
+#       Verify the stack is alive via the PID file. Exit 0 if running, 1 if not.
+#
+# `start` launches two background processes (managed by this script):
+#   1. `sbt` (interactive shell). This single sbt JVM hosts both the BSP server
+#      that Metals connects to and the sbt server that `sbtn` (the thin client)
+#      connects to. It is launched with `-Dmicrotonalist.build.targetSuffix=-bsp`
+#      so every project writes to `<project>/target-bsp/` instead of
+#      `<project>/target/`. This isolates its outputs from any ad-hoc CLI `sbt`
+#      invocation a developer might issue concurrently — see issue #186.
+#   2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude`,
+#      which drives Metals as a headless LSP client and makes Metals write
+#      `.mcp.json` at the repo root for Claude Code to pick up.
+#
+# Output of both processes is captured under `logs/` at the repo root. Older
+# logs are discarded on each `start`. Once `.mcp.json` has appeared, the script
+# warms up the build by sending `compile` to the running SBT shell. Because SBT
+# and Metals share the same BSP/SBT state, this also warms what Metals' MCP
+# tools see.
+#
+# See docs/development/metals-mcp-claude-code-setup.md for the full setup.
+
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+script_name="$(basename "${BASH_SOURCE[0]}")"
+repo_root="$(cd "$script_dir/.." && pwd)"
+cd "$repo_root"
+
+logs_dir="$repo_root/logs"
+pid_file="$logs_dir/microtonalist-dev-stack.pid"
+sbt_log="$logs_dir/sbt.log"
+metals_log="$logs_dir/metals-standalone-client.log"
+script_log="$logs_dir/microtonalist-dev-stack.log"
+sbt_fifo="$logs_dir/.sbt-stdin.fifo"
+
+log() { echo "[$script_name] $*"; }
+err() { echo "[$script_name] $*" >&2; }
+
+print_help() {
+  cat <<EOF
+$script_name — manage the sbt+BSP and Metals MCP development stack.
+
+Usage:
+  $script_name start [--foreground] [--force|-f]
+      Launch the stack. Background by default; --foreground attaches (Ctrl-C
+      to stop). --force / -f bypasses the orphan-sbt-server guard.
+  $script_name stop
+      Stop a running stack. Idempotent.
+  $script_name status
+      Verify the stack is alive. Exit 0 if running, 1 if not.
+  $script_name -h | --help
+      Show this help.
+
+PID file: logs/microtonalist-dev-stack.pid
+Logs:     logs/sbt.log, logs/metals-standalone-client.log,
+          logs/microtonalist-dev-stack.log (background mode)
+EOF
+}
+
+# ============================================================================
+# stop
+# ============================================================================
+
+cmd_stop() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) print_help; return 0 ;;
+      *) err "Unknown argument for 'stop': $1"; return 2 ;;
+    esac
+  done
+
+  if [[ ! -f "$pid_file" ]]; then
+    log "No PID file at $pid_file; nothing to stop."
+    return 0
+  fi
+
+  local pid
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+
+  if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
+    log "PID file present but process ${pid:-<empty>} is not alive; cleaning up stale file."
+    rm -f "$pid_file"
+    return 0
+  fi
+
+  log "Sending SIGTERM to PID $pid..."
+  kill "$pid" 2>/dev/null || true
+
+  for _ in $(seq 1 10); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 1
+  done
+
+  if kill -0 "$pid" 2>/dev/null; then
+    log "PID $pid still alive after 10s; sending SIGKILL."
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+
+  rm -f "$pid_file"
+  log "Done."
+}
+
+# ============================================================================
+# status
+# ============================================================================
+
+cmd_status() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) print_help; return 0 ;;
+      *) err "Unknown argument for 'status': $1"; return 2 ;;
+    esac
+  done
+
+  if [[ ! -f "$pid_file" ]]; then
+    log "Stack is not running (no PID file at $pid_file)."
+    return 1
+  fi
+
+  local pid
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+
+  if [[ -z "$pid" ]]; then
+    log "Stack is not running (empty PID file at $pid_file)."
+    return 1
+  fi
+
+  if kill -0 "$pid" 2>/dev/null; then
+    log "Stack is running as PID $pid."
+    return 0
+  fi
+
+  log "Stack is not running (PID $pid is not alive; $pid_file is stale)."
+  return 1
+}
+
+# ============================================================================
+# start
+# ============================================================================
+
+cmd_start() {
+  local background=1
+  local force=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --foreground) background=0; shift ;;
+      -f|--force) force=1; shift ;;
+      -h|--help) print_help; return 0 ;;
+      *)
+        err "Unknown argument for 'start': $1"
+        err "Usage: $script_name start [--foreground] [--force|-f]"
+        return 2
+        ;;
+    esac
+  done
+
+  local required_cmd
+  for required_cmd in sbt metals-standalone-client; do
+    if ! command -v "$required_cmd" >/dev/null 2>&1; then
+      err "Required command not found on PATH: $required_cmd"
+      return 1
+    fi
+  done
+
+  mkdir -p "$logs_dir"
+
+  # Refuse to start a second instance.
+  if [[ -f "$pid_file" ]]; then
+    local existing_pid
+    existing_pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+      err "$script_name is already running as PID $existing_pid (see $pid_file)."
+      err "Stop it first with: $script_name stop"
+      return 1
+    fi
+    log "Stale PID file at $pid_file (no live process); removing."
+    rm -f "$pid_file"
+  fi
+
+  # Detect a stray sbt server for THIS project (typically left by an earlier
+  # `sbtn` invocation made before this script was started). `sbtn` routes to
+  # whichever sbt server owns the build's deterministic socket dir, so a stray
+  # one would defeat the BSP server we are about to start. The active socket
+  # (if any) is recorded in project/target/active.json.
+  local active_json="$repo_root/project/target/active.json"
+  if [[ -f "$active_json" ]]; then
+    local sock_path
+    sock_path="$(grep -oE 'local://[^"]+' "$active_json" 2>/dev/null | head -1 | sed 's|^local://||')"
+    if [[ -n "$sock_path" && -S "$sock_path" ]]; then
+      local orphan_pid
+      orphan_pid="$(lsof -t "$sock_path" 2>/dev/null | head -1 || true)"
+      if [[ -n "$orphan_pid" ]] && kill -0 "$orphan_pid" 2>/dev/null; then
+        if [[ "$force" -eq 1 ]]; then
+          log "--force passed; continuing despite existing sbt server PID $orphan_pid (socket: $sock_path)."
+        else
+          err "An existing sbt server is already running for this project as PID $orphan_pid"
+          err "(socket: $sock_path)."
+          err "Starting the BSP server now would not help — sbtn would still route to PID $orphan_pid."
+          err ""
+          err "Stop the stray server first, e.g.:"
+          err "  kill $orphan_pid"
+          err "Or override with --force (not recommended)."
+          return 1
+        fi
+      fi
+    fi
+  fi
+
+  # Background mode: re-exec self detached and let the child record its own PID
+  # below. We do NOT write the PID file from the parent — if we did, the
+  # re-execed child's own double-start guard would trip on its own PID. The
+  # --force flag is propagated so the child does not re-do the orphan check
+  # (we just passed it).
+  if [[ "$background" -eq 1 ]]; then
+    rm -f "$script_log"
+    nohup "$script_dir/$script_name" start --foreground --force >"$script_log" 2>&1 &
+    local bg_pid=$!
+    disown "$bg_pid" 2>/dev/null || true
+    log "Launched in background as PID $bg_pid (log: $script_log)."
+    log "Stop with: $script_name stop"
+    return 0
+  fi
+
+  # Foreground (or re-execed background child): record own PID for stop.
+  echo "$$" > "$pid_file"
+
+  rm -f "$sbt_log" "$metals_log"
+
+  # Recreate the FIFO used as SBT's stdin so SBT stays alive and we can push
+  # commands (e.g. `compile`, `exit`) into it.
+  rm -f "$sbt_fifo"
+  mkfifo "$sbt_fifo"
+
+  local sbt_pid=""
+  local metals_pid=""
+  local sbt_fd_open=0
+
+  cleanup() {
+    trap - EXIT INT TERM
+    echo
+    log "Stopping background processes..."
+
+    if [[ -n "$metals_pid" ]] && kill -0 "$metals_pid" 2>/dev/null; then
+      kill "$metals_pid" 2>/dev/null || true
+    fi
+
+    if [[ -n "$sbt_pid" ]] && kill -0 "$sbt_pid" 2>/dev/null; then
+      # Ask SBT to exit cleanly via its stdin FIFO, then close the FD so SBT
+      # sees EOF if it ignored the `exit` command.
+      if [[ "$sbt_fd_open" -eq 1 ]]; then
+        echo "exit" >&9 2>/dev/null || true
+        exec 9>&- 2>/dev/null || true
+        sbt_fd_open=0
+      fi
+      # Give SBT a few seconds to stop on its own, then force it.
+      for _ in 1 2 3 4 5; do
+        kill -0 "$sbt_pid" 2>/dev/null || break
+        sleep 1
+      done
+      if kill -0 "$sbt_pid" 2>/dev/null; then
+        kill "$sbt_pid" 2>/dev/null || true
+      fi
+    fi
+
+    # Make sure the FD is released even if SBT was never started.
+    if [[ "$sbt_fd_open" -eq 1 ]]; then
+      exec 9>&- 2>/dev/null || true
+      sbt_fd_open=0
+    fi
+
+    rm -f "$sbt_fifo"
+    rm -f "$pid_file"
+    wait 2>/dev/null || true
+    log "Done."
+  }
+  trap cleanup EXIT INT TERM
+
+  log "Repo root: $repo_root"
+  log "Logs:      $logs_dir"
+
+  # Start SBT first so that it becomes the FIFO's reader. Opening a FIFO for
+  # read-only blocks until a writer appears, and opening for write-only blocks
+  # until a reader appears — so we must have the reader (SBT) in progress before
+  # we open the writer end below. Backgrounded SBT's stdin redirection will
+  # block on open() until the parent opens FD 9 for writing.
+  log "Starting SBT (log: $sbt_log)..."
+  # `-Dmicrotonalist.build.targetSuffix=-bsp` routes every project's `target` to
+  # `<project>/target-bsp/` so this BSP-server SBT does not share `classes/` dirs
+  # with ad-hoc CLI sbt invocations. See issue #186 and `targetSuffixOverride` in
+  # build.sbt.
+  sbt -Dmicrotonalist.build.targetSuffix=-bsp <"$sbt_fifo" >"$sbt_log" 2>&1 &
+  sbt_pid=$!
+  log "SBT PID: $sbt_pid"
+
+  # Now open the write end. This rendezvous unblocks both SBT's read-open and
+  # our own write-open. FD 9 stays open for the lifetime of the script so SBT
+  # never sees EOF on its stdin; we also use it to push commands (e.g. the
+  # warm-up `compile` and the shutdown `exit`).
+  exec 9>"$sbt_fifo"
+  sbt_fd_open=1
+
+  log "Starting metals-standalone-client (log: $metals_log)..."
+  metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude \
+    >"$metals_log" 2>&1 &
+  metals_pid=$!
+  log "metals-standalone-client PID: $metals_pid"
+
+  # Wait for Metals to write .mcp.json, then warm up the build.
+  local mcp_file="$repo_root/.mcp.json"
+  log "Waiting for $mcp_file to be written by Metals..."
+  for _ in $(seq 1 180); do
+    if [[ -f "$mcp_file" ]]; then
+      log "$mcp_file is ready."
+      break
+    fi
+    if ! kill -0 "$metals_pid" 2>/dev/null; then
+      err "metals-standalone-client exited; see $metals_log"
+      return 1
+    fi
+    sleep 1
+  done
+
+  if [[ -f "$mcp_file" ]]; then
+    # Warm up: ask the running SBT shell to do a full compile. SBT and Metals
+    # share the same BSP state, so this also warms what Metals' MCP tools see.
+    # (A proper MCP `compile-full` call would require speaking JSON-RPC over SSE,
+    # which is impractical from a shell script.)
+    log "Warming up: sending 'compile' to SBT..."
+    echo "compile" >&9 || true
+  else
+    err "Warning: $mcp_file did not appear within timeout; skipping warm-up."
+  fi
+
+  echo
+  log "Development stack is running."
+  log "  Tail SBT log:    tail -f $sbt_log"
+  log "  Tail Metals log: tail -f $metals_log"
+  log "Launch Claude Code from $repo_root in another terminal and run /mcp to verify."
+  log "Use 'sbtn …' to dispatch sbt commands into this server (see AGENTS.md)."
+  log "Press Ctrl-C to stop (foreground), or run '$script_name stop' (background)."
+
+  # Block until either child exits (or until we are signalled).
+  while kill -0 "$sbt_pid" 2>/dev/null && kill -0 "$metals_pid" 2>/dev/null; do
+    sleep 2
+  done
+
+  log "A background process exited. Shutting down."
+}
+
+# ============================================================================
+# main
+# ============================================================================
+
+if [[ $# -eq 0 ]]; then
+  print_help
+  exit 0
+fi
+
+case "$1" in
+  -h|--help) print_help; exit 0 ;;
+  start)  shift; cmd_start  "$@" ;;
+  stop)   shift; cmd_stop   "$@" ;;
+  status) shift; cmd_status "$@" ;;
+  *)
+    err "Unknown command: $1"
+    err "Usage: $script_name [start|stop|status|--help]"
+    exit 2
+    ;;
+esac
