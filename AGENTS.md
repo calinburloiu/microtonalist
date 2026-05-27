@@ -5,7 +5,28 @@ This file provides guidance to coding agents (e.g. Claude Code) when working wit
 Microtonalist is a microtuner application that allows tuning musical keyboards and synthesizers in real-time for playing
 music with microtones. It supports various protocols for tuning output instruments like MIDI Tuning Standard (MTS),
 Monophonic Pitch Bend and MIDI Polyphonic Expression (MPE). It is built as a stand-alone multi-platform desktop
-application that runs on JVM. The code is written in Scala 3.
+application that runs on JVM. The code is written in Scala 3 and is built by using sbt 1.
+
+# Coding workflow
+
+- Use Metals MCP for compiling and code intelligence (TODO link).
+- Use strict Test Driven Development (TDD) by following the red/green/refactor cycle:
+    - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
+      no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
+      **shall not** be due to compile errors, iterate until the code compiles.
+    - **Green**. Write only enough production code to make it pass, no more.
+    - **Refactor**. Once green, refactor the structure and naming freely, keeping the suite green throughout.
+    - Never write logic without a preceding failing test, never commit red production code, and never mix refactoring
+      with behavioral changes.
+- When the implementation is done, perform final checks by creating a task for each:
+    - Make sure tests pass for each modified module.
+    - Make sure modified files and modules meet the coverage conventions and iterate
+      until the target coverage is met. See [Coverage](#coverage) section for details.
+    - Make sure the full test suite for the whole project passes.
+    - Update architecture docs and current agent artifacts.
+- If the user did not mention an issue for the work ask if creating a new issue is necessary.
+- If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
+  created). If the user did not request opening a PR, ask them if creating one is necessary.
 
 # Code Intelligence
 
@@ -25,7 +46,7 @@ At the start of every conversation, check whether the Metals MCP is available by
 Prefer the Metals MCP over calling `sbt` processes for compiling code as detailed in the Build section below.
 
 Prefer the Metals MCP over `grep` for symbol inspection, symbol search, finding usages, and understanding class/trait
-hierachy. Use symbol search to reduce duplicated code by finding already implemented functionality. Use the read docs
+hierarchy. Use symbol search to reduce duplicated code by finding already implemented functionality. Use the read docs
 functionality to understand external code.
 
 ## Symbol search file focus
@@ -386,15 +407,6 @@ When creating a new pull request:
 * Lines have a maximum length of 120 characters.
 * Currently, we use IntelliJ IDEA for formatting code with the default settings.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
-
-## Follow the TDD cycle: red/green/refactor
-
-Use strict Test Driven Development (TDD) by following the red/green/refactor cycle.
-
-Write a failing test first — if the compiler requires it, create the thinnest possible stub (`???` bodies, no logic) to
-get it to compile, then confirm the test fails for the right reason. Write only enough production code to make it pass,
-no more. Once green, refactor the structure and naming freely, keeping the suite green throughout. Never write logic
-without a preceding failing test, never commit red production code, and never mix refactoring with behavioral changes.
 
 ## Use Given / When / Then comments in tests
 
