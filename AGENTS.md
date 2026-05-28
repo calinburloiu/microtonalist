@@ -63,13 +63,14 @@ scoping the search to that module's classpath.
 # Build
 
 The repository is built using SBT 1, Scala 3, and Java 23. It is split into multiple SBT projects that act as modules,
-libraries, or separate executable applications. Each project is in the repository root. Check `build.sbt` for details.
-The `root` SBT project aggregates all the other projects. The executable application is in `app` SBT project.
+libraries, or separate executable applications. We will simply call each of those SBT projects modules. Each one is
+located in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects.
+The executable application is in `app` SBT project.
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
 The development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that
-hosts both the BSP server Metals connects to *and* the sbt server `sbtn` (the thin client) connects to. Run all
+serves two clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all
 sbt commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time —
 spawning duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental
 state. The per-project `target` isolation described at the end of this section is belt-and-braces protection: it
@@ -109,9 +110,7 @@ without that property continue to use `<project>/target/`. The two trees never c
 
 At the start of every conversation, if the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
 to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
-semantic tools work correctly from the first query. Combine this with the "sbt invocations" check above: if no
-development stack is running yet, run `bin/microtonalist-dev-stack start` first so the BSP server, the sbt
-server, and Metals come up together.
+semantic tools work correctly from the first query. Combine this with the "sbt invocations" check above.
 
 ## Compiling
 
@@ -152,12 +151,10 @@ Tests and production code follow the default Scala and SBT directory structure. 
 in `src/main/scala` and tests are in `src/test/scala`. Tests are written using ScalaTest 3. Use `src/test/resources` for
 test data if necessary.
 
-Conventionally, the tests for a given production class use the same package and class name is suffixed with `Test`. For
-example, the test class for `org.calinburloiu.music.intonation.RatioInterval` is
-`org.calinburloiu.music.intonation.RatioIntervalTest`.
+Conventionally, the tests for a given production class use the same package and class name is suffixed with `Test` (e.g. the test class for `RatioInterval` is `RatioIntervalTest`).
 
 The project uses `scalatest` library for testing and `scalamock` for mocking / stubbing. The “behavior-driven” style of
-development (BDD) is preferred for writting tests by making tests classes extend `org.scalatest.flatspec.AnyFlatSpec`
+development (BDD) is preferred for writing tests by making tests classes extend `org.scalatest.flatspec.AnyFlatSpec`
 and `org.scalatest.matchers.should.Matchers`. When using this style of tests, test cases are grouped in behavior
 sections by using `behavior of`. When adding a new test case to a behavior-driven suite consider the following:
 
@@ -219,7 +216,7 @@ needed to reach 80%.
   current threshold. The per-module floor exists to track legacy code paying down toward 80%; it is not a license for
   newly authored code to ship under-tested.
 
-For coverage inquiries — checking a class's coverage, finding gaps, verifying a module still meets its threshold —
+For coverage inquiries — checking a class's coverage, finding gaps, verifying that a module still meets its threshold —
 use the `scoverage-inspector` skill rather than running `sbt coverage…` by hand.
 
 Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage + Scala 3 bug
