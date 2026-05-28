@@ -3,6 +3,19 @@
 This guide covers everything needed to build, test, and develop Microtonalist on a new machine. It also explains how to
 set up AI-assisted development with [Claude Code](https://claude.com/claude-code).
 
+## Documents in this directory
+
+- [`build.md`](build.md) — compiling and building the fat JAR with sbt.
+- [`test.md`](test.md) — running the test suite.
+- [`test-conventions.md`](test-conventions.md) — conventions for writing tests.
+- [`coding-conventions.md`](coding-conventions.md) — general / production Scala coding conventions.
+- [`coverage.md`](coverage.md) — manual coverage workflow (`coverageAll` / `coverageModules`) and CI's `coverageCheck`.
+- [`scoverage-issue.md`](scoverage-issue.md) — the known sbt-scoverage + Scala 3 TASTy bug and how to handle it.
+- [`metals-mcp-claude-code-setup.md`](metals-mcp-claude-code-setup.md) — full background on the Metals MCP integration.
+
+> Coding agents: most of the above are for humans. The agent-facing equivalents (loaded automatically) live in
+> [`../agents/`](../agents/) and in the root [`CLAUDE.md`](../../CLAUDE.md).
+
 ## Prerequisites
 
 ### JDK 23
@@ -91,43 +104,14 @@ curl -fL https://github.com/coursier/coursier/releases/latest/download/cs-x86_64
 
 ## Building
 
-Compile all modules:
-
-```bash
-sbt compile
-```
-
-Compile a single module (e.g. `tuner`):
-
-```bash
-sbt "tuner/compile"
-```
-
-Build the fat JAR for the main application:
-
-```bash
-sbt assembly
-```
+Compile all modules with `sbt compile`, a single module with `sbt "tuner/compile"`, and the fat JAR with `sbt assembly`.
+See [`build.md`](build.md) for the full reference.
 
 ## Testing
 
-Tests are written with [ScalaTest](https://www.scalatest.org/) 3. Run all tests:
-
-```bash
-sbt test
-```
-
-Test a single module:
-
-```bash
-sbt "tuner/test"
-```
-
-Test a single class:
-
-```bash
-sbt "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
-```
+Tests are written with [ScalaTest](https://www.scalatest.org/) 3. Run all tests with `sbt test`, a single module with
+`sbt "tuner/test"`, and a single class with `sbt "intonation/testOnly <FQN>"`. See [`test.md`](test.md) for the full
+reference and [`test-conventions.md`](test-conventions.md) for how tests are written.
 
 ## Claude Code Setup
 
