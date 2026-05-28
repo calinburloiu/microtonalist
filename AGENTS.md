@@ -31,23 +31,16 @@ application that runs on JVM. The code is written in Scala 3 and is built by usi
 # Code Intelligence
 
 At the start of every conversation, check whether the Metals MCP is available by attempting to call
-`mcp__metals__list-modules`. If it is available, you have the following capabilities through it:
-
-- **Symbol inspection** — inspect classes, traits, objects, and methods by fully qualified name (`mcp__metals__inspect`)
-- **Symbol search** — search for symbols by name glob (`mcp__metals__glob-search`) or by type (
-  `mcp__metals__typed-glob-search`)
-- **Find usages** — find all references to a symbol across the project (`mcp__metals__get-usages`)
-- **Read source** — retrieve source of any symbol on the classpath, including JDK and library classes (
-  `mcp__metals__get-source`)
-- **Read docs** — retrieve ScalaDoc/JavaDoc for any symbol (`mcp__metals__get-docs`)
-- **Compile** — compile the full project or a single module (`mcp__metals__compile-full`, `mcp__metals__compile-module`)
-- **Dependency lookup** — find available versions of Maven dependencies via Coursier (`mcp__metals__find-dep`)
+`mcp__metals__list-modules`. If it is available, prefer its `mcp__metals__*` tools (symbol inspection, search,
+find-usages, source/docs retrieval, compilation, Coursier dependency lookup) — see each tool's own description for
+parameters. If it is not available, fall back to the usual CLI tools (`sbt`/`sbtn`, `rg`, `find`, `WebFetch`, etc.).
 
 Prefer the Metals MCP over calling `sbt` processes for compiling code as detailed in the Build section below.
 
-Prefer the Metals MCP over `grep` for symbol inspection, symbol search, finding usages, and understanding class/trait
-hierarchy. Use symbol search to reduce duplicated code by finding already implemented functionality. Use the read docs
-functionality to understand external code.
+Prefer the Metals MCP over textual tools (`rg`, `grep`, `git grep`, `fd`, `find`) for symbol inspection, symbol search,
+finding usages, and understanding class/trait hierarchy — the textual alternatives can't distinguish a class from a
+same-named variable, follow overrides, or resolve imports. Use symbol search to reduce duplicated code by finding
+already implemented functionality. Use the read docs functionality to understand external code.
 
 ## Symbol search file focus
 
