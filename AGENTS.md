@@ -79,8 +79,7 @@ keeps a stray second `sbt` from racing the BSP server on the same `classes/` tre
 TASTy load errors in issue #186), but routing through `sbtn` is the primary fix.
 
 **Once-per-session check** (do this with the Metals MCP warm-up below; do NOT repeat before every sbt call):
-
-1. **Detect the running stack** with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not).
+**detect the running stack** with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not).
 
 If the stack **is** running, you are set. If it is **not** running — or you need to auto-start it, confirm `sbtn`
 routing, fall back to `sbt`, or stop the stack — follow the remaining steps in

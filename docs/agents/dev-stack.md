@@ -14,10 +14,10 @@ errors in issue #186), but routing through `sbtn` is the primary fix.
 
 ## Once-per-session check (continued)
 
-Step 1 (in the root `CLAUDE.md`): **Detect the running stack** with `bin/microtonalist-dev-stack status` (exit 0 if
-running, 1 if not). If it is running, you are done — skip to "After the check" below. If it is not running, continue:
+The root `CLAUDE.md` covers detecting the stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not).
+If it is running, you are done — skip to "After the check" below. If it is not running, work through the steps below.
 
-2. **Auto-start if absent.** If status reports the stack is not running, start it in the background (the default):
+1. **Auto-start the stack.** Start it in the background (the default):
    ```bash
    bin/microtonalist-dev-stack start
    ```
@@ -25,10 +25,10 @@ running, 1 if not). If it is running, you are done — skip to "After the check"
    it detects another sbt server already running for this project (e.g. an orphan left by a prior `sbtn`
    invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` (`-f`) if
    you have reason to override.
-3. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
+2. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
    confirming `logs/sbt.log` grew. If `logs/sbt.log` did not grow, `sbtn` connected to a different sbt server —
    investigate before continuing.
-4. **Fall back to `sbt`** only if step 2 fails to produce `.mcp.json` within the timeout. In that case note in
+3. **Fall back to `sbt`** only if step 1 fails to produce `.mcp.json` within the timeout. In that case note in
    your response why the stack could not be started so the user can investigate.
 
 ## After the check
