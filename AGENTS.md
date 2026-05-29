@@ -70,28 +70,24 @@ The executable application is in `app` SBT project.
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
-The development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that
-serves two clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all
-sbt commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time —
-spawning duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental
-state. The per-project `target` isolation described at the end of this section is belt-and-braces protection: it
-keeps a stray second `sbt` from racing the BSP server on the same `classes/` tree (which is what produced the
-TASTy load errors in issue #186), but routing through `sbtn` is the primary fix.
+The development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that serves two
+clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all sbt commands through
+`sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time — spawning duplicates compilation
+work and runs the second JVM with no awareness of the BSP server's incremental state. The per-project `target` isolation
+described below is belt-and-braces protection: it keeps a stray second `sbt` from racing the BSP server on the same
+`classes/` tree (which is what produced the TASTy load errors in issue #186), but routing through `sbtn` is the primary
+fix.
 
-**Once-per-session check** (do this with the Metals MCP warm-up below; do NOT repeat before every sbt call):
-**detect the running stack** with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not).
-
-If the stack **is** running, you are set. If it is **not** running — or you need to auto-start it, confirm `sbtn`
-routing, fall back to `sbt`, or stop the stack — follow the remaining steps in
+Once per session — together with the Metals MCP warm-up below, and not before every sbt call — detect the running stack
+with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is running, you are set: every subsequent
+sbt command should just use `sbtn …`, and you can trust the stack is up unless a command unexpectedly fails (e.g. with a
+connect error), in which case re-run this check. If it is not running — or you need to auto-start it, confirm `sbtn`
+routing, fall back to `sbt`, or stop the stack — follow the steps in
 [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md).
 
-After this session-start check, every subsequent sbt command in the conversation should just use `sbtn …` — trust that
-the stack is up unless a command unexpectedly fails (e.g. with a connect error), in which case re-run the check.
-
 The BSP-server sbt is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in
-`build.sbt`),
-so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. CLI sbt invocations
-without that property continue to use `<project>/target/`. The two trees never collide; `sbt clean` and
+`build.sbt`), so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. CLI sbt
+invocations without that property continue to use `<project>/target/`. The two trees never collide; `sbt clean` and
 `sbtn clean` each clean the active tree.
 
 ## Metals MCP warm-up

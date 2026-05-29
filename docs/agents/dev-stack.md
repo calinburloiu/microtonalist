@@ -1,8 +1,8 @@
 # Development Stack: starting it and routing `sbtn`
 
-The root `CLAUDE.md` keeps only step 1 of the once-per-session check — **detecting** whether the development stack is
-running. This file holds what to do **when it is not running**, plus how to confirm `sbtn` routing and how to stop the
-stack.
+The root `CLAUDE.md` covers detecting whether the development stack is running (`bin/microtonalist-dev-stack status`).
+This file holds what to do **when it is not running** — auto-starting it, confirming `sbtn` routing, falling back to
+`sbt`, and stopping the stack.
 
 Background: the development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that
 serves two clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all sbt
@@ -12,10 +12,9 @@ per-project `target` isolation (see the Build section of the root `CLAUDE.md`) i
 a stray second `sbt` from racing the BSP server on the same `classes/` tree (which is what produced the TASTy load
 errors in issue #186), but routing through `sbtn` is the primary fix.
 
-## Once-per-session check (continued)
+## When the stack is not running
 
-The root `CLAUDE.md` covers detecting the stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not).
-If it is running, you are done — skip to "After the check" below. If it is not running, work through the steps below.
+Work through these steps (if `status` reported the stack already running, you are done — see "After the check" below):
 
 1. **Auto-start the stack.** Start it in the background (the default):
    ```bash
