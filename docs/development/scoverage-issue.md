@@ -7,8 +7,8 @@ isolation fixes that actually eliminate the race are [#186] (Metals/BSP
 server) and [#198] (scoverage-inspector skill).
 
 If a coverage command fails with one of the symptoms listed below, treat it
-as a manifestation of *this* bug rather than a regression in the code under
-test. The bug lives in the interaction between `sbt-scoverage`, Scala 3's
+as a manifestation of *this* issue rather than a regression in the code under
+test. The issue lives in the interaction between `sbt-scoverage`, Scala 3's
 TASTy emission, and a **second JVM concurrently writing to the same
 `target/classes/` tree** — not in microtonalist sources.
 
@@ -67,7 +67,7 @@ sbt) works fine. The failure only surfaces when *two* JVMs touch the same
 
 ## Symptom shapes
 
-All of these are the same bug:
+All of these are the same concurrency issue:
 
 1. `value <X> is not a member of object <Pkg>.<ClassName>` — companion-only
    view; the class itself is missing from the compiled artifact.
@@ -95,7 +95,7 @@ Concrete examples that have been observed on this codebase:
 
 Note that the failing class and the failing downstream module are arbitrary —
 any pair can be hit on a given run. **The pattern, not the specific class
-name, is what identifies the bug.**
+name, is what identifies the concurrency issue.**
 
 ## How to recognize it
 
@@ -167,7 +167,7 @@ target-suffix isolation above is what actually fixes it.
 
 ## What does *not* help
 
-These were tried during the original investigation and did not fix the bug
+These were tried during the original investigation and did not fix the concurrency issue
 (they treat the symptom, not the concurrent-writer cause):
 
 - `sbt clean` / `rm -rf target` between runs.

@@ -209,8 +209,9 @@ lazy val intonation = (project in file("intonation"))
     libraryDependencies ++= Seq(
       guava,
     ),
-    // TODO #185 Raise toward 80% statement coverage.
-    coverageSettings(stmt = 72, branch = 80),
+    // * SagittalInterval is a registry of interval constants with no logic to test
+    coverageExcludedFiles := ".*/org/calinburloiu/music/intonation/intervals/SagittalInterval",
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 lazy val scMidi = (project in file("sc-midi"))
