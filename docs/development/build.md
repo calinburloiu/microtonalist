@@ -1,6 +1,6 @@
 # Building and Compiling
 
-This document describeds how to compile and build the project with sbt. This is primarily for human developers; coding
+This document describes how to compile and build the project with sbt. This is primarily for human developers; coding
 agents should normally compile via the Metals MCP (`mcp__metals__compile-full` / `mcp__metals__compile-module`) and only
 fall back to sbt when the Metals MCP is unavailable or for a final full build / fat JAR assembly.
 
