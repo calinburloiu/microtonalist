@@ -26,6 +26,7 @@ The project-wide target is **80% statement and branch coverage for every module*
 For coverage inquiries — checking a class's coverage, finding gaps, verifying that a module still meets its threshold —
 use the `scoverage-inspector` skill.
 
-Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage + Scala 3 bug
-documented in [`../development/scoverage-issue.md`](../development/scoverage-issue.md). If the `scoverage-inspector`
-skill reports such a failure, **stop and wait for user input** rather than retrying or modifying code.
+Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage + Scala 3 concurrency
+issue documented in [`../development/scoverage-issue.md`](../development/scoverage-issue.md). If the
+`scoverage-inspector` skill reports such a failure, **stop and wait for user input** rather than retrying or modifying
+code.

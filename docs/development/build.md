@@ -1,12 +1,13 @@
 # Building and Compiling
 
-How to compile and build the project with sbt. This is primarily for human developers; coding agents should normally
-compile via the Metals MCP (`mcp__metals__compile-full` / `mcp__metals__compile-module`) and only fall back to sbt when
-the Metals MCP is unavailable or for a final full build / fat JAR assembly.
+This document describeds how to compile and build the project with sbt. This is primarily for human developers; coding
+agents should normally compile via the Metals MCP (`mcp__metals__compile-full` / `mcp__metals__compile-module`) and only
+fall back to sbt when the Metals MCP is unavailable or for a final full build / fat JAR assembly.
 
 When the development stack is running, prefer `sbtn` over `sbt` so commands execute on the long-lived BSP server rather
 than spawning a fresh `sbt` JVM. See the [Development Setup](README.md) guide and
-[`../agents/dev-stack.md`](../agents/dev-stack.md).
+[`../agents/dev-stack.md`](../agents/dev-stack.md). Using `sbtn` with the dev-stack also helps avoiding concurrency
+issues when multiple builds would write in the same target subdirectory.
 
 ## Project layout
 
@@ -17,17 +18,17 @@ executable application is in the `app` SBT project.
 
 ## Compiling
 
-Compiling the whole `root` project:
+Compiling the whole `root` SBT project:
 
 ```bash
 sbtn compile
 ```
 
-For small changes, it is recommended to only compile individual SBT projects. Compiling a single SBT project
-`${PROJECT}`:
+For small changes, it is recommended to only compile individual modules. Compiling a single module
+`${MODULE}`:
 
 ```bash
-sbtn "${PROJECT}/compile"
+sbtn "${MODULE}/compile"
 ```
 
 ## Building the fat JAR
