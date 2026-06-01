@@ -30,9 +30,11 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts.
-- If the user did not mention an issue for the work, ask if creating a new issue is necessary.
+- If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
+  skill).
 - If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
-  created). If the user did not request opening a PR, ask them if creating one is necessary.
+  created). If the user did not request opening a PR, ask them if creating one is necessary (use the `contributing`
+  skill).
 
 # Code Intelligence
 
@@ -229,52 +231,10 @@ All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.fo
 
 Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on macOS.
 
-# Repository
+# Contributing (issues, PRs, branches)
 
-Use the **GitHub MCP plugin** (`mcp__plugin_github_github__*`) for all GitHub operations (issues, PRs, labels,
-milestones, etc.). Fall back to the `gh` CLI (`/usr/local/bin/gh`) only for features not available in the MCP, such as
-managing GitHub Projects (v2).
-
-## Labels
-
-The following labels are used for issues, PRs, and as branch name prefixes:
-
-- `feature` — a capability or component
-- `bugfix` — fix for a defect
-- `refactoring` — restructuring existing code without changing behavior
-- `doc` — documentation-only changes
-- `poc` — proof of concept or experimental work
-
-## Branches
-
-Branch names use the format `<label>/<kebab-case-description>`, where `<label>` is one of the labels above. Examples:
-`feature/mpe-tuner`, `bugfix/pitch-bend-overflow`, `refactoring/program-change-midi-msg-wrapper`.
-
-The label in the branch name determines the label to apply to the corresponding issue and PR.
-
-## Issues
-
-When creating a new issue:
-
-- **Always** add the issue to the **microtonalist** GitHub project (Projects v2). The GitHub MCP does not support
-  Projects v2, so use the `gh` CLI:
-  ```bash
-  gh project item-add 1 --owner calinburloiu --url https://github.com/calinburloiu/microtonalist/issues/<issue_number>
-  ```
-- Add the appropriate label (inferred from the branch name if available).
-- Check existing milestones (`mcp__plugin_github_github__list_releases` or similar). If a milestone name matches the
-  scope of the new work, suggest adding it to the user before assigning.
-
-## Pull Requests
-
-When creating a new pull request:
-
-- **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`).
-- **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
-- **Draft state:** Always open new PRs as **draft**.
-- **Project:** Assign the **microtonalist** GitHub project.
-- **Label:** Use the same label as the linked issue.
-- **Milestone:** Use the same milestone as the linked issue, if one is set.
+GitHub conventions — issues, branches, pull requests, labels, milestones, and the Projects-v2 `gh` fallback — live in
+the `contributing` skill (`.claude/skills/contributing/`). Invoke it when creating an issue or opening a PR.
 
 # Coding Conventions
 
