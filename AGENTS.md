@@ -11,7 +11,7 @@ each pitch class of the keyboard.
 Microtonalist is built as a stand-alone multi-platform desktop application that runs on JVM. The code is written in
 Scala 3 and is built by using sbt 1.
 
-# Coding workflow
+# Coding Workflow
 
 - Use Metals MCP for compiling and code intelligence (see [Code Intelligence](#code-intelligence) section); fall back to
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
@@ -122,11 +122,12 @@ For test conventions, see the "Coding conventions" section.
 
 # Coverage
 
-The coverage policy you must apply whenever you change code — per-module thresholds, the "never decrease the floor"
-rule, the 80% target for new files, and the stop-and-wait behavior on the known scoverage TASTy concurrency issue — is
-imported below. Mechanical inspection is delegated to the `scoverage-inspector` skill.
-
-@docs/agents/coverage.md
+During the **Coverage** workflow step — and any time you verify coverage after changing code — invoke the
+`scoverage-inspector` skill. It carries the coverage policy you must apply (per-module thresholds, the "never decrease
+the floor" rule, the 80% target for new files, and the stop-and-wait behavior on the known scoverage TASTy concurrency
+issue) and delegates mechanical XML inspection to its custom subagent. The policy lives in the skill — loaded on demand
+when you invoke it — precisely so it does not clutter context up front, since coverage work only happens after the
+implementation is finished.
 
 # Architecture
 
