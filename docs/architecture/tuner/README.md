@@ -78,11 +78,11 @@ because `tuner` owns the domain types, but its `TrackFormat` and the concrete `F
 
 ## Supported tuning protocols
 
-| Protocol | Tuner | How it tunes | Polyphony |
-| -------- | ----- | ------------ | --------- |
-| MTS Octave (1/2-byte, real/non-real-time) | `MtsOctave*Tuner` | Sends an MTS SysEx that retunes the instrument's pitch table in advance; notes pass through unchanged. | Polyphonic (instrument-side) |
-| Monophonic Pitch Bend | `MonophonicPitchBendTuner` | Per-channel Pitch Bend, all input folded to one output channel. | Monophonic (enforced) |
-| MPE | `MpeTuner` | Per-note Pitch Bend on dynamically allocated MPE Member Channels. | Polyphonic |
+| Protocol                                       | Tuner                      | How it tunes                                                                                           | Polyphony                    |
+|------------------------------------------------|----------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|
+| MTS Octave (1-byte/2-byte, real/non-real-time) | `MtsOctave*Tuner`          | Sends an MTS SysEx that retunes the instrument's pitch table in advance; notes pass through unchanged. | Polyphonic (instrument-side) |
+| Monophonic Pitch Bend                          | `MonophonicPitchBendTuner` | Per-channel Pitch Bend, all input folded to one output channel.                                        | Monophonic (enforced)        |
+| MPE                                            | `MpeTuner`                 | Per-note Pitch Bend on dynamically allocated MPE Member Channels.                                      | Polyphonic                   |
 
 The MPE design has dedicated references (do not duplicate them here):
 

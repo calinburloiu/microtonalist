@@ -67,7 +67,7 @@ offers cents conversion against a `PitchBendSensitivity`.
 **`JavaMidiConverters`** is the boundary with Java Sound MIDI, modelled after `scala.jdk.CollectionConverters`:
 importing its members enables `scMessage.asJava` / `javaMessage.asScala`. Both directions dispatch through lookup tables
 (by concrete subtype `Class` outbound, by status/meta-type byte inbound) rather than large pattern matches. Value
-validation for message constructors is centralised in `MidiRequirements` (channel and bit-width `require…` checks), and
+validation for message constructors is centralized in `MidiRequirements` (channel and bit-width `require…` checks), and
 the controller/parameter numbers live in `ScMidiCc` / `ScMidiRpn` / `ScMidiNrpn` (including the MPE Configuration
 Message and the MPE Slide CC).
 
@@ -114,19 +114,20 @@ sequence). Smaller helpers (`isInputDevice`/`isOutputDevice`, `mapShortMessageCh
 
 ## Device lifecycle and events
 
-`MidiManager`'s internal endpoints reconcile the scanned device set against known state and publish Businessync events
-as side effects: newly seen devices emit `MidiDeviceConnectedEvent`, vanished ones `MidiDeviceDisconnectedEvent` (with
-`MidiEnvironmentChangedEvent` first), opening emits `MidiDeviceOpenedEvent`, and failures emit the corresponding
-`…Failed…Event` carrying the exception. Consumers (notably the `tuner` track lifecycle) subscribe through Businessync
-rather than polling.
+`MidiManager`'s internal endpoints reconcile the scanned device set against known state on every `refresh()` and
+publish the [`MidiEvent`s](#device-handling) as side effects of that diff: a newly seen device is reported
+*connected*, a vanished one *disconnected* (preceded by `MidiEnvironmentChangedEvent`), opening and closing emit
+*opened*/*closed*, and any failed transition emits the matching `…Failed…Event` carrying the exception. Consumers —
+notably the `tuner` track lifecycle — react by subscribing through Businessync rather than polling.
 
 ## Message conversion model
 
-The boundary with Java Sound MIDI is the `ScMidiMessage` ↔ `MidiMessage` pair handled by `JavaMidiConverters`: inbound,
-a device's raw message becomes a typed, validated `ScMidiMessage` via `.asScala` (anything unrecognised becomes
-`UnsupportedScMidiMessage`, never lost); outbound, an `ScMidiMessage` is rendered via `.asJava`. Within `scMidi`,
-message code prefers the typed model and validated constructors; the raw byte layer is confined to the converters and
-the few places that talk to `javax.sound.midi` directly.
+The `ScMidiMessage` ↔ `MidiMessage` conversion provided by
+[`JavaMidiConverters`](#midi-message-model-message-sub-package) runs in two directions. Inbound, a device's raw
+message becomes a typed, validated `ScMidiMessage` via `.asScala`, with anything unrecognised falling back to
+`UnsupportedScMidiMessage` so nothing is lost; outbound, an `ScMidiMessage` is rendered back to a Java `MidiMessage`
+via `.asJava`. Within `scMidi`, message code prefers the typed model and validated constructors; the raw byte layer
+stays confined to the converters and the few places that talk to `javax.sound.midi` directly.
 
 ## Dependencies
 

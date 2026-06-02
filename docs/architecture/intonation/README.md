@@ -46,11 +46,12 @@ operator (e.g. `3 /: 2` is a perfect fifth), the postfix `.cents` operator on `D
 
 ### `Scale`
 
-`Scale[+I <: Interval]` is an ordered, non-empty, covariant sequence of intervals validated to be sorted (ascending or
-descending). Beyond sequence access it offers `relativeIntervals` (steps between adjacent intervals), an entropy-based
-`softness` measure (equal-step scales score 1, harder scales approach 0), cent-tolerant comparison (`almostEquals`), and
-conversion: `intonationStandard` is `Some` only when all intervals share one standard, and `convertToIntonationStandard`
-returns a `ScaleConversionResult` (the converted scale plus the worst-case `IntonationConversionQuality`).
+`Scale[+I <: Interval]` models a **musical scale**: an ordered, non-empty, covariant sequence of intervals validated to
+be sorted (ascending or descending). Beyond sequence access it offers `relativeIntervals` (steps between adjacent
+intervals), an entropy-based `softness` measure (equal-step scales score 1, harder scales approach 0), cent-tolerant
+comparison (`almostEquals`), and conversion: `intonationStandard` is `Some` only when all intervals share one standard,
+and `convertToIntonationStandard` returns a `ScaleConversionResult` (the converted scale plus the worst-case
+`IntonationConversionQuality`).
 
 Typed `case class` subtypes — `RatiosScale`, `CentsScale`, `EdoScale` — carry a known element type, refine the API, and
 offer varargs constructors. The `Scale` companion is the smart-constructor entry point: `Scale.create` picks the most
