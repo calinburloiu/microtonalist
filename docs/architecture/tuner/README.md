@@ -54,13 +54,14 @@ declares a `familyName` (the family, e.g. `"tuner"`) and a `typeName` (the concr
   Pitch Bend is channel-wide it enforces monophony, folding all input onto one `outputChannel`, tracking the held note
   via `ScMidiChannelStateTracker`, and combining the performer's expressive bend with the tuning bend. Handles pedal
   interruption to preserve monophony and reacts to Pitch Bend Sensitivity RPN changes.
-- `MpeTuner` — `tuner/.../MpeTuner.scala:62`. The polyphonic tuner; see [Supported tuning protocols](#supported-tuning-protocols)
-  and the linked design paper. Distributes notes across MPE Member Channels so each can carry an independent
-  pitch-class Pitch Bend offset, supports `NonMpe`/`Mpe` input modes (`MpeInputMode`), and reconfigures zones on
-  receiving an MPE Configuration Message (MCM). Supporting types: `MpeZone`/`MpeZones`/`MpeZoneStructure`/`MpeZoneType`
-  (`tuner/.../MpeZone.scala`) model the Lower/Upper zones and their channel layout with overlap resolution;
-  `MpeChannelAllocator` (`tuner/.../MpeChannelAllocator.scala`) partitions Member Channels into a Pitch Class Group and
-  an Expression Group and decides note→channel allocation (and note drops on exhaustion / large expressive bend).
+- `MpeTuner` — `tuner/.../MpeTuner.scala:62`. The polyphonic tuner; see
+  [Supported tuning protocols](#supported-tuning-protocols) and the linked design paper. Distributes notes across MPE
+  Member Channels so each can carry an independent pitch-class Pitch Bend offset, supports `NonMpe`/`Mpe` input modes
+  (`MpeInputMode`), and reconfigures zones on receiving an MPE Configuration Message (MCM). Supporting types:
+  `MpeZone`/`MpeZones`/`MpeZoneStructure`/`MpeZoneType` (`tuner/.../MpeZone.scala`) model the Lower/Upper zones and
+  their channel layout with overlap resolution; `MpeChannelAllocator` (`tuner/.../MpeChannelAllocator.scala`)
+  partitions Member Channels into a Pitch Class Group and an Expression Group and decides note→channel allocation
+  (and note drops on exhaustion / large expressive bend).
 
 ### Tuning change detection
 

@@ -48,7 +48,8 @@ share a single `MidiDeviceId`.
   `{input,output}DeviceHandleOf`, `{input,output}OpenedDevices`, `close{Input,Output}(deviceId)`.
 - The private nested `MidiManager.MidiEndpoint` (`:169`) holds two `ConcurrentHashMap`s (id → `MidiDevice.Info` for
   connected devices, id → `MidiDeviceHandle` for opened devices) and is responsible for emitting the connect /
-  disconnect / open / close events as it reconciles state (see [Device lifecycle and events](#device-lifecycle-and-events)).
+  disconnect / open / close events as it reconciles state
+  (see [Device lifecycle and events](#device-lifecycle-and-events)).
 
 #### `MidiDeviceHandle` (`sc-midi/src/main/scala/org/calinburloiu/music/scmidi/MidiDeviceHandle.scala:53`)
 
@@ -186,7 +187,7 @@ MidiProcessor -> MidiProcessor -> ... -> MidiProcessor -> output receiver
 It rewires the chain automatically on every mutation: `processors` (get/set), `insert`, `append`, `update`, `remove`,
 `removeAt`, `clear`, `size`. When the chain is empty it simply forwards input to the output receiver.
 
-#### `ScMidiChannelStateTracker` (`sc-midi/src/main/scala/org/calinburloiu/music/scmidi/ScMidiChannelStateTracker.scala:41`)
+#### `ScMidiChannelStateTracker` (`sc-midi/.../ScMidiChannelStateTracker.scala:41`)
 
 A `ScMidiReceiver` (explicitly `@NotThreadSafe`, intended for a single track thread) that derives and exposes
 **per-channel MIDI state** from the messages sent to it: active notes (with velocity and Polyphonic Key Pressure),

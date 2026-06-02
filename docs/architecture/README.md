@@ -6,8 +6,8 @@ architecture document so the relevant context loads on demand when an agent work
 
 A concise, always-in-context overview — the module dependency graph, the key domain concepts, and the end-to-end data
 flow — is maintained for coding agents in [`../agents/architecture.md`](../agents/architecture.md) and imported by the
-root [`CLAUDE.md`](../../CLAUDE.md) / [`AGENTS.md`](../../AGENTS.md). This directory holds the deeper, per-module detail:
-start with the overview, then follow the module index below into whichever module(s) a task touches.
+root [`CLAUDE.md`](../../CLAUDE.md) / [`AGENTS.md`](../../AGENTS.md). This directory holds the deeper, per-module
+detail: start with the overview, then follow the module index below into whichever module(s) a task touches.
 
 Some documents note that an area is *subject to change* under the GitHub
 [`Architecture`](https://github.com/calinburloiu/microtonalist/milestone/13) milestone (e.g. the Swing→JavaFX GUI

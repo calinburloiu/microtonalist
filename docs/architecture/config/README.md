@@ -60,7 +60,7 @@ for managing one HOCON sub-tree rooted at `configPath`:
 This pattern keeps each settings section (its typed shape plus its HOCON (de)serialization) self-contained, so new
 config sections are added by writing a new `Configured` case class plus a `SubConfigManager` for it.
 
-### `CoreConfig`, `MetaConfig`, `CoreConfigManager` (`config/src/main/scala/org/calinburloiu/music/microtonalist/config/CoreConfig.scala`)
+### `CoreConfig`, `MetaConfig`, `CoreConfigManager` (`config/.../CoreConfig.scala`)
 
 The one concrete config section, rooted at HOCON path `core` (`CoreConfig.scala:74`).
 
@@ -92,8 +92,8 @@ Serialization helpers bridging plain Scala values and Typesafe Config values:
 ## Dependencies
 
 Per `build.sbt`, `appConfig` depends only on the `common` module (for `PlatformUtils`, `parseUrlOrPath`, and the
-`Locking` concurrency trait) plus the external `ficus` library (over Typesafe Config). It has no other application-module
-dependencies, keeping it near the bottom of the layered architecture.
+`Locking` concurrency trait) plus the external `ficus` library (over Typesafe Config). It has no other
+application-module dependencies, keeping it near the bottom of the layered architecture.
 
 It is depended on by the `app` module, which constructs and queries the `MainConfigManager` during startup.
 

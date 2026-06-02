@@ -3,17 +3,17 @@
 ## Responsibility
 
 The `cli` module is a **separate command-line executable** — a small utilities tool, distinct from the main
-Microtonalist desktop application (the `app` module). It is not loaded by, and is not part of, the GUI application; it is
-assembled and run on its own.
+Microtonalist desktop application (the `app` module). It is not loaded by, and is not part of, the GUI application;
+it is assembled and run on its own.
 
 Its purpose is to provide developer/operator utilities that need access to the local MIDI subsystem without launching
-the full app. Currently it offers a single subcommand that **lists the MIDI devices connected to the computer**, printing
-each input and output device along with its metadata (name, vendor, version, description) and its maximum
-transmitter/receiver count. This is useful for discovering device names to reference in compositions and track
-configurations.
+the full app. Currently it offers a single subcommand that **lists the MIDI devices connected to the computer**,
+printing each input and output device along with its metadata (name, vendor, version, description) and its
+maximum transmitter/receiver count. This is useful for discovering device names to reference in compositions and
+track configurations.
 
-In the layered architecture it sits to the side of the main stack: it depends only on `sc-midi` (the Scala-idiomatic MIDI
-API) and the transitive `businessync` event bus that `MidiManager` requires. Nothing depends on `cli`. See
+In the layered architecture it sits to the side of the main stack: it depends only on `sc-midi` (the Scala-idiomatic
+MIDI API) and the transitive `businessync` event bus that `MidiManager` requires. Nothing depends on `cli`. See
 [Dependencies](#dependencies).
 
 Package: `org.calinburloiu.music.microtonalist.cli`.

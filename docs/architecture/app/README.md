@@ -135,8 +135,9 @@ The end-to-end startup sequence, verified against `MicrotonalistApp.scala`:
    The composition argument may be a URL or a local path (resolved by `common.parseUrlOrPath`).
 
 2. **Resolve config path & load config** — in `run` (`:76`): the config path is the provided one or
-   `MainConfigManager.defaultConfigFile` (`~/.microtonalist/microtonalist.conf` on macOS). `MainConfigManager(configPath)`
-   parses and resolves the HOCON file, exposing `coreConfig` (including `libraryBaseUrl`).
+   `MainConfigManager.defaultConfigFile` (`~/.microtonalist/microtonalist.conf` on macOS).
+   `MainConfigManager(configPath)` parses and resolves the HOCON file, exposing `coreConfig` (including
+   `libraryBaseUrl`).
 
 3. **Create the event/threading layer** — a Guava `EventBus` and a `Businessync` wrapping it are created (`:78`–`:79`).
    This is the backbone for cross-thread communication used by the tuner runtime and the GUI.

@@ -32,8 +32,8 @@ interval and exposes:
 - `cents: Double` — the interval in cents (default derives from `realValue`).
 - Logarithmic-space arithmetic: `+`, `-` (`Interval.scala:82`, `:90`), `*(n: Int)` (repeated addition), `invert`
   (octave complement), `reverse` (flip direction).
-- Octave handling: `isNormalized`, `normalize`, `normalizationFactor` / `normalizationLogFactor` — fold an interval into
-  `[unison, octave)`.
+- Octave handling: `isNormalized`, `normalize`, `normalizationFactor` / `normalizationLogFactor` — fold an interval
+  into `[unison, octave)`.
 - `isUnison`, `intonationStandard`, and converters `toRealInterval`, `toCentsInterval`, `toEdoInterval(edo)`.
 
 Four concrete subtypes (sealed — the set is closed), each a `case class`:
@@ -49,7 +49,8 @@ Mixed-type arithmetic follows fixed promotion rules (documented on the trait, `I
 
 - any interval combined with a `CentsInterval` yields a `CentsInterval`;
 - otherwise a `RealInterval` results, except that two same-type non-cents intervals stay in their own type (e.g.
-  `RatioInterval + RatioInterval = RatioInterval`, with GCD reduction; `EdoInterval + EdoInterval` requires equal `edo`).
+  `RatioInterval + RatioInterval = RatioInterval`, with GCD reduction; `EdoInterval + EdoInterval` requires equal
+  `edo`).
 
 Companion objects add convenience and DSL helpers:
 
@@ -70,8 +71,8 @@ sorted ascending or descending). Notable members:
 
 - `apply(index)`, `size`, `range`, `direction` (1 ascending / -1 descending / 0 single element).
 - `relativeIntervals` (`:62`) — the steps between adjacent intervals.
-- `entropy(logBase)` and `softness` (`:84`, `:102`) — an entropy-based measure of how evenly spaced a scale's steps are;
-  the softest n-note scale (equal steps) has `softness == 1`, harder scales approach 0.
+- `entropy(logBase)` and `softness` (`:84`, `:102`) — an entropy-based measure of how evenly spaced a scale's steps
+  are; the softest n-note scale (equal steps) has `softness == 1`, harder scales approach 0.
 - `transpose`, `rename`, `indexOfUnison`, `almostEquals(that, centsTolerance)` (cent-tolerant comparison), and
   value-based `equals`/`hashCode`.
 - `intonationStandard: Option[IntonationStandard]` (`:111`) — `Some` only if all intervals share one standard.
@@ -102,7 +103,7 @@ Each provides a `unison` interval and `conversionQualityTo(that)` (`:35`), which
 conversion. Conversion to cents is always lossless; conversion to just intonation is impossible (you cannot recover a
 ratio from cents/EDO); EDO-to-EDO is lossless when the target EDO is a multiple of the source, otherwise lossy.
 
-### `IntonationConversionQuality` (`intonation/src/main/scala/org/calinburloiu/music/intonation/IntonationConversionQuality.scala`)
+### `IntonationConversionQuality` (`intonation/.../IntonationConversionQuality.scala`)
 
 A Scala 3 `enum` (`IntonationConversionQuality.scala:22`) ranking a conversion, ordered by ordinal from best to worst:
 `NoConversion`, `Lossless`, `Lossy`, `Impossible`. `Scale.convertToIntonationStandard` takes the maximum (worst)
@@ -120,10 +121,11 @@ The package object holds the unit-conversion math shared across the module:
 
 ### Supporting registries (sub-packages)
 
-- `intervals.SagittalInterval` (`intonation/src/main/scala/org/calinburloiu/music/intonation/intervals/SagittalInterval.scala`)
-  — a registry of named just-intonation comma/diesis constants (schismas, kleismas, commas, dieses) as `RatioInterval`s.
+- `intervals.SagittalInterval` (`intonation/.../intervals/SagittalInterval.scala`)
+  — a registry of named just-intonation comma/diesis constants (schismas, kleismas, commas, dieses) as
+  `RatioInterval`s.
   It contains no logic and is excluded from coverage in `build.sbt`.
-- `instruments.StringInstrumentModel` (`intonation/src/main/scala/org/calinburloiu/music/intonation/instruments/StringInstrumentModel.scala`)
+- `instruments.StringInstrumentModel` (`intonation/.../instruments/StringInstrumentModel.scala`)
   — computes fret placement (`fretSize`) on a string of a given length from intervals; a small, standalone utility.
 
 ## Interval arithmetic in logarithmic / cents space

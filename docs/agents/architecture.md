@@ -68,7 +68,8 @@ app
   (no reduction)
 - `TuningReference` (trait, Plugin) — defines the composition's base pitch: the keyboard pitch class it maps to
   (`basePitchClass`) and that pitch's cents offset from 12-EDO (`baseOffset`), combined as a `baseTuningPitch`;
-  `StandardTuningReference` is relative to 12-EDO, `ConcertPitchTuningReference` is relative to a concert-pitch frequency
+  `StandardTuningReference` is relative to 12-EDO, `ConcertPitchTuningReference` is relative to a concert-pitch
+  frequency
 - `TuningSpec` — pairs a `Scale` with a `TuningMapper` and an optional transposition
 - `TuningList` — the resolved sequence of `Tuning` objects built from a `Composition`
 
