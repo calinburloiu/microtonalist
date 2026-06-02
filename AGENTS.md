@@ -143,7 +143,7 @@ app
 ├── composition   (domain model, depends on intonation + tuner)
 ├── format        (JSON/file I/O, depends on composition + tuner)
 ├── tuner         (MIDI tuning, depends on sc-midi + businessync)
-├── sc-midi       (Java MIDI wrappers, depends on businessync)
+├── sc-midi       (Scala-idiomatic MIDI API, depends on businessync)
 ├── intonation    (interval math, no application deps)
 ├── businessync   (event bus + threading, no application deps)
 ├── common        (shared utilities)
@@ -156,17 +156,29 @@ app
 
 **Intonation (`intonation` module, `org.calinburloiu.music.intonation`):**
 
-- `Interval` (sealed trait) — base for `RatioInterval`, `CentsInterval`, `EdoInterval`, `RealInterval`; all support
-  arithmetic in logarithmic space and conversion to cents
-- `Scale[I <: Interval]` — ordered sequence of intervals with direction, helper methods for relative intervals and
-  softness (entropy)
+- `Interval` (sealed trait) — musical interval, base for `RatioInterval`, `CentsInterval`, `EdoInterval`,
+  `RealInterval`; all support arithmetic in logarithmic space and conversion to cents
+- `Scale[I <: Interval]` — ordered sequence of intervals with direction that represent a musical scale, with helper
+  methods for things like relative intervals, softness (entropy) etc.
 - `IntonationStandard` — enum-like sealed trait describing how intervals are expressed (`CentsIntonationStandard`,
   `JustIntonationStandard`, `EdoIntonationStandard`)
 
 **Composition (`composition` module, `org.calinburloiu.music.microtonalist.composition`):**
 
-- `Composition` — top-level container: holds an `IntonationStandard`, a `TuningReference`, a sequence of `TuningSpec`, a
+- `Composition` — top-level container that models a microtonal musical composition with respect to its microtonal scales
+  and how are mapped to tunings: holds an `IntonationStandard`, a `TuningReference`, a sequence of `TuningSpec`, a
   `TuningReducer`, and fill configuration
+- `TuningMapper` (trait, Plugin) — maps a `Scale` to a `Tuning`, deciding which keyboard pitch class each scale pitch
+  occupies (unused keys stay `None`) and throwing a `TuningMapperConflictException` when two pitches collide on one key;
+  `AutoTuningMapper` places pitches automatically (handling quarter tones and the soft chromatic genus),
+  `ManualTuningMapper` uses a user-provided `KeyboardMapping`
+- `TuningReducer` (trait, Plugin) — merges the per-`TuningSpec` `Tuning`s into ideally fewer final tunings to minimize
+  the tuning switches a player must make, producing the `TuningList`; `MergeTuningReducer` (default) merges consecutive
+  non-conflicting tunings and applies local back-/fore-fill, while `DirectTuningReducer` applies only the global fill
+  (no reduction)
+- `TuningReference` (trait, Plugin) — defines the composition's base pitch: the keyboard pitch class it maps to
+  (`basePitchClass`) and that pitch's cents offset from 12-EDO (`baseOffset`), combined as a `baseTuningPitch`;
+  `StandardTuningReference` is relative to 12-EDO, `ConcertPitchTuningReference` is relative to a concert-pitch frequency
 - `TuningSpec` — pairs a `Scale` with a `TuningMapper` and an optional transposition
 - `TuningList` — the resolved sequence of `Tuning` objects built from a `Composition`
 
@@ -210,12 +222,30 @@ JSON composition file
 
 ## Format / Serialization
 
-All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.format`). Key types:
+All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.format`).
+
+**The `*Format` / `*Repo` pattern.** Each kind of persistable domain object is handled by a pair of collaborating
+abstractions that separate _how_ a value is encoded from _where_ it is stored:
+
+- A **`*Format`** does pure serialization/deserialization between a byte stream (`InputStream`/`OutputStream`) and a
+  domain object. It knows the encoding (typically JSON via Play JSON) but nothing about the data source. Example:
+  `JsonCompositionFormat` implements `CompositionFormat`.
+- A **`*Repo`** follows the repository pattern: it retrieves and persists a domain object identified by a `URI`,
+  abstracting the underlying data source (local file, HTTP, scale library). Each exposes synchronous and asynchronous
+  `read`/`write` methods. Source-specific implementations (`File*Repo`, `Http*Repo`, `Library*Repo`) delegate the actual
+  encoding/decoding to the matching `*Format`, while a `Default*Repo` dispatches to them by URI scheme (relative or
+  `file:` → file, `http(s):` → HTTP) using a `RepoSelector`.
+
+The concrete `*Format` / `*Repo` pairs are:
 
 - `CompositionFormat` / `CompositionRepo` — reads JSON `.mtlist` composition files
 - `ScaleFormat` / `ScaleRepo` — reads embedded JSON `.jscl` scales or Huygens-Fokker `.scl` files; scales can be inlined
-  or referenced by URI
-- `TrackFormat` / `TrackRepo` — reads `.mtlist.tracks` JSON files
+  in a composition file or referenced by URI
+- `TrackFormat` / `TrackRepo` — reads `.mtlist.tracks` JSON files that encode a collection of `Track`s (the `TrackRepo`
+  trait lives in the `tuner` module, its formats and concrete repos in `format`)
+
+Supporting types:
+
 - `JsonPreprocessor` — resolves `$ref`-style URIs (file or HTTP) before parsing
 - `FormatModule` — lazy-initializes all repos/formats; inject this rather than constructing individual components
 
