@@ -18,8 +18,9 @@ Package: `org.calinburloiu.music.microtonalist.common` (sub-package `.concurrenc
 **`Plugin`** is the base trait for all of Microtonalist's pluggable, user-selectable components. It defines a two-level
 naming contract used both at runtime and for JSON (de)serialization: `familyName` (the family/context, e.g.
 `tuningMapper`) and `typeName` (the chosen type within it, e.g. `auto`). Within one family the user can swap between
-types. The families across the project are `TuningMapper`, `TuningReducer`, `TuningReference` (in `composition`) and
-`Tuner`, `TuningChanger` (in `tuner`). The serialization side lives in `format` (`JsonPluginFormat[P]` keys off these
+types. The families across the project live in `composition` (`TuningMapper`, `TuningReducer`, `TuningReference`,
+`SoftChromaticGenusMapping`) and `tuner` (`Tuner`, `TuningChanger`, and the track I/O specs `TrackInputSpec` /
+`TrackOutputSpec`). The serialization side lives in `format` (`JsonPluginFormat[P]` keys off these
 names); the `Plugin` trait itself carries only the two `val`s and no serialization logic.
 
 **`Locking`** is a mix-in trait providing `@inline` helpers (`withLock` / `withReadLock` / `withWriteLock`) that run a

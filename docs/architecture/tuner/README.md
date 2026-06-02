@@ -43,10 +43,11 @@ messages it requires now, and `process(message)` rewrites each message flowing t
   protocols](#supported-tuning-protocols) and the linked design docs.
 
 **Tuning-change detection.** `TuningChanger` (`@NotThreadSafe` plugin) inspects messages and returns a `TuningChange`;
-`PedalTuningChanger` triggers on a pedal-like CC crossing a threshold. `TuningChange` splits into
-`EffectiveTuningChange` (`PreviousTuningChange` / `NextTuningChange` / `IndexTuningChange`, which actually change the
-tuning) and `IneffectiveTuningChange` (no change, or "part of a trigger pattern but nothing yet" — e.g. a held pedal's
-CC stream).
+`PedalTuningChanger` triggers on a pedal-like CC crossing a threshold, reading its trigger map from a
+`TuningChangeTriggers[T]` that binds trigger values (CC numbers here) to previous/next/index changes. `TuningChange`
+splits into `EffectiveTuningChange` (`PreviousTuningChange` / `NextTuningChange` / `IndexTuningChange`, which actually
+change the tuning) and `IneffectiveTuningChange` (no change, or "part of a trigger pattern but nothing yet" — e.g. a
+held pedal's CC stream).
 
 **The processor pipeline.** Each `Tuner`/`TuningChanger` is wrapped in a `MidiProcessor` (from `sc-midi`) so it can be
 chained. `TuningChangeProcessor` asks its `TuningChanger`s in order (first effective decision wins) and, on an effective

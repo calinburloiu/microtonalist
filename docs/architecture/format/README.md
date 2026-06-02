@@ -75,9 +75,11 @@ should not resolve references.
 
 ## Plugin (de)serialization
 
-`TuningMapper`, `TuningReducer`, `TuningReference`, `Tuner`, `TuningChanger`, `IntonationStandard`, the track I/O specs,
-and the soft-chromatic-genus mapping are all **plugin families** (each extends `Plugin` from `common` with a
-`familyName` and `typeName`). Each has a matching `JsonPluginFormat[P]` that handles the whole family:
+`TuningMapper`, `TuningReducer`, `TuningReference`, `Tuner`, `TuningChanger`, the track I/O specs, and the
+soft-chromatic-genus mapping are all **plugin families** — each extends `Plugin` from `common` with a `familyName` and
+`typeName`. `IntonationStandard` is not a `Plugin` (it lives in `intonation`, which has no `common` dependency) but is
+handled by the same machinery, its `JsonPluginFormat` supplying the `familyName` and keying concrete standards by
+`typeName`. Each family has a matching `JsonPluginFormat[P]` that handles the whole family:
 
 - The concrete _type_ is identified in JSON by a `"type"` property; a family may declare a `defaultTypeName`, letting
   users omit `"type"` (and represent a no-settings plugin as a bare type-name string).
