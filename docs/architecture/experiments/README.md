@@ -32,5 +32,6 @@ lazy val experiments = (project in file("experiments"))
 ```
 
 It uses `intonation` types such as `RatiosScale`, `Scale`, `Interval`, `EdoIntonationStandard`, and the `RatioInterval`
-infix operators. Nothing depends on `experiments`; the `root` project aggregates it but no module builds on it. Its
-`assembly` main class is `SoftChromaticGenusStudy`.
+infix operators. Nothing depends on `experiments`, and it is **not** part of the `root` aggregate (`build.sbt:29-42`),
+so `root` build/test tasks skip it — you build or run it explicitly. Its `assembly` main class is
+`SoftChromaticGenusStudy`.

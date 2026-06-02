@@ -291,5 +291,3 @@ Verified against `build.sbt` (the `scMidi` project block at `build.sbt:217`).
 - The `ScMidiMessage` model is broad (channel voice/mode, system common/real-time, SysEx, and a full set of SMF meta
   events) even though Microtonalist itself does not yet exercise every meta event; treat the typed model as the
   supported surface and `UnsupportedScMidiMessage` as the lossless escape hatch.
-</content>
-</invoke>
