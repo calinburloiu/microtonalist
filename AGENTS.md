@@ -17,9 +17,9 @@ Scala 3 and is built by using sbt 1.
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
 - Before writing code, create a task to explore the architecture: read the always-loaded overview imported in the
   [Architecture](#architecture) section (from [`docs/agents/architecture.md`](docs/agents/architecture.md)) plus the
-  architecture documents strictly relevant to the prompt — typically the
-  [`docs/architecture/$MODULE/README.md`](docs/architecture/) of each module you will touch and its immediate
-  collaborators. That overview explains how the architecture documents are organized.
+  architecture documents strictly relevant to the prompt — typically the `docs/architecture/$MODULE/README.md` of each
+  module you will touch and its immediate collaborators. That overview explains how the architecture documents are
+  organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
@@ -88,8 +88,7 @@ At the start of every conversation, **once** per session:
 
 1. Detect the running stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is not
    running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing.
-2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full` to warm up the Metals index
-   (populates SemanticDB so symbol resolution and find-usages work from the first query).
+2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full` to warm up the Metals index.
 
 ## Compiling
 
@@ -118,9 +117,6 @@ when you invoke it — precisely so it does not clutter context up front, since 
 implementation is finished.
 
 # Architecture
-
-The always-loaded architecture overview (module graph, key domain concepts, data flow) is imported below; it also
-explains how the on-demand per-module and per-topic docs under [`docs/architecture/`](docs/architecture/) are organized.
 
 @docs/agents/architecture.md
 
