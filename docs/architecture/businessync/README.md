@@ -5,20 +5,22 @@
 `businessync` is Microtonalist's threading and event-bus infrastructure. It centralizes two concerns that otherwise leak
 into every domain and GUI component:
 
-- **Thread affinity** — running work on the right thread (a dedicated *Business Thread* for all domain/MIDI logic, the
-  *UI Thread* for all GUI updates) so domain and GUI state can be mutated without explicit locking.
+- **Thread affinity** — running work on the right thread (a dedicated *Business Thread* for all domain logic, the *UI
+  Thread* for all GUI updates) so domain and GUI state can be mutated without explicit locking, and *Track Threads*, one
+  for each track (not yet implemented).
 - **Decoupled communication** — a publish/subscribe event bus so producers (MIDI device changes, tuning changes) notify
-  consumers (the GUI) without direct references, delivering each event on the correct thread for its subscriber.
+  consumers (the GUI or other components) without direct references, delivering each event on the correct thread for its
+  subscriber.
 
 It is pure infrastructure: it has **no application dependencies** and knows nothing about scales, tunings, MIDI, or the
 GUI. Domain and UI modules depend on it, never the other way around.
 
 > **Implementation status (important).** The module is currently an early skeleton. `Businessync` is a thin wrapper
 > around a Guava [`EventBus`](https://github.com/google/guava/wiki/EventBusExplained); most of the threading API is
-> either stubbed (`???`) or runs work inline on the caller's thread. The richer two-thread, queue-based, sequentially
+> either stubbed (`???`) or runs work inline on the caller's thread. The richer multi-thread, queue-based, sequentially
 > consistent design described in issue [#90](https://github.com/calinburloiu/microtonalist/issues/90) is **planned, not
-> yet built**. Treat the two-thread API described under [Threading model](#threading-model) as the *target*, not current
-> behavior.
+> yet built**. Treat the multi-thread API described under [Threading model](#threading-model) as the *target*, not
+> current behavior.
 
 ## Key types
 
@@ -37,7 +39,7 @@ All types live in package `org.calinburloiu.businessync`.
 
 ### Current behavior
 
-The `Businessync` API is written against the *target* two-thread semantics but is mostly not backed by real dispatch
+The `Businessync` API is written against the *target* multi-thread semantics but is mostly not backed by real dispatch
 yet: `publish`/`register` delegate straight to the Guava `EventBus` (synchronous, on the caller's thread); `run`/`runIf`
 run their function inline; `call`/`callAsync` use the Scala global `ExecutionContext`; and the UI-thread methods
 (`runOnUi`, `callOnUi`, `handleOnUi`) plus the keyed `subscribe`/`subscribeOnUi` are stubs (`???` or no-ops). The
@@ -51,10 +53,10 @@ migration to `subscribe`/`subscribeOnUi`.
 
 ## Threading model
 
-This is the *intended* two-thread model (see also the project [Threading Model wiki
+This is the *intended* multi-thread model (see also the project [Threading Model wiki
 page](https://github.com/calinburloiu/microtonalist/wiki/Threading-Model)); the current code does not yet enforce it.
 
-- **Business Thread** — owns all domain and MIDI logic. Domain state is mutated only here, so it needs no locks. Work is
+- **Business Thread** — owns all domain logic. Domain state is mutated only here, so it needs no locks. Work is
   submitted with `run` (fire-and-forget) or `call` (returns a `Future`); business-side handlers register with
   `subscribe` (today: `@Subscribe` + `register`).
 - **UI Thread** — owns all GUI updates. Work is submitted with `runOnUi`/`callOnUi` and UI-side handlers with

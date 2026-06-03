@@ -35,8 +35,7 @@ long-term contract.
 ## Dependencies
 
 `app` sits at the top of the layer graph: nothing depends on it, and it depends — directly or transitively — on every
-other application module. It is the assembly target whose fat JAR main class is `MicrotonalistApp`. Because it is thin
-wiring, its coverage floor is intentionally 0 (issue #180).
+other application module. It is the assembly target whose fat JAR main class is `MicrotonalistApp`.
 
 One naming subtlety: the **config** module's SBT project id is `appConfig` while its directory is `config/`, so
 `app.dependsOn(appConfig)` pulls in `config/` (package `org.calinburloiu.music.microtonalist.config`). The transitive
