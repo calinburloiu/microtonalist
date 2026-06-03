@@ -8,9 +8,9 @@ Background: the development stack started by `bin/microtonalist-dev-stack start`
 serves two clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all sbt
 commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time — spawning
 duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental state. The
-per-project `target` isolation (see the Build section of the root `CLAUDE.md`) is belt-and-braces protection: it keeps
-a stray second `sbt` from racing the BSP server on the same `classes/` tree (which is what produced the TASTy load
-errors in issue #186), but routing through `sbtn` is the primary fix.
+per-project `target` isolation (see [Build output directories](../development/build.md)) is belt-and-braces protection:
+it keeps a stray second `sbt` from racing the BSP server on the same `classes/` tree (which is what produced the TASTy
+load errors in issue #186), but routing through `sbtn` is the primary fix.
 
 ## When the stack is not running
 

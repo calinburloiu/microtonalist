@@ -6,9 +6,9 @@ the per-module and per-topic documents under [`docs/architecture/`](../architect
 
 ## How architecture docs are organized
 
-- **This file (`docs/agents/architecture.md`)** — the always-in-context overview. It adds agent-specific guidance (how
-  the docs are organized and what to read before coding), then `@import`s the three shared overview documents below so
-  they stay always-loaded for agents. It holds no architecture content of its own.
+- **This file (`docs/agents/architecture.md`)** — the always-in-context overview: it explains how these docs are
+  organized, says what to read before coding, and `@import`s the three shared overview documents below. It holds no
+  architecture content of its own.
 - **Shared overview documents (`docs/architecture/`)** — the single source of truth for the cross-cutting basics,
   imported here and linked from the human-facing index:
   [`module-overview.md`](../architecture/module-overview.md) (the module dependency graph),
@@ -31,9 +31,8 @@ as the current state of the code.
 
 ## Always-loaded overview
 
-The module dependency graph, the key domain concepts, and the end-to-end data flow are imported below so they remain in
-context for every session. They are maintained under [`docs/architecture/`](../architecture/) as the single source of
-truth — humans read them via the [index](../architecture/README.md); edit them there, not here.
+Imported below so they stay in context every session — maintained under
+[`docs/architecture/`](../architecture/) as the single source of truth, so edit them there, not here:
 
 @../architecture/module-overview.md
 @../architecture/domain-concepts.md

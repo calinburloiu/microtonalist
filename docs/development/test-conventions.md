@@ -14,11 +14,9 @@ Conventionally, the tests for a given production class use the same package and 
 
 ## Behavior-driven style
 
-The project uses the `scalatest` library for testing and `scalamock` for mocking / stubbing. Tests are written using
-ScalaTest 3. The "behavior-driven" style of development (BDD) is preferred for writing tests by making tests classes
-extend `org.scalatest.flatspec.AnyFlatSpec` and `org.scalatest.matchers.should.Matchers`. When using this style of
-tests, test cases are grouped in behavior sections by using `behavior of`. When adding a new test case to a
-behavior-driven suite consider the following:
+Tests use `scalatest` (ScalaTest 3) with `scalamock` for mocking / stubbing. Prefer the behavior-driven (BDD) style:
+test classes extend `org.scalatest.flatspec.AnyFlatSpec` and `org.scalatest.matchers.should.Matchers`, and group cases
+into `behavior of` sections. When adding a new test case to such a suite:
 
 * **Check the test class ScalaDoc first.** Some test classes carry a ScalaDoc comment that documents
   class-specific conventions — categories, subgroup structure, test-naming rules.
@@ -31,8 +29,8 @@ behavior-driven suite consider the following:
 
 ## Use Given / When / Then comments in tests
 
-Tests cases should be written using the `Given` / `When` / `Then` format. Some tests may not have a `Given` section,
-while others may have multiple instances if the three. It's acceptable to combine two, like `When / Then` in some cases.
+Write test cases in the `Given` / `When` / `Then` format. A test may omit `Given`, repeat any of the three, or combine
+two (e.g. `When / Then`).
 
 Wrong:
 
@@ -66,8 +64,8 @@ Correct:
 
 ## Use fixtures to reduce duplication in test cases setup
 
-Simplify the setup of test cases, typically the `Given` section, by using `trait` or `abstract class` fixtures. They
-should contain code that repeats in many test cases. But be mindful not to sacrifice readability.
+Simplify test setup (typically the `Given` section) with `trait` or `abstract class` fixtures holding code that repeats
+across many cases — but don't sacrifice readability.
 
 ## No `if`s in tests
 

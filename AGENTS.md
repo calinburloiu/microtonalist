@@ -17,9 +17,9 @@ Scala 3 and is built by using sbt 1.
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
 - Before writing code, create a task to explore the architecture: read the always-loaded overview imported in the
   [Architecture](#architecture) section (from [`docs/agents/architecture.md`](docs/agents/architecture.md)) plus the
-  architecture documents strictly relevant to the prompt — typically the
-  [`docs/architecture/$MODULE/README.md`](docs/architecture/) of each module you will touch and its immediate
-  collaborators. That overview explains how the architecture documents are organized.
+  architecture documents strictly relevant to the prompt — typically the `docs/architecture/$MODULE/README.md` of each
+  module you will touch and its immediate collaborators. That overview explains how the architecture documents are
+  organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
@@ -49,8 +49,6 @@ find-usages, source/docs retrieval, compilation, Coursier dependency lookup). Se
 parameters. If Metals MCP is not available, fall back to the usual CLI tools (`sbt`/`sbtn`, `rg`, `find`, `WebFetch`,
 etc.).
 
-Prefer the Metals MCP over calling `sbt` processes for compiling code as detailed in the Build section below (TODO).
-
 Prefer the Metals MCP over textual tools (`rg`, `grep`, `git grep`, `fd`, `find`) for symbol inspection, symbol search,
 finding usages, and understanding class/trait hierarchy — the textual alternatives can't distinguish a class from a
 same-named variable, follow overrides, or resolve imports. Use symbol search to reduce duplicated code by finding
@@ -58,11 +56,9 @@ already implemented functionality. Use the read docs functionality to understand
 
 ## Symbol search file focus
 
-`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` require a `fileInFocus` parameter — they cannot infer
-the build target without it. The search scope is limited to the classpath of the inferred build target, so always use a
-file from a module with the broadest classpath.
-
-The top-level modules and the representative files to use as `fileInFocus` for project-wide symbol searches are:
+`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` require a `fileInFocus` parameter (they cannot infer the
+build target) and search only that target's classpath — so use a file from the module with the broadest classpath. The
+representative files for project-wide searches are:
 
 - `app` — covers `appConfig`, `businessync`, `common`, `composition`, `intonation`, `format`, `scMidi`, `tuner`, `ui`:
   `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
@@ -71,43 +67,28 @@ The top-level modules and the representative files to use as `fileInFocus` for p
 - `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
   `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
 
-For a full project-wide search, query all three in parallel. Only use a lower-level module file when intentionally
-scoping the search to that module's classpath.
+For a project-wide search, query all three in parallel; use a lower-level module file only to intentionally scope to
+that module's classpath.
 
 # Build
 
-The repository is built using SBT 1, Scala 3, and Java 23. It is split into multiple SBT projects that act as modules,
-libraries, or separate executable applications. We will simply call each of those SBT projects modules. Each one is
-located in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects.
-The executable application is in `app` SBT project. `cli` is CLI tool application for various utilities, like listing
-the MIDI devices connected to the computer.
+Built with **SBT 1, Scala 3, and Java 23**. The repo is split into multiple SBT projects (we call them modules), all in
+the repo root: `root` aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g.
+listing connected MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
-The development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that serves two
-clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all sbt commands through
-`sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time — spawning duplicates
-compilation work and runs the second JVM with no awareness of the BSP server's incremental state. The per-project
-`target` isolation described below is belt-and-braces protection: it keeps a stray second `sbt` from racing the BSP
-server on the same `classes/` tree (which is what produced the TASTy load concurrency errors in issue #186), but routing
-through `sbtn` is the primary fix.
-
-The BSP-server sbt is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in
-`build.sbt`), so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. CLI sbt
-invocations without that property continue to use `<project>/target/`. The two trees never collide; `sbt clean` and
-`sbtn clean` each clean the active tree.
+Route **all** sbt commands through `sbtn` so they run on the single long-lived BSP-server JVM rather than spawning a
+fresh `sbt` JVM. BSP-server builds write to `<project>/target-bsp/` (not `<project>/target/`), so the two never
+collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and for starting and routing the stack.
 
 ## Warm-up
 
-At the start of every conversation, **once** per session, do the following warm-up actions:
+At the start of every conversation, **once** per session:
 
 1. Detect the running stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is not
-running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing. Once the stack is up, every
-subsequent sbt command should just use `sbtn …`. Trust it is up unless a command unexpectedly fails (e.g. with a connect
-error), in which case re-run this check.
-2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full`
-to warm up the Metals index. This ensures SemanticDB is populated so that symbol resolution, find-usages, and other
-semantic tools work correctly from the first query.
+   running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing.
+2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full` to warm up the Metals index.
 
 ## Compiling
 
@@ -116,10 +97,9 @@ Prefer the Metals MCP for compiling when it is available:
 - Compile the whole project: `mcp__metals__compile-full`
 - Compile a single module `${MODULE}`: `mcp__metals__compile-module` with `module = "${MODULE}"`
 
-Fall back to `sbt`/`sbtn` only when the Metals MCP is not available, or for a final full build or fat JAR assembly. The
-sbt-based compile, single-module, and `assembly` commands are documented in
-[`docs/development/build.md`](docs/development/build.md). Use `sbtn` rather than spawning a fresh `sbt` JVM whenever the
-BSP server is up (see "sbt invocations: prefer the BSP server via `sbtn`" section above).
+Fall back to `sbt`/`sbtn` only when the Metals MCP is unavailable, or for a final full build or fat JAR assembly; the
+sbt-based compile, single-module, and `assembly` commands are in
+[`docs/development/build.md`](docs/development/build.md).
 
 # Test
 
@@ -137,11 +117,6 @@ when you invoke it — precisely so it does not clutter context up front, since 
 implementation is finished.
 
 # Architecture
-
-Crucial architecture context — the module dependency graph, the key domain concepts, and the end-to-end data flow — is
-imported below and loads in every session. Deeper, context-specific detail lives in the per-module and per-topic
-documents under [`docs/architecture/`](docs/architecture/), each loaded on demand via its module's `CLAUDE.md`. The
-imported overview also explains how those documents are organized, so you can find the ones relevant to a task.
 
 @docs/agents/architecture.md
 

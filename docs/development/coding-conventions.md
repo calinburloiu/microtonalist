@@ -1,7 +1,7 @@
 # Scala Coding Conventions
 
-This document describes general (mainly production code) coding conventions for this repository. Test-specific
-conventions live in [`test-conventions.md`](test-conventions.md).
+General (mainly production-code) Scala conventions for this repository. Test conventions live in
+[`test-conventions.md`](test-conventions.md).
 
 ## General formatting
 

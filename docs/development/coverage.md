@@ -42,6 +42,8 @@ configured threshold still holds and that any new files meet the 80% target. Pic
 Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
 There is also a `coverageCheck` command used by CI.
 
+Both `coverageModules` and `coverageAll` begin with `clean`, so you need not `sbt clean` beforehand.
+
 If a coverage command fails with TASTy/companion-class errors, `Not found: type X`, or `NoClassDefFoundError` at test
 runtime, see [`docs/development/scoverage-issue.md`](scoverage-issue.md) before assuming it is a code defect — the
 typical response is to retry the command, not to change source code.

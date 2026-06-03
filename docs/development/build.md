@@ -16,6 +16,14 @@ libraries, or separate executable applications — we simply call each of those 
 in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects. The
 executable application is in the `app` SBT project.
 
+## Build output directories
+
+The dev-stack's BSP server is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in
+`build.sbt`), so its compiled outputs live under `<project>/target-bsp/` rather than `<project>/target/`. Plain CLI
+`sbt` invocations (without that property) keep using `<project>/target/`. The two trees never collide, which avoids the
+TASTy load concurrency errors that a stray second `sbt` racing the BSP server on the same `classes/` tree once produced
+(issue #186). `sbt clean` and `sbtn clean` each clean only the active tree.
+
 ## Compiling
 
 Compiling the whole `root` SBT project:
