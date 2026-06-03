@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -18,14 +18,35 @@ package org.calinburloiu.music.intonation
 
 import com.google.common.base.Preconditions.checkElementIndex
 import com.google.common.math.DoubleMath
-import org.calinburloiu.music.intonation.IntonationStandard
 
+/**
+ * Models a musical scale: an ordered, non-empty sequence of [[Interval]]s, sorted in either ascending or descending
+ * order, with each interval measured from the scale's base pitch.
+ *
+ * A scale is the high-level musical concept users work with; the application later maps it to low-level tunings. Beyond
+ * plain sequence access it exposes musical queries such as [[direction]], [[relativeIntervals]], the entropy-based
+ * [[softness]] measure, [[range]], cent-tolerant comparison ([[almostEquals]]), and conversion between
+ * [[org.calinburloiu.music.intonation.IntonationStandard]]s.
+ *
+ * Instances are immutable. Prefer the [[Scale.create]] smart constructors to obtain the most specific subtype
+ * ([[RatiosScale]], [[CentsScale]], [[EdoScale]]) for a given set of intervals.
+ *
+ * @tparam I   the type of [[Interval]] this scale is composed of; covariant, so that e.g. a `Scale[RatioInterval]` is a
+ *             `Scale[Interval]`
+ *
+ * @param name the human-readable name of the scale (it may be empty)
+ * @param intervals the ordered, non-empty, sorted intervals composing the scale, each measured from the base pitch
+ */
 class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
   require(areIntervalsSorted, "Expecting intervals to be sorted in ascending or descending order")
 
   import Scale.*
 
+  /**
+   * @param index zero-based position of the interval within the scale
+   * @return the interval at the given position
+   */
   def apply(index: Int): I = {
     checkElementIndex(index, size)
     intervals(index)
@@ -101,8 +122,18 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    */
   def softness: Double = entropy(size - 1)
 
+  /**
+   * Transposes the scale by stacking the given interval on top of each of its intervals.
+   *
+   * @param interval the interval to add to every interval of the scale
+   * @return a new scale with all intervals transposed
+   */
   def transpose(interval: Interval): Scale[Interval] = new Scale(name, intervals.map(_ + interval))
 
+  /**
+   * @param newName the new name for the scale
+   * @return a copy of this scale with the given name and the same intervals
+   */
   def rename(newName: String): Scale[I] = new Scale(newName, intervals)
 
   /**
@@ -125,10 +156,13 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
     }
   }
 
+  /** @return `true` if all intervals are [[CentsInterval]]s. */
   def isCentsScale: Boolean = intervals.forall(_.isInstanceOf[CentsInterval])
 
+  /** @return `true` if all intervals are [[RatioInterval]]s. */
   def isRatiosScale: Boolean = intervals.forall(_.isInstanceOf[RatioInterval])
 
+  /** @return `true` if all intervals are [[EdoInterval]]s. */
   def isEdoScale: Boolean = intervals.forall(_.isInstanceOf[EdoInterval])
 
   /**
@@ -214,11 +248,33 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
 }
 
 object Scale {
+  /**
+   * Creates a generic [[Scale]] from a name and a sequence of intervals, without selecting a specific subtype.
+   *
+   * @param name    name of the scale
+   * @param pitches the intervals composing the scale
+   * @return the created scale
+   */
   def apply[I <: Interval](name: String, pitches: Seq[I]): Scale[I] = new Scale(name, pitches)
 
+  /**
+   * Creates a generic [[Scale]] from a name and intervals given as varargs.
+   *
+   * @param name        name of the scale
+   * @param headPitch   the first interval
+   * @param tailPitches the remaining intervals
+   * @return the created scale
+   */
   def apply[I <: Interval](name: String, headPitch: I, tailPitches: I*): Scale[I] =
     new Scale(name, headPitch +: tailPitches)
 
+  /**
+   * Creates an unnamed generic [[Scale]] from intervals given as varargs.
+   *
+   * @param headPitch   the first interval
+   * @param tailPitches the remaining intervals
+   * @return the created scale
+   */
   def apply[I <: Interval](headPitch: I, tailPitches: I*): Scale[I] =
     Scale("", headPitch, tailPitches *)
 
@@ -256,6 +312,15 @@ object Scale {
     }
   }
 
+  /**
+   * Creates the [[Scale]] subtype matching the given [[IntonationStandard]], converting the intervals to the
+   * corresponding [[Interval]] type, ensuring a unison is present, and sorting them.
+   *
+   * @param name               name of scale to be created
+   * @param intervals          scale pitches
+   * @param intonationStandard the intonation standard determining the resulting subtype and interval type
+   * @return the created scale
+   */
   def create(name: String, intervals: Seq[Interval], intonationStandard: IntonationStandard): Scale[Interval] = {
     intonationStandard match {
       case CentsIntonationStandard => CentsScale(name, processIntervals(intervals.map(_.toCentsInterval),
@@ -269,6 +334,13 @@ object Scale {
     }
   }
 
+  /**
+   * Creates a single-interval scale containing only the unison of the given [[IntonationStandard]].
+   *
+   * @param name               name of scale to be created
+   * @param intonationStandard the intonation standard whose unison the scale contains
+   * @return the created unison scale
+   */
   def createUnisonScale(name: String, intonationStandard: IntonationStandard): Scale[Interval] =
     Scale.create(name, Seq(intonationStandard.unison), intonationStandard)
 
@@ -279,9 +351,21 @@ object Scale {
 }
 
 
+/**
+ * Result of converting a [[Scale]] to another [[IntonationStandard]] via [[Scale.convertToIntonationStandard]].
+ *
+ * @param scale             [[Some]] converted scale, or [[None]] if the conversion was not possible
+ * @param conversionQuality the worst-case quality among all per-interval conversions
+ */
 case class ScaleConversionResult(scale: Option[Scale[Interval]], conversionQuality: IntonationConversionQuality)
 
 
+/**
+ * A [[Scale]] whose intervals are all [[RatioInterval]]s, i.e. expressed as just-intonation frequency ratios.
+ *
+ * @param name      the human-readable name of the scale (it may be empty)
+ * @param intervals the ordered, non-empty, sorted just-intonation intervals composing the scale
+ */
 case class RatiosScale(override val name: String,
                        override val intervals: Seq[RatioInterval]) extends Scale[RatioInterval](name, intervals) {
 
@@ -315,6 +399,12 @@ object RatiosScale {
 }
 
 
+/**
+ * A [[Scale]] whose intervals are all [[CentsInterval]]s, i.e. expressed in decimal cents.
+ *
+ * @param name      the human-readable name of the scale (it may be empty)
+ * @param intervals the ordered, non-empty, sorted cents intervals composing the scale
+ */
 case class CentsScale(override val name: String,
                       override val intervals: Seq[CentsInterval]) extends Scale[CentsInterval](name, intervals) {
 
@@ -353,10 +443,19 @@ object CentsScale {
     CentsScale("", headCentValue, tailCentValues *)
 }
 
+/**
+ * A [[Scale]] whose intervals are all [[EdoInterval]]s belonging to the same EDO (equal division of the octave).
+ *
+ * All intervals must share the same [[edo]] value.
+ *
+ * @param name      the human-readable name of the scale (may be empty)
+ * @param intervals the ordered, non-empty, sorted EDO intervals composing the scale, all sharing the same `edo`
+ */
 case class EdoScale(override val name: String,
                     override val intervals: Seq[EdoInterval]) extends Scale[EdoInterval](name, intervals) {
   require(intervals.forall(_.edo == edo))
 
+  /** @return the number of equal divisions of the octave (EDO) shared by all intervals of this scale. */
   def edo: Int = intervals.head.edo
 
   def transpose(interval: EdoInterval): EdoScale = {

@@ -22,7 +22,7 @@ import org.calinburloiu.music.microtonalist.tuner.Tuning
 import java.net.URI
 
 /**
- * A collection of scales to be mapped to tunings.
+ * Models a microtonal musical composition with respect to its microtonal scales and how are mapped to tunings.
  *
  * @param url                    Optional URL associated with the composition which might have been used to
  *                               load it from.

@@ -15,6 +15,11 @@ Scala 3 and is built by using sbt 1.
 
 - Use Metals MCP for compiling and code intelligence (see [Code Intelligence](#code-intelligence) section); fall back to
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
+- Before writing code, create a task to explore the architecture: read the always-loaded overview imported in the
+  [Architecture](#architecture) section (from [`docs/agents/architecture.md`](docs/agents/architecture.md)) plus the
+  architecture documents strictly relevant to the prompt — typically the
+  [`docs/architecture/$MODULE/README.md`](docs/architecture/) of each module you will touch and its immediate
+  collaborators. That overview explains how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
@@ -133,104 +138,12 @@ implementation is finished.
 
 # Architecture
 
-## Module Overview
+Crucial architecture context — the module dependency graph, the key domain concepts, and the end-to-end data flow — is
+imported below and loads in every session. Deeper, context-specific detail lives in the per-module and per-topic
+documents under [`docs/architecture/`](docs/architecture/), each loaded on demand via its module's `CLAUDE.md`. The
+imported overview also explains how those documents are organized, so you can find the ones relevant to a task.
 
-The project uses a layered module structure. Dependency direction flows from `app` downward:
-
-```
-app
-├── ui            (GUI, depends on tuner)
-├── composition   (domain model, depends on intonation + tuner)
-├── format        (JSON/file I/O, depends on composition + tuner)
-├── tuner         (MIDI tuning, depends on sc-midi + businessync)
-├── sc-midi       (Java MIDI wrappers, depends on businessync)
-├── intonation    (interval math, no application deps)
-├── businessync   (event bus + threading, no application deps)
-├── common        (shared utilities)
-└── config        (HOCON config, depends on common)
-```
-
-`cli` is a separate executable (utility tool) that depends only on `sc-midi`.
-
-## Key Domain Concepts
-
-**Intonation (`intonation` module, `org.calinburloiu.music.intonation`):**
-
-- `Interval` (sealed trait) — base for `RatioInterval`, `CentsInterval`, `EdoInterval`, `RealInterval`; all support
-  arithmetic in logarithmic space and conversion to cents
-- `Scale[I <: Interval]` — ordered sequence of intervals with direction, helper methods for relative intervals and
-  softness (entropy)
-- `IntonationStandard` — enum-like sealed trait describing how intervals are expressed (`CentsIntonationStandard`,
-  `JustIntonationStandard`, `EdoIntonationStandard`)
-
-**Composition (`composition` module, `org.calinburloiu.music.microtonalist.composition`):**
-
-- `Composition` — top-level container: holds an `IntonationStandard`, a `TuningReference`, a sequence of `TuningSpec`, a
-  `TuningReducer`, and fill configuration
-- `TuningSpec` — pairs a `Scale` with a `TuningMapper` and an optional transposition
-- `TuningList` — the resolved sequence of `Tuning` objects built from a `Composition`
-
-**Tuner (`tuner` module, `org.calinburloiu.music.microtonalist.tuner`):**
-
-- `Tuning` — 12 optional cent offsets for pitch classes; `Tuning.Standard` is 12-EDO
-- `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; implementations
-  cover all MTS Octave variants, MPE, and monophonic tuning via Pitch Bend
-- `TuningChanger` (trait, Plugin) — decides when to change tuning by inspecting MIDI messages (e.g.,
-  `PedalTuningChanger`)
-- `Track` — one instrument pipeline: input device → `TuningChangeProcessor` → `TunerProcessor` → output device
-- `TuningSession` / `TuningService` — holds current tuning index and exposes thread-safe API for changing it
-- `TrackManager` — lifecycle manager for tracks; reacts to MIDI device events
-
-**Plugin pattern:** `Tuner`, `TuningMapper`, `TuningReducer`, `TuningReference`, and `TuningChanger` all extend
-`Plugin` (from `common`). Each plugin has a `familyName` and `typeName` used for JSON (de)serialization via Play JSON.
-
-## Threading Model (Businessync)
-
-`Businessync` (`businessync` module) manages two threads:
-
-- **Business thread** — all domain/MIDI logic; annotate handlers with `@Subscribe` and call `businessync.run {}`
-- **UI thread** — all GUI updates; use `businessync.runOnUi {}`
-
-Cross-thread calls use `businessync.callAsync`. Never mutate domain state from the UI thread directly.
-
-## Data Flow
-
-```
-JSON composition file
-  → DefaultCompositionRepo (format module)
-  → Composition
-  → TuningList.fromComposition()   (applies TuningMapper, TuningReducer, fill)
-  → TuningSession.tunings
-  → TuningIndexUpdatedEvent (via Businessync)
-  → TrackManager → Track.tune()
-  → TunerProcessor → Tuner
-  → MTS/MPE MIDI messages
-  → MIDI output device
-```
-
-## Format / Serialization
-
-All file I/O is in the `format` module (`org.calinburloiu.music.microtonalist.format`). Key types:
-
-- `CompositionFormat` / `CompositionRepo` — reads JSON `.mtlist` composition files
-- `ScaleFormat` / `ScaleRepo` — reads embedded JSON `.jscl` scales or Huygens-Fokker `.scl` files; scales can be inlined
-  or referenced by URI
-- `TrackFormat` / `TrackRepo` — reads `.mtlist.tracks` JSON files
-- `JsonPreprocessor` — resolves `$ref`-style URIs (file or HTTP) before parsing
-- `FormatModule` — lazy-initializes all repos/formats; inject this rather than constructing individual components
-
-## Application Entry Point
-
-`MicrotonalistApp` (`app` module) wires everything:
-
-1. Parses CLI args (composition URI, optional config file)
-2. Creates `Businessync` and starts business thread
-3. Builds `FormatModule`, loads `Composition`, builds `TuningList`
-4. Builds `TunerModule`, loads tracks
-5. Opens `TuningListFrame` (Swing GUI)
-6. Registers JVM shutdown hook for cleanup
-
-Application config (HOCON) lives at `~/.microtonalist/microtonalist.conf` on macOS.
+@docs/agents/architecture.md
 
 # Contributing (issues, PRs, branches)
 
