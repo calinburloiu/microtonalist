@@ -23,14 +23,15 @@ wrapper that adds `getAs[T]`/`ValueReader[T]`. Ficus is the only extra library d
 **`MainConfigManager`** is the central, mutable, thread-safe holder of the whole HOCON document. It is `AutoCloseable`
 and mixes in `Locking` (from `common`) to guard the document with a read/write lock. Construction is private — the
 companion `apply` overloads load from a `Path` (with an empty fallback) or run file-less from an in-memory document
-(handy for tests). It parses and `resolve()`s the file, exposes the sub-document at a path and splices updated
-sub-documents back in (marking the config dirty), and persists via `save()` — which renders HOCON (not JSON, no origin
+(handy for tests). It parses and `resolve()`s the file, exposes the **sub-config** at a path — the
+HOCON sub-tree of the full document rooted at that path, itself a `HoconConfig` — and splices updated sub-configs back in
+(marking the config dirty), and persists via `save()` — which renders HOCON (not JSON, no origin
 comments) only when dirty. A scheduler calls `save()` on the configured interval and `close()` does a final save on
 exit. `MainConfigManager.defaultConfigFile` resolves `~/.microtonalist/microtonalist.conf` on macOS and throws on other
 platforms (see [Future / planned changes](#future--planned-changes)).
 
 **`SubConfigManager[C <: Configured]` / `Configured`** are the extension pattern for typed config sections. `Configured`
-marks a typed section; `SubConfigManager` manages one HOCON sub-tree rooted at a `configPath`, exposing a typed `config`
+marks a typed section; `SubConfigManager` manages one such sub-config rooted at a `configPath`, exposing a typed `config`
 getter and a `notifyConfigChanged` that pushes a value back to the owning `MainConfigManager`. Subclasses implement just
 the pure `serialize`/`deserialize` pair. This keeps each settings section self-contained, so a new section is added by
 writing a new `Configured` case class plus a `SubConfigManager` for it.

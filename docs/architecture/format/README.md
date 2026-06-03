@@ -4,12 +4,12 @@
 
 The `format` module is responsible for **all file I/O of persistable domain objects** in Microtonalist. It reads (and,
 where implemented, writes) compositions, scales, and tracks from local files, HTTP(S) endpoints, and the user's
-Microtonalist library, translating between on-disk byte streams and the in-memory domain model.
+Microtonalist library, translating between on-disk/network byte streams and the in-memory domain model.
 
 Everything lives in package `org.calinburloiu.music.microtonalist.format`. The encoding is almost always JSON via [Play
 JSON](https://github.com/playframework/play-json); the one non-JSON encoder is the Huygens-Fokker `.scl` reader. The
-module is currently **read-oriented** — read paths are fully implemented while most write paths are stubbed (see [Future
-/ planned changes](#future--planned-changes)).
+module is currently mostly **read-oriented** — read paths are fully implemented while most write paths are stubbed (see
+[Future / planned changes](#future--planned-changes)).
 
 ## The `*Format` / `*Repo` pattern
 
@@ -23,8 +23,8 @@ encoded from _where_ it is stored:
   `*Format`.
 
 This keeps encoding logic source-agnostic and storage logic encoding-agnostic: a new data source needs only a new
-`*Repo`, and a new on-disk encoding needs only a new `*Format`. Both traits expose a synchronous variant and a `…Async`
-variant returning a `Future`; the async form is primary (scales are loaded concurrently — see [Deferred
+`*Repo`, and a new encoding needs only a new `*Format`. Both traits expose a synchronous variant and a `…Async` variant
+returning a `Future`; the async form is primary (scales are loaded concurrently — see [Deferred
 reads](#deferred-reads)), and the synchronous methods are typically thin `Await.result` wrappers over it.
 
 Three families follow the pattern, one per persistable object:
@@ -82,7 +82,7 @@ handled by the same machinery, its `JsonPluginFormat` supplying the `familyName`
 `typeName`. Each family has a matching `JsonPluginFormat[P]` that handles the whole family:
 
 - The concrete _type_ is identified in JSON by a `"type"` property; a family may declare a `defaultTypeName`, letting
-  users omit `"type"` (and represent a no-settings plugin as a bare type-name string).
+  users omit `"type"`, and represent a no-settings plugin as a bare type-name string.
 - Each type is described by a `TypeSpec` carrying the `typeName`, the Java `Class` (to pick the writer), and either a
   Play `Format` for the type's _settings_ or a singleton value for settings-less types.
 - A composition file may carry a global `settings` block; on read, effective settings are merged as `defaultSettings ++
