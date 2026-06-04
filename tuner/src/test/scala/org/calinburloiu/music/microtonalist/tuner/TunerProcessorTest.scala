@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import javax.sound.midi.{MidiMessage, Receiver}
+import scala.collection.mutable
 
 class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -35,12 +36,40 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
   val processMessage1: MidiMessage = NoteOnScMidiMessage(0, MidiNote(60), 64).asJava
   val processMessage2: MidiMessage = PitchBendScMidiMessage(0, 101).asJava
 
+  /**
+   * Concrete test double for [[Tuner]]. Because [[Tuner]] now carries mutable state (the stored tuning), it is no
+   * longer a pure interface and cannot be created with ScalaMock's `stub`; this fake records the calls forwarded by
+   * [[TunerProcessor]] and replays canned responses keyed by argument.
+   */
+  class FakeTuner extends Tuner {
+    override val typeName: String = "fake"
+
+    val tuneArgs: mutable.Buffer[Tuning] = mutable.Buffer.empty
+    val processArgs: mutable.Buffer[MidiMessage] = mutable.Buffer.empty
+
+    private val tuneResponses: Map[Tuning, Seq[MidiMessage]] = Map(
+      TestTunings.justCMaj -> Seq(tuneMessage1),
+      Tuning.Standard -> Seq(tuneMessage2)
+    )
+    private val processResponses: Map[MidiMessage, Seq[MidiMessage]] = Map(
+      processMessage1 -> Seq(processMessage1, processMessage2)
+    )
+
+    override def reset(): Seq[MidiMessage] = Seq(initMessage)
+
+    override protected def onTune(previousTuning: Tuning, tuning: Tuning): Seq[MidiMessage] = {
+      tuneArgs += tuning
+      tuneResponses.getOrElse(tuning, Seq.empty)
+    }
+
+    override def process(message: MidiMessage): Seq[MidiMessage] = {
+      processArgs += message
+      processResponses.getOrElse(message, Seq.empty)
+    }
+  }
+
   abstract class Fixture(shouldConnect: Boolean = true) {
-    val tuner: Tuner = stub[Tuner]
-    (() => tuner.reset()).when().returns(Seq(initMessage))
-    tuner.tune.when(TestTunings.justCMaj).returns(Seq(tuneMessage1))
-    tuner.tune.when(Tuning.Standard).returns(Seq(tuneMessage2))
-    tuner.process.when(processMessage1).returns(Seq(processMessage1, processMessage2))
+    val tuner: FakeTuner = FakeTuner()
 
     val receiver: Receiver = stub[Receiver]
     val processor: TunerProcessor = new TunerProcessor(tuner)
@@ -65,7 +94,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     processor.tune(TestTunings.justCMaj)
     // Then
-    tuner.tune.verify(TestTunings.justCMaj).once()
+    tuner.tuneArgs shouldEqual Seq(TestTunings.justCMaj)
     receiver.send.verify(tuneMessage1, -1).once()
   }
 
@@ -75,7 +104,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     processor.receiver.send(processMessage1, timeStamp)
     // Then
-    tuner.process.verify(processMessage1).once()
+    tuner.processArgs shouldEqual Seq(processMessage1)
     receiver.send.verify(processMessage1, timeStamp).once()
     receiver.send.verify(processMessage2, timeStamp).once()
   }
@@ -84,7 +113,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     // When
     processor.close()
     // Then
-    tuner.tune.verify(Tuning.Standard).once()
+    tuner.tuneArgs shouldEqual Seq(Tuning.Standard)
     receiver.send.verify(tuneMessage2, -1).once()
   }
 }

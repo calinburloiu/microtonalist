@@ -33,7 +33,8 @@ import javax.sound.midi.MidiMessage
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
                         val thru: Boolean = MtsTuner.DefaultThru) extends Tuner with StrictLogging {
 
-  override def tune(tuning: Tuning): Seq[MidiMessage] = Seq(mtsMessageGenerator.generate(tuning).asJava)
+  override protected def onTune(previousTuning: Tuning, tuning: Tuning): Seq[MidiMessage] =
+    Seq(mtsMessageGenerator.generate(tuning).asJava)
 
   override def process(message: MidiMessage): Seq[MidiMessage] = if (thru) Seq(message) else Seq.empty
 }

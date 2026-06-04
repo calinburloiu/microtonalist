@@ -49,6 +49,18 @@ class MtsTunerTest extends AnyFlatSpec with Matchers with MockFactory {
     result.head.getMessage shouldEqual sysExMessage.asJava.getMessage
   }
 
+  "MtsTuner#tuning" should "default to the standard tuning before any tune call" in new Fixture {
+    // Then
+    tuner.tuning shouldEqual Tuning.Standard
+  }
+
+  it should "store the tuning passed to tune" in new Fixture {
+    // When
+    tuner.tune(TestTunings.justCMaj)
+    // Then
+    tuner.tuning shouldEqual TestTunings.justCMaj
+  }
+
   "MtsTuner#process" should "return the received MIDI message if thru is true" in new Fixture(thru = true) {
     // Given
     val message: MidiMessage = NoteOnScMidiMessage(0, MidiNote.A4).asJava

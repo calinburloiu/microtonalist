@@ -73,15 +73,48 @@ trait Tuner extends Plugin {
    */
   def reset(): Seq[MidiMessage] = Seq.empty
 
+  private var _tuning: Tuning = Tuning.Standard
+
   /**
-   * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object and
-   * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be
-   * played in that tuning.
+   * The tuning most recently passed to [[tune]]. It is [[Tuning.Standard]] before the first call.
+   *
+   * @return the current tuning stored by this tuner.
+   */
+  def tuning: Tuning = _tuning
+
+  /**
+   * Updates the stored current tuning. Available to implementations e.g. to restore [[Tuning.Standard]] in [[reset]].
+   */
+  protected def tuning_=(newTuning: Tuning): Unit = {
+    _tuning = newTuning
+  }
+
+  /**
+   * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object such that
+   * MIDI notes passed via the [[process]] method will be played in that tuning.
+   *
+   * This method stores the given tuning (exposed via [[tuning]]) before delegating the protocol-specific message
+   * generation to [[onTune]], so every implementation can rely on the current tuning being available.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
    */
-  def tune(tuning: Tuning): Seq[MidiMessage]
+  def tune(tuning: Tuning): Seq[MidiMessage] = {
+    val previousTuning = _tuning
+    _tuning = tuning
+    onTune(previousTuning, tuning)
+  }
+
+  /**
+   * Hook implemented by each tuner to emit the MIDI messages required for the new tuning. By the time it is called,
+   * the trait has already stored the new tuning (readable via [[tuning]]).
+   *
+   * @param previousTuning The tuning that was in effect before this call, for implementations that need the delta
+   *                       between the previous and the new tuning.
+   * @param tuning         The new tuning being applied (same value now returned by [[tuning]]).
+   * @return the MIDI messages, if any, that apply the new tuning on the output device.
+   */
+  protected def onTune(previousTuning: Tuning, tuning: Tuning): Seq[MidiMessage]
 
   /**
    * Method called with every MIDI message of a [[Track]] that uses this tuner. Its purpose is to do any processing

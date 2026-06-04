@@ -69,8 +69,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private var _zones: MpeZones = initialZones
   private var _inputMode: MpeInputMode = initialInputMode
 
-  private var _tuning: Tuning = Tuning.Standard
-
   private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
   private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
@@ -97,11 +95,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   def inputMode: MpeInputMode = _inputMode
 
-  /**
-   * @return current tuning
-   */
-  def tuning: Tuning = _tuning
-
   override def reset(): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
     // Emit Note Off for every active note before switching input mode / zone layout,
@@ -114,8 +107,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     buffer.toSeq
   }
 
-  override def tune(tuning: Tuning): Seq[MidiMessage] = {
-    _tuning = tuning
+  override protected def onTune(previousTuning: Tuning, tuning: Tuning): Seq[MidiMessage] = {
     val buffer = mutable.Buffer[MidiMessage]()
 
     // Update pitch bend on all occupied member channels
@@ -140,7 +132,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Clears internal mutable state and recreates allocators from `currentZones`.
    */
   private def resetState(): Unit = {
-    _tuning = Tuning.Standard
+    tuning = Tuning.Standard
     channelNoteMap.clear()
     tracker.reset()
 
@@ -230,7 +222,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         trackNote(inputChannel, midiNote, outChannel)
 
         // Compute and send control dimensions before Note On
-        val tuningOffset = _tuning(midiNote.pitchClass)
+        val tuningOffset = tuning(midiNote.pitchClass)
         val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
         buffer += PitchBendScMidiMessage(outChannel, totalPitchBend).asJava
 
@@ -666,7 +658,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
                                   alloc: MpeChannelAllocator): Unit = {
     val zone = currentZone(alloc)
     alloc.channelPitchClass(channel).foreach { pc =>
-      val tuningOffset = _tuning(pc)
+      val tuningOffset = tuning(pc)
       val totalPitchBend = computeOutputPitchBend(channel, alloc, zone, tuningOffset)
       buffer += PitchBendScMidiMessage(channel, totalPitchBend).asJava
     }

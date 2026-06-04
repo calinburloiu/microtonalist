@@ -124,6 +124,29 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     )
   }
 
+  behavior of "MonophonicPitchBendTuner current tuning"
+
+  it should "default to the standard tuning before any tune call" in new Fixture {
+    // Then
+    tuner.tuning shouldEqual Tuning.Standard
+  }
+
+  it should "store the tuning passed to tune" in new Fixture {
+    // When
+    tuner.tune(customTuning)
+    // Then
+    tuner.tuning shouldEqual customTuning
+  }
+
+  it should "revert to the standard tuning after reset" in new Fixture {
+    // Given
+    tuner.tune(customTuning)
+    // When
+    tuner.reset()
+    // Then
+    tuner.tuning shouldEqual Tuning.Standard
+  }
+
   behavior of "MonophonicPitchBendTuner after initialization"
 
   it should "tune all notes in 12-EDO by not sending any pitch bend" in new Fixture {

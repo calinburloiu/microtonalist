@@ -29,8 +29,9 @@ named-note accessors and combinators — notably `fill`, `overwrite`, and `merge
 beyond tolerance) — that the `composition` reducer uses when combining tunings. `Tuning.Standard` is 12-EDO.
 
 **Tuners.** `Tuner` (the `@NotThreadSafe` plugin trait) is the protocol abstraction; its three methods define the
-contract the pipeline drives: `reset()` configures the output device, `tune(tuning)` stores a tuning and emits the
-messages it requires now, and `process(message)` rewrites each message flowing through the track. Implementations:
+contract the pipeline drives: `reset()` configures the output device, `tune(tuning)` stores the tuning in the trait
+(exposed via the `tuning` getter) and then delegates protocol-specific message generation to each implementation's
+`onTune` hook, and `process(message)` rewrites each message flowing through the track. Implementations:
 
 - `MtsTuner` and its four octave variants (`MtsOctave{1,2}Byte{Non,}RealTimeTuner`) retune the instrument's pitch table
   in advance via a single MTS SysEx, so notes pass through untouched. The SysEx bytes are built by `MtsMessageGenerator`
