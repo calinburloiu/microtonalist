@@ -1,47 +1,50 @@
-**WORK IN PROGRESS!**
+# Microtonalist
 
-Microtonalist is a microtuner application that allows tuning musical keyboards and synthesizers in real-time for playing
-music with microtones. It is build as a stand-alone multi-platform desktop application that runs on JVM.
+[![Build](https://github.com/calinburloiu/microtonalist/actions/workflows/scala.yml/badge.svg)](https://github.com/calinburloiu/microtonalist/actions/workflows/scala.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt)
 
-# Development Setup
+> **⚠️ Work in progress.** Microtonalist is under active development and not yet feature-complete.
 
-See the [Development Setup Guide](docs/development-setup/README.md) for instructions on installing prerequisites
-(JDK 23, SBT), building, testing, and configuring AI-assisted development with Claude Code (Metals MCP, GitHub plugin).
+Microtonalist is a microtuner application that tunes musical keyboards and synthesizers in real time for playing music
+with microtones. It is a stand-alone, multi-platform desktop application that runs on the JVM.
 
-# Engineering
+You work with a sequence of **scales**, a high-level concept, and the application maps them to octave-based **tunings**,
+a low-level concept that assigns a tuning value to each pitch class of the keyboard. Tunings are sent to output
+instruments over several protocols:
 
-## Modules
+- **MIDI Tuning Standard (MTS)**
+- **Monophonic Pitch Bend**
+- **MIDI Polyphonic Expression (MPE)**
 
-The application is composed of the following modules:
+## Documentation
 
-* **`app`** with package `org.calinburloiu.music.microtonalist`: assembles all modules into an application with GUI.
-* **`cli`** with package `org.calinburloiu.music.microtonalist.cli`: command line tool application with various
-  utilities.
-* **`ui`** with package `org.calinburloiu.music.microtonalist.ui`: application UI, mainly GUI, but can also contain some
-  TUI assets.
-* **`common`** with package `org.calinburloiu.music.microtonalist.common`: common assets, utilities and helpers to be
-  shared between application modules.
-* **`composition`** with package `org.calinburloiu.music.microtonalist.composition`: domain model of the application
-  around which other modules revolve.
-* **`config`** with package `org.calinburloiu.music.microtonalist.config`: configuration infrastructure based on [HOCON](https://github.com/lightbend/config/blob/master/HOCON.md).
-* **`tuner`** with package `org.calinburloiu.music.microtonalist.tuner`: module responsible to tune output instruments
-  by using standard Java MIDI library.
-* **`format`** with package `org.calinburloiu.music.microtonalist.format`: module responsible for reading / writing
-  compositions and other things related to a musical composition to persistence storage. Right now, only files are
-  supported by using JSON and Scala application formats, but in the future we might support cloud storage. Application
-  configuration is handled in `app` module via HOCON files.
+- [Development Setup Guide](docs/development/README.md) — prerequisites (JDK 23, Scala 3, sbt 1), building, testing, and
+  AI-assisted development with Claude Code (Metals MCP, GitHub plugin).
+- [Architecture](docs/architecture/README.md) — module overview, domain concepts, data flow, and per-module deep dives.
+- [Contributing](CONTRIBUTING.md) — GitHub conventions (labels, branches, issues, pull requests) and coding standards.
 
-Other reusable libraries, not specifically related to the application, are also defined as modules:
+## Building and running
 
-* **`businessync`** with package `org.calinburloiu.businessync`: library responsible for providing communication and
-  synchronization between application modules by providing an easy-to-use threading model based on a business logic
-  thread and a UI thread.
-* **`intonation`** with package `org.calinburloiu.music.intonation`: Assets for handling microtonal intervals.
-* **`sc-midi`** with package `org.calinburloiu.music.scmidi`: Scala utility / wrappers over standard Java MIDI library
-  to provide a more idiomatic usage in Scala.
+Microtonalist is built with **sbt 1**, **Scala 3**, and **JDK 23**. Compile all modules with `sbt compile`, run the
+tests with `sbt test`, and build the fat JAR with `sbt assembly`. See the
+[Development Setup Guide](docs/development/README.md) for the full reference.
 
-## Configuration
+## Contributing
 
-The application is configured via [HOCON](https://github.com/lightbend/config/blob/master/HOCON.md) configuration file
-stored in a standard location based on the operation system. On Mac the location is
-`~/.microtonalist/microtonalist.conf`.
+Contributions are welcome! See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the GitHub conventions (labels, branches,
+issues, pull requests) and links to the development setup and coding standards.
+
+## Engineering
+
+The application is split into layered SBT modules (`app`, `composition`, `tuner`, `format`, `intonation`, `sc-midi`,
+and more). For the module structure, dependency graph, and the root package of each module, see the
+[module overview](docs/architecture/module-overview.md); for the domain types and how a composition becomes tuning MIDI
+messages, see the [architecture docs](docs/architecture/README.md).
+
+The application is configured via a [HOCON](https://github.com/lightbend/config/blob/master/HOCON.md) file (on macOS at
+`~/.microtonalist/microtonalist.conf`); see the [`appConfig` module architecture](docs/architecture/config/README.md)
+for details.
+
+## License
+
+Microtonalist is licensed under the [Apache License 2.0](LICENSE.txt).
