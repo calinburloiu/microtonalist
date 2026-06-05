@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+#
+# agents-test-filter — shrink the output of a full sbt test run.
+#
+# Reads the output of `sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"` on stdin and
+# drops the lines that are pure noise on a green run, while letting every
+# failure and abort signal pass through untouched. Use it as a filter:
+#
+#     sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/agents-test-filter
+#
+# The `-o…` reporter flags already suppress per-test/per-suite lines; this
+# removes what those flags cannot:
+#   - sbt's "No tests to run for …" / "Passed: Total 0 …" for empty modules,
+#   - SLF4J logging-init warnings,
+#   - the per-module "Run completed in …" / "All tests passed." chatter, and
+#   - the per-module "Total number of tests run" / "Suites:" / "Tests:" counts,
+#     but ONLY their all-green variants.
+#
+# Conservative by design — only the *green* variants are dropped:
+#   - "Suites: completed X, aborted 0" is dropped only when aborted is 0; a
+#     non-zero abort count keeps the line (an aborted suite need not emit a
+#     per-test "*** FAILED ***").
+#   - "Tests: succeeded X, failed 0, canceled 0, ignored 0, pending 0" is
+#     dropped only when every count is 0; any failed/canceled/ignored/pending
+#     keeps the line.
+#   - "*** FAILED ***" detail, stack traces, "*** N TESTS FAILED ***", and the
+#     "[error] … sbt.TestsFailedException" tail are never matched.
+#
+# Exit status: unlike a plain `grep` filter, this exits non-zero when the run
+# reported a problem — it scans the stream for sbt's "[error]" lines (test
+# failures, aborts, compile errors) and for a non-zero "aborted" suite count.
+# So a pipeline can gate on the result, e.g.:
+#
+#     sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/agents-test-filter \
+#       && echo "green" || echo "red"
+#
+# (When chained after sbtn in a pipe, this script's own status is what the
+# pipeline returns unless the calling shell uses `pipefail`.)
+#
+
+set -euo pipefail
+
+exec awk '
+  # --- failure detection (does not consume the line) ---
+  /^\[error\]/                              { failed = 1 }
+  /\*\*\* RUN ABORTED \*\*\*/               { failed = 1 }
+  /Suites: completed [0-9]+, aborted [1-9]/ { failed = 1 }
+
+  # --- drop noise lines (green-only variants) ---
+  /SLF4J/                                                                { next }
+  /No tests to run for/                                                  { next }
+  /Passed: Total 0, Failed 0, Errors 0, Passed 0/                        { next }
+  /Run completed in/                                                     { next }
+  /All tests passed\./                                                   { next }
+  /Total number of tests run:/                                           { next }
+  /Suites: completed [0-9]+, aborted 0/                                  { next }
+  /Tests: succeeded [0-9]+, failed 0, canceled 0, ignored 0, pending 0/  { next }
+
+  # --- pass everything else through ---
+  { print }
+
+  END { exit failed }
+'

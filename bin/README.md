@@ -2,7 +2,8 @@
 
 Executable entry points for Microtonalist. The Scala application launchers
 (`microtonalist`, `microtonalist-tool`) speak for themselves; the
-`microtonalist-dev-stack` development helper is documented below.
+`microtonalist-dev-stack` development helper and the `agents-test-filter`
+test-output filter are documented below.
 
 ## `microtonalist-dev-stack`
 
@@ -143,3 +144,21 @@ bin/microtonalist-dev-stack status
 Useful both for human spot-checks and for scripted / agent session-start
 detection — replaces the older manual
 `cat logs/start-sbt-metals.pid && kill -0 …` recipe.
+
+## `agents-test-filter`
+
+A stdin→stdout filter that shrinks a full sbt test run's output. It drops the
+noise the ScalaTest reporter flags cannot suppress (sbt's "no tests" lines for
+empty modules, SLF4J warnings, and the per-module green summaries) while letting
+every failure and abort signal through, and it **exits non-zero** when the run
+reports a problem — so a pipeline can gate on the result:
+
+```bash
+sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/agents-test-filter
+```
+
+It is Claude-Code-agnostic — usable by hand or in CI — but under Claude Code a
+committed `PreToolUse` hook applies it to test commands automatically. See the
+"Hooks" section of
+[`docs/development/claude-code-setup.md`](../docs/development/claude-code-setup.md)
+for that wiring and the full keep/drop rules.

@@ -11,9 +11,12 @@ and [`dev-stack.md`](dev-stack.md)).
 For small changes, it is recommended to only test individual files or modules (SBT projects). It is recommended to run
 the full suite before finishing an issue.
 
-Always append the ScalaTest reporter flags `-- -oNCXEHLOPQRMWS` to shrink the output.
-
 ## Commands
+
+Always append the ScalaTest reporter flags `-- -oNCXEHLOPQRMWS` to shrink the output. The test commands below are
+transparently routed through a `bin/agents-test-filter` pipe by a committed Claude Code hook that trims a green run's
+output noise — see the "Hooks" section of [`../development/claude-code-setup.md`](../development/claude-code-setup.md)
+for details.
 
 Running all tests (across all modules):
 

@@ -80,6 +80,35 @@ level. Each developer must enable it once in their own Claude Code settings.
 3. Launch Claude Code and verify the plugin is active -- GitHub tools (e.g. `mcp__plugin_github_github__issue_read`)
    should be available.
 
+## Hooks
+
+The repository ships a project-level [Claude Code hook](https://code.claude.com/docs/en/hooks) so its behavior is shared
+by everyone who works in the repo. It is committed in two files:
+
+- [`.claude/settings.json`](../../.claude/settings.json) — registers the hook (a `PreToolUse` hook on the `Bash` tool).
+- [`.claude/hooks/sbt-test-filter.sh`](../../.claude/hooks/sbt-test-filter.sh) — the hook script.
+
+> Unlike [`.claude/settings.local.json`](#authorizing-mcp-servers-and-plugins) (gitignored, per-developer),
+> `.claude/settings.json` is committed and applies to everyone. Hooks load at Claude Code startup, so changes take
+> effect in the next session.
+
+### `sbt-test-filter` — quiet test runs
+
+A full test run prints a lot of noise the ScalaTest reporter flags cannot suppress (sbt's "no tests" lines for empty
+modules, SLF4J warnings, and the per-module green summaries). The [`bin/agents-test-filter`](../../bin/agents-test-filter)
+script is a stdin filter that drops exactly those lines while letting every failure and abort signal through, and it
+exits non-zero when the run reports a problem.
+
+The hook wires this in automatically: when the agent runs an sbt/sbtn **test** command, the `PreToolUse` hook rewrites
+the command (via the hook's `updatedInput` field) to append `2>&1 | bin/agents-test-filter` before it executes. So the
+agent sees only the meaningful output, and the pipeline's exit code still reflects pass/fail.
+
+The hook is deliberately conservative — it only rewrites a *plain*, single `sbt`/`sbtn` test invocation that is not
+already filtered, and skips anything containing shell metacharacters (pipes, lists, redirections) so appending a pipe
+can never change operator precedence. On any non-match, missing `jq`, or unexpected input it exits 0 without output, so
+it never blocks or breaks a command. To bypass it for a one-off, run the test command through another pipe or redirection
+(e.g. append `| cat`), or invoke sbt by a form the matcher ignores.
+
 ## Authorizing MCP Servers and Plugins
 
 On first launch in a workspace, Claude Code may prompt you to authorize the Metals MCP server. You can save this choice
