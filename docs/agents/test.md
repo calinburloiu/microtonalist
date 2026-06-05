@@ -11,26 +11,33 @@ and [`dev-stack.md`](dev-stack.md)).
 For small changes, it is recommended to only test individual files or modules (SBT projects). It is recommended to run
 the full suite before finishing an issue.
 
-Running all tests:
+## Commands
+
+Always append the ScalaTest reporter flags `-- -oNCXEHLOPQRMWS` to shrink the output. The test commands below are
+transparently routed through a `bin/agents-test-filter` pipe by a committed Claude Code hook that trims a green run's
+output noise — see the "Hooks" section of [`../development/claude-code-setup.md`](../development/claude-code-setup.md)
+for details.
+
+Running all tests (across all modules):
 
 ```bash
-sbtn test
+sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"
 ```
 
 Testing a single module `${MODULE}`:
 
 ```bash
-sbtn "${MODULE}/test"
+sbtn "${MODULE}/testOnly * -- -oNCXEHLOPQRMWS"
 ```
 
 Testing a single test class `${CLASS}` (declared with fully qualified name) in a module `${MODULE}`:
 
 ```bash
-sbtn "${MODULE}/testOnly ${CLASS}"
+sbtn "${MODULE}/testOnly ${CLASS} -- -oNCXEHLOPQRMWS"
 ```
 
 For example:
 
 ```bash
-sbtn "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest"
+sbtn "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest -- -oNCXEHLOPQRMWS"
 ```
