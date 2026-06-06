@@ -50,7 +50,13 @@ class FixtureRoot:
 
     def make_fresh(self):
         import os
-        os.utime(self.source_file, (1000, 1000))
+        # Age the whole source tree (files and directories) below the report, so the
+        # directory-mtime component of the freshness check does not dominate.
+        src_root = self.source_file.parent
+        for dirpath, _dirnames, filenames in os.walk(src_root):
+            for name in filenames:
+                os.utime(os.path.join(dirpath, name), (1000, 1000))
+            os.utime(dirpath, (1000, 1000))
         os.utime(self.report, (2000, 2000))
 
     def make_stale(self):

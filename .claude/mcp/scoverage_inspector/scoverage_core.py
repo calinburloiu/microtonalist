@@ -21,6 +21,7 @@ Responsibilities:
 from __future__ import annotations
 
 import enum
+import os
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -163,13 +164,30 @@ def report_xml_path(root: Path, module_id: str, aggregate: bool = False) -> Path
 # ---------------------------------------------------------------------------
 
 def _newest_scala_mtime(directory: Path) -> float:
+    """Newest mtime under `directory`, counting both `.scala` files and the
+    directories themselves.
+
+    Including directory mtimes is what lets the freshness check notice a *deleted*
+    (or moved-out) source/test file: removing a directory entry bumps the parent
+    directory's mtime, even though no remaining file is newer than the report.
+    File mtimes still cover in-place edits, and added files are newer than the
+    report on their own. The trade-off is that any change to a tracked source
+    directory's contents (even a stray non-`.scala` file) marks the report stale,
+    which only ever errs toward an extra rebuild — never toward serving stale data.
+    """
     newest = 0.0
     if not directory.exists():
         return newest
-    for path in directory.rglob("*.scala"):
-        mtime = path.stat().st_mtime
-        if mtime > newest:
-            newest = mtime
+    for dirpath, _dirnames, filenames in os.walk(directory):
+        dir_mtime = os.stat(dirpath).st_mtime
+        if dir_mtime > newest:
+            newest = dir_mtime
+        for name in filenames:
+            if not name.endswith(".scala"):
+                continue
+            mtime = (Path(dirpath) / name).stat().st_mtime
+            if mtime > newest:
+                newest = mtime
     return newest
 
 
@@ -196,9 +214,12 @@ def freshness(
 ) -> Freshness:
     """Return whether the report for `module_id` is FRESH, STALE, or MISSING.
 
-    Per-module mode compares the report mtime against the newest `.scala` under the
-    module's file() directory `src/{main,test}/scala`. Aggregate mode compares the
-    root report against the newest source across every module directory.
+    Per-module mode compares the report mtime against the newest `.scala` (and
+    directory) under the module's file() directory `src/{main,test}/scala`.
+    Aggregate mode compares the root report against the newest source across every
+    module directory. Directory mtimes are included so that deleting or moving out
+    a source/test file — which lowers coverage but leaves no newer file behind —
+    is still detected as stale (see `_newest_scala_mtime`).
     """
     root = Path(root)
     dir_map = _resolve_dir_map(root, dir_map)

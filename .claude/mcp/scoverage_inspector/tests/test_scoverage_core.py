@@ -31,6 +31,14 @@ def _set_mtime(path: Path, mtime: float) -> None:
     os.utime(path, (mtime, mtime))
 
 
+def _age_tree(directory: Path, mtime: float) -> None:
+    """Set the mtime of every file and directory under `directory` (and itself)."""
+    for dirpath, _dirnames, filenames in os.walk(directory):
+        for name in filenames:
+            _set_mtime(Path(dirpath) / name, mtime)
+        _set_mtime(Path(dirpath), mtime)
+
+
 class ModuleDirMapTest(unittest.TestCase):
     def test_parses_id_to_directory_including_mismatches(self):
         # When
@@ -80,20 +88,33 @@ class FreshnessTest(unittest.TestCase):
 
     def test_fresh_when_report_newer_than_sources(self):
         report = _write_report(self.tmp, "scMidi")
-        _set_mtime(self.source_file, 1000)
+        _age_tree(self.src, 1000)
         _set_mtime(report, 2000)
         self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.FRESH)
 
     def test_stale_when_source_newer_than_report(self):
         report = _write_report(self.tmp, "scMidi")
-        _set_mtime(report, 1000)
+        _age_tree(self.src, 1000)
+        _set_mtime(report, 1500)
         _set_mtime(self.source_file, 2000)
+        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.STALE)
+
+    def test_stale_when_source_file_deleted(self):
+        # Given a fresh report (newer than every source file AND directory)
+        report = _write_report(self.tmp, "scMidi")
+        _age_tree(self.src, 1000)
+        _set_mtime(report, 2000)
+        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.FRESH)
+        # When a source/test file is deleted (no remaining file is newer than the report)
+        self.source_file.unlink()
+        # Then the parent directory's bumped mtime makes the report stale
         self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.STALE)
 
     def test_uses_dir_map_so_id_differs_from_dir(self):
         # Given a report under the module ID dir but sources under the file() dir
         report = _write_report(self.tmp, "scMidi")
-        _set_mtime(report, 1000)
+        _age_tree(self.src, 1000)
+        _set_mtime(report, 1500)
         _set_mtime(self.source_file, 2000)
         # Then freshness must look at sc-midi/src (not scMidi/src) and see it stale
         self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.STALE)
@@ -105,7 +126,7 @@ class FreshnessTest(unittest.TestCase):
 
     def test_aggregate_uses_root_report_and_all_sources(self):
         report = _write_report(self.tmp, "root")
-        _set_mtime(self.source_file, 1000)
+        _age_tree(self.src, 1000)
         _set_mtime(report, 2000)
         self.assertEqual(core.freshness(self.tmp, "scMidi", aggregate=True), core.Freshness.FRESH)
         _set_mtime(self.source_file, 3000)
