@@ -26,6 +26,9 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 * SBT 1
 * Python 3
     - Optional: for AI-assisted coverage tooling.
+* [`uv`](https://docs.astral.sh/uv/) (provides `uvx`)
+    - Optional: for the `scoverage-inspector` MCP server, which is launched via `uvx --from mcp`. Install with
+      `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 * Coursier
     - Optional: for Metals MCP.
 

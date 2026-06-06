@@ -79,6 +79,11 @@ fabric.properties
 # Sample JSON
 json-schemas/v1/samples/
 
+# Python (scoverage-inspector MCP tooling)
+__pycache__/
+*.pyc
+.coverage
+
 # Claude Code
 .claude/worktrees/
 .mcp.json

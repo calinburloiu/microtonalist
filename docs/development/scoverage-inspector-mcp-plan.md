@@ -1,8 +1,7 @@
 # Plan: Replace the scoverage-inspector subagent with an MCP server
 
 > **Status:** Proposal / RFC. This document is the deliverable of the planning PR on branch
-> `refactoring/scoverage-inspector-mcp`. Implementation follows in subsequent PR(s) once the plan is
-> approved.
+> `refactoring/scoverage-inspector-mcp`.
 
 ## 1. Background
 

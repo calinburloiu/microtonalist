@@ -42,9 +42,12 @@ Launches two background processes (managed by this script):
    drives Metals as a headless LSP client and makes Metals write `.mcp.json`
    at the repo root for Claude Code to pick up.
 
-Once `.mcp.json` is written, the script warms up the build by sending
-`compile` to the running SBT shell (SBT and Metals share the same BSP state,
-so this also warms what Metals' MCP tools later see).
+Once `.mcp.json` is written, the script merges the project's `scoverage-inspector`
+MCP server into it (Metals rewrites the file from scratch on each start, so the
+entry must be re-added every time; this requires `uv`/`uvx` on `PATH` — if it is
+missing, the script warns and skips registration). It then warms up the build by
+sending `compile` to the running SBT shell (SBT and Metals share the same BSP
+state, so this also warms what Metals' MCP tools later see).
 
 To run further sbt commands against the same server (the recommended pattern,
 to avoid spawning a second sbt JVM that races the BSP server), use the sbt

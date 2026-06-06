@@ -46,10 +46,35 @@ Metals MCP provides Claude Code with Scala code intelligence through the
    claude
    ```
 
-4. Verify the connection with `/mcp` -- `metals` should appear in the server list.
+4. Verify the connection with `/mcp` -- `metals` and `scoverage-inspector` should appear in the server list.
 
 > **Note:** The `.mcp.json` file is generated dynamically with a random port and is gitignored. It cannot be checked
-> into the repository since it is machine- and session-specific.
+> into the repository since it is machine- and session-specific. `bin/microtonalist-dev-stack start` merges the
+> project's `scoverage-inspector` server into it after Metals writes the file (see below).
+
+## scoverage-inspector MCP
+
+The `scoverage-inspector` MCP server gives Claude Code cheap, structured access to scoverage reports — per-class
+statement/branch percentages and uncovered source lines — without loading the ~3000-line `scoverage.xml` files into
+context. It is an in-process [FastMCP](https://modelcontextprotocol.io/) stdio server living under
+[`.claude/mcp/scoverage_inspector/`](../../.claude/mcp/scoverage_inspector/), backed by a pure, unit-tested
+`scoverage_core.py` module. Each query tool freshness-checks the requested modules and transparently rebuilds stale or
+missing reports via a single batched `sbt` run (isolated under `target-scoverage/`, logged to
+`logs/mcp/scoverage-inspector/sbt-run.log`).
+
+It is launched via `uvx --from mcp`, which fetches and pins the `mcp` package on demand without adding it to the repo
+toolchain — so **[`uv`](https://docs.astral.sh/uv/) must be installed** (see
+[`README.md`](README.md#prerequisites)). Because Metals rewrites `.mcp.json` from scratch on every start (its port and
+transport are dynamic), `bin/microtonalist-dev-stack start` merges the `scoverage-inspector` entry back in right after
+Metals writes the file. If `uv` is missing, the dev-stack prints a warning and skips registration.
+
+The same logic is runnable from the command line via `python3 .claude/mcp/scoverage_inspector/cli.py` (subcommands
+`freshness`, `class-summary`, `class-uncovered`, `module-summary`, `run-coverage`) for humans and CI. The Python test
+suite runs on stdlib `unittest`:
+
+```bash
+python3 -m unittest discover -s .claude/mcp/scoverage_inspector/tests -p "test_*.py"
+```
 
 ## GitHub MCP Plugin
 
@@ -130,32 +155,10 @@ that one step.
 
 [`.claude/skills/scoverage-inspector/SKILL.md`](../../.claude/skills/scoverage-inspector/SKILL.md) carries the project's
 coverage **policy** (the 80% statement/branch target, the per-module `build.sbt` thresholds that act as never-lowered
-floors with a 3% buffer, the rule that new files must hit 80% on their own, and the stop-and-wait response to the known
-sbt-scoverage + Scala 3 TASTy concurrency issue). When triggered, the skill does not inspect reports itself — it
-delegates the mechanical XML reading to the [`scoverage-inspector` subagent](#scoverage-inspector-agent). The skill's
-[`scripts/`](../../.claude/skills/scoverage-inspector/scripts/) directory holds the Python stdlib readers and sbt
-wrapper scripts that the subagent runs; they stream the large `scoverage.xml` reports and emit small summaries instead
-of loading the full XML into context.
-
-## Agents (Subagents)
-
-[Subagents](https://code.claude.com/docs/en/sub-agents) are specialized assistants that run with their own system prompt
-and a restricted tool set, in a separate context from the main conversation. The repository ships project-level
-subagents under [`.claude/agents/`](../../.claude/agents/) (one Markdown file per agent), committed so they are shared
-across the team.
-
-### `scoverage-inspector` agent
-
-[`.claude/agents/scoverage-inspector.md`](../../.claude/agents/scoverage-inspector.md) is the worker spawned by the
-`scoverage-inspector` skill; it is not meant to be invoked directly. It runs on a small, cheap and fast model (Haiku)
-and is limited to the `Bash` and `mcp__metals__inspect` tools, so it is strictly read-only apart from the log files its
-wrapper scripts write. Its system prompt holds the full inspection workflow: resolve class names to sbt modules, check
-whether the existing coverage report is still fresh, run a coverage build in isolation (under `target-scoverage/`) only
-when needed, and parse the report down to per-class percentages and uncovered `file:line` locations.
-
-Keeping this work in a subagent serves two purposes: the verbose tool calls stay out of the main agent's (more
-expensive) context, and the subagent deliberately runs **without** the project `CLAUDE.md` — that file tells agents to
-use `sbtn` against the running BSP server, which would conflict with this task's need to run `sbt` in isolation.
+floors with a 3% buffer, the rule that new files must hit 80% on their own). When triggered, the skill resolves the
+named classes to their sbt module IDs (via Metals) and calls the [`scoverage-inspector` MCP server](#scoverage-inspector-mcp),
+which performs all the mechanical work — freshness check, rebuild if stale, and XML parsing — in-process and returns
+small structured results instead of loading the full report into context.
 
 ## Authorizing MCP Servers and Plugins
 

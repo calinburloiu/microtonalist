@@ -113,10 +113,10 @@ For test conventions, see the "Coding conventions" section.
 
 During the **Coverage** workflow step — and any time you verify coverage after changing code — invoke the
 `scoverage-inspector` skill. It carries the coverage policy you must apply (per-module thresholds, the "never decrease
-the floor" rule, the 80% target for new files, and the stop-and-wait behavior on the known scoverage TASTy concurrency
-issue) and delegates mechanical XML inspection to its custom subagent. The policy lives in the skill — loaded on demand
-when you invoke it — precisely so it does not clutter context up front, since coverage work only happens after the
-implementation is finished.
+the floor" rule, the 80% target for new files) and tells you how to resolve classes to sbt modules and call the
+`scoverage-inspector` MCP server, which performs the mechanical work (freshness check, rebuild if stale, XML parsing)
+in-process. The policy lives in the skill — loaded on demand when you invoke it — precisely so it does not clutter
+context up front, since coverage work only happens after the implementation is finished.
 
 # Architecture
 
