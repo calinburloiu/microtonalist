@@ -23,12 +23,9 @@ expensive main-agent context, and (b) run that mechanical reasoning cheaply on H
 
 ### Why this is now redundant
 
-Once the helper-script logic is moved *in-process into an MCP server*, every decision the subagent makes
-becomes deterministic code rather than LLM reasoning:
+Once the helper-script logic is moved *in-process into an MCP server*, every *mechanical* step the subagent
+performs becomes deterministic code rather than LLM reasoning:
 
-- **Class → module resolution** is derivable from the FQN alone: the package path *is* the directory path,
-  so a filesystem glob (`**/src/main/scala/<pkg-as-path>/<Class>.scala`, module = the segment before
-  `src`) resolves it. This removes the `mcp__metals__inspect` dependency entirely.
 - **Freshness-check → rebuild** becomes an automatic precondition of every query tool, not a step an agent
   sequences by hand.
 - **XML parsing** already returns small structured results; in-process it returns typed data directly
@@ -36,9 +33,18 @@ becomes deterministic code rather than LLM reasoning:
 - **Verbose `sbt` output** is captured to a log file by the tool; only a compact status + log path is
   returned, so it never enters any agent's context.
 
-With no judgment node left and no verbose output to quarantine, the subagent's two reasons to exist both
-disappear. The mechanical work costs ~nothing in tokens (it's Python returning hundreds of bytes), so
-there is no Haiku saving to capture, and dropping the nested agent loop *reduces* wall-clock latency.
+The one step that is *not* pure mechanics — **class → sbt-module resolution** — stays Metals-based and moves
+up into the **skill/main-agent layer** (see §4a). It cannot be a filesystem glob: directory names do not
+always equal sbt module IDs in this repo (`scMidi`/`sc-midi`, `appConfig`/`config`,
+`commonTestUtils`/`common-test-utils`), so a directory-walk would yield the wrong module. And the MCP — a
+plain child process — cannot call `mcp__metals__inspect` itself. So the main agent does the resolution with
+one or two cheap Metals calls and passes the resolved sbt module ID(s) into the MCP tools. That is a couple
+of direct tool calls in the main agent, **not** a reason to keep a nested subagent.
+
+With no mechanical judgment node left and no verbose output to quarantine, the subagent's two reasons to
+exist both disappear. The mechanical work costs ~nothing in tokens (it's Python returning hundreds of
+bytes), so there is no Haiku saving to capture, and dropping the nested agent loop *reduces* wall-clock
+latency.
 
 ## 2. Goals and non-goals
 
@@ -49,8 +55,9 @@ there is no Haiku saving to capture, and dropping the nested agent loop *reduces
 - **Unit-test every line of Python in the MCP** — both `scoverage_core.py` and `server.py`. No Python
   ships without tests (see §8).
 - Make freshness-check-and-maybe-rebuild an internal precondition of every query tool.
-- Remove the `scoverage-inspector` subagent and the `mcp__metals__inspect` dependency.
-- Slim the skill down to the coverage *policy* plus "call the tool".
+- Remove the `scoverage-inspector` subagent. **Keep** Metals-based class → module resolution, but move it
+  into the skill (the main agent calls `mcp__metals__inspect` and passes resolved sbt module IDs to the MCP).
+- Slim the skill down to the coverage *policy*, the Metals resolution step, plus "call the tool".
 - **Remove TASTy / companion-class failure detection and the one-shot retry everywhere** — the underlying
   sbt-scoverage + Scala 3 concurrency issue is resolved, so this logic is dead weight (see §6).
 
@@ -65,35 +72,57 @@ there is no Haiku saving to capture, and dropping the nested agent loop *reduces
 
 ```
 .claude/mcp/scoverage_inspector/
-  scoverage_core.py     # pure logic: resolver, freshness, parsers, sbt runner — no MCP, no I/O coupling
-  server.py             # thin stdio MCP server wrapping scoverage_core
+  scoverage_core.py     # pure logic: module map, freshness, parsers, sbt runner — no MCP, no I/O coupling
+  server.py             # thin stdio FastMCP server wrapping scoverage_core
+  cli.py                # thin argparse shims over scoverage_core for humans/CI (see §7)
   tests/
     test_scoverage_core.py    # unit tests for the pure logic
     test_server.py            # unit tests for the MCP wrapper (tool dispatch, arg parsing, error mapping)
-    resources/scoverage-sample.xml   # small fixture report
-.mcp.json               # registers the server (stdio transport)
+    test_cli.py               # unit tests for the CLI shims
+    resources/
+      scoverage-sample.xml    # small fixture report
+      build-sample.sbt        # fixture for the module-ID ↔ directory parser
+.mcp.json               # registers the server (stdio transport, launched via uvx)
 ```
 
 - **`scoverage_core.py`** — pure functions returning dataclasses, independently runnable and testable:
-  - `resolve(fqn) -> ClassLocation(module, source_path)` via filesystem glob (replaces metals).
-  - `freshness(module, aggregate=False) -> Freshness(FRESH|STALE|MISSING)` (ports `coverage_freshness.py`).
-  - `run_coverage(modules, aggregate=False) -> RunResult(status, log_path)` — wraps `sbt`, captures
+  - `module_dir_map(build_sbt) -> dict[str, str]` — parse `lazy val <id> = (project in file("<dir>"))`
+    declarations from `build.sbt` to map sbt module ID → directory. This is the key piece that handles the
+    `scMidi`/`sc-midi`, `appConfig`/`config`, `commonTestUtils`/`common-test-utils` mismatches: the report
+    lives at `coverage-reports/<id>/...` (sbt uses `thisProject.value.id`, see `build.sbt`), while sources
+    live at `<dir>/src/...`. The MCP receives the **sbt module ID** (already resolved upstream via Metals)
+    and uses this map to find the source directories for the freshness check.
+  - `freshness(module_id, aggregate=False) -> Freshness(FRESH|STALE|MISSING)` (ports
+    `coverage_freshness.py`, now using `module_dir_map` for the source path — fixing the latent bug where
+    the old script assumed dir == id).
+  - `run_coverage(module_ids, aggregate=False) -> RunResult(status, log_path)` — wraps `sbt`, captures
     output to `logs/skills/scoverage-inspector/sbt-run.log` (file only, **not** returned inline), bakes in
     the `-Dmicrotonalist.build.targetSuffix=-scoverage` flag. **No retry, no TASTy classification.**
     `status` is `OK` or `ERROR` only.
   - `class_summary(...)`, `class_uncovered_lines(...)`, `module_summary(...)` — port the three reader
-    scripts, keeping `iterparse` streaming, returning dataclasses.
-- **`server.py`** — a `stdio` MCP server (FastMCP, or hand-rolled JSON-RPC if we want zero pip deps — see
-  §8 open question) exposing the tools in §4.
-- **`.mcp.json`** — registers the server so Claude Code launches it as a child process over stdio.
+    scripts, keeping `iterparse` streaming, returning dataclasses. These key off the FQN (`class name` in
+    the XML), so they need only the report path (derived from the module ID), not the source directory.
+- **`server.py`** — a `stdio` MCP server built with **FastMCP** (`mcp` pip package), exposing the tools in
+  §4. Class → module resolution is **not** done here; tools receive already-resolved sbt module IDs.
+- **`cli.py`** — thin `argparse` entry points over `scoverage_core` so the functions stay runnable by hand
+  and from CI (decided in §10).
+- **`.mcp.json`** — registers the server so Claude Code launches it as a child process over stdio, via
+  `uvx` (so the `mcp` dependency is fetched/pinned without polluting the repo toolchain).
 
 ## 4. Tool API
+
+### 4a. Resolution happens upstream (skill / main agent)
+
+Before calling the MCP, the main agent resolves each fully-qualified class name to its **sbt module ID**
+using `mcp__metals__inspect` (the skill carries this step). Metals is authoritative for symbol → build
+target and sidesteps the directory ≠ module-ID mismatches that a glob cannot. The agent then passes
+`(module, fqn)` pairs to the tools below; the MCP never resolves classes itself.
 
 ### `coverage_report` (primary)
 
 ```
 coverage_report(
-  classes: list[str],            # fully-qualified class names
+  classes: list[{ module: str, fqn: str }],   # module = sbt module ID, resolved upstream via Metals
   include_uncovered: bool = False,
   aggregate: bool = False,
   allow_rebuild: bool = True,
@@ -108,7 +137,7 @@ coverage_report(
 
 Behavior:
 
-1. Resolve each FQN → `(module, file)` by glob; dedupe the module set.
+1. Dedupe the module set from the supplied `(module, fqn)` pairs (no resolution here — done upstream §4a).
 2. Freshness-check the module set (or the aggregate report when `aggregate=True`).
 3. For stale/missing modules: if `allow_rebuild`, run **one batched** `sbt coverageModules <m...>`
    (or `sbt coverageAll` for aggregate); otherwise return `status=error` noting which modules are stale.
@@ -143,8 +172,9 @@ Same freshness/rebuild precondition; answers module-level "is this module above 
 
 ## 5. What the skill becomes
 
-`SKILL.md` keeps **only** the coverage policy (thresholds, never-lower-the-floor, 80%-for-new-files) and a
-short "how to call it" pointing at `coverage_report` / `module_coverage`. The following are **removed**:
+`SKILL.md` keeps the coverage policy (thresholds, never-lower-the-floor, 80%-for-new-files), the **Metals
+resolution step** (FQN → sbt module ID via `mcp__metals__inspect`, §4a), and a short "how to call it"
+pointing at `coverage_report` / `module_coverage`. The following are **removed**:
 
 - The entire "delegate to the custom subagent" section and the `Agent(...)` invocation block.
 - The "Dependency: requires the custom subagent" section.
@@ -165,8 +195,9 @@ The sbt-scoverage + Scala 3 concurrency issue that produced intermittent TASTy /
 **Scope boundary:** this removal covers the skill and the new MCP, as requested. The broader dev docs that
 mention the historical issue — `docs/development/scoverage-issue.md`, `docs/development/coverage.md`,
 `docs/agents/dev-stack.md`, `docs/development/claude-code-setup.md`, `docs/development/build.md`,
-`docs/development/README.md` — are **out of scope** for this refactor. Cleaning or deleting
-`scoverage-issue.md` and its references can be a small follow-up; flagged here so it is not forgotten.
+`docs/development/README.md` — are **left untouched**. In particular, **`docs/development/scoverage-issue.md`
+is kept** as a historical record (decided); we are not deleting it or scrubbing its references in this or a
+follow-up refactor.
 
 ## 7. File-by-file change list
 
@@ -174,22 +205,26 @@ mention the historical issue — `docs/development/scoverage-issue.md`, `docs/de
 
 - `.claude/mcp/scoverage_inspector/scoverage_core.py`
 - `.claude/mcp/scoverage_inspector/server.py`
+- `.claude/mcp/scoverage_inspector/cli.py` (thin CLI shims over the core — kept, decided §10)
 - `.claude/mcp/scoverage_inspector/tests/test_scoverage_core.py`
+- `.claude/mcp/scoverage_inspector/tests/test_server.py`
+- `.claude/mcp/scoverage_inspector/tests/test_cli.py`
 - `.claude/mcp/scoverage_inspector/tests/resources/scoverage-sample.xml`
-- `.mcp.json` (register the stdio server)
+- `.claude/mcp/scoverage_inspector/tests/resources/build-sample.sbt`
+- `.mcp.json` (register the stdio server, launched via `uvx`)
 
 **Modify**
 
 - `.claude/skills/scoverage-inspector/SKILL.md` — strip delegation + dependency + TASTy paragraph; keep
-  policy; point at the MCP tools.
+  policy + the Metals resolution step (§4a); point at the MCP tools.
 
 **Remove**
 
 - `.claude/agents/scoverage-inspector.md` (the subagent).
 - `.claude/skills/scoverage-inspector/scripts/` — `class_summary.py`, `class_uncovered_lines.py`,
-  `module_summary.py`, `coverage_freshness.py`, `run_coverage_modules.sh`, `run_coverage_all.sh`
-  (logic absorbed into `scoverage_core.py`). *Decision point:* optionally retain thin CLI shims for
-  humans/CI — see §8.
+  `module_summary.py`, `coverage_freshness.py`, `run_coverage_modules.sh`, `run_coverage_all.sh`. Their
+  reader/freshness logic is absorbed into `scoverage_core.py`; the standalone command-line entry points
+  they provided are preserved by the new `cli.py` shims (§10).
 
 **Unchanged**
 
@@ -198,22 +233,26 @@ mention the historical issue — `docs/development/scoverage-issue.md`, `docs/de
 
 ## 8. Implementation order (TDD)
 
-**All Python in the MCP is unit-tested — `scoverage_core.py` and `server.py` both.** Every public function
-and tool handler gets tests, including error/edge paths (missing report, unresolvable FQN, zero/multiple
-glob matches, stale-with-`allow_rebuild=False`, `sbt` returning a non-zero `error` status). Use a single
-test framework run from CI/locally (recommendation: stdlib `unittest`, or `pytest` if we accept the dev
-dependency — see §10). The bar: the MCP Python has no untested branches.
+**All Python in the MCP is unit-tested — `scoverage_core.py`, `server.py`, and `cli.py`.** Every public
+function, tool handler, and CLI entry point gets tests, including error/edge paths (missing report, class
+not found in the report, unknown module ID, `module_dir_map` parsing of the mismatched modules, stale-with-
+`allow_rebuild=False`, `sbt` returning a non-zero `error` status). Tests run on **stdlib `unittest`**
+(decided §10), locally and in CI. The bar: the MCP Python has no untested branches.
 
-1. Write `test_scoverage_core.py` against a small fixture XML: resolver, freshness, class summary, class
-   uncovered lines, module summary — happy paths and the error/edge paths above. Red.
+1. Write `test_scoverage_core.py` against the fixture XML + `build-sample.sbt`: `module_dir_map` (covering
+   the `scMidi`/`sc-midi` family), freshness, class summary, class uncovered lines, module summary — happy
+   paths and the error/edge paths above. Red.
 2. Implement `scoverage_core.py` until green. Refactor.
 3. Write `test_server.py`: tool registration/dispatch, argument parsing/validation, core→tool result
    shaping, and core-error → `status: "error"` mapping. The `sbt` runner is mocked so server tests never
    shell out. Red, then implement `server.py` until green.
-4. Add `.mcp.json`; verify the tool is callable from a session (manual stdio handshake +
+4. Write `test_cli.py`: each shim parses args and delegates to the core correctly (core mocked). Red, then
+   implement `cli.py` until green.
+5. Add `.mcp.json` (uvx launch); verify the tool is callable from a session (manual stdio handshake +
    `coverage_report` round-trip).
-5. Slim `SKILL.md`; delete the agent and the scripts; remove TASTy handling.
-6. Update any references (e.g. `.claude/settings.json` hooks, dev docs that point at the scripts) so
+6. Slim `SKILL.md` (keep policy + Metals resolution step); delete the agent and the scripts; remove TASTy
+   handling.
+7. Update any references (e.g. `.claude/settings.json` hooks, dev docs that point at the scripts) so
    nothing dangles.
 
 ## 9. Risks and mitigations
@@ -222,19 +261,17 @@ dependency — see §10). The bar: the MCP Python has no untested branches.
 |------|------------|
 | MCP server is a new always-on failure surface (a crash takes out all coverage tools). | Keep all logic in `scoverage_core.py` as a plain importable, unit-tested module; `server.py` is a thin wrapper. Core stays runnable/testable without the server. |
 | Implicit rebuild surprises with multi-minute latency. | `rebuilt`/`log` in every return + `allow_rebuild=False` escape hatch (§4). |
-| Glob-based resolution is less precise than metals (e.g. two identical FQNs). | The FQN includes the full package path, so collisions require the *same* FQN in two modules, which should not occur; resolver returns an explicit error if it matches zero or >1 file. |
-| MCP runtime/deps (e.g. the `mcp` pip package) may not be present where Claude Code runs. | See §8 open question — prefer a zero-extra-dependency approach or a pinned `uvx` invocation. |
+| Directory name ≠ sbt module ID (`scMidi`/`sc-midi`, `appConfig`/`config`, `commonTestUtils`/`common-test-utils`). | Resolution is done by Metals upstream (authoritative for symbol → module), not by directory-walk; inside the MCP, `module_dir_map` parses `build.sbt` to translate module ID → source directory for freshness. The latent bug in the old freshness script (which assumed dir == id) is fixed by this map. |
+| FastMCP / `mcp` pip package not present where Claude Code runs. | Launch the server via `uvx` in `.mcp.json`, which fetches and pins the dependency on demand without adding it to the repo toolchain. |
 
-## 10. Open questions for the reviewer
+## 10. Resolved decisions
 
-1. **Server runtime:** FastMCP (`mcp` pip package, launched via `uvx`/`pipx`) for less boilerplate, or a
-   hand-rolled stdlib JSON-RPC stdio loop for zero extra dependencies? Recommendation: hand-rolled stdlib
-   if the protocol surface is small, to keep the toolchain dependency-free.
-2. **CLI shims:** keep thin standalone CLI entry points over `scoverage_core.py` for humans/CI, or fold
-   everything into the server only? Recommendation: keep tiny shims — cheap, and useful for manual/CI use.
-3. **`scoverage-issue.md`:** delete it and scrub its references now (separate small PR), or leave it as
-   historical record? (Out of scope here per §6.)
-4. **Test framework:** stdlib `unittest` (zero dev deps, runs anywhere `python3` exists) or `pytest`
-   (nicer assertions/fixtures, adds a dev dependency)? Either way the requirement is identical — all MCP
-   Python is unit-tested (§8). Recommendation: `unittest`, to keep the toolchain dependency-free and align
-   with the zero-dep server option in (1).
+1. **Class → module resolution:** **Metals**, in the skill/main-agent layer (§4a). Not a filesystem glob —
+   directory names don't always equal sbt module IDs in this repo. The MCP receives resolved sbt module IDs.
+2. **Server runtime:** **FastMCP** (`mcp` pip package), launched via **`uvx`** from `.mcp.json`.
+3. **CLI shims:** **kept** — thin `cli.py` `argparse` entry points over `scoverage_core.py` for humans/CI,
+   preserving the standalone command-line use the removed scripts provided.
+4. **Test framework:** **stdlib `unittest`** (zero dev deps, runs anywhere `python3` exists). All MCP Python
+   is unit-tested (§8).
+5. **`docs/development/scoverage-issue.md`:** **kept** as a historical record; not deleted and its
+   references are not scrubbed (§6).
