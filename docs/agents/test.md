@@ -30,9 +30,6 @@ Testing a single module `${MODULE}`:
 sbtn "${MODULE}/testOnly * -- -oNCXEHLOPQRMWS"
 ```
 
-`${MODULE}` is the sbt project ID, which by build convention equals the module's base directory name (see the
-CONVENTION comment in `build.sbt`).
-
 Testing a single test class `${CLASS}` (declared with fully qualified name) in a module `${MODULE}`:
 
 ```bash
