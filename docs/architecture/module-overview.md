@@ -20,7 +20,9 @@ app
 
 ## Packages
 
-Each module's SBT project name, directory, and root package:
+Each module's SBT project ID, directory, and root package. By build convention the SBT project ID equals the base
+directory name (`build.sbt` sets `.withId(<dir>)` on every project; the `lazy val` name may differ since it must be a
+valid Scala identifier — e.g. the `scMidi` val has ID `sc-midi`):
 
 | SBT project | Directory | Root package |
 | ----------- | --------- | ------------ |
@@ -29,10 +31,10 @@ Each module's SBT project name, directory, and root package:
 | `ui` | `ui` | `org.calinburloiu.music.microtonalist.ui` |
 | `common` | `common` | `org.calinburloiu.music.microtonalist.common` |
 | `composition` | `composition` | `org.calinburloiu.music.microtonalist.composition` |
-| `appConfig` | `config` | `org.calinburloiu.music.microtonalist.config` |
+| `config` | `config` | `org.calinburloiu.music.microtonalist.config` |
 | `tuner` | `tuner` | `org.calinburloiu.music.microtonalist.tuner` |
 | `format` | `format` | `org.calinburloiu.music.microtonalist.format` |
 | `businessync` | `businessync` | `org.calinburloiu.businessync` |
 | `intonation` | `intonation` | `org.calinburloiu.music.intonation` |
-| `scMidi` | `sc-midi` | `org.calinburloiu.music.scmidi` |
+| `sc-midi` | `sc-midi` | `org.calinburloiu.music.scmidi` |
 | `experiments` | `experiments` | `org.calinburloiu.music.microtonalist.experiments` |

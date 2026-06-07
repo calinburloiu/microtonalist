@@ -94,7 +94,7 @@ design; treat it as planned and subject to change. The headline elements:
 `businessync` has **no application `dependsOn`** — it is a leaf in the dependency graph, alongside `intonation` and
 `common`. Its only third-party dependency is Guava (`EventBus`), plus the inherited common logging stack.
 
-Modules that depend on it: `scMidi` (publishes `MidiEvent`s), `tuner` (publishes/subscribes to `TuningEvent`/
+Modules that depend on it: `sc-midi` (publishes `MidiEvent`s), `tuner` (publishes/subscribes to `TuningEvent`/
 `TrackEvent`), `app` (constructs the instance and wires it in), `cli` (constructs one for `MidiManager`), and
 transitively `format` (publishes `ScaleLossyConversionEvent`) and `ui` (subscribes to `TuningIndexUpdatedEvent`). The
 instance is created once in `MicrotonalistApp.run` and injected everywhere, so a single bus/threading context is shared

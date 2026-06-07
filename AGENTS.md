@@ -60,9 +60,9 @@ already implemented functionality. Use the read docs functionality to understand
 build target) and search only that target's classpath — so use a file from the module with the broadest classpath. The
 representative files for project-wide searches are:
 
-- `app` — covers `appConfig`, `businessync`, `common`, `composition`, `intonation`, `format`, `scMidi`, `tuner`, `ui`:
+- `app` — covers `config`, `businessync`, `common`, `composition`, `intonation`, `format`, `sc-midi`, `tuner`, `ui`:
   `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
-- `cli` — separate executable covering `scMidi`; may contain symbols not in `app`:
+- `cli` — separate executable covering `sc-midi`; may contain symbols not in `app`:
   `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
 - `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
   `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`

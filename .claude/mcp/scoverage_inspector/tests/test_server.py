@@ -20,7 +20,6 @@ import server  # noqa: E402
 
 RESOURCES = Path(__file__).resolve().parent / "resources"
 SAMPLE_XML = RESOURCES / "scoverage-sample.xml"
-SAMPLE_SBT = RESOURCES / "build-sample.sbt"
 
 
 def _ok_runner(cmd, log_file):
@@ -34,11 +33,10 @@ def _err_runner(cmd, log_file):
 
 
 class FixtureRoot:
-    """A temp repo root with build.sbt, a module report, and a source tree."""
+    """A temp repo root with a module report and a matching source tree (id == dir)."""
 
-    def __init__(self, report_id="scMidi", source_dir="sc-midi"):
+    def __init__(self, report_id="sc-midi", source_dir="sc-midi"):
         self.root = Path(tempfile.mkdtemp())
-        shutil.copy(SAMPLE_SBT, self.root / "build.sbt")
         report = self.root / "coverage-reports" / report_id / "scoverage-report" / "scoverage.xml"
         report.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(SAMPLE_XML, report)
@@ -78,7 +76,7 @@ class CoverageReportTest(unittest.TestCase):
     def test_fresh_report_returns_class_records_without_rebuild(self):
         self.fx.make_fresh()
         result = server.do_coverage_report(
-            [{"module": "scMidi", "fqn": "org.example.Foo"}],
+            [{"module": "sc-midi", "fqn": "org.example.Foo"}],
             root=self.fx.root,
             runner=_ok_runner,
         )
@@ -87,7 +85,7 @@ class CoverageReportTest(unittest.TestCase):
         self.assertEqual(len(result["classes"]), 1)
         record = result["classes"][0]
         self.assertEqual(record["fqn"], "org.example.Foo")
-        self.assertEqual(record["module"], "scMidi")
+        self.assertEqual(record["module"], "sc-midi")
         self.assertAlmostEqual(record["stmt_pct"], 80.0)
         self.assertIn("methods", record)
         self.assertNotIn("uncovered_ranges", record)
@@ -95,7 +93,7 @@ class CoverageReportTest(unittest.TestCase):
     def test_include_uncovered_adds_file_line_ranges(self):
         self.fx.make_fresh()
         result = server.do_coverage_report(
-            [{"module": "scMidi", "fqn": "org.example.Foo"}],
+            [{"module": "sc-midi", "fqn": "org.example.Foo"}],
             include_uncovered=True,
             root=self.fx.root,
             runner=_ok_runner,
@@ -107,14 +105,14 @@ class CoverageReportTest(unittest.TestCase):
     def test_stale_without_allow_rebuild_is_error(self):
         self.fx.make_stale()
         result = server.do_coverage_report(
-            [{"module": "scMidi", "fqn": "org.example.Foo"}],
+            [{"module": "sc-midi", "fqn": "org.example.Foo"}],
             allow_rebuild=False,
             root=self.fx.root,
             runner=_ok_runner,
         )
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["classes"], [])
-        self.assertIn("scMidi", result["message"])
+        self.assertIn("sc-midi", result["message"])
 
     def test_stale_with_allow_rebuild_runs_sbt_once(self):
         self.fx.make_stale()
@@ -126,19 +124,19 @@ class CoverageReportTest(unittest.TestCase):
             return 0
 
         result = server.do_coverage_report(
-            [{"module": "scMidi", "fqn": "org.example.Foo"}],
+            [{"module": "sc-midi", "fqn": "org.example.Foo"}],
             root=self.fx.root,
             runner=runner,
         )
         self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["rebuilt"], ["scMidi"])
+        self.assertEqual(result["rebuilt"], ["sc-midi"])
         self.assertEqual(len(calls), 1)
         self.assertTrue(result["log"].endswith("sbt-run.log"))
 
     def test_rebuild_failure_returns_error_and_log(self):
         self.fx.make_stale()
         result = server.do_coverage_report(
-            [{"module": "scMidi", "fqn": "org.example.Foo"}],
+            [{"module": "sc-midi", "fqn": "org.example.Foo"}],
             root=self.fx.root,
             runner=_err_runner,
         )
@@ -149,7 +147,7 @@ class CoverageReportTest(unittest.TestCase):
     def test_class_not_found_is_error(self):
         self.fx.make_fresh()
         result = server.do_coverage_report(
-            [{"module": "scMidi", "fqn": "org.example.Missing"}],
+            [{"module": "sc-midi", "fqn": "org.example.Missing"}],
             root=self.fx.root,
             runner=_ok_runner,
         )
@@ -167,15 +165,15 @@ class CoverageReportTest(unittest.TestCase):
 
         server.do_coverage_report(
             [
-                {"module": "scMidi", "fqn": "org.example.Foo"},
-                {"module": "scMidi", "fqn": "org.example.Bar"},
+                {"module": "sc-midi", "fqn": "org.example.Foo"},
+                {"module": "sc-midi", "fqn": "org.example.Bar"},
             ],
             root=self.fx.root,
             runner=runner,
         )
         # One sbt run, one module listed
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][-1], "coverageModules scMidi")
+        self.assertEqual(calls[0][-1], "coverageModules sc-midi")
 
 
 class AggregateAndHelpersTest(unittest.TestCase):
@@ -189,7 +187,7 @@ class AggregateAndHelpersTest(unittest.TestCase):
             os.utime(fx.source_file, (1000, 1000))
             os.utime(fx.report, (2000, 2000))
             result = server.do_coverage_report(
-                [{"module": "scMidi", "fqn": "org.example.Foo"}],
+                [{"module": "sc-midi", "fqn": "org.example.Foo"}],
                 aggregate=True, root=fx.root, runner=_ok_runner,
             )
             self.assertEqual(result["status"], "ok")
@@ -208,12 +206,12 @@ class ModuleCoverageTest(unittest.TestCase):
     def test_module_with_classes(self):
         self.fx.make_fresh()
         result = server.do_module_coverage(
-            ["scMidi"], root=self.fx.root, runner=_ok_runner,
+            ["sc-midi"], root=self.fx.root, runner=_ok_runner,
         )
         self.assertEqual(result["status"], "ok")
         self.assertEqual(len(result["modules"]), 1)
         mod = result["modules"][0]
-        self.assertEqual(mod["module"], "scMidi")
+        self.assertEqual(mod["module"], "sc-midi")
         self.assertAlmostEqual(mod["stmt_pct"], 75.0)
         self.assertIn("classes", mod)
         self.assertEqual(len(mod["classes"]), 2)
@@ -221,7 +219,7 @@ class ModuleCoverageTest(unittest.TestCase):
     def test_module_without_classes(self):
         self.fx.make_fresh()
         result = server.do_module_coverage(
-            ["scMidi"], include_classes=False, root=self.fx.root, runner=_ok_runner,
+            ["sc-midi"], include_classes=False, root=self.fx.root, runner=_ok_runner,
         )
         mod = result["modules"][0]
         self.assertNotIn("classes", mod)
@@ -229,7 +227,7 @@ class ModuleCoverageTest(unittest.TestCase):
     def test_stale_without_allow_rebuild_is_error(self):
         self.fx.make_stale()
         result = server.do_module_coverage(
-            ["scMidi"], allow_rebuild=False, root=self.fx.root, runner=_ok_runner,
+            ["sc-midi"], allow_rebuild=False, root=self.fx.root, runner=_ok_runner,
         )
         self.assertEqual(result["status"], "error")
 
@@ -238,7 +236,7 @@ class ModuleCoverageTest(unittest.TestCase):
         # regenerate it, parsing must surface a ScoverageError as status=error.
         self.fx.report.unlink()
         result = server.do_module_coverage(
-            ["scMidi"], root=self.fx.root, runner=_ok_runner,
+            ["sc-midi"], root=self.fx.root, runner=_ok_runner,
         )
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["modules"], [])

@@ -4,13 +4,14 @@ No MCP, no argparse — just importable, unit-testable functions returning
 dataclasses. The MCP server (`server.py`) and the human/CI CLI (`cli.py`) are
 thin wrappers over this module.
 
+This module relies on the build convention that an sbt module's ID equals its base
+directory name (`build.sbt` enforces this with `.withId(<dir>)`). That means a module
+ID *is* its source directory, so no `build.sbt` parsing is needed: scoverage reports
+live at `coverage-reports/<id>/...` (sbt's `thisProject.value.id`) and sources at
+`<id>/src/...`.
+
 Responsibilities:
 
-* `module_dir_map` — parse `build.sbt` to map sbt module ID -> file() directory.
-  This handles the cases where the two differ (`scMidi`/`sc-midi`,
-  `appConfig`/`config`, `commonTestUtils`/`common-test-utils`): scoverage reports
-  live at `coverage-reports/<id>/...` (sbt's `thisProject.value.id`) while sources
-  live at `<dir>/src/...`.
 * `freshness` — compare a report's mtime against the newest source/test file.
 * `run_coverage` — run `sbt coverageModules`/`coverageAll` with the
   `-Dmicrotonalist.build.targetSuffix=-scoverage` isolation flag, capturing output
@@ -22,7 +23,6 @@ from __future__ import annotations
 
 import enum
 import os
-import re
 import subprocess
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -39,10 +39,6 @@ LOG_FILE_NAME = "sbt-run.log"
 PREVIOUS_LOG_FILE_NAME = "sbt-run-previous.log"
 AGGREGATE_REPORT_ID = "root"
 
-_MODULE_DECL_RE = re.compile(
-    r"""lazy\s+val\s+(\w+)\s*=\s*\(project\s+in\s+file\(\s*"([^"]+)"\s*\)\)""",
-)
-
 
 # ---------------------------------------------------------------------------
 # Errors
@@ -58,10 +54,6 @@ class ReportMissingError(ScoverageError):
 
 class ClassNotFoundError(ScoverageError):
     """The requested fully-qualified class is absent from the report."""
-
-
-class UnknownModuleError(ScoverageError):
-    """The sbt module ID was not found in build.sbt."""
 
 
 # ---------------------------------------------------------------------------
@@ -134,24 +126,17 @@ def repo_root_default() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def module_dir_map(build_sbt: Path | str) -> dict[str, str]:
-    """Map sbt module ID -> file() directory by parsing build.sbt.
+def _module_dirs(root: Path) -> list[str]:
+    """Every module's base directory, i.e. each top-level dir containing a `src/`.
 
-    Accepts either a path to build.sbt or its raw text.
+    Relies on the build convention that an sbt module's ID equals its base directory
+    name (`build.sbt` enforces this with `.withId(<dir>)`), so a module ID *is* its
+    source directory — no `build.sbt` parsing is needed. Used to scope the aggregate
+    freshness check across all modules.
     """
-    if isinstance(build_sbt, Path):
-        text = build_sbt.read_text()
-    elif isinstance(build_sbt, str) and "\n" not in build_sbt and Path(build_sbt).exists():
-        text = Path(build_sbt).read_text()
-    else:
-        text = build_sbt
-    return {m.group(1): m.group(2) for m in _MODULE_DECL_RE.finditer(text)}
-
-
-def _resolve_dir_map(root: Path, dir_map: dict[str, str] | None) -> dict[str, str]:
-    if dir_map is not None:
-        return dir_map
-    return module_dir_map(root / "build.sbt")
+    if not root.is_dir():
+        return []
+    return sorted(d.name for d in root.iterdir() if (d / "src").is_dir())
 
 
 def report_xml_path(root: Path, module_id: str, aggregate: bool = False) -> Path:
@@ -210,31 +195,25 @@ def freshness(
     root: Path,
     module_id: str,
     aggregate: bool = False,
-    dir_map: dict[str, str] | None = None,
 ) -> Freshness:
     """Return whether the report for `module_id` is FRESH, STALE, or MISSING.
 
     Per-module mode compares the report mtime against the newest `.scala` (and
-    directory) under the module's file() directory `src/{main,test}/scala`.
-    Aggregate mode compares the root report against the newest source across every
-    module directory. Directory mtimes are included so that deleting or moving out
-    a source/test file — which lowers coverage but leaves no newer file behind —
-    is still detected as stale (see `_newest_scala_mtime`).
+    directory) under the module's `src/{main,test}/scala`. Because the sbt module ID
+    equals its base directory name by build convention, the module ID *is* the source
+    directory — no `build.sbt` lookup is needed. Aggregate mode compares the root
+    report against the newest source across every module directory. Directory mtimes
+    are included so that deleting or moving out a source/test file — which lowers
+    coverage but leaves no newer file behind — is still detected as stale (see
+    `_newest_scala_mtime`).
     """
     root = Path(root)
-    dir_map = _resolve_dir_map(root, dir_map)
 
     xml = report_xml_path(root, module_id, aggregate)
     if not xml.exists():
         return Freshness.MISSING
 
-    if aggregate:
-        directories = [d for d in dir_map.values() if d != "."]
-    else:
-        if module_id not in dir_map:
-            raise UnknownModuleError(f"unknown sbt module ID: {module_id!r}")
-        directories = [dir_map[module_id]]
-
+    directories = _module_dirs(root) if aggregate else [module_id]
     newest_source = _newest_source_mtime(root, directories)
     if newest_source > xml.stat().st_mtime:
         return Freshness.STALE
@@ -433,14 +412,14 @@ def module_summary(
     root: Path,
     module_id: str,
     aggregate: bool = False,
-    dir_map: dict[str, str] | None = None,
 ) -> ModuleSummary:
     """Module-level percentages plus a per-class breakdown sorted worst-first.
 
     Per-module mode reads `coverage-reports/<module_id>/` and includes every class.
-    Aggregate mode reads `coverage-reports/root/` and filters to classes whose
-    source lives under the module's file() directory (unless `module_id` is the
-    aggregate root, which includes all classes).
+    Aggregate mode reads `coverage-reports/root/` and filters to classes whose source
+    lives under the module's directory (unless `module_id` is the aggregate root,
+    which includes all classes). Since the module ID equals its base directory name
+    by build convention, the filter keys directly off `/<module_id>/src/`.
     """
     root = Path(root)
     xml = report_xml_path(root, module_id, aggregate)
@@ -449,10 +428,7 @@ def module_summary(
     show_all = aggregate and module_id == AGGREGATE_REPORT_ID
     module_marker = ""
     if aggregate and not show_all:
-        dir_map = _resolve_dir_map(root, dir_map)
-        if module_id not in dir_map:
-            raise UnknownModuleError(f"unknown sbt module ID: {module_id!r}")
-        module_marker = f"/{dir_map[module_id]}/src/"
+        module_marker = f"/{module_id}/src/"
 
     top_stmt = top_branch = 0.0
     seen_top = False

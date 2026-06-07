@@ -7,8 +7,8 @@ Microtonalist. It is not a domain module — it holds no musical concepts. Inste
 that many higher modules need but that belong to no single one: the `Plugin` extension point, a lock-scoping helper, a
 session-lifecycle trait, URL/path parsing, and platform detection.
 
-It sits near the bottom of the dependency graph and is **widely depended upon** (`tuner`, `format`, `scMidi`,
-`appConfig`, `app`), so it deliberately keeps almost no dependencies of its own. Each utility here is independent of the
+It sits near the bottom of the dependency graph and is **widely depended upon** (`tuner`, `format`, `sc-midi`,
+`config`, `app`), so it deliberately keeps almost no dependencies of its own. Each utility here is independent of the
 others.
 
 Package: `org.calinburloiu.music.microtonalist.common` (sub-package `.concurrency`).
@@ -25,7 +25,7 @@ names); the `Plugin` trait itself carries only the two `val`s and no serializati
 
 **`Locking`** is a mix-in trait providing `@inline` helpers (`withLock` / `withReadLock` / `withWriteLock`) that run a
 block while holding an implicitly-passed lock and always release it in a `finally`, so call sites read like
-`withReadLock { _x }`. Used for thread-safe getters/setters in `appConfig`, `format` (`DeferrableRead`), and `scMidi`
+`withReadLock { _x }`. Used for thread-safe getters/setters in `config`, `format` (`DeferrableRead`), and `sc-midi`
 (`MidiDeviceHandle`, `MidiProcessor`).
 
 **`OpenableSession`** is a small lifecycle trait (extending `java.io.Closeable`) for a resource opened asynchronously
@@ -33,7 +33,7 @@ against a `URI`: `open(uri): Future[Unit]`, `close()`, `isOpened`, `uri`. Implem
 
 **Package-object functions** — chiefly `parseUrlOrPath(urlString): Option[URI]`, which parses a string as either an
 absolute URL or a local file path, enforcing the project convention that a directory URI ends in `/`. Used by `app` and
-`appConfig`.
+`config`.
 
 **`PlatformUtils`** exposes `isMac` / `isWindows` / `isLinux` for OS-conditional behavior. It is currently **hardcoded
 to macOS** — see notes below.
@@ -41,7 +41,7 @@ to macOS** — see notes below.
 ## Dependencies
 
 `common` has no application `dependsOn` (only `commonTestUtils % Test`). Externally it uses Guava plus the inherited
-common logging/test stack. It is depended on directly by `appConfig`, `tuner`, `format`, `scMidi`, and `app`, and
+common logging/test stack. It is depended on directly by `config`, `tuner`, `format`, `sc-midi`, and `app`, and
 transitively by `composition` and `ui` (via `tuner`); `cli` and `experiments` do not depend on it.
 
 ## Notes / subject to change

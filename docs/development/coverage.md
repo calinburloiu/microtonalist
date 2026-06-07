@@ -35,7 +35,8 @@ configured threshold still holds and that any new files meet the 80% target. Pic
   plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
   modules.
 - **Smaller changes scoped to one or a few modules** — run `sbt "coverageModules <module> [<module> ...]"`, where
-  each `<module>` is an sbt project ID (e.g. `intonation`, `tuner`, `appConfig`). At least one module must be
+  each `<module>` is an sbt project ID, equal to the module's base directory name (e.g. `intonation`, `tuner`,
+  `config`, `sc-midi`). At least one module must be
   supplied. Only the listed modules' tests run, so coverage is not inflated by tests from other modules exercising
   the same code, and all listed modules share a single coverage session.
 

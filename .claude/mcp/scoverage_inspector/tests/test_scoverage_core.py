@@ -17,7 +17,6 @@ import scoverage_core as core  # noqa: E402
 
 RESOURCES = Path(__file__).resolve().parent / "resources"
 SAMPLE_XML = RESOURCES / "scoverage-sample.xml"
-SAMPLE_SBT = RESOURCES / "build-sample.sbt"
 
 
 def _write_report(root: Path, module_id: str, xml_src: Path = SAMPLE_XML) -> Path:
@@ -39,23 +38,18 @@ def _age_tree(directory: Path, mtime: float) -> None:
         _set_mtime(Path(dirpath), mtime)
 
 
-class ModuleDirMapTest(unittest.TestCase):
-    def test_parses_id_to_directory_including_mismatches(self):
-        # When
-        mapping = core.module_dir_map(SAMPLE_SBT)
-        # Then — the id != dir cases are the whole point
-        self.assertEqual(mapping["scMidi"], "sc-midi")
-        self.assertEqual(mapping["appConfig"], "config")
-        self.assertEqual(mapping["commonTestUtils"], "common-test-utils")
-        self.assertEqual(mapping["intonation"], "intonation")
-        self.assertEqual(mapping["root"], ".")
-
-    def test_accepts_text_or_path(self):
-        text = SAMPLE_SBT.read_text()
-        self.assertEqual(core.module_dir_map(text)["scMidi"], "sc-midi")
-
-    def test_accepts_path_given_as_plain_string(self):
-        self.assertEqual(core.module_dir_map(str(SAMPLE_SBT))["scMidi"], "sc-midi")
+class ModuleDirsTest(unittest.TestCase):
+    def test_lists_only_dirs_with_a_src_subdir(self):
+        # Given a repo root with two module dirs (each with src/) and one without
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "sc-midi" / "src").mkdir(parents=True)
+            (tmp / "config" / "src").mkdir(parents=True)
+            (tmp / "coverage-reports").mkdir()  # not a module — no src/
+            # Then only the module dirs are returned, sorted
+            self.assertEqual(core._module_dirs(tmp), ["config", "sc-midi"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class RepoRootDefaultTest(unittest.TestCase):
@@ -73,8 +67,9 @@ class SafeIntTest(unittest.TestCase):
 
 class FreshnessTest(unittest.TestCase):
     def setUp(self):
+        # The module ID equals its base directory name by build convention, so the
+        # report dir, source dir, and queried module ID are all "sc-midi".
         self.tmp = Path(tempfile.mkdtemp())
-        shutil.copy(SAMPLE_SBT, self.tmp / "build.sbt")
         self.src = self.tmp / "sc-midi" / "src" / "main" / "scala"
         self.src.mkdir(parents=True)
         self.source_file = self.src / "Foo.scala"
@@ -84,69 +79,63 @@ class FreshnessTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_missing_when_no_report(self):
-        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.MISSING)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.MISSING)
 
     def test_fresh_when_report_newer_than_sources(self):
-        report = _write_report(self.tmp, "scMidi")
+        report = _write_report(self.tmp, "sc-midi")
         _age_tree(self.src, 1000)
         _set_mtime(report, 2000)
-        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.FRESH)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.FRESH)
 
     def test_stale_when_source_newer_than_report(self):
-        report = _write_report(self.tmp, "scMidi")
+        report = _write_report(self.tmp, "sc-midi")
         _age_tree(self.src, 1000)
         _set_mtime(report, 1500)
         _set_mtime(self.source_file, 2000)
-        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.STALE)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.STALE)
 
     def test_stale_when_source_file_deleted(self):
         # Given a fresh report (newer than every source file AND directory)
-        report = _write_report(self.tmp, "scMidi")
+        report = _write_report(self.tmp, "sc-midi")
         _age_tree(self.src, 1000)
         _set_mtime(report, 2000)
-        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.FRESH)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.FRESH)
         # When a source/test file is deleted (no remaining file is newer than the report)
         self.source_file.unlink()
         # Then the parent directory's bumped mtime makes the report stale
-        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.STALE)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.STALE)
 
-    def test_uses_dir_map_so_id_differs_from_dir(self):
-        # Given a report under the module ID dir but sources under the file() dir
-        report = _write_report(self.tmp, "scMidi")
+    def test_uses_module_id_as_source_directory(self):
+        # The report lives at coverage-reports/sc-midi while sources live at sc-midi/src;
+        # freshness must resolve the source dir from the module ID alone (no build.sbt).
+        report = _write_report(self.tmp, "sc-midi")
         _age_tree(self.src, 1000)
         _set_mtime(report, 1500)
         _set_mtime(self.source_file, 2000)
-        # Then freshness must look at sc-midi/src (not scMidi/src) and see it stale
-        self.assertEqual(core.freshness(self.tmp, "scMidi"), core.Freshness.STALE)
-
-    def test_unknown_module_raises(self):
-        _write_report(self.tmp, "nope")
-        with self.assertRaises(core.UnknownModuleError):
-            core.freshness(self.tmp, "nope")
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.STALE)
 
     def test_aggregate_uses_root_report_and_all_sources(self):
         report = _write_report(self.tmp, "root")
         _age_tree(self.src, 1000)
         _set_mtime(report, 2000)
-        self.assertEqual(core.freshness(self.tmp, "scMidi", aggregate=True), core.Freshness.FRESH)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi", aggregate=True), core.Freshness.FRESH)
         _set_mtime(self.source_file, 3000)
-        self.assertEqual(core.freshness(self.tmp, "scMidi", aggregate=True), core.Freshness.STALE)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi", aggregate=True), core.Freshness.STALE)
 
     def test_aggregate_missing(self):
-        self.assertEqual(core.freshness(self.tmp, "scMidi", aggregate=True), core.Freshness.MISSING)
+        self.assertEqual(core.freshness(self.tmp, "sc-midi", aggregate=True), core.Freshness.MISSING)
 
 
 class ClassSummaryTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        shutil.copy(SAMPLE_SBT, self.tmp / "build.sbt")
-        _write_report(self.tmp, "scMidi")
+        _write_report(self.tmp, "sc-midi")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_class_percentages_and_methods(self):
-        summary = core.class_summary(self.tmp, "scMidi", "org.example.Foo")
+        summary = core.class_summary(self.tmp, "sc-midi", "org.example.Foo")
         self.assertEqual(summary.fqn, "org.example.Foo")
         self.assertEqual(summary.file, "org/example/Foo.scala")
         self.assertAlmostEqual(summary.stmt_pct, 80.0)
@@ -159,44 +148,42 @@ class ClassSummaryTest(unittest.TestCase):
 
     def test_class_not_found_raises(self):
         with self.assertRaises(core.ClassNotFoundError):
-            core.class_summary(self.tmp, "scMidi", "org.example.Missing")
+            core.class_summary(self.tmp, "sc-midi", "org.example.Missing")
 
     def test_missing_report_raises(self):
         shutil.rmtree(self.tmp / "coverage-reports")
         with self.assertRaises(core.ReportMissingError):
-            core.class_summary(self.tmp, "scMidi", "org.example.Foo")
+            core.class_summary(self.tmp, "sc-midi", "org.example.Foo")
 
 
 class ClassUncoveredLinesTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        shutil.copy(SAMPLE_SBT, self.tmp / "build.sbt")
-        _write_report(self.tmp, "scMidi")
+        _write_report(self.tmp, "sc-midi")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_splits_statement_and_branch_lines_excluding_ignored(self):
-        result = core.class_uncovered_lines(self.tmp, "scMidi", "org.example.Foo")
+        result = core.class_uncovered_lines(self.tmp, "sc-midi", "org.example.Foo")
         self.assertEqual(result.stmt_lines, [25])
         self.assertEqual(result.branch_lines, [26])  # line 27 is ignored=true -> excluded
 
     def test_class_not_found_raises(self):
         with self.assertRaises(core.ClassNotFoundError):
-            core.class_uncovered_lines(self.tmp, "scMidi", "org.example.Missing")
+            core.class_uncovered_lines(self.tmp, "sc-midi", "org.example.Missing")
 
 
 class ModuleSummaryTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        shutil.copy(SAMPLE_SBT, self.tmp / "build.sbt")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_per_module_overall_and_sorted_classes(self):
-        _write_report(self.tmp, "scMidi")
-        summary = core.module_summary(self.tmp, "scMidi")
+        _write_report(self.tmp, "sc-midi")
+        summary = core.module_summary(self.tmp, "sc-midi")
         self.assertAlmostEqual(summary.stmt_pct, 75.0)
         self.assertAlmostEqual(summary.branch_pct, 60.0)
         # Sorted by stmt ascending -> Bar (70) before Foo (80)
@@ -208,8 +195,8 @@ class ModuleSummaryTest(unittest.TestCase):
 
     def test_aggregate_filters_to_module_directory(self):
         _write_report(self.tmp, "root")
-        # scMidi sources live under sc-midi/ -> only Foo matches
-        summary = core.module_summary(self.tmp, "scMidi", aggregate=True)
+        # sc-midi sources live under sc-midi/ -> only Foo matches
+        summary = core.module_summary(self.tmp, "sc-midi", aggregate=True)
         self.assertEqual([c.fqn for c in summary.classes], ["org.example.Foo"])
         self.assertAlmostEqual(summary.stmt_pct, 80.0)
         self.assertAlmostEqual(summary.branch_pct, 70.0)
@@ -222,20 +209,16 @@ class ModuleSummaryTest(unittest.TestCase):
 
     def test_missing_report_raises(self):
         with self.assertRaises(core.ReportMissingError):
-            core.module_summary(self.tmp, "scMidi")
+            core.module_summary(self.tmp, "sc-midi")
 
     def test_aggregate_with_no_matching_classes_is_zero(self):
         _write_report(self.tmp, "root")
-        # intonation sources live under intonation/ — no class in the sample matches
+        # No class in the sample lives under intonation/ — filter yields nothing.
+        # (An unrecognised module ID behaves the same: it simply matches no sources.)
         summary = core.module_summary(self.tmp, "intonation", aggregate=True)
         self.assertEqual(summary.classes, [])
         self.assertEqual(summary.stmt_pct, 0.0)
         self.assertEqual(summary.branch_pct, 0.0)
-
-    def test_aggregate_unknown_module_raises(self):
-        _write_report(self.tmp, "root")
-        with self.assertRaises(core.UnknownModuleError):
-            core.module_summary(self.tmp, "ghost", aggregate=True)
 
 
 class CollapseRangesTest(unittest.TestCase):
@@ -261,24 +244,24 @@ class RunCoverageTest(unittest.TestCase):
         return runner
 
     def test_sbt_command_for_modules(self):
-        cmd = core.sbt_command(["scMidi", "tuner"], aggregate=False)
+        cmd = core.sbt_command(["sc-midi", "tuner"], aggregate=False)
         self.assertEqual(cmd[0], "sbt")
         self.assertIn("-Dmicrotonalist.build.targetSuffix=-scoverage", cmd)
-        self.assertEqual(cmd[-1], "coverageModules scMidi tuner")
+        self.assertEqual(cmd[-1], "coverageModules sc-midi tuner")
 
     def test_sbt_command_for_aggregate(self):
         cmd = core.sbt_command([], aggregate=True)
         self.assertEqual(cmd[-1], "coverageAll")
 
     def test_ok_status_on_zero_exit(self):
-        result = core.run_coverage(["scMidi"], self.tmp, runner=self._runner(0))
+        result = core.run_coverage(["sc-midi"], self.tmp, runner=self._runner(0))
         self.assertEqual(result.status, "ok")
-        self.assertEqual(result.modules, ["scMidi"])
+        self.assertEqual(result.modules, ["sc-midi"])
         self.assertTrue((self.tmp / result.log_path).exists())
         self.assertEqual(len(self.calls), 1)  # no retry
 
     def test_error_status_on_nonzero_exit(self):
-        result = core.run_coverage(["scMidi"], self.tmp, runner=self._runner(1))
+        result = core.run_coverage(["sc-midi"], self.tmp, runner=self._runner(1))
         self.assertEqual(result.status, "error")
         self.assertEqual(len(self.calls), 1)  # no retry even on failure
 
@@ -293,10 +276,10 @@ class RunCoverageTest(unittest.TestCase):
         self.assertIn("command:", log_file.read_text())
 
     def test_rotates_previous_log(self):
-        core.run_coverage(["scMidi"], self.tmp, runner=self._runner(0))
+        core.run_coverage(["sc-midi"], self.tmp, runner=self._runner(0))
         log_dir = self.tmp / "logs" / "mcp" / "scoverage-inspector"
         (log_dir / "sbt-run.log").write_text("first run")
-        core.run_coverage(["scMidi"], self.tmp, runner=self._runner(0))
+        core.run_coverage(["sc-midi"], self.tmp, runner=self._runner(0))
         self.assertTrue((log_dir / "sbt-run-previous.log").exists())
 
 

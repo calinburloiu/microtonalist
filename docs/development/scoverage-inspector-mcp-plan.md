@@ -2,6 +2,11 @@
 
 > **Status:** Proposal / RFC. This document is the deliverable of the planning PR on branch
 > `refactoring/scoverage-inspector-mcp`.
+>
+> **Implementation update:** the implementation supersedes the `module_dir_map` / `build.sbt`-parsing approach
+> described below (§3, §4a, §9). Instead, every sbt project now sets `.withId(<base-directory-name>)` so the project ID
+> *equals* its source directory, and the MCP derives the source directory from the module ID directly — no `build.sbt`
+> parsing. See the CONVENTION comment in `build.sbt` and [`build.md`](build.md#project-layout).
 
 ## 1. Background
 

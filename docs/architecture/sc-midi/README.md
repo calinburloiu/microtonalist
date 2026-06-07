@@ -1,8 +1,8 @@
-# `scMidi` module architecture
+# `sc-midi` module architecture
 
 ## Responsibility
 
-The `scMidi` module (SBT project `scMidi`, directory `sc-midi/`) is a **Scala-idiomatic MIDI API layered over
+The `sc-midi` module (SBT project `sc-midi`, directory `sc-midi/`, `build.sbt` `lazy val` `scMidi`) is a **Scala-idiomatic MIDI API layered over
 `javax.sound.midi`**. The standard Java Sound MIDI API is verbose, mutable, byte-oriented, and awkward on macOS; this
 module wraps it to give the rest of Microtonalist:
 
@@ -16,7 +16,7 @@ module wraps it to give the rest of Microtonalist:
   state tracker.
 
 It is low-level infrastructure: it knows nothing about scales, tunings, compositions, or the GUI, and depends only on
-`businessync` (the device-event bus) and `common` (the `Locking` helper). `scMidi` is the only Microtonalist module that
+`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is the only Microtonalist module that
 touches `javax.sound.midi` directly; the `tuner` module builds tuning logic on top of `MidiProcessor`/`MidiManager` and
 the `cli` utility uses it to enumerate devices.
 
@@ -126,7 +126,7 @@ The `ScMidiMessage` ↔ `MidiMessage` conversion provided by
 [`JavaMidiConverters`](#midi-message-model-message-sub-package) runs in two directions. Inbound, a device's raw
 message becomes a typed, validated `ScMidiMessage` via `.asScala`, with anything unrecognised falling back to
 `UnsupportedScMidiMessage` so nothing is lost; outbound, an `ScMidiMessage` is rendered back to a Java `MidiMessage`
-via `.asJava`. Within `scMidi`, message code prefers the typed model and validated constructors; the raw byte layer
+via `.asJava`. Within `sc-midi`, message code prefers the typed model and validated constructors; the raw byte layer
 stays confined to the converters and the few places that talk to `javax.sound.midi` directly.
 
 ## Dependencies

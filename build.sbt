@@ -24,8 +24,19 @@ ThisBuild / organization := "org.calinburloiu.music"
 commands ++= Coverage.commands
 
 // # Projects
+//
+// CONVENTION: every project sets `.withId(<base-directory-name>)` so the sbt project ID always equals the
+// project's base directory name — even where the `lazy val` name already matches (it is added redundantly on
+// purpose, to make the rule uniform and self-documenting). This consistency is relied upon by tooling that
+// maps a source directory to its sbt module ID without parsing this file — notably the `scoverage-inspector`
+// MCP server (`.claude/mcp/scoverage_inspector/`), whose reports live at `coverage-reports/<id>/` while sources
+// live at `<dir>/src/`. The `lazy val` name must stay a valid Scala identifier (so kebab-case IDs like
+// `sc-midi` keep camelCase vals like `scMidi`), but the ID — used in `sbt "<id>/test"`, in `thisProject.value.id`,
+// and thus in `coverageDataDir` — must equal the directory. The sole special case is `root` (base dir ".",
+// ID "root"). When adding a module, set its `.withId` to its directory name and keep the two in lockstep.
 
 lazy val root = (project in file("."))
+  .withId("root")
   .aggregate(
     app,
     appConfig,
@@ -50,6 +61,7 @@ lazy val root = (project in file("."))
   )
 
 lazy val app = (project in file("app"))
+  .withId("app")
   .dependsOn(
     appConfig,
     businessync,
@@ -80,6 +92,7 @@ lazy val app = (project in file("app"))
   )
 
 lazy val appConfig = (project in file("config"))
+  .withId("config")
   .dependsOn(
     common
   )
@@ -95,6 +108,7 @@ lazy val appConfig = (project in file("config"))
   )
 
 lazy val cli = (project in file("cli"))
+  .withId("cli")
   .dependsOn(
     scMidi,
   )
@@ -108,6 +122,7 @@ lazy val cli = (project in file("cli"))
   )
 
 lazy val ui = (project in file("ui"))
+  .withId("ui")
   .dependsOn(
     tuner,
   )
@@ -120,6 +135,7 @@ lazy val ui = (project in file("ui"))
   )
 
 lazy val common = (project in file("common"))
+  .withId("common")
   .dependsOn(
     commonTestUtils % Test,
   )
@@ -135,6 +151,7 @@ lazy val common = (project in file("common"))
   )
 
 lazy val commonTestUtils = (project in file("common-test-utils"))
+  .withId("common-test-utils")
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-common-test-utils",
@@ -144,6 +161,7 @@ lazy val commonTestUtils = (project in file("common-test-utils"))
   )
 
 lazy val businessync = (project in file("businessync"))
+  .withId("businessync")
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-businessync",
@@ -156,6 +174,7 @@ lazy val businessync = (project in file("businessync"))
   )
 
 lazy val composition = (project in file("composition"))
+  .withId("composition")
   .dependsOn(
     intonation,
     tuner,
@@ -169,6 +188,7 @@ lazy val composition = (project in file("composition"))
   )
 
 lazy val tuner = (project in file("tuner"))
+  .withId("tuner")
   .dependsOn(
     businessync,
     common,
@@ -184,6 +204,7 @@ lazy val tuner = (project in file("tuner"))
   )
 
 lazy val format = (project in file("format"))
+  .withId("format")
   .dependsOn(
     common,
     commonTestUtils % Test,
@@ -202,6 +223,7 @@ lazy val format = (project in file("format"))
   )
 
 lazy val intonation = (project in file("intonation"))
+  .withId("intonation")
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "intonation",
@@ -215,6 +237,7 @@ lazy val intonation = (project in file("intonation"))
   )
 
 lazy val scMidi = (project in file("sc-midi"))
+  .withId("sc-midi")
   .dependsOn(
     businessync,
     common
@@ -231,6 +254,7 @@ lazy val scMidi = (project in file("sc-midi"))
   )
 
 lazy val experiments = (project in file("experiments"))
+  .withId("experiments")
   .dependsOn(
     intonation,
   )

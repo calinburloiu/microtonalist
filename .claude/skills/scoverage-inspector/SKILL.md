@@ -55,13 +55,13 @@ mcp__metals__inspect with symbol = "<fully.qualified.ClassName>"
 ```
 
 The result includes the source file path, e.g.
-`/<repo>/sc-midi/src/main/scala/.../MidiManager.scala`. The sbt module ID is **not** always the
-directory name — `sc-midi`→`scMidi`, `config`→`appConfig`, `common-test-utils`→`commonTestUtils`.
-Map the source path to its module ID using `build.sbt` (`lazy val <id> = (project in file("<dir>"))`).
-Deduplicate the resulting set of `(module, fqn)` pairs.
+`/<repo>/sc-midi/src/main/scala/.../MidiManager.scala`. By build convention the **sbt module ID
+equals the base directory name** (`build.sbt` enforces this with `.withId(<dir>)`), so the module ID
+is simply the directory segment immediately before `src/` — here `sc-midi`. IDs may be kebab-case
+(`sc-midi`, `common-test-utils`, `config`). Deduplicate the resulting set of `(module, fqn)` pairs.
 
-If Metals is unavailable, fall back to `find . -path '*/src/main/scala/*' -name '<ClassName>.scala'`
-to get the directory, then translate the directory to the module ID via `build.sbt`.
+If Metals is unavailable, fall back to `find . -path '*/src/main/scala/*' -name '<ClassName>.scala'`;
+the directory segment before `src/` is the module ID.
 
 ## Step 2 — Call the MCP tools
 
