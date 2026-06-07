@@ -65,6 +65,46 @@ sbt_fifo="$logs_dir/.sbt-stdin.fifo"
 log() { echo "[$script_name] $*"; }
 err() { echo "[$script_name] $*" >&2; }
 
+# Merge the project's scoverage-inspector MCP server into the `.mcp.json` that
+# Metals just wrote. The server is a stdio FastMCP process launched via `uvx`
+# (which fetches/pins the `mcp` package on demand). Idempotent: re-running
+# overwrites only the scoverage-inspector entry, leaving Metals' entry intact.
+register_scoverage_mcp() {
+  local mcp_file="$1"
+  local uvx_path
+  uvx_path="$(command -v uvx || true)"
+  if [[ -z "$uvx_path" ]]; then
+    err "Warning: 'uvx' not found on PATH; skipping scoverage-inspector MCP registration."
+    err "         Install uv (https://docs.astral.sh/uv/) to enable the coverage MCP server."
+    return 0
+  fi
+
+  local server_py="$repo_root/.claude/mcp/scoverage_inspector/server.py"
+  if MCP_FILE="$mcp_file" UVX_PATH="$uvx_path" SERVER_PY="$server_py" python3 - <<'PY'
+import json, os
+
+mcp_file = os.environ["MCP_FILE"]
+with open(mcp_file) as f:
+    data = json.load(f)
+
+servers = data.setdefault("mcpServers", {})
+servers["scoverage-inspector"] = {
+    "type": "stdio",
+    "command": os.environ["UVX_PATH"],
+    "args": ["--from", "mcp", "python", os.environ["SERVER_PY"]],
+}
+
+with open(mcp_file, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
+  then
+    log "Registered scoverage-inspector MCP server in $mcp_file."
+  else
+    err "Warning: failed to register scoverage-inspector MCP server in $mcp_file."
+  fi
+}
+
 print_help() {
   cat <<EOF
 $script_name — manage the sbt+BSP and Metals MCP development stack.
@@ -351,6 +391,12 @@ cmd_start() {
   done
 
   if [[ -f "$mcp_file" ]]; then
+    # Metals regenerates `.mcp.json` from scratch on every start (its port and
+    # transport are dynamic), so the project's own scoverage-inspector MCP server
+    # must be merged back in after Metals writes the file. `.mcp.json` stays
+    # gitignored; this keeps the scoverage server registered whenever the stack is up.
+    register_scoverage_mcp "$mcp_file"
+
     # Warm up: ask the running SBT shell to do a full compile. SBT and Metals
     # share the same BSP state, so this also warms what Metals' MCP tools see.
     # (A proper MCP `compile-full` call would require speaking JSON-RPC over SSE,

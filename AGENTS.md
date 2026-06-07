@@ -54,15 +54,16 @@ finding usages, and understanding class/trait hierarchy — the textual alternat
 same-named variable, follow overrides, or resolve imports. Use symbol search to reduce duplicated code by finding
 already implemented functionality. Use the read docs functionality to understand external code.
 
-## Symbol search file focus
+## Symbol tool file focus
 
-`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` require a `fileInFocus` parameter (they cannot infer the
-build target) and search only that target's classpath — so use a file from the module with the broadest classpath. The
-representative files for project-wide searches are:
+`mcp__metals__glob-search`, `mcp__metals__typed-glob-search`, `mcp__metals__inspect`, `mcp__metals__get-usages`,
+`mcp__metals__get-docs`, and `mcp__metals__get-source` need a `fileInFocus` parameter (`module` alone is not enough) and
+search only that target's classpath — so use a file from the symbol's owning module, or for project-wide scope the
+module with the broadest classpath. The representative files for project-wide searches are:
 
-- `app` — covers `appConfig`, `businessync`, `common`, `composition`, `intonation`, `format`, `scMidi`, `tuner`, `ui`:
+- `app` — covers `config`, `businessync`, `common`, `composition`, `intonation`, `format`, `sc-midi`, `tuner`, `ui`:
   `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
-- `cli` — separate executable covering `scMidi`; may contain symbols not in `app`:
+- `cli` — separate executable covering `sc-midi`; may contain symbols not in `app`:
   `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
 - `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
   `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
@@ -113,10 +114,10 @@ For test conventions, see the "Coding conventions" section.
 
 During the **Coverage** workflow step — and any time you verify coverage after changing code — invoke the
 `scoverage-inspector` skill. It carries the coverage policy you must apply (per-module thresholds, the "never decrease
-the floor" rule, the 80% target for new files, and the stop-and-wait behavior on the known scoverage TASTy concurrency
-issue) and delegates mechanical XML inspection to its custom subagent. The policy lives in the skill — loaded on demand
-when you invoke it — precisely so it does not clutter context up front, since coverage work only happens after the
-implementation is finished.
+the floor" rule, the 80% target for new files) and tells you how to call the `scoverage-inspector` MCP server, which
+performs the mechanical work (freshness check, rebuild if stale, XML parsing) in-process. The policy lives in the skill
+— loaded on demand when you invoke it — precisely so it does not clutter context up front, since coverage work only
+happens after the implementation is finished.
 
 # Architecture
 

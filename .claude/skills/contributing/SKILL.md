@@ -36,6 +36,14 @@ the labels above. Examples: `feature/mpe-tuner`, `bugfix/pitch-bend-overflow`,
 
 The label in the branch name determines the label to apply to the corresponding issue and PR.
 
+## Issue documents
+
+Documents related to an issue (plans, specs, design documents, prompts, etc.) live under `issues/`,
+in a subdirectory named with a **5-digit, zero-padded issue number** followed by a **short
+kebab-case description** (words joined by hyphens), e.g. `issues/00220-scoverage-inspector-mcp/`. The description may reuse
+the branch name's description (the part after `<label>/`) when that makes sense. Do not leave such
+documents scattered under `docs/` — keep them with their issue.
+
 ## Issues
 
 When creating a new issue:

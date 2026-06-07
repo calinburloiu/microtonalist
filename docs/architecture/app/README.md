@@ -37,15 +37,11 @@ long-term contract.
 `app` sits at the top of the layer graph: nothing depends on it, and it depends — directly or transitively — on every
 other application module. It is the assembly target whose fat JAR main class is `MicrotonalistApp`.
 
-One naming subtlety: the **config** module's SBT project id is `appConfig` while its directory is `config/`, so
-`app.dependsOn(appConfig)` pulls in `config/` (package `org.calinburloiu.music.microtonalist.config`). The transitive
-layering is:
-
 ```
 app → ui → tuner → sc-midi → businessync
 app → composition → { intonation, tuner }
 app → format → { common, composition, tuner }
-app → appConfig → common
+app → config → common
 ```
 
 ## Future / planned changes

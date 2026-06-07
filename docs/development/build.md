@@ -16,6 +16,14 @@ libraries, or separate executable applications — we simply call each of those 
 in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects. The
 executable application is in the `app` SBT project.
 
+**Convention — project ID equals base directory name.** Every project sets `.withId(<base-directory-name>)` in
+`build.sbt`, so its SBT project ID (used in `sbt "<id>/compile"` / `"<id>/test"`, in `thisProject.value.id`, and thus in
+`coverageDataDir`) always equals its directory. IDs may be kebab-case (`sc-midi`, `config`, `common-test-utils`). The
+`build.sbt` `lazy val` name follows the `<camelCase-dir-name>Module` convention (e.g. `scMidiModule` for ID `sc-midi`);
+it is only used for `.dependsOn`/`.aggregate`. Keep `.withId` and the directory in lockstep when adding or renaming a
+module — tooling such as the `scoverage-inspector` MCP relies on the ID being the source directory. See the CONVENTION
+comment in `build.sbt`.
+
 ## Build output directories
 
 The dev-stack's BSP server is launched with `-Dmicrotonalist.build.targetSuffix=-bsp` (see `targetSuffixOverride` in

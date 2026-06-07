@@ -13,11 +13,11 @@ description: |
 
 # scoverage-inspector
 
-## Coverage policy
+This skill carries the coverage **policy** (your job, as the main agent) and tells you how to
+resolve classes to sbt modules and call the **scoverage-inspector MCP server**, which does all the
+mechanical work (freshness check, rebuild if stale, XML parsing) in-process.
 
-This policy is for the **main agent** to apply: judging thresholds and adding tests is your job. It
-is distinct from the subagent's mechanical XML inspection (whose findings you return verbatim — see
-the delegation section below).
+## Coverage policy
 
 Code coverage is measured via [scoverage](https://github.com/scoverage/sbt-scoverage). Each SBT
 project has per-module statement and branch thresholds configured in `build.sbt` via the
@@ -42,53 +42,77 @@ module:
   regardless of the module's current threshold. The per-module floor exists to track legacy code
   paying down toward 80%; it is not a license for newly authored code to ship under-tested.
 
-Coverage runs occasionally fail with TASTy / companion-class errors due to a known sbt-scoverage +
-Scala 3 concurrency issue documented in `docs/development/scoverage-issue.md`. If the subagent
-reports such a failure, **stop and wait for user input** rather than retrying or modifying code.
-
 For the manual `sbt coverageAll` / `coverageModules` workflow and CI's `coverageCheck`, see
 `docs/development/coverage.md`.
 
-## Dependency
+## Step 1 — Resolve each class to its sbt module ID
 
-This skill requires the custom subagent defined at
-`.claude/agents/scoverage-inspector.md`. The agent file must exist before the
-skill can run.
+The MCP receives **sbt module IDs**, not class names — it cannot resolve symbols itself. For each
+fully-qualified class the user named, find the module that *defines* it.
 
-## For the main agent: delegate to the custom subagent
+This is a "which file declares this symbol?" lookup, and the precise tool for it is a textual search
+for the **declaration** — not Metals.
 
-When this skill triggers, **do not execute the workflow yourself**. Spawn the
-`scoverage-inspector` custom subagent, which has the full workflow baked into
-its system prompt. This keeps all the mechanical tool calls out of your
-expensive main-agent turns.
+1. Search for the declaration under `src/main/scala` — match the keyword, **not** the filename,
+   which may differ from the class name:
 
+   ```bash
+   rg -l -g '**/src/main/scala/**' \
+     'class MainConfigManager\b|object MainConfigManager\b|trait MainConfigManager\b|enum MainConfigManager\b'
+   ```
+
+   The `class|object|trait|enum X\b` form can't match a same-named variable, so this is precise;
+   `\b` keeps `Scale` from matching `ScaleFormat`.
+2. By build convention the **sbt module ID is the first path segment** of the match (the base
+   directory name; `build.sbt` enforces this with `.withId(<dir>)`). IDs may be kebab-case
+   (`sc-midi`, `common-test-utils`, `config`). Example:
+   `org.calinburloiu.music.microtonalist.config.MainConfigManager` is declared in
+   `config/src/main/scala/org/calinburloiu/music/microtonalist/config/ConfigManagement.scala` — note
+   the file is **not** named `MainConfigManager.scala` — so the module is `config`.
+
+Deduplicate the resulting set of `(module, fqn)` pairs.
+
+**If `rg` returns more than one file** (two same-named declarations in different packages/modules),
+disambiguate by the class's package: keep the file whose `src/main/scala/<…>` path matches the FQN's
+package. If you need Metals to confirm a symbol resolves, `mcp__metals__get-usages` (with a
+project-wide `fileInFocus`; see the root `CLAUDE.md` "Symbol tool file focus" section) lists
+reference paths rooted at their module directories — the definition is the `src/main` entry in the
+class's own package.
+
+## Step 2 — Call the MCP tools
+
+The two MCP tools (`coverage_report` and `module_coverage`) carry their own parameter docs — read
+their schemas for argument details rather than relying on this section. If they aren't already
+callable, fetch their schemas with ToolSearch before calling. What follows is the usage judgment the
+schemas can't give you.
+
+**Which tool.** Use `coverage_report` (primary) for "is this class covered, and where are the
+gaps?"; pass **all** classes in one call so a single rebuild covers every stale module. Use
+`module_coverage` (secondary) for "is this module above its floor?".
+
+**Reading the result.** Both tools freshness-check every requested module and transparently rebuild
+stale or missing reports via a single batched `sbt` run — potentially multi-minute. Each result
+names the modules that were `rebuilt` and a `log` path, so the build is always visible. `status` is
+`"ok"` or `"error"`; on `"error"`, read the `log` and decide what to do.
+
+**Aggregate vs per-module.** Default coverage reflects only a module's **own** tests. Set
+`aggregate=True` only when the user explicitly wants caller tests in other modules counted (e.g.
+tests in `composition` that exercise `intonation`'s `Scale`).
+
+## Step 3 — Cite gaps as `file:line`
+
+Report uncovered locations in the `file:Lline` form the tools return (e.g.
+`org/calinburloiu/music/intonation/Scale.scala:L88`) so they render as clickable locations. Never
+paste raw XML.
+
+## Command-line fallback
+
+If the MCP server is unavailable, the same logic is runnable directly via the CLI shim:
+
+```bash
+python3 .claude/mcp/scoverage_inspector/cli.py class-summary <module> <fqn> [--aggregate] [--overall-only]
+python3 .claude/mcp/scoverage_inspector/cli.py class-uncovered <module> <fqn> [--aggregate]
+python3 .claude/mcp/scoverage_inspector/cli.py module-summary <module> [--aggregate] [--overall-only]
+python3 .claude/mcp/scoverage_inspector/cli.py freshness <module> [--aggregate]
+python3 .claude/mcp/scoverage_inspector/cli.py run-coverage <module> [<module> ...] | --aggregate
 ```
-Agent(
-  subagent_type = "scoverage-inspector",
-  prompt        = """
-User's question: <USER_QUESTION_VERBATIM>
-
-Working directory (repo root): <ABSOLUTE_CWD>
-
-Run all commands with cwd = <ABSOLUTE_CWD>. Always call the helper scripts
-with relative paths from the repo root (e.g.
-`python3 .claude/skills/scoverage-inspector/scripts/coverage_freshness.py <module>`).
-"""
-)
-```
-
-The custom subagent loads **only its own system prompt** — the project
-`CLAUDE.md` is not injected. This is intentional: `CLAUDE.md` tells agents to
-prefer `sbtn` against the running BSP server, which conflicts with this skill's
-need to run `sbt` in isolation under `target-scoverage/`.
-
-Return the subagent's response verbatim. Do not add your own commentary.
-
----
-
-## Workflow
-
-The full workflow — freshness check, coverage build via wrapper scripts,
-report parsing, and anti-patterns — lives in the system prompt of
-`.claude/agents/scoverage-inspector.md`. That file is the single source of
-truth.

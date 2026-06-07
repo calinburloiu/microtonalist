@@ -23,10 +23,12 @@ Those notes are forward-looking; the surrounding text describes the code as it i
 
 ## Module index
 
+By build convention each module's SBT project ID equals its base directory name (`build.sbt` sets `.withId(<dir>)`).
+
 | Module | Directory | Architecture doc |
 | ------ | --------- | ---------------- |
 | `app` | `app` | [app/README.md](app/README.md) |
-| `appConfig` | `config` | [config/README.md](config/README.md) |
+| `config` | `config` | [config/README.md](config/README.md) |
 | `cli` | `cli` | [cli/README.md](cli/README.md) |
 | `ui` | `ui` | [ui/README.md](ui/README.md) |
 | `common` | `common` | [common/README.md](common/README.md) |
@@ -35,7 +37,7 @@ Those notes are forward-looking; the surrounding text describes the code as it i
 | `tuner` | `tuner` | [tuner/README.md](tuner/README.md) |
 | `format` | `format` | [format/README.md](format/README.md) |
 | `intonation` | `intonation` | [intonation/README.md](intonation/README.md) |
-| `scMidi` | `sc-midi` | [sc-midi/README.md](sc-midi/README.md) |
+| `sc-midi` | `sc-midi` | [sc-midi/README.md](sc-midi/README.md) |
 | `experiments` | `experiments` | [experiments/README.md](experiments/README.md) |
 
 ## Other architecture material

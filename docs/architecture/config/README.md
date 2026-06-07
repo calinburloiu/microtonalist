@@ -1,10 +1,12 @@
-# `appConfig` module architecture
+# `config` module architecture
 
 ## Responsibility
 
-The `appConfig` module (SBT project `appConfig`, directory `config/`) owns Microtonalist's **application
-configuration**: loading, exposing, mutating, and persisting the user's settings. Settings are stored in
-[HOCON](https://github.com/lightbend/config) and, on macOS, live at `~/.microtonalist/microtonalist.conf`. The module:
+The `config` module (SBT project `config`, directory `config/`, `build.sbt` `lazy val`
+`appConfigModule`) owns Microtonalist's **application configuration**: loading, exposing, mutating,
+and persisting the user's settings. Settings are stored in
+[HOCON](https://github.com/lightbend/config) and, on macOS, live at
+`~/.microtonalist/microtonalist.conf`. The module:
 
 - parses a HOCON file into typed, immutable Scala config values (or falls back to defaults when no file is given);
 - exposes those values as domain-friendly case classes (e.g. `CoreConfig`);
@@ -49,13 +51,13 @@ HOCON `propertyPath`).
 
 ## Dependencies
 
-`appConfig` depends only on `common` (for `PlatformUtils`, `parseUrlOrPath`, and the `Locking` trait) plus the external
+`config` depends only on `common` (for `PlatformUtils`, `parseUrlOrPath`, and the `Locking` trait) plus the external
 `ficus` library, keeping it near the bottom of the layered architecture. It is depended on by `app`, which constructs
 and queries the `MainConfigManager` during startup.
 
 ```
 app
-└── appConfig (config/)
+└── config
     └── common
 ```
 
