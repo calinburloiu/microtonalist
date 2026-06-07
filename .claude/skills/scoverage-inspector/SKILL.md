@@ -48,11 +48,7 @@ For the manual `sbt coverageAll` / `coverageModules` workflow and CI's `coverage
 ## Step 1 — Resolve each class to its sbt module ID (via Metals)
 
 The MCP receives **sbt module IDs**, not class names — it cannot resolve symbols itself. For each
-fully-qualified class the user named, resolve it with Metals:
-
-```
-mcp__metals__inspect with symbol = "<fully.qualified.ClassName>"
-```
+fully-qualified class the user named, resolve it with Metals tool `mcp__metals__inspect with symbol`.
 
 The result includes the source file path, e.g.
 `/<repo>/sc-midi/src/main/scala/.../MidiManager.scala`. By build convention the **sbt module ID
@@ -65,45 +61,23 @@ the directory segment before `src/` is the module ID.
 
 ## Step 2 — Call the MCP tools
 
-Both tools freshness-check every requested module and **transparently rebuild** stale or missing
-reports via a single batched `sbt` run (in `target-scoverage/`, logged to
-`logs/mcp/scoverage-inspector/sbt-run.log`). Every result reports which modules were `rebuilt` and
-the `log` path, so an implicit multi-minute build is always visible. Pass `allow_rebuild=False` to
-fail instead of rebuilding when a report is stale. `status` is `"ok"` or `"error"`; on `"error"`,
-read the `log` and decide what to do.
+The two MCP tools (`coverage_report` and `module_coverage`) carry their own parameter docs — read
+their schemas for argument details rather than relying on this section. If they aren't already
+callable, fetch their schemas with ToolSearch before calling. What follows is the usage judgment the
+schemas can't give you.
 
-### `coverage_report` — per-class coverage (primary)
+**Which tool.** Use `coverage_report` (primary) for "is this class covered, and where are the
+gaps?"; pass **all** classes in one call so a single rebuild covers every stale module. Use
+`module_coverage` (secondary) for "is this module above its floor?".
 
-```
-coverage_report(
-  classes = [ { "module": "<sbt module ID>", "fqn": "<fully.qualified.ClassName>" }, ... ],
-  include_uncovered = false,   # true also returns uncovered source ranges as "file:Lstart-Lend"
-  aggregate = false,           # true reads the cross-module root report (caller tests included)
-  allow_rebuild = true,
-)
-```
+**Reading the result.** Both tools freshness-check every requested module and transparently rebuild
+stale or missing reports via a single batched `sbt` run — potentially multi-minute. Each result
+names the modules that were `rebuilt` and a `log` path, so the build is always visible. `status` is
+`"ok"` or `"error"`; on `"error"`, read the `log` and decide what to do.
 
-Use this for "is this class covered, and where are the gaps?". Pass all classes in **one call** so a
-single `sbt` run covers every stale module.
-
-### `module_coverage` — per-module coverage (secondary)
-
-```
-module_coverage(
-  modules = [ "<sbt module ID>", ... ],
-  include_classes = true,      # false returns only module-level percentages
-  aggregate = false,
-  allow_rebuild = true,
-)
-```
-
-Use this for "is this module above its floor?" questions.
-
-### Aggregate vs per-module
-
-Default (per-module) coverage reflects only a module's **own** tests. Use `aggregate=True` only when
-the user explicitly wants coverage including caller tests in other modules (e.g. tests in
-`composition` that exercise `intonation`'s `Scale`).
+**Aggregate vs per-module.** Default coverage reflects only a module's **own** tests. Set
+`aggregate=True` only when the user explicitly wants caller tests in other modules counted (e.g.
+tests in `composition` that exercise `intonation`'s `Scale`).
 
 ## Step 3 — Cite gaps as `file:line`
 
