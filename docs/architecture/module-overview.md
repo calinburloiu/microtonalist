@@ -20,21 +20,20 @@ app
 
 ## Packages
 
-Each module's SBT project ID, directory, and root package. By build convention the SBT project ID equals the base
-directory name (`build.sbt` sets `.withId(<dir>)` on every project; the `lazy val` name follows the
-`<camelCase-dir-name>Module` convention — e.g. the `scMidiModule` val has ID `sc-midi`):
+Each module's SBT project ID (equal to its base directory name by build convention; see
+[`../development/build.md`](../development/build.md)) and root package:
 
-| SBT project | Directory | Root package |
-| ----------- | --------- | ------------ |
-| `app` | `app` | `org.calinburloiu.music.microtonalist` |
-| `cli` | `cli` | `org.calinburloiu.music.microtonalist.cli` |
-| `ui` | `ui` | `org.calinburloiu.music.microtonalist.ui` |
-| `common` | `common` | `org.calinburloiu.music.microtonalist.common` |
-| `composition` | `composition` | `org.calinburloiu.music.microtonalist.composition` |
-| `config` | `config` | `org.calinburloiu.music.microtonalist.config` |
-| `tuner` | `tuner` | `org.calinburloiu.music.microtonalist.tuner` |
-| `format` | `format` | `org.calinburloiu.music.microtonalist.format` |
-| `businessync` | `businessync` | `org.calinburloiu.businessync` |
-| `intonation` | `intonation` | `org.calinburloiu.music.intonation` |
-| `sc-midi` | `sc-midi` | `org.calinburloiu.music.scmidi` |
-| `experiments` | `experiments` | `org.calinburloiu.music.microtonalist.experiments` |
+| SBT project / directory | Root package |
+| ----------------------- | ------------ |
+| `app` | `org.calinburloiu.music.microtonalist` |
+| `cli` | `org.calinburloiu.music.microtonalist.cli` |
+| `ui` | `org.calinburloiu.music.microtonalist.ui` |
+| `common` | `org.calinburloiu.music.microtonalist.common` |
+| `composition` | `org.calinburloiu.music.microtonalist.composition` |
+| `config` | `org.calinburloiu.music.microtonalist.config` |
+| `tuner` | `org.calinburloiu.music.microtonalist.tuner` |
+| `format` | `org.calinburloiu.music.microtonalist.format` |
+| `businessync` | `org.calinburloiu.businessync` |
+| `intonation` | `org.calinburloiu.music.intonation` |
+| `sc-midi` | `org.calinburloiu.music.scmidi` |
+| `experiments` | `org.calinburloiu.music.microtonalist.experiments` |
