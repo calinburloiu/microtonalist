@@ -1,0 +1,429 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+#
+# microtonalist-gh — create a GitHub issue or pull request following all of the
+# microtonalist contributing conventions in a single, non-interactive call.
+#
+# It encodes the conventions documented by the `contributing` skill so an agent
+# (or a human) does not have to run the multi-step procedure by hand:
+#   - label inferred from the current branch prefix (or given with --label),
+#   - the microtonalist GitHub project (Projects v2) assignment,
+#   - the milestone (given, or inherited from a linked issue),
+#   - draft PRs assigned to the current user (@me),
+#   - the `[#<issue>]` / `[#<parent>/#<child>]` PR title prefix, and
+#   - the `Resolves #<issue>` body line.
+#
+# Use `microtonalist-gh --help`, `microtonalist-gh issue --help`, or
+# `microtonalist-gh pr --help` for usage.
+#
+
+set -euo pipefail
+
+# --- constants --------------------------------------------------------------
+
+# The labels used for issues, PRs, and as branch-name prefixes. Keep in sync
+# with the `contributing` skill's "Labels" section.
+KNOWN_LABELS=(feature bugfix refactoring doc poc)
+
+# The microtonalist GitHub project (Projects v2). The owner and number are the
+# documented defaults; overridable via the environment for reuse elsewhere.
+PROJECT_NUMBER="${MICROTONALIST_GH_PROJECT_NUMBER:-1}"
+PROJECT_OWNER="${MICROTONALIST_GH_PROJECT_OWNER:-calinburloiu}"
+
+# The repository's default branch — PRs may not be opened from it.
+DEFAULT_BRANCH="${MICROTONALIST_GH_DEFAULT_BRANCH:-main}"
+
+PROG="microtonalist-gh"
+
+# Resolved lazily by init_repo(): the GitHub remote name and OWNER/REPO.
+REMOTE=""
+REPO_FULL=""
+OWNER=""
+REPO=""
+
+# --- generic helpers --------------------------------------------------------
+
+die() {
+  printf '%s: %s\n' "$PROG" "$1" >&2
+  exit 1
+}
+
+# Print `gh` followed by its arguments, safely quoted, as it would be run.
+quote_gh_cmd() {
+  local out="gh" arg
+  for arg in "$@"; do
+    out+=" $(printf '%q' "$arg")"
+  done
+  printf '%s\n' "$out"
+}
+
+is_known_label() {
+  local candidate="$1" label
+  for label in "${KNOWN_LABELS[@]}"; do
+    [[ "$label" == "$candidate" ]] && return 0
+  done
+  return 1
+}
+
+current_branch() {
+  git rev-parse --abbrev-ref HEAD 2>/dev/null || true
+}
+
+# Echo the label inferred from the current branch prefix (`<label>/<desc>`),
+# but only when that prefix is a known label. Otherwise echo nothing.
+infer_label_from_branch() {
+  local branch prefix
+  branch="$(current_branch)"
+  prefix="${branch%%/*}"
+  if is_known_label "$prefix"; then
+    printf '%s\n' "$prefix"
+  fi
+}
+
+# --- repository inference ---------------------------------------------------
+
+# Echo the name of the first git remote whose URL points at github.com.
+github_remote_name() {
+  local remote url
+  for remote in $(git remote 2>/dev/null); do
+    url="$(git remote get-url "$remote" 2>/dev/null || true)"
+    case "$url" in
+      *github.com*) printf '%s\n' "$remote"; return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# Parse "owner/repo" out of a github.com remote URL (SSH or HTTPS form).
+parse_owner_repo() {
+  local url="$1" rest
+  rest="${url#*github.com}"   # ":owner/repo.git" or "/owner/repo.git"
+  rest="${rest#[:/]}"          # "owner/repo.git"
+  rest="${rest%.git}"          # "owner/repo"
+  rest="${rest%/}"             # tolerate a trailing slash
+  printf '%s\n' "$rest"
+}
+
+# Resolve REMOTE, REPO_FULL, OWNER, REPO from the GitHub remote, with the
+# documented repository as the fallback when no remote can be read.
+init_repo() {
+  REMOTE="$(github_remote_name 2>/dev/null || true)"
+  REMOTE="${REMOTE:-origin}"
+  REPO_FULL="$(parse_owner_repo "$(git remote get-url "$REMOTE" 2>/dev/null || true)")"
+  REPO_FULL="${REPO_FULL:-calinburloiu/microtonalist}"
+  OWNER="${REPO_FULL%%/*}"
+  REPO="${REPO_FULL##*/}"
+}
+
+# Echo the parent issue number of a given issue, or nothing when there is none.
+# Read-only; safe to call in --dry-run.
+detect_parent() {
+  local child="$1"
+  gh api graphql \
+    -f owner="$OWNER" -f name="$REPO" -F n="$child" \
+    -f query='query($owner:String!,$name:String!,$n:Int!){
+      repository(owner:$owner,name:$name){ issue(number:$n){ parent{ number } } } }' \
+    --jq '.data.repository.issue.parent.number' 2>/dev/null || true
+}
+
+# Echo the milestone title of a given issue, or nothing when none is set.
+# Read-only; safe to call in --dry-run.
+issue_milestone() {
+  local issue="$1"
+  gh issue view "$issue" --json milestone --jq '.milestone.title // empty' 2>/dev/null || true
+}
+
+# --- usage ------------------------------------------------------------------
+
+usage_main() {
+  cat <<EOF
+$PROG — create a GitHub issue or pull request the microtonalist way.
+
+Usage:
+  $PROG issue <title> [body] [--label L] [--milestone M] [--wip] [--dry-run]
+  $PROG pr [<issue-spec>] <title> [body] [--label L] [--milestone M] [--dry-run]
+  $PROG --help
+
+Subcommands:
+  issue   Create an issue, apply its label, and add it to the project.
+  pr      Push the branch and open a draft PR, assigned to you (@me).
+
+Run "$PROG <subcommand> --help" for details.
+EOF
+}
+
+usage_issue() {
+  cat <<EOF
+$PROG issue — create a GitHub issue.
+
+Usage:
+  $PROG issue <title> [body] [--label L] [--milestone M] [--wip] [--dry-run]
+
+Arguments:
+  <title>          Issue title (required).
+  [body]           Issue body (optional).
+
+Options:
+  --label L        Label to apply. Defaults to the current branch prefix when
+                   it is a known label ($(IFS=', '; echo "${KNOWN_LABELS[*]}")).
+  --milestone M    Milestone to assign (optional).
+  --wip            Assign the issue to you (@me) — use when you will work on it
+                   in this session.
+  --dry-run        Print the resolved values and the exact gh commands without
+                   creating anything.
+
+The issue is always added to the "$PROJECT_OWNER" GitHub project ($PROJECT_NUMBER).
+
+Example:
+  $PROG issue "Support Windows audio backend" "Details..." --milestone "MPE" --wip
+EOF
+}
+
+usage_pr() {
+  cat <<EOF
+$PROG pr — open a draft pull request.
+
+Usage:
+  $PROG pr [<issue-spec>] <title> [body] [--label L] [--milestone M] [--dry-run]
+
+Arguments:
+  <issue-spec>     Optional leading positional linking an issue. Recognized
+                   only when it matches ^[0-9]+(/[0-9]+)?\$:
+                     33      link issue #33 (parent auto-detected, if any)
+                     32/33   sub-issue #33 of parent #32 (explicit, reliable)
+                   When absent, the PR links no issue and gets no title prefix.
+  <title>          PR title (required), without the [#...] prefix.
+  [body]           PR body (optional).
+
+Options:
+  --label L        Label to apply. Defaults to the current branch prefix when
+                   it is a known label ($(IFS=', '; echo "${KNOWN_LABELS[*]}")).
+  --milestone M    Milestone to assign. When omitted and an issue is linked,
+                   the issue's milestone is inherited.
+  --dry-run        Print the resolved values and the exact gh commands without
+                   pushing or creating anything.
+
+Every PR is opened as a draft, assigned to you (@me), and added to the
+"$PROJECT_OWNER" GitHub project ($PROJECT_NUMBER). It may not be opened from the
+default branch ($DEFAULT_BRANCH). A linked issue adds a "[#<issue>]" /
+"[#<parent>/#<child>]" title prefix and a "Resolves #<issue>" body line.
+
+Examples:
+  $PROG pr 220 "Replace scoverage-inspector subagent with an MCP server"
+  $PROG pr 32/33 "Add MPE pitch-bend range parsing" "Implements the spec."
+  $PROG pr "Tidy up build docs" --label doc
+EOF
+}
+
+# --- issue subcommand -------------------------------------------------------
+
+cmd_issue() {
+  local label="" milestone="" wip="" dry_run=""
+  local positionals=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) usage_issue; exit 0 ;;
+      --label) [[ $# -ge 2 ]] || die "--label requires a value"; label="$2"; shift 2 ;;
+      --label=*) label="${1#*=}"; shift ;;
+      --milestone) [[ $# -ge 2 ]] || die "--milestone requires a value"; milestone="$2"; shift 2 ;;
+      --milestone=*) milestone="${1#*=}"; shift ;;
+      --wip) wip=1; shift ;;
+      --dry-run) dry_run=1; shift ;;
+      --) shift; while [[ $# -gt 0 ]]; do positionals+=("$1"); shift; done ;;
+      -*) die "unknown option for 'issue': $1" ;;
+      *) positionals+=("$1"); shift ;;
+    esac
+  done
+
+  [[ ${#positionals[@]} -ge 1 ]] || { usage_issue >&2; die "missing <title>"; }
+  [[ ${#positionals[@]} -le 2 ]] || die "too many positional arguments for 'issue'"
+  local title="${positionals[0]}"
+  local body="${positionals[1]:-}"
+
+  init_repo
+
+  if [[ -z "$label" ]]; then
+    label="$(infer_label_from_branch)"
+  fi
+  [[ -n "$label" ]] || die "could not resolve a label: pass --label, or work on a branch named <label>/<desc> with a known label ($(IFS=', '; echo "${KNOWN_LABELS[*]}"))"
+  is_known_label "$label" || die "unknown label '$label'; known labels: $(IFS=', '; echo "${KNOWN_LABELS[*]}")"
+
+  local create_args=(issue create --title "$title" --body "$body" --label "$label")
+  [[ -n "$milestone" ]] && create_args+=(--milestone "$milestone")
+  [[ -n "$wip" ]] && create_args+=(--assignee @me)
+
+  if [[ -n "$dry_run" ]]; then
+    cat <<EOF
+[dry-run] would create an issue:
+  repository : $REPO_FULL
+  label      : $label
+  milestone  : ${milestone:-<none>}
+  assignee   : $([[ -n "$wip" ]] && echo '@me (WIP)' || echo '<none>')
+  title      : $title
+  body       : ${body:-<empty>}
+
+Would run:
+  $(quote_gh_cmd "${create_args[@]}")
+  $(quote_gh_cmd project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url '<issue-url>')
+EOF
+    return 0
+  fi
+
+  local url
+  url="$(gh "${create_args[@]}")"
+  gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url "$url" >/dev/null
+  printf '%s\n' "$url"
+}
+
+# --- pr subcommand ----------------------------------------------------------
+
+cmd_pr() {
+  local label="" milestone="" dry_run=""
+  local positionals=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) usage_pr; exit 0 ;;
+      --label) [[ $# -ge 2 ]] || die "--label requires a value"; label="$2"; shift 2 ;;
+      --label=*) label="${1#*=}"; shift ;;
+      --milestone) [[ $# -ge 2 ]] || die "--milestone requires a value"; milestone="$2"; shift 2 ;;
+      --milestone=*) milestone="${1#*=}"; shift ;;
+      --dry-run) dry_run=1; shift ;;
+      --) shift; while [[ $# -gt 0 ]]; do positionals+=("$1"); shift; done ;;
+      -*) die "unknown option for 'pr': $1" ;;
+      *) positionals+=("$1"); shift ;;
+    esac
+  done
+
+  local branch
+  branch="$(current_branch)"
+  [[ "$branch" == "$DEFAULT_BRANCH" ]] && die "refusing to open a PR from the default branch ($DEFAULT_BRANCH); switch to a feature branch first"
+  [[ -n "$branch" && "$branch" != "HEAD" ]] || die "not on a named branch; switch to a feature branch first"
+
+  # Detect an optional leading issue-spec positional.
+  local spec="" parent="" child=""
+  if [[ ${#positionals[@]} -ge 1 && "${positionals[0]}" =~ ^[0-9]+(/[0-9]+)?$ ]]; then
+    spec="${positionals[0]}"
+    positionals=("${positionals[@]:1}")
+    if [[ "$spec" == */* ]]; then
+      parent="${spec%/*}"
+      child="${spec#*/}"
+    else
+      child="$spec"
+    fi
+  fi
+
+  [[ ${#positionals[@]} -ge 1 ]] || { usage_pr >&2; die "missing <title>"; }
+  [[ ${#positionals[@]} -le 2 ]] || die "too many positional arguments for 'pr'"
+  local raw_title="${positionals[0]}"
+  local raw_body="${positionals[1]:-}"
+
+  init_repo
+
+  # Resolve the title prefix from the issue-spec.
+  local issue_prefix=""
+  if [[ -n "$spec" ]]; then
+    if [[ -n "$parent" ]]; then
+      issue_prefix="#$parent/#$child"
+    else
+      local detected
+      detected="$(detect_parent "$child")"
+      if [[ -n "$detected" && "$detected" != "null" ]]; then
+        issue_prefix="#$detected/#$child"
+      else
+        issue_prefix="#$child"
+      fi
+    fi
+  fi
+
+  # Resolve the label.
+  if [[ -z "$label" ]]; then
+    label="$(infer_label_from_branch)"
+  fi
+  [[ -n "$label" ]] || die "could not resolve a label: pass --label, or work on a branch named <label>/<desc> with a known label ($(IFS=', '; echo "${KNOWN_LABELS[*]}"))"
+  is_known_label "$label" || die "unknown label '$label'; known labels: $(IFS=', '; echo "${KNOWN_LABELS[*]}")"
+
+  # Resolve the milestone: explicit --milestone wins, else inherit from the issue.
+  if [[ -z "$milestone" && -n "$child" ]]; then
+    milestone="$(issue_milestone "$child")"
+  fi
+
+  # Build the title and body.
+  local title
+  if [[ -n "$issue_prefix" ]]; then
+    title="[$issue_prefix] $raw_title"
+  else
+    title="$raw_title"
+  fi
+
+  local body="$raw_body"
+  if [[ -n "$child" ]]; then
+    if [[ -n "$body" ]]; then
+      body="$body"$'\n\n'"Resolves #$child"
+    else
+      body="Resolves #$child"
+    fi
+  fi
+
+  local pr_args=(pr create --draft --title "$title" --body "$body" --label "$label" --assignee @me)
+  [[ -n "$milestone" ]] && pr_args+=(--milestone "$milestone")
+
+  if [[ -n "$dry_run" ]]; then
+    local prefix_display="<none>"
+    [[ -n "$issue_prefix" ]] && prefix_display="[$issue_prefix]"
+    cat <<EOF
+[dry-run] would open a draft pull request:
+  repository : $REPO_FULL
+  branch     : $branch
+  issue      : ${spec:-<none>}
+  prefix     : $prefix_display
+  label      : $label
+  milestone  : ${milestone:-<none>}
+  assignee   : @me
+  title      : $title
+  body       : ${body:-<empty>}
+
+Would run:
+  git push -u $REMOTE HEAD
+  $(quote_gh_cmd "${pr_args[@]}")
+  $(quote_gh_cmd project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url '<pr-url>')
+EOF
+    return 0
+  fi
+
+  git push -u "$REMOTE" HEAD
+  local url
+  url="$(gh "${pr_args[@]}")"
+  gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url "$url" >/dev/null
+  printf '%s\n' "$url"
+}
+
+# --- dispatch ---------------------------------------------------------------
+
+main() {
+  [[ $# -ge 1 ]] || { usage_main >&2; exit 1; }
+  case "$1" in
+    -h|--help) usage_main; exit 0 ;;
+    issue) shift; cmd_issue "$@" ;;
+    pr) shift; cmd_pr "$@" ;;
+    *) usage_main >&2; die "unknown subcommand: $1" ;;
+  esac
+}
+
+main "$@"
