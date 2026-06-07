@@ -31,8 +31,7 @@ sbtn "${MODULE}/testOnly * -- -oNCXEHLOPQRMWS"
 ```
 
 `${MODULE}` is the sbt project ID, which by build convention equals the module's base directory name (see the
-CONVENTION comment in `build.sbt`). Some IDs are kebab-case — `sc-midi`, `config`, `common-test-utils` — and sbt
-accepts them in the `<id>/task` form, e.g. `sbtn "sc-midi/test -- -oNCXEHLOPQRMWS"`.
+CONVENTION comment in `build.sbt`).
 
 Testing a single test class `${CLASS}` (declared with fully qualified name) in a module `${MODULE}`:
 

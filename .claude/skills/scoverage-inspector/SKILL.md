@@ -45,19 +45,39 @@ module:
 For the manual `sbt coverageAll` / `coverageModules` workflow and CI's `coverageCheck`, see
 `docs/development/coverage.md`.
 
-## Step 1 — Resolve each class to its sbt module ID (via Metals)
+## Step 1 — Resolve each class to its sbt module ID
 
 The MCP receives **sbt module IDs**, not class names — it cannot resolve symbols itself. For each
-fully-qualified class the user named, resolve it with Metals tool `mcp__metals__inspect with symbol`.
+fully-qualified class the user named, find the module that *defines* it.
 
-The result includes the source file path, e.g.
-`/<repo>/sc-midi/src/main/scala/.../MidiManager.scala`. By build convention the **sbt module ID
-equals the base directory name** (`build.sbt` enforces this with `.withId(<dir>)`), so the module ID
-is simply the directory segment immediately before `src/` — here `sc-midi`. IDs may be kebab-case
-(`sc-midi`, `common-test-utils`, `config`). Deduplicate the resulting set of `(module, fqn)` pairs.
+This is a "which file declares this symbol?" lookup, and the precise tool for it is a textual search
+for the **declaration** — not Metals.
 
-If Metals is unavailable, fall back to `find . -path '*/src/main/scala/*' -name '<ClassName>.scala'`;
-the directory segment before `src/` is the module ID.
+1. Search for the declaration under `src/main/scala` — match the keyword, **not** the filename,
+   which may differ from the class name:
+
+   ```bash
+   rg -l -g '**/src/main/scala/**' \
+     'class MainConfigManager\b|object MainConfigManager\b|trait MainConfigManager\b|enum MainConfigManager\b'
+   ```
+
+   The `class|object|trait|enum X\b` form can't match a same-named variable, so this is precise;
+   `\b` keeps `Scale` from matching `ScaleFormat`.
+2. By build convention the **sbt module ID is the first path segment** of the match (the base
+   directory name; `build.sbt` enforces this with `.withId(<dir>)`). IDs may be kebab-case
+   (`sc-midi`, `common-test-utils`, `config`). Example:
+   `org.calinburloiu.music.microtonalist.config.MainConfigManager` is declared in
+   `config/src/main/scala/org/calinburloiu/music/microtonalist/config/ConfigManagement.scala` — note
+   the file is **not** named `MainConfigManager.scala` — so the module is `config`.
+
+Deduplicate the resulting set of `(module, fqn)` pairs.
+
+**If `rg` returns more than one file** (two same-named declarations in different packages/modules),
+disambiguate by the class's package: keep the file whose `src/main/scala/<…>` path matches the FQN's
+package. If you need Metals to confirm a symbol resolves, `mcp__metals__get-usages` (with a
+project-wide `fileInFocus`; see the root `CLAUDE.md` "Symbol tool file focus" section) lists
+reference paths rooted at their module directories — the definition is the `src/main` entry in the
+class's own package.
 
 ## Step 2 — Call the MCP tools
 
