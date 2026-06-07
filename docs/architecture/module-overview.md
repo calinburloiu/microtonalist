@@ -21,8 +21,8 @@ app
 ## Packages
 
 Each module's SBT project ID, directory, and root package. By build convention the SBT project ID equals the base
-directory name (`build.sbt` sets `.withId(<dir>)` on every project; the `lazy val` name may differ since it must be a
-valid Scala identifier — e.g. the `scMidi` val has ID `sc-midi`):
+directory name (`build.sbt` sets `.withId(<dir>)` on every project; the `lazy val` name follows the
+`<camelCase-dir-name>Module` convention — e.g. the `scMidiModule` val has ID `sc-midi`):
 
 | SBT project | Directory | Root package |
 | ----------- | --------- | ------------ |

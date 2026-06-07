@@ -30,26 +30,27 @@ commands ++= Coverage.commands
 // purpose, to make the rule uniform and self-documenting). This consistency is relied upon by tooling that
 // maps a source directory to its sbt module ID without parsing this file — notably the `scoverage-inspector`
 // MCP server (`.claude/mcp/scoverage_inspector/`), whose reports live at `coverage-reports/<id>/` while sources
-// live at `<dir>/src/`. The `lazy val` name must stay a valid Scala identifier (so kebab-case IDs like
-// `sc-midi` keep camelCase vals like `scMidi`), but the ID — used in `sbt "<id>/test"`, in `thisProject.value.id`,
+// live at `<dir>/src/`. The `lazy val` name follows the convention `<camelCase-dir-name>Module` (e.g.
+// `scMidiModule` for the `sc-midi` directory). The ID — used in `sbt "<id>/test"`, in `thisProject.value.id`,
 // and thus in `coverageDataDir` — must equal the directory. The sole special case is `root` (base dir ".",
-// ID "root"). When adding a module, set its `.withId` to its directory name and keep the two in lockstep.
+// ID "root"), which keeps its plain `root` val name. When adding a module, set its `.withId` to its directory
+// name and keep the two in lockstep.
 
 lazy val root = (project in file("."))
   .withId("root")
   .aggregate(
-    app,
-    appConfig,
-    businessync,
-    cli,
-    common,
-    commonTestUtils,
-    ui,
-    composition,
-    tuner,
-    format,
-    intonation,
-    scMidi,
+    appModule,
+    appConfigModule,
+    businessyncModule,
+    cliModule,
+    commonModule,
+    commonTestUtilsModule,
+    uiModule,
+    compositionModule,
+    tunerModule,
+    formatModule,
+    intonationModule,
+    scMidiModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -60,19 +61,19 @@ lazy val root = (project in file("."))
     coverageSettings(stmt = 71, branch = 65),
   )
 
-lazy val app = (project in file("app"))
+lazy val appModule = (project in file("app"))
   .withId("app")
   .dependsOn(
-    appConfig,
-    businessync,
-    common,
-    commonTestUtils % Test,
-    composition,
-    intonation,
-    format,
-    scMidi,
-    tuner,
-    ui,
+    appConfigModule,
+    businessyncModule,
+    commonModule,
+    commonTestUtilsModule % Test,
+    compositionModule,
+    intonationModule,
+    formatModule,
+    scMidiModule,
+    tunerModule,
+    uiModule,
   )
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -91,10 +92,10 @@ lazy val app = (project in file("app"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val appConfig = (project in file("config"))
+lazy val appConfigModule = (project in file("config"))
   .withId("config")
   .dependsOn(
-    common
+    commonModule
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -107,10 +108,10 @@ lazy val appConfig = (project in file("config"))
     coverageSettings(stmt = 59, branch = 39),
   )
 
-lazy val cli = (project in file("cli"))
+lazy val cliModule = (project in file("cli"))
   .withId("cli")
   .dependsOn(
-    scMidi,
+    scMidiModule,
   )
   .settings(
     name := "microtonalist-cli",
@@ -121,10 +122,10 @@ lazy val cli = (project in file("cli"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val ui = (project in file("ui"))
+lazy val uiModule = (project in file("ui"))
   .withId("ui")
   .dependsOn(
-    tuner,
+    tunerModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -134,10 +135,10 @@ lazy val ui = (project in file("ui"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val common = (project in file("common"))
+lazy val commonModule = (project in file("common"))
   .withId("common")
   .dependsOn(
-    commonTestUtils % Test,
+    commonTestUtilsModule % Test,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -150,7 +151,7 @@ lazy val common = (project in file("common"))
     coverageSettings(stmt = 50, branch = 22),
   )
 
-lazy val commonTestUtils = (project in file("common-test-utils"))
+lazy val commonTestUtilsModule = (project in file("common-test-utils"))
   .withId("common-test-utils")
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -160,7 +161,7 @@ lazy val commonTestUtils = (project in file("common-test-utils"))
     coverageEnabled := false,
   )
 
-lazy val businessync = (project in file("businessync"))
+lazy val businessyncModule = (project in file("businessync"))
   .withId("businessync")
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -173,11 +174,11 @@ lazy val businessync = (project in file("businessync"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val composition = (project in file("composition"))
+lazy val compositionModule = (project in file("composition"))
   .withId("composition")
   .dependsOn(
-    intonation,
-    tuner,
+    intonationModule,
+    tunerModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -187,12 +188,12 @@ lazy val composition = (project in file("composition"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val tuner = (project in file("tuner"))
+lazy val tunerModule = (project in file("tuner"))
   .withId("tuner")
   .dependsOn(
-    businessync,
-    common,
-    scMidi,
+    businessyncModule,
+    commonModule,
+    scMidiModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -203,13 +204,13 @@ lazy val tuner = (project in file("tuner"))
     coverageSettings(stmt = 71, branch = 69),
   )
 
-lazy val format = (project in file("format"))
+lazy val formatModule = (project in file("format"))
   .withId("format")
   .dependsOn(
-    common,
-    commonTestUtils % Test,
-    composition,
-    tuner,
+    commonModule,
+    commonTestUtilsModule % Test,
+    compositionModule,
+    tunerModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -222,7 +223,7 @@ lazy val format = (project in file("format"))
     coverageSettings(stmt = 66, branch = 59),
   )
 
-lazy val intonation = (project in file("intonation"))
+lazy val intonationModule = (project in file("intonation"))
   .withId("intonation")
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -236,11 +237,11 @@ lazy val intonation = (project in file("intonation"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val scMidi = (project in file("sc-midi"))
+lazy val scMidiModule = (project in file("sc-midi"))
   .withId("sc-midi")
   .dependsOn(
-    businessync,
-    common
+    businessyncModule,
+    commonModule
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -253,10 +254,10 @@ lazy val scMidi = (project in file("sc-midi"))
     coverageSettings(stmt = 62, branch = 44),
   )
 
-lazy val experiments = (project in file("experiments"))
+lazy val experimentsModule = (project in file("experiments"))
   .withId("experiments")
   .dependsOn(
-    intonation,
+    intonationModule,
   )
   .settings(
     name := "microtonalist-app",
@@ -349,4 +350,3 @@ lazy val assemblySettings = Seq(
     case _ => MergeStrategy.deduplicate
   }
 )
-

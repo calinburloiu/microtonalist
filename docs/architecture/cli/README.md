@@ -27,10 +27,11 @@ when done. There is no command framework — the tool is intentionally a single 
 
 ## Dependencies
 
-`cli` declares exactly one application dependency, `sc-midi` (`scMidi`), used for `MidiManager` and the MIDI endpoint
-abstraction; `businessync` is pulled in transitively (referenced directly only to satisfy `MidiManager`'s constructor).
-It also uses the JDK's `javax.sound.midi` and Guava's `EventBus` (via `Businessync`). Nothing depends on `cli`; it is
-aggregated by `root` for building/testing but packaged as its own fat JAR.
+`cli` declares exactly one application dependency, `sc-midi`, used for `MidiManager` and the MIDI
+endpoint abstraction; `businessync` is pulled in transitively (referenced directly only to satisfy
+`MidiManager`'s constructor). It also uses the JDK's `javax.sound.midi` and Guava's `EventBus` (via
+`Businessync`). Nothing depends on `cli`; it is aggregated by `root` for building/testing but
+packaged as its own fat JAR.
 
 ## Future / planned changes
 

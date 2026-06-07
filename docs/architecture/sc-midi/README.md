@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-The `sc-midi` module (SBT project `sc-midi`, directory `sc-midi/`, `build.sbt` `lazy val` `scMidi`) is a **Scala-idiomatic MIDI API layered over
+The `sc-midi` module (SBT project `sc-midi`, directory `sc-midi/`, `build.sbt` `lazy val` `scMidiModule`) is a **Scala-idiomatic MIDI API layered over
 `javax.sound.midi`**. The standard Java Sound MIDI API is verbose, mutable, byte-oriented, and awkward on macOS; this
 module wraps it to give the rest of Microtonalist:
 

@@ -2,9 +2,11 @@
 
 ## Responsibility
 
-The `config` module (SBT project `config`, directory `config/`, `build.sbt` `lazy val` `appConfig`) owns Microtonalist's **application
-configuration**: loading, exposing, mutating, and persisting the user's settings. Settings are stored in
-[HOCON](https://github.com/lightbend/config) and, on macOS, live at `~/.microtonalist/microtonalist.conf`. The module:
+The `config` module (SBT project `config`, directory `config/`, `build.sbt` `lazy val`
+`appConfigModule`) owns Microtonalist's **application configuration**: loading, exposing, mutating,
+and persisting the user's settings. Settings are stored in
+[HOCON](https://github.com/lightbend/config) and, on macOS, live at
+`~/.microtonalist/microtonalist.conf`. The module:
 
 - parses a HOCON file into typed, immutable Scala config values (or falls back to defaults when no file is given);
 - exposes those values as domain-friendly case classes (e.g. `CoreConfig`);
