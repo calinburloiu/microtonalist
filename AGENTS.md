@@ -15,11 +15,10 @@ Scala 3 and is built by using sbt 1.
 
 - Use Metals MCP for compiling and code intelligence (see [Code Intelligence](#code-intelligence) section); fall back to
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
-- Before writing code, create a task to explore the architecture: read the always-loaded overview imported in the
-  [Architecture](#architecture) section (from [`docs/agents/architecture.md`](docs/agents/architecture.md)) plus the
-  architecture documents strictly relevant to the prompt — typically the `docs/architecture/$MODULE/README.md` of each
-  module you will touch and its immediate collaborators. That overview explains how the architecture documents are
-  organized.
+- Before writing code, create a task to explore the architecture: read the always-loaded overviews imported in the
+  [Architecture](#architecture) section plus the architecture documents strictly relevant to the prompt — typically the
+  `docs/architecture/$MODULE/README.md` of each module you will touch and its immediate collaborators. That section
+  explains how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
