@@ -124,9 +124,15 @@ happens after the implementation is finished.
 Every source file starts with a ~15-line Apache 2.0 license header (block, XML, or `#` comment by file type) followed by
 a blank line. A committed `PreToolUse` hook on `Read` automatically skips this header, so files appear to start at
 ~line 17 — **real line numbers are preserved** (the header lines are omitted, not renumbered), so don't be confused by
-the absent top lines. To view the header, `Read` with `offset: 1`. Don't add or maintain headers by hand: the
-`.githooks/pre-commit` `addlicense` hook adds them to new files and CI enforces them. See
-[`docs/development/license-headers.md`](docs/development/license-headers.md).
+the absent top lines. To view the header, `Read` with `offset: 1`. Don't add or maintain headers by hand for file types covered by the `addlicense` hook (`.scala`, `.java`, `.py`,
+`.sh`/`.bash`, `.html`, `.xml`, `.js`, `.css`, `.properties`): the `.githooks/pre-commit` hook adds them on commit and
+CI enforces them. **Do add headers by hand** for the two unsupported types — `addlicense` silently skips them:
+
+- **`.sbt`** — use the `/* … */` block-comment style (same as Scala).
+- **`.fxml`** — use the `<!-- … -->` XML comment style (same as `.xml`); note that `<?xml …?>` must remain the very
+  first line, so the comment goes *after* it.
+
+See [`docs/development/license-headers.md`](docs/development/license-headers.md) for the exact wording to copy.
 
 # Architecture
 
