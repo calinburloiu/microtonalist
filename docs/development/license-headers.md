@@ -98,14 +98,15 @@ contributors who did not enable the local hook.
 
 ## In-scope file types
 
-`addlicense` is run over: `.scala`, `.java`, `.py`, `.sh`/`.bash`, `.html`, `.xml`, `.fxml`, `.js`, `.css`, `.sbt`,
+`addlicense` is run over: `.scala`, `.java`, `.py`, `.sh`/`.bash`, `.html`, `.xml`, `.js`, `.css`, `.sbt`,
 `.properties`. Notes and carve-outs:
 
 - **`-check` (CI)** is content-based (it looks for a `Copyright` line), so it enforces headers on **all** of the above,
-  including `.sbt` and `.fxml`.
-- **Add mode (git hook)** excludes `.sbt` and `.fxml`: `addlicense` does not know their comment style and would insert a
-  wrong (`#`) header. There is one `.sbt` file (`build.sbt`, already headered) and no `.fxml` files today; add headers
-  to any new files of these types by hand.
+  including `.sbt`.
+- **`.fxml` is not supported by `addlicense`** — it silently skips any extension it doesn't recognise (both `-check` and
+  add mode are no-ops for `.fxml`). Add `.fxml` headers by hand; CI does not enforce them.
+- **Add mode (git hook)** excludes `.sbt`: `addlicense` does not know its comment style and would insert a wrong (`#`)
+  header. There is one `.sbt` file (`build.sbt`, already headered); add headers to any new `.sbt` files by hand.
 - **Test-resource fixtures** under `**/tests/resources/**` are ignored (via `-ignore`): e.g.
   `.claude/mcp/.../scoverage-sample.xml` must stay byte-exact valid XML (a comment cannot precede its `<?xml …?>`
   declaration).
@@ -117,7 +118,7 @@ contributors who did not enable the local hook.
 
 ```bash
 ADDLICENSE="$(go env GOPATH)/bin/addlicense"
-git ls-files '*.scala' '*.java' '*.py' '*.sh' '*.bash' '*.html' '*.xml' '*.fxml' '*.js' '*.css' '*.sbt' '*.properties' \
+git ls-files '*.scala' '*.java' '*.py' '*.sh' '*.bash' '*.html' '*.xml' '*.js' '*.css' '*.sbt' '*.properties' \
   | xargs "$ADDLICENSE" -check -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu"
 ```
 

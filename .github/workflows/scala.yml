@@ -47,6 +47,6 @@ jobs:
       run: |
         git ls-files \
           '*.scala' '*.java' '*.py' '*.sh' '*.bash' \
-          '*.html' '*.xml' '*.fxml' '*.js' '*.css' '*.sbt' '*.properties' \
+          '*.html' '*.xml' '*.js' '*.css' '*.sbt' '*.properties' \
           | xargs "$(go env GOPATH)/bin/addlicense" -check -ignore '**/tests/resources/**' \
               -f .license-header.tmpl -c "Calin-Andrei Burloiu"
