@@ -19,6 +19,15 @@ Before writing code, set up your environment and read the standards:
 - [Coverage workflow](docs/development/coverage.md) — coverage thresholds and how they are checked in CI.
 - [Architecture docs](docs/architecture/README.md) — module overview, domain concepts, and per-module deep dives.
 
+Source files carry an Apache 2.0 license header that is added automatically. Enable the git hook once per clone so new
+files get a header on commit (CI also enforces it):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+See [License headers](docs/development/license-headers.md) for details.
+
 ## Labels
 
 The following labels are used for issues and pull requests, and as branch-name prefixes:

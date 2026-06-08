@@ -119,6 +119,21 @@ performs the mechanical work (freshness check, rebuild if stale, XML parsing) in
 — loaded on demand when you invoke it — precisely so it does not clutter context up front, since coverage work only
 happens after the implementation is finished.
 
+# License Headers
+
+Every source file starts with a ~15-line Apache 2.0 license header (block, XML, or `#` comment by file type) followed by
+a blank line. A committed `PreToolUse` hook on `Read` automatically skips this header, so files appear to start at
+~line 17 — **real line numbers are preserved** (the header lines are omitted, not renumbered), so don't be confused by
+the absent top lines. To view the header, `Read` with `offset: 1`. Don't add or maintain headers by hand for file types covered by the `addlicense` hook (`.scala`, `.java`, `.py`,
+`.sh`/`.bash`, `.html`, `.xml`, `.js`, `.css`, `.properties`): the `.githooks/pre-commit` hook adds them on commit and
+CI enforces them. **Do add headers by hand** for the two unsupported types — `addlicense` silently skips them:
+
+- **`.sbt`** — use the `/* … */` block-comment style (same as Scala).
+- **`.fxml`** — use the `<!-- … -->` XML comment style (same as `.xml`); note that `<?xml …?>` must remain the very
+  first line, so the comment goes *after* it.
+
+See [`docs/development/license-headers.md`](docs/development/license-headers.md) for the exact wording to copy.
+
 # Architecture
 
 The architecture docs are organized as follows:
