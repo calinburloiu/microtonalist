@@ -12,8 +12,7 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 - [`coverage.md`](coverage.md) — manual coverage workflow (`coverageAll` / `coverageModules`) and CI's `coverageCheck`.
 - [`scoverage-issue.md`](scoverage-issue.md) — the known sbt-scoverage + Scala 3 TASTy concurrency issue and how to
   handle it.
-- [`license-headers.md`](license-headers.md) — the Apache 2.0 header format, the Claude Code
-  read-skip hook, and `addlicense`.
+- [`license-headers.md`](license-headers.md) — the Apache 2.0 header format, the read-skip hook, and `addlicense`.
 - [`claude-code-setup.md`](claude-code-setup.md) — setting up Claude Code with Metals MCP and the GitHub MCP plugin.
 - [`metals-mcp-claude-code-setup.md`](metals-mcp-claude-code-setup.md) — full background with details on the Metals MCP
   integration.
