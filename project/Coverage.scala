@@ -16,10 +16,12 @@
 
 import sbt.*
 import sbt.Keys.*
+import scoverage.ScoverageKeys.*
 
 /**
- * `coverageAll`, `coverageModules <module> [<module> ...]`, `coverageCheck`, and `coverageClean` sbt commands — run
- * the coverage workflow and clean up the reports directory.
+ * `coverageAll`, `coverageModules <module> [<module> ...]`, `coverageCheck`, `coverageClean`, and
+ * `coverageThresholds` sbt commands — run the coverage workflow, clean up the reports directory, and inspect
+ * per-module thresholds.
  *
  * `coverageAll` runs `clean; coverage; test; coverageReport; coverageAggregate` across all modules.
  *
@@ -38,11 +40,15 @@ import sbt.Keys.*
  * with `coverageFailOnMinimum`) and the aggregate threshold by `coverageAggregate` against the root project's
  * settings. The HTML/Cobertura toggles are restored at the end so a local invocation does not leave the session
  * with reduced output enabled.
+ *
+ * `coverageThresholds` prints a table of the minimum statement and branch coverage percentages configured for
+ * each module aggregated by root (excluding modules with coverage disabled, e.g. `common-test-utils`). Useful
+ * for agents and developers who need to check thresholds without reading `build.sbt`.
  */
 object Coverage {
 
   val commands: Seq[Command] =
-    Seq(coverageAll, coverageModules, coverageCheck, coverageClean)
+    Seq(coverageAll, coverageModules, coverageCheck, coverageClean, coverageThresholds)
 
   private def coverageAll: Command = Command.command("coverageAll") { state =>
     "clean" ::
@@ -92,6 +98,47 @@ object Coverage {
     } else {
       log.info(s"$reportsDir does not exist; nothing to delete")
     }
+    state
+  }
+
+  private def coverageThresholds: Command = Command.command("coverageThresholds") { state =>
+    val extracted = Project.extract(state)
+    val log = state.globalLogging.full
+    val structure = extracted.structure
+
+    // Collect the project IDs that root aggregates, plus root itself.
+    val rootResolved = structure.units.values.flatMap(_.defined.values).find(_.id == "root")
+    val includedIds: Set[String] = rootResolved match {
+      case Some(root) => root.aggregate.map(_.project).toSet + "root"
+      case None       => structure.allProjectRefs.map(_.project).toSet
+    }
+
+    case class Row(id: String, stmt: Double, branch: Double)
+
+    val rows = structure.allProjectRefs.flatMap { ref =>
+      if (!includedIds.contains(ref.project)) None
+      else {
+        // A module participates iff it enforces a coverage minimum (the `coverageSettings` helper in
+        // `build.sbt` sets `coverageFailOnMinimum := true`). Test-utility modules such as
+        // `common-test-utils` never call it and are excluded. `coverageEnabled` can't be used here: it
+        // defaults to false for every module outside an active `coverage` session.
+        val enforcesMinimum = extracted.getOpt(ref / coverageFailOnMinimum).contains(true)
+        if (!enforcesMinimum) None
+        else Some(Row(
+          ref.project,
+          extracted.get(ref / coverageMinimumStmtTotal),
+          extracted.get(ref / coverageMinimumBranchTotal),
+        ))
+      }
+    }.sortBy(_.id)
+
+    val colWidth = ("Module".length +: rows.map(_.id.length)).max
+    log.info(f"${"Module".padTo(colWidth, ' ')}  ${"stmt%"}%6s  ${"branch%"}%7s")
+    log.info("-" * (colWidth + 17))
+    rows.foreach { row =>
+      log.info(f"${row.id.padTo(colWidth, ' ')}  ${row.stmt}%6.1f  ${row.branch}%7.1f")
+    }
+
     state
   }
 }

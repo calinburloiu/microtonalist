@@ -21,7 +21,8 @@ mechanical work (freshness check, rebuild if stale, XML parsing) in-process.
 
 Code coverage is measured via [scoverage](https://github.com/scoverage/sbt-scoverage). Each SBT
 project has per-module statement and branch thresholds configured in `build.sbt` via the
-`coverageSettings` helper.
+`coverageSettings` helper. To inspect the current thresholds without reading `build.sbt`, run
+`sbtn coverageThresholds` — it prints a table of stmt% and branch% floors for every covered module.
 
 The target for this project is **80% statement and branch coverage**. This applies for every module,
 as well as for the project-wide aggregated coverage. Modules that have not yet reached 80% are
