@@ -119,6 +119,15 @@ performs the mechanical work (freshness check, rebuild if stale, XML parsing) in
 — loaded on demand when you invoke it — precisely so it does not clutter context up front, since coverage work only
 happens after the implementation is finished.
 
+# License Headers
+
+Every source file starts with a ~15-line Apache 2.0 license header (block, XML, or `#` comment by file type) followed by
+a blank line. A committed `PreToolUse` hook on `Read` automatically skips this header, so files appear to start at
+~line 17 — **real line numbers are preserved** (the header lines are omitted, not renumbered), so don't be confused by
+the absent top lines. To view the header, `Read` with `offset: 1`. Don't add or maintain headers by hand: the
+`.githooks/pre-commit` `addlicense` hook adds them to new files and CI enforces them. See
+[`docs/development/license-headers.md`](docs/development/license-headers.md).
+
 # Architecture
 
 The architecture docs are organized as follows:

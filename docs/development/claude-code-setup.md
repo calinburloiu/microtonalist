@@ -107,11 +107,13 @@ level. Each developer must enable it once in their own Claude Code settings.
 
 ## Hooks
 
-The repository ships a project-level [Claude Code hook](https://code.claude.com/docs/en/hooks) so its behavior is shared
-by everyone who works in the repo. It is committed in two files:
+The repository ships project-level [Claude Code hooks](https://code.claude.com/docs/en/hooks) so their behavior is
+shared by everyone who works in the repo. They are committed in:
 
-- [`.claude/settings.json`](../../.claude/settings.json) — registers the hook (a `PreToolUse` hook on the `Bash` tool).
-- [`.claude/hooks/sbt-test-filter.sh`](../../.claude/hooks/sbt-test-filter.sh) — the hook script.
+- [`.claude/settings.json`](../../.claude/settings.json) — registers the hooks (`PreToolUse` hooks on the `Bash` and
+  `Read` tools).
+- [`.claude/hooks/sbt-test-filter.sh`](../../.claude/hooks/sbt-test-filter.sh) and
+  [`.claude/hooks/license-header-read-skip.sh`](../../.claude/hooks/license-header-read-skip.sh) — the hook scripts.
 
 > Unlike [`.claude/settings.local.json`](#authorizing-mcp-servers-and-plugins) (gitignored, per-developer),
 > `.claude/settings.json` is committed and applies to everyone. Hooks load at Claude Code startup, so changes take
@@ -133,6 +135,19 @@ already filtered, and skips anything containing shell metacharacters (pipes, lis
 can never change operator precedence. On any non-match, missing `jq`, or unexpected input it exits 0 without output, so
 it never blocks or breaks a command. To bypass it for a one-off, run the test command through another pipe or redirection
 (e.g. append `| cat`), or invoke sbt by a form the matcher ignores.
+
+### `license-header-read-skip` — hide license headers at read time
+
+Every source file opens with a ~15-line Apache 2.0 license header that costs tokens on every read but tells an agent
+nothing. This `PreToolUse` hook on the `Read` tool detects the header and rewrites the read's `offset` so the file
+appears to start at the first line of code (~line 17 for Scala). **Real line numbers are preserved** — the header lines
+are omitted, not renumbered — so `file:line` references stay correct.
+
+Like `sbt-test-filter`, it is deliberately conservative and **fails open**: it passes the read through unchanged on any
+non-match, missing `jq`, or unexpected input, and never touches a file whose first line is a shebang (a single offset
+can't keep the shebang while skipping the header). To see the full file including the header, `Read` it with an explicit
+**`offset: 1`**. See [`license-headers.md`](license-headers.md) for the full reference (and the `addlicense` tooling that
+keeps the header set complete).
 
 ## Skills
 

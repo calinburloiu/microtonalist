@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+#
+# pre-commit — add Apache 2.0 license headers to new source files.
+#
+# Runs google/addlicense in add mode over the staged, in-scope files, then
+# re-stages any it modified, so new files get a header automatically on commit.
+# Existing files (which already contain a "Copyright" line) are left untouched.
+#
+# Enable once per clone with:  git config core.hooksPath .githooks
+# CI enforces the same headers via `addlicense -check`, so this hook is a
+# convenience: if addlicense is not installed it skips quietly and lets CI catch
+# any omissions.
+#
+# See docs/development/license-headers.md.
+#
+
+set -euo pipefail
+
+if ! command -v addlicense >/dev/null 2>&1; then
+  echo "pre-commit: addlicense not found on PATH; skipping license-header insertion (CI will enforce)." >&2
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Staged (Added/Copied/Modified), in-scope files. addlicense recognises the
+# comment style for these extensions; `.sbt` and `.fxml` are deliberately left
+# out of add mode because addlicense would pick the wrong style for them — add
+# their headers by hand (CI's `-check` still enforces them). See the doc above.
+# (A `while read` loop instead of `mapfile` keeps this working on the bash 3.2
+# that ships with macOS.)
+files=()
+while IFS= read -r f; do
+  [ -n "$f" ] && files+=("$f")
+done < <(
+  git diff --cached --name-only --diff-filter=ACM \
+    | grep -E '\.(scala|java|py|sh|bash|html|xml|js|css|properties)$' || true
+)
+
+[ "${#files[@]}" -eq 0 ] && exit 0
+
+addlicense -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu" -l apache "${files[@]}"
+
+# Re-stage anything addlicense rewrote so the header lands in this commit.
+git add -- "${files[@]}"
+
+exit 0

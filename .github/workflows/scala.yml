@@ -30,3 +30,23 @@ jobs:
     - uses: sbt/setup-sbt@v1
     - name: Run tests with coverage
       run: sbt coverageCheck
+
+  license-headers:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+    - name: Install addlicense
+      run: go install github.com/google/addlicense@latest
+    - name: Check license headers
+      run: |
+        git ls-files \
+          '*.scala' '*.java' '*.py' '*.sh' '*.bash' \
+          '*.html' '*.xml' '*.fxml' '*.js' '*.css' '*.sbt' '*.properties' \
+          | xargs "$(go env GOPATH)/bin/addlicense" -check -ignore '**/tests/resources/**' \
+              -f .license-header.tmpl -c "Calin-Andrei Burloiu"
