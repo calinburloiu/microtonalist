@@ -118,8 +118,12 @@ object Coverage {
     val rows = structure.allProjectRefs.flatMap { ref =>
       if (!includedIds.contains(ref.project)) None
       else {
-        val isDisabled = extracted.getOpt(ref / coverageEnabled).contains(false)
-        if (isDisabled) None
+        // A module participates iff it enforces a coverage minimum (the `coverageSettings` helper in
+        // `build.sbt` sets `coverageFailOnMinimum := true`). Test-utility modules such as
+        // `common-test-utils` never call it and are excluded. `coverageEnabled` can't be used here: it
+        // defaults to false for every module outside an active `coverage` session.
+        val enforcesMinimum = extracted.getOpt(ref / coverageFailOnMinimum).contains(true)
+        if (!enforcesMinimum) None
         else Some(Row(
           ref.project,
           extracted.get(ref / coverageMinimumStmtTotal),
@@ -128,8 +132,8 @@ object Coverage {
       }
     }.sortBy(_.id)
 
-    val colWidth = rows.map(_.id.length).maxOption.getOrElse(0).max("Module".length)
-    log.info(f"${"Module".padTo(colWidth, ' ')}  %6s  %7s".format("stmt%", "branch%"))
+    val colWidth = ("Module".length +: rows.map(_.id.length)).max
+    log.info(f"${"Module".padTo(colWidth, ' ')}  ${"stmt%"}%6s  ${"branch%"}%7s")
     log.info("-" * (colWidth + 17))
     rows.foreach { row =>
       log.info(f"${row.id.padTo(colWidth, ' ')}  ${row.stmt}%6.1f  ${row.branch}%7.1f")
