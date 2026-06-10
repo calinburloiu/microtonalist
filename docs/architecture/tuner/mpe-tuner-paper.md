@@ -250,12 +250,23 @@ When a new note arrives, the MPE Tuner executes the following allocation procedu
 
 3. **Expression Group full**: If no unoccupied channel is available in the Expression Group—and the Pitch Class Group either has an active note with the new note's pitch class or has all channels occupied—assign the new note to any channel (from either group) that already holds active notes with the same pitch class.
 
-4. **Tie-breaking among candidates**: When multiple channels are valid candidates at any step, the following criteria are applied in order, consistent with the MPE Specification's recommendations [1, §3.2]:
+4. **Tie-breaking among candidates**: When multiple channels are valid candidates at a given step, the following criteria are applied in order, consistent with the MPE Specification's recommendations [1, §3.2]:
    - Prefer channels that don't have high expressive pitch bend.
    - Among them, prefer the channel with the lowest count of active notes.
    - Among channels with equal active note counts, prefer the channel with the oldest last Note Off (i.e., the channel that has been idle the longest).
    - If the oldest last Note Off is equal among channels, select the oldest channel, which is the one with the most
      recent onset time that is oldest among all candidates.
+
+   These criteria are formulated for the general case in which the candidate channels are occupied, which arises only at
+   step 3, where the new note is assigned to a channel that already holds active notes of the same pitch class; there all
+   four criteria are well-defined and discriminating. At steps 1 and 2 the candidates are instead unoccupied channels,
+   and three of the four criteria degenerate accordingly: an unoccupied channel carries no active note and can therefore
+   have neither a high expressive pitch bend nor a nonzero active-note count, so the first two criteria are trivially
+   satisfied for every candidate, and it has no note onset time, so the fourth criterion does not evaluate. The selection
+   at steps 1 and 2 consequently reduces to the third criterion—the channel with the oldest last Note Off—which coincides
+   with the MPE Specification's recommendation for choosing among free channels [1, §3.2]. When no candidate has yet held
+   a note, as in a freshly configured Zone, no last Note Off exists either, and the Tuner shall select the candidate with
+   the lowest channel number.
 
 5. **Preserving input channel allocation (MPE input only)**: When the input is MPE, the Tuner should attempt to preserve the input's channel assignment for a new note, provided that doing so does not violate the pitch-class invariant or the group constraints. Only when the constraints require it should the Tuner reallocate a note to a different channel.
 
