@@ -397,9 +397,10 @@ The MPE Tuner forwards Master Channel Pitch Bend as received, without modificati
 An acceptable cost of maintaining precise intonation is the occasional dropping of notes. This section specifies the
 conditions under which notes are dropped and the criteria for selecting which notes to drop. We maintain the principle
 that dropping is the last resort measure, used only when the fundamental invariants of intonation would otherwise be
-violated. Dropping arises in two circumstances, each tied to the allocation algorithm of Section 4.5: channel
-exhaustion realizes its Step 4 (Section 5.1), while high expressive pitch bend is associated with its Step 3
-(Section 5.2).
+violated. Dropping arises in two circumstances. Channel exhaustion realizes Step 4 of the allocation algorithm
+(Section 4.5) and is detailed in Section 5.1. High expressive pitch bend (Section 5.2) is only partly an allocation-time
+event: it realizes Step 3 when an incoming note must share a channel (Sections 5.2.2 and 5.2.3), but it can also arise
+after allocation, when notes already sharing a channel diverge (Section 5.2.1).
 
 ### 5.1 Dropping Notes Due to Channel Exhaustion
 
@@ -479,7 +480,7 @@ The following invariants are maintained at all times through the note-dropping m
 1. All active notes on a shared channel have the same pitch class.
 2. An active note with a high expressive pitch bend (absolute deviation > `t`) is always the sole active note on its
    channel. No other notes may coexist with it: pre-existing notes are dropped, and the channel is freed before any new
-   note is assigned to it (Section 4.6).
+   note is assigned to it (Sections 5.2.1 and 5.2.3).
 
 ---
 
