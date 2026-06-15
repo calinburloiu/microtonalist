@@ -244,47 +244,86 @@ bent more than 50 cents up or down from its tuned pitch has a high expressive pi
 
 When a new note arrives, the MPE Tuner executes the following allocation procedure:
 
-1. **Pitch Class Group is assignable**: If the Pitch Class Group contains an unoccupied channel *and* no occupied channel in the Pitch Class Group has an active note with the new note's pitch class, assign the new note to an unoccupied channel in the Pitch Class Group.
+1. **Use Pitch Class Group**: If the Pitch Class Group contains an unoccupied channel *and* no occupied channel in the
+   Pitch Class Group has an active note with the new note's pitch class, assign the new note to an unoccupied channel in
+   the Pitch Class Group.
 
-2. **Pitch Class Group is unassignable and Expression Group is unoccupied**: If the Pitch Class Group already holds a note with the new note's pitch class *or* all Pitch Class Group channels are occupied, attempt to assign the new note to an unoccupied channel in the Expression Group.
+2. **Use Expression Group**: If the Pitch Class Group already holds a note with the new note's pitch class *or* all
+   Pitch Class Group channels are occupied, attempt to assign the new note to an unoccupied channel in the Expression
+   Group.
 
-3. **Expression Group is occupied**: If no unoccupied channel is available in the Expression Group — and the Pitch Class Group either has an active note with the new note's pitch class or has all channels occupied — assign the new note to any channel (from either group) that already holds active notes with the same pitch class.
+3. **Share channel**: If no unoccupied channel is available in the Expression Group — and the Pitch Class Group either
+   has an active note with the new note's pitch class or has all channels occupied — assign the new note to any channel
+   (from either group) that already holds active notes with the same pitch class.
 
-4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel holds the new note's pitch class — the Tuner frees a channel and assigns the new note to it. Freeing a channel means dropping all of its active notes to make it unoccupied. This is a last-resort measure; the conditions under which it is warranted, the notes protected from it, and the selection of the channel to free are specified in Section 5.1.
+4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
+   holds the new note's pitch class — the Tuner frees a channel and assigns the new note to it. Freeing a channel means
+   dropping all of its active notes to make it unoccupied. This is a last-resort measure; the conditions under which it
+   is warranted, the notes protected from it, and the selection of the channel to free are specified in Section 5.1.
+
+```mermaid
+flowchart TD
+    Start([New note arrives with pitch class P]) --> Q1a
+
+    Q1a{"Does the Pitch Class Group<br/>have an unoccupied channel?"}
+    Q1a -- No --> Q2
+    Q1a -- Yes --> Q1b
+
+    Q1b{"Does some Pitch Class Group<br/>channel already hold P?"}
+    Q1b -- Yes --> Q2
+    Q1b -- No --> A1["Step 1 — Assign to an unoccupied<br/>Pitch Class Group channel"]
+
+    Q2{"Does the Expression Group<br/>have an unoccupied channel?"}
+    Q2 -- Yes --> A2["Step 2 — Assign to an unoccupied<br/>Expression Group channel"]
+    Q2 -- No --> Q3
+
+    Q3{"Does some occupied channel, either group,<br/>already hold active notes of P?"}
+    Q3 -- Yes --> A3["Step 3 — Assign to that channel,<br/>shared with the same pitch class"]
+    Q3 -- No --> A4["Step 4 — Free a channel as a last resort,<br/>then assign"]
+```
 
 The following rule cuts across the steps above rather than constituting a step of its own.
 
 **Tie-breaking among candidates.** When a step admits more than one valid channel, the following criteria are applied in
-order to choose among them. Criteria (a)–(d) are consistent with the MPE Specification's recommendations [1, §3.2] and
-follow a single principle — prefer to act on the channel whose use or release is least perceptually disruptive — while
-criterion (e) is a deterministic backstop that guarantees a unique choice. The same criteria govern both the placement
-of a new note (Steps 1–3) and the choice of which channel to free (Step 4, Section 5.1).
+order until a single channel remains. They share a single principle — prefer to act on the channel whose use or release
+is least perceptually disruptive — with criterion (e) serving as a deterministic backstop. The same criteria govern both
+the placement of a new note (Steps 1–3) and the choice of which channel to free (Step 4, Section 5.1).
 
-- **(a) Prefer channels without a high expressive pitch bend.** A high expressive pitch bend is a dynamic gesture that
-  draws the listener's attention. Dropping such a note — whether because a new note forces the channel to be freed
-  (Section 5.2.3) or because the channel itself is selected for freeing — is immediately noticed, so these channels are
-  avoided whenever an alternative exists.
-- **(b) Among those, prefer the channel with the lowest count of active notes.** This affects as few notes as possible.
-  On placement, every note added to a shared channel forfeits independent expressive control: the channel's three
-  expressive dimensions — Pitch Bend, Channel Pressure, and CC #74 — are each reduced to an average over the per-note
-  values of all active notes on the channel (Section 4.6), so the notes can no longer be articulated independently.
-  This loss of independence, not merely the attenuation of any single gesture, is the fundamental cost of channel
-  sharing; averaging is the deliberate compromise by which it is managed. Confining it to the channel that already
-  holds the fewest active notes both limits the number of notes subjected to non-independent expression and keeps
-  each averaged gesture least diluted. On freeing, the same criterion drops the fewest notes, keeping the impact as
-  low as possible.
-- **(c) Among channels with an equal active-note count, prefer the oldest channel** — the one whose last note onset is
-  the earliest among the candidates (using the last onset rather than an average keeps the ordering unambiguous and the
-  implementation simple). Newer notes are still fresh in the listener's memory, whereas older notes have likely already
-  passed out of attention.
-- **(d) If the oldest channel is still ambiguous, prefer the channel with the oldest last Note Off** — the channel
-  that has been idle the longest. Having gone the longest without a Note Off, it is its turn to be reused.
-- **(e) If even the oldest last Note Off does not discriminate, apply a deterministic default keyed to the input mode.**
-  In non-MPE input mode, prefer the candidate with the lowest channel number. In MPE input mode, prefer the new note's
-  input channel when that channel is itself unoccupied and therefore among the candidates, reverting to the lowest
-  channel number otherwise; preserving the input's channel assignment lets the Tuner mirror a well-behaved MPE
-  controller's own allocation and avoids needless remapping. Being purely positional, this terminal criterion always
-  resolves to a unique channel.
+- **(a)** Prefer channels without a high expressive pitch bend.
+- **(b)** Among those, prefer the channel with the lowest count of active notes.
+- **(c)** Among channels with an equal active-note count, prefer the oldest channel — the one whose last note onset is
+  the earliest among the candidates.
+- **(d)** If the oldest channel is still ambiguous, prefer the channel with the oldest last Note Off — the channel that
+  has been idle the longest.
+- **(e)** If even the oldest last Note Off does not discriminate, apply a deterministic default keyed to the input mode.
+    * In non-MPE input mode, prefer the candidate with the lowest channel number.
+    * In MPE input mode, prefer the new note's input channel when that channel is itself unoccupied and therefore among
+      the candidates, reverting to the lowest channel number otherwise.
+
+Of these, criteria (b) and (d) are consistent with the MPE Specification's recommendations [1, §3.2], while criteria
+(a) and (c) are extensions specific to the MPE Tuner: (a) reflects the high expressive pitch bend model of Section 4.4,
+and (c) refines the specification's recency notion using the last note onset. The motivation for each follows the shared
+principle of minimal perceptual disruption.
+- **(a)** A high expressive pitch bend is a dynamic gesture that draws the listener's attention, so dropping such a note
+  — whether because a new note forces the channel to be freed (Section 5.2.3) or because the channel itself is selected
+  for freeing — is immediately noticed; these channels are therefore avoided whenever an alternative exists.
+- **(b)** Preferring the channel with the fewest active notes affects as few notes as possible:
+    * On placement, every note added to a shared channel forfeits independent expressive control, because the
+      channel's three expressive dimensions — Pitch Bend, Channel Pressure, and CC #74 — are each reduced to an average
+      over the per-note values of all active notes on the channel (Section 4.6), so the notes can no longer be
+      articulated independently. This loss of independence, not merely the attenuation of any single gesture, is the
+      fundamental cost of channel sharing; averaging is the deliberate compromise by which it is managed. Confining
+      sharing to the channel that already holds the fewest active notes both limits the number of notes subjected to
+      non-independent expression and keeps each averaged gesture least diluted.
+    * On freeing, the same criterion drops the fewest notes, keeping the impact as low as possible.
+- **(c)** Among channels of equal count, preferring the oldest exploits the fact that newer notes are still fresh in the
+  listener's memory whereas older notes have likely passed out of attention; the last onset is used rather than an
+  average to keep the ordering unambiguous and the implementation simple.
+- **(d)** The oldest last Note Off identifies the channel that has gone longest without a release, so it is its turn to
+  be reused.
+- **(e)** The terminal criterion is purely positional and therefore always resolves to a unique channel; its MPE-mode
+  preference for the input channel lets the Tuner mirror a well-behaved MPE controller's own allocation and avoids
+  needless remapping.
 
 Criteria (a)–(c) are formulated for the general case in which the candidate channels are occupied, which arises at
 Step 3 (assignment to a shared channel of the same pitch class) and at Step 4 (choosing a channel to free); there
@@ -362,21 +401,44 @@ violated. Dropping arises in two circumstances, each tied to the allocation algo
 exhaustion realizes its Step 4 (Section 5.1), while high expressive pitch bend is associated with its Step 3
 (Section 5.2).
 
-In practice, note dropping should rarely occur for Zones with 7 or more Member Channels. Musical scales seldom contain more than 7 notes per octave, and even complex jazz chords rarely employ more than 7 distinct pitch classes simultaneously. In the ideal scenario of a single Zone with 15 Member Channels, the Pitch Class Group accommodates all 12 pitch classes and the Expression Group provides 3 additional channels for duplicate pitch classes; note dropping never occurs under these conditions, because the Pitch Class Group can always represent every pitch class of the chromatic scale. When two equal Zones are configured — the typical dual-Zone split allocates 7 Member Channels to each Zone — each Zone can support at least 7 simultaneous distinct pitch classes (5 in the Pitch Class Group and 2 in the Expression Group for `n = 7`), which suffices for the vast majority of musical contexts.
-
 ### 5.1 Dropping Notes Due to Channel Exhaustion
 
-When all Member Channels are occupied and the Pitch Class Group does not have enough channels to support all pitch classes present among the active notes, some notes must be dropped to free a channel for the incoming note. The term **freeing a channel** refers to dropping all notes on that channel to make it unoccupied.
+When all Member Channels are occupied and the Pitch Class Group does not have enough channels to support all pitch
+classes present among the active notes, some notes must be dropped to free a channel for the incoming note. The term
+**freeing a channel** refers to dropping all notes on that channel to make it unoccupied.
 
 The selection of which channel to free follows this procedure:
 
-1. **Exclude boundary channels**: Channels holding the highest-pitched and lowest-pitched notes among all active notes are excluded from consideration. Dropping extreme-register notes is perceptually more disruptive, as they often define the harmonic boundaries of the musical texture. Two edge cases limit this exclusion:
-   - **Only two candidates**: When exactly two channels are candidates for freeing, both are boundary channels — one holds the highest note, the other the lowest — so excluding both would leave nothing to free. The exclusion is therefore not applied; instead, the Tuner prefers to free the channel holding the lower note (the bass), retaining the upper note, which more often carries the salient melodic line.
-   - **Only one candidate**: When only one channel is a candidate, boundary-channel exclusion does not apply at all — the sole candidate must be freed regardless of its register.
+1. **Exclude boundary channels**: Channels holding the highest-pitched and lowest-pitched notes among all active notes
+   are excluded from consideration. Dropping extreme-register notes is perceptually more disruptive, as they often
+   define the melodic and harmonic boundaries of the musical texture. Two edge cases limit this exclusion:
+   - **Only two candidates**: When exactly two channels are candidates for freeing, the disposition of the extremes
+     determines how the exclusion applies. If the highest and lowest notes lie on different channels — one holds the
+     highest, the other the lowest — both candidates are boundary channels, so excluding both would leave nothing to
+     free; the exclusion is therefore not applied, and instead the Tuner prefers to free the channel holding the lower
+     note (the bass), retaining the upper note, which more often carries the salient melodic line. If instead a single
+     channel holds both the highest and the lowest note — necessarily two notes of the same pitch class an octave or
+     more apart — only that channel is a boundary channel, so the exclusion leaves the other channel as the sole
+     remaining candidate, and the Tuner frees it, preserving both extremes.
+   - **Only one candidate**: When only one channel is a candidate, boundary-channel exclusion does not apply at all —
+     the sole candidate must be freed regardless of its register.
 
-2. **Apply the tie-breaking criteria**: Among the channels that remain after boundary exclusion, select the channel to free using the tie-breaking criteria of Section 4.5. Because freeing operates on occupied channels, criteria (a)–(d) are well-defined and discriminating, backed by the deterministic criterion (e); pursuing the same goal of minimizing perceptual disruption, they select — in order — the channel without a high expressive pitch bend, with the fewest active notes, then the oldest.
+2. **Apply the tie-breaking criteria**: Among the channels that remain after boundary exclusion, select the channel to
+   free using the tie-breaking criteria of Section 4.5. Because freeing operates on occupied channels, criteria (a)–(d)
+   are well-defined and discriminating, backed by the deterministic criterion (e); pursuing the same goal of minimizing
+   perceptual disruption, they select — in order — the channel without a high expressive pitch bend, with the fewest
+   active notes, then the oldest.
 
-For a Zone configured with the maximum of 15 Member Channels, note dropping should not occur under normal playing conditions. The Pitch Class Group accommodates exactly 12 channels — the number required to represent every pitch class of a standard piano keyboard. The Expression Group provides a 3-channel buffer for duplicate pitch classes. Dropping occurs only when the Pitch Class Group cannot accommodate all distinct pitch classes in use *and* all Expression Group channels are already occupied — a situation that requires an unusually high degree of simultaneous polyphony.
+In practice, note dropping should rarely occur for Zones with 7 or more Member Channels. Musical scales seldom contain
+more than 7 notes per octave, and even complex jazz chords rarely employ more than 7 distinct pitch classes
+simultaneously. When two equal Zones are configured — the typical dual-Zone split allocates 7 Member Channels to each
+Zone — each Zone can support 7 simultaneous distinct pitch classes (5 in the Pitch Class Group and 2 in the Expression
+Group for `n = 7`), which suffices for the vast majority of musical contexts. For a single Zone configured with the
+maximum of 15 Member Channels, note dropping never occurs: the Pitch Class Group accommodates exactly 12 channels — the
+number required to represent every pitch class of a standard piano keyboard — and the Expression Group provides a
+3-channel buffer for duplicate pitch classes. Dropping occurs only when the Pitch Class Group cannot accommodate all
+distinct pitch classes in use *and* all Expression Group channels are already occupied — a situation that requires an
+unusually high degree of simultaneous polyphony.
 
 ### 5.2 Dropping Notes Due to High Expressive Pitch Bend
 
@@ -390,17 +452,25 @@ arises during the lifetime of an already-shared channel rather than at allocatio
 When a channel holds multiple active notes and one of them develops a high expressive pitch bend, **all other notes on
 that channel are dropped**. The rationale is that the performer's intent is to bend a single note; the other notes
 sharing the channel would receive an unintended pitch deviation due to the averaged Pitch Bend computation (Section
-4.6).
+4.6), and the note that develops high expressive pitch bend will have its final pitch bend diluted due to averaging.
 
 #### 5.2.2 New Note with High Expressive Pitch Bend on an Occupied Channel
 
-When a new note with a high expressive pitch bend is assigned to an already-occupied channel, **all existing notes on that channel are dropped** (the channel is freed). This holds even if the existing notes' Pitch Bend values are close to that of the new note, because there is no guarantee that the existing notes' bends will not subsequently diverge from the new note's bend, causing unintended intonation changes.
+When a new note with a high expressive pitch bend is assigned to an already-occupied channel, **all existing notes on
+that channel are dropped** (the channel is freed). This holds even if the existing notes' Pitch Bend values are close to
+that of the new note, because there is no guarantee that the existing notes' bends will not subsequently diverge from
+the new note's bend, causing unintended intonation changes.
 
-It follows that **when an active note on a channel has a high expressive pitch bend, that note is necessarily the sole active note on the channel**. No other active notes can coexist with it: existing notes are dropped when one develops a high expressive pitch bend (Section 5.2.1), and new notes arriving on a channel with a high-bend note cause the channel to be freed (Section 5.2.3).
+It follows that **when an active note on a channel has a high expressive pitch bend, that note is necessarily the sole
+active note on the channel**. No other active notes can coexist with it: existing notes are dropped when one develops a
+high expressive pitch bend (Section 5.2.1), and new notes arriving on a channel with a high-bend note cause the channel
+to be freed (Section 5.2.3).
 
 #### 5.2.3 New Note Assigned to a Channel with a High-Bend Note
 
-When a new note is assigned to a channel that already contains an active note with a high expressive pitch bend, **the channel is freed** (all existing notes are dropped). The new note then occupies the channel exclusively, preventing its intonation from being compromised by the pre-existing high bend.
+When a new note is assigned to a channel that already contains an active note with a high expressive pitch bend, **the
+channel is freed**. The new note then occupies the channel exclusively, preventing its intonation from being compromised
+by the pre-existing high bend.
 
 ### 5.3 Summary of Note-Dropping Invariants
 
