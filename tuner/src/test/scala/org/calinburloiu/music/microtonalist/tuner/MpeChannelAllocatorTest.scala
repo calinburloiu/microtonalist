@@ -279,6 +279,58 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     r4.channel shouldBe 3
   }
 
+  it should "prefer the oldest onset over an older last Note Off among occupied candidates" in {
+    // Given
+    // Build two occupied pitch-class-C channels whose onset and last-Note-Off orderings DISAGREE:
+    //   ch1: onset = 3 (early), last Note Off = 6 (late)
+    //   ch2: onset = 5 (late),  last Note Off = 4 (early)
+    // Paper criterion (c) onset precedes (d) Note Off, so the older-onset ch1 must win.
+    val alloc = allocator2 // PCG=1, EG=1, channels 1..2
+    val rB = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
+    val rOther = alloc.allocate(C5, preferredChannel = Some(2)) // t2: ch2 onset=2
+    alloc.allocate(C6, preferredChannel = Some(1)) // t3: shares ch1 -> ch1 onset=3
+    alloc.release(C5, rOther.channel) // t4: ch2 empties, Note Off=4
+    alloc.allocate(C5, preferredChannel = Some(2)) // t5: ch2 onset=5
+    alloc.release(C4, rB.channel) // t6: ch1 keeps C6, Note Off=6, onset stays 3
+    // When
+    val result = alloc.allocate(C7) // t7: must share by oldest onset
+    // Then
+    result.channel shouldBe rB.channel
+  }
+
+  it should "break a tie by oldest last Note Off rather than the preferred input channel" in {
+    // Given
+    // Two unoccupied previously-used channels; ch1 has the older last Note Off.
+    // The preferred (input) channel is ch2, but criterion (d) outranks the (e) input-channel default.
+    val alloc = allocator2
+    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1
+    val r2 = alloc.allocate(D4, preferredChannel = Some(2)) // t2: ch2
+    alloc.release(C4, r1.channel) // t3: ch1 Note Off=3
+    alloc.release(D4, r2.channel) // t4: ch2 Note Off=4
+    // When
+    val result = alloc.allocate(E4, preferredChannel = Some(2)) // ch2 preferred, but ch1 idle longer
+    // Then
+    result.channel shouldBe r1.channel
+  }
+
+  it should "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
+    // Given
+    // Both candidates are unoccupied and previously used. Their original onset order (ch1<ch2)
+    // disagrees with their Note Off order (ch2<ch1), but removeNote clears _lastOnsetTime to 0L on
+    // release, so both now carry onset 0 and criterion (c) cannot discriminate. The paper treats an
+    // unoccupied channel as having no onset, so criterion (d) governs and the older-Note-Off ch2 wins.
+    // (If onset were not cleared, criterion (c) would wrongly pick ch1 — this test guards that.)
+    val alloc = allocator2
+    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
+    val r2 = alloc.allocate(D4, preferredChannel = Some(2)) // t2: ch2 onset=2
+    alloc.release(D4, r2.channel) // t3: ch2 Note Off=3
+    alloc.release(C4, r1.channel) // t4: ch1 Note Off=4
+    // When
+    val result = alloc.allocate(E4) // no preferred channel
+    // Then
+    result.channel shouldBe r2.channel
+  }
+
   it should "prefer channel without high expressive pitch bend when sharing" in {
     // Given
     val alloc = allocator2 // PCG=1, EG=1

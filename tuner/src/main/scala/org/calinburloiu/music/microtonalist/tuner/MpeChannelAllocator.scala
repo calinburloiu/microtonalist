@@ -125,7 +125,7 @@ private class ChannelState(val channel: Int) {
 
   /**
    * The logical timestamp of the most recent Note On event processed on this channel.
-   * Zero when the channel has never received a note.
+   * Zero when the channel is unoccupied (never received a note, or all notes have been released).
    */
   def lastOnsetTime: Long = _lastOnsetTime
 
@@ -181,7 +181,7 @@ private class ChannelState(val channel: Int) {
 
   /**
    * Removes a note from this channel, updating note-off time accordingly.
-   * Clears pitch class and group when the channel becomes unoccupied.
+   * Clears pitch class, group, and onset time when the channel becomes unoccupied.
    *
    * @param midiNote The MIDI note to remove.
    * @param time     The logical timestamp of the release.
@@ -192,6 +192,7 @@ private class ChannelState(val channel: Int) {
       if (_notes.isEmpty) {
         _pitchClass = None
         _group = None
+        _lastOnsetTime = 0L
       }
     }
   }
@@ -402,14 +403,15 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     AllocationResult(state.channel, dropped)
   }
 
-  private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState = {
-    preferredChannel match {
-      case Some(prefCh) if candidates.map(_.channel).contains(prefCh) => channelStates(prefCh)
-      case _ => candidates.minBy { s =>
-        (hasHighExpressivePitchBend(s), s.notes.size, s.lastNoteOffTime, s.lastOnsetTime, s.channel)
-      }
+  private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState =
+    candidates.minBy { s =>
+      (hasHighExpressivePitchBend(s),                        // (a) no high bend (false < true)
+        s.notes.size,                                        // (b) fewest active notes
+        s.lastOnsetTime,                                     // (c) oldest onset
+        s.lastNoteOffTime,                                   // (d) oldest last Note Off
+        if (preferredChannel.contains(s.channel)) 0 else 1, // (e) prefer the input channel
+        s.channel)                                           // (e) then the lowest channel number
     }
-  }
 
   private def freeChannel(incomingNote: MidiNote): DroppedNotes = {
     val occupiedChannelStates = channelStates.values.filter(_.isOccupied).toSeq
