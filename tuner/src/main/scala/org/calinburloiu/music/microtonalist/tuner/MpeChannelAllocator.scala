@@ -272,7 +272,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     }
 
     // Step 4: No channel with the same pitch class and all channels occupied -> free a channel
-    val dropped = freeChannel(midiNote)
+    val dropped = freeChannel(time)
     doAllocate(channelStates(dropped.channel), midiNote, expressivePitchBendCents, time, dropped.group)
       .copy(droppedNotes = Some(dropped))
   }
@@ -377,6 +377,19 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   private def unoccupiedChannels: Seq[Int] = channelStates.values.filter(!_.isOccupied).map(_.channel).toSeq
 
+  private def occupiedChannelStates: Seq[ChannelState] = channelStates.values.filter(_.isOccupied).toSeq
+
+  private def lowestAndHighestNotes(states: Seq[ChannelState]): (MidiNote, MidiNote) = {
+    val notes = states.iterator.flatMap(_.notes.iterator)
+    var lowest = notes.next() // safe: callers pass only occupied channels, each with at least one note
+    var highest = lowest
+    for (note <- notes) {
+      if (note.number < lowest.number) lowest = note
+      if (note.number > highest.number) highest = note
+    }
+    (lowest, highest)
+  }
+
   private def doAllocate(state: ChannelState,
                          midiNote: MidiNote,
                          expressivePitchBendCents: Double,
@@ -413,28 +426,42 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
         s.channel)                                           // (e) then the lowest channel number
     }
 
-  private def freeChannel(incomingNote: MidiNote): DroppedNotes = {
-    val occupiedChannelStates = channelStates.values.filter(_.isOccupied).toSeq
-    assert(occupiedChannelStates.nonEmpty)
+  /**
+   * Frees a channel so the incoming note can be placed on it, dropping all of the freed channel's
+   * active notes. Boundary channels — those holding the highest- or lowest-pitched active note — are
+   * preserved when possible. The final selection among the remaining candidates reuses the tie-break
+   * criteria of [[bestCandidate]] (criterion (e) degenerates to the lowest channel number, since the
+   * candidates are occupied).
+   * When only one channel is occupied, it is freed unconditionally, regardless of register.
+   *
+   * @param time The logical timestamp at which the freed notes are dropped.
+   * @return The notes dropped from the freed channel.
+   */
+  private def freeChannel(time: Long): DroppedNotes = {
+    val occupied = occupiedChannelStates
+    assert(occupied.nonEmpty)
 
-    // Find the highest and lowest pitched notes across all channels
-    val allNotes = occupiedChannelStates.flatMap(s => s.notes)
-    val highestNote = allNotes.maxBy(_.number).number
-    val lowestNote = allNotes.minBy(_.number).number
+    val target =
+      if (occupied.sizeIs == 1) {
+        // Only one candidate: free it regardless of register.
+        occupied.head
+      } else {
+        val (lowest, highest) = lowestAndHighestNotes(occupied)
+        val nonBoundary = occupied.filterNot { s =>
+          s.notes.exists(n => n.number == lowest.number || n.number == highest.number)
+        }
+        if (nonBoundary.nonEmpty) {
+          bestCandidate(nonBoundary, None)
+        } else {
+          // Every occupied channel is a boundary channel (extremes on different channels): free the
+          // channel holding the lower (bass) note, retaining the upper melodic note.
+          bestCandidate(occupied.filter(_.notes.exists(_.number == lowest.number)), None)
+        }
+      }
 
-    // Exclude channels with the highest or lowest pitched notes
-    val candidates = occupiedChannelStates.filterNot { s =>
-      s.notes.exists(n => n.number == highestNote || n.number == lowestNote)
-    }
-
-    val target = if (candidates.nonEmpty) {
-      candidates.minBy(_.lastOnsetTime)
-    } else {
-      // If all channels have boundary notes, pick the oldest
-      occupiedChannelStates.minBy(_.lastOnsetTime)
-    }
-
-    DroppedNotes(target.channel, target.notes.toSeq, target.group.get)
+    val dropped = DroppedNotes(target.channel, target.notes.toSeq, target.group.get)
+    target.notes.foreach(n => target.removeNote(n, time))
+    dropped
   }
 }
 

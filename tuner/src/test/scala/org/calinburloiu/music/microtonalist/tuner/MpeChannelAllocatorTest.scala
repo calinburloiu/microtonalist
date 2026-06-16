@@ -29,6 +29,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   // Lower Zone with 7 members: PCG=5, EG=2, channels 1..7
   private def allocator7: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 7))
 
+  // Lower Zone with 4 members: PCG=2, EG=2, channels 1..4
+  private def allocator4: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4))
+
   // Lower Zone with 3 members: PCG=1, EG=2, channels 1..3
   private def allocator3: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 3))
 
@@ -436,6 +439,70 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     result.droppedNotes should not be empty
     // The new note should be on the freed channel
     alloc.activeNotes(result.channel) should contain(A4)
+  }
+
+  it should "place only the new note on the freed channel and clear the old pitch class" in {
+    // Given
+    val alloc = allocator3 // PCG=1, EG=2
+    alloc.allocate(C4) // lowest
+    alloc.allocate(E4) // middle -> will be freed
+    alloc.allocate(G4) // highest
+    // When
+    val result = alloc.allocate(A4)
+    // Then
+    alloc.activeNotes(result.channel) should contain theSameElementsAs Set(A4)
+    alloc.channelPitchClass(result.channel) shouldBe Some(A4.pitchClass)
+  }
+
+  it should "free the channel holding the lowest note when both candidates are boundary channels" in {
+    // Given
+    val alloc = allocator2 // PCG=1, EG=1
+    alloc.allocate(G4) // highest
+    alloc.allocate(C4) // lowest
+    // When
+    val result = alloc.allocate(E4)
+    // Then
+    assertDroppedNotes(result.droppedNotes, Seq(C4))
+    alloc.activeNotes(result.channel) should contain theSameElementsAs Set(E4)
+  }
+
+  it should "free the non-boundary channel when one channel holds both the highest and lowest notes" in {
+    // Given
+    // ch1 ends up holding C4 (lowest) and C6 (highest), both pitch class C; ch2 holds the middle E5.
+    val alloc = allocator2 // PCG=1, EG=1
+    alloc.allocate(C4, preferredChannel = Some(1)) // ch1, pitch class C, PCG
+    alloc.allocate(E4 + 12, preferredChannel = Some(2)) // ch2, E5 (middle), EG
+    alloc.allocate(C6, preferredChannel = Some(1)) // shares ch1 -> ch1 = {C4, C6}
+    // When
+    val result = alloc.allocate(A4) // new pitch class -> free a channel
+    // Then
+    assertDroppedNotes(result.droppedNotes, Seq(E4 + 12))
+  }
+
+  it should "free the channel without a high expressive pitch bend among freeing candidates" in {
+    // Given
+    val alloc = allocator4 // PCG=2, EG=2, channels 1..4
+    alloc.allocate(C4) // lowest (boundary)
+    val rMidHigh = alloc.allocate(E4) // candidate, will get a high bend
+    alloc.allocate(G4) // candidate, no bend
+    alloc.allocate(B4) // highest (boundary)
+    alloc.updateExpressivePitchBend(rMidHigh.channel, highPitchBendCents) // E4 channel: high bend
+    // When
+    val result = alloc.allocate(A4) // new pitch class -> free a channel
+    // Then
+    // Criterion (a): avoid freeing the high-bend channel (E4); free the no-bend channel (G4).
+    assertDroppedNotes(result.droppedNotes, Seq(G4))
+  }
+
+  it should "free the only occupied channel when the zone has a single member channel" in {
+    // Given
+    val alloc = allocator1 // single member channel
+    alloc.allocate(C4)
+    // When
+    val result = alloc.allocate(E4) // new pitch class -> must free the sole channel
+    // Then
+    assertDroppedNotes(result.droppedNotes, Seq(C4))
+    alloc.activeNotes(result.channel) should contain theSameElementsAs Set(E4)
   }
 
   // --- 3.5 Note Dropping — High Expressive Pitch Bend ---
