@@ -238,7 +238,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.activeNotes(r2.channel).size shouldEqual 2
   }
 
-  it should "prefer channel with oldest last Note Off when note counts are equal" in {
+  it should "prefer the oldest onset among occupied candidates when note counts are equal" in {
     // Given
     val alloc = allocator3 // PCG=1, EG=2
     val r1 = alloc.allocate(C4) // ch, time=1
@@ -251,15 +251,14 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.release(C3, r3.channel)
     val ch3 = r3.channel
 
-    // Re-add notes to those channels
-    alloc.allocate(C5) // goes to ch2 (older note off)
+    // Re-add notes to ch2 and ch3, giving them fresh (newer) onsets
+    alloc.allocate(C5) // goes to ch2 (older Note Off of the two empty channels)
     alloc.allocate(C3) // goes to ch3
 
-    // All channels have 1 note each.
-    // ch2's last Note Off was at time 4.
-    // ch3's last Note Off was at time 5.
-    // ch1 never had a Note Off (lastNoteOffTime=0).
-    // 0 is the oldest/smallest value, so ch1 is preferred.
+    // All channels now have 1 note each, so criterion (b) note count ties.
+    // ch1 has never been released, so it keeps its original onset at time 1 (the oldest).
+    // ch2 and ch3 were re-added later, so their onsets (times 6 and 7) are newer.
+    // Criterion (c) oldest onset is checked before (d) Note Off, so ch1 is preferred.
     // When
     val r4 = alloc.allocate(C6)
     // Then
