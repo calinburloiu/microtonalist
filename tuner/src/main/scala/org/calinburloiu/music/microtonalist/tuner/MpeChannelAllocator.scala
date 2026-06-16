@@ -366,13 +366,6 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    */
   def channelGroupOf(channel: Int): Option[ChannelGroup] = channelStates(channel).group
 
-  private def isHighExpressivePitchBend(pitchBendCents: Double): Boolean =
-    Math.abs(pitchBendCents) > ExpressionPitchBendThreshold
-
-  private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
-    state.notes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
-  }
-
   private def pitchClassGroupChannels: Seq[ChannelState] =
     channelStates.values.filter(_.group.contains(ChannelGroup.PitchClass)).toSeq
 
@@ -471,6 +464,13 @@ object MpeChannelAllocator {
      * pitch class must coexist with different expressive pitch bends.
      */
     case Expression
+  }
+
+  private def isHighExpressivePitchBend(pitchBendCents: Double): Boolean =
+    Math.abs(pitchBendCents) > ExpressionPitchBendThreshold
+
+  private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
+    state.notes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
   }
 }
 
