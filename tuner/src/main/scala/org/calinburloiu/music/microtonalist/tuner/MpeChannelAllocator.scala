@@ -397,11 +397,31 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
                          targetGroup: ChannelGroup): AllocationResult = {
     val existingNotes = state.notes
     state.addNote(midiNote, MutableMpeExpression(expressivePitchBendCents), time, targetGroup)
+    val dropped = dropExistingNotesForHighBend(state, existingNotes, expressivePitchBendCents, time)
+    AllocationResult(state.channel, dropped)
+  }
 
-    // Check if existing notes on this channel have high expressive pitch bend
-    val dropped = if (existingNotes.nonEmpty) {
-      val existingHighBend = existingNotes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
-      val newHighBend = isHighExpressivePitchBend(expressivePitchBendCents)
+  /**
+   * Drops the existing notes on a channel when a high expressive pitch bend means they can no longer
+   * coexist with the newly added note (paper Sections 5.2.2 and 5.2.3): either the new note has a high
+   * bend, or the channel already held a note with a high bend.
+   *
+   * @param state             The channel the new note was just added to.
+   * @param existingNotes     The notes present on the channel before the new note was added.
+   * @param newPitchBendCents The new note's expressive pitch bend in cents.
+   * @param time              The logical timestamp of the drop.
+   * @return The dropped notes, or `None` when nothing is dropped.
+   */
+  private def dropExistingNotesForHighBend(state: ChannelState,
+                                           existingNotes: Set[MidiNote],
+                                           newPitchBendCents: Double,
+                                           time: Long): Option[DroppedNotes] = {
+    if (existingNotes.isEmpty) {
+      None
+    } else {
+      val existingHighBend =
+        existingNotes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
+      val newHighBend = isHighExpressivePitchBend(newPitchBendCents)
       if (existingHighBend || newHighBend) {
         val toDrop = DroppedNotes(state.channel, existingNotes.toSeq, state.group.get)
         existingNotes.foreach(n => state.removeNote(n, time))
@@ -409,11 +429,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       } else {
         None
       }
-    } else {
-      None
     }
-
-    AllocationResult(state.channel, dropped)
   }
 
   private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState =
