@@ -377,8 +377,18 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   private def unoccupiedChannels: Seq[Int] = channelStates.values.filter(!_.isOccupied).map(_.channel).toSeq
 
+  /** Returns the [[ChannelState]] of every channel that currently has at least one active note. */
   private def occupiedChannelStates: Seq[ChannelState] = channelStates.values.filter(_.isOccupied).toSeq
 
+  /**
+   * Returns the lowest- and highest-pitched active notes across the given occupied channel states.
+   *
+   * Lowest and highest are compared by [[MidiNote.number]]. The caller must pass only occupied
+   * channels (each with at least one active note), so the note stream is guaranteed to be non-empty.
+   *
+   * @param states Occupied channel states to scan; must not be empty and each must have active notes.
+   * @return A pair `(lowest, highest)` of [[MidiNote]] by ascending MIDI note number.
+   */
   private def lowestAndHighestNotes(states: Seq[ChannelState]): (MidiNote, MidiNote) = {
     val notes = states.iterator.flatMap(_.notes.iterator)
     var lowest = notes.next() // safe: callers pass only occupied channels, each with at least one note
@@ -432,6 +442,18 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     }
   }
 
+  /**
+   * Selects the single best channel from `candidates` using a lexicographic tie-break:
+   * (a) no high expressive pitch bend (channels without a high bend are preferred),
+   * (b) fewest active notes,
+   * (c) oldest onset time (smallest `lastOnsetTime`),
+   * (d) oldest last Note Off time (smallest `lastNoteOffTime`),
+   * (e) the preferred input channel first, then the lowest channel number.
+   *
+   * @param candidates       The channel states to choose from; must not be empty.
+   * @param preferredChannel An optional channel number to favour in criterion (e).
+   * @return The [[ChannelState]] that wins the tie-break.
+   */
   private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState =
     candidates.minBy { s =>
       (hasHighExpressivePitchBend(s),                        // (a) no high bend (false < true)
