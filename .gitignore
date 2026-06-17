@@ -79,6 +79,9 @@ fabric.properties
 # Sample JSON
 json-schemas/v1/samples/
 
+# issues
+issues/*/superpowers/*-plan.md
+
 # Python (scoverage-inspector MCP tooling)
 __pycache__/
 *.pyc
