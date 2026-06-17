@@ -66,21 +66,25 @@ log() { echo "[$script_name] $*"; }
 err() { echo "[$script_name] $*" >&2; }
 
 # Merge the project's scoverage-inspector MCP server into the `.mcp.json` that
-# Metals just wrote. The server is a stdio FastMCP process launched via `uvx`
-# (which fetches/pins the `mcp` package on demand). Idempotent: re-running
-# overwrites only the scoverage-inspector entry, leaving Metals' entry intact.
+# Metals just wrote. The server is a stdio FastMCP process launched via
+# `uv run --script`, which reads the PEP 723 inline metadata in server.py to build an
+# isolated env (pinned `mcp`, Python capped below 3.14 so a prebuilt `cryptography`
+# wheel is used instead of a slow source build). `--no-build` makes a missing wheel
+# fail fast instead of silently source-building past the MCP connect timeout.
+# Idempotent: re-running overwrites only the scoverage-inspector entry, leaving Metals'
+# entry intact.
 register_scoverage_mcp() {
   local mcp_file="$1"
-  local uvx_path
-  uvx_path="$(command -v uvx || true)"
-  if [[ -z "$uvx_path" ]]; then
-    err "Warning: 'uvx' not found on PATH; skipping scoverage-inspector MCP registration."
+  local uv_path
+  uv_path="$(command -v uv || true)"
+  if [[ -z "$uv_path" ]]; then
+    err "Warning: 'uv' not found on PATH; skipping scoverage-inspector MCP registration."
     err "         Install uv (https://docs.astral.sh/uv/) to enable the coverage MCP server."
     return 0
   fi
 
   local server_py="$repo_root/.claude/mcp/scoverage_inspector/server.py"
-  if MCP_FILE="$mcp_file" UVX_PATH="$uvx_path" SERVER_PY="$server_py" python3 - <<'PY'
+  if MCP_FILE="$mcp_file" UV_PATH="$uv_path" SERVER_PY="$server_py" python3 - <<'PY'
 import json, os
 
 mcp_file = os.environ["MCP_FILE"]
@@ -90,8 +94,8 @@ with open(mcp_file) as f:
 servers = data.setdefault("mcpServers", {})
 servers["scoverage-inspector"] = {
     "type": "stdio",
-    "command": os.environ["UVX_PATH"],
-    "args": ["--from", "mcp", "python", os.environ["SERVER_PY"]],
+    "command": os.environ["UV_PATH"],
+    "args": ["run", "--no-build", "--script", os.environ["SERVER_PY"]],
 }
 
 with open(mcp_file, "w") as f:
@@ -102,6 +106,28 @@ PY
     log "Registered scoverage-inspector MCP server in $mcp_file."
   else
     err "Warning: failed to register scoverage-inspector MCP server in $mcp_file."
+  fi
+}
+
+# Pre-warm the scoverage-inspector MCP environment so the first Claude `/mcp` connect
+# doesn't pay uv's resolve/install cost (which, on a cold cache, can overrun the connect
+# timeout). `start` runs in a terminal, outside any MCP timeout, so it's the right place
+# to absorb that one-time cost. Best-effort: a failure here only defers the work to the
+# first MCP use. Reuses the same cached script env that `uv run --script` launches from.
+prewarm_scoverage_mcp() {
+  local uv_path server_py prewarm_log
+  uv_path="$(command -v uv || true)"
+  server_py="$repo_root/.claude/mcp/scoverage_inspector/server.py"
+  prewarm_log="$logs_dir/scoverage-mcp-prewarm.log"
+  if [[ -z "$uv_path" ]]; then
+    return 0
+  fi
+  log "Warming up: preparing scoverage-inspector MCP environment via 'uv sync --script'..."
+  if "$uv_path" sync --no-build --script "$server_py" >"$prewarm_log" 2>&1; then
+    log "scoverage-inspector MCP environment ready."
+  else
+    err "Warning: failed to pre-warm scoverage-inspector MCP environment (see $prewarm_log);"
+    err "         it will resolve on first /mcp use instead."
   fi
 }
 
@@ -396,6 +422,7 @@ cmd_start() {
     # must be merged back in after Metals writes the file. `.mcp.json` stays
     # gitignored; this keeps the scoverage server registered whenever the stack is up.
     register_scoverage_mcp "$mcp_file"
+    prewarm_scoverage_mcp
 
     # Warm up: ask the running SBT shell to do a full compile. SBT and Metals
     # share the same BSP state, so this also warms what Metals' MCP tools see.
