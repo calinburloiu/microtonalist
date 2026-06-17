@@ -12,6 +12,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+# Inline script metadata (PEP 723): `uv run --script` / `uv sync --script` read this
+# block to build the server's isolated environment. The Python upper bound keeps uv off
+# interpreters that lack a prebuilt `cryptography` wheel (a transitive `mcp` dependency);
+# a newer interpreter would force a multi-minute source build at MCP connect time, which
+# overruns the client's startup timeout. Raise the ceiling once 3.14+ wheels ship.
+# /// script
+# requires-python = ">=3.10,<3.14"
+# dependencies = ["mcp==1.28.0"]
+# ///
+
 """Stdio MCP server exposing scoverage inspection over `scoverage_core`.
 
 Two tools are exposed (see the `scoverage-inspector` skill for the policy that
