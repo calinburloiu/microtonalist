@@ -57,7 +57,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     droppedNotes.get.notes should contain theSameElementsAs expectedNotes
   }
 
-  // --- 3.1 Basic Allocation (Pitch Class Group) ---
+  // --- Basic Allocation (Pitch Class Group) ---
 
   behavior of "MpeChannelAllocator - Basic Allocation"
 
@@ -152,7 +152,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     r2.channel should not be ch1
   }
 
-  // --- 3.2 Expression Group Allocation ---
+  // --- Expression Group Allocation ---
 
   behavior of "MpeChannelAllocator - Expression Group Allocation"
 
@@ -207,7 +207,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.channelGroupOf(r.channel) shouldBe Some(ChannelGroup.Expression)
   }
 
-  // --- 3.3 Channel Sharing ---
+  // --- Channel Sharing ---
 
   behavior of "MpeChannelAllocator - Channel Sharing"
 
@@ -358,7 +358,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     Set(rA1.channel, rA2.channel) should contain(rA3.channel)
   }
 
-  // --- 3.4 Note Dropping — Channel Exhaustion ---
+  // --- Note Dropping — Channel Exhaustion ---
 
   behavior of "MpeChannelAllocator - Note Dropping (Channel Exhaustion)"
 
@@ -479,7 +479,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.activeNotes(result.channel) should contain theSameElementsAs Set(E4)
   }
 
-  // --- 3.5 Note Dropping — High Expressive Pitch Bend ---
+  // --- Note Dropping — High Expressive Pitch Bend ---
 
   behavior of "MpeChannelAllocator - Note Dropping (High Expressive Pitch Bend)"
 
@@ -577,7 +577,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.activeNotes(sharedChannel) should contain theSameElementsAs Set(C6)
   }
 
-  // --- 3.6 Channel Release ---
+  // --- Channel Release ---
 
   behavior of "MpeChannelAllocator - Channel Release"
 
@@ -610,7 +610,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.isChannelOccupied(sharedChannel) shouldBe true
   }
 
-  // --- 3.7 MPE Input — Preserving Input Channel ---
+  // --- MPE Input — Preserving Input Channel ---
 
   behavior of "MpeChannelAllocator - MPE Input"
 
