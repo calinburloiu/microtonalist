@@ -241,41 +241,15 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
 
   it should "prefer the oldest onset among occupied candidates when note counts are equal" in {
     // Given
-    val alloc = allocator3 // PCG=1, EG=2
-    val r1 = alloc.allocate(C4) // ch, time=1
-    val r2 = alloc.allocate(C5) // ch, time=2
-    val r3 = alloc.allocate(C3) // ch, time=3
-
-    // Release r2 first (gets older Note Off time), then r3
-    alloc.release(C5, r2.channel)
-    val ch2 = r2.channel
-    alloc.release(C3, r3.channel)
-    val ch3 = r3.channel
-
-    // Re-add notes to ch2 and ch3, giving them fresh (newer) onsets
-    alloc.allocate(C5) // goes to ch2 (older Note Off of the two empty channels)
-    alloc.allocate(C3) // goes to ch3
-
-    // All channels now have 1 note each, so criterion (b) note count ties.
-    // ch1 has never been released, so it keeps its original onset at time 1 (the oldest).
-    // ch2 and ch3 were re-added later, so their onsets (times 6 and 7) are newer.
-    // Criterion (c) oldest onset is checked before (d) Note Off, so ch1 is preferred.
-    // When
-    val r4 = alloc.allocate(C6)
-    // Then
-    r4.channel shouldBe r1.channel
-  }
-
-  it should "prefer channel with oldest last onset time when counts and last note off are equal" in {
-    // Given
     val alloc = allocator3 // PCG=1, EG=2, channels 1..3
     // Use preferredChannel to put the oldest onset on the highest channel number,
     // breaking the correlation between onset order and channel number.
     alloc.allocate(C4, preferredChannel = Some(3)) // ch 3, oldest onset
     alloc.allocate(C5, preferredChannel = Some(2)) // ch 2
     alloc.allocate(C3, preferredChannel = Some(1)) // ch 1, newest onset
-    // All have 1 note, all lastNoteOffTime=0. Oldest onset is on ch 3 (highest number).
-    // If onset-time tiebreaker were broken and fell through to channel number, ch 1 would be picked.
+    // All have 1 note, all lastNoteOffTime=0, so criteria (a), (b), (d) tie; only onset (c) discriminates.
+    // Oldest onset is on ch 3 (highest number). If criterion (c) were broken and fell through to the
+    // channel-number default (e), ch 1 would be picked instead.
     // When
     val r4 = alloc.allocate(C6)
     // Then

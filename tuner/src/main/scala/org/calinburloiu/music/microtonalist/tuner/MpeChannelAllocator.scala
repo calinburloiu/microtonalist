@@ -104,7 +104,7 @@ private class ChannelState(val channel: Int) {
   private val _notes: mutable.LinkedHashMap[MidiNote, MutableMpeExpression] = mutable.LinkedHashMap.empty
   private var _pitchClass: Option[PitchClass] = None
   private var _group: Option[ChannelGroup] = None
-  private var _lastOnsetTime: Long = 0L
+  private var _lastNoteOnTime: Long = 0L
   private var _lastNoteOffTime: Long = 0L
 
   /** An immutable snapshot of the MIDI notes currently active on this channel. */
@@ -127,7 +127,7 @@ private class ChannelState(val channel: Int) {
    * The logical timestamp of the most recent Note On event processed on this channel.
    * Zero when the channel is unoccupied (never received a note, or all notes have been released).
    */
-  def lastOnsetTime: Long = _lastOnsetTime
+  def lastNoteOnTime: Long = _lastNoteOnTime
 
   /**
    * The logical timestamp of the most recent Note Off event processed on this channel.
@@ -176,7 +176,7 @@ private class ChannelState(val channel: Int) {
         s"targetGroup $targetGroup does not match existing group ${_group.orNull} on channel $channel")
     }
     _notes(midiNote) = expression
-    _lastOnsetTime = time
+    _lastNoteOnTime = time
   }
 
   /**
@@ -192,7 +192,7 @@ private class ChannelState(val channel: Int) {
       if (_notes.isEmpty) {
         _pitchClass = None
         _group = None
-        _lastOnsetTime = 0L
+        _lastNoteOnTime = 0L
       }
     }
   }
@@ -202,7 +202,7 @@ private class ChannelState(val channel: Int) {
     _notes.clear()
     _pitchClass = None
     _group = None
-    _lastOnsetTime = 0L
+    _lastNoteOnTime = 0L
     _lastNoteOffTime = 0L
   }
 }
@@ -450,7 +450,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * Selects the single best channel from `candidates` using a lexicographic tie-break:
    * (a) no high expressive pitch bend (channels without a high bend are preferred),
    * (b) fewest active notes,
-   * (c) oldest onset time (smallest `lastOnsetTime`),
+   * (c) oldest onset time (smallest `lastNoteOnTime`),
    * (d) oldest last Note Off time (smallest `lastNoteOffTime`),
    * (e) the preferred input channel first, then the lowest channel number.
    *
@@ -462,7 +462,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     candidates.minBy { s =>
       (hasHighExpressivePitchBend(s),                        // (a) no high bend (false < true)
         s.notes.size,                                        // (b) fewest active notes
-        s.lastOnsetTime,                                     // (c) oldest onset
+        s.lastNoteOnTime,                                     // (c) oldest onset
         s.lastNoteOffTime,                                   // (d) oldest last Note Off
         if (preferredChannel.contains(s.channel)) 0 else 1, // (e) prefer the input channel
         s.channel)                                           // (e) then the lowest channel number
