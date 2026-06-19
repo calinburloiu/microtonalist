@@ -53,7 +53,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   private val lowPitchBendCents: Double = 25.0
 
   private def assertDroppedNotes(droppedNotes: Option[DroppedNotes], expectedNotes: Seq[MidiNote]): Unit = {
-    droppedNotes.map(_.notes).getOrElse(Seq.empty) should contain theSameElementsAs expectedNotes
+    droppedNotes should not be empty
+    droppedNotes.get.notes should contain theSameElementsAs expectedNotes
   }
 
   // --- 3.1 Basic Allocation (Pitch Class Group) ---

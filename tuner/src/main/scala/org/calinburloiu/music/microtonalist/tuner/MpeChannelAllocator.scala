@@ -267,7 +267,10 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       s.isOccupied && s.pitchClass.contains(pc)
     }.toSeq
     if (samePcChannels.nonEmpty) {
-      val target = bestCandidate(samePcChannels, preferredChannel)
+      // The candidates are all occupied, so the input-channel preference (criterion (e)) does not apply
+      // and degenerates to the lowest channel number (see the paper's "Allocation Algorithm" section),
+      // exactly as for Step 4's freeChannel; pass None rather than preferredChannel.
+      val target = bestCandidate(samePcChannels, None)
       boundary.break(doAllocate(target, midiNote, expressivePitchBendCents, time, target.group.get))
     }
 
@@ -413,8 +416,9 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   /**
    * Drops the existing notes on a channel when a high expressive pitch bend means they can no longer
-   * coexist with the newly added note (paper Sections 5.2.2 and 5.2.3): either the new note has a high
-   * bend, or the channel already held a note with a high bend.
+   * coexist with the newly added note (see the paper's "Dropping Notes Due to High Expressive Pitch
+   * Bend" section): either the new note has a high bend, or the channel already held a note with a
+   * high bend.
    *
    * @param state             The channel the new note was just added to.
    * @param existingNotes     The notes present on the channel before the new note was added.
@@ -471,6 +475,9 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * criteria of [[bestCandidate]] (criterion (e) degenerates to the lowest channel number, since the
    * candidates are occupied).
    * When only one channel is occupied, it is freed unconditionally, regardless of register.
+   * When every occupied channel is a boundary channel (the highest and lowest notes lie on different
+   * channels, so neither can be preserved without dropping the other), the channel holding the lower
+   * (bass) note is freed, retaining the upper melodic note.
    *
    * @param time The logical timestamp at which the freed notes are dropped.
    * @return The notes dropped from the freed channel.
