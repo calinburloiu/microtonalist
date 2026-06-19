@@ -35,6 +35,49 @@ Work through these steps (if `status` reported the stack already running, you ar
 Every subsequent sbt command in the conversation should just use `sbtn …` — trust that the stack is up unless a command
 unexpectedly fails (e.g. with a connect error), in which case re-run the check.
 
+## Restarting after a `build.sbt` change
+
+The long-lived sbt JVM and Metals read the build definition (`build.sbt`,
+`project/*.sbt`, `project/*.scala`, `project/plugins.sbt`) **only at startup**. After editing any of them, restart
+the stack so both clients re-import the changed build:
+
+```bash
+bin/microtonalist-dev-stack restart
+```
+
+`restart` is just `stop` followed by `start` (it forwards the same options, e.g. `--foreground`, `--force`). A bare
+`sbtn reload` re-reads the build into the sbt server, which is enough for subsequent `sbtn` commands to see changed
+*settings* (e.g. coverage thresholds — this is why `sbtn reload` suffices for a coverage-threshold edit), but it does
+**not** re-import the build into Metals. Structural changes (new modules, changed dependencies, source generators) need
+the full restart above.
+
+### Consequence for the Metals MCP and the Claude session
+
+Metals exposes its MCP tools over an **HTTP** endpoint (`http://localhost:<port>/mcp`, recorded both in `.mcp.json` and
+in `.metals/mcp.json`). Metals persists that URL in `.metals/mcp.json` and **reuses the same port across restarts**, so
+a
+`restart` is normally transparent to an active Claude Code session: the next `mcp__metals__*` call simply reaches the
+new
+Metals process on the unchanged URL. This is verified empirically — after a `restart`, `mcp__metals__list-modules`
+worked
+with **no `/mcp` reconnect and no session restart**.
+
+Caveats and fallbacks:
+
+- The agent cannot *initiate* an MCP reconnect — MCP connections are owned by the Claude Code harness, not the agent —
+  but for Metals it usually does not need to, thanks to the stable HTTP port.
+- The port is not *guaranteed* stable: if `.metals/` is cleared, or the persisted port is already taken at startup,
+  Metals selects a new one and rewrites both JSON files. Then, the harness's cached HTTP target is stale and
+  `mcp__metals__*` calls fail with a connection error; recover by running `/mcp` (which re-reads `.mcp.json`) or, as a
+  last resort, restarting the Claude session. `sbtn` keeps working across the restart regardless, so fall back to it (
+  and
+  to textual tools) if the Metals MCP is ever unreachable.
+- The `scoverage-inspector` MCP is a **stdio** server spawned by Claude Code itself (not by the dev-stack), so a
+  dev-stack restart does not touch it.
+
+After a restart the dev-stack already re-sends a warm-up `compile`; re-run `mcp__metals__compile-full` (see the root
+`CLAUDE.md` warm-up step) only if you need to be sure the SemanticDB index is fresh.
+
 ## Stopping the stack
 
 To stop the background stack:

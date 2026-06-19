@@ -26,6 +26,10 @@
 #   stop
 #       Stop a running stack. Reads logs/microtonalist-dev-stack.pid, sends
 #       SIGTERM, waits up to 10s, escalates to SIGKILL if needed. Idempotent.
+#   restart [--foreground] [--force|-f]
+#       Stop the stack (if running) and start it again, forwarding the given
+#       start options. Use after editing build.sbt (or project/ build files) so
+#       Metals and the sbt server re-import the changed build.
 #   status
 #       Verify the stack is alive via the PID file. Exit 0 if running, 1 if not.
 #
@@ -141,6 +145,9 @@ Usage:
       to stop). --force / -f bypasses the orphan-sbt-server guard.
   $script_name stop
       Stop a running stack. Idempotent.
+  $script_name restart [--foreground] [--force|-f]
+      Stop then start the stack, forwarding start options. Use after editing
+      build.sbt so Metals and the sbt server re-import the changed build.
   $script_name status
       Verify the stack is alive. Exit 0 if running, 1 if not.
   $script_name -h | --help
@@ -417,10 +424,12 @@ cmd_start() {
   done
 
   if [[ -f "$mcp_file" ]]; then
-    # Metals regenerates `.mcp.json` from scratch on every start (its port and
-    # transport are dynamic), so the project's own scoverage-inspector MCP server
-    # must be merged back in after Metals writes the file. `.mcp.json` stays
-    # gitignored; this keeps the scoverage server registered whenever the stack is up.
+    # Metals rewrites `.mcp.json` from scratch on every start (dropping any other
+    # entries), so the project's own scoverage-inspector MCP server must be merged
+    # back in after Metals writes the file. (Metals seems to reuse its persisted HTTP port
+    # from `.metals/mcp.json` across restarts, so the endpoint URL itself is usually stable.)
+    # `.mcp.json` stays gitignored; this keeps the scoverage server registered
+    # whenever the stack is up.
     register_scoverage_mcp "$mcp_file"
     prewarm_scoverage_mcp
 
@@ -451,6 +460,27 @@ cmd_start() {
 }
 
 # ============================================================================
+# restart
+# ============================================================================
+
+# Stop the stack (if running) and start it again, forwarding any start options
+# (e.g. --foreground, --force). Convenience for the common "I edited build.sbt"
+# flow, where both the sbt server and Metals must re-import the build. `cmd_stop`
+# takes no options, so we only forward "$@" to `cmd_start`.
+cmd_restart() {
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help) print_help; return 0 ;;
+    esac
+  done
+
+  log "Restarting development stack..."
+  cmd_stop
+  cmd_start "$@"
+}
+
+# ============================================================================
 # main
 # ============================================================================
 
@@ -461,12 +491,13 @@ fi
 
 case "$1" in
   -h|--help) print_help; exit 0 ;;
-  start)  shift; cmd_start  "$@" ;;
-  stop)   shift; cmd_stop   "$@" ;;
-  status) shift; cmd_status "$@" ;;
+  start)   shift; cmd_start   "$@" ;;
+  stop)    shift; cmd_stop    "$@" ;;
+  restart) shift; cmd_restart "$@" ;;
+  status)  shift; cmd_status  "$@" ;;
   *)
     err "Unknown command: $1"
-    err "Usage: $script_name [start|stop|status|--help]"
+    err "Usage: $script_name [start|stop|restart|status|--help]"
     exit 2
     ;;
 esac

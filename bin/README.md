@@ -15,11 +15,12 @@ Metals instance that exposes its MCP (Model Context Protocol) tools to
 [`docs/development/metals-mcp-claude-code-setup.md`](../docs/development/metals-mcp-claude-code-setup.md)
 for background and prerequisites (Metals, Coursier, `metals-standalone-client`).
 
-Three subcommands:
+Four subcommands:
 
 ```bash
 bin/microtonalist-dev-stack start    # launch (background by default)
 bin/microtonalist-dev-stack stop     # stop the running stack
+bin/microtonalist-dev-stack restart  # stop then start (after a build.sbt change)
 bin/microtonalist-dev-stack status   # exit 0 if running, 1 if not
 ```
 
@@ -134,6 +135,28 @@ pkill -f metals-standalone-client
 pkill -f 'sbt$'
 rm -f .mcp.json logs/.sbt-stdin.fifo logs/microtonalist-dev-stack.pid
 ```
+
+### `restart`
+
+Stops the stack (if running) and starts it again, forwarding any `start`
+options (`--foreground`, `--force` / `-f`). Equivalent to a `stop` followed by
+a `start`.
+
+```bash
+bin/microtonalist-dev-stack restart
+```
+
+Use it after editing `build.sbt` (or the `project/` build files): the
+long-lived sbt JVM and Metals read the build definition only at startup, so a
+structural change (new modules, changed dependencies, source generators) takes
+effect only once the stack re-imports it. A bare `sbtn reload` re-reads the
+build into the sbt server — enough for `sbtn` to see changed *settings* such as
+coverage thresholds — but does not re-import it into Metals. Restarting relaunches
+Metals, but Metals reuses its persisted HTTP MCP port (`.metals/mcp.json`), so an
+active Claude Code session's Metals MCP keeps working across the restart without a
+`/mcp` reconnect — see
+[`../docs/agents/dev-stack.md`](../docs/agents/dev-stack.md) for the caveats (port
+not guaranteed stable; `/mcp` or a session restart as fallback).
 
 ### `status`
 
