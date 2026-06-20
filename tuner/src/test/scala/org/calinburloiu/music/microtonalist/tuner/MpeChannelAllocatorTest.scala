@@ -57,9 +57,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     droppedNotes.get.notes should contain theSameElementsAs expectedNotes
   }
 
-  // --- Basic Allocation (Pitch Class Group) ---
-
-  behavior of "MpeChannelAllocator - Basic Allocation"
+  behavior of "MpeChannelAllocator - Step 1: Allocate in Pitch Class Group"
 
   it should "allocate first note to an unoccupied Pitch Class Group channel" in {
     // Given
@@ -152,9 +150,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     r2.channel should not be ch1
   }
 
-  // --- Expression Group Allocation ---
-
-  behavior of "MpeChannelAllocator - Expression Group Allocation"
+  behavior of "MpeChannelAllocator - Step 2: Allocate in Expression Group"
 
   it should "allocate second note with same pitch class to Expression Group" in {
     // Given
@@ -207,9 +203,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.channelGroupOf(r.channel) shouldBe Some(ChannelGroup.Expression)
   }
 
-  // --- Channel Sharing ---
-
-  behavior of "MpeChannelAllocator - Channel Sharing"
+  behavior of "MpeChannelAllocator - Step 3: Share channel"
 
   it should "share channel with same pitch class when both groups are full" in {
     // Given
@@ -358,9 +352,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     Set(rA1.channel, rA2.channel) should contain(rA3.channel)
   }
 
-  // --- Note Dropping — Channel Exhaustion ---
-
-  behavior of "MpeChannelAllocator - Note Dropping (Channel Exhaustion)"
+  behavior of "MpeChannelAllocator - Step 4: Free a channel - Channel Exhaustion"
 
   it should "free a channel when all channels occupied and new pitch class needs a channel" in {
     // Given
@@ -479,9 +471,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.activeNotes(result.channel) should contain theSameElementsAs Set(E4)
   }
 
-  // --- Note Dropping — High Expressive Pitch Bend ---
-
-  behavior of "MpeChannelAllocator - Note Dropping (High Expressive Pitch Bend)"
+  behavior of "MpeChannelAllocator - Free a channel - High Expressive Pitch Bend"
 
   it should "drop other notes when a note on a shared channel develops high expressive pitch bend" in {
     // Given
@@ -577,9 +567,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.activeNotes(sharedChannel) should contain theSameElementsAs Set(C6)
   }
 
-  // --- Channel Release ---
-
-  behavior of "MpeChannelAllocator - Channel Release"
+  behavior of "MpeChannelAllocator - Channel release"
 
   it should "make channel available for reuse when all notes have ended" in {
     // Given
@@ -609,8 +597,6 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     // Then
     alloc.isChannelOccupied(sharedChannel) shouldBe true
   }
-
-  // --- MPE Input — Preserving Input Channel ---
 
   behavior of "MpeChannelAllocator - MPE Input"
 
