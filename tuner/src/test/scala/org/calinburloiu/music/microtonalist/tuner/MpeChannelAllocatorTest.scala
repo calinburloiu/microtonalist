@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
-import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -154,6 +154,53 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     r2.channel should not be ch1
   }
 
+  it should "break a tie by oldest last Note Off rather than the preferred input channel" in {
+    // Given
+    // Two previously-used channels are released, so both are unoccupied candidates for the Pitch Class
+    // Group; ch1 has the older last Note Off. The preferred (input) channel is ch2, but criterion (d)
+    // outranks the (e) input-channel default.
+    val alloc = allocator2
+    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1
+    val r2 = alloc.allocate(D4, preferredChannel = Some(2)) // t2: ch2
+    r1.channel shouldBe 1
+    r2.channel shouldBe 2
+    alloc.release(C4, r1.channel) // t3: ch1 Note Off=3
+    alloc.release(D4, r2.channel) // t4: ch2 Note Off=4
+    alloc.isChannelOccupied(r1.channel) shouldBe false
+    alloc.isChannelOccupied(r2.channel) shouldBe false
+    // When
+    val result = alloc.allocate(E4, preferredChannel = Some(2)) // ch2 preferred, but ch1 idle longer
+    // Then
+    result.channel shouldBe r1.channel
+    result.droppedNotes shouldBe empty
+    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
+  }
+
+  it should "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
+    // Given
+    // Both candidates are unoccupied and previously used. Their original onset order (ch1<ch2) disagrees
+    // with their Note Off order (ch2<ch1), but releasing a channel clears its onset to 0, so both now
+    // carry onset 0 and criterion (c) cannot discriminate. The paper treats an unoccupied channel as
+    // having no onset, so criterion (d) governs and the older-Note-Off ch2 wins. (If onset were not
+    // cleared, criterion (c) would wrongly pick ch1 — this test guards that.)
+    val alloc = allocator2
+    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
+    val r2 = alloc.allocate(D4, preferredChannel = Some(2)) // t2: ch2 onset=2
+    r1.channel shouldBe 1
+    r2.channel shouldBe 2
+    alloc.release(D4, r2.channel) // t3: ch2 Note Off=3
+    alloc.release(C4, r1.channel) // t4: ch1 Note Off=4
+    alloc.isChannelOccupied(r1.channel) shouldBe false
+    alloc.isChannelOccupied(r2.channel) shouldBe false
+    // When
+    val result = alloc.allocate(E4) // no preferred channel
+    // Then
+    result.channel shouldBe r2.channel
+    result.droppedNotes shouldBe empty
+    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
+    alloc.activeNotes(result.channel) should contain theSameElementsAs Set(E4)
+  }
+
   behavior of "MpeChannelAllocator - Step 2: Allocate in Expression Group"
 
   it should "allocate second note with same pitch class to Expression Group" in {
@@ -207,6 +254,60 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     alloc.channelGroupOf(r.channel) shouldBe Some(ChannelGroup.Expression)
   }
 
+  it should "break a tie by oldest last Note Off rather than the preferred input channel" in {
+    // Given
+    // Pitch class C fills the single Pitch Class Group channel, so further C notes route to the
+    // Expression Group. Two Expression Group channels are released, so both are unoccupied candidates;
+    // ch2 has the older last Note Off. The preferred (input) channel is ch3, but criterion (d) outranks
+    // the (e) input-channel default.
+    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // ch1, Pitch Class Group
+    val r2 = alloc.allocate(C5, preferredChannel = Some(2)) // ch2, Expression Group
+    val r3 = alloc.allocate(C3, preferredChannel = Some(3)) // ch3, Expression Group
+    r1.channel shouldBe 1
+    r2.channel shouldBe 2
+    r3.channel shouldBe 3
+    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.release(C5, r2.channel) // ch2 Note Off (older)
+    alloc.release(C3, r3.channel) // ch3 Note Off (newer)
+    // When
+    val result = alloc.allocate(C6, preferredChannel = Some(3)) // ch3 preferred, but ch2 idle longer
+    // Then
+    result.channel shouldBe r2.channel
+    result.droppedNotes shouldBe empty
+    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.Expression)
+  }
+
+  it should "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
+    // Given
+    // Pitch class C fills the single Pitch Class Group channel, so further C notes route to the
+    // Expression Group. The two Expression Group channels' onset order (ch2<ch3) disagrees with their
+    // Note Off order (ch3<ch2), but releasing a channel clears its onset to 0, so criterion (c) cannot
+    // discriminate and criterion (d) governs: the older-Note-Off ch3 wins. (If onset were not cleared,
+    // criterion (c) would wrongly pick ch2 — this test guards that.)
+    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // ch1, Pitch Class Group
+    val r2 = alloc.allocate(C5, preferredChannel = Some(2)) // ch2, Expression Group, onset older
+    val r3 = alloc.allocate(C3, preferredChannel = Some(3)) // ch3, Expression Group, onset newer
+    r1.channel shouldBe 1
+    r2.channel shouldBe 2
+    r3.channel shouldBe 3
+    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.release(C3, r3.channel) // ch3 Note Off (older)
+    alloc.release(C5, r2.channel) // ch2 Note Off (newer)
+    // When
+    val result = alloc.allocate(C6) // no preferred channel
+    // Then
+    result.channel shouldBe r3.channel
+    result.droppedNotes shouldBe empty
+    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.activeNotes(result.channel) should contain theSameElementsAs Set(C6)
+  }
+
   behavior of "MpeChannelAllocator - Step 3: Share channel"
 
   it should "share channel with same pitch class when both groups are full" in {
@@ -239,15 +340,18 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
 
   it should "prefer the oldest onset among occupied candidates when note counts are equal" in {
     // Given
+    // Use preferredChannel to put the oldest onset on the highest channel number, breaking the
+    // correlation between onset order and channel number. All three channels then hold one pitch-class-C
+    // note with lastNoteOffTime=0, so criteria (a), (b), (d) tie and only onset (c) discriminates. The
+    // oldest onset is on ch3 (highest number); if criterion (c) were broken and fell through to the
+    // channel-number default (e), ch1 would be picked instead.
     val alloc = allocator3 // PCG=1, EG=2, channels 1..3
-    // Use preferredChannel to put the oldest onset on the highest channel number,
-    // breaking the correlation between onset order and channel number.
-    alloc.allocate(C4, preferredChannel = Some(3)) // ch 3, oldest onset
-    alloc.allocate(C5, preferredChannel = Some(2)) // ch 2
-    alloc.allocate(C3, preferredChannel = Some(1)) // ch 1, newest onset
-    // All have 1 note, all lastNoteOffTime=0, so criteria (a), (b), (d) tie; only onset (c) discriminates.
-    // Oldest onset is on ch 3 (highest number). If criterion (c) were broken and fell through to the
-    // channel-number default (e), ch 1 would be picked instead.
+    val r1 = alloc.allocate(C4, preferredChannel = Some(3)) // ch3, oldest onset
+    val r2 = alloc.allocate(C5, preferredChannel = Some(2)) // ch2
+    val r3 = alloc.allocate(C3, preferredChannel = Some(1)) // ch1, newest onset
+    r1.channel shouldBe 3
+    r2.channel shouldBe 2
+    r3.channel shouldBe 1
     // When
     val r4 = alloc.allocate(C6)
     // Then
@@ -263,9 +367,13 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     val alloc = allocator2 // PCG=1, EG=1, channels 1..2
     val rB = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
     val rOther = alloc.allocate(C5, preferredChannel = Some(2)) // t2: ch2 onset=2
-    alloc.allocate(C6, preferredChannel = Some(1)) // t3: shares ch1 -> ch1 onset=3
+    rB.channel shouldBe 1
+    rOther.channel shouldBe 2
+    val rShare = alloc.allocate(C6, preferredChannel = Some(1)) // t3: shares ch1 -> ch1 onset=3
+    rShare.channel shouldBe rB.channel
     alloc.release(C5, rOther.channel) // t4: ch2 empties, Note Off=4
-    alloc.allocate(C5, preferredChannel = Some(2)) // t5: ch2 onset=5
+    val rReuse = alloc.allocate(C5, preferredChannel = Some(2)) // t5: ch2 onset=5
+    rReuse.channel shouldBe rOther.channel
     alloc.release(C4, rB.channel) // t6: ch1 keeps C6, Note Off=6, onset stays 3
     // When
     val result = alloc.allocate(C7) // t7: must share by oldest onset
@@ -273,48 +381,18 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     result.channel shouldBe rB.channel
   }
 
-  it should "break a tie by oldest last Note Off rather than the preferred input channel" in {
-    // Given
-    // Two unoccupied previously-used channels; ch1 has the older last Note Off.
-    // The preferred (input) channel is ch2, but criterion (d) outranks the (e) input-channel default.
-    val alloc = allocator2
-    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1
-    val r2 = alloc.allocate(D4, preferredChannel = Some(2)) // t2: ch2
-    alloc.release(C4, r1.channel) // t3: ch1 Note Off=3
-    alloc.release(D4, r2.channel) // t4: ch2 Note Off=4
-    // When
-    val result = alloc.allocate(E4, preferredChannel = Some(2)) // ch2 preferred, but ch1 idle longer
-    // Then
-    result.channel shouldBe r1.channel
-  }
-
-  it should "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
-    // Given
-    // Both candidates are unoccupied and previously used. Their original onset order (ch1<ch2)
-    // disagrees with their Note Off order (ch2<ch1), but removeNote clears _lastOnsetTime to 0L on
-    // release, so both now carry onset 0 and criterion (c) cannot discriminate. The paper treats an
-    // unoccupied channel as having no onset, so criterion (d) governs and the older-Note-Off ch2 wins.
-    // (If onset were not cleared, criterion (c) would wrongly pick ch1 — this test guards that.)
-    val alloc = allocator2
-    val r1 = alloc.allocate(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
-    val r2 = alloc.allocate(D4, preferredChannel = Some(2)) // t2: ch2 onset=2
-    alloc.release(D4, r2.channel) // t3: ch2 Note Off=3
-    alloc.release(C4, r1.channel) // t4: ch1 Note Off=4
-    // When
-    val result = alloc.allocate(E4) // no preferred channel
-    // Then
-    result.channel shouldBe r2.channel
-  }
-
   it should "prefer channel without high expressive pitch bend when sharing" in {
     // Given
     val alloc = allocator2 // PCG=1, EG=1
     val r1 = alloc.allocate(C4)
     val r2 = alloc.allocate(C5)
-    // Both channels have C. Make r1 high bend.
+    // Both notes are pitch class C on distinct channels; r1 then develops a high bend.
+    r1.channel should not equal r2.channel
+    alloc.channelPitchClass(r1.channel) shouldBe Some(PitchClass.C)
+    alloc.channelPitchClass(r2.channel) shouldBe Some(PitchClass.C)
     alloc.updateExpressivePitchBend(r1.channel, highPitchBendCents)
     // When
-    // Third C should share with r2 (no high bend)
+    // The third C must share; it should avoid the high-bend r1 and share r2.
     val r3 = alloc.allocate(C3)
     // Then
     r3.channel shouldBe r2.channel
@@ -323,18 +401,18 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   it should "share when Expression Group is full but PCG has same pitch class" in {
     // Given
     val alloc = allocator7 // PCG=5, EG=2
-    // Put C in PCG
+    // C in the Pitch Class Group; two more C notes in the Expression Group.
     val r1 = alloc.allocate(C4)
-    // Put C in EG (2 channels)
     val r2 = alloc.allocate(C5)
     val r3 = alloc.allocate(C3)
-    // Fill remaining PCG with other pitch classes
-    alloc.allocate(D4)
-    alloc.allocate(E4)
-    alloc.allocate(F4)
-    alloc.allocate(G4)
+    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+    // Fill the remaining Pitch Class Group channels with other pitch classes.
+    val rOthers = Seq(D4, E4, F4, G4).map(alloc.allocate(_).channel)
+    rOthers.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
     // When
-    // EG is full, PCG has C on r1's channel. New C should share with existing C channel
+    // Expression Group is full and the Pitch Class Group holds C on r1's channel; the new C must share.
     val r4 = alloc.allocate(C6)
     // Then
     val cChannels = Set(r1.channel, r2.channel, r3.channel)
@@ -344,13 +422,16 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
   it should "share in Expression Group when PCG doesn't have the pitch class" in {
     // Given
     val alloc = allocator7 // PCG=5, EG=2
-    // Fill PCG with 5 distinct pitch classes (not including A)
-    (0 until 5).foreach(pc => alloc.allocate(C4 + pc))
-    // Put A in EG
+    // Fill the Pitch Class Group with 5 distinct pitch classes (not including A).
+    val pcgChannels = (0 until 5).map(pc => alloc.allocate(C4 + pc).channel)
+    pcgChannels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
+    // Put A in the Expression Group (the Pitch Class Group is full of other pitch classes).
     val rA1 = alloc.allocate(A4)
     val rA2 = alloc.allocate(MidiNote(A4 + 12)) // A5
+    alloc.channelGroupOf(rA1.channel) shouldBe Some(ChannelGroup.Expression)
+    alloc.channelGroupOf(rA2.channel) shouldBe Some(ChannelGroup.Expression)
     // When
-    // All channels full. New A should share with existing A in EG
+    // All channels full. New A should share with existing A in the Expression Group.
     val rA3 = alloc.allocate(MidiNote(A4 - 12)) // A3
     // Then
     Set(rA1.channel, rA2.channel) should contain(rA3.channel)
@@ -440,9 +521,15 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
     // Given
     // ch1 ends up holding C4 (lowest) and C6 (highest), both pitch class C; ch2 holds the middle E5.
     val alloc = allocator2 // PCG=1, EG=1
-    alloc.allocate(C4, preferredChannel = Some(1)) // ch1, pitch class C, PCG
-    alloc.allocate(E4 + 12, preferredChannel = Some(2)) // ch2, E5 (middle), EG
-    alloc.allocate(C6, preferredChannel = Some(1)) // shares ch1 -> ch1 = {C4, C6}
+    val rLow = alloc.allocate(C4, preferredChannel = Some(1)) // ch1, pitch class C, Pitch Class Group
+    val rMid = alloc.allocate(E4 + 12, preferredChannel = Some(2)) // ch2, E5 (middle), Expression Group
+    val rHigh = alloc.allocate(C6, preferredChannel = Some(1)) // shares ch1 -> ch1 = {C4, C6}
+    rLow.channel shouldBe 1
+    rMid.channel shouldBe 2
+    alloc.channelGroupOf(rLow.channel) shouldBe Some(ChannelGroup.PitchClass)
+    alloc.channelGroupOf(rMid.channel) shouldBe Some(ChannelGroup.Expression)
+    rHigh.channel shouldBe rLow.channel
+    alloc.activeNotes(rLow.channel) should contain theSameElementsAs Set(C4, C6)
     // When
     val result = alloc.allocate(A4) // new pitch class -> free a channel
     // Then
