@@ -244,13 +244,13 @@ bent more than 50 cents up or down from its tuned pitch has a high expressive pi
 
 When a new note arrives, the MPE Tuner executes the following allocation procedure:
 
-1. **Use Pitch Class Group**: If the Pitch Class Group contains an unoccupied channel *and* no occupied channel in the
-   Pitch Class Group has an active note with the new note's pitch class, assign the new note to an unoccupied channel in
-   the Pitch Class Group.
+1. **Allocate in Pitch Class Group**: If the Pitch Class Group contains an unoccupied channel *and* no occupied channel
+   in the Pitch Class Group has an active note with the new note's pitch class, assign the new note to an unoccupied
+   channel in the Pitch Class Group.
 
-2. **Use Expression Group**: If the Pitch Class Group already holds a note with the new note's pitch class *or* all
-   Pitch Class Group channels are occupied, attempt to assign the new note to an unoccupied channel in the Expression
-   Group.
+2. **Allocate in Expression Group**: If the Pitch Class Group already holds a note with the new note's pitch class *or*
+   all Pitch Class Group channels are occupied, attempt to assign the new note to an unoccupied channel in the
+   Expression Group.
 
 3. **Share channel**: If no unoccupied channel is available in the Expression Group — and the Pitch Class Group either
    has an active note with the new note's pitch class or has all channels occupied — assign the new note to any channel

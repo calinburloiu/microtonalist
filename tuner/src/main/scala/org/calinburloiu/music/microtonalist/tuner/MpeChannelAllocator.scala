@@ -104,7 +104,7 @@ private class ChannelState(val channel: Int) {
   private val _notes: mutable.LinkedHashMap[MidiNote, MutableMpeExpression] = mutable.LinkedHashMap.empty
   private var _pitchClass: Option[PitchClass] = None
   private var _group: Option[ChannelGroup] = None
-  private var _lastOnsetTime: Long = 0L
+  private var _lastNoteOnTime: Long = 0L
   private var _lastNoteOffTime: Long = 0L
 
   /** An immutable snapshot of the MIDI notes currently active on this channel. */
@@ -125,9 +125,9 @@ private class ChannelState(val channel: Int) {
 
   /**
    * The logical timestamp of the most recent Note On event processed on this channel.
-   * Zero when the channel has never received a note.
+   * Zero when the channel is unoccupied (never received a note, or all notes have been released).
    */
-  def lastOnsetTime: Long = _lastOnsetTime
+  def lastNoteOnTime: Long = _lastNoteOnTime
 
   /**
    * The logical timestamp of the most recent Note Off event processed on this channel.
@@ -176,12 +176,12 @@ private class ChannelState(val channel: Int) {
         s"targetGroup $targetGroup does not match existing group ${_group.orNull} on channel $channel")
     }
     _notes(midiNote) = expression
-    _lastOnsetTime = time
+    _lastNoteOnTime = time
   }
 
   /**
    * Removes a note from this channel, updating note-off time accordingly.
-   * Clears pitch class and group when the channel becomes unoccupied.
+   * Clears pitch class, group, and onset time when the channel becomes unoccupied.
    *
    * @param midiNote The MIDI note to remove.
    * @param time     The logical timestamp of the release.
@@ -192,6 +192,7 @@ private class ChannelState(val channel: Int) {
       if (_notes.isEmpty) {
         _pitchClass = None
         _group = None
+        _lastNoteOnTime = 0L
       }
     }
   }
@@ -201,7 +202,7 @@ private class ChannelState(val channel: Int) {
     _notes.clear()
     _pitchClass = None
     _group = None
-    _lastOnsetTime = 0L
+    _lastNoteOnTime = 0L
     _lastNoteOffTime = 0L
   }
 }
@@ -266,12 +267,15 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       s.isOccupied && s.pitchClass.contains(pc)
     }.toSeq
     if (samePcChannels.nonEmpty) {
-      val target = bestCandidate(samePcChannels, preferredChannel)
+      // The candidates are all occupied, so the input-channel preference (criterion (e)) does not apply
+      // and degenerates to the lowest channel number (see the paper's "Allocation Algorithm" section),
+      // exactly as for Step 4's freeChannel; pass None rather than preferredChannel.
+      val target = bestCandidate(samePcChannels, None)
       boundary.break(doAllocate(target, midiNote, expressivePitchBendCents, time, target.group.get))
     }
 
     // Step 4: No channel with the same pitch class and all channels occupied -> free a channel
-    val dropped = freeChannel(midiNote)
+    val dropped = freeChannel(time)
     doAllocate(channelStates(dropped.channel), midiNote, expressivePitchBendCents, time, dropped.group)
       .copy(droppedNotes = Some(dropped))
   }
@@ -366,13 +370,6 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    */
   def channelGroupOf(channel: Int): Option[ChannelGroup] = channelStates(channel).group
 
-  private def isHighExpressivePitchBend(pitchBendCents: Double): Boolean =
-    Math.abs(pitchBendCents) > ExpressionPitchBendThreshold
-
-  private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
-    state.notes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
-  }
-
   private def pitchClassGroupChannels: Seq[ChannelState] =
     channelStates.values.filter(_.group.contains(ChannelGroup.PitchClass)).toSeq
 
@@ -383,6 +380,29 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   private def unoccupiedChannels: Seq[Int] = channelStates.values.filter(!_.isOccupied).map(_.channel).toSeq
 
+  /** Returns the [[ChannelState]] of every channel that currently has at least one active note. */
+  private def occupiedChannelStates: Seq[ChannelState] = channelStates.values.filter(_.isOccupied).toSeq
+
+  /**
+   * Returns the lowest- and highest-pitched active notes across the given occupied channel states.
+   *
+   * Lowest and highest are compared by [[MidiNote.number]]. The caller must pass only occupied
+   * channels (each with at least one active note), so the note stream is guaranteed to be non-empty.
+   *
+   * @param states Occupied channel states to scan; must not be empty and each must have active notes.
+   * @return A pair `(lowest, highest)` of [[MidiNote]] by ascending MIDI note number.
+   */
+  private def lowestAndHighestNotes(states: Seq[ChannelState]): (MidiNote, MidiNote) = {
+    val notes = states.iterator.flatMap(_.notes.iterator)
+    var lowest = notes.next() // safe: callers pass only occupied channels, each with at least one note
+    var highest = lowest
+    for (note <- notes) {
+      if (note.number < lowest.number) lowest = note
+      if (note.number > highest.number) highest = note
+    }
+    (lowest, highest)
+  }
+
   private def doAllocate(state: ChannelState,
                          midiNote: MidiNote,
                          expressivePitchBendCents: Double,
@@ -390,11 +410,32 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
                          targetGroup: ChannelGroup): AllocationResult = {
     val existingNotes = state.notes
     state.addNote(midiNote, MutableMpeExpression(expressivePitchBendCents), time, targetGroup)
+    val dropped = dropExistingNotesForHighBend(state, existingNotes, expressivePitchBendCents, time)
+    AllocationResult(state.channel, dropped)
+  }
 
-    // Check if existing notes on this channel have high expressive pitch bend
-    val dropped = if (existingNotes.nonEmpty) {
-      val existingHighBend = existingNotes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
-      val newHighBend = isHighExpressivePitchBend(expressivePitchBendCents)
+  /**
+   * Drops the existing notes on a channel when a high expressive pitch bend means they can no longer
+   * coexist with the newly added note (see the paper's "Dropping Notes Due to High Expressive Pitch
+   * Bend" section): either the new note has a high bend, or the channel already held a note with a
+   * high bend.
+   *
+   * @param state             The channel the new note was just added to.
+   * @param existingNotes     The notes present on the channel before the new note was added.
+   * @param newPitchBendCents The new note's expressive pitch bend in cents.
+   * @param time              The logical timestamp of the drop.
+   * @return The dropped notes, or `None` when nothing is dropped.
+   */
+  private def dropExistingNotesForHighBend(state: ChannelState,
+                                           existingNotes: Set[MidiNote],
+                                           newPitchBendCents: Double,
+                                           time: Long): Option[DroppedNotes] = {
+    if (existingNotes.isEmpty) {
+      None
+    } else {
+      val existingHighBend =
+        existingNotes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
+      val newHighBend = isHighExpressivePitchBend(newPitchBendCents)
       if (existingHighBend || newHighBend) {
         val toDrop = DroppedNotes(state.channel, existingNotes.toSeq, state.group.get)
         existingNotes.foreach(n => state.removeNote(n, time))
@@ -402,44 +443,70 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       } else {
         None
       }
-    } else {
-      None
     }
-
-    AllocationResult(state.channel, dropped)
   }
 
-  private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState = {
-    preferredChannel match {
-      case Some(prefCh) if candidates.map(_.channel).contains(prefCh) => channelStates(prefCh)
-      case _ => candidates.minBy { s =>
-        (hasHighExpressivePitchBend(s), s.notes.size, s.lastNoteOffTime, s.lastOnsetTime, s.channel)
+  /**
+   * Selects the single best channel from `candidates` using a lexicographic tie-break:
+   * (a) no high expressive pitch bend (channels without a high bend are preferred),
+   * (b) fewest active notes,
+   * (c) oldest onset time (smallest `lastNoteOnTime`),
+   * (d) oldest last Note Off time (smallest `lastNoteOffTime`),
+   * (e) the preferred input channel first, then the lowest channel number.
+   *
+   * @param candidates       The channel states to choose from; must not be empty.
+   * @param preferredChannel An optional channel number to favour in criterion (e).
+   * @return The [[ChannelState]] that wins the tie-break.
+   */
+  private def bestCandidate(candidates: Seq[ChannelState], preferredChannel: Option[Int]): ChannelState =
+    candidates.minBy { s =>
+      (hasHighExpressivePitchBend(s),                        // (a) no high bend (false < true)
+        s.notes.size,                                        // (b) fewest active notes
+        s.lastNoteOnTime,                                     // (c) oldest onset
+        s.lastNoteOffTime,                                   // (d) oldest last Note Off
+        if (preferredChannel.contains(s.channel)) 0 else 1, // (e) prefer the input channel
+        s.channel)                                           // (e) then the lowest channel number
+    }
+
+  /**
+   * Frees a channel so the incoming note can be placed on it, dropping all of the freed channel's
+   * active notes. Boundary channels — those holding the highest- or lowest-pitched active note — are
+   * preserved when possible. The final selection among the remaining candidates reuses the tie-break
+   * criteria of [[bestCandidate]] (criterion (e) degenerates to the lowest channel number, since the
+   * candidates are occupied).
+   * When only one channel is occupied, it is freed unconditionally, regardless of register.
+   * When every occupied channel is a boundary channel (the highest and lowest notes lie on different
+   * channels, so neither can be preserved without dropping the other), the channel holding the lower
+   * (bass) note is freed, retaining the upper melodic note.
+   *
+   * @param time The logical timestamp at which the freed notes are dropped.
+   * @return The notes dropped from the freed channel.
+   */
+  private def freeChannel(time: Long): DroppedNotes = {
+    val occupied = occupiedChannelStates
+    assert(occupied.nonEmpty)
+
+    val target =
+      if (occupied.sizeIs == 1) {
+        // Only one candidate: free it regardless of register.
+        occupied.head
+      } else {
+        val (lowest, highest) = lowestAndHighestNotes(occupied)
+        val nonBoundary = occupied.filterNot { s =>
+          s.notes.exists(n => n.number == lowest.number || n.number == highest.number)
+        }
+        if (nonBoundary.nonEmpty) {
+          bestCandidate(nonBoundary, None)
+        } else {
+          // Every occupied channel is a boundary channel (extremes on different channels): free the
+          // channel holding the lower (bass) note, retaining the upper melodic note.
+          bestCandidate(occupied.filter(_.notes.exists(_.number == lowest.number)), None)
+        }
       }
-    }
-  }
 
-  private def freeChannel(incomingNote: MidiNote): DroppedNotes = {
-    val occupiedChannelStates = channelStates.values.filter(_.isOccupied).toSeq
-    assert(occupiedChannelStates.nonEmpty)
-
-    // Find the highest and lowest pitched notes across all channels
-    val allNotes = occupiedChannelStates.flatMap(s => s.notes)
-    val highestNote = allNotes.maxBy(_.number).number
-    val lowestNote = allNotes.minBy(_.number).number
-
-    // Exclude channels with the highest or lowest pitched notes
-    val candidates = occupiedChannelStates.filterNot { s =>
-      s.notes.exists(n => n.number == highestNote || n.number == lowestNote)
-    }
-
-    val target = if (candidates.nonEmpty) {
-      candidates.minBy(_.lastOnsetTime)
-    } else {
-      // If all channels have boundary notes, pick the oldest
-      occupiedChannelStates.minBy(_.lastOnsetTime)
-    }
-
-    DroppedNotes(target.channel, target.notes.toSeq, target.group.get)
+    val dropped = DroppedNotes(target.channel, target.notes.toSeq, target.group.get)
+    target.notes.foreach(n => target.removeNote(n, time))
+    dropped
   }
 }
 
@@ -471,6 +538,13 @@ object MpeChannelAllocator {
      * pitch class must coexist with different expressive pitch bends.
      */
     case Expression
+  }
+
+  private def isHighExpressivePitchBend(pitchBendCents: Double): Boolean =
+    Math.abs(pitchBendCents) > ExpressionPitchBendThreshold
+
+  private def hasHighExpressivePitchBend(state: ChannelState): Boolean = {
+    state.notes.exists(n => isHighExpressivePitchBend(state.expressionFor(n).pitchBendCents))
   }
 }
 

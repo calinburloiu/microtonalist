@@ -200,8 +200,8 @@ lazy val tunerModule = (project in file("tuner"))
     name := "microtonalist-tuner",
     commonSettings,
     libraryDependencies ++= Seq(),
-    // TODO #178 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 71, branch = 69),
+    // TODO #178 Raise branch coverage toward 80% (statement now at the 80% target).
+    coverageSettings(stmt = 80, branch = 75),
   )
 
 lazy val formatModule = (project in file("format"))

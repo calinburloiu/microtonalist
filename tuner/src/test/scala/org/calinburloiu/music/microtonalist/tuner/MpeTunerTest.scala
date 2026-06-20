@@ -1590,7 +1590,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "preserve the highest note during channel exhaustion dropping" in new Fixture(tuner3) {
     // Given
-    // Oldest not, but will not be dropped since it's the highest.
+    // Oldest note, but will not be dropped since it's the highest.
     noteOn(nonMpeInputChannel, G4) // highest
     noteOn(nonMpeInputChannel, C4) // lowest
     noteOn(nonMpeInputChannel, E4) // middle
@@ -1601,7 +1601,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     droppedNotes should not contain G4
   }
 
-  ignore should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+  it should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
     " 2 candidate channels" in new Fixture(tuner2) {
     // Given
     noteOn(nonMpeInputChannel, G4) // highest
@@ -1646,7 +1646,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "preserve the highest note during channel exhaustion dropping" in
     new Fixture(tuner3MpeInput) {
       // Given
-      // Oldest not, but will not be dropped since it's the highest.
+      // Oldest note, but will not be dropped since it's the highest.
       noteOn(3, G4) // highest
       noteOn(1, C4) // lowest
       noteOn(2, E4) // middle
@@ -1657,7 +1657,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       droppedNotes should not contain G4
     }
 
-  ignore should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+  it should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
     " 2 candidate channels" in new Fixture(tuner2MpeInput) {
     // Given
     noteOn(2, G4) // highest
