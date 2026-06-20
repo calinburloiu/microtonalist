@@ -21,6 +21,10 @@ import org.calinburloiu.music.scmidi.MidiNote
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+/**
+ * Keep tests organized in sections delimited by `behavior of`. Each section name starts with the name of the class.
+ * When adding a new test, choose the most appropriate section and if required create a new section.
+ */
 class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers {
 
   // Lower Zone with 15 members: PCG=12, EG=3, channels 1..15
