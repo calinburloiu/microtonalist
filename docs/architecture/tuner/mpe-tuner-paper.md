@@ -118,10 +118,15 @@ flowchart LR
 
 2. **Channel Allocation**: Assigns each incoming note that arrives on a Member Channel (in MPE input mode) or on any
    channel (in non-MPE input mode) to a Member Channel in the output Zone(s), following the dual-group allocation
-   strategy described in Section 4. Notes received on a Master Channel in MPE input mode are exempt from allocation and
-   are forwarded as-is (see Section 3.4).
+   strategy described in Section 4. This allocation enforces the **pitch-class invariant** (Section 4.1): all notes
+   simultaneously active on a Member Channel share the same pitch class, so each occupied channel is associated with
+   exactly one pitch class — and therefore one tuning offset. Notes received on a Master Channel in MPE input mode are
+   exempt from allocation and are forwarded as-is (see Section 3.4).
 
-3. **Tuning Application**: For each occupied Member Channel, computes the output Pitch Bend as the sum of the tuning offset for the channel's associated pitch class and the expressive pitch bend from the input.
+3. **Tuning Application**: For each occupied Member Channel, computes the output Pitch Bend as the sum of the tuning
+   offset for the channel's associated pitch class and the expressive pitch bend from the input. The expressive
+   component applies in MPE input mode; in non-MPE input mode the expressive pitch bend is redirected to the Master
+   Channel (Section 3.3), so the Member Channel Pitch Bend encodes the tuning offset alone.
 
 ### 3.2 Input Modes
 
@@ -137,16 +142,32 @@ In both cases, the output is always MPE-conformant.
 
 When the input is non-MPE, the MPE Tuner must perform the following conversions to produce valid MPE output:
 
-1. **Polyphonic Key Pressure to Channel Pressure**: In MPE, Polyphonic Key Pressure must not be sent on Member Channels [1, §2.5]. Any Polyphonic Key Pressure messages in the non-MPE input shall be converted to Channel Pressure messages on the appropriate Member Channels.
+1. **Polyphonic Key Pressure to Channel Pressure**: In MPE, Polyphonic Key Pressure must not be sent on Member Channels
+   [1, §2.5]. Any Polyphonic Key Pressure message in the non-MPE input is converted to a Channel Pressure message on
+   the Member Channel hosting the addressed note. A Polyphonic Key Pressure addressed to a note number that is not
+   currently active has no Member Channel to target and is discarded; the Tuner does not retain it to influence a later
+   Note On.
 
-2. **Pitch Bend Redirection to Master Channel**: In non-MPE input, Pitch Bend typically applies to all notes on a channel. This global pitch manipulation shall be redirected to the Master Channel of the single output Zone selected for non-MPE input (see Section 3.2), where it serves as Zone-level Pitch Bend affecting all notes equally.
+2. **Channel-Global Control Redirection to Master Channel**: In non-MPE input, Pitch Bend, CC #74, and Channel Pressure
+   each apply to all notes on the input channel rather than to an individual note. These channel-global controls shall
+   be redirected to the Master Channel of the single output Zone selected for non-MPE input (see Section 3.2), where
+   they serve as Zone-level controls affecting all notes equally. Consequently, none of these three dimensions carries
+   a per-note value onto a Member Channel.
 
-3. **Control Dimension Initialization**: To maximize compatibility with MPE receivers, all three control dimensions (Pitch Bend, CC #74, and Channel Pressure) shall be sent before each Note On message, even when the input sender omitted some of them. When a control dimension was not present in the input, the MPE Tuner shall use the default values as documented in the MPE Specification:
-   - **Pitch Bend**: center value (0x2000, i.e., no bend), combined with the tuning offset.
-   - **CC #74**: 64 (0x40), the neutral initial-64 value [1, §3.3.5].
-   - **Channel Pressure**: 0 [1, §3.3.4].
-
-This initialization practice aligns with the MPE Specification's recommendation to prevent audible artifacts at note onset [1, §3.3.1].
+3. **Control Dimension Initialization**: To maximize compatibility with MPE receivers and to prevent audible artifacts
+   at note onset [1, §3.3.1], all three per-note control dimensions (Pitch Bend, CC #74, and Channel Pressure) shall be
+   set on the assigned Member Channel before each Note On message. Because item 2 routes the input's channel-global
+   Pitch Bend, CC #74, and Channel Pressure to the Master Channel, none of these dimensions is taken from the input onto
+   the Member Channel; each is therefore initialized as follows:
+    - **Pitch Bend**: the tuning offset for the note's pitch class. There is no expressive component on the Member
+      Channel — the input's expressive Pitch Bend lives on the Master Channel (item 2) — so the Member Channel Pitch
+      Bend encodes the tuning offset alone.
+    - **CC #74**: 64 (0x40), the neutral initial value [1, §3.3.5].
+    - **Channel Pressure**: 0 [1, §3.3.4]. A non-zero value can arise later in the note's lifetime as the Tuner converts
+      incoming Polyphonic Key Pressure for the active note (item 1), but at onset the value is always the default:
+      Polyphonic Key Pressure that precedes a note's Note On is discarded rather than retained (item 1), and such
+      ordering is in any case uncommon and of dubious musical meaning, since aftertouch models pressure on a key that is
+      already held.
 
 ### 3.4 Master Channel Note Forwarding
 
@@ -177,8 +198,8 @@ threefold:
    notes and requires that receivers play them. Silently relocating them would violate the sender's explicit channel
    assignment.
 2. **Conservation of Member Channel resources.** Master Channel notes are, by design, notes that do not require per-note
-   control. Placing them on a Member Channel would consume a Pitch Class Group or Expression Group slot unnecessarily,
-   reducing the Zone's effective polyphony for notes that do require per-note control.
+   control. Placing them on a Member Channel would consume a slot unnecessarily, reducing the Zone's effective polyphony
+   for notes that do require per-note control.
 3. **Preservation of Polyphonic Key Pressure compatibility.** The MPE Specification [1, §2.5] forbids Polyphonic Key
    Pressure on Member Channels but allows it on Master Channel notes. Forwarding Master Channel notes as-is preserves
    the ability to use Polyphonic Key Pressure on those notes.
