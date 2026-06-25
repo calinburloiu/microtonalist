@@ -154,38 +154,20 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
    they serve as Zone-level controls affecting all notes equally. Consequently, none of these three dimensions carries
    a per-note value onto a Member Channel.
 
-3. **Control Dimension Initialization**: Before a note is assigned to a **previously unoccupied** Member Channel, the
-   MPE Tuner shall bring that channel to the correct state in all three per-note control dimensions (Pitch Bend,
-   CC #74, and Channel Pressure), so the new note does not inherit residual values left by the channel's previous
-   occupant — the "swooping" artifact the MPE Specification warns against [1, §3.3.1]. Because item 2 routes the
-   input's channel-global Pitch Bend, CC #74, and Channel Pressure to the Master Channel, none of these dimensions is
-   taken from the input onto the Member Channel; the target state on a freshly occupied channel is therefore:
+3. **Control Dimension Initialization**: To maximize compatibility with MPE receivers and to prevent audible artifacts
+   at note onset [1, §3.3.1], all three per-note control dimensions (Pitch Bend, CC #74, and Channel Pressure) shall be
+   set on the assigned Member Channel before each Note On message. Because item 2 routes the input's channel-global
+   Pitch Bend, CC #74, and Channel Pressure to the Master Channel, none of these dimensions is taken from the input onto
+   the Member Channel; each is therefore initialized as follows:
     - **Pitch Bend**: the tuning offset for the note's pitch class. There is no expressive component on the Member
       Channel — the input's expressive Pitch Bend lives on the Master Channel (item 2) — so the Member Channel Pitch
       Bend encodes the tuning offset alone.
     - **CC #74**: 64 (0x40), the neutral initial value [1, §3.3.5].
     - **Channel Pressure**: 0 [1, §3.3.4]. A non-zero value can arise later in the note's lifetime as the Tuner converts
-      incoming Polyphonic Key Pressure for the active note (item 1), but at onset the value is the default: Polyphonic
-      Key Pressure that precedes a note's Note On is discarded rather than retained (item 1), and such ordering is in
-      any case uncommon and of dubious musical meaning, since aftertouch models pressure on a key that is already held.
-
-   The MPE Specification does not require every dimension to be retransmitted before each Note On: it permits a sender
-   to omit dimensions [1, §3.3.1] and has receivers track and store each Member Channel's control values while no note
-   plays, using them as the next note's initial state [1, §3.3]. Because the MPE Tuner is stateful and knows the value
-   it last sent on every Member Channel, it **may** transmit a setup message only when the target value above differs
-   from the channel's current value, leaving an already-correct dimension untransmitted. In non-MPE input mode this
-   elides nearly all CC #74 messages (the Member-Channel value is permanently 64) and most Channel Pressure resets
-   (needed only after a note whose Polyphonic Key Pressure was converted), whereas Pitch Bend — which changes whenever a
-   channel is reused for a different pitch class or the Tuning changes — is usually sent. A simpler implementation may
-   instead always transmit all three; on a freshly occupied channel the two are equivalent. Divergence between the
-   Tuner's model and the receiver's state is corrected when a Zone is (re)configured — receivers then reset all
-   Member-Channel controls to their defaults [1, §2.1.4] — not by retransmitting on every Note On.
-
-   This initialization applies only to a **newly occupied** channel. When a note instead joins an already-occupied
-   channel (channel sharing, Step 3 of Section 4.5, necessarily by a note of the same pitch class), the Tuner does
-   **not** reset the channel to these defaults — doing so would disturb the notes already sounding on it — but only
-   updates the genuinely shared dimension, recomputing the channel's Pitch Bend as the average over its active notes
-   (Section 4.6).
+      incoming Polyphonic Key Pressure for the active note (item 1), but at onset the value is always the default:
+      Polyphonic Key Pressure that precedes a note's Note On is discarded rather than retained (item 1), and such
+      ordering is in any case uncommon and of dubious musical meaning, since aftertouch models pressure on a key that is
+      already held.
 
 ### 3.4 Master Channel Note Forwarding
 
@@ -537,19 +519,14 @@ The MPE Tuner relies on the default Member Channel Pitch Bend Sensitivity of ±4
 
 ### 6.3 Message Ordering
 
-When a note is assigned to a **newly occupied** Member Channel, the MPE Tuner outputs messages in the following order on
-that channel:
+For each new note, the MPE Tuner outputs messages in the following order on the assigned Member Channel:
 
 1. **Pitch Bend**: Encoding the sum of the tuning offset and the initial expressive pitch bend.
-2. **CC #74**: The timbre control value, forwarded from the input (in MPE input mode) or set to the default value of 64.
-3. **Channel Pressure**: Forwarded from the input (in MPE input mode) or set to the default value of 0.
+2. **CC #74**: The timbre control value, forwarded from the input or set to the default value of 64.
+3. **Channel Pressure**: Forwarded from the input or set to the default value of 0.
 4. **Note On**: The note message itself.
 
-This ordering follows the MPE Specification's recommendation [1, §3.3.1] and ensures that the receiving instrument has
-the correct pitch and articulation state before the note begins sounding. As described in Section 3.3, the Tuner is
-stateful and may omit any of the three setup messages whose value already matches the channel's current state; only the
-Note On is unconditional. When a note instead joins an already-occupied channel, the Tuner does not re-emit this setup
-sequence — it preserves the channel's established state and updates only the shared Pitch Bend (Section 4.6).
+This ordering follows the MPE Specification's recommendation [1, §3.3.1] and ensures that the receiving instrument has the correct pitch and articulation state before the note begins sounding.
 
 ### 6.4 Zone-Level Messages
 
