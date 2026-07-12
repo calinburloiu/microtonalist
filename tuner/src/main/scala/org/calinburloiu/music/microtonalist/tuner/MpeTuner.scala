@@ -65,7 +65,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   override val typeName: String = MpeTuner.TypeName
 
   // TODO #154 Forbid or warn when MpeTuner is configured with non-MPE input mode while both zones are
-  //  enabled — Upper Zone is unreachable in non-MPE routing.
+  //  enabled — one of the zones is unreachable in non-MPE routing.
   private var _zones: MpeZones = initialZones
   private var _inputMode: MpeInputMode = initialInputMode
 

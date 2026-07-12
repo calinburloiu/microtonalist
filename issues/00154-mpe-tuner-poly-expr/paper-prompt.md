@@ -2,9 +2,20 @@
 
 Your task is to update the MPE Tuner paper, @docs/architecture/tuner/mpe-tuner-paper.md , with new requirements.
 
-### MPE Mode
+### MPE Input Mode
 
 * Any incoming note has an expression value for each of the three control dimensions (expressive Pitch Bend, Channel Pressure and CC #74). These values are taken from the input Member Channel. Multiple notes may come from the same input channel and in this case, all have the same expression values. Due to the specific rules of the MPE Tuner, incoming notes may be mapped to a an output channel that is different from the input channel. Multiple notes, with the same pitch class may be mapped to the same output channel. Each expression value for a control dimension on an output channel is computed as the average of the incoming notes values for that control dimension. Remember that the final Pitch Bend for an output channel is computed as the sum of the expressive Pitch Bend (which is the average of the incoming notes Pitch Bend) and the tuning Pitch Bend for that output channel (which corresponds to a single pitch class).
 * An MPE Tuner implementation is not required to emit all three control dimensions before a Note On. It may choose to optimize by only emitting those that changed. Averaging of the expression values for the control dimensions is only used when there is at least one note on an output channel. But when the channel becomes empty, it will preserve its latest expression values. This not only helps with the mentioned optimization of only emitting control dimensions when they change, but it also avoid a division by zero when calculating the average for an expression value.
 * If there are no active notes on an input Member Channel, the MPE Tuner must remember the values of the three control dimensions such that when a new note arrives (and the channel will have exactly one active note) it will be initialized with those control dimension values as expression values. Remember that those incoming note expression values must be average on the output channel.
 * If there are active notes on an input channel, when a control dimension update is received on that channel, for each active note, update that note's contribution to the average of the expression values. Each time the average expression value for an output channel changes, it needs to be sent to the output channel.
+
+### Non-MPE Input Mode
+
+* In Non-MPE Mode only Pitch Bend and Channel Pressure control dimensions are used on an output Member Channel. From these, only Channel Pressure can be used as an expression value. Pitch Bend is only used for tuning, there is no per-channel expression Pitch Bend. Pitch Bend messages received on an input channel is forwarded to the Master Channel and applies to all channels. CC #74 does not appear on an output channel and if it's received on an input channel is forwarded on the output Master Channel.
+* A Channel Pressure from an output Member Channel always originates from a converted Polyphonic Key Pressure received on an input channel. A Channel Pressure received on an input channel is always forwarded to the Master Channel.
+* A Polyphonic Key Pressure received from an input channel is assumed to be applied to an active note. If one is received on a note for which a Note On was not issued, it's ignored. So a Polyphonic Key Pressure always has value 0 for a note at the time a Note On message is issued for it.
+* When there are multiple active notes on an output Member Channel, their Channel Pressure (that originates from a Polyphonic Key Pressure) is averaged, similar with MPE Input Mode, but dissimilar to it preserving its latest value on Note Off does have any effect since on the next Note On on that channel, the value must be reset to 0. Remember that it must be reset because it originates from a Polyphonic Key Pressure which always has a 0 value on Note On.
+* If there are active notes on an input channel, when a Polyphonic Key Pressure update is received on that channel, for each active note, update that note's contribution to the average of the output Channel Pressure expression values. Each time the average expression value for an output channel changes, it needs to be sent to the output channel.
+
+
+[ ] TODO: The zone configuration is for both input and output.
