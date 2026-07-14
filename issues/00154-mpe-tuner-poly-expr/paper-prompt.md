@@ -45,4 +45,6 @@ Input-mode-specific behavior changes are described in the next sections.
             - It says "Implementations should verify that the receiving instrument's Pitch Bend Sensitivity is configured appropriately". There's no way to do that. MPE Tuner does not take input from the output instrument. This should be removed.
     - My comments on other subsections:
         * 6.3 Message Ordering. We may mention here that an implementation may choose not to output one of these control dimensions if they didn't change on that output channel since last time. Particularly, for Non-MPE Input Mode, there is no reason to emit CC #74 on a Member Channel, because there is no way to control it on Member Channels. It can only be controlled globally on the Master Channel.
-* (c) Open question for debating together: Does it make sense to move section “Real-Time Tuning Changes” just before “MPE Tuner Output Conformance”? If it does, what changes are required such that the content can still read well without weird forward references.
+* (c) Is Appendix B with its flowchart redundant with the mermaid diagram from section 4.5? If it is, we should remove Appendix B.
+
+Open question for debating together: Does it make sense to move section “Real-Time Tuning Changes” just before “MPE Tuner Output Conformance”? If it does, what changes are required such that the content can still read well without weird forward references.
