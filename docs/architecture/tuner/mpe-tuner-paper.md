@@ -224,7 +224,7 @@ The following invariant governs all channel allocation decisions:
 
 > **Multiple active notes are permitted on the same Member Channel only if they share the same pitch class.**
 
-This invariant follows directly from how a Tuning is defined: as a set of offsets indexed by pitch class. Because the Pitch Bend on a Member Channel encodes the tuning offset for a specific pitch class, placing notes of different pitch classes on the same channel would require a single Pitch Bend value to represent two different tuning offsets simultaneously — an impossibility that would compromise the intonation of at least one note.
+This invariant follows directly from how a Tuning is defined: as a set of offsets indexed by pitch class. Because the Pitch Bend on a Member Channel encodes the tuning offset for a specific pitch class, placing notes of different pitch classes on the same channel would require a single Pitch Bend value to represent two different tuning offsets simultaneously which may compromise the intonation of at least one note.
 
 Furthermore, even when two pitch classes happen to have identical tuning offsets at a given moment, they may not share a Member Channel. The Tuning may change at any time during performance, potentially assigning different offsets to those pitch classes. Preemptively separating them onto distinct channels ensures that the Tuner can always adjust each pitch class independently without interrupting sounding notes.
 
@@ -548,7 +548,7 @@ When the performer changes the active Tuning:
 2. For every occupied Member Channel, the output Pitch Bend is recomputed using the new tuning offset for that channel's pitch class, combined with the current expressive pitch bend.
 3. The updated Pitch Bend message is sent immediately on each affected Member Channel.
 
-Because the pitch-class invariant (Section 4.1) guarantees that all notes on a given channel share the same pitch class, a single Pitch Bend update per channel is sufficient to retune all notes on that channel simultaneously. This is the fundamental reason for the invariant: it enables instantaneous, glitch-free retuning of the entire polyphonic texture.
+Because the pitch-class invariant (Section 4.1) guarantees that all notes on a given channel share the same pitch class, a single Pitch Bend update per channel is sufficient to retune all notes on that channel simultaneously.
 
 If the invariant were violated — if notes of different pitch classes shared a channel — a tuning change that assigned different offsets to those pitch classes could not be correctly represented by a single Pitch Bend value, and at least one note would be mistuned until it was moved to a different channel.
 
