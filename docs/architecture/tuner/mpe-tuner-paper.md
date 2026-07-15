@@ -33,7 +33,7 @@ A **Tuner** is a MIDI processing device that applies a given Tuning to a MIDI si
 
 ### 1.3 Control Dimensions
 
-MPE provides three **control dimensions** through which each note may be shaped independently of the others: Pitch Bend, Channel Pressure, and CC #74 (timbre) [1, §2.4–2.6]. Because every note is assigned its own Member Channel, these otherwise channel-wide messages act as per-note controls.
+MPE provides three **control dimensions** through which each note may be shaped independently of the others: Pitch Bend, Channel Pressure, and CC #74 (timbre or slide) [1, §2.4–2.6]. Because every note is assigned its own Member Channel, these otherwise channel-wide messages act as per-note controls.
 
 The MPE Tuner decomposes the Pitch Bend of an output Member Channel into two components:
 
@@ -57,7 +57,7 @@ The MPE Tuner sits in the MIDI signal path between a controller (or sequencer) a
 3. Computes the appropriate Pitch Bend value for each Member Channel as the sum of the Tuning Pitch Bend for the channel's pitch class and the Expression Pitch Bend derived from the input (Section 1.3).
 4. Outputs a fully MPE-conformant MIDI stream.
 
-The output of the MPE Tuner is always MPE, regardless of whether the input is MPE or non-MPE. The input mode may be configured through a non-MIDI interface or detected automatically: upon receiving an MPE Configuration Message (MCM), the MPE Tuner shall switch to MPE Input Mode.
+The output of the MPE Tuner is always MPE, regardless of whether the input is MPE or non-MPE. The input mode may be configured through a non-MIDI interface or detected automatically: upon receiving an MPE Configuration Message (MCM), the MPE Tuner shall switch to MPE Input Mode and reconfigure its Zones accordingly (Section 3.3).
 
 ---
 
@@ -73,6 +73,8 @@ MPE organizes the sixteen MIDI Channels into one or two **Zones**. Each Zone con
 - The **Upper Zone** uses Channel 16 as its Master Channel, with Member Channels allocated sequentially downward from Channel 15.
 
 A Zone is configured by sending an MPE Configuration Message (MCM) — Registered Parameter Number 00 06 — on the Master Channel of the desired Zone. The Data Entry MSB specifies the number of Member Channels. When only one Zone is active, the Master Channel of the unused Zone is available as a Member Channel, permitting up to 15 Member Channels.
+
+A MIDI Channel cannot be assigned to more than one Zone: when an MCM configures a Zone to include channels previously assigned to the other Zone, the most recent message takes precedence, and sending an MCM with zero Member Channels deactivates the addressed Zone [1, §2.1.1]. When a Zone configuration changes, receivers are required to stop all ongoing notes and to reset all controls to reasonable default values on each channel entering or leaving MPE control [1, §2.1.4].
 
 ### 2.2 Per-Note Control via Channel Assignment
 
@@ -129,7 +131,7 @@ flowchart LR
     D --> E["MIDI Output"]
 ```
 
-1. **Input Mode Detection**: Determines whether the incoming stream is MPE or non-MPE. The mode may be set via a non-MIDI configuration interface. Receipt of an MPE Configuration Message (MCM) shall cause the Tuner to switch to MPE Input Mode automatically.
+1. **Input Mode Detection**: Determines whether the incoming stream is MPE or non-MPE. The mode may be set via a non-MIDI configuration interface. Receipt of an MPE Configuration Message (MCM) shall cause the Tuner to switch to MPE Input Mode automatically and to reconfigure its Zones according to the message (Section 3.3).
 
 2. **Channel Allocation**: Assigns each incoming note that arrives on a Member Channel (in MPE Input Mode) or on any
    channel (in Non-MPE Input Mode) to a Member Channel in the output Zone(s), following the dual-group allocation
@@ -141,7 +143,7 @@ flowchart LR
 3. **Tuning & Expression Application**: For each occupied Member Channel, computes the output Pitch Bend as the sum of
    the Tuning Pitch Bend for the channel's associated pitch class and the channel's Expression Pitch Bend — the average
    of the Expression Pitch Bends of its active notes (Section 6). The Expression Pitch Bend component applies in MPE
-   Input Mode; in Non-MPE Input Mode the input's expressive Pitch Bend is redirected to the Master Channel
+   Input Mode; in Non-MPE Input Mode the input's Pitch Bend is redirected to the Master Channel
    (Section 3.4), so the Member Channel Pitch Bend encodes the Tuning Pitch Bend alone. The Channel Pressure and CC #74
    Expression Values of each channel are maintained under the same aggregation model (Section 6).
 
@@ -149,18 +151,23 @@ flowchart LR
 
 The MPE Tuner accepts two classes of input:
 
-- **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.4) and is routed to a single output Zone (Section 3.3).
+- **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.4) and is routed to a single output Zone (Section 3.3). In this mode the Zone configuration originates solely from the non-MIDI configuration interface (Section 3.3).
 - **MPE input**: MIDI conforming to the MPE Specification, with notes primarily distributed across Member Channels
-  within Zones, and optionally on Master Channels as permitted by the specification (see Section 3.5).
+  within Zones, and optionally on Master Channels as permitted by the specification (see Section 3.5). The input stream
+  may contain MPE Configuration Messages, which reconfigure the Tuner's Zones (Section 3.3).
 
 In both cases, the output is always MPE-conformant.
 
 ### 3.3 Zones
 
-The MPE Tuner is configured with a single Zone layout — the number of Member Channels allocated to the Lower Zone and, optionally, to the Upper Zone. The role this configuration plays depends on the input mode:
+The MPE Tuner has one Zone configuration, shared by its input and its output: the number of Member Channels allocated to the Lower Zone and, optionally, to the Upper Zone. As in the MPE Specification, one or two Zones may be defined. The role this shared configuration plays depends on the input mode:
 
 - In **MPE Input Mode**, the Zone configuration applies to both input and output: the Tuner expects the input stream to be organized according to the configured Zones, and produces output organized by the same Zones. Notes received on the Member Channels of an input Zone are allocated to Member Channels of the same output Zone.
 - In **Non-MPE Input Mode**, the input has no Zone structure, so the Zone configuration affects the output only. Furthermore, only one Zone is accessible from the output: input notes are routed exclusively to the Lower Zone if it is enabled, otherwise to the Upper Zone. When two Zones are defined, the Upper Zone is ignored. This restriction prevents ambiguity in channel allocation and zone-level message routing when the input carries no Zone information of its own.
+
+The Zone configuration may be established and changed in two ways: through the non-MIDI configuration interface, or in-band, through an MPE Configuration Message (MCM) received on a Master Channel. Conforming to the MPE Specification, an MCM received on any channel other than a Master Channel is invalid and is ignored [1, §2.1.1]. Upon receiving a valid MCM, the Tuner switches to MPE Input Mode if it is not already in it (Section 3.1) and reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1]. When MCMs deactivate all Zones, MPE operation is off [1, §2.1]; the Tuner then reverts to Non-MPE Input Mode, restoring the output Zone configuration provided through the configuration interface.
+
+Whenever the Zone configuration changes — through either mechanism — the Tuner emits the corresponding MCM(s) on its output, so that the receiving instrument adopts the same Zone structure (Section 8). The reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 4.2) are cleared, and the retained Expression Values and remembered input-channel control values (Section 6) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64. Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, an implementation may either emit no Note Off messages — relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4] — or emit explicit Note Off messages before the MCM, for robustness with receivers that do not fully conform; the choice is left to the implementer.
 
 ### 3.4 Non-MPE to MPE Conversion
 
@@ -185,7 +192,7 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
    the Master Channel, none of these dimensions is taken from the input onto the Member Channel; each is therefore
    determined as follows:
     - **Pitch Bend**: the Tuning Pitch Bend for the note's pitch class. There is no per-channel Expression Pitch Bend
-      in Non-MPE Input Mode — the input's expressive Pitch Bend lives on the Master Channel (item 2) — so the Member
+      in Non-MPE Input Mode — the input's Pitch Bend lives on the Master Channel (item 2) — so the Member
       Channel Pitch Bend encodes the Tuning Pitch Bend alone.
     - **Channel Pressure**: 0 [1, §3.3.4]. A non-zero value can arise later in the note's lifetime as the Tuner converts
       incoming Polyphonic Key Pressure for the active note (item 1), but at onset the value is always the default:
@@ -639,7 +646,7 @@ If the invariant were violated — if notes of different pitch classes shared a 
 
 The output of the MPE Tuner conforms to the MPE Specification. The following features behave exactly as the MPE Specification defines them, with no Tuner-specific behavior:
 
-- **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1].
+- **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1], emitting them at start-up and on every Zone reconfiguration (Section 3.3).
 - **Pitch Bend Sensitivity**: the MPE Tuner relies on the Member Channel Pitch Bend Sensitivity of ±48 semitones that the MCM establishes by default, adjustable via RPN 0 [1, §2.4].
 
 The subsections below specify the behaviors where the MPE Tuner adds detail beyond the specification.
