@@ -23,9 +23,6 @@ Resolved with the author before writing this document:
    Section 4.5 mermaid diagram.
 5. **Section order (open question):** move "Real-Time Tuning Changes" before "MPE Tuner Output
    Conformance", with the new expression section between "Dropping Notes" and "Real-Time Tuning Changes".
-6. **Fact 1.2(d) interpretation:** the prompt's "preserving its latest value on Note Off does have any
-   effect" is read as a typo for "does **not** have any observable effect", because the next Note On must
-   reset the value to 0.
 
 ## A. Terminology and capitalization (fact 1a)
 
