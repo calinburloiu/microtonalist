@@ -116,7 +116,7 @@ Placed between "Dropping Notes and Freeing Channels" (5) and "Real-Time Tuning C
 - Multiple active notes on an output Member Channel have their Channel Pressure Expression Values
   averaged, as in MPE Input Mode — but unlike MPE Input Mode, preserving the latest value on an emptied
   channel has no observable effect, because the next Note On must reset the value to 0 (it originates
-  from Polyphonic Key Pressure, which is always 0 at Note On). (1.2d, per decision 6)
+  from Polyphonic Key Pressure, which is always 0 at Note On). (1.2d)
 - A Polyphonic Key Pressure update on an input channel updates that note's contribution to the output
   Channel Pressure average; every changed output average is emitted. (1.2e)
 
@@ -165,7 +165,7 @@ Placed between "Dropping Notes and Freeing Channels" (5) and "Real-Time Tuning C
 | 1.2(a) | Design §D 6.3 |
 | 1.2(b) | Design §D 6.3 |
 | 1.2(c) | Design §D 6.3 |
-| 1.2(d) | Design §D 6.3, decision 6 |
+| 1.2(d) | Design §D 6.3 |
 | 1.2(e) | Design §D 6.3 |
 | 2(a) | Design §E (4.2) |
 | 2(b) | Design §E (Section 8), decision 3 |
