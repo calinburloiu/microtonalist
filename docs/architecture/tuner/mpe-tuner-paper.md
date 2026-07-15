@@ -646,8 +646,8 @@ If the invariant were violated — if notes of different pitch classes shared a 
 
 The output of the MPE Tuner conforms to the MPE Specification. The following features behave exactly as the MPE Specification defines them, with no Tuner-specific behavior:
 
-- **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1], emitting them at start-up and on every Zone reconfiguration (Section 3.3).
-- **Pitch Bend Sensitivity**: the MPE Tuner relies on the Member Channel Pitch Bend Sensitivity of ±48 semitones that the MCM establishes by default, adjustable via RPN 0 [1, §2.4].
+- **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1], emitting them at start-up and on every Zone reconfiguration (Section 3.3). It equally listens for MCMs on its input and conforms to them, reconfiguring its own Zones as specified in Section 3.3; in this case it also configures the Zones of the output instrument by forwarding that configuration.
+- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens for Pitch Bend Sensitivity messages (RPN 0) on its input, conforms to them when interpreting incoming Pitch Bend, and outputs them so that the receiving instrument applies the same sensitivity.
 
 The subsections below specify the behaviors where the MPE Tuner adds detail beyond the specification.
 
