@@ -203,6 +203,15 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
       dimension is controllable only globally, via the Master Channel (item 2) — so the Tuner never sends CC #74 on a
       Member Channel (Sections 6.3 and 8.1).
 
+4. **Redirection of Remaining Channel Messages**: All other Channel Voice and Channel Mode messages received on a
+   non-MPE input channel — for example Damper Pedal (CC #64), Modulation (CC #1), Volume (CC #7), Program Change and
+   Bank Select, and Reset All Controllers (CC #121) — are redirected to the Master Channel of the selected output Zone,
+   where they act as Zone-level messages (Section 8.2). Non-MPE input has no Master Channel of its own from which
+   Section 8.2's forwarding could operate; this redirection gives those messages their conformant Zone-level home on
+   the output. A Pitch Bend Sensitivity message (RPN 00 00) received on the non-MPE input is likewise forwarded to the
+   Master Channel, where it configures the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend
+   is redirected (Section 8).
+
 ### 3.5 Master Channel Note Forwarding
 
 The MPE Specification permits Note On and Note Off messages on a Master Channel, and requires receivers to respond to

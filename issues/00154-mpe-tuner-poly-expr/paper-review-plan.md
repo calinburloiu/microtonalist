@@ -471,7 +471,7 @@ Channel to forward from. Add item 4 to Section 3.4. Item 4 also states explicitl
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Add item 4 to Section 3.4**
+- [x] **Step 1: Add item 4 to Section 3.4**
 
 Find:
 
@@ -502,14 +502,17 @@ Replace with:
 ### 3.5 Master Channel Note Forwarding
 ````
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `grep -c "Redirection of Remaining Channel Messages" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 Run: `grep -c "is likewise forwarded to the Master Channel" docs/architecture/tuner/mpe-tuner-paper.md`
-Expected: `1`
+Expected: `1` — **known deviation**: actual is `0`. The Replace block (copied verbatim per the plan's own instructions) wraps at
+~120 columns per this section's formatting convention, splitting the phrase across "...forwarded to the" / "Master
+Channel..." on two physical lines, so a single-line `grep -c` can't match it. Confirmed present and correct via a
+whitespace-collapsing check: `python3 -c "import re; print(re.sub(r'\s+',' ',open('docs/architecture/tuner/mpe-tuner-paper.md').read()).count('is likewise forwarded to the Master Channel'))"` → `1`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
