@@ -529,7 +529,7 @@ M1's rewritten paragraph, whose final sentence is unchanged from the original).
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Append the paragraph after 8.3's first paragraph**
+- [x] **Step 1: Append the paragraph after 8.3's first paragraph**
 
 Find:
 
@@ -545,12 +545,12 @@ The channel becomes available for reuse once all its notes have received Note Of
 A Note On with velocity 0 in the input is treated as a Note Off, following the MIDI 1.0 shorthand and the specification's recommendation "that this message be interpreted as Note Off velocity 64" [1, §3.3.2]. Recognizing the shorthand is essential: occupancy tracking, Expression Value averaging, and channel reuse all depend on detecting note releases.
 ````
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `grep -c "Note On with velocity 0" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
