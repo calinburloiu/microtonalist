@@ -39,8 +39,9 @@ precision polish, and style are follow-up.
   implementation that follows the paper.
 - **S5** — Pitch Bend Sensitivity handling is unspecified per input mode and the generic bullet invites an `n²`
   message flood; getting sensitivity right (zone-wide interpretation, per-channel forwarding in MPE mode, Master-Channel
-  application in Non-MPE mode with Member-Channel sensitivity set only via non-MIDI config, re-emission after MCM reset)
-  is what keeps output correctly tuned.
+  application in Non-MPE mode with Member-Channel sensitivity set only via non-MIDI config) is what keeps output
+  correctly tuned. (Re-emission of non-default sensitivities after an MCM was intentionally dropped — see the Task 7
+  design decision.)
 - **S6** — Note Off emission on freeing is asserted only in an example; without it receivers are left with stuck notes.
 
 **Follow-up after the release (Tasks 4 and 9–11):** S2 (the original finding was largely inaccurate — MPE-mode PKP is
@@ -557,7 +558,7 @@ git commit -m "Apply paper review S4: treat velocity-0 Note On as Note Off"
 
 ### Task 7: S5 — Complete the Pitch Bend Sensitivity semantics, per input mode (release)
 
-Section 8's Pitch Bend Sensitivity bullet is generic and mode-agnostic. Three points need stating, **split by input
+Section 8's Pitch Bend Sensitivity bullet is generic and mode-agnostic. Two points need stating, **split by input
 mode** — because the naive "emit to every Member Channel on output" reading floods when the Tuner is an MPE-in/MPE-out
 processor:
 
@@ -573,8 +574,10 @@ processor:
   Member Channel's Pitch Bend then carries only the Tuning Pitch Bend, and in this mode their sensitivity can be changed
   only through the non-MIDI configuration interface. (This also closes a separate gap: the paper never stated that
   Non-MPE-mode Pitch Bend Sensitivity applies to the output Master Channel.)
-- **Re-emission after an MCM:** an MCM resets sensitivities to ±2/±48, so any non-default sensitivity must be
-  re-emitted after every MCM the Tuner outputs — a one-time burst, not a per-message action.
+- **Re-emission after an MCM (intentionally omitted — design decision, 2026-07-16):** in principle an MCM resets
+  sensitivities to ±2/±48, which would call for re-emitting any non-default sensitivity after every MCM the Tuner
+  outputs. The Tuner deliberately does **not** do this — non-default sensitivities are not re-emitted after an MCM — so
+  this point is left out of the bullet rewrite below and its Step 2 verify is expected to be `0`.
 
 This rewrite also switches the bullet to the `RPN 00 00` notation (N12's convention; N12's remaining occurrences are
 handled in Task 11).
@@ -598,7 +601,7 @@ Replace with:
 - [ ] **Step 2: Verify**
 
 Run: `grep -c "re-emits any non-default sensitivity after every MCM it outputs" docs/architecture/tuner/mpe-tuner-paper.md`
-Expected: `1`
+Expected: `0` (re-emission after an MCM is intentionally not documented — see the design decision noted above)
 Run: `grep -c "their sensitivity can be modified only through the non-MIDI configuration interface" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 
