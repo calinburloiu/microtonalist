@@ -107,6 +107,8 @@ When all Channels are occupied, the specification suggests two approaches:
 
 > "A controller may choose the Channel in which the change of pitch for the new note requires the smallest adjustment of pitch for other playing notes. Alternatively, at least one commercial implementation provides gentle degradation of pitch control when all Channels are occupied by switching to a mode where notes step discretely from one pitch to the next, permitting Pitch Bend to respond only to small vibrato gestures." [1, §3.2]
 
+Allocation concerns Member Channels, but notes are not confined to them: "For the sake of MIDI 1.0 compatibility, Note On/Off messages are permitted on the Master Channel, and a synthesizer must respond to these" [1, §3.2]. Such notes forgo the per-note control dimensions, since the Master Channel's control messages affect the whole Zone.
+
 ### 2.5 Note-On Setup and Message Ordering
 
 The specification recommends sending all control dimension messages (Pitch Bend, CC #74, Channel Pressure) before the Note On message to prevent audible artifacts:
@@ -114,6 +116,16 @@ The specification recommends sending all control dimension messages (Pitch Bend,
 > "Provided that the Note On follows all necessary initial settings for pitch and articulation, other orderings of these messages will work equally well." [1, §3.3.1]
 
 This practice prevents "swooping" noises caused by a Channel retaining a previous note's Pitch Bend value when a new note begins.
+
+The initial state that these setup messages establish is complemented by a receiver-side obligation: control values "must be tracked and stored on all Member Channels, even when no note is playing, to provide an initial state for a new note" [1, §3.3].
+
+### 2.6 Zone-Level Messages
+
+MPE distinguishes note-level messages, which shape an individual note through its Member Channel, from Zone-level messages, which affect all notes in a Zone. Zone-level messages such as the Damper Pedal "should be sent only on a Zone's Master Channel (not on Member Channels). If an MPE synthesizer receives one of those messages on a Member Channel, it must ignore it" [1, §2.3]. Table 1 of the specification classifies every MIDI message along these lines.
+
+### 2.7 Pressure
+
+Pressure is subject to dedicated rules: "Polyphonic Key Pressure must not be sent on Member Channels" [1, §2.5] — aftertouch is conveyed there by Channel Pressure instead — while on the Master Channel, "Polyphonic Key Pressure may be sent for notes on the Master Channel at the discretion of the implementer, to preserve compatibility with non-MPE-aware devices" [1, §2.5].
 
 ---
 
@@ -203,6 +215,15 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
       dimension is controllable only globally, via the Master Channel (item 2) — so the Tuner never sends CC #74 on a
       Member Channel (Sections 6.3 and 8.1).
 
+4. **Redirection of Remaining Channel Messages**: All other Channel Voice and Channel Mode messages received on a
+   non-MPE input channel — for example Damper Pedal (CC #64), Modulation (CC #1), Volume (CC #7), Program Change and
+   Bank Select, and Reset All Controllers (CC #121) — are redirected to the Master Channel of the selected output Zone,
+   where they act as Zone-level messages (Section 8.2). Non-MPE input has no Master Channel of its own from which
+   Section 8.2's forwarding could operate; this redirection gives those messages their conformant Zone-level home on
+   the output. A Pitch Bend Sensitivity message (RPN 00 00) received on the non-MPE input is likewise forwarded to the
+   Master Channel, where it configures the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend
+   is redirected (Section 8).
+
 ### 3.5 Master Channel Note Forwarding
 
 The MPE Specification permits Note On and Note Off messages on a Master Channel, and requires receivers to respond to
@@ -276,7 +297,7 @@ determined at the moment a note is placed on it and persists for the lifetime of
 
 ### 4.3 Group Size Allocation
 
-The number of channels allocated to each group depends on the total number of Member Channels `n` configured for the Zone:
+Each group has a **capacity** — the maximum number of occupied channels that may be assigned to it at any moment — determined by the total number of Member Channels `n` configured for the Zone:
 
 | Member Channels (`n`) | Pitch Class Group (`a`) | Expression Group (`b`) |
 |---|---|---|
@@ -285,7 +306,7 @@ The number of channels allocated to each group depends on the total number of Me
 | n = 2 | 1 | 1 |
 | n = 1 | 1 | 0 |
 
-The rationale for these sizes is as follows. The Pitch Class Group must be large enough to cover the maximum number of distinct pitch classes likely to be sounding simultaneously. Notably, for a single Zone with 15 Member Channels, the Pitch Class Group has 12 channels — exactly the number required to represent all 12 pitch classes of a standard keyboard simultaneously. The Expression Group provides a small buffer for expressive duplication of pitch classes. When only one Member Channel is available, the Expression Group is necessarily empty, and the Tuner operates with strict one-note-per-pitch-class behavior.
+The rationale for these sizes is as follows. The Pitch Class Group must be large enough to cover the maximum number of distinct pitch classes likely to be sounding simultaneously. Notably, for a single Zone with 15 Member Channels, the Pitch Class Group has a capacity of 12 channels — exactly the number required to represent all twelve pitch classes of a standard keyboard simultaneously. The Expression Group provides a small buffer for expressive duplication of pitch classes. When only one Member Channel is available, the Expression Group is necessarily empty, and the Tuner operates with strict one-note-per-pitch-class behavior.
 
 ### 4.4 High Expression Pitch Bend
 
@@ -299,17 +320,17 @@ bent more than 50 cents up or down from its tuned pitch has a High Expression Pi
 
 When a new note arrives, the MPE Tuner executes the following allocation procedure:
 
-1. **Allocate in Pitch Class Group**: If the Pitch Class Group contains an unoccupied channel *and* no occupied channel
-   in the Pitch Class Group has an active note with the new note's pitch class, assign the new note to an unoccupied
-   channel in the Pitch Class Group.
+1. **Allocate in Pitch Class Group**: If the Pitch Class Group has spare capacity — fewer than `a` occupied channels
+   are assigned to it — *and* no channel assigned to it has an active note with the new note's pitch class, assign the
+   new note to an unoccupied Member Channel, which thereby joins the Pitch Class Group.
 
 2. **Allocate in Expression Group**: If the Pitch Class Group already holds a note with the new note's pitch class *or*
-   all Pitch Class Group channels are occupied, attempt to assign the new note to an unoccupied channel in the
-   Expression Group.
+   is at full capacity, and the Expression Group has spare capacity — fewer than `b` occupied channels are assigned to
+   it — assign the new note to an unoccupied Member Channel, which thereby joins the Expression Group.
 
-3. **Share channel**: If no unoccupied channel is available in the Expression Group — and the Pitch Class Group either
-   has an active note with the new note's pitch class or has all channels occupied — assign the new note to any channel
-   (from either group) that already holds active notes with the same pitch class.
+3. **Share channel**: If the Expression Group is at full capacity — and the Pitch Class Group either has an active note
+   with the new note's pitch class or is itself at full capacity — assign the new note to any channel (from either
+   group) that already holds active notes with the same pitch class.
 
 4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
    holds the new note's pitch class — the Tuner frees a channel and assigns the new note to it. Freeing a channel means
@@ -320,16 +341,16 @@ When a new note arrives, the MPE Tuner executes the following allocation procedu
 flowchart TD
     Start([New note arrives with pitch class P]) --> Q1a
 
-    Q1a{"Does the Pitch Class Group<br/>have an unoccupied channel?"}
+    Q1a{"Does the Pitch Class Group<br/>have spare capacity?"}
     Q1a -- No --> Q2
     Q1a -- Yes --> Q1b
 
     Q1b{"Does some Pitch Class Group<br/>channel already hold P?"}
     Q1b -- Yes --> Q2
-    Q1b -- No --> A1["Step 1 — Assign to an unoccupied<br/>Pitch Class Group channel"]
+    Q1b -- No --> A1["Step 1 — Assign to an unoccupied channel,<br/>which joins the Pitch Class Group"]
 
-    Q2{"Does the Expression Group<br/>have an unoccupied channel?"}
-    Q2 -- Yes --> A2["Step 2 — Assign to an unoccupied<br/>Expression Group channel"]
+    Q2{"Does the Expression Group<br/>have spare capacity?"}
+    Q2 -- Yes --> A2["Step 2 — Assign to an unoccupied channel,<br/>which joins the Expression Group"]
     Q2 -- No --> Q3
 
     Q3{"Does some occupied channel, either group,<br/>already hold active notes of P?"}
@@ -463,7 +484,9 @@ after allocation, when notes already sharing a channel diverge (Section 5.2.1).
 
 When all Member Channels are occupied and the Pitch Class Group does not have enough channels to support all pitch
 classes present among the active notes, some notes must be dropped to free a channel for the incoming note. The term
-**freeing a channel** refers to dropping all notes on that channel to make it unoccupied.
+**freeing a channel** refers to dropping all notes on that channel to make it unoccupied. When a channel is freed, the
+Tuner emits an explicit Note Off message for each of its dropped notes, before the incoming note's Note On. (Note Off
+emission upon Zone reconfiguration is a distinct case, governed by Section 3.3.)
 
 The selection of which channel to free follows this procedure:
 
@@ -574,7 +597,10 @@ or because a note's contribution was updated — the new value is sent on that c
 
 In MPE Input Mode, every incoming note carries an Expression Value for each of the three control dimensions, taken from
 the state of its input Member Channel. Since Pitch Bend, Channel Pressure, and CC #74 are channel messages, all notes
-active on the same input channel necessarily share the same Expression Values.
+active on the same input channel necessarily share the same Expression Values. Polyphonic Key Pressure is not among the
+control dimensions an input Member Channel may carry — the MPE Specification forbids it there [1, §2.5] — so any
+Polyphonic Key Pressure received on an input Member Channel is discarded and never re-emitted. (Polyphonic Key Pressure
+on a Master Channel is a different case: it is forwarded unmodified as part of Master Channel forwarding, Section 3.5.)
 
 The mapping between input and output channels is not one-to-one. Under the allocation rules of Section 4, notes
 arriving on the same input channel may be assigned to different output channels when their pitch classes differ, and
@@ -647,7 +673,22 @@ If the invariant were violated — if notes of different pitch classes shared a 
 The output of the MPE Tuner conforms to the MPE Specification. The following features behave exactly as the MPE Specification defines them, with no Tuner-specific behavior:
 
 - **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1], emitting them at start-up and on every Zone reconfiguration (Section 3.3). It equally listens for MCMs on its input and conforms to them, reconfiguring its own Zones as specified in Section 3.3; in this case it also configures the Zones of the output instrument by forwarding that configuration.
-- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens for Pitch Bend Sensitivity messages (RPN 0) on its input, conforms to them when interpreting incoming Pitch Bend, and outputs them so that the receiving instrument applies the same sensitivity.
+- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM
+  establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens
+  for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch
+  Bend. How a received message propagates to the output depends on the input mode:
+    - **MPE Input Mode**: a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must
+      apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone"
+      [1, §2.4]. On output, the Tuner mirrors the input, forwarding each received message on its corresponding output
+      Member Channel. It does *not* replicate every received message across all Member Channels. A conforming MPE sender
+      already addresses the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to
+      all `n` channels would produce an `n²` flood. Because the Tuner both receives and sends MPE, per-channel
+      forwarding already configures every output Member Channel.
+    - **Non-MPE Input Mode**: the input carries no Member Channels. Because a Member Channel's Pitch Bend then carries
+      only the Tuning Pitch Bend, a Pitch Bend Sensitivity message received on the input applies to the output Master
+      Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4). The output
+      Member Channels retain the MCM's default of ±48 semitones, which can be changed only through the non-MIDI
+      configuration interface.
 
 The subsections below specify the behaviors where the MPE Tuner adds detail beyond the specification.
 
@@ -670,25 +711,29 @@ Zone-level messages (Damper Pedal, Program Change, Reset All Controllers, and ot
 
 ### 8.3 Note Off Behavior
 
-Upon Note Off, the MPE Tuner ceases controlling the Pitch Bend for the released note's channel (consistent with the specification's statement that "control of a note ceases once Note Off has occurred" [1, §3.3.3]). The channel becomes available for reuse once all its notes have received Note Off messages.
+Upon Note Off, per-note control of the released note ceases: the note is removed from its channel's Expression Value averages (Section 6.1), consistent with the specification's statement that "control of a note ceases once Note Off has occurred" [1, §3.3.3]. While other notes remain active on the channel, the Tuner continues to update the channel's Pitch Bend — for tuning changes (Section 7) as well as for Expression Value changes (Section 6). The channel becomes available for reuse once all its notes have received Note Off messages.
+
+A Note On with velocity 0 in the input is treated as a Note Off, following the MIDI 1.0 shorthand and the specification's recommendation "that this message be interpreted as Note Off velocity 64" [1, §3.3.2]. Recognizing the shorthand is essential: occupancy tracking, Expression Value averaging, and channel reuse all depend on detecting note releases.
 
 ---
 
 ## 9. Worked Examples
 
+The examples in this section assume Non-MPE Input Mode, so tie-breaking criterion (e) of Section 4.5 resolves to the lowest-numbered candidate channel.
+
 ### 9.1 Basic Allocation in Quarter-Comma Meantone
 
-Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a quarter-comma meantone Tuning. The Pitch Class Group has 5 channels and the Expression Group has 2 channels (per the formula for `n = 7`).
+Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a quarter-comma meantone Tuning. The Pitch Class Group has a capacity of 5 channels and the Expression Group a capacity of 2 (per the formula for `n = 7`).
 
-1. **Note C4 arrives**: Pitch Class Group has unoccupied channels and no channel holds pitch class C. Assign to Channel 2, Pitch Class Group. Output Pitch Bend encodes the meantone offset for C.
+1. **Note C4 arrives**: The Pitch Class Group has spare capacity and none of its channels holds pitch class C. Assign to Channel 2, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for C.
 
-2. **Note E4 arrives**: Pitch Class Group has unoccupied channels and no channel holds pitch class E. Assign to Channel 3, Pitch Class Group. Output Pitch Bend encodes the meantone offset for E.
+2. **Note E4 arrives**: The Pitch Class Group has spare capacity and none of its channels holds pitch class E. Assign to Channel 3, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for E.
 
-3. **Note G4 arrives**: Assign to Channel 4, Pitch Class Group. Output Pitch Bend encodes the meantone offset for G.
+3. **Note G4 arrives**: Assign to Channel 4, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for G.
 
-4. **Second C4 arrives** (e.g., re-articulated while the first is sustained): Pitch class C is already in the Pitch Class Group (Channel 2). Assign to Channel 6, Expression Group. Both channels output the meantone offset for C; their Expression Pitch Bends are independent.
+4. **Second C4 arrives** (e.g., re-articulated while the first is sustained): Pitch class C is already in the Pitch Class Group (Channel 2), so Step 2 of the allocation algorithm applies. Channels 5–8 are the unoccupied candidates. Criteria (a)–(c) of the tie-breaking rules degenerate for unoccupied channels, and criterion (d) does not discriminate because no candidate has yet received a Note Off; criterion (e) — the lowest channel number, in Non-MPE Input Mode — therefore selects Channel 5, which joins the Expression Group. Both channels output the meantone offset for C; their Expression Pitch Bends are independent.
 
-5. **Performer bends the second C4 upward**: Only Channel 6's Pitch Bend is affected. Channel 2's Pitch Bend remains at the pure meantone offset for C, preserving the first note's intonation.
+5. **Performer bends the second C4 upward**: Only Channel 5's Pitch Bend is affected. Channel 2's Pitch Bend remains at the pure meantone offset for C, preserving the first note's intonation.
 
 ### 9.2 Tuning Change During Performance
 
@@ -698,7 +743,7 @@ Continuing from the previous example, the performer switches from quarter-comma 
 2. Recomputes and sends Pitch Bend on Channel 2 (pitch class C, new Pythagorean offset).
 3. Recomputes and sends Pitch Bend on Channel 3 (pitch class E, new Pythagorean offset).
 4. Recomputes and sends Pitch Bend on Channel 4 (pitch class G, new Pythagorean offset).
-5. Recomputes and sends Pitch Bend on Channel 6 (pitch class C, new Pythagorean Tuning Pitch Bend plus the current Expression Pitch Bend of the bent note).
+5. Recomputes and sends Pitch Bend on Channel 5 (pitch class C, new Pythagorean Tuning Pitch Bend plus the current Expression Pitch Bend of the bent note).
 
 All retuning occurs instantaneously and correctly because each channel corresponds to exactly one pitch class.
 
