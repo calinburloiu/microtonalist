@@ -85,22 +85,31 @@ plus one sentence each in 2.4 and 2.5 for the latter two facts.
 
 ### S2. Polyphonic Key Pressure handling in MPE Input Mode is undefined (Sections 3.5, 6.2)
 
-The paper specifies PKP conversion only for Non-MPE input (line 176). In MPE Input Mode it never says what
-happens to PKP received on a Master Channel (presumably: forwarded unmodified, consistent with 3.5's
-sender-intent rationale) or on a Member Channel (illegal input per spec §2.5 — should be discarded, never
-re-emitted on an output Member Channel).
+**Largely retracted on re-check (2026-07-16).** The Master Channel case is *not* undefined: Section 3.5
+forwards Master Channel messages "without modification" (line 218) and its rationale point 3 (lines 237–239)
+explicitly preserves the ability to use Polyphonic Key Pressure on Master Channel notes. Only one residual
+gap survives — the paper never states that PKP arriving on an *input Member Channel* (illegal per spec §2.5)
+is discarded. That is minor (a conforming sender never emits it) and, being a Member-Channel rule, does not
+belong in Section 3.5 (Master Channel Note Forwarding), where the first draft wrongly placed it.
 
-**Proposed fix:** add a paragraph to Section 3.5 specifying both cases.
+**Revised fix (downgraded from major/release to follow-up):** add a single sentence to Section 6.2 noting
+that PKP on an input Member Channel is discarded and never re-emitted; contrast it with the Master Channel
+case already handled by Section 3.5. Dropping S2 entirely is also defensible — it concerns illegal input the
+paper is under no obligation to specify.
 
 ### S3. Non-MPE conversion doesn't cover other channel-wide messages (lines 182–186)
 
 Section 3.4 item 2 redirects only Pitch Bend, CC #74, and Channel Pressure. Damper Pedal (CC #64),
 Modulation, Volume, Program Change/Bank Select, Reset All Controllers, etc. are addressed only in
 Section 8.2, which is framed as Master-Channel *forwarding* — but non-MPE input has no Master Channel to
-forward from.
+forward from. Pitch Bend Sensitivity (RPN 00 00) is a further case: in Non-MPE Input Mode it applies to the
+output Master Channel (see S5), so the conversion should say so explicitly here rather than leaving it to
+Section 8 alone.
 
 **Proposed fix:** add item 4 to Section 3.4: all other Channel Voice/Mode messages received on non-MPE
-input channels are redirected to the selected output Zone's Master Channel.
+input channels are redirected to the selected output Zone's Master Channel; state explicitly that a Pitch Bend
+Sensitivity message (RPN 00 00) is likewise forwarded to the Master Channel, where it configures the Master
+Channel Pitch Bend's sensitivity (cross-reference S5 / Section 8).
 
 ### S4. Velocity-0 Note On shorthand never addressed
 
@@ -112,13 +121,30 @@ velocity 64) or allocation state corrupts.
 
 ### S5. Pitch Bend Sensitivity semantics incomplete (line 650)
 
-Missing: (a) RPN 0 received on *any* input Member Channel applies zone-wide (spec §2.4: "A receiver must
-apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the
-Zone"); (b) on output it should be emitted to every Member Channel individually (spec §2.4 / Table 1
-note); (c) after emitting an MCM — which resets sensitivities to ±2/±48 — any non-default sensitivity must
-be re-emitted.
+The Section 8 bullet is generic and mode-agnostic. Three points, **split by input mode**:
 
-**Proposed fix:** extend Section 8's Pitch Bend Sensitivity bullet with these three obligations.
+(a) In MPE Input Mode, a sensitivity received on *any* input Member Channel applies zone-wide to the
+interpretation of incoming Pitch Bend (spec §2.4: "A receiver must apply the last Pitch Bend Sensitivity
+message received on any Member Channel to all Member Channels in the Zone").
+
+(b) **Corrected (2026-07-16).** The earlier draft said the Tuner should emit the sensitivity to every Member
+Channel individually on output. That is a *sender* recommendation (spec §2.4); applied naively by an
+MPE-in/MPE-out processor it floods. A conforming MPE input already sends the message to all `n` Member
+Channels, so re-fanning each received message across all `n` output channels emits `n²` messages. Correct
+behavior: in MPE Input Mode forward each received message on its *corresponding* output Member Channel
+(per-channel pass-through), which already covers every channel. In Non-MPE Input Mode the input has no Member
+Channels; a sensitivity received there applies to the **output Master Channel** (matching the redirection of
+the input's Pitch Bend to that channel, Section 3.4), and the output Member Channels keep the MCM default ±48
+— in this mode their sensitivity can be modified only through the non-MIDI configuration interface. *(This
+also answers a separate question: the paper never stated that Non-MPE-mode PBS applies to the output Master
+Channel — that gap is now folded into this fix.)*
+
+(c) After emitting an MCM — which resets sensitivities to ±2/±48 — any non-default sensitivity must be
+re-emitted (on the Master Channel in Non-MPE mode; on each Member Channel in MPE mode — a one-time burst, not
+a per-message action).
+
+**Proposed fix:** rewrite Section 8's Pitch Bend Sensitivity bullet with (a)–(c) as corrected above, split by
+input mode.
 
 ### S6. Note Off emission on freeing is asserted only in an example (line 712)
 
