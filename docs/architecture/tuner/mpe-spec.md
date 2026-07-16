@@ -201,7 +201,7 @@ Program Change is a special case. In MIDI Mode 3 it is applied only at the Zone 
 | Pitch Bend Sensitivity [RPN 0] | Send: Yes³ / Receive: Yes | Send: Yes / Receive: Yes |
 | Polyphonic Key Pressure | No | See Section 2.5 |
 | Program Change *(Includes Bank Select CC #0 and #32)* | Valid in MIDI Mode 4 only | Yes |
-| Reset All Controllers (CC #127) | No | Yes |
+| Reset All Controllers (CC #121) | No | Yes |
 | MIDI Mode Messages⁴ | Lowest Member Channel Only (Basic Channel) | No |
 | MPE Configuration Message [RPN 6] | No | See Section 2.1 |
 | All other Control Change messages (e.g. CC #1 and #33 [Modulation]; CC #7 and #39 [Volume]; CC #64 [Damper Pedal]; CC #120 [All Sounds Off]); All other RPN messages; All NRPN Messages | Send: Not recommended. / Receive: Cannot be expected to respond. | Yes |
@@ -287,6 +287,8 @@ The ramifications for designers of more sophisticated software can be fairly dem
 Notes may be moved and inserted, and MIDI streams may be merged. To make this easier in Poly Mode, originating Channel numbers do not have to be preserved during editing. Member Channels may be dynamically reassigned by software during playback or retransmission.
 
 Mono Mode and standard MIDI behavior still requires preservation of Channel numbers. From a programmer's perspective, this entails a far more sophisticated note model. A note is no longer just a pair of timestamped Note On and Note Off messages: it must become an entity with its own timeline of multidimensional control data that can be moved across the time and channel spaces along with the note.
+
+This leads to a second challenge, regarding MPE's implications for user interaction:
 
 **2. The state-affecting behavior of Pitch Bend, which is usually treated as a special case by editing software, now applies across other dimensions of control.**
 
