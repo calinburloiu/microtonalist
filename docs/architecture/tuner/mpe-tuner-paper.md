@@ -673,7 +673,22 @@ If the invariant were violated — if notes of different pitch classes shared a 
 The output of the MPE Tuner conforms to the MPE Specification. The following features behave exactly as the MPE Specification defines them, with no Tuner-specific behavior:
 
 - **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1], emitting them at start-up and on every Zone reconfiguration (Section 3.3). It equally listens for MCMs on its input and conforms to them, reconfiguring its own Zones as specified in Section 3.3; in this case it also configures the Zones of the output instrument by forwarding that configuration.
-- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch Bend. In MPE Input Mode a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone" [1, §2.4]; on output the Tuner forwards each received message on its corresponding output Member Channel, mirroring the input. It does *not* replicate every received message across all Member Channels: a conforming MPE sender already sends the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to all `n` channels would produce an `n²` flood — because the Tuner both receives and sends MPE, per-channel forwarding already configures every output Member Channel. In Non-MPE Input Mode the input carries no Member Channels; a Pitch Bend Sensitivity message received there applies to the output Master Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4), while the output Member Channels keep the MCM's default ±48 semitones, since a Member Channel's Pitch Bend then carries only the Tuning Pitch Bend, and in this mode their sensitivity can be modified only through the non-MIDI configuration interface.
+- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM
+  establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens
+  for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch
+  Bend. How a received message propagates to the output depends on the input mode:
+    - **MPE Input Mode**: a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must
+      apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone"
+      [1, §2.4]. On output, the Tuner mirrors the input, forwarding each received message on its corresponding output
+      Member Channel. It does *not* replicate every received message across all Member Channels. A conforming MPE sender
+      already addresses the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to
+      all `n` channels would produce an `n²` flood. Because the Tuner both receives and sends MPE, per-channel
+      forwarding already configures every output Member Channel.
+    - **Non-MPE Input Mode**: the input carries no Member Channels. Because a Member Channel's Pitch Bend then carries
+      only the Tuning Pitch Bend, a Pitch Bend Sensitivity message received on the input applies to the output Master
+      Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4). The output
+      Member Channels retain the MCM's default of ±48 semitones, which can be changed only through the non-MIDI
+      configuration interface.
 
 The subsections below specify the behaviors where the MPE Tuner adds detail beyond the specification.
 
