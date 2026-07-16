@@ -138,7 +138,7 @@ model. Rephrase in *capacity* terms, first defining "capacity" in Section 4.3.
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Define "capacity" in Section 4.3**
+- [x] **Step 1: Define "capacity" in Section 4.3**
 
 Find:
 
@@ -152,7 +152,7 @@ Replace with:
 Each group has a **capacity** — the maximum number of occupied channels that may be assigned to it at any moment — determined by the total number of Member Channels `n` configured for the Zone:
 ````
 
-- [ ] **Step 2: Use capacity wording in the 4.3 rationale**
+- [x] **Step 2: Use capacity wording in the 4.3 rationale**
 
 Find:
 
@@ -168,7 +168,7 @@ Notably, for a single Zone with 15 Member Channels, the Pitch Class Group has a 
 
 (The `12` → `twelve` change is N15's numeral convention, folded in here to avoid touching this sentence twice.)
 
-- [ ] **Step 3: Rewrite allocation Step 1**
+- [x] **Step 3: Rewrite allocation Step 1**
 
 Find:
 
@@ -186,7 +186,7 @@ Replace with:
    new note to an unoccupied Member Channel, which thereby joins the Pitch Class Group.
 ````
 
-- [ ] **Step 4: Rewrite allocation Step 2**
+- [x] **Step 4: Rewrite allocation Step 2**
 
 Find:
 
@@ -204,7 +204,7 @@ Replace with:
    it — assign the new note to an unoccupied Member Channel, which thereby joins the Expression Group.
 ````
 
-- [ ] **Step 5: Rewrite allocation Step 3**
+- [x] **Step 5: Rewrite allocation Step 3**
 
 Find:
 
@@ -222,7 +222,7 @@ Replace with:
    group) that already holds active notes with the same pitch class.
 ````
 
-- [ ] **Step 6: Update the flowchart question nodes**
+- [x] **Step 6: Update the flowchart question nodes**
 
 Find:
 
@@ -248,7 +248,7 @@ Replace with:
     Q2{"Does the Expression Group<br/>have spare capacity?"}
 ````
 
-- [ ] **Step 7: Update the flowchart assignment nodes**
+- [x] **Step 7: Update the flowchart assignment nodes**
 
 Find:
 
@@ -274,7 +274,7 @@ Replace with:
     Q2 -- Yes --> A2["Step 2 — Assign to an unoccupied channel,<br/>which joins the Expression Group"]
 ````
 
-- [ ] **Step 8: Fix static phrasing in example 9.1's intro**
+- [x] **Step 8: Fix static phrasing in example 9.1's intro**
 
 Find:
 
@@ -288,7 +288,7 @@ Replace with:
 Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a quarter-comma meantone Tuning. The Pitch Class Group has a capacity of 5 channels and the Expression Group a capacity of 2 (per the formula for `n = 7`).
 ````
 
-- [ ] **Step 9: Fix static phrasing in example 9.1's steps 1–3**
+- [x] **Step 9: Fix static phrasing in example 9.1's steps 1–3**
 
 Find:
 
@@ -310,14 +310,14 @@ Replace with:
 3. **Note G4 arrives**: Assign to Channel 4, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for G.
 ````
 
-- [ ] **Step 10: Verify**
+- [x] **Step 10: Verify**
 
 Run: `grep -c "unoccupied channel?" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0`
 Run: `grep -c "spare capacity" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `6`
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md

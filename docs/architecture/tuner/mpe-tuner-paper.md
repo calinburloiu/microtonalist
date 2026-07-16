@@ -276,7 +276,7 @@ determined at the moment a note is placed on it and persists for the lifetime of
 
 ### 4.3 Group Size Allocation
 
-The number of channels allocated to each group depends on the total number of Member Channels `n` configured for the Zone:
+Each group has a **capacity** — the maximum number of occupied channels that may be assigned to it at any moment — determined by the total number of Member Channels `n` configured for the Zone:
 
 | Member Channels (`n`) | Pitch Class Group (`a`) | Expression Group (`b`) |
 |---|---|---|
@@ -285,7 +285,7 @@ The number of channels allocated to each group depends on the total number of Me
 | n = 2 | 1 | 1 |
 | n = 1 | 1 | 0 |
 
-The rationale for these sizes is as follows. The Pitch Class Group must be large enough to cover the maximum number of distinct pitch classes likely to be sounding simultaneously. Notably, for a single Zone with 15 Member Channels, the Pitch Class Group has 12 channels — exactly the number required to represent all 12 pitch classes of a standard keyboard simultaneously. The Expression Group provides a small buffer for expressive duplication of pitch classes. When only one Member Channel is available, the Expression Group is necessarily empty, and the Tuner operates with strict one-note-per-pitch-class behavior.
+The rationale for these sizes is as follows. The Pitch Class Group must be large enough to cover the maximum number of distinct pitch classes likely to be sounding simultaneously. Notably, for a single Zone with 15 Member Channels, the Pitch Class Group has a capacity of 12 channels — exactly the number required to represent all twelve pitch classes of a standard keyboard simultaneously. The Expression Group provides a small buffer for expressive duplication of pitch classes. When only one Member Channel is available, the Expression Group is necessarily empty, and the Tuner operates with strict one-note-per-pitch-class behavior.
 
 ### 4.4 High Expression Pitch Bend
 
@@ -299,17 +299,17 @@ bent more than 50 cents up or down from its tuned pitch has a High Expression Pi
 
 When a new note arrives, the MPE Tuner executes the following allocation procedure:
 
-1. **Allocate in Pitch Class Group**: If the Pitch Class Group contains an unoccupied channel *and* no occupied channel
-   in the Pitch Class Group has an active note with the new note's pitch class, assign the new note to an unoccupied
-   channel in the Pitch Class Group.
+1. **Allocate in Pitch Class Group**: If the Pitch Class Group has spare capacity — fewer than `a` occupied channels
+   are assigned to it — *and* no channel assigned to it has an active note with the new note's pitch class, assign the
+   new note to an unoccupied Member Channel, which thereby joins the Pitch Class Group.
 
 2. **Allocate in Expression Group**: If the Pitch Class Group already holds a note with the new note's pitch class *or*
-   all Pitch Class Group channels are occupied, attempt to assign the new note to an unoccupied channel in the
-   Expression Group.
+   is at full capacity, and the Expression Group has spare capacity — fewer than `b` occupied channels are assigned to
+   it — assign the new note to an unoccupied Member Channel, which thereby joins the Expression Group.
 
-3. **Share channel**: If no unoccupied channel is available in the Expression Group — and the Pitch Class Group either
-   has an active note with the new note's pitch class or has all channels occupied — assign the new note to any channel
-   (from either group) that already holds active notes with the same pitch class.
+3. **Share channel**: If the Expression Group is at full capacity — and the Pitch Class Group either has an active note
+   with the new note's pitch class or is itself at full capacity — assign the new note to any channel (from either
+   group) that already holds active notes with the same pitch class.
 
 4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
    holds the new note's pitch class — the Tuner frees a channel and assigns the new note to it. Freeing a channel means
@@ -320,16 +320,16 @@ When a new note arrives, the MPE Tuner executes the following allocation procedu
 flowchart TD
     Start([New note arrives with pitch class P]) --> Q1a
 
-    Q1a{"Does the Pitch Class Group<br/>have an unoccupied channel?"}
+    Q1a{"Does the Pitch Class Group<br/>have spare capacity?"}
     Q1a -- No --> Q2
     Q1a -- Yes --> Q1b
 
     Q1b{"Does some Pitch Class Group<br/>channel already hold P?"}
     Q1b -- Yes --> Q2
-    Q1b -- No --> A1["Step 1 — Assign to an unoccupied<br/>Pitch Class Group channel"]
+    Q1b -- No --> A1["Step 1 — Assign to an unoccupied channel,<br/>which joins the Pitch Class Group"]
 
-    Q2{"Does the Expression Group<br/>have an unoccupied channel?"}
-    Q2 -- Yes --> A2["Step 2 — Assign to an unoccupied<br/>Expression Group channel"]
+    Q2{"Does the Expression Group<br/>have spare capacity?"}
+    Q2 -- Yes --> A2["Step 2 — Assign to an unoccupied channel,<br/>which joins the Expression Group"]
     Q2 -- No --> Q3
 
     Q3{"Does some occupied channel, either group,<br/>already hold active notes of P?"}
@@ -678,13 +678,13 @@ Upon Note Off, per-note control of the released note ceases: the note is removed
 
 ### 9.1 Basic Allocation in Quarter-Comma Meantone
 
-Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a quarter-comma meantone Tuning. The Pitch Class Group has 5 channels and the Expression Group has 2 channels (per the formula for `n = 7`).
+Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a quarter-comma meantone Tuning. The Pitch Class Group has a capacity of 5 channels and the Expression Group a capacity of 2 (per the formula for `n = 7`).
 
-1. **Note C4 arrives**: Pitch Class Group has unoccupied channels and no channel holds pitch class C. Assign to Channel 2, Pitch Class Group. Output Pitch Bend encodes the meantone offset for C.
+1. **Note C4 arrives**: The Pitch Class Group has spare capacity and none of its channels holds pitch class C. Assign to Channel 2, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for C.
 
-2. **Note E4 arrives**: Pitch Class Group has unoccupied channels and no channel holds pitch class E. Assign to Channel 3, Pitch Class Group. Output Pitch Bend encodes the meantone offset for E.
+2. **Note E4 arrives**: The Pitch Class Group has spare capacity and none of its channels holds pitch class E. Assign to Channel 3, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for E.
 
-3. **Note G4 arrives**: Assign to Channel 4, Pitch Class Group. Output Pitch Bend encodes the meantone offset for G.
+3. **Note G4 arrives**: Assign to Channel 4, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for G.
 
 4. **Second C4 arrives** (e.g., re-articulated while the first is sustained): Pitch class C is already in the Pitch Class Group (Channel 2). Assign to Channel 6, Expression Group. Both channels output the meantone offset for C; their Expression Pitch Bends are independent.
 
