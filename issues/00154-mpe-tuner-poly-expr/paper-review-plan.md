@@ -624,7 +624,7 @@ State it in Section 5.1.
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Extend the freeing definition in Section 5.1**
+- [x] **Step 1: Extend the freeing definition in Section 5.1**
 
 Find:
 
@@ -642,12 +642,12 @@ Tuner emits an explicit Note Off message for each of its dropped notes, before t
 emission upon Zone reconfiguration is a distinct case, governed by Section 3.3.)
 ````
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `grep -c "emits an explicit Note Off message for each of its dropped notes" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md

@@ -472,7 +472,9 @@ after allocation, when notes already sharing a channel diverge (Section 5.2.1).
 
 When all Member Channels are occupied and the Pitch Class Group does not have enough channels to support all pitch
 classes present among the active notes, some notes must be dropped to free a channel for the incoming note. The term
-**freeing a channel** refers to dropping all notes on that channel to make it unoccupied.
+**freeing a channel** refers to dropping all notes on that channel to make it unoccupied. When a channel is freed, the
+Tuner emits an explicit Note Off message for each of its dropped notes, before the incoming note's Note On. (Note Off
+emission upon Zone reconfiguration is a distinct case, governed by Section 3.3.)
 
 The selection of which channel to free follows this procedure:
 
