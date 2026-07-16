@@ -429,7 +429,7 @@ correctness gap.)
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Append a sentence to the first paragraph of Section 6.2**
+- [x] **Step 1: Append a sentence to the first paragraph of Section 6.2**
 
 Find:
 
@@ -448,12 +448,12 @@ Polyphonic Key Pressure received on an input Member Channel is discarded and nev
 on a Master Channel is a different case: it is forwarded unmodified as part of Master Channel forwarding, Section 3.5.)
 ````
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `grep -c "not among the" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md

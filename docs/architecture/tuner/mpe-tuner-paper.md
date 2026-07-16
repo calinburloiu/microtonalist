@@ -574,7 +574,10 @@ or because a note's contribution was updated — the new value is sent on that c
 
 In MPE Input Mode, every incoming note carries an Expression Value for each of the three control dimensions, taken from
 the state of its input Member Channel. Since Pitch Bend, Channel Pressure, and CC #74 are channel messages, all notes
-active on the same input channel necessarily share the same Expression Values.
+active on the same input channel necessarily share the same Expression Values. Polyphonic Key Pressure is not among the
+control dimensions an input Member Channel may carry — the MPE Specification forbids it there [1, §2.5] — so any
+Polyphonic Key Pressure received on an input Member Channel is discarded and never re-emitted. (Polyphonic Key Pressure
+on a Master Channel is a different case: it is forwarded unmodified as part of Master Channel forwarding, Section 3.5.)
 
 The mapping between input and output channels is not one-to-one. Under the allocation rules of Section 4, notes
 arriving on the same input channel may be assigned to different output channels when their pitch classes differ, and
