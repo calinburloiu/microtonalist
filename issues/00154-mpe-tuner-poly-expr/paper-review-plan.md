@@ -65,7 +65,8 @@ and 5–8 (Task 4 is follow-up), then Task 12 (one Task 12 check has a known, do
   quote is adjusted, use bracketed alterations (e.g. `[i]f`). All quotes in the `Replace with:` blocks below have
   already been verified against the spec — copy them exactly.
 - Match the paper's local formatting: Sections 3–6 wrap prose at ~120 columns; Sections 1, 2, 8, 9 use one physical
-  line per paragraph/list item. The `Replace with:` blocks already respect this — do not re-wrap them.
+  line per paragraph/list item — the exception is Section 8's Pitch Bend Sensitivity item, whose MPE / Non-MPE
+  sub-bullets wrap at ~120 columns (Task 7). The `Replace with:` blocks already respect this — do not re-wrap them.
 - Citation form is `[1, §X.Y]`; em dashes are spaced (` — `).
 - No existing section needs renumbering, because every numbered addition is **appended at the end** of its sibling
   sequence and simply takes the next free number: Sections 2.6 and 2.7 (Task 9) go after the existing 2.5, and item 4 in
@@ -598,15 +599,30 @@ Find:
 Replace with:
 
 ````
-- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch Bend. In MPE Input Mode a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone" [1, §2.4]; on output the Tuner forwards each received message on its corresponding output Member Channel, mirroring the input. It does *not* replicate every received message across all Member Channels: a conforming MPE sender already sends the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to all `n` channels would produce an `n²` flood — because the Tuner both receives and sends MPE, per-channel forwarding already configures every output Member Channel. In Non-MPE Input Mode the input carries no Member Channels; a Pitch Bend Sensitivity message received there applies to the output Master Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4), while the output Member Channels keep the MCM's default ±48 semitones, since a Member Channel's Pitch Bend then carries only the Tuning Pitch Bend, and in this mode their sensitivity can be modified only through the non-MIDI configuration interface.
+- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM
+  establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens
+  for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch
+  Bend. How a received message propagates to the output depends on the input mode:
+    - **MPE Input Mode**: a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must
+      apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone"
+      [1, §2.4]. On output, the Tuner mirrors the input, forwarding each received message on its corresponding output
+      Member Channel. It does *not* replicate every received message across all Member Channels. A conforming MPE sender
+      already addresses the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to
+      all `n` channels would produce an `n²` flood. Because the Tuner both receives and sends MPE, per-channel
+      forwarding already configures every output Member Channel.
+    - **Non-MPE Input Mode**: the input carries no Member Channels. Because a Member Channel's Pitch Bend then carries
+      only the Tuning Pitch Bend, a Pitch Bend Sensitivity message received on the input applies to the output Master
+      Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4). The output
+      Member Channels retain the MCM's default of ±48 semitones, which can be changed only through the non-MIDI
+      configuration interface.
 ````
 
 - [x] **Step 2: Verify**
 
 Run: `grep -c "re-emits any non-default sensitivity after every MCM it outputs" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0` (re-emission after an MCM is intentionally not documented — see the design decision noted above)
-Run: `grep -c "their sensitivity can be modified only through the non-MIDI configuration interface" docs/architecture/tuner/mpe-tuner-paper.md`
-Expected: `1`
+Run: `grep -c "which can be changed only through the non-MIDI" docs/architecture/tuner/mpe-tuner-paper.md`
+Expected: `1` (the full "… non-MIDI configuration interface" phrase wraps across two physical lines, so match only up to the wrap point)
 
 - [x] **Step 3: Commit**
 
@@ -1438,13 +1454,17 @@ git commit -m "Apply paper review N1-N16: language and style fixes"
 
 ### Task 12: Final verification (run after the release tasks 1–3 and 5–8, or after Task 11 for the full pass)
 
-- [x] **Step 1: Confirm no finding was missed** — verified for the executed tasks (1–3 and 5–9); Tasks 10–11 out of
+> **Status (re-opened 2026-07-17):** the per-step notes below record the *release-pass* run (commit `7184ba6`). All
+> boxes are re-opened for the full pass — re-run every step after Tasks 10–11 and the Task 7 (S5) wording
+> reconciliation of 2026-07-17.
+
+- [ ] **Step 1: Confirm no finding was missed** — verified for the executed tasks (1–3 and 5–9); Tasks 10–11 out of
   scope for this pass.
 
 Walk the Finding → Task map at the top of this plan and confirm every checkbox in the executed tasks is ticked (Tasks
 1–3 and 5–8 for a release-only pass; Tasks 1–11 for the full pass).
 
-- [x] **Step 2: Check quote fidelity against the spec** — 1 known failure (the Section 4.7.5 "(for example)" omission,
+- [ ] **Step 2: Check quote fidelity against the spec** — 1 known failure (the Section 4.7.5 "(for example)" omission,
   restored only by N14 in Task 11), exactly as documented below.
 
 Run this script; it extracts every quotation that is followed by a `[1, …]` citation and checks it appears verbatim in
@@ -1469,14 +1489,14 @@ EOF
 Expected: `OK` after the full pass. After a release-only pass (Tasks 4 and 9–11 deferred), one known failure is acceptable:
 the Section 4.7.5 quote missing "(for example)", which N14 (Task 11, Step 14) restores.
 
-- [x] **Step 3: Check the mermaid diagrams still parse** — 13 arrows, as expected.
+- [ ] **Step 3: Check the mermaid diagrams still parse** — 13 arrows, as expected.
 
 Both diagrams were edited only in node label text; confirm the structure survived:
 
 Run: `grep -c '\-\->' docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `13` (4 arrows in the signal-flow diagram, 9 in the allocation flowchart)
 
-- [x] **Step 4: Read the full paper once, end to end** — no dangling "Channel 6" or "unoccupied channel in the … Group"
+- [ ] **Step 4: Read the full paper once, end to end** — no dangling "Channel 6" or "unoccupied channel in the … Group"
   phrasing; section numbering intact; new cross-references (2.1, 3.3, 3.4, 4.5, 6.1, 6, 7, 8.2, 2.5, 3.5) all resolve to
   sections that exist and say what the reference claims.
 
@@ -1485,7 +1505,7 @@ Read `docs/architecture/tuner/mpe-tuner-paper.md` in full and check: no dangling
 cross-reference cited in new text (Sections 2.1, 3.3, 3.4, 4.5, 4.6, 5.1, 5.2, 6.1, 6.2, 8.1, 8.2) points at a section
 that exists and says what the reference claims.
 
-- [x] **Step 5: Confirm a clean tree and consistent history** — `git status --short` empty; 9 "Apply paper review …"
+- [ ] **Step 5: Confirm a clean tree and consistent history** — `git status --short` empty; 9 "Apply paper review …"
   commits (Tasks 1–3, 5–9) atop the pre-existing history.
 
 Run: `git status --short` — expected: empty (everything committed).
