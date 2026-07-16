@@ -102,7 +102,7 @@ keep receiving tuning-change and averaging updates.
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Rewrite the 8.3 paragraph**
+- [x] **Step 1: Rewrite the 8.3 paragraph**
 
 Find:
 
@@ -116,12 +116,12 @@ Replace with:
 Upon Note Off, per-note control of the released note ceases: the note is removed from its channel's Expression Value averages (Section 6.1), consistent with the specification's statement that "control of a note ceases once Note Off has occurred" [1, §3.3.3]. While other notes remain active on the channel, the Tuner continues to update the channel's Pitch Bend — for tuning changes (Section 7) as well as for Expression Value changes (Section 6). The channel becomes available for reuse once all its notes have received Note Off messages.
 ````
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `grep -c "per-note control of the released note ceases" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md

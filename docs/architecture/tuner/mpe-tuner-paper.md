@@ -670,7 +670,7 @@ Zone-level messages (Damper Pedal, Program Change, Reset All Controllers, and ot
 
 ### 8.3 Note Off Behavior
 
-Upon Note Off, the MPE Tuner ceases controlling the Pitch Bend for the released note's channel (consistent with the specification's statement that "control of a note ceases once Note Off has occurred" [1, §3.3.3]). The channel becomes available for reuse once all its notes have received Note Off messages.
+Upon Note Off, per-note control of the released note ceases: the note is removed from its channel's Expression Value averages (Section 6.1), consistent with the specification's statement that "control of a note ceases once Note Off has occurred" [1, §3.3.3]. While other notes remain active on the channel, the Tuner continues to update the channel's Pitch Bend — for tuning changes (Section 7) as well as for Expression Value changes (Section 6). The channel becomes available for reuse once all its notes have received Note Off messages.
 
 ---
 
