@@ -676,6 +676,8 @@ Upon Note Off, per-note control of the released note ceases: the note is removed
 
 ## 9. Worked Examples
 
+The examples in this section assume Non-MPE Input Mode, so tie-breaking criterion (e) of Section 4.5 resolves to the lowest-numbered candidate channel.
+
 ### 9.1 Basic Allocation in Quarter-Comma Meantone
 
 Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a quarter-comma meantone Tuning. The Pitch Class Group has a capacity of 5 channels and the Expression Group a capacity of 2 (per the formula for `n = 7`).
@@ -686,9 +688,9 @@ Consider a Lower Zone with 7 Member Channels (Channels 2–8), configured with a
 
 3. **Note G4 arrives**: Assign to Channel 4, which joins the Pitch Class Group. Output Pitch Bend encodes the meantone offset for G.
 
-4. **Second C4 arrives** (e.g., re-articulated while the first is sustained): Pitch class C is already in the Pitch Class Group (Channel 2). Assign to Channel 6, Expression Group. Both channels output the meantone offset for C; their Expression Pitch Bends are independent.
+4. **Second C4 arrives** (e.g., re-articulated while the first is sustained): Pitch class C is already in the Pitch Class Group (Channel 2), so Step 2 of the allocation algorithm applies. Channels 5–8 are the unoccupied candidates. Criteria (a)–(c) of the tie-breaking rules degenerate for unoccupied channels, and criterion (d) does not discriminate because no candidate has yet received a Note Off; criterion (e) — the lowest channel number, in Non-MPE Input Mode — therefore selects Channel 5, which joins the Expression Group. Both channels output the meantone offset for C; their Expression Pitch Bends are independent.
 
-5. **Performer bends the second C4 upward**: Only Channel 6's Pitch Bend is affected. Channel 2's Pitch Bend remains at the pure meantone offset for C, preserving the first note's intonation.
+5. **Performer bends the second C4 upward**: Only Channel 5's Pitch Bend is affected. Channel 2's Pitch Bend remains at the pure meantone offset for C, preserving the first note's intonation.
 
 ### 9.2 Tuning Change During Performance
 
@@ -698,7 +700,7 @@ Continuing from the previous example, the performer switches from quarter-comma 
 2. Recomputes and sends Pitch Bend on Channel 2 (pitch class C, new Pythagorean offset).
 3. Recomputes and sends Pitch Bend on Channel 3 (pitch class E, new Pythagorean offset).
 4. Recomputes and sends Pitch Bend on Channel 4 (pitch class G, new Pythagorean offset).
-5. Recomputes and sends Pitch Bend on Channel 6 (pitch class C, new Pythagorean Tuning Pitch Bend plus the current Expression Pitch Bend of the bent note).
+5. Recomputes and sends Pitch Bend on Channel 5 (pitch class C, new Pythagorean Tuning Pitch Bend plus the current Expression Pitch Bend of the bent note).
 
 All retuning occurs instantaneously and correctly because each channel corresponds to exactly one pitch class.
 

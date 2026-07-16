@@ -336,7 +336,7 @@ make the example *show the derivation*, citing the criteria as done above.
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: State the examples' input mode at the top of Section 9**
+- [x] **Step 1: State the examples' input mode at the top of Section 9**
 
 Find:
 
@@ -356,7 +356,7 @@ The examples in this section assume Non-MPE Input Mode, so tie-breaking criterio
 ### 9.1 Basic Allocation in Quarter-Comma Meantone
 ````
 
-- [ ] **Step 2: Rewrite example 9.1 step 4 with the channel-selection derivation**
+- [x] **Step 2: Rewrite example 9.1 step 4 with the channel-selection derivation**
 
 Find:
 
@@ -370,7 +370,7 @@ Replace with:
 4. **Second C4 arrives** (e.g., re-articulated while the first is sustained): Pitch class C is already in the Pitch Class Group (Channel 2), so Step 2 of the allocation algorithm applies. Channels 5–8 are the unoccupied candidates. Criteria (a)–(c) of the tie-breaking rules degenerate for unoccupied channels, and criterion (d) does not discriminate because no candidate has yet received a Note Off; criterion (e) — the lowest channel number, in Non-MPE Input Mode — therefore selects Channel 5, which joins the Expression Group. Both channels output the meantone offset for C; their Expression Pitch Bends are independent.
 ````
 
-- [ ] **Step 3: Propagate the channel number to example 9.1 step 5**
+- [x] **Step 3: Propagate the channel number to example 9.1 step 5**
 
 Find:
 
@@ -384,7 +384,7 @@ Replace with:
 5. **Performer bends the second C4 upward**: Only Channel 5's Pitch Bend is affected. Channel 2's Pitch Bend remains at the pure meantone offset for C, preserving the first note's intonation.
 ````
 
-- [ ] **Step 4: Propagate the channel number to example 9.2 step 5**
+- [x] **Step 4: Propagate the channel number to example 9.2 step 5**
 
 Find:
 
@@ -398,12 +398,12 @@ Replace with:
 5. Recomputes and sends Pitch Bend on Channel 5 (pitch class C, new Pythagorean Tuning Pitch Bend plus the current Expression Pitch Bend of the bent note).
 ````
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `grep -c "Channel 6" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
