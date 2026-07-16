@@ -587,7 +587,7 @@ handled in Task 11).
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Rewrite the Pitch Bend Sensitivity bullet**
+- [x] **Step 1: Rewrite the Pitch Bend Sensitivity bullet**
 
 Find:
 
@@ -601,14 +601,14 @@ Replace with:
 - **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch Bend. In MPE Input Mode a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone" [1, §2.4]; on output the Tuner forwards each received message on its corresponding output Member Channel, mirroring the input. It does *not* replicate every received message across all Member Channels: a conforming MPE sender already sends the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to all `n` channels would produce an `n²` flood — because the Tuner both receives and sends MPE, per-channel forwarding already configures every output Member Channel. In Non-MPE Input Mode the input carries no Member Channels; a Pitch Bend Sensitivity message received there applies to the output Master Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4), while the output Member Channels keep the MCM's default ±48 semitones, since a Member Channel's Pitch Bend then carries only the Tuning Pitch Bend, and in this mode their sensitivity can be modified only through the non-MIDI configuration interface.
 ````
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `grep -c "re-emits any non-default sensitivity after every MCM it outputs" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0` (re-emission after an MCM is intentionally not documented — see the design decision noted above)
 Run: `grep -c "their sensitivity can be modified only through the non-MIDI configuration interface" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
