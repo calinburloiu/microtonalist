@@ -107,6 +107,8 @@ When all Channels are occupied, the specification suggests two approaches:
 
 > "A controller may choose the Channel in which the change of pitch for the new note requires the smallest adjustment of pitch for other playing notes. Alternatively, at least one commercial implementation provides gentle degradation of pitch control when all Channels are occupied by switching to a mode where notes step discretely from one pitch to the next, permitting Pitch Bend to respond only to small vibrato gestures." [1, §3.2]
 
+Allocation concerns Member Channels, but notes are not confined to them: "For the sake of MIDI 1.0 compatibility, Note On/Off messages are permitted on the Master Channel, and a synthesizer must respond to these" [1, §3.2]. Such notes forgo the per-note control dimensions, since the Master Channel's control messages affect the whole Zone.
+
 ### 2.5 Note-On Setup and Message Ordering
 
 The specification recommends sending all control dimension messages (Pitch Bend, CC #74, Channel Pressure) before the Note On message to prevent audible artifacts:
@@ -114,6 +116,16 @@ The specification recommends sending all control dimension messages (Pitch Bend,
 > "Provided that the Note On follows all necessary initial settings for pitch and articulation, other orderings of these messages will work equally well." [1, §3.3.1]
 
 This practice prevents "swooping" noises caused by a Channel retaining a previous note's Pitch Bend value when a new note begins.
+
+The initial state that these setup messages establish is complemented by a receiver-side obligation: control values "must be tracked and stored on all Member Channels, even when no note is playing, to provide an initial state for a new note" [1, §3.3].
+
+### 2.6 Zone-Level Messages
+
+MPE distinguishes note-level messages, which shape an individual note through its Member Channel, from Zone-level messages, which affect all notes in a Zone. Zone-level messages such as the Damper Pedal "should be sent only on a Zone's Master Channel (not on Member Channels). If an MPE synthesizer receives one of those messages on a Member Channel, it must ignore it" [1, §2.3]. Table 1 of the specification classifies every MIDI message along these lines.
+
+### 2.7 Pressure
+
+Pressure is subject to dedicated rules: "Polyphonic Key Pressure must not be sent on Member Channels" [1, §2.5] — aftertouch is conveyed there by Channel Pressure instead — while on the Master Channel, "Polyphonic Key Pressure may be sent for notes on the Master Channel at the discretion of the implementer, to preserve compatibility with non-MPE-aware devices" [1, §2.5].
 
 ---
 

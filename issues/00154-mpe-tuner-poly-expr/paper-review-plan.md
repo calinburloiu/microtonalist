@@ -665,7 +665,7 @@ and the latter two as one sentence each in 2.4 and 2.5.
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Add the Master Channel Note On/Off permission at the end of Section 2.4**
+- [x] **Step 1: Add the Master Channel Note On/Off permission at the end of Section 2.4**
 
 Find:
 
@@ -681,7 +681,7 @@ Replace with:
 Allocation concerns Member Channels, but notes are not confined to them: "For the sake of MIDI 1.0 compatibility, Note On/Off messages are permitted on the Master Channel, and a synthesizer must respond to these" [1, §3.2]. Such notes forgo the per-note control dimensions, since the Master Channel's control messages affect the whole Zone.
 ````
 
-- [ ] **Step 2: Add the receiver state-tracking obligation at the end of Section 2.5**
+- [x] **Step 2: Add the receiver state-tracking obligation at the end of Section 2.5**
 
 Find:
 
@@ -697,7 +697,7 @@ This practice prevents "swooping" noises caused by a Channel retaining a previou
 The initial state that these setup messages establish is complemented by a receiver-side obligation: control values "must be tracked and stored on all Member Channels, even when no note is playing, to provide an initial state for a new note" [1, §3.3].
 ````
 
-- [ ] **Step 3: Add Sections 2.6 (Zone-Level Messages) and 2.7 (Pressure)**
+- [x] **Step 3: Add Sections 2.6 (Zone-Level Messages) and 2.7 (Pressure)**
 
 Find:
 
@@ -723,7 +723,7 @@ Pressure is subject to dedicated rules: "Polyphonic Key Pressure must not be sen
 ## 3. MPE Tuner Architecture
 ````
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `grep -c "### 2.6 Zone-Level Messages" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
@@ -732,7 +732,7 @@ Expected: `1`
 Run: `grep -c "tracked and stored on all Member Channels" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `2` (Section 2.5 and the pre-existing quote in Section 6.2)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
