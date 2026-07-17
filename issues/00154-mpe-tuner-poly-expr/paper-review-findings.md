@@ -191,8 +191,13 @@ before the new Note On.
   per-input-channel Pitch Bend/CC states onto one Master Channel (last-writer-wins). Not a violation; add
   one sentence acknowledging the input is treated as a single merged control stream.
 - **P11** (spec §3.3.4): "Channel Pressure must be set to zero immediately before a Note On or a Note Off
-  wherever it is appropriate" is honored at onset but never discussed for Note Off. Fix: one sentence
-  noting the behavior is inherited from the input sender (MPE mode) — a documented choice, using the
+  wherever it is appropriate" is honored at onset but never discussed for Note Off. Fix: state that the
+  Note Off behavior depends on the input mode. In MPE Input Mode the output Channel Pressure passes
+  through from the input sender, so the Tuner emits no reset of its own and inherits the sender's
+  behavior (a conforming sender's pre-release reset propagates via Section 6.2; otherwise none appears).
+  In Non-MPE Input Mode the per-note Channel Pressure is the Tuner's own — synthesized from the input's
+  Polyphonic Key Pressure (Section 3.4) — so the Tuner is the controller §3.3.4 addresses and resets it
+  itself, returning the channel to 0 as Section 6.3 requires. Both are documented choices under the
   spec's "wherever appropriate" qualifier.
 - **P12** (lines 351–352): criterion (d)'s gloss "idle the longest" is wrong for occupied candidates
   (Steps 3–4). Fix: "the channel whose most recent Note Off is oldest", noting channels with no Note Off
@@ -232,7 +237,8 @@ before the new Note On.
   elisions for fidelity.
 - **N15** (misc): line 110 heading "Note-On Setup" vs "Note On" elsewhere; MCM expanded four times (lines
   60, 75, 134, 168 — expand once); line 269 stray capitalized "Channels" outside quotes; "freeing a
-  channel" defined twice (lines 317 and 465 — keep one, cross-reference the other); missing blank line
+  channel" defined twice (lines 317 and 465 — not applied: kept in both places by design, since a
+  forward reference to a definition reads worse than the duplication); missing blank line
   before the "- **(a)**" bullet list at line 362 (some renderers won't recognize the list); mixed
   "twelve"/"12" in prose; mixed self-reference ("this paper" vs "the specification herein") — pick one.
 - **N16** (lines 22, 36): "Member Channel" and Zone terminology used in Section 1 before being defined in

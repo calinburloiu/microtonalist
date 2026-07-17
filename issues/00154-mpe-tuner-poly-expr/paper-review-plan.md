@@ -764,7 +764,7 @@ Task 6's output).
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1 — P1: Scope the "never occurs" claim to channel exhaustion** (Section 5.2's High-Bend drops are
+- [x] **Step 1 — P1: Scope the "never occurs" claim to channel exhaustion** (Section 5.2's High-Bend drops are
   independent of channel count)
 
 Find:
@@ -779,7 +779,7 @@ Replace with:
 maximum of 15 Member Channels, note dropping due to channel exhaustion never occurs:
 ````
 
-- [ ] **Step 2 — P2: Fix the input-pitch-alteration claim for Non-MPE mode** (input Pitch Bend goes to the Master
+- [x] **Step 2 — P2: Fix the input-pitch-alteration claim for Non-MPE mode** (input Pitch Bend goes to the Master
   Channel there, not to Expression Pitch Bend)
 
 Find:
@@ -794,7 +794,7 @@ Replace with:
 Any pitch alteration present in the input signal is never interpreted as an alternative tuning; it contributes exclusively to the expression domain — as Expression Pitch Bend in MPE Input Mode, or as Master Channel Pitch Bend in Non-MPE Input Mode (Section 3.4) — while the Tuning Pitch Bend is derived solely from the active Tuning.
 ````
 
-- [ ] **Step 3 — P3: Fix example 9.3's contradiction of the Expression Group's overflow role**
+- [x] **Step 3 — P3: Fix example 9.3's contradiction of the Expression Group's overflow role**
 
 Find:
 
@@ -808,7 +808,7 @@ Replace with:
 1. The Pitch Class Group (1 channel) is occupied by pitch class C. Pitch class A is not represented — it cannot share a channel and needs a channel of its own.
 ````
 
-- [ ] **Step 4 — P4: Condition allocation Step 3 on the High-Bend rules** (depends on Task 2's Step 5 rewrite)
+- [x] **Step 4 — P4: Condition allocation Step 3 on the High-Bend rules** (depends on Task 2's Step 5 rewrite)
 
 Find:
 
@@ -839,7 +839,7 @@ Replace with:
     Q3 -- Yes --> A3["Step 3 — Assign to that channel, shared with the<br/>same pitch class (subject to Section 5.2)"]
 ````
 
-- [ ] **Step 5 — P5: Fold the sole-note invariant paragraph into Section 5.3** (it sits inside 5.2.2,
+- [x] **Step 5 — P5: Fold the sole-note invariant paragraph into Section 5.3** (it sits inside 5.2.2,
   forward-references 5.2.3, omits 5.2.2's own contribution, and duplicates invariant 2 of 5.3)
 
 Delete the paragraph from 5.2.2. Find:
@@ -876,7 +876,7 @@ Replace with:
    note is freed before any new note is assigned to it (Section 5.2.3).
 ````
 
-- [ ] **Step 6 — P6: Soften the Master-Channel PKP capability** (the spec makes it discretionary for senders and only
+- [x] **Step 6 — P6: Soften the Master-Channel PKP capability** (the spec makes it discretionary for senders and only
   "may be recognized" by receivers)
 
 Find:
@@ -900,7 +900,7 @@ therefore retains per-note pressure where the sending and receiving implementati
 the Master Channel, in place of the Channel Pressure dimension that Member Channel notes use.
 ````
 
-- [ ] **Step 7 — P7: Acknowledge the normative placement of the one-channel-per-note statement and ground the
+- [x] **Step 7 — P7: Acknowledge the normative placement of the one-channel-per-note statement and ground the
   departure in the spec's own sharing allowance**
 
 Find:
@@ -923,7 +923,7 @@ The MPE Specification states, within its normative description of MPE operation:
 The MPE Tuner does **not** follow this rule unconditionally; the specification itself acknowledges that "[i]f the number of active notes exceeds the number of available Channels, two or more notes will have to share a Channel" [1, §1.2], and the MPE Tuner invokes that allowance deliberately rather than only under exhaustion.
 ````
 
-- [ ] **Step 8 — P8: Disambiguate "among all active notes" in the boundary-channel exclusion** (Master-Channel notes
+- [x] **Step 8 — P8: Disambiguate "among all active notes" in the boundary-channel exclusion** (Master-Channel notes
   are exempt from allocation)
 
 Find:
@@ -940,7 +940,7 @@ Replace with:
    on the Zone's Member Channels are excluded from consideration.
 ````
 
-- [ ] **Step 9 — P9: Generalize the "swooping" cause** (any stale value corrected after note start, not only a previous
+- [x] **Step 9 — P9: Generalize the "swooping" cause** (any stale value corrected after note start, not only a previous
   note's Pitch Bend)
 
 Find:
@@ -955,7 +955,7 @@ Replace with:
 This practice prevents "swooping" noises, which arise when a stale control value retained on a Channel — most commonly a previous note's Pitch Bend — is corrected only after a new note has begun sounding.
 ````
 
-- [ ] **Step 10 — P10: Acknowledge the merged control stream for multi-channel non-MPE input**
+- [x] **Step 10 — P10: Acknowledge the merged control stream for multi-channel non-MPE input**
 
 Find:
 
@@ -973,7 +973,7 @@ Replace with:
    as one merged control stream rather than preserving per-input-channel independence.
 ````
 
-- [ ] **Step 11 — P11: Document the Channel Pressure behavior at Note Off** (depends on Task 6; the paragraph goes
+- [x] **Step 11 — P11: Document the Channel Pressure behavior at Note Off** (depends on Task 6; the paragraph goes
   after S4's velocity-0 paragraph in Section 8.3)
 
 Find:
@@ -987,10 +987,10 @@ Replace with:
 ````
 A Note On with velocity 0 in the input is treated as a Note Off, following the MIDI 1.0 shorthand and the specification's recommendation "that this message be interpreted as Note Off velocity 64" [1, §3.3.2]. Recognizing the shorthand is essential: occupancy tracking, Expression Value averaging, and channel reuse all depend on detecting note releases.
 
-At Note Off, the Tuner emits no Channel Pressure reset of its own. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4]; the Tuner honors this at note onset (Section 3.4) and, for Note Off, inherits the input sender's behavior — in MPE Input Mode a conforming sender's pre-release reset propagates through the update mechanism of Section 6.2. This is a documented design choice within the specification's "wherever it is appropriate" qualifier.
+At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4]. In MPE Input Mode the output Channel Pressure passes through from the input sender, so the Tuner emits no reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the output through the update mechanism of Section 6.2, and if the sender emits none, neither does the Tuner. In Non-MPE Input Mode the per-note Channel Pressure on an output Member Channel is the Tuner's own, synthesized from the input's Polyphonic Key Pressure (Section 3.4); here the Tuner is the controller to which §3.3.4 applies, so it performs the reset itself, returning the channel's Channel Pressure to 0 as Section 6.3 requires. Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's "wherever it is appropriate" qualifier and are documented design choices.
 ````
 
-- [ ] **Step 12 — P12: Fix criterion (d)'s gloss** ("idle the longest" is wrong for occupied candidates at Steps 3–4)
+- [x] **Step 12 — P12: Fix criterion (d)'s gloss** ("idle the longest" is wrong for occupied candidates at Steps 3–4)
 
 Find:
 
@@ -1007,7 +1007,7 @@ Replace with:
   selection falls to criterion (e).
 ````
 
-- [ ] **Step 13 — P13: Qualify Overview item 3 for Non-MPE mode** (no Expression component there)
+- [x] **Step 13 — P13: Qualify Overview item 3 for Non-MPE mode** (no Expression component there)
 
 Find:
 
@@ -1021,14 +1021,14 @@ Replace with:
 3. Computes the appropriate Pitch Bend value for each Member Channel as the sum of the Tuning Pitch Bend for the channel's pitch class and the Expression Pitch Bend derived from the input (Section 1.3); in Non-MPE Input Mode the Expression component is absent (Section 3.4).
 ````
 
-- [ ] **Step 14: Verify**
+- [x] **Step 14: Verify**
 
 Run: `grep -c "cannot share a channel and needs a channel of its own" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 Run: `grep -c "It follows that" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0` (the only occurrence was the 5.2.2 paragraph deleted in Step 5)
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
@@ -1043,7 +1043,7 @@ Sixteen style fixes. All are independent of one another; the Section 2.1 MCM edi
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1 — N1: Fix the neither/nor construction in Section 4.5**
+- [x] **Step 1 — N1: Fix the neither/nor construction in Section 4.5**
 
 Find:
 
@@ -1061,7 +1061,7 @@ invariant nor the group constraints — a channel is admitted as a candidate at 
 satisfied — nor can it override the perceptual criteria that govern Steps 3 and 4.
 ````
 
-- [ ] **Step 2 — N2: Add the missing comma and strengthen the modal in Section 4.1**
+- [x] **Step 2 — N2: Add the missing comma and strengthen the modal in Section 4.1**
 
 Find:
 
@@ -1075,7 +1075,7 @@ Replace with:
 two different tuning offsets simultaneously, which would compromise the intonation of at least one note.
 ````
 
-- [ ] **Step 3 — N3: Remove the sole first-person sentence in Section 5** (also fixes "the last resort measure" vs.
+- [x] **Step 3 — N3: Remove the sole first-person sentence in Section 5** (also fixes "the last resort measure" vs.
   Section 4.5's "a last-resort measure")
 
 Find:
@@ -1093,7 +1093,7 @@ conditions under which notes are dropped and the criteria for selecting which no
 last-resort measure, used only when the fundamental invariants of intonation would otherwise be violated.
 ````
 
-- [ ] **Step 4 — N4: Replace the colloquial "its turn to be reused"**
+- [x] **Step 4 — N4: Replace the colloquial "its turn to be reused"**
 
 Find:
 
@@ -1109,7 +1109,7 @@ Replace with:
   natural candidate for reuse.
 ````
 
-- [ ] **Step 5 — N5: "equally listens" → "likewise listens" in Section 8**
+- [x] **Step 5 — N5: "equally listens" → "likewise listens" in Section 8**
 
 Find:
 
@@ -1123,7 +1123,7 @@ Replace with:
 It likewise listens for MCMs on its input
 ````
 
-- [ ] **Step 6 — N6: Fix the faulty predication in Section 3.5**
+- [x] **Step 6 — N6: Fix the faulty predication in Section 3.5**
 
 Find:
 
@@ -1137,7 +1137,7 @@ Replace with:
 Placing a note on the Master Channel is a deliberate choice by the MPE sender: the sender opts out of the
 ````
 
-- [ ] **Step 7 — N7: Replace undefined "aftertouch" and tone down "dubious" in Section 3.4**
+- [x] **Step 7 — N7: Replace undefined "aftertouch" and tone down "dubious" in Section 3.4**
 
 Find:
 
@@ -1153,7 +1153,7 @@ Replace with:
       pressure on a key that is already held.
 ````
 
-- [ ] **Step 8 — N8: "may not share" → "must not share" in Section 4.1** (removes the permission/prohibition ambiguity)
+- [x] **Step 8 — N8: "may not share" → "must not share" in Section 4.1** (removes the permission/prohibition ambiguity)
 
 Find:
 
@@ -1167,7 +1167,7 @@ Replace with:
 they must not share a Member Channel
 ````
 
-- [ ] **Step 9 — N9: "twelve keys" → "twelve keys per octave" in Section 1.1**
+- [x] **Step 9 — N9: "twelve keys" → "twelve keys per octave" in Section 1.1**
 
 Find:
 
@@ -1181,7 +1181,7 @@ Replace with:
 the twelve keys per octave of a standard MIDI keyboard are insufficient
 ````
 
-- [ ] **Step 10 — N10: Fix the EDO gloss in Section 1.1**
+- [x] **Step 10 — N10: Fix the EDO gloss in Section 1.1**
 
 Find:
 
@@ -1195,7 +1195,7 @@ Replace with:
 corresponding to the twelve-tone equal temperament tuning system (12 equal divisions of the octave, 12-EDO)
 ````
 
-- [ ] **Step 11 — N11 + N16: Full CC #74 gloss and Section 2.1 pointer at first mention** (Section 1.1), then drop the
+- [x] **Step 11 — N11 + N16: Full CC #74 gloss and Section 2.1 pointer at first mention** (Section 1.1), then drop the
   duplicate gloss (Section 1.3)
 
 Find:
@@ -1222,7 +1222,7 @@ Replace with:
 Pitch Bend, Channel Pressure, and CC #74 [1, §2.4–2.6]
 ````
 
-- [ ] **Step 12 — N12 + N15 (MCM): Standardize RPN notation and stop re-expanding MCM** (the first edit covers both
+- [x] **Step 12 — N12 + N15 (MCM): Standardize RPN notation and stop re-expanding MCM** (the first edit covers both
   findings; Section 8's `RPN 0` was already converted by Task 7)
 
 Find:
@@ -1273,7 +1273,7 @@ Replace with:
 or in-band, through an MCM received on a Master Channel
 ````
 
-- [ ] **Step 13 — N13: Have Section 6.1 reference Section 4.6's formula instead of restating it**
+- [x] **Step 13 — N13: Have Section 6.1 reference Section 4.6's formula instead of restating it**
 
 Find:
 
@@ -1298,7 +1298,7 @@ component.
 (The formula in Section 1.3 — `Pitch Bend = Tuning Pitch Bend + Expression Pitch Bend` — is the definitional
 two-component identity, not the averaging formula; it stays.)
 
-- [ ] **Step 14 — N14: Restore the silently altered quotes** (three edits: the Section 2.4 quote, its shorter
+- [x] **Step 14 — N14: Restore the silently altered quotes** (three edits: the Section 2.4 quote, its shorter
   repetition in Section 4.7.4, and the Section 4.7.5 quote)
 
 Find:
@@ -1337,8 +1337,8 @@ Replace with:
 > "If an MPE synthesizer receives Pitch Bend (for example) on both a Master and a Member Channel, it must combine the data meaningfully." [1, §2.3.2]
 ````
 
-- [ ] **Step 15 — N15 (remaining items): heading, stray capital, freeing dedup, list blank line, numerals,
-  self-reference** (six edits; the MCM and `12 pitch classes` items were handled in Step 12 and Task 2)
+- [x] **Step 15 — N15 (remaining items): heading, stray capital, list blank line, numerals,
+  self-reference** (five edits; the MCM and `12 pitch classes` items were handled in Step 12 and Task 2)
 
 Heading "Note-On" → "Note On". Find:
 
@@ -1362,24 +1362,6 @@ Replace with:
 
 ````
 Within this group, no two occupied channels may have active notes of the same pitch class.
-````
-
-"Freeing a channel" is defined twice; keep Section 5.1's bolded definition and make Step 4 cross-reference it. Find:
-
-````
-4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
-   holds the new note's pitch class — the Tuner frees a channel and assigns the new note to it. Freeing a channel means
-   dropping all of its active notes to make it unoccupied. This is a last-resort measure; the conditions under which it
-   is warranted, the notes protected from it, and the selection of the channel to free are specified in Section 5.1.
-````
-
-Replace with:
-
-````
-4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
-   holds the new note's pitch class — the Tuner frees a channel (Section 5.1) and assigns the new note to it. This is a
-   last-resort measure; the conditions under which it is warranted, the notes protected from it, and the selection of
-   the channel to free are specified in Section 5.1.
 ````
 
 Missing blank line before the second `- **(a)**` bullet list (some renderers won't recognize the list). Find:
@@ -1434,16 +1416,18 @@ Replace with:
 A **Tuning**, in the context of this paper, is a set of twelve pitch offsets
 ````
 
-- [ ] **Step 16: Verify**
+- [x] **Step 16: Verify**
 
 Run: `grep -cE "MPE Configuration Message \(MCM\)" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1` (the first mention in Section 1.4 only)
 Run: `grep -c "RPN 0\." docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0`
 Run: `grep -c "dubious\|aftertouch\|equally listens\|its turn" docs/architecture/tuner/mpe-tuner-paper.md`
-Expected: `0`
+Expected: `0` — **addendum**: Task 9 (run after N7 was written) introduced a second "aftertouch" occurrence in the new Section 2.7.
+Fixed inline during Task 11 (reworded to "per-note pressure is conveyed there by Channel Pressure instead"), not itemized
+above since Section 2.7 didn't exist when this step was drafted.
 
-- [ ] **Step 17: Commit**
+- [x] **Step 17: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
@@ -1454,18 +1438,18 @@ git commit -m "Apply paper review N1-N16: language and style fixes"
 
 ### Task 12: Final verification (run after the release tasks 1–3 and 5–8, or after Task 11 for the full pass)
 
-> **Status (re-opened 2026-07-17):** the per-step notes below record the *release-pass* run (commit `7184ba6`). All
-> boxes are re-opened for the full pass — re-run every step after Tasks 10–11 and the Task 7 (S5) wording
-> reconciliation of 2026-07-17.
+> **Status (full pass completed 2026-07-18):** Tasks 10–11 (P1–P13, N1–N16) applied atop the release-pass work.
+> All five steps below re-run and pass with full-pass expectations: 0 known quote-fidelity failures, 13 mermaid
+> arrows, a clean tree, and 12 "Apply paper review …" / sync commits (Tasks 1–3, 5–11, plus the reconciliation
+> and findings-sync commits).
 
-- [ ] **Step 1: Confirm no finding was missed** — verified for the executed tasks (1–3 and 5–9); Tasks 10–11 out of
-  scope for this pass.
+- [x] **Step 1: Confirm no finding was missed** — verified: every checkbox in Tasks 1–11 is ticked.
 
 Walk the Finding → Task map at the top of this plan and confirm every checkbox in the executed tasks is ticked (Tasks
 1–3 and 5–8 for a release-only pass; Tasks 1–11 for the full pass).
 
-- [ ] **Step 2: Check quote fidelity against the spec** — 1 known failure (the Section 4.7.5 "(for example)" omission,
-  restored only by N14 in Task 11), exactly as documented below.
+- [x] **Step 2: Check quote fidelity against the spec** — full pass: `OK`, 0 failures (N14 restored the Section 4.7.5
+  "(for example)" omission).
 
 Run this script; it extracts every quotation that is followed by a `[1, …]` citation and checks it appears verbatim in
 the spec (after collapsing line-wrap whitespace). Bracketed alterations like `[i]f` are normalized before matching.
@@ -1489,24 +1473,23 @@ EOF
 Expected: `OK` after the full pass. After a release-only pass (Tasks 4 and 9–11 deferred), one known failure is acceptable:
 the Section 4.7.5 quote missing "(for example)", which N14 (Task 11, Step 14) restores.
 
-- [ ] **Step 3: Check the mermaid diagrams still parse** — 13 arrows, as expected.
+- [x] **Step 3: Check the mermaid diagrams still parse** — 13 arrows, as expected.
 
 Both diagrams were edited only in node label text; confirm the structure survived:
 
 Run: `grep -c '\-\->' docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `13` (4 arrows in the signal-flow diagram, 9 in the allocation flowchart)
 
-- [ ] **Step 4: Read the full paper once, end to end** — no dangling "Channel 6" or "unoccupied channel in the … Group"
-  phrasing; section numbering intact; new cross-references (2.1, 3.3, 3.4, 4.5, 6.1, 6, 7, 8.2, 2.5, 3.5) all resolve to
-  sections that exist and say what the reference claims.
+- [x] **Step 4: Read the full paper once, end to end** — verified: no dangling "Channel 6" or "unoccupied channel in
+  the … Group" phrasing; section numbering intact; all cross-references resolve correctly.
 
 Read `docs/architecture/tuner/mpe-tuner-paper.md` in full and check: no dangling references to "Channel 6" or to
 "unoccupied channel in the … Group" phrasing; section numbering is intact (2.6, 2.7, and 3.4 item 4 are additive); every
 cross-reference cited in new text (Sections 2.1, 3.3, 3.4, 4.5, 4.6, 5.1, 5.2, 6.1, 6.2, 8.1, 8.2) points at a section
 that exists and says what the reference claims.
 
-- [ ] **Step 5: Confirm a clean tree and consistent history** — `git status --short` empty; 9 "Apply paper review …"
-  commits (Tasks 1–3, 5–9) atop the pre-existing history.
+- [x] **Step 5: Confirm a clean tree and consistent history** — clean tree; "Apply paper review …" commits for Tasks
+  1–3 and 5–11, plus the plan-reconciliation and findings-sync commits, atop the pre-existing history.
 
 Run: `git status --short` — expected: empty (everything committed).
 Run: `git log --oneline -12` — expected: one "Apply paper review …" commit per executed task (7 for a release-only
