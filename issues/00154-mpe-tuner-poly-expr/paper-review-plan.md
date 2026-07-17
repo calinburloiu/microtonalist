@@ -1043,7 +1043,7 @@ Sixteen style fixes. All are independent of one another; the Section 2.1 MCM edi
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1 — N1: Fix the neither/nor construction in Section 4.5**
+- [x] **Step 1 — N1: Fix the neither/nor construction in Section 4.5**
 
 Find:
 
@@ -1061,7 +1061,7 @@ invariant nor the group constraints — a channel is admitted as a candidate at 
 satisfied — nor can it override the perceptual criteria that govern Steps 3 and 4.
 ````
 
-- [ ] **Step 2 — N2: Add the missing comma and strengthen the modal in Section 4.1**
+- [x] **Step 2 — N2: Add the missing comma and strengthen the modal in Section 4.1**
 
 Find:
 
@@ -1075,7 +1075,7 @@ Replace with:
 two different tuning offsets simultaneously, which would compromise the intonation of at least one note.
 ````
 
-- [ ] **Step 3 — N3: Remove the sole first-person sentence in Section 5** (also fixes "the last resort measure" vs.
+- [x] **Step 3 — N3: Remove the sole first-person sentence in Section 5** (also fixes "the last resort measure" vs.
   Section 4.5's "a last-resort measure")
 
 Find:
@@ -1093,7 +1093,7 @@ conditions under which notes are dropped and the criteria for selecting which no
 last-resort measure, used only when the fundamental invariants of intonation would otherwise be violated.
 ````
 
-- [ ] **Step 4 — N4: Replace the colloquial "its turn to be reused"**
+- [x] **Step 4 — N4: Replace the colloquial "its turn to be reused"**
 
 Find:
 
@@ -1109,7 +1109,7 @@ Replace with:
   natural candidate for reuse.
 ````
 
-- [ ] **Step 5 — N5: "equally listens" → "likewise listens" in Section 8**
+- [x] **Step 5 — N5: "equally listens" → "likewise listens" in Section 8**
 
 Find:
 
@@ -1123,7 +1123,7 @@ Replace with:
 It likewise listens for MCMs on its input
 ````
 
-- [ ] **Step 6 — N6: Fix the faulty predication in Section 3.5**
+- [x] **Step 6 — N6: Fix the faulty predication in Section 3.5**
 
 Find:
 
@@ -1137,7 +1137,7 @@ Replace with:
 Placing a note on the Master Channel is a deliberate choice by the MPE sender: the sender opts out of the
 ````
 
-- [ ] **Step 7 — N7: Replace undefined "aftertouch" and tone down "dubious" in Section 3.4**
+- [x] **Step 7 — N7: Replace undefined "aftertouch" and tone down "dubious" in Section 3.4**
 
 Find:
 
@@ -1153,7 +1153,7 @@ Replace with:
       pressure on a key that is already held.
 ````
 
-- [ ] **Step 8 — N8: "may not share" → "must not share" in Section 4.1** (removes the permission/prohibition ambiguity)
+- [x] **Step 8 — N8: "may not share" → "must not share" in Section 4.1** (removes the permission/prohibition ambiguity)
 
 Find:
 
@@ -1167,7 +1167,7 @@ Replace with:
 they must not share a Member Channel
 ````
 
-- [ ] **Step 9 — N9: "twelve keys" → "twelve keys per octave" in Section 1.1**
+- [x] **Step 9 — N9: "twelve keys" → "twelve keys per octave" in Section 1.1**
 
 Find:
 
@@ -1181,7 +1181,7 @@ Replace with:
 the twelve keys per octave of a standard MIDI keyboard are insufficient
 ````
 
-- [ ] **Step 10 — N10: Fix the EDO gloss in Section 1.1**
+- [x] **Step 10 — N10: Fix the EDO gloss in Section 1.1**
 
 Find:
 
@@ -1195,7 +1195,7 @@ Replace with:
 corresponding to the twelve-tone equal temperament tuning system (12 equal divisions of the octave, 12-EDO)
 ````
 
-- [ ] **Step 11 — N11 + N16: Full CC #74 gloss and Section 2.1 pointer at first mention** (Section 1.1), then drop the
+- [x] **Step 11 — N11 + N16: Full CC #74 gloss and Section 2.1 pointer at first mention** (Section 1.1), then drop the
   duplicate gloss (Section 1.3)
 
 Find:
@@ -1222,7 +1222,7 @@ Replace with:
 Pitch Bend, Channel Pressure, and CC #74 [1, §2.4–2.6]
 ````
 
-- [ ] **Step 12 — N12 + N15 (MCM): Standardize RPN notation and stop re-expanding MCM** (the first edit covers both
+- [x] **Step 12 — N12 + N15 (MCM): Standardize RPN notation and stop re-expanding MCM** (the first edit covers both
   findings; Section 8's `RPN 0` was already converted by Task 7)
 
 Find:
@@ -1273,7 +1273,7 @@ Replace with:
 or in-band, through an MCM received on a Master Channel
 ````
 
-- [ ] **Step 13 — N13: Have Section 6.1 reference Section 4.6's formula instead of restating it**
+- [x] **Step 13 — N13: Have Section 6.1 reference Section 4.6's formula instead of restating it**
 
 Find:
 
@@ -1298,7 +1298,7 @@ component.
 (The formula in Section 1.3 — `Pitch Bend = Tuning Pitch Bend + Expression Pitch Bend` — is the definitional
 two-component identity, not the averaging formula; it stays.)
 
-- [ ] **Step 14 — N14: Restore the silently altered quotes** (three edits: the Section 2.4 quote, its shorter
+- [x] **Step 14 — N14: Restore the silently altered quotes** (three edits: the Section 2.4 quote, its shorter
   repetition in Section 4.7.4, and the Section 4.7.5 quote)
 
 Find:
@@ -1337,7 +1337,7 @@ Replace with:
 > "If an MPE synthesizer receives Pitch Bend (for example) on both a Master and a Member Channel, it must combine the data meaningfully." [1, §2.3.2]
 ````
 
-- [ ] **Step 15 — N15 (remaining items): heading, stray capital, list blank line, numerals,
+- [x] **Step 15 — N15 (remaining items): heading, stray capital, list blank line, numerals,
   self-reference** (five edits; the MCM and `12 pitch classes` items were handled in Step 12 and Task 2)
 
 Heading "Note-On" → "Note On". Find:
@@ -1416,16 +1416,18 @@ Replace with:
 A **Tuning**, in the context of this paper, is a set of twelve pitch offsets
 ````
 
-- [ ] **Step 16: Verify**
+- [x] **Step 16: Verify**
 
 Run: `grep -cE "MPE Configuration Message \(MCM\)" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1` (the first mention in Section 1.4 only)
 Run: `grep -c "RPN 0\." docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0`
 Run: `grep -c "dubious\|aftertouch\|equally listens\|its turn" docs/architecture/tuner/mpe-tuner-paper.md`
-Expected: `0`
+Expected: `0` — **addendum**: Task 9 (run after N7 was written) introduced a second "aftertouch" occurrence in the new Section 2.7.
+Fixed inline during Task 11 (reworded to "per-note pressure is conveyed there by Channel Pressure instead"), not itemized
+above since Section 2.7 didn't exist when this step was drafted.
 
-- [ ] **Step 17: Commit**
+- [x] **Step 17: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
