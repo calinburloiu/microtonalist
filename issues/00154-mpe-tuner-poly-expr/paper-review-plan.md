@@ -1438,18 +1438,18 @@ git commit -m "Apply paper review N1-N16: language and style fixes"
 
 ### Task 12: Final verification (run after the release tasks 1–3 and 5–8, or after Task 11 for the full pass)
 
-> **Status (re-opened 2026-07-17):** the per-step notes below record the *release-pass* run (commit `7184ba6`). All
-> boxes are re-opened for the full pass — re-run every step after Tasks 10–11 and the Task 7 (S5) wording
-> reconciliation of 2026-07-17.
+> **Status (full pass completed 2026-07-18):** Tasks 10–11 (P1–P13, N1–N16) applied atop the release-pass work.
+> All five steps below re-run and pass with full-pass expectations: 0 known quote-fidelity failures, 13 mermaid
+> arrows, a clean tree, and 12 "Apply paper review …" / sync commits (Tasks 1–3, 5–11, plus the reconciliation
+> and findings-sync commits).
 
-- [ ] **Step 1: Confirm no finding was missed** — verified for the executed tasks (1–3 and 5–9); Tasks 10–11 out of
-  scope for this pass.
+- [x] **Step 1: Confirm no finding was missed** — verified: every checkbox in Tasks 1–11 is ticked.
 
 Walk the Finding → Task map at the top of this plan and confirm every checkbox in the executed tasks is ticked (Tasks
 1–3 and 5–8 for a release-only pass; Tasks 1–11 for the full pass).
 
-- [ ] **Step 2: Check quote fidelity against the spec** — 1 known failure (the Section 4.7.5 "(for example)" omission,
-  restored only by N14 in Task 11), exactly as documented below.
+- [x] **Step 2: Check quote fidelity against the spec** — full pass: `OK`, 0 failures (N14 restored the Section 4.7.5
+  "(for example)" omission).
 
 Run this script; it extracts every quotation that is followed by a `[1, …]` citation and checks it appears verbatim in
 the spec (after collapsing line-wrap whitespace). Bracketed alterations like `[i]f` are normalized before matching.
@@ -1473,24 +1473,23 @@ EOF
 Expected: `OK` after the full pass. After a release-only pass (Tasks 4 and 9–11 deferred), one known failure is acceptable:
 the Section 4.7.5 quote missing "(for example)", which N14 (Task 11, Step 14) restores.
 
-- [ ] **Step 3: Check the mermaid diagrams still parse** — 13 arrows, as expected.
+- [x] **Step 3: Check the mermaid diagrams still parse** — 13 arrows, as expected.
 
 Both diagrams were edited only in node label text; confirm the structure survived:
 
 Run: `grep -c '\-\->' docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `13` (4 arrows in the signal-flow diagram, 9 in the allocation flowchart)
 
-- [ ] **Step 4: Read the full paper once, end to end** — no dangling "Channel 6" or "unoccupied channel in the … Group"
-  phrasing; section numbering intact; new cross-references (2.1, 3.3, 3.4, 4.5, 6.1, 6, 7, 8.2, 2.5, 3.5) all resolve to
-  sections that exist and say what the reference claims.
+- [x] **Step 4: Read the full paper once, end to end** — verified: no dangling "Channel 6" or "unoccupied channel in
+  the … Group" phrasing; section numbering intact; all cross-references resolve correctly.
 
 Read `docs/architecture/tuner/mpe-tuner-paper.md` in full and check: no dangling references to "Channel 6" or to
 "unoccupied channel in the … Group" phrasing; section numbering is intact (2.6, 2.7, and 3.4 item 4 are additive); every
 cross-reference cited in new text (Sections 2.1, 3.3, 3.4, 4.5, 4.6, 5.1, 5.2, 6.1, 6.2, 8.1, 8.2) points at a section
 that exists and says what the reference claims.
 
-- [ ] **Step 5: Confirm a clean tree and consistent history** — `git status --short` empty; 9 "Apply paper review …"
-  commits (Tasks 1–3, 5–9) atop the pre-existing history.
+- [x] **Step 5: Confirm a clean tree and consistent history** — clean tree; "Apply paper review …" commits for Tasks
+  1–3 and 5–11, plus the plan-reconciliation and findings-sync commits, atop the pre-existing history.
 
 Run: `git status --short` — expected: empty (everything committed).
 Run: `git log --oneline -12` — expected: one "Apply paper review …" commit per executed task (7 for a release-only
