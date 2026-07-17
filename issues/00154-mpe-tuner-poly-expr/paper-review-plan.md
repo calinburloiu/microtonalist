@@ -764,7 +764,7 @@ Task 6's output).
 
 **File:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1 — P1: Scope the "never occurs" claim to channel exhaustion** (Section 5.2's High-Bend drops are
+- [x] **Step 1 — P1: Scope the "never occurs" claim to channel exhaustion** (Section 5.2's High-Bend drops are
   independent of channel count)
 
 Find:
@@ -779,7 +779,7 @@ Replace with:
 maximum of 15 Member Channels, note dropping due to channel exhaustion never occurs:
 ````
 
-- [ ] **Step 2 — P2: Fix the input-pitch-alteration claim for Non-MPE mode** (input Pitch Bend goes to the Master
+- [x] **Step 2 — P2: Fix the input-pitch-alteration claim for Non-MPE mode** (input Pitch Bend goes to the Master
   Channel there, not to Expression Pitch Bend)
 
 Find:
@@ -794,7 +794,7 @@ Replace with:
 Any pitch alteration present in the input signal is never interpreted as an alternative tuning; it contributes exclusively to the expression domain — as Expression Pitch Bend in MPE Input Mode, or as Master Channel Pitch Bend in Non-MPE Input Mode (Section 3.4) — while the Tuning Pitch Bend is derived solely from the active Tuning.
 ````
 
-- [ ] **Step 3 — P3: Fix example 9.3's contradiction of the Expression Group's overflow role**
+- [x] **Step 3 — P3: Fix example 9.3's contradiction of the Expression Group's overflow role**
 
 Find:
 
@@ -808,7 +808,7 @@ Replace with:
 1. The Pitch Class Group (1 channel) is occupied by pitch class C. Pitch class A is not represented — it cannot share a channel and needs a channel of its own.
 ````
 
-- [ ] **Step 4 — P4: Condition allocation Step 3 on the High-Bend rules** (depends on Task 2's Step 5 rewrite)
+- [x] **Step 4 — P4: Condition allocation Step 3 on the High-Bend rules** (depends on Task 2's Step 5 rewrite)
 
 Find:
 
@@ -839,7 +839,7 @@ Replace with:
     Q3 -- Yes --> A3["Step 3 — Assign to that channel, shared with the<br/>same pitch class (subject to Section 5.2)"]
 ````
 
-- [ ] **Step 5 — P5: Fold the sole-note invariant paragraph into Section 5.3** (it sits inside 5.2.2,
+- [x] **Step 5 — P5: Fold the sole-note invariant paragraph into Section 5.3** (it sits inside 5.2.2,
   forward-references 5.2.3, omits 5.2.2's own contribution, and duplicates invariant 2 of 5.3)
 
 Delete the paragraph from 5.2.2. Find:
@@ -876,7 +876,7 @@ Replace with:
    note is freed before any new note is assigned to it (Section 5.2.3).
 ````
 
-- [ ] **Step 6 — P6: Soften the Master-Channel PKP capability** (the spec makes it discretionary for senders and only
+- [x] **Step 6 — P6: Soften the Master-Channel PKP capability** (the spec makes it discretionary for senders and only
   "may be recognized" by receivers)
 
 Find:
@@ -900,7 +900,7 @@ therefore retains per-note pressure where the sending and receiving implementati
 the Master Channel, in place of the Channel Pressure dimension that Member Channel notes use.
 ````
 
-- [ ] **Step 7 — P7: Acknowledge the normative placement of the one-channel-per-note statement and ground the
+- [x] **Step 7 — P7: Acknowledge the normative placement of the one-channel-per-note statement and ground the
   departure in the spec's own sharing allowance**
 
 Find:
@@ -923,7 +923,7 @@ The MPE Specification states, within its normative description of MPE operation:
 The MPE Tuner does **not** follow this rule unconditionally; the specification itself acknowledges that "[i]f the number of active notes exceeds the number of available Channels, two or more notes will have to share a Channel" [1, §1.2], and the MPE Tuner invokes that allowance deliberately rather than only under exhaustion.
 ````
 
-- [ ] **Step 8 — P8: Disambiguate "among all active notes" in the boundary-channel exclusion** (Master-Channel notes
+- [x] **Step 8 — P8: Disambiguate "among all active notes" in the boundary-channel exclusion** (Master-Channel notes
   are exempt from allocation)
 
 Find:
@@ -940,7 +940,7 @@ Replace with:
    on the Zone's Member Channels are excluded from consideration.
 ````
 
-- [ ] **Step 9 — P9: Generalize the "swooping" cause** (any stale value corrected after note start, not only a previous
+- [x] **Step 9 — P9: Generalize the "swooping" cause** (any stale value corrected after note start, not only a previous
   note's Pitch Bend)
 
 Find:
@@ -955,7 +955,7 @@ Replace with:
 This practice prevents "swooping" noises, which arise when a stale control value retained on a Channel — most commonly a previous note's Pitch Bend — is corrected only after a new note has begun sounding.
 ````
 
-- [ ] **Step 10 — P10: Acknowledge the merged control stream for multi-channel non-MPE input**
+- [x] **Step 10 — P10: Acknowledge the merged control stream for multi-channel non-MPE input**
 
 Find:
 
@@ -973,7 +973,7 @@ Replace with:
    as one merged control stream rather than preserving per-input-channel independence.
 ````
 
-- [ ] **Step 11 — P11: Document the Channel Pressure behavior at Note Off** (depends on Task 6; the paragraph goes
+- [x] **Step 11 — P11: Document the Channel Pressure behavior at Note Off** (depends on Task 6; the paragraph goes
   after S4's velocity-0 paragraph in Section 8.3)
 
 Find:
@@ -987,10 +987,10 @@ Replace with:
 ````
 A Note On with velocity 0 in the input is treated as a Note Off, following the MIDI 1.0 shorthand and the specification's recommendation "that this message be interpreted as Note Off velocity 64" [1, §3.3.2]. Recognizing the shorthand is essential: occupancy tracking, Expression Value averaging, and channel reuse all depend on detecting note releases.
 
-At Note Off, the Tuner emits no Channel Pressure reset of its own. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4]; the Tuner honors this at note onset (Section 3.4) and, for Note Off, inherits the input sender's behavior — in MPE Input Mode a conforming sender's pre-release reset propagates through the update mechanism of Section 6.2. This is a documented design choice within the specification's "wherever it is appropriate" qualifier.
+At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4]. In MPE Input Mode the output Channel Pressure passes through from the input sender, so the Tuner emits no reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the output through the update mechanism of Section 6.2, and if the sender emits none, neither does the Tuner. In Non-MPE Input Mode the per-note Channel Pressure on an output Member Channel is the Tuner's own, synthesized from the input's Polyphonic Key Pressure (Section 3.4); here the Tuner is the controller to which §3.3.4 applies, so it performs the reset itself, returning the channel's Channel Pressure to 0 as Section 6.3 requires. Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's "wherever it is appropriate" qualifier and are documented design choices.
 ````
 
-- [ ] **Step 12 — P12: Fix criterion (d)'s gloss** ("idle the longest" is wrong for occupied candidates at Steps 3–4)
+- [x] **Step 12 — P12: Fix criterion (d)'s gloss** ("idle the longest" is wrong for occupied candidates at Steps 3–4)
 
 Find:
 
@@ -1007,7 +1007,7 @@ Replace with:
   selection falls to criterion (e).
 ````
 
-- [ ] **Step 13 — P13: Qualify Overview item 3 for Non-MPE mode** (no Expression component there)
+- [x] **Step 13 — P13: Qualify Overview item 3 for Non-MPE mode** (no Expression component there)
 
 Find:
 
@@ -1021,14 +1021,14 @@ Replace with:
 3. Computes the appropriate Pitch Bend value for each Member Channel as the sum of the Tuning Pitch Bend for the channel's pitch class and the Expression Pitch Bend derived from the input (Section 1.3); in Non-MPE Input Mode the Expression component is absent (Section 3.4).
 ````
 
-- [ ] **Step 14: Verify**
+- [x] **Step 14: Verify**
 
 Run: `grep -c "cannot share a channel and needs a channel of its own" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `1`
 Run: `grep -c "It follows that" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: `0` (the only occurrence was the 5.2.2 paragraph deleted in Step 5)
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md issues/00154-mpe-tuner-poly-expr/paper-review-plan.md
@@ -1337,8 +1337,8 @@ Replace with:
 > "If an MPE synthesizer receives Pitch Bend (for example) on both a Master and a Member Channel, it must combine the data meaningfully." [1, §2.3.2]
 ````
 
-- [ ] **Step 15 — N15 (remaining items): heading, stray capital, freeing dedup, list blank line, numerals,
-  self-reference** (six edits; the MCM and `12 pitch classes` items were handled in Step 12 and Task 2)
+- [ ] **Step 15 — N15 (remaining items): heading, stray capital, list blank line, numerals,
+  self-reference** (five edits; the MCM and `12 pitch classes` items were handled in Step 12 and Task 2)
 
 Heading "Note-On" → "Note On". Find:
 
@@ -1362,24 +1362,6 @@ Replace with:
 
 ````
 Within this group, no two occupied channels may have active notes of the same pitch class.
-````
-
-"Freeing a channel" is defined twice; keep Section 5.1's bolded definition and make Step 4 cross-reference it. Find:
-
-````
-4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
-   holds the new note's pitch class — the Tuner frees a channel and assigns the new note to it. Freeing a channel means
-   dropping all of its active notes to make it unoccupied. This is a last-resort measure; the conditions under which it
-   is warranted, the notes protected from it, and the selection of the channel to free are specified in Section 5.1.
-````
-
-Replace with:
-
-````
-4. **Free a channel**: If none of the preceding steps applies — every Member Channel is occupied and no occupied channel
-   holds the new note's pitch class — the Tuner frees a channel (Section 5.1) and assigns the new note to it. This is a
-   last-resort measure; the conditions under which it is warranted, the notes protected from it, and the selection of
-   the channel to free are specified in Section 5.1.
 ````
 
 Missing blank line before the second `- **(a)**` bullet list (some renderers won't recognize the list). Find:
