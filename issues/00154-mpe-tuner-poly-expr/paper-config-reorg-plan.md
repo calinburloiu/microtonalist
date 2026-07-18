@@ -392,7 +392,7 @@ Adds the Note Off removal rule to 6.1, creates 6.1.1 Message Ordering, repoints 
 **Files:**
 - Modify: `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Add the Note Off removal rule to 6.1**
+- [x] **Step 1: Add the Note Off removal rule to 6.1**
 
 Position: 6.1, between the averaging paragraph and the retention paragraph (the removal rule is why the
 retention rule has a moment to apply). The `(Section 6.1)` self-reference from the 8.3 original is
@@ -418,12 +418,12 @@ averages, consistent with the specification's statement that "control of a note 
 When the last active note
 ```
 
-- [ ] **Step 2: Repoint 6.1's omission-optimization reference**
+- [x] **Step 2: Repoint 6.1's omission-optimization reference**
 
 Remove: `the values the channel already holds (Section 8.1).`
 Add: `the values the channel already holds (Section 6.1.1).`
 
-- [ ] **Step 3: Insert 6.1.1 Message Ordering**
+- [x] **Step 3: Insert 6.1.1 Message Ordering**
 
 Position: end of 6.1, before `### 6.2`. The trailing "In particular, in Non-MPE Input Mode CC #74 is
 never emitted…" sentence of 8.1 is **not** carried over (restatement of 6.3 and 3.4 item 3).
@@ -457,12 +457,12 @@ An implementation may omit any of the three control dimension messages whose val
 ### 6.2 MPE Input Mode
 ```
 
-- [ ] **Step 4: Repoint 6.3's `Section 8.1` reference**
+- [x] **Step 4: Repoint 6.3's `Section 8.1` reference**
 
 Remove: `the dimension is thus controllable only globally (Section 8.1).`
 Add: `the dimension is thus controllable only globally (Section 3.4, item 3).`
 
-- [ ] **Step 5: Insert 6.4 Channel Pressure Reset at Note Off**
+- [x] **Step 5: Insert 6.4 Channel Pressure Reset at Note Off**
 
 Position: end of Section 6, after 6.3's last paragraph, before the `---` + `## 7.` boundary. Verbatim
 move of the 8.3 paragraph (working-tree wording).
@@ -496,7 +496,7 @@ Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode bo
 ## 7. Real-Time Tuning Changes
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 grep -c "Section 8.1" docs/architecture/tuner/mpe-tuner-paper.md   # expect 1 (3.4 item 3; fixed in Task 6)
@@ -504,7 +504,7 @@ grep -c "^#### 6.1.1" docs/architecture/tuner/mpe-tuner-paper.md   # expect 1
 grep -c "^### 6.4" docs/architecture/tuner/mpe-tuner-paper.md      # expect 1
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
