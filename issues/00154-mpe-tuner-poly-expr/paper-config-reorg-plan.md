@@ -51,19 +51,19 @@ as two separate commits.
 - Produces: a clean working tree whose paper text is the baseline every `Remove:` block in Tasks 2–7
   matches.
 
-- [ ] **Step 1: Verify the expected diff**
+- [x] **Step 1: Verify the expected diff**
 
 Run: `git status --short && git diff --stat`
 Expected: exactly the three files above modified/untracked, nothing else.
 
-- [ ] **Step 2: Commit the paper citation fixes**
+- [x] **Step 2: Commit the paper citation fixes**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
 git commit -m "[#154] Use [1, §N] citation form for in-prose MPE spec references"
 ```
 
-- [ ] **Step 3: Commit the design spec update and this plan**
+- [x] **Step 3: Commit the design spec update and this plan**
 
 ```bash
 git add issues/00154-mpe-tuner-poly-expr/paper-config-reorg-design.md \
