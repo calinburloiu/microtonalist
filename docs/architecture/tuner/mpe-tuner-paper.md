@@ -620,15 +620,32 @@ notes (Section 4.6). The Pitch Bend emitted on the channel combines this average
 the formula of Section 4.6. The Channel Pressure and CC #74 dimensions are emitted as plain averages, having no tuning
 component.
 
+Upon Note Off, per-note control of the released note ceases: the note is removed from its channel's Expression Value
+averages, consistent with the specification's statement that "control of a note ceases once Note Off has occurred"
+[1, §3.3.3].
+
 When the last active note on an output Member Channel is released, the channel **preserves its latest Expression
 Values** rather than resetting them; averaging is defined only while at least one note is active. This retention rule
 serves two purposes. First, it gives every dimension a well-defined value at all times, avoiding the division by zero
 that a literal average over zero notes would entail. Second, it enables an emission optimization: an implementation is
 not required to emit all three control dimensions before a Note On — it may emit only those whose values differ from
-the values the channel already holds (Section 8.1).
+the values the channel already holds (Section 6.1.1).
 
 Each time an Expression Value of an output Member Channel changes — whether because a note entered or left the average
 or because a note's contribution was updated — the new value is sent on that channel.
+
+#### 6.1.1 Message Ordering
+
+For each new note, the MPE Tuner outputs messages in the following order on the assigned Member Channel:
+
+1. **Pitch Bend**: encoding the sum of the Tuning Pitch Bend and the initial averaged Expression Pitch Bend.
+2. **CC #74**: the timbre Expression Value.
+3. **Channel Pressure**: the Channel Pressure Expression Value.
+4. **Note On**: the note message itself.
+
+This ordering follows the MPE Specification's recommendation [1, §3.3.1] and ensures that the receiving instrument has the correct pitch and articulation state before the note begins sounding.
+
+An implementation may omit any of the three control dimension messages whose value is unchanged since its last emission on that output channel, relying on the state retention rule of Section 6.1.
 
 ### 6.2 MPE Input Mode
 
@@ -671,7 +688,7 @@ and of these, only Channel Pressure operates as an Expression Value:
   originates from a converted Polyphonic Key Pressure message (Section 3.4). Channel Pressure received on an input
   channel is channel-global in meaning and is always forwarded to the Master Channel.
 - **CC #74** never appears on an output Member Channel. If received on an input channel, it is forwarded on the output
-  Master Channel; the dimension is thus controllable only globally (Section 8.1).
+  Master Channel; the dimension is thus controllable only globally (Section 3.4, item 3).
 
 A Polyphonic Key Pressure message received on an input channel is assumed to apply to an active note. If it addresses a
 note number for which no Note On was issued on that input channel, it is ignored. Consequently, a note's Polyphonic Key
@@ -686,6 +703,15 @@ must be reset to 0 by the time of the next Note On.
 **Update propagation.** When a Polyphonic Key Pressure update is received on an input channel for an active note, the
 Tuner updates that note's contribution to the Channel Pressure average of its output channel. As in MPE Input Mode,
 every output channel whose average changes receives the updated value immediately.
+
+### 6.4 Channel Pressure Reset at Note Off
+
+At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4].
+
+- In **MPE Input Mode** the output Channel Pressure passes through from the input sender, so the Tuner emits no reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the output through the update mechanism of Section 6.2, and if the sender emits none, neither does the Tuner.
+- In **Non-MPE Input Mode** the per-note Channel Pressure on an output Member Channel is the Tuner's own, synthesized from the input's Polyphonic Key Pressure (Section 3.4); here the Tuner is the controller to which the MPE Specification requirement [1, §3.3.4] applies, so it performs the reset itself, returning the channel's Channel Pressure to 0 as Section 6.3 requires.
+
+Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's "wherever it is appropriate" qualifier and are documented design choices.
 
 ---
 
