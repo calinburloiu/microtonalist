@@ -59,6 +59,8 @@ The MPE Tuner sits in the MIDI signal path between a controller (or sequencer) a
 
 The output of the MPE Tuner is always MPE, regardless of whether the input is MPE or non-MPE. The input mode may be configured through a non-MIDI interface or detected automatically: upon receiving an MPE Configuration Message (MCM), the MPE Tuner shall switch to MPE Input Mode and reconfigure its Zones accordingly (Section C).
 
+The obligations of output conformance to the MPE Specification are specified where they arise: configuration of Zones and Pitch Bend Sensitivity in Section C, Note On message ordering in Section 6.1.1, Master Channel forwarding in Section 3.5, Note Off behavior in Section 6.1, and the Channel Pressure reset at Note Off in Section 6.4.
+
 ---
 
 ## 2. Background: The MPE Specification
@@ -204,7 +206,7 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
       pressure on a key that is already held.
     - **CC #74**: not emitted on Member Channels. In Non-MPE Input Mode there is no source of per-note CC #74 — the
       dimension is controllable only globally, via the Master Channel (item 2) — so the Tuner never sends CC #74 on a
-      Member Channel (Sections 6.3 and 8.1).
+      Member Channel (Section 6.3).
 
 4. **Redirection of Remaining Channel Messages**: All other Channel Voice and Channel Mode messages received on a
    non-MPE input channel — for example Damper Pedal (CC #64), Modulation (CC #1), Volume (CC #7), Program Change and
@@ -728,57 +730,6 @@ When the performer changes the active Tuning:
 Because the pitch-class invariant (Section 4.1) guarantees that all notes on a given channel share the same pitch class, a single Pitch Bend update per channel is sufficient to retune all notes on that channel simultaneously.
 
 If the invariant were violated — if notes of different pitch classes shared a channel — a tuning change that assigned different offsets to those pitch classes could not be correctly represented by a single Pitch Bend value, and at least one note would be mistuned until it was moved to a different channel.
-
----
-
-## 8. MPE Tuner Output Conformance
-
-The output of the MPE Tuner conforms to the MPE Specification. The following features behave exactly as the MPE Specification defines them, with no Tuner-specific behavior:
-
-- **Zone Configuration**: the MPE Tuner outputs MPE Configuration Messages to establish the Zone structure on the receiving instrument, supporting both single-Zone and dual-Zone configurations [1, §2.1], emitting them at start-up and on every Zone reconfiguration (Section 3.3). It likewise listens for MCMs on its input and conforms to them, reconfiguring its own Zones as specified in Section 3.3; in this case it also configures the Zones of the output instrument by forwarding that configuration.
-- **Pitch Bend Sensitivity**: the MPE Tuner relies on the default Pitch Bend Sensitivity values that the MCM
-  establishes — ±48 semitones for Member Channels and ±2 semitones for the Master Channel [1, §2.4]. It also listens
-  for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch
-  Bend. How a received message propagates to the output depends on the input mode:
-    - **MPE Input Mode**: a sensitivity received on any input Member Channel applies Zone-wide, since "[a] receiver must
-      apply the last Pitch Bend Sensitivity message received on any Member Channel to all Member Channels in the Zone"
-      [1, §2.4]. On output, the Tuner mirrors the input, forwarding each received message on its corresponding output
-      Member Channel. It does *not* replicate every received message across all Member Channels. A conforming MPE sender
-      already addresses the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to
-      all `n` channels would produce an `n²` flood. Because the Tuner both receives and sends MPE, per-channel
-      forwarding already configures every output Member Channel.
-    - **Non-MPE Input Mode**: the input carries no Member Channels. Because a Member Channel's Pitch Bend then carries
-      only the Tuning Pitch Bend, a Pitch Bend Sensitivity message received on the input applies to the output Master
-      Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.4). The output
-      Member Channels retain the MCM's default of ±48 semitones, which can be changed only through the non-MIDI
-      configuration interface.
-
-The subsections below specify the behaviors where the MPE Tuner adds detail beyond the specification.
-
-### 8.1 Message Ordering
-
-For each new note, the MPE Tuner outputs messages in the following order on the assigned Member Channel:
-
-1. **Pitch Bend**: encoding the sum of the Tuning Pitch Bend and the initial averaged Expression Pitch Bend.
-2. **CC #74**: the timbre Expression Value.
-3. **Channel Pressure**: the Channel Pressure Expression Value.
-4. **Note On**: the note message itself.
-
-This ordering follows the MPE Specification's recommendation [1, §3.3.1] and ensures that the receiving instrument has the correct pitch and articulation state before the note begins sounding.
-
-An implementation may omit any of the three control dimension messages whose value is unchanged since its last emission on that output channel, relying on the state retention of Section 6.1. In particular, in Non-MPE Input Mode CC #74 is never emitted on a Member Channel: the dimension cannot be controlled per note in that mode and is available only globally, on the Master Channel (Section 6.3).
-
-### 8.2 Zone-Level Messages
-
-Zone-level messages (Damper Pedal, Program Change, Reset All Controllers, and other messages listed in Table 1 of the MPE Specification) are forwarded on the Master Channel without modification. The MPE Tuner does not interpret or alter these messages.
-
-### 8.3 Note Off Behavior
-
-Upon Note Off, per-note control of the released note ceases: the note is removed from its channel's Expression Value averages (Section 6.1), consistent with the specification's statement that "control of a note ceases once Note Off has occurred" [1, §3.3.3]. While other notes remain active on the channel, the Tuner continues to update the channel's Pitch Bend — for tuning changes (Section 7) as well as for Expression Value changes (Section 6). The channel becomes available for reuse once all its notes have received Note Off messages.
-
-A Note On with velocity 0 in the input is treated as a Note Off, following the MIDI 1.0 shorthand and the specification's recommendation "that this message be interpreted as Note Off velocity 64" [1, §3.3.2]. Recognizing the shorthand is essential: occupancy tracking, Expression Value averaging, and channel reuse all depend on detecting note releases.
-
-At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4]. In MPE Input Mode the output Channel Pressure passes through from the input sender, so the Tuner emits no reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the output through the update mechanism of Section 6.2, and if the sender emits none, neither does the Tuner. In Non-MPE Input Mode the per-note Channel Pressure on an output Member Channel is the Tuner's own, synthesized from the input's Polyphonic Key Pressure (Section 3.4); here the Tuner is the controller to which the MPE Specification requirement [1, §3.3.4] applies, so it performs the reset itself, returning the channel's Channel Pressure to 0 as Section 6.3 requires. Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's "wherever it is appropriate" qualifier and are documented design choices.
 
 ---
 
