@@ -94,7 +94,10 @@ becomes **Section 5**. A reference to allocation must land on 5, never on the ne
 
 **Never renumber `[1, §N]`.** Those cite the MPE Specification (reference [1]), not this paper. Every `§` in
 the paper belongs to a `[1, §…]` citation — the paper numbers its own sections only as `Section N`. Restrict
-the sweep to `Section N`.
+the sweep to `Section N`. At `44730ba` one `Section N` phrase cited the spec — *"Section 3.2 of the MPE
+Specification"* in Section 3.5's rationale item 1 — but the working tree rewrites it to the `[1, §3.2]`
+citation form (see the constraints), so every remaining `Section N` is a self-reference and the sweep may
+treat them uniformly.
 
 ### Current → target map
 
@@ -106,7 +109,7 @@ the sweep to `Section N`.
 | 3.5 | **3.4** | Master Channel Forwarding (retitled — Work item 3) |
 | *(new)* | **4** | **Configuration** — 4.1 Input Mode, 4.2 Zones, 4.3 Pitch Bend Sensitivity |
 | 4 … 4.7.5 | **5 … 5.7.5** | Allocation of Notes to Member Channels |
-| 5 … 5.2.3 | **6 … 6.2.3** | Dropping Notes and Freeing Channels |
+| 5 … 5.3 | **6 … 6.3** | Dropping Notes and Freeing Channels (5.3 Summary of Note-Dropping Invariants → 6.3; no cross-references cite 5.3 — only the header renumbers) |
 | 6 … 6.3 (+ new 6.4) | **7 … 7.3 (+ new 7.4)** | Expression Value Processing (6.1 Aggregation → 7.1, plus new **7.1.1** Message Ordering — Work item 4; and new **7.4** Channel Pressure Reset at Note Off — Work item 6) |
 | 7 | **8** | Real-Time Tuning Changes |
 | **8** | — | MPE Tuner Output Conformance — **dissolved** (Work items 2–6; repoints in the Cross-references table) |
@@ -126,11 +129,11 @@ Occurrences of each `Section N` the paper makes to itself, so the sweep can be v
 | 3.4 ×8 | 3.3 |
 | 3.5 ×4 | 3.4 |
 | 4 ×3, 4.1 ×3, 4.2 ×1, 4.4 ×1, 4.5 ×4, 4.6 ×4, 4.7.5 ×1 | 5, 5.1, 5.2, 5.4, 5.5, 5.6, 5.7.5 |
-| 5 ×1, 5.1 ×3, 5.2 ×4, 5.2.1 ×3, 5.2.2 ×4, 5.2.3 ×2 | 6, 6.1, 6.2, 6.2.1, 6.2.2, 6.2.3 |
+| 5 ×1, 5.1 ×3, 5.2 ×4, 5.2.1 ×3, 5.2.2 ×4, 5.2.3 ×5 | 6, 6.1, 6.2, 6.2.1, 6.2.2, 6.2.3 |
 | 6 ×7, 6.1 ×5, 6.2 ×1, 6.3 ×4 | 7, 7.1, 7.2, 7.3 |
 | 7 ×1 | 8 |
-| 8 ×2, 8.1 ×2, 8.2 ×2 | dissolved — repoint per the Cross-references table |
-| 3, 3.1, 3.2, 2.1, 1.3 | unchanged |
+| 8 ×2, 8.1 ×3, 8.2 ×2 | dissolved — repoint per the Cross-references table |
+| 3, 3.1, 2.1, 1.3 | unchanged (`44730ba` also had one `Section 3.2` phrase citing the spec, rewritten to `[1, §3.2]` in the working tree) |
 
 ---
 
@@ -265,13 +268,20 @@ Non-MPE Input Mode the input has no Member Channel to receive RPN 00 00 on, and 
 the Master Channel. **Decision: accept this limitation.** Consider one sentence in 4.3 acknowledging it,
 so the constraint is documented rather than discovered.
 
-> **Open question for the drafting step.** Section 3.3 says the revert restores "the output Zone
-> configuration provided through the configuration interface", and Section 3.3 also requires an output MCM
-> "[w]henever the Zone configuration changes — through either mechanism". If that restore emits MCM **+**
-> PBS (the same pairing as start-up), the non-MIDI interface's Member PBS *is* re-applied and the
-> limitation reduces to the general Non-MPE one — the *performer* cannot change Member PBS over MIDI,
-> which is already stated. Decide whether the revert re-emits the PBS pair, and phrase the limitation to
-> match. This affects only the wording of the limitation, not any other work item.
+**Decided: the revert emits MCM(s) only — no PBS re-emission.** (This resolves the drafting-step question
+an earlier draft left open.) When the revert restores "the output Zone configuration provided through the
+configuration interface" (Section 3.3), the Tuner emits only the corresponding MCM(s); it does not re-emit
+RPN 00 00. Per the receiver obligations the MCM triggers `[1, §2.1.4]`, PBS on the affected channels
+returns to the spec defaults (±48 Member / ±2 Master) — on the receiving instrument **and in the Tuner's
+own interpretation alike**: in Non-MPE Input Mode the Member Channel PBS is what the Tuner encodes Tuning
+Pitch Bend against, so the Tuner must compute with ±48 after the revert or its output pitch math would
+disagree with the receiver it just reset. A non-default Member PBS configured through the non-MIDI
+interface is therefore **not re-applied automatically**; it takes effect again only when the non-MIDI
+configuration is next applied. Phrase the 4.3 limitation in this stronger form: after an
+all-Zones-deactivating MCM, output Member Channel PBS stands at the default ±48 and cannot be changed over
+MIDI. (This refines the first bullet under the non-issue decision above: the revert is a third
+MCM-emission occasion, emitting the MCM without the PBS pairing; it is covered by the second bullet's
+reasoning — the user sent the deactivating MCM intentionally, knowing an MCM resets PBS to defaults.)
 
 ---
 
@@ -561,3 +571,9 @@ safe to delete.
 - Preserve the paper's existing capitalization of MPE terms (Zone, Master Channel, Member Channel, Pitch
   Bend, Tuning Pitch Bend, Expression Pitch Bend, Expression Values, Tuning, Tuner).
 - Verify each quoted passage still matches before editing; the paper may have moved past `44730ba`.
+- The working tree carries two one-line fixes over `44730ba`: in Section 8.3, the paper's only bare
+  `§3.3.4` becomes the citation form `[1, §3.3.4]`; in Section 3.5's rationale item 1, "Section 3.2 of the
+  MPE Specification … play them" becomes "The specification … play them [1, §3.2]". Together they make the
+  invariants relied on above true — every `§` belongs to a `[1, §…]` citation, and every `Section N` is a
+  self-reference. Commit both before or together with the reorg, and quote these passages from the working
+  tree, not from `44730ba`.
