@@ -209,13 +209,13 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
 4. **Redirection of Remaining Channel Messages**: All other Channel Voice and Channel Mode messages received on a
    non-MPE input channel — for example Damper Pedal (CC #64), Modulation (CC #1), Volume (CC #7), Program Change and
    Bank Select, and Reset All Controllers (CC #121) — are redirected to the Master Channel of the selected output Zone,
-   where they act as Zone-level messages (Section 8.2). Non-MPE input has no Master Channel of its own from which
-   Section 8.2's forwarding could operate; this redirection gives those messages their conformant Zone-level home on
+   where they act as Zone-level messages (Section 3.5). Non-MPE input has no Master Channel of its own from which
+   Section 3.5's forwarding could operate; this redirection gives those messages their conformant Zone-level home on
    the output. A Pitch Bend Sensitivity message (RPN 00 00) received on the non-MPE input is likewise forwarded to the
    Master Channel, where it configures the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend
    is redirected (Section C.3).
 
-### 3.5 Master Channel Note Forwarding
+### 3.5 Master Channel Forwarding
 
 The MPE Specification permits Note On and Note Off messages on a Master Channel, and requires receivers to respond to
 them [1, §3.2]. Placing a note on the Master Channel is a deliberate choice by the MPE sender: the sender opts out of the
@@ -250,8 +250,15 @@ threefold:
    Pressure on Member Channels but allows it on Master Channel notes. Forwarding Master Channel notes as-is preserves
    the ability to use Polyphonic Key Pressure on those notes.
 
-In Non-MPE Input Mode the concept of a Master Channel does not apply to the input: every incoming note is allocated to a
-Member Channel regardless of the input channel number.
+The forwarding rule extends beyond notes. The MPE Tuner forwards Master Channel Pitch Bend as received, without
+modification; Master Pitch Bend is a Zone-level expressive control, and Section 4.7.5 discusses its relationship to
+tuning. Zone-level messages — Damper Pedal, Program Change, Reset All Controllers, and the other messages listed in
+Table 1 of the MPE Specification (Section 2.6) — are likewise forwarded on the Master Channel without modification.
+The MPE Tuner does not interpret or alter any of these messages.
+
+In Non-MPE Input Mode there is no input Master Channel to forward from: every incoming note is allocated to a Member
+Channel regardless of the input channel number, and the input's channel-global controls and Zone-level messages reach
+the output Master Channel by *redirection* instead, under the conversion rules of Section 3.4, items 2 and 4.
 
 ---
 
@@ -505,7 +512,7 @@ The MPE Specification requires:
 
 > "If an MPE synthesizer receives Pitch Bend (for example) on both a Master and a Member Channel, it must combine the data meaningfully." [1, §2.3.2]
 
-The MPE Tuner forwards Master Channel Pitch Bend as received, without modification. Master Pitch Bend is not used by the Tuner in computing tuning offsets; it is a Zone-level expressive control, belonging entirely to the performer. The Tuner's tuning offsets are applied exclusively through the Tuning Pitch Bend component of Member Channel Pitch Bend.
+Master Channel Pitch Bend is forwarded without modification, as part of Master Channel forwarding (Section 3.5). It is not used by the Tuner in computing tuning offsets; it is a Zone-level expressive control, belonging entirely to the performer. The Tuner's tuning offsets are applied exclusively through the Tuning Pitch Bend component of Member Channel Pitch Bend.
 
 ---
 
