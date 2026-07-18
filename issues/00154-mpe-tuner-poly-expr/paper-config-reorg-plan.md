@@ -302,12 +302,12 @@ references.
 **Files:**
 - Modify: `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Retitle 3.5**
+- [x] **Step 1: Retitle 3.5**
 
 Remove: `### 3.5 Master Channel Note Forwarding`
 Add: `### 3.5 Master Channel Forwarding`
 
-- [ ] **Step 2: Absorb the Pitch Bend mechanic and Zone-level messages; widen the closing line**
+- [x] **Step 2: Absorb the Pitch Bend mechanic and Zone-level messages; widen the closing line**
 
 Position: end of 3.5, after rationale item 3, replacing the current closing paragraph.
 
@@ -336,7 +336,7 @@ Channel regardless of the input channel number, and the input's channel-global c
 the output Master Channel by *redirection* instead, under the conversion rules of Section 3.4, items 2 and 4.
 ```
 
-- [ ] **Step 3: Split 4.7.5 — mechanic out, argument and quote stay**
+- [x] **Step 3: Split 4.7.5 — mechanic out, argument and quote stay**
 
 Remove:
 
@@ -352,7 +352,7 @@ Master Channel Pitch Bend is forwarded without modification, as part of Master C
 
 Do **not** touch 4.7.4.
 
-- [ ] **Step 4: Repoint 3.4 item 4's two `Section 8.2` references**
+- [x] **Step 4: Repoint 3.4 item 4's two `Section 8.2` references**
 
 Remove:
 
@@ -368,14 +368,14 @@ Add:
    Section 3.5's forwarding could operate;
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 ```bash
 grep -c "Master Channel Note Forwarding" docs/architecture/tuner/mpe-tuner-paper.md  # expect 0
 grep -c "Section 8.2" docs/architecture/tuner/mpe-tuner-paper.md                     # expect 0 (8.2's own heading doesn't match)
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
