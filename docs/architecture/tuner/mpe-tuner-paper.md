@@ -306,6 +306,8 @@ all notes received in Non-MPE Input Mode, and all notes received on a Member Cha
 on a Master Channel in MPE Input Mode are forwarded as-is under the rules of Section 3.5 and are not subject to the
 allocation procedure described below.
 
+Throughout this paper, a Note On with velocity 0 is treated as a Note Off [1, §3.3.2].
+
 ### 4.1 Fundamental Invariant
 
 The following invariant governs all channel allocation decisions:
@@ -326,7 +328,8 @@ For each Zone, the available Member Channels are logically partitioned into two 
 
 Unoccupied Member Channels are not considered to be part of any group. Group assignment occurs dynamically: any
 unoccupied channel may be assigned to either group as notes are allocated. The group assignment of a channel is
-determined at the moment a note is placed on it and persists for the lifetime of that channel's occupancy.
+determined at the moment a note is placed on it and persists for the lifetime of that channel's occupancy. The
+channel becomes available for reuse once all its notes have received Note Off messages.
 
 ### 4.3 Group Size Allocation
 
