@@ -89,7 +89,7 @@ no longer revert the Tuner to Non-MPE Input Mode — the reorg's one deliberate 
   `### C.3 Pitch Bend Sensitivity`; consumed by Task 7's `C → 4` pass. Task 6's coherence sentence
   references `Section C`.
 
-- [ ] **Step 1: Remove Section 3.3 Zones**
+- [x] **Step 1: Remove Section 3.3 Zones**
 
 Position: Section 3, between 3.2 and 3.4.
 
@@ -116,7 +116,7 @@ Add:
 ### 3.4 Non-MPE to MPE Conversion
 ```
 
-- [ ] **Step 2: Insert the Configuration section**
+- [x] **Step 2: Insert the Configuration section**
 
 Position: between the end of Section 3 (after 3.5) and Section 4, i.e. anchored on the `---` +
 `## 4. Allocation of Notes to Member Channels` boundary.
@@ -189,7 +189,7 @@ causality corrected and the `n²` bullet verbatim (only "the MCM's default of ±
 specification's default of ±48 semitones") — the revert-path limitation paragraph is gone with the
 revert itself.
 
-- [ ] **Step 3: Repoint the seven surviving `Section 3.3` references**
+- [x] **Step 3: Repoint the seven surviving `Section 3.3` references**
 
 Seven `Edit` operations (fragments are unique after Step 1). The overview sentences in 1.4 and 3.1
 item 1 stay unconditionally true under the design's one-way-switch decision, so edits 1 and 2 are plain
@@ -212,7 +212,7 @@ repoints:
    Remove: `is redirected (Section 8).`
    Add: `is redirected (Section C.3).`
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 grep -c "Section 3.3" docs/architecture/tuner/mpe-tuner-paper.md   # expect 1 (Section 8 intro; dies in Task 6)
@@ -221,7 +221,7 @@ grep -c "^## C\. Configuration" docs/architecture/tuner/mpe-tuner-paper.md  # ex
 grep -c "(Section 8)" docs/architecture/tuner/mpe-tuner-paper.md   # expect 0
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
