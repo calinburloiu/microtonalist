@@ -1,23 +1,48 @@
-# Report: Dissolving Section 8 "MPE Tuner Output Conformance"
+# Design: MPE Tuner Paper Reorg — Extract Configuration to a Dedicated Section, Dissolve Section 8
 
 **Target document:** `docs/architecture/tuner/mpe-tuner-paper.md`
 
-**Citations pinned at:** commit `44b7030` (`[#154] Apply paper review fixes (M1-M3, S1-S6) to MPE Tuner
-paper (#240)`) — the last commit that touched the paper. Report written with `HEAD` at `fa4e5d6`, working
-tree clean for the paper.
+**Citations pinned at:** commit `44730ba` (`[#154] Apply paper review fixes (P1-P13, N1-N16) to MPE Tuner
+paper (#241)`) — the newest `main` commit that touched the paper, merged into this branch so the working-tree
+paper matches. (The branch's merge-base `fa4e5d6` did not touch the paper — it changed only
+`paper-review-plan.md` — so `44730ba`, one commit further along `main`, is the meaningful pin.)
 
-**Purpose:** input for a future prompt that performs the reorganization. This report records *what moves
-where and why*; it is not itself the edit.
+**Purpose:** this document specifies the target design of the reorganization — *what moves where and why*. It
+is the design input from which an implementation plan (out of scope for this document) and the edit will be
+generated; it is not itself the edit.
 
 **Referencing convention:** sections are identified by **number and name**. If numbering has drifted since
-`44b7030`, the name is authoritative. Quoted paper text is verbatim at `44b7030` and can be located by
-searching for the quote. No line numbers are used anywhere in this report, by design.
+`44730ba`, the name is authoritative. Quoted paper text is verbatim at `44730ba` and can be located by
+searching for the quote. No line numbers are used anywhere in this document, by design.
+
+**Numbering convention in this document.** This reorg makes two structural changes: it **extracts
+Configuration into a new, dedicated Section 4** (Work item 1) and **dissolves Section 8** (Work items 2–6).
+Both shift the numbers of the sections between them. To stay aligned with the paper the executing prompt
+reads, section numbers below are **current (`44730ba`)** — with one exception: the **new Configuration
+section**, referred to by name and numbered **4** (subsections **4.1 Input Mode / 4.2 Zones / 4.3 Pitch Bend
+Sensitivity**). The resulting global renumber is defined once, authoritatively, under
+[Numbering after the reorg](#numbering-after-the-reorg), and applied as a final step. Keep the clash
+straight: the **new Section 4 is Configuration**, while the **old Section 4 (Allocation) becomes Section 5**.
+On any conflict between a number and a section name, the **name wins**.
 
 ---
 
-## Verdict
+## Design overview
 
-Section 8 ("MPE Tuner Output Conformance") is **dissolved entirely**. Sections 9 and 10 renumber to 8 and 9.
+This reorg makes **two structural changes**.
+
+**1 — Extract Configuration into a new, dedicated Section 4.** Input Mode, Zones, and Pitch Bend Sensitivity
+are gathered under a new Section 4 ("Configuration"), placed after Section 3 ("MPE Tuner Architecture") and
+before Allocation. The paper is otherwise sectioned by **pipeline stage** (input → allocation →
+tuning/expression → output), but configuration is not a pipeline stage: these parameters are established
+*before any note flows* and govern the whole pipeline. A config-time concern does not sit on the
+pipeline-stage axis, so it earns its own section rather than a subsection of Architecture — which also gives
+the substantive Pitch Bend Sensitivity material proper room.
+
+**2 — Dissolve Section 8 ("MPE Tuner Output Conformance") entirely.** Its facts relocate to their
+pipeline-stage homes, and old Sections 4–7 shift up by one. Because Section 4 is inserted above where
+Section 8 is removed, **Worked Examples and Summary keep their numbers (9 and 10)** (see
+[Numbering after the reorg](#numbering-after-the-reorg)).
 
 The section is not wrong to exist so much as wrong about what it contains. It tries to be two things at
 once: an *output message contract* and a *conformance checklist against RP-053*. The checklist job is what
@@ -34,30 +59,89 @@ listed with a destination or a justification for deletion.
 
 ## Target structure
 
-| Current | Becomes |
+Content changes by location. Section numbers are **current (`44730ba`)** except the new Configuration
+section; the resulting renumber is in [Numbering after the reorg](#numbering-after-the-reorg).
+
+| Location | Change |
 |---|---|
 | 3.2 Input Modes | unchanged (taxonomy of the two modes) |
-| 3.3 **Zones** | 3.3 **Configuration** — with 3.3.1 Input Mode, 3.3.2 Zones, 3.3.3 Pitch Bend Sensitivity |
-| 3.4 Non-MPE to MPE Conversion | unchanged in scope; cross-refs repointed |
-| 3.5 **Master Channel Note Forwarding** | 3.5 **Master Channel Forwarding** — notes, Pitch Bend, Zone-level controls |
-| 4 preamble | gains the velocity-0 convention |
-| 4.2 Dual-Group Channel Partitioning | gains the channel-reuse rule |
-| 4.7.5 Master Channel Pitch Bend | keeps its argument; forwarding mechanic moves to 3.5 |
-| 6.1 Aggregation Model | gains Note Off removal + `[1, §3.3.3]`; new **6.1.1 Message Ordering** |
-| **8 MPE Tuner Output Conformance** | **removed** |
-| 9 Worked Examples | 8 |
-| 10 Summary | 9 |
+| 3.3 **Zones** | **extracted** into the new Configuration section (Work item 1) |
+| **Configuration** — *new section (4)* | preamble + **4.1 Input Mode**, **4.2 Zones**, **4.3 Pitch Bend Sensitivity** (Work item 1) |
+| 3.4 Non-MPE to MPE Conversion | unchanged in scope; cross-refs repointed (renumbers to 3.3) |
+| 3.5 **Master Channel Note Forwarding** | retitled **Master Channel Forwarding** — notes, Pitch Bend, Zone-level controls (Work item 3; renumbers to 3.4) |
+| 4 (Allocation) preamble | gains the velocity-0 convention (Work item 2) |
+| 4.2 Dual-Group Channel Partitioning | gains the channel-reuse rule (Work item 5) |
+| 4.7.5 Master Channel Pitch Bend | keeps its argument; forwarding mechanic moves to Master Channel Forwarding (Work item 3) |
+| 6.1 Aggregation Model | gains Note Off removal + `[1, §3.3.3]`; new **Message Ordering** subsection (Work item 4) |
+| **6.4 Channel Pressure Reset at Note Off** — *new subsection* | absorbs Section 8.3's Channel Pressure reset paragraph `[1, §3.3.4]` (Work item 6) |
+| **8 MPE Tuner Output Conformance** | **removed** (Work items 2–6) |
 
 ---
 
-## Work item 1 — Repurpose Section 3.3 "Zones" → "Configuration"
+## Numbering after the reorg
+
+Inserting **Configuration** as Section 4 and removing Section 8 renumbers the sections between them. Because
+the insertion is above the removal, **Worked Examples (9) and Summary (10) keep their numbers**; old
+Sections 4–7 shift up by one, and Section 3's tail (old 3.4, 3.5) shifts down to fill the slot Zones vacates.
+
+This is the **single authority** for target numbers; the Work items and tables elsewhere use current
+numbering. Perform it as the **final** step: after the content moves, renumber the section headers to match
+the map, then update every cross-reference to the **target** number of the section it denotes — resolving by
+**meaning** (the section names disambiguate), not by blind text replacement.
+
+**Watch the Section 4 clash:** the *new* Section 4 is **Configuration**; the *old* Section 4 (Allocation)
+becomes **Section 5**. A reference to allocation must land on 5, never on the new Configuration section.
+
+**Never renumber `[1, §N]`.** Those cite the MPE Specification (reference [1]), not this paper. Every `§` in
+the paper belongs to a `[1, §…]` citation — the paper numbers its own sections only as `Section N`. Restrict
+the sweep to `Section N`.
+
+### Current → target map
+
+| Current | Target | Section |
+|---|---|---|
+| 3.1, 3.2 | 3.1, 3.2 | Signal Flow, Input Modes — unchanged |
+| **3.3 Zones** | **→ 4** | extracted into the new Configuration section |
+| 3.4 | **3.3** | Non-MPE to MPE Conversion |
+| 3.5 | **3.4** | Master Channel Forwarding (retitled — Work item 3) |
+| *(new)* | **4** | **Configuration** — 4.1 Input Mode, 4.2 Zones, 4.3 Pitch Bend Sensitivity |
+| 4 … 4.7.5 | **5 … 5.7.5** | Allocation of Notes to Member Channels |
+| 5 … 5.2.3 | **6 … 6.2.3** | Dropping Notes and Freeing Channels |
+| 6 … 6.3 (+ new 6.4) | **7 … 7.3 (+ new 7.4)** | Expression Value Processing (6.1 Aggregation → 7.1, plus new **7.1.1** Message Ordering — Work item 4; and new **7.4** Channel Pressure Reset at Note Off — Work item 6) |
+| 7 | **8** | Real-Time Tuning Changes |
+| **8** | — | MPE Tuner Output Conformance — **dissolved** (Work items 2–6; repoints in the Cross-references table) |
+| 9, 10 | 9, 10 | Worked Examples, Summary — unchanged |
+
+The `3.3` (Zones) cross-references need judgment, not a blind swap: each resolves to the new Configuration
+section — usually **Section 4**, or a specific subsection (4.1 Input Mode / 4.2 Zones / 4.3 Pitch Bend
+Sensitivity) when the sentence means one.
+
+### Cross-reference checksum (as of `44730ba`)
+
+Occurrences of each `Section N` the paper makes to itself, so the sweep can be verified complete:
+
+| Current ref (count) | → target |
+|---|---|
+| 3.3 ×9 | 4 (or 4.1 / 4.2 / 4.3 by context) |
+| 3.4 ×8 | 3.3 |
+| 3.5 ×4 | 3.4 |
+| 4 ×3, 4.1 ×3, 4.2 ×1, 4.4 ×1, 4.5 ×4, 4.6 ×4, 4.7.5 ×1 | 5, 5.1, 5.2, 5.4, 5.5, 5.6, 5.7.5 |
+| 5 ×1, 5.1 ×3, 5.2 ×4, 5.2.1 ×3, 5.2.2 ×4, 5.2.3 ×2 | 6, 6.1, 6.2, 6.2.1, 6.2.2, 6.2.3 |
+| 6 ×7, 6.1 ×5, 6.2 ×1, 6.3 ×4 | 7, 7.1, 7.2, 7.3 |
+| 7 ×1 | 8 |
+| 8 ×2, 8.1 ×2, 8.2 ×2 | dissolved — repoint per the Cross-references table |
+| 3, 3.1, 3.2, 2.1, 1.3 | unchanged |
+
+---
+
+## Work item 1 — Extract Configuration into a new, dedicated Section 4
 
 ### Rationale
 
 Section 3.3 already states the dual-source configuration model:
 
 > "The Zone configuration may be established and changed in two ways: through the non-MIDI configuration
-> interface, or in-band, through an MPE Configuration Message (MCM) received on a Master Channel."
+> interface, or in-band, through an MCM received on a Master Channel."
 
 That pattern is **not Zone-specific** — it is the Tuner's configuration model, and Input Mode and Pitch
 Bend Sensitivity follow the identical shape (non-MIDI interface establishes a base; MIDI messages override
@@ -66,27 +150,27 @@ second time in parallel for one parameter. State the model once; list the parame
 
 ### Structure
 
-Section 3.3 becomes **"Configuration"** with a short preamble stating the general model, then:
+The new **Configuration** section (Section 4) opens with a short preamble stating the general model, then:
 
-- **3.3.1 Input Mode**
-- **3.3.2 Zones**
-- **3.3.3 Pitch Bend Sensitivity**
+- **4.1 Input Mode**
+- **4.2 Zones**
+- **4.3 Pitch Bend Sensitivity**
 
 The preamble carries what is common to all three: the Tuner is configured through a **non-MIDI
 configuration interface**; the MPE Specification defines **defaults** for these parameters; a user may
 **override** the non-MIDI configuration in-band via MCM and RPN 00 00 messages, subject to per-parameter
 limitations stated in the subsections.
 
-Sub-subsectioning is required here, not cosmetic: 3.3 is already two dense paragraphs, and it is absorbing
-PBS's mode-split plus the defaults model.
+Subsectioning is required here, not cosmetic: the current Zones material (3.3) is already two dense
+paragraphs, and the section is absorbing PBS's mode-split plus the defaults model.
 
-### 3.3.1 Input Mode
+### 4.1 Input Mode
 
-Section 3.2 ("Input Modes") keeps defining **what the modes are**; 3.3.1 defines **how the mode is
-selected**. This mirrors the existing split between Section 2.1 (what Zones are) and 3.3 (how the Tuner's
-Zones are configured).
+Section 3.2 ("Input Modes") keeps defining **what the modes are**; 4.1 defines **how the mode is
+selected**. This mirrors the split between what a thing *is* and how it is *configured*, as between
+Section 2.1 (what Zones are) and 4.2 (how the Tuner's Zones are configured).
 
-This subsection is nearly free — Section 3.3 already contains the mode-switching rules. Naming Input Mode
+This subsection is nearly free — the current Zones section (3.3) already contains the mode-switching rules. Naming Input Mode
 as a configuration parameter labels what is already there. Facts to gather:
 
 - Set via the non-MIDI configuration interface (from Section 1.4 "Overview of Operation" and Section 3.1
@@ -95,7 +179,7 @@ as a configuration parameter labels what is already there. Facts to gather:
 - MCMs deactivating all Zones revert to Non-MPE Input Mode, "restoring the output Zone configuration
   provided through the configuration interface" (already in 3.3).
 
-### 3.3.2 Zones
+### 4.2 Zones
 
 Keeps **all** existing Section 3.3 Zone facts, unchanged in substance:
 
@@ -110,7 +194,7 @@ Keeps **all** existing Section 3.3 Zone facts, unchanged in substance:
 **Add:** MCMs are emitted **at start-up** as well as on reconfiguration. This is the one genuinely new fact
 in the Section 8 "Zone Configuration" bullet; everything else in that bullet restates 3.3.
 
-### 3.3.3 Pitch Bend Sensitivity
+### 4.3 Pitch Bend Sensitivity
 
 This is the substantive addition. Section 8's PBS bullet is the **only** place in the paper specifying how
 the Tuner interprets incoming PBS; it must not be lost.
@@ -125,7 +209,7 @@ Sensitivity") states:
 
 > "Upon receiving an MCM, a receiver must set: **Master Channel Pitch Bend Sensitivity**: ±2 semitones
 > (default). **Member Channel Pitch Bend Sensitivity**: ±48 semitones (default). These values may be
-> changed via RPN 0."
+> changed via RPN 00 00."
 
 And Section 2.1 ("Zones, Master Channels, and Member Channels"):
 
@@ -133,7 +217,7 @@ And Section 2.1 ("Zones, Master Channels, and Member Channels"):
 > controls to reasonable default values on each channel entering or leaving MPE control [1, §2.1.4]."
 
 The defaults are **spec-defined properties of MPE**; the MCM is the **reset trigger** that applies them.
-Write 3.3.3 in that direction: the defaults exist independently, and an MCM resets PBS to them.
+Write 4.3 in that direction: the defaults exist independently, and an MCM resets PBS to them.
 
 **Facts to carry over from Section 8's PBS bullet:**
 
@@ -178,7 +262,7 @@ Reasoning to preserve:
 **The empty-Zone MCM revert path.** When an MCM with zero Member Channels deactivates all Zones and the
 Tuner reverts to Non-MPE Input Mode, there is no way to set output **Member Channel PBS** over MIDI — in
 Non-MPE Input Mode the input has no Member Channel to receive RPN 00 00 on, and input PBS is redirected to
-the Master Channel. **Decision: accept this limitation.** Consider one sentence in 3.3.3 acknowledging it,
+the Master Channel. **Decision: accept this limitation.** Consider one sentence in 4.3 acknowledging it,
 so the constraint is documented rather than discovered.
 
 > **Open question for the drafting step.** Section 3.3 says the revert restores "the output Zone
@@ -191,7 +275,7 @@ so the constraint is documented rather than discovered.
 
 ---
 
-## Work item 2 — Velocity-0 convention → Section 4 preamble
+## Work item 2 — Velocity-0 convention → Allocation preamble
 
 Section 8.3 currently carries:
 
@@ -274,7 +358,7 @@ Split it:
 
 - **Moves to 3.5:** the bare mechanic — *forwards Master Channel Pitch Bend as received, without
   modification*.
-- **Stays in 4.7.5:** the RP-053 quote (*"If an MPE synthesizer receives Pitch Bend on both a Master and a
+- **Stays in 4.7.5:** the RP-053 quote (*"If an MPE synthesizer receives Pitch Bend (for example) on both a Master and a
   Member Channel, it must combine the data meaningfully."* `[1, §2.3.2]`) **and** the argument — Master
   Pitch Bend is a Zone-level expressive control belonging entirely to the performer, is not an input to
   tuning, and tuning offsets are applied exclusively via the Tuning Pitch Bend component of Member Channel
@@ -345,10 +429,41 @@ Section 8.3 is dissolved. Its content:
   > the lifetime of that channel's occupancy."
 
   The two rules are the same occupancy lifecycle stated from opposite ends.
-- **→ Section 4 preamble:** the velocity-0 convention (Work item 2).
+- **→ Allocation preamble (Section 4):** the velocity-0 convention (Work item 2).
 - **Delete as restatement:** "While other notes remain active on the channel, the Tuner continues to update
   the channel's Pitch Bend — for tuning changes (Section 7) as well as for Expression Value changes
   (Section 6)." Already covered by Section 6.1's update-propagation rule and Section 7.
+
+---
+
+## Work item 6 — New Section 6.4 "Channel Pressure Reset at Note Off"
+
+`#241` added a paragraph to Section 8.3 that is the one genuinely new fact in the dissolved Section 8: whether
+the Tuner emits a Channel Pressure reset at Note Off, and why the answer depends on the input mode. Section 8
+dissolves, so this paragraph needs a pipeline-stage home. Channel Pressure is an Expression Value, and its
+Note Off reset is Expression Value emission behavior, so its home is **Section 6 ("Expression Value
+Processing")**. Because the paragraph's substance is the *contrast between the two input modes* — a single
+argument that reads as a unit and already cross-references both Section 6.2 and Section 6.3 — keep it whole as
+a new subsection **6.4 "Channel Pressure Reset at Note Off"** (renumbers to **7.4**), a sibling of 6.2 and
+6.3, rather than splitting it across them.
+
+Move the paragraph verbatim in substance, preserving:
+
+- The spec obligation: *"Channel Pressure must be set to zero immediately before a Note On or a Note Off
+  wherever it is appropriate to the design of a controller"* `[1, §3.3.4]`.
+- **MPE Input Mode:** output Channel Pressure passes through from the input sender, so the Tuner emits no
+  reset of its own — a conforming sender's pre-release reset propagates through the update mechanism of
+  Section 6.2, and if the sender emits none, neither does the Tuner.
+- **Non-MPE Input Mode:** the per-note Channel Pressure on an output Member Channel is the Tuner's own,
+  synthesized from the input's Polyphonic Key Pressure (Section 3.4); here the Tuner is the controller to
+  which the `[1, §3.3.4]` obligation applies, so it performs the reset itself, returning Channel Pressure to 0
+  as Section 6.3 requires.
+- The closing point that deferring in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the
+  specification's *"wherever it is appropriate"* qualifier and are documented design choices.
+
+The internal references to Sections 6.2 and 6.3 renumber to 7.2 and 7.3; the reference to Section 3.4 (the
+Polyphonic Key Pressure conversion) renumbers to 3.3. This is the only Section 8 fact that lands in the
+Expression Value Processing section.
 
 ---
 
@@ -358,29 +473,34 @@ Every reference to Section 8 in the paper, with its resolution. Search for the p
 
 | In section | Current reference | Action |
 |---|---|---|
-| 3.3 Zones | "the receiving instrument adopts the same Zone structure **(Section 8)**" | Drop the cross-reference; absorb the start-up MCM fact into 3.3.2. |
+| 3.3 Zones (→ 4.2) | "the receiving instrument adopts the same Zone structure **(Section 8)**" | Drop the cross-reference; absorb the start-up MCM fact into the Zones subsection (4.2). |
 | 3.4 item 3 (CC #74) | "never sends CC #74 on a Member Channel **(Sections 6.3 and 8.1)**" | → "(Section 6.3)" |
 | 3.4 item 4 | "where they act as Zone-level messages **(Section 8.2)**" | → Section 3.5 |
 | 3.4 item 4 | "Non-MPE input has no Master Channel of its own from which **Section 8.2's** forwarding could operate" | → Section 3.5's |
-| 3.4 item 4 | "the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend is redirected **(Section 8)**" | → Section 3.3.3 |
+| 3.4 item 4 | "the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend is redirected **(Section 8)**" | → Section 4.3 |
 | 6.1 Aggregation Model | "it may emit only those whose values differ from the values the channel already holds **(Section 8.1)**" | → Section 6.1.1, or inline now that it is adjacent. |
 | 6.3 Non-MPE Input Mode | "the dimension is thus controllable only globally **(Section 8.1)**" | → Section 3.4 item 3 |
 
-**Renumbering:** Section 9 ("Worked Examples") → 8; Section 10 ("Summary") → 9. Check for any prose
-references to those numbers before renumbering. Appendix A is unaffected.
+**Renumbering:** see [Numbering after the reorg](#numbering-after-the-reorg). Worked Examples and Summary
+keep 9 and 10; old Sections 4–7 shift up by one; old 3.4/3.5 become 3.3/3.4; the new Configuration section
+is Section 4. Check for prose references to any renumbered section before finalizing. Appendix A is
+unaffected.
 
-**Sweep after editing:** grep the paper for `Section 8` and `§8` to confirm no dangling references survive.
-Also grep the repo outside the paper — `issues/00202-pbs-non-mpe-input/pbs-non-mpe-and-mcm-test-mode-plan.md`
-already cites the paper by a stale path and stale numbering (`docs/tuner/mpe-tuner-paper.md` §3.3.2), so
-other docs may cite Section 8 numbers too. Updating stale sibling docs is **out of scope** for the reorg
-unless trivially cheap; note them rather than fix them.
+**Sweep after editing:** grep the paper for `Section 8` to confirm no dangling references survive (the paper
+has no `§8` — every `§` is a `[1, §…]` spec citation and must **not** be renumbered). Then verify the
+renumber against the checksum in [Numbering after the reorg](#numbering-after-the-reorg): no `Section 4`–
+`Section 7` reference should still resolve to its old target. Also grep the repo outside the paper —
+`issues/00202-pbs-non-mpe-input/pbs-non-mpe-and-mcm-test-mode-plan.md` already cites the paper by a stale
+path and stale numbering (`docs/tuner/mpe-tuner-paper.md` §3.3.2), so other docs may cite these numbers too.
+Updating stale sibling docs is **out of scope** for the reorg unless trivially cheap; note them rather than
+fix them.
 
 ---
 
 ## Coherence risk to watch
 
 After dissolution, no single section says "here is what conformant output looks like." A reader wanting the
-output contract must assemble it from 3.3.3, 3.4, 3.5, and 6.1.1. **This is the real cost of dissolution**
+output contract must assemble it from 4.3, 3.4, 3.5, 6.1.1, and 6.4. **This is the real cost of dissolution**
 and it is accepted deliberately — the alternative (retitling Section 8 to "Output Message Contract" and
 keeping only 8.1 and 8.2) leaves a thin two-subsection section whose parts both have better homes.
 
@@ -392,23 +512,23 @@ sentence and is the natural host. Optional — evaluate when drafting.
 
 ## Facts inventory
 
-Completeness guarantee. Every fact in Section 8 at `44b7030`, its status, and its destination. **New** =
+Completeness guarantee. Every fact in Section 8 at `44730ba`, its status, and its destination. **New** =
 exists nowhere else in the paper and must not be lost. **Restatement** = verifiably duplicated elsewhere;
 safe to delete.
 
 | # | Fact | From | Status | Destination |
 |---|---|---|---|---|
 | 1 | Output MCMs establish Zone structure on the receiver; single- and dual-Zone `[1, §2.1]` | 8 intro | restatement of 3.3 | delete |
-| 2 | **MCMs emitted at start-up** | 8 intro | **new** | 3.3.2 Zones |
+| 2 | **MCMs emitted at start-up** | 8 intro | **new** | 4.2 Zones |
 | 3 | MCMs emitted on every Zone reconfiguration | 8 intro | restatement of 3.3 | delete |
 | 4 | Tuner listens for input MCMs and reconfigures its own Zones | 8 intro | restatement of 3.3 | delete |
 | 5 | Tuner forwards that configuration to the output instrument | 8 intro | restatement of 3.3 | delete |
-| 6 | **PBS defaults ±48 Member / ±2 Master relied upon** `[1, §2.4]` | 8 intro | **new** (2.3 states the spec rule; this states the Tuner's reliance) | 3.3.3 — **with causality corrected** |
-| 7 | **Listens for RPN 00 00 on input; conforms when interpreting incoming Pitch Bend** | 8 intro | **new** | 3.3.3 |
-| 8 | **MPE Input Mode: sensitivity on any Member Channel applies Zone-wide** (+ `[1, §2.4]` quote) | 8 intro | **new** | 3.3.3 |
-| 9 | **MPE Input Mode: mirrors input per-channel; no fan-out; `n²` flood rationale** | 8 intro | **new** | 3.3.3 |
+| 6 | **PBS defaults ±48 Member / ±2 Master relied upon** `[1, §2.4]` | 8 intro | **new** (2.3 states the spec rule; this states the Tuner's reliance) | 4.3 — **with causality corrected** |
+| 7 | **Listens for RPN 00 00 on input; conforms when interpreting incoming Pitch Bend** | 8 intro | **new** | 4.3 |
+| 8 | **MPE Input Mode: sensitivity on any Member Channel applies Zone-wide** (+ `[1, §2.4]` quote) | 8 intro | **new** | 4.3 |
+| 9 | **MPE Input Mode: mirrors input per-channel; no fan-out; `n²` flood rationale** | 8 intro | **new** | 4.3 |
 | 10 | **Non-MPE Input Mode: RPN 00 00 → output Master Channel** | 8 intro | restatement of 3.4 item 4 | delete from 8; 3.4 item 4 keeps it, repointed |
-| 11 | **Non-MPE Input Mode: output Member Channels retain ±48; changeable only via non-MIDI interface** | 8 intro | **new** | 3.3.3 (+ limitation note) |
+| 11 | **Non-MPE Input Mode: output Member Channels retain ±48; changeable only via non-MIDI interface** | 8 intro | **new** | 4.3 (+ limitation note) |
 | 12 | **Emission order: Pitch Bend → CC #74 → Channel Pressure → Note On** `[1, §3.3.1]` | 8.1 | **new** | 6.1.1 |
 | 13 | Omission optimization for unchanged dimensions | 8.1 | half-restatement of 6.1 | merge into 6.1.1 |
 | 14 | CC #74 never emitted on a Member Channel in Non-MPE Input Mode | 8.1 | restatement of 6.3 and 3.4 item 3 | delete |
@@ -416,16 +536,17 @@ safe to delete.
 | 16 | **Note removed from Expression Value averages on Note Off** (+ `[1, §3.3.3]` quote) | 8.3 | **new** (the quote) | 6.1 |
 | 17 | Channel keeps receiving Pitch Bend updates while other notes remain active | 8.3 | restatement of 6.1 and 7 | delete |
 | 18 | **Channel available for reuse once all its notes have received Note Off** | 8.3 | **new** | 4.2 |
-| 19 | **Note On velocity 0 treated as Note Off** `[1, §3.3.2]` | 8.3 | **new** | Section 4 preamble, as a global convention |
+| 19 | **Note On velocity 0 treated as Note Off** `[1, §3.3.2]` | 8.3 | **new** | Allocation preamble (Work item 2), as a global convention |
 | 20 | "Recognizing the shorthand is essential: occupancy tracking, …" | 8.3 | self-justifying prose | delete |
+| 21 | **Channel Pressure reset at Note Off is input-mode-dependent** — MPE: pass-through, deferring to the sender via Section 6.2; Non-MPE: Tuner resets to 0 per Section 6.3 `[1, §3.3.4]` | 8.3 | **new** (added by #241) | new Section 6.4 (Work item 6) |
 
-**Totals:** 11 new facts relocated, 1 merged, 8 deleted as restatement or padding.
+**Totals:** 12 new facts relocated, 1 merged, 8 deleted as restatement or padding.
 
 ### Additional fixes surfaced by this analysis (not from Section 8)
 
 | Fact | Location | Action |
 |---|---|---|
-| PBS missing from the reconfiguration reset list | 3.3 | **Add** PBS to the defaults enumeration — the `[1, §2.1.4]` obligation is to reset *all* controls. |
+| PBS missing from the reconfiguration reset list | 4.2 (Zones) | **Add** PBS to the defaults enumeration — the `[1, §2.1.4]` obligation is to reset *all* controls. |
 | Master Channel Pitch Bend forwarding mechanic | 4.7.5 | Move mechanic to 3.5; keep quote and argument in place. |
 
 ---
@@ -439,4 +560,4 @@ safe to delete.
   not a description of the current implementation.
 - Preserve the paper's existing capitalization of MPE terms (Zone, Master Channel, Member Channel, Pitch
   Bend, Tuning Pitch Bend, Expression Pitch Bend, Expression Values, Tuning, Tuner).
-- Verify each quoted passage still matches before editing; the paper may have moved past `44b7030`.
+- Verify each quoted passage still matches before editing; the paper may have moved past `44730ba`.
