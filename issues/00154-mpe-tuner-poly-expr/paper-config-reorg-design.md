@@ -37,7 +37,9 @@ before Allocation. The paper is otherwise sectioned by **pipeline stage** (input
 tuning/expression → output), but configuration is not a pipeline stage: these parameters are established
 *before any note flows* and govern the whole pipeline. A config-time concern does not sit on the
 pipeline-stage axis, so it earns its own section rather than a subsection of Architecture — which also gives
-the substantive Pitch Bend Sensitivity material proper room.
+the substantive Pitch Bend Sensitivity material proper room. Work item 1 also carries the reorg's one
+deliberate behavior change: the in-band switch to MPE Input Mode is one-way — MCMs that deactivate all
+Zones no longer revert the Tuner to Non-MPE Input Mode (see the decision under Work item 1).
 
 **2 — Dissolve Section 8 ("MPE Tuner Output Conformance") entirely.** Its facts relocate to their
 pipeline-stage homes, and old Sections 4–7 shift up by one. Because Section 4 is inserted above where
@@ -51,7 +53,8 @@ Configuration without describing how the Zone was obtained. The paper is otherwi
 **pipeline stage** (input → allocation → tuning/expression → output); Section 8 is sectioned by **topic**,
 and the topic axis lost.
 
-Nothing is deleted that is not a verifiable restatement of text elsewhere in the paper. Section
+Nothing is deleted that is not a verifiable restatement of text elsewhere in the paper — except the
+revert-to-Non-MPE clause of 3.3, which the Work item 1 decision replaces rather than relocates. Section
 ["Facts inventory"](#facts-inventory) below is the completeness guarantee: every fact in Section 8 is
 listed with a destination or a justification for deletion.
 
@@ -173,20 +176,53 @@ Section 3.2 ("Input Modes") keeps defining **what the modes are**; 4.1 defines *
 selected**. This mirrors the split between what a thing *is* and how it is *configured*, as between
 Section 2.1 (what Zones are) and 4.2 (how the Tuner's Zones are configured).
 
-This subsection is nearly free — the current Zones section (3.3) already contains the mode-switching rules. Naming Input Mode
-as a configuration parameter labels what is already there. Facts to gather:
+The current Zones section (3.3) already contains the mode-switching rules; naming Input Mode as a
+configuration parameter mostly labels what is already there — except the all-Zones deactivation rule,
+which this reorg deliberately changes (see the decision below). Facts to gather:
 
 - Set via the non-MIDI configuration interface (from Section 1.4 "Overview of Operation" and Section 3.1
   "Signal Flow", item 1 *Input Mode Detection*).
-- Receipt of a valid MCM switches to MPE Input Mode (already in 3.3).
-- MCMs deactivating all Zones revert to Non-MPE Input Mode, "restoring the output Zone configuration
-  provided through the configuration interface" (already in 3.3).
+- Receipt of a valid MCM switches to MPE Input Mode (already in 3.3) — uniformly, including MCMs that
+  deactivate all Zones.
+- The in-band switch is one-way: no MCM returns the Tuner to Non-MPE Input Mode (decision below; replaces
+  3.3's revert).
+
+#### Decided: no revert to Non-MPE Input Mode — the in-band mode switch is one-way
+
+The paper at `44730ba` (Section 3.3) reverts to Non-MPE Input Mode when MCMs deactivate all Zones,
+"restoring the output Zone configuration provided through the configuration interface". This is
+withdrawn — the reorg's one deliberate behavior change. The Zone configuration is shared by input and
+output, so an MCM deactivating all Zones turns MPE off for the output too, disabling per-note tuning —
+the Tuner's main purpose. The resulting state is not "Non-MPE input" but no MPE at all, and relabeling it
+as an input mode (while silently restoring the output configuration) misrepresents it. The replacement
+behavior:
+
+- Every valid MCM — deactivating or not, received in either input mode — switches the Tuner to MPE Input
+  Mode if it is not already in it and applies its Zone reconfiguration. The switch is one-way: no MCM
+  returns the Tuner to Non-MPE Input Mode; that mode is re-entered only through the non-MIDI
+  configuration interface.
+- When the result is that all Zones are deactivated, MPE operation is off [1, §2.1]: the deactivation is
+  mirrored to the output like any Zone change, and the Tuner produces no note output until a Zone is
+  re-activated — by a subsequent MCM or through the non-MIDI configuration interface. The input mode
+  remains MPE Input Mode.
+
+The uniform rule keeps the overview sentences in Section 1.4 and Section 3.1 item 1 ("Receipt of an MCM
+shall cause the Tuner to switch to MPE Input Mode…") unconditionally true — they need only their
+cross-reference repointed — and preserves Section 3.2's statement that in Non-MPE Input Mode the Zone
+configuration originates solely from the non-MIDI configuration interface: any accepted MCM exits that
+mode before reconfiguring. A stray deactivating MCM silencing the Tuner is accepted on the existing
+reasoning that a user who sends an MCM does so intentionally. The decision also dissolves the PBS
+dilemmas of the revert path (see the superseded section below): with no revert there is no restore step,
+no MCM-only re-emission question, and no state in which output Member Channel PBS is stranded at the
+default.
 
 ### 4.2 Zones
 
 Keeps **all** existing Section 3.3 Zone facts, unchanged in substance:
 
-- One Zone configuration shared by input and output; role per input mode.
+- One Zone configuration shared by input and output; role per input mode. Phrase the opening so it is
+  unambiguous that this means a single shared *configuration*, not a single Zone (the next sentence
+  already says one or two Zones may be defined).
 - Non-MPE Input Mode: output only, single Zone (Lower if enabled, else Upper); Upper ignored when two are
   defined.
 - MCM validity rules `[1, §2.1.1]`, zero-Member-Channel deactivation, channel stealing by most-recent MCM.
@@ -220,7 +256,8 @@ And Section 2.1 ("Zones, Master Channels, and Member Channels"):
 > controls to reasonable default values on each channel entering or leaving MPE control [1, §2.1.4]."
 
 The defaults are **spec-defined properties of MPE**; the MCM is the **reset trigger** that applies them.
-Write 4.3 in that direction: the defaults exist independently, and an MCM resets PBS to them.
+Write 4.3 in that direction — an MCM resets PBS to the spec-defined defaults — without a meta-sentence
+about the defaults "existing independently" of any message; stating the Tuner's reliance on them suffices.
 
 **Facts to carry over from Section 8's PBS bullet:**
 
@@ -256,32 +293,17 @@ Reasoning to preserve:
 - In **Non-MPE Input Mode**, the Tuner emits MCM **+** PBS only at start-up or when the non-MIDI
   configuration changes, and it must emit both to completely configure the output. Correct configuration is
   therefore true by construction — there is no window in which an MCM strands a configured PBS.
-- If an **MCM is received on the input** while in Non-MPE Input Mode, the Tuner will normally switch to MPE
-  Input Mode, and resetting PBS to defaults is correct. A user who sends an MCM does so intentionally, knows
-  an MCM resets PBS to defaults, and will send their own PBS values if they want others.
+- If an **MCM is received on the input** while in Non-MPE Input Mode, the Tuner switches to MPE Input
+  Mode, and resetting PBS to defaults is correct. A user who sends an MCM does so intentionally, knows an
+  MCM resets PBS to defaults, and will send their own PBS values if they want others.
 
-### Known limitation to record (may warrant a sentence in the paper)
+### Superseded: the empty-Zone MCM revert path
 
-**The empty-Zone MCM revert path.** When an MCM with zero Member Channels deactivates all Zones and the
-Tuner reverts to Non-MPE Input Mode, there is no way to set output **Member Channel PBS** over MIDI — in
-Non-MPE Input Mode the input has no Member Channel to receive RPN 00 00 on, and input PBS is redirected to
-the Master Channel. **Decision: accept this limitation.** Consider one sentence in 4.3 acknowledging it,
-so the constraint is documented rather than discovered.
-
-**Decided: the revert emits MCM(s) only — no PBS re-emission.** (This resolves the drafting-step question
-an earlier draft left open.) When the revert restores "the output Zone configuration provided through the
-configuration interface" (Section 3.3), the Tuner emits only the corresponding MCM(s); it does not re-emit
-RPN 00 00. Per the receiver obligations the MCM triggers `[1, §2.1.4]`, PBS on the affected channels
-returns to the spec defaults (±48 Member / ±2 Master) — on the receiving instrument **and in the Tuner's
-own interpretation alike**: in Non-MPE Input Mode the Member Channel PBS is what the Tuner encodes Tuning
-Pitch Bend against, so the Tuner must compute with ±48 after the revert or its output pitch math would
-disagree with the receiver it just reset. A non-default Member PBS configured through the non-MIDI
-interface is therefore **not re-applied automatically**; it takes effect again only when the non-MIDI
-configuration is next applied. Phrase the 4.3 limitation in this stronger form: after an
-all-Zones-deactivating MCM, output Member Channel PBS stands at the default ±48 and cannot be changed over
-MIDI. (This refines the first bullet under the non-issue decision above: the revert is a third
-MCM-emission occasion, emitting the MCM without the PBS pairing; it is covered by the second bullet's
-reasoning — the user sent the deactivating MCM intentionally, knowing an MCM resets PBS to defaults.)
+Earlier drafts recorded a limitation of the revert path (after an all-Zones-deactivating MCM, output
+Member Channel PBS stood at the default ±48 and could not be changed over MIDI) and a decision that the
+revert emits MCM(s) only, without re-emitting RPN 00 00. Both are superseded by the one-way-switch
+decision in 4.1: the revert no longer exists, so neither the limitation nor the re-emission question
+arises, and 4.3 needs no limitation sentence.
 
 ---
 
@@ -538,7 +560,7 @@ safe to delete.
 | 8 | **MPE Input Mode: sensitivity on any Member Channel applies Zone-wide** (+ `[1, §2.4]` quote) | 8 intro | **new** | 4.3 |
 | 9 | **MPE Input Mode: mirrors input per-channel; no fan-out; `n²` flood rationale** | 8 intro | **new** | 4.3 |
 | 10 | **Non-MPE Input Mode: RPN 00 00 → output Master Channel** | 8 intro | restatement of 3.4 item 4 | delete from 8; 3.4 item 4 keeps it, repointed |
-| 11 | **Non-MPE Input Mode: output Member Channels retain ±48; changeable only via non-MIDI interface** | 8 intro | **new** | 4.3 (+ limitation note) |
+| 11 | **Non-MPE Input Mode: output Member Channels retain ±48; changeable only via non-MIDI interface** | 8 intro | **new** | 4.3 |
 | 12 | **Emission order: Pitch Bend → CC #74 → Channel Pressure → Note On** `[1, §3.3.1]` | 8.1 | **new** | 6.1.1 |
 | 13 | Omission optimization for unchanged dimensions | 8.1 | half-restatement of 6.1 | merge into 6.1.1 |
 | 14 | CC #74 never emitted on a Member Channel in Non-MPE Input Mode | 8.1 | restatement of 6.3 and 3.4 item 3 | delete |

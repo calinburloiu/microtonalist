@@ -78,7 +78,8 @@ git commit -m "[#154] Resolve review findings in config reorg design spec; add i
 Removes Section 3.3 (Zones) from the Architecture chapter, inserts the new Configuration section between
 Section 3 and Section 4, and repoints the seven surviving `Section 3.3` references (the other two die
 with Section 8 in Task 6). Also repoints the `(Section 8)` reference in 3.4 item 4 to the new PBS
-subsection.
+subsection. The C.1 text carries the design's one-way-switch decision — MCMs that deactivate all Zones
+no longer revert the Tuner to Non-MPE Input Mode — the reorg's one deliberate behavior change.
 
 **Files:**
 - Modify: `docs/architecture/tuner/mpe-tuner-paper.md`
@@ -139,22 +140,24 @@ The MPE Tuner's operation is governed by three configuration parameters, establi
 
 ### C.1 Input Mode
 
-Section 3.2 defines the two input modes; this subsection specifies how the operating mode is selected. The input mode may be set through the non-MIDI configuration interface, or switched in-band by the input stream itself (Section 3.1): upon receiving a valid MCM, the Tuner switches to MPE Input Mode if it is not already in it. Conversely, when MCMs deactivate all Zones, MPE operation is off [1, §2.1]; the Tuner then reverts to Non-MPE Input Mode, restoring the output Zone configuration provided through the configuration interface (Section C.2).
+Section 3.2 defines the two input modes; this subsection specifies how the operating mode is selected. The input mode may be set through the non-MIDI configuration interface, or switched in-band by the input stream itself (Section 3.1): upon receiving a valid MCM, the Tuner switches to MPE Input Mode if it is not already in it. The in-band switch is one-way: no MCM returns the Tuner to Non-MPE Input Mode, which is re-entered only through the non-MIDI configuration interface.
+
+MCMs that deactivate all Zones are no exception: they too switch the Tuner to MPE Input Mode if necessary, and they turn MPE operation off [1, §2.1]. The Zone configuration is shared by the input and the output (Section C.2), so all Zones being deactivated leaves the output without MPE as well; the deactivation is mirrored on the output like any other Zone change (Section C.2), and the Tuner produces no note output until a Zone is re-activated, by a subsequent MCM or through the non-MIDI configuration interface.
 
 ### C.2 Zones
 
-The MPE Tuner has one Zone configuration, shared by its input and its output: the number of Member Channels allocated to the Lower Zone and, optionally, to the Upper Zone. As in the MPE Specification, one or two Zones may be defined. The role this shared configuration plays depends on the input mode:
+The MPE Tuner maintains a single Zone configuration shared by its input and its output — not separate input and output configurations: the number of Member Channels allocated to the Lower Zone and, optionally, to the Upper Zone. As in the MPE Specification, one or two Zones may be defined. The role this shared configuration plays depends on the input mode:
 
 - In **MPE Input Mode**, the Zone configuration applies to both input and output: the Tuner expects the input stream to be organized according to the configured Zones, and produces output organized by the same Zones. Notes received on the Member Channels of an input Zone are allocated to Member Channels of the same output Zone.
 - In **Non-MPE Input Mode**, the input has no Zone structure, so the Zone configuration affects the output only. Furthermore, only one Zone is accessible from the output: input notes are routed exclusively to the Lower Zone if it is enabled, otherwise to the Upper Zone. When two Zones are defined, the Upper Zone is ignored. This restriction prevents ambiguity in channel allocation and zone-level message routing when the input carries no Zone information of its own.
 
-Beyond the non-MIDI configuration interface, the Zone configuration may be changed in-band, through an MCM received on a Master Channel. Conforming to the MPE Specification, an MCM received on any channel other than a Master Channel is invalid and is ignored [1, §2.1.1]. A valid MCM — which also switches the Tuner to MPE Input Mode if necessary (Section C.1) — reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1].
+Beyond the non-MIDI configuration interface, the Zone configuration may be changed in-band, through an MCM received on a Master Channel. Conforming to the MPE Specification, an MCM received on any channel other than a Master Channel is invalid and is ignored [1, §2.1.1]. A valid MCM — which also switches the Tuner to MPE Input Mode if it is not already in it (Section C.1) — reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1]. An MCM that deactivates all Zones suspends MPE operation altogether (Section C.1).
 
 The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 4.2) are cleared, the retained Expression Values and remembered input-channel control values (Section 6) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64 — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section C.3). Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, an implementation may either emit no Note Off messages — relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4] — or emit explicit Note Off messages before the MCM, for robustness with receivers that do not fully conform; the choice is left to the implementer.
 
 ### C.3 Pitch Bend Sensitivity
 
-The MPE Specification defines default Pitch Bend Sensitivity values — ±48 semitones for Member Channels and ±2 semitones for the Master Channel — and makes the MCM the trigger that applies them: upon receiving an MCM, a receiver must reset the Pitch Bend Sensitivity of the affected channels to these defaults (Section 2.3) [1, §2.4]. The defaults exist independently of any particular message; the MPE Tuner relies on them both when interpreting incoming Pitch Bend and when encoding Pitch Bend on its output.
+The MPE Specification defines default Pitch Bend Sensitivity values — ±48 semitones for Member Channels and ±2 semitones for the Master Channel — and makes the MCM the trigger that applies them: upon receiving an MCM, a receiver must reset the Pitch Bend Sensitivity of the affected channels to these defaults (Section 2.3) [1, §2.4]. The MPE Tuner relies on these defaults both when interpreting incoming Pitch Bend and when encoding Pitch Bend on its output.
 
 The Tuner also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch Bend. How a received message propagates to the output depends on the input mode:
 
@@ -171,23 +174,26 @@ The Tuner also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its in
   Member Channels retain the specification's default of ±48 semitones, which can be changed only through the
   non-MIDI configuration interface.
 
-One limitation follows from the reset semantics. When MCMs deactivate all Zones and the Tuner reverts to Non-MPE Input Mode (Section C.1), the restore of the configured Zone structure emits MCM(s) only; the Pitch Bend Sensitivity of every channel entering or leaving MPE control — on the receiving instrument, per its reset obligations [1, §2.1.4], and in the Tuner's own interpretation alike — returns to the defaults. A non-default Member Channel sensitivity previously provided through the non-MIDI configuration interface is not re-applied automatically: it takes effect again only when the non-MIDI configuration is next applied. Until then, the output Member Channels' sensitivity stands at the default ±48 semitones and, as stated above, cannot be changed over MIDI in Non-MPE Input Mode.
-
 ---
 
 ## 4. Allocation of Notes to Member Channels
 ```
 
-Notes against the design spec: the C.2 text keeps every 3.3 fact; the mode-switching clauses move to
-C.1; the dual-source sentence generalizes into the C preamble; the `(Section 8)` cross-reference is
-dropped and replaced by the absorbed start-up-MCM fact (inventory fact 2); PBS joins the reconfiguration
-reset list; C.3 carries inventory facts 6–9 and 11 with the causality corrected, the `n²` bullet verbatim
-(only "the MCM's default of ±48 semitones" becomes "the specification's default of ±48 semitones"), and
-the limitation in its stronger, MCM-only-revert form.
+Notes against the design spec: the C.2 text keeps every 3.3 fact except the revert clause, which the
+design's one-way-switch decision replaces in C.1 (the reorg's one deliberate behavior change), and
+clarifies the opening sentence (a single shared Zone *configuration*, not a single Zone); the remaining
+mode-switching clauses move to C.1; the dual-source sentence generalizes into the C preamble; the
+`(Section 8)` cross-reference is dropped and replaced by the absorbed start-up-MCM fact (inventory
+fact 2); PBS joins the reconfiguration reset list; C.3 carries inventory facts 6–9 and 11 with the
+causality corrected and the `n²` bullet verbatim (only "the MCM's default of ±48 semitones" becomes "the
+specification's default of ±48 semitones") — the revert-path limitation paragraph is gone with the
+revert itself.
 
 - [ ] **Step 3: Repoint the seven surviving `Section 3.3` references**
 
-Seven `Edit` operations (fragments are unique after Step 1):
+Seven `Edit` operations (fragments are unique after Step 1). The overview sentences in 1.4 and 3.1
+item 1 stay unconditionally true under the design's one-way-switch decision, so edits 1 and 2 are plain
+repoints:
 
 1. Section 1.4 — Remove: `reconfigure its Zones accordingly (Section 3.3).`
    Add: `reconfigure its Zones accordingly (Section C).`
