@@ -650,7 +650,7 @@ change. Take a reference-count snapshot first — it is the verification baselin
 **Interfaces:**
 - Consumes: the C-sentinel sections and references produced by Tasks 2–6.
 
-- [ ] **Step 1: Snapshot reference counts (before)**
+- [x] **Step 1: Snapshot reference counts (before)**
 
 ```bash
 SCRATCH=/private/tmp/claude-501/-Users-calinburloiu-Development-microtonalist/fbfe8223-7c10-46fd-89b0-082b5a5e89c1/scratchpad
@@ -662,7 +662,7 @@ count_refs "$PAPER" > "$SCRATCH/refs-before.txt"
 cat "$SCRATCH/refs-before.txt"
 ```
 
-- [ ] **Step 2: Hand-fix the three plural constructs**
+- [x] **Step 2: Hand-fix the three plural constructs**
 
 The sweep regex renumbers only the first number after `Section(s)`; the paper's three
 `(Sections 5.2.2 and 5.2.3)` constructs get explicit edits to their **target** numbers first. This is
@@ -671,7 +671,7 @@ safe: `6.2.2`/`6.2.3` are not keys of the sweep map, so Step 3 will not re-map t
 Edit (replace_all): Remove `(Sections 5.2.2 and 5.2.3)` → Add `(Sections 6.2.2 and 6.2.3)`
 (3 occurrences: Section 4.5 algorithm step 3, Section 5 preamble, Section 5.2 preamble).
 
-- [ ] **Step 3: Run the sweep (references + headers, one pass each)**
+- [x] **Step 3: Run the sweep (references + headers, one pass each)**
 
 One-pass hash map — no chained replacements possible. Slurp mode (`-0777`) so line-wrapped references
 (e.g. `Section\n4.6`) are caught, preserving the whitespace.
@@ -695,7 +695,7 @@ Map notes: `3.3` is deliberately **absent** (no `Section 3.3` text remains after
 slide down to fill Zones' slot). `[1, §N]` citations never match (`Section` prefix required; headers
 carry no `§`).
 
-- [ ] **Step 4: Run the C → 4 pass**
+- [x] **Step 4: Run the C → 4 pass**
 
 ```bash
 perl -0777 -pi -e '
@@ -706,7 +706,7 @@ perl -0777 -pi -e '
 ' docs/architecture/tuner/mpe-tuner-paper.md
 ```
 
-- [ ] **Step 5: Verify — greps, count diff, header list**
+- [x] **Step 5: Verify — greps, count diff, header list**
 
 (a) No dangling sentinels or dissolved-section references, and no references to numbers that no longer
 exist (`Section 3.5` and `Section 4.7*` have no post-reorg referent):
@@ -811,7 +811,7 @@ grep -E "^#{1,4} " docs/architecture/tuner/mpe-tuner-paper.md
 ## Appendix A: Channel Group Allocation Table
 ```
 
-- [ ] **Step 6: Note stale sibling docs (do not fix — out of scope per the design)**
+- [x] **Step 6: Note stale sibling docs (do not fix — out of scope per the design)**
 
 ```bash
 rtk proxy grep -rn "mpe-tuner-paper" --include="*.md" issues/ docs/ | grep -v 00154
@@ -821,7 +821,7 @@ Known stale citations (record in the PR description, leave unfixed):
 `issues/00202-pbs-non-mpe-input/pbs-non-mpe-and-mcm-test-mode-plan.md` (stale path + `§3.3.2` numbering)
 and `issues/00143-add-mpe-tuner/plan.md` (stale path).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
