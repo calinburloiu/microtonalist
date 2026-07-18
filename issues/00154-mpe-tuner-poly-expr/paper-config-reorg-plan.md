@@ -235,7 +235,7 @@ git commit -m "[#154] Extract Configuration into a dedicated section (reorg WI1)
 **Files:**
 - Modify: `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Add the velocity-0 convention to the Section 4 preamble**
+- [x] **Step 1: Add the velocity-0 convention to the Section 4 preamble**
 
 Position: Section 4, end of the scoping paragraph, before `### 4.1 Fundamental Invariant`. Phrased as a
 global convention (it also governs Section 6's averaging), one sentence, no block quote, no
@@ -259,7 +259,7 @@ Throughout this paper, a Note On with velocity 0 is treated as a Note Off [1, §
 ### 4.1 Fundamental Invariant
 ```
 
-- [ ] **Step 2: Add the channel-reuse rule to 4.2 Dual-Group Channel Partitioning**
+- [x] **Step 2: Add the channel-reuse rule to 4.2 Dual-Group Channel Partitioning**
 
 Position: 4.2, end of the group-assignment paragraph — the reuse rule is the same occupancy lifecycle as
 the persistence rule, stated from the other end.
@@ -277,14 +277,14 @@ determined at the moment a note is placed on it and persists for the lifetime of
 channel becomes available for reuse once all its notes have received Note Off messages.
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 grep -c "velocity 0" docs/architecture/tuner/mpe-tuner-paper.md          # expect 2 (new + 8.3; 8.3 dies in Task 6)
 grep -c "available for reuse" docs/architecture/tuner/mpe-tuner-paper.md # expect 2 (same)
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
