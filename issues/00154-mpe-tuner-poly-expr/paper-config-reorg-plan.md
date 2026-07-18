@@ -522,12 +522,12 @@ design's coherence mitigation to Section 1.4.
 **Files:**
 - Modify: `docs/architecture/tuner/mpe-tuner-paper.md`
 
-- [ ] **Step 1: Repoint 3.4 item 3's reference**
+- [x] **Step 1: Repoint 3.4 item 3's reference**
 
 Remove: `Member Channel (Sections 6.3 and 8.1).`
 Add: `Member Channel (Section 6.3).`
 
-- [ ] **Step 2: Delete Section 8 in its entirety**
+- [x] **Step 2: Delete Section 8 in its entirety**
 
 Remove (ends by consuming Section 8's trailing `---`; the rule preceding `## 8.` remains as the
 separator before `## 9.`):
@@ -593,7 +593,7 @@ Add:
 ## 9. Worked Examples
 ```
 
-- [ ] **Step 3: Add the conformance pointer to Section 1.4**
+- [x] **Step 3: Add the conformance pointer to Section 1.4**
 
 Position: end of 1.4, as a new paragraph after the paragraph edited in Task 2 Step 3 (which now ends
 `…reconfigure its Zones accordingly (Section C).`). This is the design's accepted mitigation for the
@@ -621,7 +621,7 @@ The obligations of output conformance to the MPE Specification are specified whe
 ## 2. Background: The MPE Specification
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 grep -c "Section 8" docs/architecture/tuner/mpe-tuner-paper.md   # expect 0
@@ -630,7 +630,7 @@ grep -c "velocity 0" docs/architecture/tuner/mpe-tuner-paper.md  # expect 1
 grep -c "Section 3.3" docs/architecture/tuner/mpe-tuner-paper.md # expect 0
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/architecture/tuner/mpe-tuner-paper.md
