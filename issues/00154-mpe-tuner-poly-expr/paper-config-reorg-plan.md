@@ -835,7 +835,7 @@ git commit -m "[#154] Renumber sections and cross-references after config reorg"
 **Files:**
 - Read: `docs/architecture/tuner/mpe-tuner-paper.md` (whole file)
 
-- [ ] **Step 1: Verify the design's key quotes survived intact**
+- [x] **Step 1: Verify the design's key quotes survived intact**
 
 Expected occurrence counts (the "combine" quote legitimately lives in both 2.2 and 5.7.5):
 
@@ -852,14 +852,14 @@ done
 
 Expected: count `1` for every quote, except `it must combine the data meaningfully` → `2`.
 
-- [ ] **Step 2: Read the full paper top to bottom**
+- [x] **Step 2: Read the full paper top to bottom**
 
 Check: every `Section N` reference resolves to a section whose content matches the sentence's intent
 (spot-check especially: all `Section 4`/`4.x` references now mean Configuration, all `Section 5`/`5.x`
 mean Allocation); the new Section 4 reads as one coherent section; no doubled blank lines or stray `---`
 around the deleted Section 8; Appendix A untouched.
 
-- [ ] **Step 3: Commit fixes if any were needed; otherwise done**
+- [x] **Step 3: Commit fixes if any were needed; otherwise done**
 
 If the read-through surfaced fixes: commit as
 `[#154] Fix renumbering fallout found in final read-through`. Otherwise no commit — the branch is ready
