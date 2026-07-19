@@ -13,11 +13,11 @@ This paper presents the MPE Tuner, a MIDI signal processing component of the [Mi
 
 ### 1.1 Motivation
 
-The MIDI 1.0 protocol encodes pitch as discrete note numbers corresponding to the twelve-tone equal temperament tuning system (12 equal divisions of the octave, 12-EDO). Musicians and composers working with microtonal tuning systems, historical temperaments, or non-Western scales require a mechanism to deviate from 12-EDO while retaining the polyphonic expressiveness that modern MIDI controllers and instruments afford.
+The MIDI 1.0 protocol [2] encodes pitch as discrete note numbers — Middle C carrying the reference value 60 [2, p. 10] — conventionally interpreted in the twelve-tone equal temperament tuning system (12 equal divisions of the octave, 12-EDO); the specification's own MIDI Tuning extension confirms this default interpretation by defining microtunings as "user-defined scales other than 12-tone equal temperament" [2, p. 47]. Musicians and composers working with microtonal tuning systems, historical temperaments, or non-Western scales require a mechanism to deviate from 12-EDO while retaining the polyphonic expressiveness that modern MIDI controllers and instruments afford.
 
 Many tuning systems of musical interest employ more than twelve distinct pitches per octave. Maqam music, for example, uses quarter-tone inflections that double the number of available pitch classes; just intonation systems may require dozens of distinct pitches to cover all harmonic relationships across multiple keys. When a tuning system exceeds twelve pitches per octave, the twelve keys per octave of a standard MIDI keyboard are insufficient to address all pitches simultaneously. A performer working in such a system must be able to switch between tunings in real time — reassigning the twelve keys to different subsets of the tuning system's pitch inventory as the musical context demands. Real-time tuning change is therefore not an auxiliary feature but a core capability that the MPE Tuner is designed to support.
 
-Several approaches to microtonality over MIDI exist. The MIDI Tuning Standard (MTS) uses System Exclusive messages to reprogram an instrument's pitch table. Monophonic Pitch Bend tuners apply per-note pitch correction on a single-voice basis. Each approach is limited to instruments that support the respective protocol. The MPE Tuner presented in this paper targets the increasingly prevalent class of instruments that support MIDI Polyphonic Expression (MPE), as specified in the MIDI Manufacturers Association's RP-053 [1].
+Several approaches to microtonality over MIDI exist. The MIDI Tuning Standard (MTS) uses System Exclusive messages to reprogram an instrument's pitch table [2, pp. 47–51]. Monophonic Pitch Bend tuners apply per-note pitch correction on a single-voice basis. MIDI 1.0 also defines a channel-wide Master Tuning facility through RPN 00 01 (fine tuning, in fractions of a cent) and RPN 00 02 (coarse tuning, in semitone steps) [2, p. 18]; it transposes an entire channel uniformly and therefore cannot express per-pitch-class offsets. Each approach is limited to instruments that support the respective protocol. The MPE Tuner presented in this paper targets the increasingly prevalent class of instruments that support MIDI Polyphonic Expression (MPE), as specified in the MIDI Manufacturers Association's RP-053 [1].
 
 MPE achieves per-note control by assigning each sounding note to its own MIDI Channel within a defined Zone (Section 2.1), thereby enabling independent Pitch Bend, Channel Pressure, and CC #74 (timbre or slide) control for each note. This per-note Pitch Bend capability provides a natural substrate for applying microtonal tuning offsets: the tuning correction for each note can be expressed as a Pitch Bend value on that note's dedicated Member Channel.
 
@@ -67,14 +67,22 @@ The obligations of output conformance to the MPE Specification are specified whe
 
 This section summarizes the relevant aspects of the MPE Specification (RP-053, v1.0) [1] that form the foundation upon which the MPE Tuner operates. Readers familiar with the MPE Specification may proceed to Section 3.
 
+MPE is a recommended practice layered entirely on MIDI 1.0 [2]: every construct it defines is expressed with standard Channel Voice and Channel Mode messages, so an MPE stream is also a valid MIDI 1.0 stream. Three facts of the MIDI 1.0 Specification recur throughout this paper.
+
+First, the Pitch Bend Change message carries 14-bit resolution and — unlike other continuous controls, whose LSB may be omitted — is always transmitted with both data bytes; the center value 2000H (MSB 40H, LSB 00H) denotes no pitch deviation [2, p. 19]. Throughout this paper, Pitch Bend values are expressed as signed offsets from this center, so a Pitch Bend of 0 denotes the centered, no-deviation state. The pitch deviation that a given value produces is determined by the receiver's Pitch Bend Sensitivity, set through Registered Parameter Number (RPN) 00 00, whose Data Entry MSB expresses the sensitivity in semitones and whose LSB expresses it in cents [2, pp. 17–19]. An RPN is not a message of its own but a MIDI 1.0 procedure: the sender selects the parameter with CC #101 (RPN MSB) and CC #100 (RPN LSB), then applies a value with Data Entry (CC #6 for the MSB, CC #38 for the LSB) [2, p. 17]; the MPE Configuration Message of Section 2.1 follows the same procedure.
+
+Second, MIDI 1.0 provides two forms of aftertouch: Polyphonic Key Pressure, addressed to an individual note number, and Channel Pressure, which affects all notes sounding on the channel [2, p. 19]. MPE builds its per-note pressure dimension on Channel Pressure — made per-note by channel isolation — while restricting Polyphonic Key Pressure as described in Section 2.7.
+
+Third, CC #74 is defined by MIDI 1.0 as Sound Controller 5, with Brightness as its default assignment [2, pp. 14–15]; MPE repurposes it as the third per-note control dimension, conventionally controlling timbre [1, §3.3.5].
+
 ### 2.1 Zones, Master Channels, and Member Channels
 
-MPE organizes the sixteen MIDI Channels into one or two **Zones**. Each Zone consists of a **Master Channel** and one or more **Member Channels**:
+MPE organizes the sixteen MIDI Channels [2, p. 3] into one or two **Zones**. Each Zone consists of a **Master Channel** and one or more **Member Channels**:
 
 - The **Lower Zone** uses Channel 1 as its Master Channel, with Member Channels allocated sequentially upward from Channel 2.
 - The **Upper Zone** uses Channel 16 as its Master Channel, with Member Channels allocated sequentially downward from Channel 15.
 
-A Zone is configured by sending an MCM — Registered Parameter Number (RPN) 00 06 — on the Master Channel of the desired Zone. The Data Entry MSB specifies the number of Member Channels. When only one Zone is active, the Master Channel of the unused Zone is available as a Member Channel, permitting up to 15 Member Channels.
+A Zone is configured by sending an MCM — Registered Parameter Number (RPN) 00 06 — on the Master Channel of the desired Zone. The Data Entry MSB (CC #6) specifies the number of Member Channels. When only one Zone is active, the Master Channel of the unused Zone is available as a Member Channel, permitting up to 15 Member Channels.
 
 A MIDI Channel cannot be assigned to more than one Zone: when an MCM configures a Zone to include channels previously assigned to the other Zone, the most recent message takes precedence, and sending an MCM with zero Member Channels deactivates the addressed Zone [1, §2.1.1]. When a Zone configuration changes, receivers are required to stop all ongoing notes and to reset all controls to reasonable default values on each channel entering or leaving MPE control [1, §2.1.4].
 
@@ -93,7 +101,7 @@ Upon receiving an MCM, a receiver must set:
 - **Master Channel Pitch Bend Sensitivity**: ±2 semitones (default).
 - **Member Channel Pitch Bend Sensitivity**: ±48 semitones (default).
 
-These values may be changed via RPN 00 00. All Member Channels within a Zone must share the same Pitch Bend Sensitivity value [1, §2.4].
+These values may be changed via RPN 00 00 [2, pp. 17–18]. All Member Channels within a Zone must share the same Pitch Bend Sensitivity value [1, §2.4].
 
 ### 2.4 Channel Allocation Recommendations
 
@@ -177,14 +185,15 @@ In both cases, the output is always MPE-conformant.
 When the input is non-MPE, the MPE Tuner must perform the following conversions to produce valid MPE output:
 
 1. **Polyphonic Key Pressure to Channel Pressure**: In MPE, Polyphonic Key Pressure must not be sent on Member Channels
-   [1, §2.5]. Any Polyphonic Key Pressure message in the non-MPE input is converted to a Channel Pressure message on
-   the Member Channel hosting the addressed note; when multiple notes share that channel, the converted values are
-   combined by averaging (Section 7.3). A Polyphonic Key Pressure addressed to a note number that is not currently
+   [1, §2.5]. Any Polyphonic Key Pressure message in the non-MPE input is converted to a Channel Pressure message —
+   MIDI 1.0's channel-wide form of aftertouch [2, p. 19] — on the Member Channel hosting the addressed note; when
+   multiple notes share that channel, the converted values are combined by averaging (Section 7.3). A Polyphonic Key Pressure addressed to a note number that is not currently
    active has no Member Channel to target and is discarded; the Tuner does not retain it to influence a later Note On.
 
 2. **Channel-Global Control Redirection to Master Channel**: In non-MPE input, Pitch Bend, CC #74, and Channel Pressure
-   each apply to all notes on the input channel rather than to an individual note. These channel-global controls shall
-   be redirected to the Master Channel of the single output Zone selected for non-MPE input (see Section 4.2), where
+   are ordinary Channel Voice messages, so each applies to all notes on the input channel rather than to an individual
+   note [2, p. 19]. These channel-global controls shall be redirected to the Master Channel of the single output Zone
+   selected for non-MPE input (see Section 4.2), where
    they serve as Zone-level controls affecting all notes equally. Consequently, none of these three dimensions carries
    a per-note value onto a Member Channel. When the input spans multiple channels, the redirected controls of all input
    channels merge onto the single Master Channel, the most recent message taking effect: the Tuner treats non-MPE input
@@ -209,9 +218,9 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
       Member Channel (Section 7.3).
 
 4. **Redirection of Remaining Channel Messages**: All other Channel Voice and Channel Mode messages received on a
-   non-MPE input channel — for example Damper Pedal (CC #64), Modulation (CC #1), Volume (CC #7), Program Change and
-   Bank Select, and Reset All Controllers (CC #121) — are redirected to the Master Channel of the selected output Zone,
-   where they act as Zone-level messages (Section 3.4). Non-MPE input has no Master Channel of its own from which
+   non-MPE input channel — for example Damper Pedal (CC #64), Modulation (CC #1), Channel Volume (CC #7), Program Change
+   and Bank Select [2, Table III], and Reset All Controllers (Channel Mode message 121 [2, p. 25]) — are redirected to
+   the Master Channel of the selected output Zone, where they act as Zone-level messages (Section 3.4). Non-MPE input has no Master Channel of its own from which
    Section 3.4's forwarding could operate; this redirection gives those messages their conformant Zone-level home on
    the output. A Pitch Bend Sensitivity message (RPN 00 00) received on the non-MPE input is likewise forwarded to the
    Master Channel, where it configures the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend
@@ -283,7 +292,7 @@ The MPE Tuner maintains a single Zone configuration shared by its input and its 
 
 Beyond the non-MIDI configuration interface, the Zone configuration may be changed in-band, through an MCM received on a Master Channel. Conforming to the MPE Specification, an MCM received on any channel other than a Master Channel is invalid and is ignored [1, §2.1.1]. A valid MCM — which also switches the Tuner to MPE Input Mode if it is not already in it (Section 4.1) — reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1]. An MCM that deactivates all Zones suspends MPE operation altogether (Section 4.1).
 
-The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.2) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64 — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, an implementation may either emit no Note Off messages — relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4] — or emit explicit Note Off messages before the MCM, for robustness with receivers that do not fully conform; the choice is left to the implementer.
+The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.2) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64, the centered initial value the MPE Specification prescribes for a bipolar third dimension [1, §3.3.5] — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, an implementation may either emit no Note Off messages — relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4] — or emit explicit Note Off messages before the MCM, for robustness with receivers that do not fully conform; the choice is left to the implementer.
 
 ### 4.3 Pitch Bend Sensitivity
 
@@ -315,7 +324,7 @@ all notes received in Non-MPE Input Mode, and all notes received on a Member Cha
 on a Master Channel in MPE Input Mode are forwarded as-is under the rules of Section 3.4 and are not subject to the
 allocation procedure described below.
 
-Throughout this paper, a Note On with velocity 0 is treated as a Note Off [1, §3.3.2].
+Throughout this paper, a Note On with velocity 0 is treated as a Note Off: MIDI 1.0 defines the two forms as equivalent means of turning off a note and requires receivers to treat them identically [2, p. 10], and the MPE Specification recommends interpreting such a message as a Note Off with release velocity 64 [1, §3.3.2].
 
 ### 5.1 Fundamental Invariant
 
@@ -532,7 +541,10 @@ after allocation, when notes already sharing a channel diverge (Section 6.2.1).
 When all Member Channels are occupied and the Pitch Class Group does not have enough channels to support all pitch
 classes present among the active notes, some notes must be dropped to free a channel for the incoming note. The term
 **freeing a channel** refers to dropping all notes on that channel to make it unoccupied. When a channel is freed, the
-Tuner emits an explicit Note Off message for each of its dropped notes, before the incoming note's Note On. (Note Off
+Tuner emits an explicit Note Off message for each of its dropped notes, before the incoming note's Note On. Because a
+dropped note ends by the Tuner's decision rather than by a release gesture, no release velocity exists for it; the
+emitted Note Off should therefore carry the neutral velocity of 64 (40H) that MIDI 1.0 recommends when release velocity
+information is unavailable [2, pp. 10–11]. (Note Off
 emission upon Zone reconfiguration is a distinct case, governed by Section 4.2.)
 
 The selection of which channel to free follows this procedure:
@@ -731,6 +743,8 @@ Because the pitch-class invariant (Section 5.1) guarantees that all notes on a g
 
 If the invariant were violated — if notes of different pitch classes shared a channel — a tuning change that assigned different offsets to those pitch classes could not be correctly represented by a single Pitch Bend value, and at least one note would be mistuned until it was moved to a different channel.
 
+The invariant also bounds the transmission cost of a tuning change. A tuning change generates at most one Pitch Bend Change message — three bytes [2, p. 19] — per occupied Member Channel. On the standard MIDI 1.0 hardware transport of 31.25 kbaud, a three-byte message occupies the link for 960 µs [2, pp. 1, 9], and Running Status [2, p. 5] cannot compress the burst: the channel number is encoded in the status byte, so consecutive messages addressed to distinct Member Channels never share one. A full retune of 15 occupied Member Channels therefore occupies a DIN connection for approximately 14.4 ms; software and USB transports are not subject to the serial rate of the hardware interface.
+
 ---
 
 ## 9. Worked Examples
@@ -791,6 +805,8 @@ These design decisions depart from certain recommendations of the MPE Specificat
 ## References
 
 [1] MIDI Manufacturers Association, "MIDI Polyphonic Expression (MPE)," Recommended Practice RP-053, Version 1.0, March 12, 2018.
+
+[2] MIDI Manufacturers Association, "MIDI 1.0 Detailed Specification," Document Version 4.2, revised February 1996; published in *The Complete MIDI 1.0 Detailed Specification*, Document Version 96.1, Third Edition. Page references follow the internal pagination of the MIDI 1.0 Detailed Specification.
 
 ---
 
