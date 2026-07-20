@@ -308,15 +308,16 @@ upon receiving Mono On on its Basic Channel, which within a Zone is its lowest-n
 that switch would break the channel-sharing premise downstream while the Tuner's allocation state continued to assume
 polyphonic channels. Section 5.7.6 records this departure.
 
-The remaining Channel Mode messages — All Sound Off (120), Reset All Controllers (121), Local Control (122), and
-All Notes Off (123) — pass through the Tuner as Zone-level messages, forwarded (Section 3.4) or redirected
-(Section 3.3, item 4) on the output Master Channel. Receiving All Sound Off or All Notes Off does not clear the
-Tuner's note-tracking state: MIDI 1.0 requires that every Note On still be terminated by its own Note Off and forbids
-All Notes Off as a substitute [2, pp. 24–25], so the Tuner's state reconciles through the ordinary Note Off path while
-the downstream Zone responds to the message itself. MIDI 1.0 in fact directs receivers to ignore All Notes Off while
-Omni is on [2, p. 25]; the Tuner, although Omni-On-like on input, is a processor rather than a sound generator, so
-instead of consuming the message it delivers it to the output Zone, whose response is governed by the MPE
-Specification.
+The remaining Channel Mode messages — All Sound Off (120), Reset All Controllers (121), Local Control (122), and All
+Notes Off (123) — pass through the Tuner as Zone-level messages, forwarded (Section 3.4) or redirected (Section 3.3,
+item 4) on the output Master Channel. Receiving All Sound Off, All Notes Off or Reset All Controllers does not clear the
+Tuner's note-tracking and controller state: MIDI 1.0 requires that every Note On still be terminated by its own Note Off
+and forbids All Notes Off as a substitute [2, pp. 24–25], so the Tuner's state reconciles through the ordinary Note Off
+path while the downstream Zone responds to the message itself. MIDI 1.0 in fact directs receivers to ignore All Notes
+Off while Omni is on [2, p. 25]; the Tuner, although Omni-On-like on input, is a processor rather than a sound
+generator, so instead of consuming the message it delivers it to the output Zone, whose response is governed by the MPE
+Specification. For All Sound Off messages, the MPE Specification states that an MPE receiver is not expected to respond
+to [1, Table 1].
 
 ---
 

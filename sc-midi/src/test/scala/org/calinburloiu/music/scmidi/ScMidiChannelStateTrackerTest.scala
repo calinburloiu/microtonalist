@@ -34,6 +34,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
   }
 
+  /** A tracker that models a receiver known to act on All Sound Off, Reset All Controllers, and All Notes Off. */
+  private trait ResettableTrackerFixture {
+    val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker(shallRespondToResetMessages = true)
+  }
+
   behavior of "ScMidiChannelStateTracker per note tracking"
 
   it should "have no active notes on any channel when empty" in new TrackerFixture {
@@ -994,7 +999,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   behavior of "ScMidiChannelStateTracker Channel Mode messages"
 
-  it should "cancel active notes on the channel when All Sound Off is received" in new TrackerFixture {
+  it should "cancel active notes on the channel when All Sound Off is received" in new ResettableTrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
     tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
@@ -1008,7 +1013,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.activeNotes(OtherChannel) should contain only G4
   }
 
-  it should "cancel active notes on the channel when All Notes Off is received" in new TrackerFixture {
+  it should "cancel active notes on the channel when All Notes Off is received" in new ResettableTrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
     tracker.send(NoteOnScMidiMessage(OtherChannel, G4, velocity = 90))
@@ -1021,7 +1026,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.activeNotes(OtherChannel) should contain only G4
   }
 
-  it should "clear resettable CCs when Reset All Controllers is received" in new TrackerFixture {
+  it should "clear resettable CCs when Reset All Controllers is received" in new ResettableTrackerFixture {
     // Given
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.ExpressionMsb, value = 50))
@@ -1047,7 +1052,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "clear Data Entry, Data Increment, and Data Decrement CCs when Reset All Controllers is received" in
-    new TrackerFixture {
+    new ResettableTrackerFixture {
       // Given
       tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
       tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 34))
@@ -1065,7 +1070,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     }
 
   it should "clear Channel Pressure, Pitch Bend, and the RPN/NRPN selector when Reset All Controllers is received" in
-    new TrackerFixture {
+    new ResettableTrackerFixture {
       // Given
       tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
       tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
@@ -1083,7 +1088,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     }
 
   it should "clear the RPN/NRPN selector so subsequent Data Entry is ignored after Reset All Controllers" in
-    new TrackerFixture {
+    new ResettableTrackerFixture {
       // Given
       selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
       tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
@@ -1098,7 +1103,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     }
 
   it should "preserve Bank Select, Volume, Pan, Program Change, and RPN/NRPN values on Reset All Controllers" in
-    new TrackerFixture {
+    new ResettableTrackerFixture {
       // Given
       tracker.send(CcScMidiMessage(Channel, ScMidiCc.BankSelectMsb, value = 3))
       tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
@@ -1119,7 +1124,27 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
         equal(Some((12, 0)))
     }
 
-  it should "scope Reset All Controllers to the channel it was received on" in new TrackerFixture {
+  it should "reset Polyphonic Key Pressure on every active note when Reset All Controllers is received" in
+    new ResettableTrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
+      tracker.send(NoteOnScMidiMessage(OtherChannel, G4, velocity = 90))
+      tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 70))
+      tracker.send(PolyPressureScMidiMessage(Channel, E4, value = 80))
+      tracker.send(PolyPressureScMidiMessage(OtherChannel, G4, value = 90))
+
+      // When
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+      // Then — the notes stay active, only their pressure is reset, and only on the addressed channel
+      tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
+      tracker.polyPressure(Channel, C4) should equal(0)
+      tracker.polyPressure(Channel, E4) should equal(0)
+      tracker.polyPressure(OtherChannel, G4) should equal(90)
+    }
+
+  it should "scope Reset All Controllers to the channel it was received on" in new ResettableTrackerFixture {
     // Given
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
     tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.ModulationMsb, value = 90))
@@ -1132,6 +1157,47 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.ccOption(Channel, ScMidiCc.ModulationMsb) shouldBe None
     tracker.ccOption(OtherChannel, ScMidiCc.ModulationMsb) should equal(Some(90))
     tracker.channelPressure(OtherChannel) should equal(70)
+  }
+
+  it should "not cancel active notes on All Sound Off by default" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+
+    // Then — a Note Off is still owed for each note, so the record of them must survive
+    tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
+  }
+
+  it should "not cancel active notes on All Notes Off by default" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+
+    // Then
+    tracker.activeNotes(Channel) should contain only C4
+  }
+
+  it should "not clear controller state on Reset All Controllers by default" in new TrackerFixture {
+    // Given
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
+    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
+    tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
+    selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+    // Then
+    tracker.ccOption(Channel, ScMidiCc.ModulationMsb) should equal(Some(64))
+    tracker.channelPressure(Channel) should equal(80)
+    tracker.pitchBend(Channel) should equal(1234)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(
+      ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
   }
 
   behavior of "ScMidiChannelStateTracker reset"
