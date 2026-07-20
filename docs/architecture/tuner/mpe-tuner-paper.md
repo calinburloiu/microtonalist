@@ -772,12 +772,31 @@ every output channel whose average changes receives the updated value immediatel
 
 ### 7.4 Channel Pressure Reset at Note Off
 
-At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4].
+At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that
+"Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the
+design of a controller" [1, §3.3.4].
 
-- In **MPE Input Mode** the output Channel Pressure passes through from the input sender, so the Tuner emits no reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the output through the update mechanism of Section 7.2, and if the sender emits none, neither does the Tuner.
-- In **Non-MPE Input Mode** the per-note Channel Pressure on an output Member Channel is the Tuner's own, synthesized from the input's Polyphonic Key Pressure (Section 3.3); here the Tuner is the controller to which the MPE Specification requirement [1, §3.3.4] applies, so it performs the reset itself, returning the channel's Channel Pressure to 0 as Section 7.3 requires.
+Under the allocation rules of Section 5 an output Member Channel may host several notes, whose Channel Pressure
+Expression Values are averaged (Section 7.1). At Note Off, the Tuner therefore withdraws the released note from its
+channel's aggregated value *before* emitting the Note Off: by the emission rule of Section 7.1 the recomputed Channel
+Pressure is sent at once, and the Note Off follows. No separate zeroing of the released note's Expression Value is
+required, and none is performed — removal alone withdraws its contribution, in a single update. What the channel then
+carries follows from the aggregation:
 
-Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's "wherever it is appropriate" qualifier and are documented design choices.
+- When other notes remain active on the channel, the recomputed value is their average. It is reduced by the withdrawal
+  but not zeroed.
+- When the released note is the only active note, removal empties the channel and the retention rule of Section 7.1
+  fixes the value the channel keeps. The two input modes differ only in what that retained value is:
+    * In **Non-MPE Input Mode** the per-note Channel Pressure on an output Member Channel is the Tuner's own,
+      synthesized from the input's Polyphonic Key Pressure (Section 3.3); here the Tuner is the controller to which the
+      MPE Specification requirement [1, §3.3.4] applies, so it performs the reset itself, returning the channel's Channel
+      Pressure to 0 as Section 7.3 requires.
+    * In **MPE Input Mode** the output Channel Pressure passes through from the input sender, so the Tuner emits no
+      reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the
+      output through the update mechanism of Section 7.2, and if the sender emits none, neither does the Tuner.
+
+Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's
+"wherever it is appropriate" qualifier and are documented design choices.
 
 ---
 
