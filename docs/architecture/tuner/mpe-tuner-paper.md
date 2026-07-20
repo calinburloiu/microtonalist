@@ -175,7 +175,7 @@ flowchart LR
 
 The MPE Tuner accepts two classes of input:
 
-- **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.3) and is routed to a single output Zone (Section 4.2). In this mode the Zone configuration originates solely from the non-MIDI configuration interface (Section 4.2). In MIDI 1.0 receiver terms, the Tuner accepts this input as an Omni-On/Poly (Mode 1) device: notes are recognized on all sixteen channels and merged into a single polyphonic stream (Section 3.5). Transmitters that assign meaning to channel numbers — notably Mode 4 guitar-type controllers with one string per channel — are accepted, but the merge collapses their per-channel controls onto a single stream (Section 3.3, item 2).
+- **Non-MPE input**: Conventional MIDI where all notes may arrive on a single channel or across channels without MPE Zone structure. This input requires conversion to MPE (Section 3.3) and is routed to a single output Zone (Section 4.2). In this mode the Zone configuration originates solely from the non-MIDI configuration interface (Section 4.2). In MIDI 1.0 receiver terms, the Tuner accepts this input as an Omni-On/Poly (Mode 1) receiver: notes are recognized on all sixteen channels and merged into a single polyphonic stream, regardless of the mode in which the transmitting device operates (Section 3.5). Transmitters that assign meaning to channel numbers — notably Mode 4 guitar-type controllers with one string per channel — are accepted, but the merge collapses their per-channel controls onto a single stream (Section 3.3, item 2).
 - **MPE input**: MIDI conforming to the MPE Specification, with notes primarily distributed across Member Channels
   within Zones, and optionally on Master Channels as permitted by the specification (see Section 3.4). The input stream
   may contain MPE Configuration Messages, which reconfigure the Tuner's Zones (Section 4.2).
@@ -283,10 +283,13 @@ MIDI 1.0 defines four channel modes from the Omni and Mono/Poly receiver switche
 **fixed-mode by design**, on both its input and its output.
 
 On the input side, Non-MPE Input Mode operates as MIDI 1.0's Omni-On/Poly receiver (Mode 1): voice messages are
-recognized on all sixteen channels and merged into one polyphonic stream (Sections 3.2 and 3.3). The choice mirrors
-MIDI 1.0's recommended power-up default [2, p. 8] and suits a processor that defines no Basic Channel of its own — the
-configuration model of Section 4 contains no input-channel filter of the kind Omni Off would require. Mono operation is
-likewise never applied to input: the Tuner imposes no one-voice-per-channel limit and no legato retriggering.
+recognized on all sixteen channels and merged into one polyphonic stream (Sections 3.2 and 3.3). Because Omni is On,
+the Tuner needs no agreement with the transmitter about channel assignment — a conventional instrument transmitting
+polyphonically on a single channel is received identically whether its transmitter is in Mode 1 or Mode 3, which
+transmit the same messages on the same channel [2, p. 7]. The choice mirrors MIDI 1.0's recommended power-up default
+[2, p. 8] and suits a processor that defines no Basic Channel of its own — the configuration model of Section 4
+contains no input-channel filter of the kind Omni Off would require. Mono operation is likewise never applied to
+input: the Tuner imposes no one-voice-per-channel limit and no legato retriggering.
 
 On the output side, the Tuner requires MIDI Mode 3 (Omni Off/Poly) — the mode for which MPE is designed [1, §2.2.1] —
 and the requirement is structural rather than preferential. The channel economy of the pitch-class invariant rests on
