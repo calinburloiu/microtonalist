@@ -7,7 +7,7 @@ not emit Note Off messages on reset when no notes are active,not emit Note Off m
 == tune() ==,
 store tuning but output no messages when no active notes,store tuning but output no messages when no active notes
 output updated Pitch Bend on each occupied member channel,output updated Pitch Bend on each occupied member channel
-,recompute pitch bend = new tuning offset + current expressive pitch bend on each occupied channel
+,recompute pitch bend = new tuning offset + current expression pitch bend on each occupied channel
 ,not retune Master Channel notes on tune() call
 not update released channel's pitch bend on tuning changes,not update released channel's pitch bend on tuning changes
 "reproduce paper section ""Tuning change during performance""",
@@ -32,17 +32,17 @@ clamp pitch bend to valid range when tuning offset exceeds PBS,clamp pitch bend 
 ,route member channel notes to their own zone in dual-zone
 ,"reproduce paper section ""Basic allocation in quarter-comma meantone"""
 == process() - Expression ==,
-redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend,treat per-note pitch bend as expressive pitch bend combined with tuning offset
+redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend,treat per-note pitch bend as expression pitch bend combined with tuning offset
 not bleed master channel pitch bend into member channel tuning on retune,
 redirect input Channel Pressure to Master Channel as Zone-level Channel Pressure,forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel
 redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74,forward CC #74 to the allocated Member Channel when an active note exists on MPE input channel
-,fan out expressive Pitch Bend to all output channels for split notes from same MPE input channel
+,fan out expression Pitch Bend to all output channels for split notes from same MPE input channel
 ,fan out CC #74 to all output channels for split notes from same MPE input channel
 ,fan out Channel Pressure to all output channels for split notes from same MPE input channel
 ,not forward Pitch Bend on an MPE input member channel with no active note
 ,not forward CC #74 on an MPE input channel with no active note
 ,not forward Channel Pressure on an MPE input channel with no active note
-,not forward expressive controls from an input channel after its notes have been released
+,not forward control dimensions from an input channel after its notes have been released
 ,forward Master Channel pitch bend without modification
 convert Polyphonic Key Pressure to Channel Pressure on member channel,drop Polyphonic Key Pressure received on a Member Channel
 ,forward Polyphonic Key Pressure as-is for Master Channel notes
@@ -59,13 +59,13 @@ trigger note dropping with Note Off output for dropped notes on channel exhausti
 preserve the lowest note during channel exhaustion dropping,preserve the lowest note during channel exhaustion dropping
 preserve the highest note during channel exhaustion dropping,preserve the highest note during channel exhaustion dropping
 preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels,preserve the highest and drop the lowest note during channel exhaustion dropping when there are only 2 candidate channels
-,drop a channel with high expressive PB to make room for an incoming note with low expression PB
-,drop a channel with high expressive PB to make room for an incoming note with high expression PB
-,drop a channel with low expressive PB to make room for an incoming note with high expression PB
-,prefer to drop a channel with low expressive PB to make room for an incoming note with high expression PB
-,drop other notes on a shared channel when one note develops a high expressive pitch bend
-,not drop other notes on a shared channel when one note develops a low expressive pitch bend
-,drop all notes on a shared channel with a common input channel when a high expressive pitch bend is received on it
+,drop a channel with high expression PB to make room for an incoming note with low expression PB
+,drop a channel with high expression PB to make room for an incoming note with high expression PB
+,drop a channel with low expression PB to make room for an incoming note with high expression PB
+,prefer to drop a channel with low expression PB to make room for an incoming note with high expression PB
+,drop other notes on a shared channel when one note develops a high expression pitch bend
+,not drop other notes on a shared channel when one note develops a low expression pitch bend
+,drop all notes on a shared channel with a common input channel when a high expression pitch bend is received on it
 == process() - Zone-level Messages ==,
 forward CCs on Master Channel,forward zone-level CCs received on member channel to zone Master Channel
 forward Sustain Pedal (CC #64) on Master Channel,forward Sustain Pedal (CC #64) received on member channel to zone Master Channel
@@ -98,6 +98,6 @@ handle PBS LSB (cents) update by forwarding to master channel,handle PBS LSB (ce
 not update member PBS,
 not affect other zone's PBS,
 ,recompute pitch bends on occupied channels after member PBS change
-,preserve intonation of active note with expressive pitch bend after PBS change
-,"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expressive pitch bend"
+,preserve intonation of active note with expression pitch bend after PBS change
+,"emit a single recomputed pitch bend on each occupied channel after member PBS change, preserving intonation of an active note without expression pitch bend"
 revert PBS to initial values on reset(),revert PBS to initial values on reset()
