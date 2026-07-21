@@ -364,7 +364,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private var output = tuner.tune(pythagoreanTuning)
     extractPitchBends(output) shouldBe empty
 
-    // Expressive values are reset
+    // Expression Values are reset
     output = noteOn(1, C4)
     extractPitchBendsWithCents(output) should contain(1, 0)
     extractChannelPressures(output) should contain(ChannelPressureScMidiMessage(1, MpeExpression.DefaultPressure))
@@ -515,9 +515,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
     }
 
-  // ---- Expressive PB interaction ----
+  // ---- Expression PB interaction ----
 
-  ignore should "recompute pitch bend = new tuning offset + current expressive pitch bend on each occupied channel" in
+  ignore should "recompute pitch bend = new tuning offset + current expression pitch bend on each occupied channel" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // Given
       // E has -14.0 in quarter-comma meantone, +8.0 in pythagorean
@@ -527,12 +527,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val noteOutG = noteOn(2, G4)
       private val chG = extractNoteOns(noteOutG).head.channel
 
-      // Apply small expressive pitch bends (under the high-bend threshold) per note in MPE mode
+      // Apply small expression pitch bends (under the high-bend threshold) per note in MPE mode
       private val gExprCents = -30.0
       pitchBend(2, gExprCents)
 
       // When
-      // Switch tuning — output PB on each channel must combine new tuning offset + expressive bend.
+      // Switch tuning — output PB on each channel must combine new tuning offset + expression bend.
       // Compare on MIDI values (not cents) to avoid resolution noise from the cents↔value roundtrip.
       private val tuneOutput = tuner.tune(pythagoreanTuning)
       // Then
@@ -940,7 +940,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       egChannel should not equal pcgChannel
 
       // When
-      // Send a non-high expressive pitch bend on the EG input channel
+      // Send a non-high expression pitch bend on the EG input channel
       private val eExprCents = 30.0
       private val bendOutput = pitchBend(2, eExprCents)
       // Then
@@ -1232,7 +1232,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Per-note PB (combined with tuning offset) ----
 
-  it should "treat per-note pitch bend as expressive pitch bend combined with tuning offset" in
+  it should "treat per-note pitch bend as expression pitch bend combined with tuning offset" in
     new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
       // Given
       // E has -14.0 cents offset in quarter-comma meantone
@@ -1245,13 +1245,13 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       private val pitchBendMsg = extractPitchBends(output).filter(_.channel == noteChannel).head
 
-      // Output pitch bend should combine tuning offset for E (-14.0) + expressive bend
+      // Output pitch bend should combine tuning offset for E (-14.0) + expression bend
       pitchBendMsg.cents shouldEqual (-14.0 + eExprCents)
     }
 
   // ---- Fan-out across split notes (PB / CC #74 / CP) ----
 
-  it should "fan out expressive Pitch Bend to all output channels for split notes from same MPE input channel" in
+  it should "fan out expression Pitch Bend to all output channels for split notes from same MPE input channel" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val out1 = noteOn(2, C4)
@@ -1264,7 +1264,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = pitchBend(2, exprCents)
 
       // Then
-      // Both output channels must receive the expressive bend on top of their tuning offset.
+      // Both output channels must receive the expression bend on top of their tuning offset.
       // C: 0.0 cents, E: -14.0 cents in quarter-comma meantone.
       private val pbs = extractPitchBends(output)
       private val ch1Pb = pbs.find(_.channel == ch1).value
@@ -1362,7 +1362,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Expression after Note Off ----
 
-  it should "not forward expressive controls from an input channel after its notes have been released" in
+  it should "not forward control dimensions from an input channel after its notes have been released" in
     new Fixture(tuner7MpeInput) {
       // Given
       // Note On routes mpeInputChannel -> some output channel
@@ -1370,7 +1370,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOff(mpeInputChannel, C4)
 
       // When / Then
-      // After Note Off, no input->output mapping should exist for mpeInputChannel — expressive
+      // After Note Off, no input->output mapping should exist for mpeInputChannel — expression
       // CC #74 / Channel Pressure / Pitch Bend on this input channel must NOT be forwarded to a
       // (now stale) member channel.
       private val ccOutput = slide(mpeInputChannel, 100)
@@ -1682,9 +1682,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       droppedNotes should contain(C4)
     }
 
-  // ---- High-expressive-PB dropping — incoming-note triggered (future-work truth table) ----
+  // ---- High-expression-PB dropping — incoming-note triggered (future-work truth table) ----
 
-  ignore should "drop a channel with high expressive PB to make room for an incoming note with low expression PB" in
+  ignore should "drop a channel with high expression PB to make room for an incoming note with low expression PB" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
@@ -1701,7 +1701,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
-  ignore should "drop a channel with high expressive PB to make room for an incoming note with high expression PB" in
+  ignore should "drop a channel with high expression PB to make room for an incoming note with high expression PB" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
@@ -1718,7 +1718,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
-  ignore should "drop a channel with low expressive PB to make room for an incoming note with high expression PB" in
+  ignore should "drop a channel with low expression PB to make room for an incoming note with high expression PB" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
@@ -1735,7 +1735,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
-  ignore should "prefer to drop a channel with low expressive PB to make room for an incoming note with high " +
+  ignore should "prefer to drop a channel with low expression PB to make room for an incoming note with high " +
     "expression PB" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
@@ -1753,9 +1753,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
-  // ---- High-expressive-PB dropping — runtime developed ----
+  // ---- High-expression-PB dropping — runtime developed ----
 
-  ignore should "drop other notes on a shared channel when one note develops a high expressive pitch bend" in
+  ignore should "drop other notes on a shared channel when one note develops a high expression pitch bend" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
@@ -1777,7 +1777,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
-  it should "not drop other notes on a shared channel when one note develops a low expressive pitch bend" in
+  it should "not drop other notes on a shared channel when one note develops a low expression pitch bend" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
@@ -1799,7 +1799,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Shared-channel dropping with common input channel ----
 
-  ignore should "drop all notes on a shared channel with a common input channel when a high expressive pitch bend is " +
+  ignore should "drop all notes on a shared channel with a common input channel when a high expression pitch bend is " +
     "received on it" in
     new Fixture(tuner3MpeInput) {
       // Given
@@ -1812,7 +1812,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOn(1, E5)
 
       // When
-      // High expressive pitch bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4 and E5.
+      // High Expression Pitch Bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4 and E5.
       private val output = pitchBend(1, 100.0)
       // Then
       private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
@@ -2312,9 +2312,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.head.centsFor(PitchBendSensitivity(24)).round.toInt shouldEqual -14
     }
 
-  ignore should "preserve intonation of active note with expressive pitch bend after PBS change" in
+  ignore should "preserve intonation of active note with expression pitch bend after PBS change" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given - Play E4 on member channel 1 with initial expressive PB: tuning offset for E is -14.0 cents
+      // Given - Play E4 on member channel 1 with initial expression PB: tuning offset for E is -14.0 cents
       private val eExprCents = 293.0
       private val noteOutput = noteOn(1, E4, 100, pbCents = Some(eExprCents))
       private val noteChannel = extractNoteOns(noteOutput).head.channel
@@ -2323,14 +2323,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
       pitchBends should have size 1
-      // The output pitch bend should still represent tuning offset + expressive bend in cents.
+      // The output pitch bend should still represent tuning offset + expression bend in cents.
       // E tuning offset = -14.0 cents; total ≈ -14 + 293 = 279 cents.
       private val expectedCents = -14.0 + eExprCents
       pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual expectedCents
     }
 
   it should "emit a single recomputed pitch bend on each occupied channel after member PBS change, " +
-    "preserving intonation of an active note without expressive pitch bend" in
+    "preserving intonation of an active note without expression pitch bend" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // Given - Play E4 on MPE member channel 2: tuning offset for E is -14.0 cents
       private val noteOutput = noteOn(2, E4)
