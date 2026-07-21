@@ -308,15 +308,16 @@ upon receiving Mono On on its Basic Channel, which within a Zone is its lowest-n
 that switch would break the channel-sharing premise downstream while the Tuner's allocation state continued to assume
 polyphonic channels. Section 5.7.6 records this departure.
 
-The remaining Channel Mode messages — All Sound Off (120), Reset All Controllers (121), Local Control (122), and
-All Notes Off (123) — pass through the Tuner as Zone-level messages, forwarded (Section 3.4) or redirected
-(Section 3.3, item 4) on the output Master Channel. Receiving All Sound Off or All Notes Off does not clear the
-Tuner's note-tracking state: MIDI 1.0 requires that every Note On still be terminated by its own Note Off and forbids
-All Notes Off as a substitute [2, pp. 24–25], so the Tuner's state reconciles through the ordinary Note Off path while
-the downstream Zone responds to the message itself. MIDI 1.0 in fact directs receivers to ignore All Notes Off while
-Omni is on [2, p. 25]; the Tuner, although Omni-On-like on input, is a processor rather than a sound generator, so
-instead of consuming the message it delivers it to the output Zone, whose response is governed by the MPE
-Specification.
+The remaining Channel Mode messages — All Sound Off (120), Reset All Controllers (121), Local Control (122), and All
+Notes Off (123) — pass through the Tuner as Zone-level messages, forwarded (Section 3.4) or redirected (Section 3.3,
+item 4) on the output Master Channel. Receiving All Sound Off, All Notes Off or Reset All Controllers does not clear the
+Tuner's note-tracking and controller state: MIDI 1.0 requires that every Note On still be terminated by its own Note Off
+and forbids All Notes Off as a substitute [2, pp. 24–25], so the Tuner's state reconciles through the ordinary Note Off
+path while the downstream Zone responds to the message itself. MIDI 1.0 in fact directs receivers to ignore All Notes
+Off while Omni is on [2, p. 25]; the Tuner, although Omni-On-like on input, is a processor rather than a sound
+generator, so instead of consuming the message it delivers it to the output Zone, whose response is governed by the MPE
+Specification. For All Sound Off messages, the MPE Specification states that an MPE receiver is not expected to respond
+to [1, Table 1].
 
 ---
 
@@ -771,12 +772,31 @@ every output channel whose average changes receives the updated value immediatel
 
 ### 7.4 Channel Pressure Reset at Note Off
 
-At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that "Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the design of a controller" [1, §3.3.4].
+At Note Off, whether the Tuner emits a Channel Pressure reset depends on the input mode. The specification requires that
+"Channel Pressure must be set to zero immediately before a Note On or a Note Off wherever it is appropriate to the
+design of a controller" [1, §3.3.4].
 
-- In **MPE Input Mode** the output Channel Pressure passes through from the input sender, so the Tuner emits no reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the output through the update mechanism of Section 7.2, and if the sender emits none, neither does the Tuner.
-- In **Non-MPE Input Mode** the per-note Channel Pressure on an output Member Channel is the Tuner's own, synthesized from the input's Polyphonic Key Pressure (Section 3.3); here the Tuner is the controller to which the MPE Specification requirement [1, §3.3.4] applies, so it performs the reset itself, returning the channel's Channel Pressure to 0 as Section 7.3 requires.
+Under the allocation rules of Section 5 an output Member Channel may host several notes, whose Channel Pressure
+Expression Values are averaged (Section 7.1). At Note Off, the Tuner therefore withdraws the released note from its
+channel's aggregated value *before* emitting the Note Off: by the emission rule of Section 7.1 the recomputed Channel
+Pressure is sent at once, and the Note Off follows. No separate zeroing of the released note's Expression Value is
+required, and none is performed — removal alone withdraws its contribution, in a single update. What the channel then
+carries follows from the aggregation:
 
-Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's "wherever it is appropriate" qualifier and are documented design choices.
+- When other notes remain active on the channel, the recomputed value is their average. It is reduced by the withdrawal
+  but not zeroed.
+- When the released note is the only active note, removal empties the channel and the retention rule of Section 7.1
+  fixes the value the channel keeps. The two input modes differ only in what that retained value is:
+    * In **Non-MPE Input Mode** the per-note Channel Pressure on an output Member Channel is the Tuner's own,
+      synthesized from the input's Polyphonic Key Pressure (Section 3.3); here the Tuner is the controller to which the
+      MPE Specification requirement [1, §3.3.4] applies, so it performs the reset itself, returning the channel's Channel
+      Pressure to 0 as Section 7.3 requires.
+    * In **MPE Input Mode** the output Channel Pressure passes through from the input sender, so the Tuner emits no
+      reset of its own — it inherits the sender's behavior: a conforming sender's pre-release reset propagates to the
+      output through the update mechanism of Section 7.2, and if the sender emits none, neither does the Tuner.
+
+Deferring to the sender in MPE Input Mode and resetting in Non-MPE Input Mode both fall within the specification's
+"wherever it is appropriate" qualifier and are documented design choices.
 
 ---
 

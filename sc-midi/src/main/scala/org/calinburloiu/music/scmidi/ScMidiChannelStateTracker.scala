@@ -33,14 +33,21 @@ import scala.collection.mutable
  * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads. It should usually
  * be used from a track thread.
  *
- * @param ccDefaults   per-CC-number default values that override the companion's defaults.
- * @param rpnDefaults  per-RPN default values that override the companion's defaults.
- * @param nrpnDefaults per-NRPN default values that override the companion's defaults.
+ * @param ccDefaults                  per-CC-number default values that override the companion's defaults.
+ * @param rpnDefaults                 per-RPN default values that override the companion's defaults.
+ * @param nrpnDefaults                per-NRPN default values that override the companion's defaults.
+ * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off (120), Reset All
+ *                                    Controllers (121), and All Notes Off (123) — mutate the tracked state. Defaults
+ *                                    to `false`, which records those messages as received but leaves the state
+ *                                    untouched. Set to `true` when the tracker models a receiver that is known
+ *                                    to act on these messages. Independent of this flag, [[reset]] always clears
+ *                                    everything.
  */
 @NotThreadSafe
 class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
                                 rpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
-                                nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty) extends ScMidiReceiver {
+                                nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
+                                shallRespondToResetMessages: Boolean = false) extends ScMidiReceiver {
 
   import ScMidiChannelStateTracker.*
 
@@ -293,16 +300,18 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case _ => // not part of the RPN/NRPN protocol
   }
 
-  private def handleChannelModeCc(state: ChannelState, ccNumber: Int): Unit = ccNumber match {
-    case ScMidiCc.AllSoundOff | ScMidiCc.AllNotesOff =>
-      state.activeNotes.clear()
-    case ScMidiCc.ResetAllControllers =>
-      ResetAllControllersCcNumbers.foreach(state.ccValues.remove)
-      state.channelPressure = None
-      state.pitchBend = None
-      state.rpnSelector = RpnSelector.None
-    case _ =>
-  }
+  private def handleChannelModeCc(state: ChannelState, ccNumber: Int): Unit =
+    if (shallRespondToResetMessages) ccNumber match {
+      case ScMidiCc.AllSoundOff | ScMidiCc.AllNotesOff =>
+        state.activeNotes.clear()
+      case ScMidiCc.ResetAllControllers =>
+        ResetAllControllersCcNumbers.foreach(state.ccValues.remove)
+        state.activeNotes.valuesIterator.foreach(_.polyPressure = 0)
+        state.channelPressure = None
+        state.pitchBend = None
+        state.rpnSelector = RpnSelector.None
+      case _ =>
+    }
 
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = state.rpnSelector match {
     case RpnSelector.Rpn(rmsb, rlsb) if rmsb != ScMidiRpn.NullMsb && rlsb != ScMidiRpn.NullLsb =>
@@ -356,7 +365,8 @@ object ScMidiChannelStateTracker {
   /**
    * CC numbers cleared from `ccValues` on Reset All Controllers (MIDI 1.0 RP-015). Bank Select, Volume, Pan, and
    * Program Change are intentionally preserved. In addition to clearing these CC values, the handler also resets
-   * Channel Pressure, Pitch Bend, and the RPN/NRPN selector to their default states.
+   * Channel Pressure, Polyphonic Key Pressure on every active note of the channel, Pitch Bend, and the RPN/NRPN
+   * selector to their default states, following the response the MMA recommends for the message.
    */
   private val ResetAllControllersCcNumbers: Set[Int] = Set(
     ScMidiCc.DataEntryMsb,
