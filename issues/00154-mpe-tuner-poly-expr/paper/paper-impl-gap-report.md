@@ -7,15 +7,16 @@ implementation in `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tun
 report inventories the gaps in each direction.
 
 **Baseline**: implementation as of commit `a90e563` (2026-07-21); paper as of commit `09ce128`
-(2026-07-25). All implementation line references were read and verified at `a90e563`. Note that
-`59403d1` shortened a TODO comment near the top of `MpeTuner.scala`, so from that commit onward
-every `MpeTuner.scala` line cited here sits one line lower in the working tree;
-`MpeChannelAllocator.scala` is unaffected.
+(2026-07-25). All implementation line references were read and verified at `a90e563`, and they
+resolve unchanged at the branch head: `59403d1` shortened a TODO comment near the top of
+`MpeTuner.scala` by one line, and `11549bb` re-wrapped it to restore the original alignment.
+`MpeChannelAllocator.scala` was never affected.
 
 The implementation has not moved since the previous revision of this report: at the baseline the
 three tuner sources are **byte-identical to `32d66f9`**, the previous revision's baseline, the only
 change in between being `75a70ee`, which added `shallRespondToResetMessages` to
-`ScMidiChannelStateTracker` (see N4); after the baseline only `59403d1`'s TODO comment changed. The
+`ScMidiChannelStateTracker` (see N4); after the baseline only the TODO comment noted above
+changed, and its two commits cancel out. The
 paper has moved twice: `a90e563` inserted §5.1 (Note Identity and Reference Counting), §3.5 (MIDI
 Channel Modes), §7.5 (Message Ordering, promoted from §7.1.1 and extended to Note Off), §7.6
 (Duplicate Note On Messages), §5.8.6, §8.1 and three worked examples — renumbering most of
@@ -600,7 +601,7 @@ not change, the paper now specifies it.
 
 | Location | TODO | Covered by |
 |---|---|---|
-| `MpeTuner.scala:67-68` (one line at `59403d1`) | Warn on Non-MPE mode with both zones enabled | Related to §4.2 "Upper Zone is ignored" (paper-conformant today; TODO is an ergonomics improvement, not a gap) |
+| `MpeTuner.scala:67-68` | Warn on Non-MPE mode with both zones enabled | Related to §4.2 "Upper Zone is ignored" (paper-conformant today; TODO is an ergonomics improvement, not a gap) |
 | `MpeChannelAllocator.scala:61` | Note expression not currently updated | P1 |
 | `MpeChannelAllocator.scala:81-82` | Add averaged `channelExpression` to `AllocationResult` | P1 |
 | `MpeChannelAllocator.scala:102-103, 152-155` | LinkedHashMap / `lastAddedNote` removal after dropping-logic fix | P3, and N1 (the same map needs identity keying) |
