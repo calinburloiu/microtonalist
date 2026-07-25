@@ -46,9 +46,9 @@ cross-references still resolve, but they are filed under the section matching th
 | I4 | Impl → not in paper | RPN selector suppression / re-emission wire protocol for MCM and PBS | Minor (doc-only) |
 | I5 | Impl → not in paper | Non-Channel messages (SysEx, system) passed through | Minor (doc-only) |
 | I6 | Impl → not in paper | MCMs also emitted for disabled zones at start-up | Minor (doc-only) |
+| A1 | Impl → not in paper | Criterion (d) convention: a never-released channel counts as the oldest and wins; several of them tie and fall to (e) | Minor (doc-only) |
 | B1 | Impl bug | Dropped notes leave stale entries in `channelNoteMap` | Major |
 | N2 | Impl bug | Duplicate Note On re-runs allocation: leaks a channel (same input channel) or corrupts the average and frees a channel early (different input channels) | Major |
-| A1 | Paper ambiguity | Tie-break criterion (d) semantics for channels with no Note Off history | Minor |
 
 **Changes in this revision.** No previously reported finding was retracted or reworded on the
 evidence — every `P*`/`C*`/`I*`/`B1`/`A1` item was re-confirmed at the cited lines. What changed is
@@ -57,6 +57,11 @@ conflict, **N2** turned out to be a Major implementation bug rather than a missi
 **N3** (Note Off velocity 64 and dropped-note ordering) is **already aligned** and has moved to
 Section 5. Three `⚠ re-check` flags raised in the previous revision resolved to *aligned* and are
 now plain entries in Section 5.
+
+**Later amendment (2026-07-25, report at `f45e0fa`).** `A1` was **resolved by author decision**, not
+by new evidence: the mixed-candidate-set semantics of criterion (d) is settled in the
+implementation's favour, so `A1` is no longer an open question about which behaviour is correct but a
+doc-only paper gap, refiled in Section 3. Its cited lines are unchanged from the baseline.
 
 ---
 
@@ -390,6 +395,48 @@ says the Tuner emits "the MCM(s) describing its Zone configuration" — whether 
 explicit deactivation MCMs for zones that were never active is unspecified. (Emitting them is
 defensible; worth one sentence in the paper.)
 
+### A1. Tie-break criterion (d): the "no Note Off history" convention
+
+**Resolved 2026-07-25 in the implementation's favour; doc-only.** The intended semantics is: a
+channel that has never had a Note Off counts as having the **oldest possible** last Note Off and
+therefore **wins** criterion (d) over any channel with a real Note Off; when *several* never-released
+channels are candidates, (d) does not single one out and selection falls to criterion (e), exactly as
+§5.6 already prescribes. The implementation implements this; the paper does not state it.
+
+**The paper's gap.** §5.6 (d) says only: "Channels with no Note Off history cannot be discriminated
+by this criterion; when it fails to single out a channel, selection falls to criterion (e)." That
+settles the case where *every* candidate lacks a history — and the closing paragraph's parenthetical
+is an instance of exactly that case, "a freshly configured Zone, where no candidate has yet held a
+note and thus none possesses a last Note Off". It leaves the **mixed** case (some candidates with a
+Note Off, some without) unstated, and three behaviours are consistent with the present wording: the
+never-released channel wins (d) — the intended one; it is excluded from (d)'s ranking, so the
+has-history channel with the oldest Note Off wins; or (d) cannot order the set at all and (e)
+decides. Since the mixed case is the *normal* state of a zone at Steps 1 and 2 (one channel released,
+the rest still untouched), the wording needs to name it.
+
+**The implementation already conforms, in a single expression.** `ChannelState` initializes
+`_lastNoteOffTime = 0L` (`MpeChannelAllocator.scala:108`) and resets it to `0L` only in `reset()`
+(lines 201-207); `removeNote` (lines 189-198) is the only other writer and always stores a
+`nextTime()` value, which is ≥ 1 because the counter pre-increments (lines 226-231). `0` is therefore
+an unambiguous "never released" marker that no real Note Off can collide with. `bestCandidate`'s
+`minBy` tuple (lines 461-469) places `s.lastNoteOffTime` as term (d) ahead of the two (e) terms, so
+both halves of the intended rule fall out without special-casing:
+
+- mixed candidate set — `0 < ` any real Note Off time, so the never-released channel wins (d) and
+  (e) is never reached;
+- several never-released candidates — all tie at `0`, term (d) does not discriminate, and the (e)
+  terms (`preferredChannel` first, then `s.channel`) decide.
+
+**What remains is paper-side only.** §5.6 (d) should state that no Note Off history counts as the
+oldest possible Note Off and wins the criterion, and the closing paragraph's parenthetical should
+read as one instance of (d) failing to discriminate rather than the only one. No code change; nothing
+to add to Section 5 beyond the tie-break entry that already cites this item.
+
+Also worth restoring on the paper side: the worked example that previously exercised the tie-break —
+§9.1 step 4 — was **rewritten in `a90e563` to remove the walkthrough entirely**; it now simply says
+"Assign to Channel 5". No worked example illustrates criterion (d) any more, so the convention above
+would be stated in prose only.
+
 ---
 
 ## 4. Implementation bugs
@@ -464,22 +511,6 @@ do reconcile in count; the damage is confined to the allocator.
 Both cases resolve the same way: give `ChannelState` identity-keyed notes and reference counts
 (N1), then gate `allocate` on the 0 → 1 transition.
 
-### A1. Tie-break criterion (d): channels with no Note Off history
-
-Paper §5.6 criterion (d): "Channels with no Note Off history cannot be discriminated by this
-criterion; when it fails to single out a channel, selection falls to criterion (e)." This reads as
-if never-released channels are *incomparable* under (d). The implementation encodes "no history"
-as `lastNoteOffTime = 0` (`MpeChannelAllocator.scala:108`, consumed by `bestCandidate`'s `minBy`
-tuple at line 466), which makes a never-released channel **beat** any channel with a real Note Off.
-For a mixed candidate set (some with history, some without) the two readings pick different
-channels. The paper should state which semantics is intended (the implementation's "never released
-counts as oldest" is a reasonable reading of the MPE spec's recommendation).
-
-The worked example that previously exercised this — §9.1 step 4 — was **rewritten in `a90e563` to
-remove the tie-break walkthrough entirely**; it now simply says "Assign to Channel 5". No worked
-example in the paper illustrates criterion (d) any more, so the ambiguity is now undocumented as
-well as unresolved.
-
 ---
 
 ## 5. Verified aligned
@@ -529,8 +560,9 @@ revision because `a90e563` changed the paper text under them, and have now been 
   satisfied; that is N2. The steps themselves are unchanged and remain correct.
 - Tie-break criteria (a)–(e) ordering, including MPE-mode input-channel preference only where the
   channel is an unoccupied candidate (`bestCandidate`, lines 461-469; `preferredChannel` passed as
-  `None` at lines 273, 499 and 503) (§5.6) — modulo A1. **↺** Criterion (b)'s newly specified
-  counting semantics is N5.
+  `None` at lines 273, 499 and 503) (§5.6). Criterion (d)'s treatment of channels with no Note Off
+  history matches the intended semantics but is only implicit in the paper — A1. **↺** Criterion
+  (b)'s newly specified counting semantics is N5.
 - High Expression Pitch Bend threshold t = 50 cents (`ExpressionPitchBendThreshold`, line 519)
   (§5.5); divergence dropping §6.2.1 (modulo P3's wrong note identification); §6.2.3 freeing on
   allocation to a high-bend channel (`existingHighBend`, line 437).
@@ -554,4 +586,5 @@ revision because `a90e563` changed the paper text under them, and have now been 
 | `MpeChannelAllocator.scala:223` | TreeMap ordering question | Not paper-related |
 | `MpeChannelAllocator.scala:293-294` | "Bad assumption that the last note is being bent" | P3 |
 
-Not covered by any existing TODO: P2, P4, P5, P6, N1, N5, C1–C5, N4, I1–I3, B1, N2, A1.
+Not covered by any existing TODO: P2, P4, P5, P6, N1, N5, C1–C5, N4, I1–I3, B1, N2. (A1 and I4–I6
+are doc-only and need no code TODO.)
