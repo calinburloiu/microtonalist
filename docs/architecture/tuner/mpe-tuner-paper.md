@@ -135,7 +135,9 @@ The initial state that these setup messages establish is complemented by a recei
 
 ### 2.6 Zone-Level Messages
 
-MPE distinguishes note-level messages, which shape an individual note through its Member Channel, from Zone-level messages, which affect all notes in a Zone. Zone-level messages such as the Damper Pedal "should be sent only on a Zone's Master Channel (not on Member Channels). If an MPE synthesizer receives one of those messages on a Member Channel, it must ignore it" [1, §2.3]. Table 1 of the specification classifies every MIDI message along these lines.
+MPE distinguishes note-level messages, which shape an individual note through its Member Channel, from Zone-level messages, which affect all notes in a Zone. Zone-level messages such as the Damper Pedal "should be sent only on a Zone's Master Channel (not on Member Channels). If an MPE synthesizer receives one of those messages on a Member Channel, it must ignore it" [1, §2.3.1]. Table 1 of the specification classifies every MIDI message along these lines.
+
+Three of its rows govern the Control Change traffic this paper must route. Pitch Bend Sensitivity (RPN 00 00) is valid at both levels — Zone-level on a Master Channel and note-level on a Member Channel, its footnote directing a sender to "[s]end to every Member Channel" [1, Table 1, n. 3] — which is what the two separate sensitivities of Section 2.3 rest on, and what makes it, besides CC #74, the one Control Change that legitimately addresses a Member Channel. Reset All Controllers (CC #121) and the MCM (RPN 00 06) are Zone-level only, carrying a bare "No" in the note-level column. Every remaining Control Change — Modulation, Channel Volume, Damper Pedal, All Sound Off — together with "[a]ll other RPN messages" and "[a]ll NRPN Messages" shares a single row, Zone-level "Yes" but note-level "Send: Not recommended. / Receive: Cannot be expected to respond." Damper Pedal, §2.3.1's own worked example, appears only in that row, which therefore falls within the class §2.3.1 governs.
 
 ### 2.7 Pressure
 
@@ -233,8 +235,9 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
    Channel, where it configures the sensitivity of the Master Channel Pitch Bend to which the input's Pitch Bend is
    redirected (Section 4.3). Two points require comment. All Sound Off (Channel Mode message 120) and All Notes Off
    (Channel Mode message 123) are redirected like the rest, and the Tuner does not clear its own note-tracking state
-   upon receiving them (Section 3.5). The MIDI Mode messages (124–127) are the sole exception to redirection: they are
-   discarded under the fixed-mode policy of Section 3.5.
+   upon receiving them (Section 3.5). Redirection admits two exceptions: the MIDI Mode messages (124–127) are
+   discarded under the fixed-mode policy of Section 3.5, and the traffic of every Registered and Non-Registered
+   Parameter Number other than RPN 00 00 and RPN 00 06 is discarded under Section 4.
 
 ### 3.4 Master Channel Forwarding
 
@@ -278,9 +281,26 @@ Table 1 of the MPE Specification (Section 2.6) — are likewise forwarded on the
 The MPE Tuner does not interpret or alter any of these messages. Forwarding has one exception: the MIDI Mode messages
 (124–127) are not Zone-level messages [1, Table 1] and are discarded under the fixed-mode policy of Section 3.5.
 
+The preceding rule governs Zone-level messages that arrive on a Master Channel. In MPE Input Mode such messages may also
+arrive on an input *Member* Channel — a sender may place a Damper Pedal, a Program Change, or another of the Table 1
+Zone-level messages there. **The Tuner discards them.** The MPE Specification requires as much of a receiver: a
+Zone-level message received on a Member Channel must be ignored (Section 2.6), and a Mode 3 receiver "should ignore
+Program Change messages received on Member Channels" [1, §2.3.3].
+
+Three exemptions apply. Pitch Bend, CC #74, and Channel Pressure on an input Member Channel are not Zone-level
+messages there but the note's own Expression Values, processed under Section 7.2. Pitch Bend Sensitivity (RPN 00 00) is
+note-level as well as Zone-level, the specification directing senders to address it to every Member Channel
+(Section 2.6); it is consumed and applied under Section 4.3. An MCM remains valid on MIDI Channel 1 or 16 even when
+that channel is at the time a Member Channel of the other Zone, and is acted upon under Section 4.2. The MIDI Mode
+messages (124–127) are no exception: they are discarded here as everywhere, under the fixed-mode policy of
+Section 3.5.
+
 In Non-MPE Input Mode there is no input Master Channel to forward from: every incoming note is allocated to a Member
 Channel regardless of the input channel number, and the input's channel-global controls and Zone-level messages reach
-the output Master Channel by *redirection* instead, under the conversion rules of Section 3.3, items 2 and 4.
+the output Master Channel by *redirection* instead, under the conversion rules of Section 3.3, items 2 and 4. The
+asymmetry with the discard rule above is not an inconsistency: a non-MPE input has no Zone structure, so no input
+channel is a Member Channel and Section 2.6's obligation does not arise, leaving redirection the only conformant home
+for a Zone-level message.
 
 ### 3.5 MIDI Channel Modes
 
@@ -313,8 +333,10 @@ polyphonic channels. Section 5.8.6 records this departure.
 
 The remaining Channel Mode messages — All Sound Off (120), Reset All Controllers (121), Local Control (122), and All
 Notes Off (123) — pass through the Tuner as Zone-level messages, forwarded (Section 3.4) or redirected (Section 3.3,
-item 4) on the output Master Channel. Receiving All Sound Off, All Notes Off or Reset All Controllers does not clear the
-Tuner's note-tracking and controller state: MIDI 1.0 requires that every Note On still be terminated by its own Note Off
+item 4) on the output Master Channel; in MPE Input Mode those received on a Member Channel are discarded with the rest
+of that channel's Zone-level traffic (Section 3.4). Receiving All Sound Off, All Notes Off or Reset All Controllers does
+not clear the Tuner's note-tracking and controller state: MIDI 1.0 requires that every Note On still be terminated by
+its own Note Off
 and forbids All Notes Off as a substitute [2, pp. 24–25], so the Tuner's state reconciles through the ordinary Note Off
 path while the downstream Zone responds to the message itself. MIDI 1.0 in fact directs receivers to ignore All Notes
 Off while Omni is on [2, p. 25]; the Tuner, although Omni-On-like on input, is a processor rather than a sound
@@ -322,17 +344,40 @@ generator, so instead of consuming the message it delivers it to the output Zone
 Specification. For All Sound Off messages, the MPE Specification states that an MPE receiver is not expected to respond
 to [1, Table 1].
 
+### 3.6 Channels Outside Every Zone
+
+In MPE Input Mode the Zone configuration determines which channels the Tuner recognizes. A channel that is neither the
+Master Channel nor a Member Channel of an enabled Zone lies outside the Zone structure, and **every Channel Voice and
+Channel Mode message received on such a channel is discarded**. Notes on it are neither allocated (Section 5) nor
+forwarded (Section 3.4); its channel-global controls and Zone-level messages are neither redirected — the redirections
+of Section 3.3, items 2 and 4, apply to Non-MPE Input Mode only — nor passed through.
+
+The Zone configuration is shared by the input and the output (Section 4.2), so a note arriving outside every Zone has no
+output Zone to be allocated into. Passing it through would emit an untuned note on a channel under no Zone's control,
+contradicting the guarantee of Section 3.2 that the output is always MPE-conformant, and it would sound in 12-EDO
+without the deliberate trade-off that makes Master Channel notes acceptable (Section 3.4).
+
+MPE Configuration Messages are the sole exception. An MCM's validity is governed by Section 4.2 — it must arrive on a
+Master Channel — and it is acted upon regardless of whether the Zone it addresses is currently enabled; this is what
+allows a deactivated Zone to be re-activated in band (Section 4.1).
+
+In Non-MPE Input Mode this subsection does not apply: notes are recognized on all sixteen channels (Section 3.2) and
+routed to the single output Zone selected by Section 4.2. If no Zone is enabled at all, however, there is no output Zone
+in either input mode and nothing can be produced (Section 4.1).
+
 ---
 
 ## 4. Configuration
 
 The MPE Tuner's operation is governed by three configuration parameters, established before any note flows and applying across every stage of the pipeline: the input mode (Section 4.1), the Zone configuration (Section 4.2), and the Pitch Bend Sensitivity (Section 4.3). All three follow the same model: the parameter is established through a **non-MIDI configuration interface**, and may additionally be overridden in-band, through MIDI messages received on the input — MCMs for the input mode and the Zones, and Pitch Bend Sensitivity messages (RPN 00 00) for the Pitch Bend Sensitivity — subject to the per-parameter limitations stated in the subsections below. Where the MPE Specification defines defaults, notably the Pitch Bend Sensitivity values of Section 2.3, the Tuner adopts them in the absence of explicit configuration.
 
+Both in-band mechanisms — the MCM of Section 4.2 and the Pitch Bend Sensitivity messages of Section 4.3 — are carried by MIDI 1.0's RPN procedure (Section 2): the MCM is RPN 00 06 and Pitch Bend Sensitivity is RPN 00 00, each selected with CC #101 and CC #100 and applied with Data Entry — the MSB alone (CC #6) for the MCM (Section 2.1), the MSB and the LSB (CC #38) for Pitch Bend Sensitivity (Section 2.3). The Tuner does not relay the messages of these two RPNs verbatim. It *consumes* the sender's selector messages for them and re-emits complete sequences of its own on each target channel — the appropriate output channel under the routing rules of Sections 4.2 and 4.3. A Data Entry re-emitted on its own, as when forwarding a received Pitch Bend Sensitivity update, is preceded by the selector, so that RPN traffic interleaved from another source cannot leave it applied to the wrong parameter on that channel. Sequences the Tuner originates — the configuration messages it emits at start-up and on reconfiguration (Section 4.2) — carry the selector once, then their Data Entry messages, and are closed with an RPN Null (7F 7F), which protects the parameter from a later stray Data Entry. The Tuner interprets no other Registered or Non-Registered Parameter Number and discards the whole of their traffic — selector, Data Entry, and Data Increment and Decrement — in both input modes. Three considerations motivate this. The parameter selected on an output channel is the Tuner's own, so a relayed foreign selector could divert a subsequent Data Entry of the Tuner's to the wrong parameter. The Data Entry controllers are shared by every parameter, so only by tracking the selection state of each input channel — for NRPNs as well as RPNs — can the Tuner distinguish an ignorable Data Entry from a Pitch Bend Sensitivity update; it therefore maintains that state and discards any Data Entry whose selected parameter is not one of the two it interprets. And MIDI 1.0's Master Tuning parameters, RPN 00 01 and RPN 00 02 (Section 1.1), would impose a second, channel-wide tuning downstream and defeat the Tuner's own. Because Table 1 classifies these parameters as valid Zone-level traffic (Section 2.6), discarding them on a Master Channel is a departure from transparent forwarding, analogous to the one Section 3.5 makes for the MIDI Mode messages. RPN Null (7F 7F) falls outside the rule: it selects no parameter but deselects whatever is selected, so it cannot misdirect a Data Entry and is instead the protection against one. The Tuner consumes it — clearing the tracked selection is what keeps a following Data Entry from being read as a Pitch Bend Sensitivity update — and does not relay it; the Nulls that appear on the output are the Tuner's own. The net effect for the two interpreted RPNs is 1:1 in substance — one configuration change received produces the same change on the output — while the encoding on the wire is the Tuner's own rather than a byte-for-byte relay.
+
 ### 4.1 Input Mode
 
 Section 3.2 defines the two input modes; this subsection specifies how the operating mode is selected. The input mode may be set through the non-MIDI configuration interface, or switched in-band by the input stream itself (Section 3.1): upon receiving a valid MCM, the Tuner switches to MPE Input Mode if it is not already in it. The in-band switch is one-way: no MCM returns the Tuner to Non-MPE Input Mode, which is re-entered only through the non-MIDI configuration interface.
 
-MCMs that deactivate all Zones are no exception: they too switch the Tuner to MPE Input Mode if necessary, and they turn MPE operation off [1, §2.1]. The Zone configuration is shared by the input and the output (Section 4.2), so all Zones being deactivated leaves the output without MPE as well; the deactivation is mirrored on the output like any other Zone change (Section 4.2), and the Tuner produces no note output until a Zone is re-activated, by a subsequent MCM or through the non-MIDI configuration interface.
+MCMs that deactivate all Zones are no exception: they too switch the Tuner to MPE Input Mode if necessary, and they turn MPE operation off [1, §2.1]. The Zone configuration is shared by the input and the output (Section 4.2), so all Zones being deactivated leaves the output without MPE as well; the deactivation is mirrored on the output like any other Zone change (Section 4.2). With no Zone enabled, every channel lies outside the Zone structure, so every Channel Voice and Channel Mode message the Tuner receives is discarded under Section 3.6 — not only notes. The only messages the Tuner emits in this state are the configuration messages of Section 4.2, and the only input it still acts upon is a valid MCM (Section 3.6), which is how a Zone is re-activated in band; re-activation through the non-MIDI configuration interface remains available as well.
 
 ### 4.2 Zones
 
@@ -341,7 +386,7 @@ The MPE Tuner maintains a single Zone configuration shared by its input and its 
 - In **MPE Input Mode**, the Zone configuration applies to both input and output: the Tuner expects the input stream to be organized according to the configured Zones, and produces output organized by the same Zones. Notes received on the Member Channels of an input Zone are allocated to Member Channels of the same output Zone.
 - In **Non-MPE Input Mode**, the input has no Zone structure, so the Zone configuration affects the output only. Furthermore, only one Zone is accessible from the output: input notes are routed exclusively to the Lower Zone if it is enabled, otherwise to the Upper Zone. When two Zones are defined, the Upper Zone is ignored. This restriction prevents ambiguity in channel allocation and zone-level message routing when the input carries no Zone information of its own.
 
-Beyond the non-MIDI configuration interface, the Zone configuration may be changed in-band, through an MCM received on a Master Channel. Conforming to the MPE Specification, an MCM received on any channel other than a Master Channel is invalid and is ignored [1, §2.1.1]. A valid MCM — which also switches the Tuner to MPE Input Mode if it is not already in it (Section 4.1) — reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1]. An MCM that deactivates all Zones suspends MPE operation altogether (Section 4.1).
+Beyond the non-MIDI configuration interface, the Zone configuration may be changed in-band, through an MCM. Validity is determined by channel number rather than by the channel's current role: the specification admits an MCM only on MIDI Channel 1, addressing the Lower Zone, or MIDI Channel 16, addressing the Upper Zone, and declares it invalid on any other channel [1, §2.1.1]. An MCM on one of those two channels is therefore honored even when that channel is at the time a Member Channel of the other Zone — a configuration the specification explicitly contemplates, since a single Zone may span fifteen Member Channels (Section 2.1) — and honoring it is what allows the collapsed Zone to be restored. An invalid MCM is ignored in its entirety: neither its selector nor its Data Entry is relayed (Section 4). A valid MCM — which also switches the Tuner to MPE Input Mode if it is not already in it (Section 4.1) — reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1]. An MCM that deactivates all Zones suspends MPE operation altogether (Section 4.1).
 
 The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.3) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64, the centered initial value the MPE Specification prescribes for a bipolar third dimension [1, §3.3.5] — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, an implementation may either emit no Note Off messages — relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4] — or emit explicit Note Off messages before the MCM, for robustness with receivers that do not fully conform; the choice is left to the implementer.
 
@@ -357,7 +402,8 @@ The Tuner also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its in
   Member Channel. It does *not* replicate every received message across all Member Channels. A conforming MPE sender
   already addresses the message to each of the `n` Member Channels [1, §2.4], so re-fanning those `n` messages to
   all `n` channels would produce an `n²` flood. Because the Tuner both receives and sends MPE, per-channel
-  forwarding already configures every output Member Channel.
+  forwarding already configures every output Member Channel. Pitch Bend Sensitivity is thus the one Control Change
+  besides CC #74 that Section 3.4's discard rule exempts on an input Member Channel.
 - **Non-MPE Input Mode**: the input carries no Member Channels. Because a Member Channel's Pitch Bend then carries
   only the Tuning Pitch Bend, a Pitch Bend Sensitivity message received on the input applies to the output Master
   Channel, consistent with the redirection of the input's Pitch Bend to that channel (Section 3.3). The output
@@ -373,7 +419,8 @@ The channel allocation strategy is the central contribution of the MPE Tuner des
 The allocation rules in this section apply to notes that are candidates for tuning via per-channel Pitch Bend — that is,
 all notes received in Non-MPE Input Mode, and all notes received on a Member Channel in MPE Input Mode. Notes received
 on a Master Channel in MPE Input Mode are forwarded as-is under the rules of Section 3.4 and are not subject to the
-allocation procedure described below.
+allocation procedure described below. Notes received in MPE Input Mode on a channel outside every enabled Zone are
+neither forwarded nor allocated: they are discarded under Section 3.6.
 
 Throughout this paper, a Note On with velocity 0 is treated as a Note Off: MIDI 1.0 defines the two forms as equivalent means of turning off a note and requires receivers to treat them identically [2, p. 10], and the MPE Specification recommends interpreting such a message as a Note Off with release velocity 64 [1, §3.3.2].
 
@@ -516,9 +563,10 @@ the placement of a new note (Steps 1–3) and the choice of which channel to fre
 - **(b)** Among those, prefer the channel with the lowest count of active notes (Section 5.1).
 - **(c)** Among channels with an equal active-note count, prefer the oldest channel — the one whose last note onset is
   the earliest among the candidates.
-- **(d)** If the oldest channel is still ambiguous, prefer the channel whose most recent Note Off is the oldest.
-  Channels with no Note Off history cannot be discriminated by this criterion; when it fails to single out a channel,
-  selection falls to criterion (e).
+- **(d)** If the oldest channel is still ambiguous, prefer the channel whose most recent Note Off is the oldest. A
+  channel with no Note Off history counts as having the oldest possible last Note Off, and therefore wins this criterion
+  over any channel that has already released a note. Only when several candidates all lack a Note Off history do they
+  tie; the criterion then fails to single out a channel and selection falls to criterion (e).
 - **(e)** If even the oldest last Note Off does not discriminate, apply a deterministic default keyed to the input mode.
     * In Non-MPE Input Mode, prefer the candidate with the lowest channel number.
     * In MPE Input Mode, prefer the new note's input channel when that channel is itself unoccupied and therefore among
@@ -549,7 +597,8 @@ principle of minimal perceptual disruption.
   listener's memory whereas older notes have likely passed out of attention; the last onset is used rather than an
   average to keep the ordering unambiguous and the implementation simple.
 - **(d)** The oldest last Note Off identifies the channel that has gone longest without a release, making it the
-  natural candidate for reuse.
+  natural candidate for reuse; a channel that has never had a Note Off has gone longest of all — it has never had one —
+  so treating it as the oldest is the limiting case of the same principle, not an exception to it.
 - **(e)** The terminal criterion is purely positional and therefore always resolves to a unique channel; its MPE-mode
   preference for the input channel lets the Tuner mirror a well-behaved MPE controller's own allocation and avoids
   needless remapping.
@@ -561,8 +610,9 @@ and criteria (a)–(c) degenerate accordingly: an unoccupied channel carries no 
 neither a High Expression Pitch Bend nor a nonzero active-note count, so criteria (a) and (b) are trivially satisfied
 for every candidate, and it has no note onset time, so criterion (c) does not evaluate. The selection at Steps 1 and 2
 consequently reduces to criterion (d) — the oldest last Note Off, which coincides with the MPE Specification's
-recommendation for choosing among free channels [1, §3.2] — and, when that too fails to discriminate (as in a freshly
-configured Zone, where no candidate has yet held a note and thus none possesses a last Note Off), to criterion (e).
+recommendation for choosing among free channels [1, §3.2] — and, when that too fails to discriminate (several
+candidates tying at the oldest possible last Note Off, as in a freshly configured Zone, where no candidate has yet held
+a note and thus none possesses a last Note Off), to criterion (e).
 Criterion (e)'s MPE-mode preference for the input channel therefore operates only at Steps 1 and 2: at Steps 3 and 4
 the candidates are all occupied, so an unoccupied input channel is never among them and the criterion degenerates to
 the lowest channel number. For the same reason, preserving the input channel can relax neither the pitch-class
