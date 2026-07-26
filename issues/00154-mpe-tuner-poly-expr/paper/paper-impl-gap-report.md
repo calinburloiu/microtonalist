@@ -368,9 +368,9 @@ Pressure go through `forwardToMemberChannel` unconditionally in MPE mode (`proce
 Raised in the previous revision against `09ce128`'s pass-through rule; `5d77eff` replaced that rule
 with a discard rule, which inverts the required fix, widens the finding to both input modes and to
 NRPNs, and raises it from Minor to Medium. The §4 preamble now states that the Tuner interprets only
-RPN 00 00 and RPN 00 06 and "discards the whole of their traffic — selector, Data Entry, Data
-Increment and Decrement, and RPN Null" for every other Registered and Non-Registered Parameter
-Number, in both input modes.
+RPN 00 00 and RPN 00 06 and "discards the whole of their traffic — selector, Data Entry, and Data
+Increment and Decrement" for every other Registered and Non-Registered Parameter Number, in both
+input modes. RPN Null is explicitly outside that rule: the Tuner consumes it and emits its own.
 
 Implementation: none of that traffic is discarded, and RPNs and NRPNs are not even routed alike.
 
@@ -384,6 +384,12 @@ Implementation: none of that traffic is discarded, and RPNs and NRPNs are not ev
   last selected there. The guards themselves are sound: `ScMidiChannelStateTracker` models NRPN
   selection, so `rpnSelector` returns `RpnSelector.Nrpn(...)` and neither guard fires spuriously.
 - **Data Increment/Decrement** (CC #96/#97) likewise reach the catch-all.
+- **RPN Null** is relayed rather than consumed. Its two CCs reach the same selector case at lines
+  329-334 — when CC #101 = 127 arrives the tracked selector is not yet Null, and once CC #100 = 127
+  makes it `RpnSelector.None` neither guard matches either — so both are emitted on the input channel
+  in MPE mode and on the Master Channel in Non-MPE mode. The Tuner's *tracking* is correct
+  throughout (`tracker.send` runs first, at line 168), so this costs nothing internally; it is the
+  output that carries a Null the Tuner did not originate.
 
 In MPE mode the RPN case therefore splits selector from value across two channels; in Non-MPE mode
 both reach the Master Channel together, which is coherent but still not the specified discard.
@@ -395,9 +401,10 @@ Channels 1 and 16; the following Data Entry MSB then fails the `inputChannel == 
 Entry. §4.2 now requires an invalid MCM to be ignored "in its entirety: neither its selector nor its
 Data Entry is relayed".
 
-One fix serves all of it: gate every RPN/NRPN wire message — selectors, Data Entry, Data
-Increment/Decrement and RPN Null — on the tracked selector being one of the two interpreted RPNs on
-a channel where that RPN is valid, and drop it otherwise.
+One fix serves most of it: gate every RPN/NRPN wire message — selectors, Data Entry, Data
+Increment/Decrement — on the tracked selector being one of the two interpreted RPNs on a channel
+where that RPN is valid, and drop it otherwise. RPN Null needs the opposite treatment: it is
+consumed rather than gated, and the Tuner emits its own where its sequences require one.
 
 ### N4. MIDI Mode messages 124–127 not discarded (§3.5, §5.8.6)
 
