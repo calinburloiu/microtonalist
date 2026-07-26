@@ -137,7 +137,7 @@ The initial state that these setup messages establish is complemented by a recei
 
 MPE distinguishes note-level messages, which shape an individual note through its Member Channel, from Zone-level messages, which affect all notes in a Zone. Zone-level messages such as the Damper Pedal "should be sent only on a Zone's Master Channel (not on Member Channels). If an MPE synthesizer receives one of those messages on a Member Channel, it must ignore it" [1, §2.3.1]. Table 1 of the specification classifies every MIDI message along these lines.
 
-Three of its rows govern the Control Change traffic this paper must route. Pitch Bend Sensitivity (RPN 00 00) is note-level, its footnote directing a sender to "[s]end to every Member Channel" [1, Table 1, n. 3]; it is thus the one Control Change besides CC #74 that legitimately addresses a Member Channel. Reset All Controllers (CC #121) and the MCM (RPN 00 06) are Zone-level only, carrying a bare "No" in the note-level column. Every remaining Control Change — Modulation, Channel Volume, Damper Pedal, All Sound Off — together with "[a]ll other RPN messages" and "[a]ll NRPN Messages" shares a single row, Zone-level "Yes" but note-level "Send: Not recommended. / Receive: Cannot be expected to respond." Damper Pedal, §2.3.1's own worked example, appears only in that row, which therefore falls within the class §2.3.1 governs.
+Three of its rows govern the Control Change traffic this paper must route. Pitch Bend Sensitivity (RPN 00 00) is valid at both levels — Zone-level on a Master Channel and note-level on a Member Channel, its footnote directing a sender to "[s]end to every Member Channel" [1, Table 1, n. 3] — which is what the two separate sensitivities of Section 2.3 rest on, and what makes it, besides CC #74, the one Control Change that legitimately addresses a Member Channel. Reset All Controllers (CC #121) and the MCM (RPN 00 06) are Zone-level only, carrying a bare "No" in the note-level column. Every remaining Control Change — Modulation, Channel Volume, Damper Pedal, All Sound Off — together with "[a]ll other RPN messages" and "[a]ll NRPN Messages" shares a single row, Zone-level "Yes" but note-level "Send: Not recommended. / Receive: Cannot be expected to respond." Damper Pedal, §2.3.1's own worked example, appears only in that row, which therefore falls within the class §2.3.1 governs.
 
 ### 2.7 Pressure
 
@@ -294,10 +294,11 @@ sustain the entire Zone.
 
 Three exemptions apply. Pitch Bend, CC #74, and Channel Pressure on an input Member Channel are not Zone-level
 messages there but the note's own Expression Values, processed under Section 7.2. Pitch Bend Sensitivity (RPN 00 00) is
-note-level, and the specification directs senders to address it to every Member Channel (Section 2.6); it is consumed
-and applied under Section 4.3. An MCM remains valid on MIDI Channel 1 or 16 even when that channel is at the time a
-Member Channel of the other Zone, and is acted upon under Section 4.2. The MIDI Mode messages (124–127) are no
-exception: they are discarded here as everywhere, under the fixed-mode policy of Section 3.5.
+note-level as well as Zone-level, the specification directing senders to address it to every Member Channel
+(Section 2.6); it is consumed and applied under Section 4.3. An MCM remains valid on MIDI Channel 1 or 16 even when
+that channel is at the time a Member Channel of the other Zone, and is acted upon under Section 4.2. The MIDI Mode
+messages (124–127) are no exception: they are discarded here as everywhere, under the fixed-mode policy of
+Section 3.5.
 
 In Non-MPE Input Mode there is no input Master Channel to forward from: every incoming note is allocated to a Member
 Channel regardless of the input channel number, and the input's channel-global controls and Zone-level messages reach

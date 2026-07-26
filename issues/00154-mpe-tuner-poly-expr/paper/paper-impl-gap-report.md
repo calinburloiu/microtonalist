@@ -446,7 +446,8 @@ performs. `5d77eff` reversed that decision, so it is a conflict again and return
 Channel is **discarded**, following the receiver obligation of [1, §2.3.1] ("it must ignore it") and,
 for Program Change, [1, §2.3.3] ("a receiver operating in Mode 3 should ignore Program Change
 messages received on Member Channels"). Three exemptions: the three control dimensions (per-note
-under §7.2), Pitch Bend Sensitivity (note-level per [1, Table 1, n. 3], handled by §4.3), and an MCM
+under §7.2), Pitch Bend Sensitivity (note-level as well as Zone-level per [1, Table 1], handled by
+§4.3), and an MCM
 on Channel 1 or 16 (§4.2). The MIDI Mode messages are discarded on every channel (§3.5, N4).
 
 **Implementation**: generic CCs reach `processCc`'s catch-all and are redirected to the zone's Master
