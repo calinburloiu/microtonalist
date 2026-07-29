@@ -6,32 +6,39 @@ implementation in `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tun
 `ScMidiChannelStateTracker` in `sc-midi`. Both artifacts are work in progress for #154; this
 report inventories the gaps in each direction.
 
-**Baseline**: implementation as of commit `a90e563` (2026-07-21); paper as of commit `5d77eff`
-(2026-07-26). All implementation line references were read and verified at `a90e563`, and they
-resolve unchanged at the branch head: `59403d1` shortened a TODO comment near the top of
-`MpeTuner.scala` by one line, and `11549bb` re-wrapped it to restore the original alignment.
-`MpeChannelAllocator.scala` was never affected.
+**Baseline**: implementation as of commit `a90e563` (2026-07-21); paper as of the **uncommitted
+working tree** on top of `66bb095` (2026-07-29). The paper commits cited below, `09ce128` and
+`5d77eff`, were squashed into `66bb095` when #247 merged; both SHAs still resolve. All
+implementation line references were read and verified at `a90e563`, and they resolve unchanged at
+the branch head: `59403d1` shortened a TODO comment near the top of `MpeTuner.scala` by one line,
+and `11549bb` re-wrapped it to restore the original alignment. `MpeChannelAllocator.scala` was never
+affected. **This revision is baselined on an uncommitted paper: re-verify §3.5 and the §4 preamble
+once the change is committed.**
 
 The implementation has not moved since the previous revision of this report: at the baseline the
 three tuner sources are **byte-identical to `32d66f9`**, the previous revision's baseline, the only
 change in between being `75a70ee`, which added `shallRespondToResetMessages` to
 `ScMidiChannelStateTracker` (see N4); after the baseline only the TODO comment noted above
 changed, and its two commits cancel out. The
-paper has moved three times: `a90e563` inserted §5.1 (Note Identity and Reference Counting), §3.5 (MIDI
+paper has moved four times: `a90e563` inserted §5.1 (Note Identity and Reference Counting), §3.6 (MIDI
 Channel Modes), §7.5 (Message Ordering, promoted from §7.1.1 and extended to Note Off), §7.6
 (Duplicate Note On Messages), §5.8.6, §8.1 and three worked examples — renumbering most of
-Sections 5 and 7 — `09ce128` closed six paper-side gaps this report had raised, adding §3.6
+Sections 5 and 7 — `09ce128` closed six paper-side gaps this report had raised, adding §3.7
 (Channels Outside Every Zone) and the RPN wire protocol paragraph of the §4 preamble; and `5d77eff`
-reversed two of those six, replacing §3.4's Member Channel redirection rule and the §4 preamble's
-pass-through of uninterpreted RPNs with discard rules.
+reversed two of those six, replacing the Member Channel redirection rule (now §3.5) and the §4
+preamble's pass-through of uninterpreted RPNs with discard rules; and the **uncommitted working
+tree** adds §3.5 (Message Handling in MPE Input Mode), which takes the Member Channel discard rule
+over from §3.4 and states it as a table adapted from Table 1 of the MPE Specification, renumbering
+MIDI Channel Modes to §3.6 and Channels Outside Every Zone to §3.7, and rewrites the §4 preamble,
+reversing the uninterpreted-RPN/NRPN rule a second time.
 
 **ID scheme**: `P*` paper → missing in impl, `C*` conflicts, `I*` impl → not in paper, `B*` impl
 bugs, `A*` paper ambiguities. `N1`–`N5` were introduced in the previous revision as *unassessed*
 material new to the paper; they have now been assessed and keep their IDs so earlier
 cross-references still resolve, but they are filed under the section matching their verdict. Items
 refiled into another section likewise keep their IDs — `I1` and `I2` moved this way in the
-2026-07-25 revision, and `I3` in this one, back from Section 5 to Section 2. No ID is new to this
-revision.
+2026-07-25 revision, and `I3` in the 2026-07-26 one, back from Section 5 to Section 2. `P7` is new
+in the 2026-07-29 revision, and `I5` moved to Section 5 there.
 
 ## Summary
 
@@ -43,6 +50,7 @@ revision.
 | P4 | Paper → missing in impl | Nothing emitted after a Note Off: no re-emission when a note leaves the average, and none of the §7.5 Note Off ordering | Major |
 | P5 | Paper → missing in impl | Poly Pressure → Channel Pressure conversion does not average on shared channels | Medium |
 | P6 | Paper → missing in impl | Non-MIDI runtime configuration interface (input mode, zones, member PBS) | Out of scope |
+| P7 | Paper → missing in impl | Forwarded Pitch Bend Sensitivity sequence not closed with an RPN Null | Minor |
 | N1 | Paper → missing in impl | No reference counting per Note Identity; allocator keys notes by note number alone | Major |
 | N5 | Paper → missing in impl | Criterion (b) under-counts identities that share a note number on one channel | Minor |
 | C1 | Conflict | CC #74 emitted on Member Channels in Non-MPE Input Mode (paper forbids it) | Medium |
@@ -50,23 +58,42 @@ revision.
 | C3 | Conflict | MCM reconfiguration resets *both* zones; paper preserves the untouched zone | Medium |
 | C4 | Conflict | With all Zones deactivated, impl still forwards notes and passes controls through; paper requires no output at all | Medium |
 | C5 | Conflict | Master Channel CC #74 / Channel Pressure not forwarded unmodified in MPE mode | Major |
-| C6 | Conflict | Uninterpreted RPN and NRPN traffic routed instead of discarded, and routed inconsistently with each other | Medium |
-| N4 | Conflict | MIDI Mode messages 124–127 redirected to the Master Channel; §3.5 requires discarding them | Medium |
-| I2 | Conflict | Out-of-zone notes and controls in MPE mode allocated to / passed through the first enabled zone; §3.6 requires discarding them | Medium |
-| I3 | Conflict | Zone-level messages on an input Member Channel redirected to the Master Channel; §3.4 now requires discarding them | Medium |
-| I5 | Impl → not in paper | Non-Channel messages (SysEx, system) passed through | None (impl-specific) |
+| C6 | Conflict | Uninterpreted RPN/NRPN traffic on an input Member Channel routed instead of discarded; invalid MCM relays a bare Data Entry | Minor |
+| N4 | Conflict | MIDI Mode messages 124–127 redirected to the Master Channel; §3.6 requires discarding them | Medium |
+| I2 | Conflict | Out-of-zone notes and controls in MPE mode allocated to / passed through the first enabled zone; §3.7 requires discarding them | Medium |
+| I3 | Conflict | Zone-level messages on an input Member Channel redirected to the Master Channel; §3.5 now requires discarding them | Medium |
 | I6 | Impl → not in paper | MCMs also emitted for disabled zones at start-up | None (impl-specific) |
 | I1 | Impl bug | Active Tuning reset to Standard on incoming MCM | Major |
 | B1 | Impl bug | Dropped notes leave stale entries in `channelNoteMap` | Major |
 | N2 | Impl bug | Duplicate Note On re-runs allocation: leaks a channel (same input channel) or corrupts the average and frees a channel early (different input channels) | Major |
 
-**Changes in this revision (2026-07-26).** The implementation is still unchanged, so every impl-side
-citation continues to hold. The paper moved *against* the code for the first time: `5d77eff`
+**Changes in this revision (2026-07-29).** The implementation is still unchanged; the paper moved
+again, in the working tree, and the movement is confined to message routing. A new §3.5 (Message
+Handling in MPE Input Mode) collects the note-level and Zone-level rules into a table adapted from
+Table 1 of the MPE Specification, taking over the Member Channel discard rule §3.4 had held and
+pushing MIDI Channel Modes to §3.6 and Channels Outside Every Zone to §3.7; every §3.x citation
+below has been repointed. The §4 preamble was rewritten and shortened, reversing the
+uninterpreted-RPN/NRPN rule for the second time.
+
+- **Narrowed**: **C6** falls from Medium back to Minor. Uninterpreted RPN and NRPN traffic is
+  forwarded at Zone level again, so the Non-MPE half and the MPE input-Master-Channel half are now
+  aligned; what survives is the input-Member-Channel half — I3's root cause — and the invalid-MCM
+  path. The RPN Null sub-finding is retracted.
+- **New**: **P7**, a side effect of the §4 rewrite rather than a decision. The compressed sentence
+  now requires *every* re-emitted RPN sequence to close with an RPN Null, which `applyPbsUpdate`
+  does not do; closing the gap by narrowing the paper is as legitimate as closing it in code.
+- **Closed on the paper side**: **I5** — §3.5's table now carries a System Common / System
+  Real-Time / System Exclusive row specifying pass-through to the output, which is what the
+  implementation does. It moves to Section 5, and Section 3 is left holding I6 alone.
+- **Unaffected**: every finding that turns on neither RPN/NRPN routing nor System messages.
+
+**Changes in the 2026-07-26 revision.** The implementation was unchanged, so every impl-side
+citation continued to hold. The paper moved *against* the code for the first time: `5d77eff`
 reversed two of the six gaps `09ce128` had closed, after a re-reading of the MPE Specification's
 Table 1 and §2.3.1 established that redirection — defensible for a processor — is the treatment the
 specification tells a receiver not to adopt.
 
-- **Reopened as a conflict**: **I3** returns from Section 5 to Section 2. §3.4 now requires
+- **Reopened as a conflict**: **I3** returns from Section 5 to Section 2. §3.5 now requires
   Zone-level messages arriving on an input Member Channel to be **discarded**; the implementation
   redirects them to the Zone's Master Channel. Medium.
 - **Inverted, not retracted**: **C6** stands, but its required fix inverts — uninterpreted RPN
@@ -79,7 +106,7 @@ specification tells a receiver not to adopt.
 - **Unaffected**: C5, N4, I2 and C4 turn on Master Channel or out-of-zone behaviour, which neither
   rule change touches.
 
-**Changes in the previous revision (2026-07-25).** No finding was retracted on the evidence; the
+**Changes in the 2026-07-25 revision.** No finding was retracted on the evidence; the
 implementation is unchanged, so every impl-side citation still holds. What moved is the paper and
 the author's disposition of six items:
 
@@ -90,7 +117,7 @@ the author's disposition of six items:
 - **Settled in the paper's favour, turning into implementation work**: **I2** — out-of-zone notes are
   to be discarded, which is also the mechanism by which a fully deactivated Zone configuration
   produces silence — is now a conflict (Section 2); **C4** is widened from note output to all Channel
-  Voice and Channel Mode output by the same new §3.6, and raised to Medium.
+  Voice and Channel Mode output by the same new §3.7, and raised to Medium.
 - **Reclassified**: **I1** is an implementation bug and has moved to Section 4. **P6** is out of
   scope for #154. **I5** and **I6** are implementation-specific choices the paper deliberately leaves
   open, so they need no paper change and no code change.
@@ -232,6 +259,19 @@ values). `zones`, `inputMode` and `tuning` (lines 93-103) are read-only accessor
 setters for input mode, zones, or PBS, so none of the above runtime transitions is possible. (This
 may be intended to live at the `TunerProcessor`/session layer, but nothing implements it today.)
 
+### P7. Forwarded Pitch Bend Sensitivity sequence not closed with an RPN Null (§4 preamble)
+
+Introduced by the working tree's rewrite of the §4 preamble, and closable from either side. The
+rewritten sentence gives one shape to every sequence the Tuner re-emits — "selector, Data Entry, and
+a closing RPN Null (7F 7F) that protects the parameter from a later stray Data Entry" — where the
+previous text distinguished the sequences the Tuner *originates* (selector, Data Entry, Null) from a
+Data Entry it *forwards*, which was merely to be preceded by the selector.
+
+`mcmMessages` (`MpeTuner.scala:689-698`) satisfies the rewritten rule: selector, Data Entry, then
+Null. `applyPbsUpdate` (lines 485-487) does not — it emits the PBS selector and the Data Entry and
+stops, which was exactly conformant under the previous wording. Either add the two Null CCs there,
+or restore the paper's distinction between originated and forwarded sequences.
+
 ### N1. No reference counting per Note Identity (§5.1)
 
 §5.1 defines a note's **Note Identity** as the pair (input channel, note number) and gives each
@@ -279,8 +319,8 @@ keying reaches the allocator.
 **Resolution policy**: the paper is the source of truth. Every conflict in this section is to be
 resolved by changing the implementation; where the code's behaviour is the one worth keeping, the
 paper is amended first and the finding is then re-derived from the amended text (as happened to I2
-in the 2026-07-25 revision). The amendment can also run the other way: `5d77eff` amended §3.4
-*against* the code, turning the previously aligned I3 back into a conflict.
+in the 2026-07-25 revision). The amendment can also run the other way: `5d77eff` amended the rule
+now in §3.5 *against* the code, turning the previously aligned I3 back into a conflict.
 
 ### C1. CC #74 on Member Channels in Non-MPE Input Mode (§3.3 item 3, §7.3)
 
@@ -327,11 +367,11 @@ Implementation (`processMcm`, `MpeTuner.scala:361-399`): `stopAllNotes` (line 37
 MCM touches only one zone and no overlap resolution occurs. Notes and retained Expression Values in
 the untouched zone are lost, contrary to the paper.
 
-### C4. Behavior when all Zones are deactivated (§4.1, §3.6)
+### C4. Behavior when all Zones are deactivated (§4.1, §3.7)
 
 Paper, as tightened by `09ce128`: with no Zone enabled "every channel lies outside the Zone
 structure, so every Channel Voice and Channel Mode message the Tuner receives is discarded under
-Section 3.6 — not only notes"; the only messages the Tuner emits are the configuration messages of
+Section 3.7 — not only notes"; the only messages the Tuner emits are the configuration messages of
 §4.2, and the only input it still acts upon is a valid MCM.
 
 Implementation: with no enabled zone `createAllocator` returns `None` (line 719), so
@@ -346,10 +386,10 @@ raise from Minor to Medium. It is the degenerate case of I2, and the same fix re
 Paper §3.4: Master Channel Pitch Bend and Zone-level messages are "forwarded on the Master Channel
 without modification". Per the MPE spec (§2.5–2.6, quoted in paper §2.5/2.6), CC #74 and Channel
 Pressure on a Master Channel are Zone-level controls. `a90e563` added exactly one exception to this
-forwarding rule — the MIDI Mode messages 124–127 (§3.5, see N4) — and CC #74 and Channel Pressure
-are not among them. Neither `09ce128` nor `5d77eff` disturbed that rule: their §3.4 paragraphs
-govern Zone-level messages arriving on a *Member* Channel (I3), not the Master Channel forwarding at
-issue here.
+forwarding rule — the MIDI Mode messages 124–127 (§3.6, see N4) — and CC #74 and Channel Pressure
+are not among them. Neither `09ce128` nor `5d77eff` disturbed that rule: their Member Channel
+paragraphs, now §3.5, govern Zone-level messages arriving on a *Member* Channel (I3), not the Master
+Channel forwarding at issue here.
 
 Implementation: only Pitch Bend and Poly Pressure special-case the Master Channel
 (`processPitchBend` lines 281-283, `processPolyPressure` lines 573-575). CC #74 and Channel
@@ -363,57 +403,56 @@ Pressure go through `forwardToMemberChannel` unconditionally in MPE mode (`proce
 - With active Member Channel notes in the zone, the Zone-level control never reaches them (it is
   not re-emitted on the Master Channel).
 
-### C6. Uninterpreted RPN and NRPN traffic not discarded (§4 preamble, §4.2)
+### C6. Uninterpreted RPN/NRPN traffic on an input Member Channel (§4 preamble, §3.5, §4.2)
 
-Raised in the previous revision against `09ce128`'s pass-through rule; `5d77eff` replaced that rule
-with a discard rule, which inverts the required fix, widens the finding to both input modes and to
-NRPNs, and raises it from Minor to Medium. The §4 preamble now states that the Tuner interprets only
-RPN 00 00 and RPN 00 06 and "discards the whole of their traffic — selector, Data Entry, and Data
-Increment and Decrement" for every other Registered and Non-Registered Parameter Number, in both
-input modes. RPN Null is explicitly outside that rule: the Tuner consumes it and emits its own.
+Re-derived twice as the paper's rule flipped: raised as Minor against `09ce128`'s pass-through rule,
+raised to Medium against `5d77eff`'s discard rule, and now back to **Minor** against the working
+tree, which forwards uninterpreted RPN and NRPN traffic at Zone level and discards it at note level.
+Two of the three halves the previous revision reported are now aligned.
 
-Implementation: none of that traffic is discarded, and RPNs and NRPNs are not even routed alike.
+**Aligned — Non-MPE Input Mode.** Uninterpreted RPN selectors (CC #101/#100) match the second
+selector case (`processCc`, lines 329-334); NRPN selectors (CC #99/#98), Data Entry (CC #6/#38) and
+Data Increment/Decrement (CC #96/#97) match no case and fall to the catch-all (lines 350-351). In
+Non-MPE mode both routes call `forwardOnZoneMasterChannel`, so the whole sequence arrives on the
+output Master Channel — which is what §3.3 item 4 now requires. The guards are sound:
+`ScMidiChannelStateTracker` models NRPN selection, so `rpnSelector` returns `RpnSelector.Nrpn(...)`
+and neither `isMcmRpn` nor `isPbsRpn` fires spuriously.
 
-- **Uninterpreted RPN selectors** (CC #101/#100) match the second selector case (`processCc`, lines
-  329-334): redirected to the Master Channel in Non-MPE mode, passed through unchanged on the input
-  channel in MPE mode (line 333).
-- **NRPN selectors** (CC #99/#98) match no case at all and fall to the catch-all (lines 350-351), so
-  they reach the Master Channel in *both* modes — the opposite of the RPN treatment in MPE mode.
-- **Their Data Entry** (CC #6/#38) fails both `isMcmRpn` and `isPbsRpn` and reaches the same
-  catch-all, arriving on the Master Channel where it is applied downstream to whatever parameter was
-  last selected there. The guards themselves are sound: `ScMidiChannelStateTracker` models NRPN
-  selection, so `rpnSelector` returns `RpnSelector.Nrpn(...)` and neither guard fires spuriously.
-- **Data Increment/Decrement** (CC #96/#97) likewise reach the catch-all.
-- **RPN Null** is relayed rather than consumed. Its two CCs reach the same selector case at lines
-  329-334 — when CC #101 = 127 arrives the tracked selector is not yet Null, and once CC #100 = 127
-  makes it `RpnSelector.None` neither guard matches either — so both are emitted on the input channel
-  in MPE mode and on the Master Channel in Non-MPE mode. The Tuner's *tracking* is correct
-  throughout (`tracker.send` runs first, at line 168), so this costs nothing internally; it is the
-  output that carries a Null the Tuner did not originate.
+**Aligned — MPE Input Mode on an input Master Channel.** The two routes converge there: line 333
+emits the message unchanged on its own channel, and the catch-all resolves through
+`resolveZoneMasterChannel`'s `case Some((zone, _)) => Some(zone.masterChannel)` (lines 628-629),
+which for a Master Channel *is* that same channel. Both therefore satisfy §3.5's "forwarded
+unmodified on the same Master Channel", and the previous revision's "selector and value split across
+two channels" sub-finding does not arise here.
 
-In MPE mode the RPN case therefore splits selector from value across two channels; in Non-MPE mode
-both reach the Master Channel together, which is coherent but still not the specified discard.
+**Still a conflict — MPE Input Mode on an input Member Channel.** §3.5 requires this traffic to be
+discarded, and none of it is. Uninterpreted RPN selectors are emitted unchanged on the Member
+Channel (line 333) while NRPN selectors, Data Entry and Data Increment/Decrement are redirected to
+the zone's Master Channel (catch-all), so the sequence is both wrongly retained and split across two
+channels. The root cause is I3's — `resolveZoneMasterChannel` discarding `isMaster` — but fixing I3
+does not by itself fix line 333, which needs a Member Channel case of its own.
 
-The same catch-all mishandles an **invalid MCM**. The suppression case (line 328) matches whenever
-the tracked selector is RPN 00 06, on **any** input channel, so the selector is swallowed even off
-Channels 1 and 16; the following Data Entry MSB then fails the `inputChannel == 0 || inputChannel ==
-15` guard (line 335), reaches the catch-all, and arrives on the output Master Channel as a bare Data
-Entry. §4.2 now requires an invalid MCM to be ignored "in its entirety: neither its selector nor its
-Data Entry is relayed".
+**Retracted — RPN Null.** The previous revision faulted the implementation for relaying a received
+RPN Null instead of consuming it. The rewritten §4 preamble no longer singles Null out, so it is
+ordinary uninterpreted RPN traffic: relaying it at Zone level is conformant, and relaying it on a
+Member Channel is just another instance of the paragraph above. (The Nulls the Tuner *originates*
+are a separate matter — see P7.)
 
-One fix serves most of it: gate every RPN/NRPN wire message — selectors, Data Entry, Data
-Increment/Decrement — on the tracked selector being one of the two interpreted RPNs on a channel
-where that RPN is valid, and drop it otherwise. RPN Null needs the opposite treatment: it is
-consumed rather than gated, and the Tuner emits its own where its sequences require one.
+**Still a conflict — invalid MCM.** The suppression case (line 328) matches whenever the tracked
+selector is RPN 00 06, on **any** input channel, so the selector is swallowed even off Channels 1
+and 16; the following Data Entry MSB then fails the `inputChannel == 0 || inputChannel == 15` guard
+(line 335), reaches the catch-all, and arrives on the output Master Channel as a bare Data Entry,
+applied downstream to whatever parameter is selected there. §4.2 is unchanged and still requires an
+invalid MCM to be ignored "in its entirety: neither its selector nor its Data Entry is relayed".
 
-### N4. MIDI Mode messages 124–127 not discarded (§3.5, §5.8.6)
+### N4. MIDI Mode messages 124–127 not discarded (§3.6, §5.8.6)
 
-§3.5 (new in `a90e563`) makes the Tuner fixed-mode on both sides and requires that the **MIDI Mode
+§3.6 (new in `a90e563`) makes the Tuner fixed-mode on both sides and requires that the **MIDI Mode
 messages 124–127** (Omni Off, Omni On, Mono On, Poly On) be **discarded in both input modes** —
-neither forwarded nor emitted. This is the sole exception to Master Channel forwarding (§3.4) and
-to Non-MPE redirection (§3.3 item 4); §5.8.6 records it as a deliberate departure from
-transparency, justified because a Mode 4 (monophonic) Member Channel downstream would turn every
-shared allocation into an unintended note drop.
+neither forwarded nor emitted. This is the sole exception to Master Channel forwarding (§3.4,
+recorded in §3.5's table) and to Non-MPE redirection (§3.3 item 4); §5.8.6 records it as a
+deliberate departure from transparency, justified because a Mode 4 (monophonic) Member Channel
+downstream would turn every shared allocation into an unintended note drop.
 
 The implementation has no notion of Channel Mode messages at all. `JavaMidiConverters` maps every
 `0xB0` status message to `CcScMidiMessage` regardless of controller number
@@ -426,10 +465,10 @@ reaching the output Zone's Master Channel is precisely the outcome §5.8.6 forec
 124–127 from 120–123, while the code's catch-all treats all eight identically, so the fix needs an
 explicit controller-number branch rather than a change of default.
 
-### I2. Out-of-zone notes and controls in MPE mode (§3.6, §5 intro)
+### I2. Out-of-zone notes and controls in MPE mode (§3.7, §5 intro)
 
 Filed as a paper gap in earlier revisions; `09ce128` settled it, in the direction the author chose,
-so it is now a conflict. **Paper** §3.6: in MPE Input Mode a channel that is neither the Master
+so it is now a conflict. **Paper** §3.7: in MPE Input Mode a channel that is neither the Master
 Channel nor a Member Channel of an enabled Zone lies outside the Zone structure, and every Channel
 Voice and Channel Mode message received on it is discarded — notes "neither forwarded nor
 allocated" (§5 intro), channel-global controls and Zone-level messages neither redirected nor
@@ -444,45 +483,39 @@ original channel.
 This is also the mechanism C4 depends on: deactivating every Zone leaves every channel out of zone,
 so a correct discard here yields the silence §4.1 requires, and one fix serves both.
 
-### I3. Zone-level messages on an input Member Channel in MPE mode (§3.4, §2.6)
+### I3. Zone-level messages on an input Member Channel in MPE mode (§3.5, §2.6)
 
 Closed as aligned in the previous revision, when `09ce128` specified the redirection the code
 performs. `5d77eff` reversed that decision, so it is a conflict again and returns to this section.
 
-**Paper** §3.4, as amended: in MPE Input Mode a Zone-level message arriving on an input *Member*
+**Paper** §3.5: in MPE Input Mode a Zone-level message arriving on an input *Member*
 Channel is **discarded**, following the receiver obligation of [1, §2.3.1] ("it must ignore it") and,
 for Program Change, [1, §2.3.3] ("a receiver operating in Mode 3 should ignore Program Change
 messages received on Member Channels"). Three exemptions: the three control dimensions (per-note
 under §7.2), Pitch Bend Sensitivity (note-level as well as Zone-level per [1, Table 1], handled by
 §4.3), and an MCM
-on Channel 1 or 16 (§4.2). The MIDI Mode messages are discarded on every channel (§3.5, N4).
+on Channel 1 or 16 (§4.2). The MIDI Mode messages are discarded on every channel (§3.6, N4).
 
 **Implementation**: generic CCs reach `processCc`'s catch-all and are redirected to the zone's Master
 Channel (`MpeTuner.scala:350-351`), as is Program Change (`processShortMessage`, lines 181-185).
 `resolveZoneMasterChannel` maps any in-zone channel — Master and Member alike — to
 `zone.masterChannel`, discarding the distinction in its `case Some((zone, _))` wildcard (lines
 628-629). So a Damper Pedal sent on input Member Channel 4 arrives on the output Master Channel and
-sustains the whole Zone, precisely the outcome the amended §3.4 cites as its motive.
+sustains the whole Zone, precisely the outcome §3.5 cites as its motive.
 
 The information the fix needs is already there: `findZoneForChannel` returns
 `Some((zone, isMaster))` (line 628) and only the wildcard throws `isMaster` away. The Non-MPE path is
 unaffected — `resolveZoneMasterChannel` branches on `inputMode` first (line 625), and §3.3 item 4's
-redirection stands, for the reason the amended §3.4 gives: a non-MPE input has no Member Channels.
+redirection stands, for the reason §3.5 gives: a non-MPE input has no Member Channels.
 
 ---
 
 ## 3. In the implementation, not in the paper
 
-Both entries below are **implementation-specific by decision**: the paper deliberately says nothing,
-the implementation is free to choose, and neither side has work to do. They are kept on record so a
-later reader does not re-open them as gaps.
-
-### I5. Non-Channel messages passed through
-
-`process` forwards any non-`ShortMessage` (SysEx, system common/real-time) unchanged
-(`MpeTuner.scala:128-133`), and `processShortMessage`'s own catch-all (lines 186-187) passes
-through any `ShortMessage` with no typed match. The paper still never mentions System messages;
-§3.5 covers Channel Mode messages only.
+The entry below is **implementation-specific by decision**: the paper deliberately says nothing, the
+implementation is free to choose, and neither side has work to do. It is kept on record so a later
+reader does not re-open it as a gap. **I5** sat here until the working tree's §3.5 specified System
+message handling; it has moved to Section 5.
 
 ### I6. MCM emission for disabled zones at start-up
 
@@ -585,15 +618,24 @@ Both cases resolve the same way: give `ChannelState` identity-keyed notes and re
 
 Spot-checked; no gap found. Entries marked **↺** were flagged for re-checking in the previous
 revision because `a90e563` changed the paper text under them, and have now been re-verified.
-Entries marked **✎** were open findings closed by the paper edits of `09ce128`: the behavior did
-not change, the paper now specifies it. `I3` was marked ✎ here in the previous revision; `5d77eff`
-reversed the rule under it, so it has been reopened and now sits in Section 2.
+Entries marked **✎** were open findings closed by a paper edit rather than by a code change — I4 and
+A1 by `09ce128`, I5 by the working tree: the behavior did not change, the paper now specifies it.
+`I3` was marked ✎ here in the 2026-07-26 revision; `5d77eff` reversed the rule under it, so it has
+been reopened and now sits in Section 2.
 
 - **✎ I4.** The RPN wire protocol — selector suppression for the two interpreted RPNs (`processCc`
   lines 321-338, the empty-body case at line 328), `applyPbsUpdate`'s selector re-sent before the
   forwarded Data Entry (lines 482-487), and `mcmMessages`' RPN Null termination (lines 689-698) — is
-  now the specified behavior in the §4 preamble. That paragraph's treatment of *uninterpreted* RPNs
-  was rewritten by `5d77eff` and is not satisfied: see C6.
+  still the specified behavior after the working tree's rewrite of the §4 preamble, which kept the
+  consume-and-re-emit rule while dropping its rationale. Two riders: that rewrite also made the
+  closing RPN Null part of *every* re-emitted sequence, which `applyPbsUpdate` does not satisfy
+  (P7), and its treatment of *uninterpreted* RPNs is C6.
+- **✎ I5.** Non-Channel messages — `process` forwards any non-`ShortMessage` (SysEx, system
+  common/real-time) unchanged (`MpeTuner.scala:128-133`), and `processShortMessage`'s own catch-all
+  (lines 186-187) passes through any `ShortMessage` with no typed match. The working tree's §3.5
+  table now carries a System Common / System Real-Time / System Exclusive row — they "affect the
+  entire system and are forwarded to the output" — so what the paper used to leave unmentioned is
+  now specified, and the implementation already conforms. No code work; moved here from Section 3.
 - **✎ A1.** Criterion (d)'s convention — no Note Off history counts as the oldest possible last Note
   Off and wins the criterion; several such channels tie and fall to (e) — is now stated in §5.6 and
   in its motivation bullet. The implementation conforms without special-casing: `ChannelState`
@@ -607,17 +649,17 @@ reversed the rule under it, so it has been reopened and now sits in Section 2.
 - Input modes, one-way in-band switch to MPE on MCM (§3.2, §4.1) — `processMcm` sets
   `_inputMode = Mpe` (line 398) and nothing sets it back except `reset()`.
 - Master Channel note / Pitch Bend / Poly Pressure forwarding, no tuning offset on Master notes
-  (§3.4) — except the CC #74 / CP case in C5. **↺** §3.4's new MIDI Mode exception is a separate
+  (§3.4) — except the CC #74 / CP case in C5. **↺** §3.5's MIDI Mode exception is a separate
   finding (N4); the Pitch Bend and Poly Pressure paths themselves are unaffected.
 - Non-MPE conversion: Pitch Bend / CC #74 / CP / other CCs / Program Change redirected to the
-  routing zone's Master Channel, lower zone preferred (§3.3 items 2 and 4, §4.2). Uninterpreted RPNs
-  were part of this list until `5d77eff` excepted them from item 4's redirection — that half is now
-  C6.
+  routing zone's Master Channel, lower zone preferred (§3.3 items 2 and 4, §4.2). Uninterpreted RPN
+  and NRPN traffic left this list when `5d77eff` excepted it from item 4's redirection and rejoined
+  it in the working tree, which restores the redirection; that half of C6 is now aligned.
   **↺** Item 4's new clauses check out for 120–123: they are redirected like any other CC by the
   catch-all, and neither `MpeTuner` nor its tracker clears note state on them — `MpeTuner`
   constructs `ScMidiChannelStateTracker()` with defaults (line 88), and `75a70ee` made
   `shallRespondToResetMessages` default to `false`, so All Sound Off / All Notes Off / Reset All
-  Controllers are recorded but leave tracked state untouched, exactly as §3.5 requires. The 124–127
+  Controllers are recorded but leave tracked state untouched, exactly as §3.6 requires. The 124–127
   clause is N4.
 - **↺ N3.** Note Off velocity and ordering for Tuner-originated Note Offs (§6, new in `a90e563`) —
   **aligned on both counts**. `emitDroppedNoteOffs` (line 657) and `stopAllNotes` (line 520)
@@ -679,7 +721,7 @@ reversed the rule under it, so it has been reopened and now sits in Section 2.
 | `MpeChannelAllocator.scala:223` | TreeMap ordering question | Not paper-related |
 | `MpeChannelAllocator.scala:293-294` | "Bad assumption that the last note is being bent" | P3 |
 
-Not covered by any existing TODO: P2, P4, P5, N1, N5, C1–C6, N4, I1, I2, I3, B1, N2. (P6 is out of
-scope; I5 and I6 are implementation-specific; I4 and A1 were closed on the paper side by `09ce128`
-and need no code work. I3 was closed there too, but `5d77eff` reopened it as a conflict requiring
-code work.)
+Not covered by any existing TODO: P2, P4, P5, P7, N1, N5, C1–C6, N4, I1, I2, I3, B1, N2. (P6 is out
+of scope; I6 is implementation-specific; I5 and A1 need no code work, the former now specified by
+the working tree's §3.5. I4 was closed on the paper side by `09ce128` and stays closed apart from
+the P7 rider. I3 was closed there too, but `5d77eff` reopened it as a conflict requiring code work.)
