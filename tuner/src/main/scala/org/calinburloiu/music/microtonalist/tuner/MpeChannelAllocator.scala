@@ -78,8 +78,8 @@ case class DroppedNotes(channel: Int,
                         notes: Seq[MidiNote],
                         group: ChannelGroup)
 
-// TODO #154 Add a channelExpression field of type MpeExpression which will be set on the output channel before the
-//  Note On message in MpeTuner. The new field is averaged across all channel notes from ChannelState.
+// TODO #154 Add info about aggregated Expression Values that need updates on the output channel. MpeTuner updates
+//  control dimensions based on those before emitting Note On.
 
 /**
  * Result of a channel allocation operation.
@@ -220,7 +220,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   import MpeChannelAllocator.*
 
-  // TODO #154 Should we use a TreeMap and order channels for prioritizing allocation and note dropping?
+  /** Data structures with allocation information, keyed by output Member Channel. */
   private val channelStates: Map[Int, ChannelState] = zone.memberChannels.map(ch => ch -> ChannelState(ch)).toMap
 
   private var _time: Long = 0L
