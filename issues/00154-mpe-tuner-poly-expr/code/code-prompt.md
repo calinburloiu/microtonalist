@@ -1,10 +1,8 @@
 # Update Paper with Polyphonic Expression for MPE Tuner (Prompt)
 
-Your task is to update and refactor the incomplete MPE Tuner implementation (from `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tuner/MpeTuner.scala`) according to the MPE Tuner paper (from `docs/architecture/tuner/mpe-tuner-paper.md`). For reference, here is the MPE Specification on which the MPE Tuner is based: `docs/architecture/tuner/mpe-spec.md`.
+Your task is to update and refactor the incomplete MPE Tuner implementation (from `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tuner/MpeTuner.scala`) according to the MPE Tuner paper (from `docs/architecture/tuner/mpe-tuner-paper.md`) which is the source of truth. For reference, here is the MPE Specification on which the MPE Tuner is based: `docs/architecture/tuner/mpe-spec.md`.
 
-Note that sections, facts and bullets are numbered / identified to facilitate discussions.
-
-Use /superpowers:brainstorming . We are working on issue #154, so write superpowers' artifacts to `issues/00154-mpe-tuner-poly-expr/code/`.
+Use /superpowers:brainstorming . Sections, facts and bullets are numbered / identified to facilitate discussions. We are working on issue #154, so write superpowers' artifacts to `issues/00154-mpe-tuner-poly-expr/code/`.
 
 ## 1. Changes overview
 
@@ -81,9 +79,9 @@ Input-mode-specific behavior changes are described in the next sections.
     - Setting the RPN / NRPN selector numbers requires two separate messages. Those are not forwarded immediately, but instead are stored and change the internal state of `ScMidiChannelStateTracker`.
     - Only when a value-changing message comes (Data Entry, Date Increment/Decrement), the whole sequence is emitted, including the full selector. The selector is always emitted before such a message, even if it's verbose. Data Entry has separate messages for MSB and LSB, so the full sequence including the selector is emitted for each of those. That's fine!
 
-## 3. Deliverables
+## 3. Implementation gaps
 
-These deliverables are derived from the report that tracks the gaps between the implementation and the paper from `issues/00154-mpe-tuner-poly-expr/paper/paper-impl-gap-report.md`. **But you should not read that file!** Its relevant content is copied here verbatim and commented. That's why the content here focuses more on the current state of the implementation and why is not consistent with the paper. References in this section are to the paper.
+These gaps are derived from the report (from `issues/00154-mpe-tuner-poly-expr/paper/paper-impl-gap-report.md`) that tracks the differences, conflicts and inconsistencies between the current implementation and the paper. **You should not read that report file!** Its relevant content is copied here verbatim and commented. That's why the content here focuses more on the current state of the implementation and why is not consistent with the paper. References in this section are to the paper.
 
 ### P1. Per-note Expression Value model for Channel Pressure and CC #74 (§1.3, §5.7, §7.1–7.3)
 
@@ -162,7 +160,7 @@ unimplemented for all three dimensions.
   attributed to the note that arrived from input Channel 2, not to the channel's last-added note,
   or the wrong note is dropped under §6.2.1.
 
-The changes described in `MpeChannelAllocator` with the new `update*` methods, the introduction of the Note Identify concept and the changes from `ChannelState`, should allow resolving this deliverable.
+The changes described in `MpeChannelAllocator` with the new `update*` methods, the introduction of the Note Identify concept and the changes from `ChannelState`, should allow resolving this gap.
 
 ### P4. Nothing emitted after a Note Off (§7.1, §7.5)
 
@@ -184,7 +182,7 @@ works (the pre-Note-On Pitch Bend at `MpeTuner.scala:233-235` includes the new n
 average); the "note left" direction is missing entirely, so the §7.5 Note Off ordering has nothing
 to order.
 
-The new `release` method from `MpeChannelAllocator` and how it's handled in `MpeTuner` should resolve this deliverable.
+The new `release` method from `MpeChannelAllocator` and how it's handled in `MpeTuner` should resolve this gap.
 
 ### P5. Poly Pressure → Channel Pressure averaging in Non-MPE mode (§3.3 item 1, §7.3)
 
@@ -201,7 +199,7 @@ channel**, as the Note Identity of §5.1 requires. The implementation already sa
 the lookup at lines 580-581 goes through `channelNoteMap.get(inputChannel)` and only then
 `notes.get(midiNote)` — so the Poly Pressure path is correctly identity-scoped. See N1.
 
-The new averaging mechanism, moved to `MpeChannelAllocator`, the introduction of Note Identify and the support to reset pressure on `release` via the new flag should allow resolving this deliverable.
+The new averaging mechanism, moved to `MpeChannelAllocator`, the introduction of Note Identify and the support to reset pressure on `release` via the new flag should allow resolving this gap.
 
 ### P7. Forwarded Pitch Bend Sensitivity sequence not closed with an RPN Null (§4 preamble)
 
@@ -258,7 +256,7 @@ note number on one channel count as **one**, so the criterion under-counts and m
 that is in fact more heavily loaded than a rival. Minor, and it disappears once N1's identity
 keying reaches the allocator.
 
-The proposed changes in `MpeChannelAllocator` and `ChannelState` with the introduction of Note Identify should help resolve this deliverable.
+The proposed changes in `MpeChannelAllocator` and `ChannelState` with the introduction of Note Identify should help resolve this gap.
 
 ### C1. CC #74 on Member Channels in Non-MPE Input Mode (§3.3 item 3, §7.3)
 
