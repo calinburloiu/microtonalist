@@ -100,7 +100,6 @@ case class AllocationResult(channel: Int,
 
 case class ReleaseResult(channel: Int,
                          update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                         channelEmptied: Boolean = false,
                          pressureWasReset: Boolean = false)
 
 case class ExpressionUpdateResult(channelUpdates: Seq[ChannelExpressionUpdate] = Nil,
@@ -194,9 +193,16 @@ Behavior:
 
 ```scala
 def release(noteIdentity: NoteIdentity,
-            channel: Int,
-            resetPressureOnEmpty: Boolean = false): ReleaseResult
+            resetPressureOnEmpty: Boolean = false): Option[ReleaseResult]
 ```
+
+The output Member Channel is **not** a parameter: the allocator owns the identity → channel binding and resolves it
+itself. `None` is returned when the identity holds no active count, which is the signal to discard the Note Off under
+§5.1 rule 4; otherwise `ReleaseResult.channel` carries the resolved channel. This is a deliberate departure from prompt
+§2.1(g), which kept the channel as a parameter: passing it would make the caller a second source of truth for a binding
+the allocator already holds, and it would force the caller into a preparatory `channelOf` lookup on every Note Off. The
+duplicate case needs no channel either — every Note On for an identity beyond the first is forwarded on the channel
+already bound to it (§5.1), so the binding never varies over an identity's lifetime.
 
 The reference count is decremented. Deallocation — removal from the channel's notes, from the identity → channel map,
 and the accompanying recomputation — happens **only on the transition to 0** (§5.1). A decrement that leaves the count
@@ -211,8 +217,8 @@ in MPE Input Mode, where the dimension passes through from the sender and the Tu
 `pressureWasReset` on the result tells `MpeTuner` that this particular Channel Pressure value must be emitted
 **before** the Note Off — the sole exception to the Note Off ordering of §7.5.
 
-`release` is only called for a live identity: `MpeTuner` resolves the channel through `channelOf` first, and a `None`
-there means the identity holds no active count, so the Note Off is discarded under §5.1 rule 4.
+`channelOf` remains a public accessor for inspection and tests, but the Note Off path no longer calls it: `release`
+answers both questions — whether the identity is live and where it lives — in one call.
 
 ### The three update methods
 
@@ -240,9 +246,13 @@ contribution, recompute, diff.
 
 `updateExpressionPitchBend` applies §6.2.1 per affected output channel, after writing the new contributions.
 
-Let `H` be the set of identities on the channel whose Expression Pitch Bend now exceeds the threshold `t`. Invariant 2
-of §6.3 guarantees that before the update at most one identity on the channel had a high bend and that it was alone
-there, so a channel holding more than one identity had none. Therefore:
+Let `H` be the set of identities on the channel whose Expression Pitch Bend now exceeds the threshold `t`.
+
+Invariant 2 of §6.3 holds of the state the Tuner was in **immediately before this Pitch Bend message was applied**: an
+identity with a High Expression Pitch Bend is always the sole active identity on its channel. Consequently a channel
+that then held more than one identity held none with a high bend, and every element of `H` on such a channel acquired
+its high bend from this very message — necessarily from the input channel the message arrived on, since no other
+identity's contribution was written. Therefore:
 
 - If the channel holds more than one identity and `H` is non-empty, the identity in `H` with the **greatest
   `onsetTime`** survives and **every other identity on the channel is dropped** — those in `H` and those outside it
@@ -252,8 +262,11 @@ there, so a channel holding more than one identity had none. Therefore:
 The single-element `H` case is §6.2.1 as written: one note develops a high bend and its co-residents are dropped
 (worked example §9.5). The multi-element case arises when the notes sharing the channel also share an input channel,
 so a single Pitch Bend message gives all of them the high bend at once. The paper does not cover it; the rule adopted
-here retains the most recently sounded of them, which preserves the performer's gesture on one voice and restores
-invariant 2 of §6.3. See *Paper Amendment* below.
+here retains the most recently sounded of them, which preserves the performer's gesture on one voice. See *Paper
+Amendment* below.
+
+In both cases the surviving identity is left alone on its channel, so invariant 2 of §6.3 — which the incoming message
+had just broken — holds again of the state that follows the drop.
 
 ### Public accessors
 
@@ -322,13 +335,13 @@ how C1 is closed, without a mode-specific branch.
 
 ```
 identity = NoteIdentity(inputChannel, midiNote)
-alloc     = getAllocatorForInput(inputChannel)   // same resolution as the Note On path
-alloc.channelOf(identity) match {
-  case None           => log and discard                       // §5.1 rule 4
-  case Some(outChannel) =>
-    result = alloc.release(identity, outChannel, resetPressureOnEmpty = (inputMode == NonMpe))
+alloc    = getAllocatorForInput(inputChannel)    // same resolution as the Note On path
+
+alloc.release(identity, resetPressureOnEmpty = (inputMode == NonMpe)) match {
+  case None => log and discard                                  // §5.1 rule 4
+  case Some(result) =>
     if (result.pressureWasReset) emit Channel Pressure          // §7.5 exception, before the Note Off
-    emit Note Off
+    emit Note Off on result.channel
     result.update.pitchBendCents -> emit Pitch Bend             // §7.5: after the Note Off,
     result.update.slide          -> emit CC #74                 //   control dimensions keeping
     if (!result.pressureWasReset) result.update.pressure -> emit Channel Pressure   // their relative order
@@ -340,6 +353,8 @@ is what closes C2. The discard branch closes B1's first consequence: after the T
 identity's count and channel binding, so the performer's later Note Off finds nothing and is discarded rather than
 producing a duplicate downstream Note Off (§5.1 rule 4, §6). That branch is now a specified path exercised by tests, so
 its `$COVERAGE-OFF$` markers are removed — they are dead under Scala 3 in any case.
+
+No need to log anymore when a Note Off is discarded.
 
 ### Master Channel notes in MPE Input Mode
 
