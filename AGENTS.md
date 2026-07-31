@@ -11,6 +11,128 @@ each pitch class of the keyboard.
 Microtonalist is built as a stand-alone multi-platform desktop application that runs on JVM. The code is written in
 Scala 3 and is built by using sbt 1.
 
+# Coding Workflow
+
+- Use Metals MCP for compiling and code intelligence (see [Code Intelligence](#code-intelligence) section); fall back to
+  sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
+- Before writing code, create a task to explore the architecture: read the always-loaded overviews imported in the
+  [Architecture](#architecture) section plus the architecture documents strictly relevant to the prompt — typically the
+  `docs/architecture/$MODULE/README.md` of each module you will touch and its immediate collaborators. That section
+  explains how the architecture documents are organized.
+- Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
+    - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
+      no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
+      **shall not** be due to compile errors, iterate until the code compiles.
+    - **Green**. Write only enough production code to make it pass, no more.
+    - **Refactor**. Once green, refactor the structure and naming freely, keeping the suite green throughout.
+    - Never write logic without a preceding failing test, never commit red production code, and never mix refactoring
+      with behavioral changes.
+- When the implementation is done, perform final checks by creating a task for each of the following checks:
+    - **Module tests**. Make sure tests pass for each modified module.
+    - **Coverage**. Make sure modified files and modules meet the coverage conventions and iterate
+      until the target coverage is met. See [Coverage](#coverage) section for details.
+    - **Full tests suite**. Make sure the full test suite for the whole project passes.
+    - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
+      guides etc.) and agent artifacts.
+- If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
+  skill).
+- If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
+  created). If the user did not request opening a PR, ask them if creating one is necessary (use the `contributing`
+  skill).
+
+# Code Intelligence
+
+At the start of every conversation, check whether the Metals MCP is available by attempting to call
+`mcp__metals__list-modules`. If it is available, prefer its `mcp__metals__*` tools (symbol inspection, search,
+find-usages, source/docs retrieval, compilation, Coursier dependency lookup). See each tool's own description for
+parameters. If Metals MCP is not available, fall back to the usual CLI tools (`sbt`/`sbtn`, `rg`, `find`, `WebFetch`,
+etc.).
+
+Prefer the Metals MCP over textual tools (`rg`, `grep`, `git grep`, `fd`, `find`) for symbol inspection, symbol search,
+finding usages, and understanding class/trait hierarchy — the textual alternatives can't distinguish a class from a
+same-named variable, follow overrides, or resolve imports. Use symbol search to reduce duplicated code by finding
+already implemented functionality. Use the read docs functionality to understand external code.
+
+## Symbol tool file focus
+
+`mcp__metals__glob-search`, `mcp__metals__typed-glob-search`, `mcp__metals__inspect`, `mcp__metals__get-usages`,
+`mcp__metals__get-docs`, and `mcp__metals__get-source` need a `fileInFocus` parameter (`module` alone is not enough) and
+search only that target's classpath — so use a file from the symbol's owning module, or for project-wide scope the
+module with the broadest classpath. The representative files for project-wide searches are:
+
+- `app` — covers `config`, `businessync`, `common`, `composition`, `intonation`, `format`, `sc-midi`, `tuner`, `ui`:
+  `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
+- `cli` — separate executable covering `sc-midi`; may contain symbols not in `app`:
+  `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
+- `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
+  `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
+
+For a project-wide search, query all three in parallel; use a lower-level module file only to intentionally scope to
+that module's classpath.
+
+# Build
+
+Built with **SBT 1, Scala 3, and Java 23**. The repo is split into multiple SBT projects (we call them modules), all in
+the repo root: `root` aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g.
+listing connected MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
+
+## sbt invocations: prefer the BSP server via `sbtn`
+
+Route **all** sbt commands through `sbtn` so they run on the single long-lived BSP-server JVM rather than spawning a
+fresh `sbt` JVM. BSP-server builds write to `<project>/target-bsp/` (not `<project>/target/`), so the two never
+collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and for starting and routing the stack.
+
+## Warm-up
+
+At the start of every conversation, **once** per session:
+
+1. Detect the running stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is not
+   running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing.
+2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full` to warm up the Metals index. This
+   ensures SemanticDB is populated so that symbol resolution, find-usages, and other semantic tools work correctly from
+   the first query.
+
+## Compiling
+
+Prefer the Metals MCP for compiling when it is available:
+
+- Compile the whole project: `mcp__metals__compile-full`
+- Compile a single module `${MODULE}`: `mcp__metals__compile-module` with `module = "${MODULE}"`
+
+Fall back to `sbt`/`sbtn` only when the Metals MCP is unavailable, or for a final full build or fat JAR assembly; the
+sbt-based compile, single-module, and `assembly` commands are in
+[`docs/development/build.md`](docs/development/build.md).
+
+# Test
+
+Metals MCP cannot run tests with this BSP setup, so run all tests through `sbtn` as instructed in @docs/agents/test.md .
+
+For test conventions, see the "Coding conventions" section.
+
+# Coverage
+
+During the **Coverage** workflow step — and any time you verify coverage after changing code — invoke the
+`scoverage-inspector` skill. It carries the coverage policy you must apply (per-module thresholds, the "never decrease
+the floor" rule, the 80% target for new files) and tells you how to call the `scoverage-inspector` MCP server, which
+performs the mechanical work (freshness check, rebuild if stale, XML parsing) in-process. The policy lives in the skill
+— loaded on demand when you invoke it — precisely so it does not clutter context up front, since coverage work only
+happens after the implementation is finished.
+
+# License Headers
+
+Every source file starts with a ~15-line Apache 2.0 license header (block, XML, or `#` comment by file type) followed by
+a blank line. A committed `PreToolUse` hook on `Read` automatically skips this header, so files appear to start at
+~line 17 — **real line numbers are preserved** (the header lines are omitted, not renumbered), so don't be confused by
+the absent top lines. To view the header, `Read` with `offset: 1`. Don't add or maintain headers by hand for file types covered by the `addlicense` hook (`.scala`, `.java`, `.py`,
+`.sh`/`.bash`, `.html`, `.xml`, `.js`, `.css`, `.properties`): the `.githooks/pre-commit` hook adds them on commit and
+CI enforces them. **Do add headers by hand** for the two unsupported types — `addlicense` silently skips them:
+
+- **`.sbt`** — use the `/* … */` block-comment style (same as Scala).
+- **`.fxml`** — use the `<!-- … -->` XML comment style (same as `.xml`); note that `<?xml …?>` must remain the very
+  first line, so the comment goes *after* it.
+
+See [`docs/development/license-headers.md`](docs/development/license-headers.md) for the exact wording to copy.
+
 # Architecture
 
 The architecture docs are organized as follows:
@@ -42,3 +164,11 @@ the `contributing` skill (`.claude/skills/contributing/`). Invoke it when creati
 Only load or update files from `issues/` directory when explicitly asked to by the user. You may load or update files linked to them, directly or indirectly. But do not search for other files from that directory to load or update, because they may contain stale docs (plans, design docs, specs) or unrevised reports with incorrect data.
 
 All files from that directory must be dated and linked to a git commit SHA, such that the agent knows if the information inside them is state.
+
+# Coding Conventions
+
+Follow these conventions whenever you write code. They are imported here so they are always in context:
+
+- Production / general Scala conventions: @docs/development/coding-conventions.md
+- Test conventions (directory layout, naming, BDD style, Given/When/Then, fixtures, shared test utilities):
+  @docs/development/test-conventions.md
