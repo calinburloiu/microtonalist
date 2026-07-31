@@ -218,7 +218,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         val preferredChannel = if (inputMode == MpeInputMode.Mpe && zone.memberChannels.contains(inputChannel))
           Some(inputChannel) else None
 
-        val result = alloc.allocate(midiNote, preferredChannel = preferredChannel)
+        val result = alloc.allocate(NoteIdentity(inputChannel, midiNote), preferredChannel = preferredChannel)
         val outChannel = result.channel
 
         // Handle dropped notes
@@ -262,7 +262,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     untrackNote(inputChannel, midiNote) match {
       case Some(outChannel) =>
         val allocator = getAllocatorForOutput(outChannel)
-        allocator.foreach(_.release(midiNote, outChannel))
+        allocator.foreach(_.release(NoteIdentity(inputChannel, midiNote)))
         buffer += NoteOffScMidiMessage(outChannel, midiNote, velocity).asJava
       // $COVERAGE-OFF$ Defensive branch: only reached on phantom Note Offs (mid-stream MCM/reset clearing tracking,
       // or stale Note Offs from a sender after MIDI panic). Not exercised by tests.
@@ -283,19 +283,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         buffer += msg.asJava
       } else {
         // Per-note pitch bend in MPE input - treat as expressive pitch bend.
-        // The pitch-class invariant may have split this input channel's notes onto multiple
-        // output channels; per the MPE Specification, expressive Pitch Bend on a Member Channel
-        // applies to every note on that channel, so it must be forwarded to all of them.
-        outputChannelsFor(inputChannel).foreach { outChannel =>
-          val allocator = getAllocatorForOutput(outChannel)
-          allocator.foreach { alloc =>
-            val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
-              pitchBendValue, currentZone(alloc).memberPitchBendSensitivity)
-            val droppedNotes = alloc.updateExpressivePitchBend(outChannel, pitchBendCents)
-            if (droppedNotes.isDefined) {
-              emitDroppedNoteOffs(buffer, droppedNotes.get, "expressive pitch bend too high")
-            }
-            emitTuningPitchBend(buffer, outChannel, alloc)
+        // The allocator fans the update out by itself to every output channel holding a note of
+        // this input channel.
+        getAllocatorForInput(inputChannel).foreach { alloc =>
+          val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
+            pitchBendValue, currentZone(alloc).memberPitchBendSensitivity)
+          val result = alloc.updateExpressionPitchBend(inputChannel, pitchBendCents)
+          result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, "expression pitch bend too high"))
+          result.channelUpdates.foreach { channelUpdate =>
+            emitTuningPitchBend(buffer, channelUpdate.channel, alloc)
           }
         }
       }
@@ -634,27 +630,25 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def computeOutputPitchBend(channel: Int, alloc: MpeChannelAllocator, zone: MpeZone,
                                      tuningOffsetCents: Double): Int = {
-    val notes = alloc.activeNotes(channel)
-    val avgExpressiveBendCents = if (notes.nonEmpty) {
-      notes.map(alloc.expressionFor(channel, _).pitchBendCents).sum / notes.size
-    } else {
-      0.0
-    }
-
-    val totalCents = tuningOffsetCents + avgExpressiveBendCents
+    val totalCents = tuningOffsetCents + alloc.channelExpression(channel).pitchBendCents
     val pbs = zone.memberPitchBendSensitivity
     val clampedCents = clampValue(totalCents, -pbs.totalCents, pbs.totalCents)
     PitchBendScMidiMessage.convertCentsToValue(clampedCents, pbs)
   }
 
   /**
-   * Emits Note Off messages for dropped notes, if any.
+   * Emits Note Off messages for dropped notes: one per Note On forwarded for each note, at the neutral
+   * release velocity 64 that a note ended by the Tuner's own decision receives.
    */
   private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMessage], droppedNotes: DroppedNotes,
                                   reason: String): Unit = {
-    logger.trace(s"Dropping notes ${droppedNotes.notes} on channel ${droppedNotes.channel} ($reason)")
-    droppedNotes.notes.foreach { midiNote =>
-      buffer += NoteOffScMidiMessage(droppedNotes.channel, midiNote).asJava
+    logger.trace(s"Dropping notes ${droppedNotes.notes.map(_.noteIdentity.midiNote)} " +
+      s"on channel ${droppedNotes.channel} ($reason)")
+    for {
+      droppedNote <- droppedNotes.notes
+      _ <- 1 to droppedNote.referenceCount
+    } {
+      buffer += NoteOffScMidiMessage(droppedNotes.channel, droppedNote.noteIdentity.midiNote).asJava
     }
   }
 

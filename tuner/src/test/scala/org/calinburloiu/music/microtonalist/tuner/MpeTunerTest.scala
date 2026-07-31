@@ -70,7 +70,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private val nonMpeInputChannel = 2
   private val mpeInputChannel: Int = 1
 
-  private val epsilon: Double = 2e-1
+  // One Pitch Bend unit is ≈0.586 cents at the default Member Channel Pitch Bend Sensitivity of ±48
+  // semitones, and an average over quantized per-note values lands up to half a unit from the arithmetic
+  // expectation, so the tolerance is one unit. Assertions that need finer resolution compare MIDI values.
+  private val epsilon: Double = 6e-1
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   // Quarter-comma meantone tuning (approximate offsets in cents)
@@ -1494,14 +1497,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Distributing across input channel ----
 
-  ignore should "distribute the pitch bend values of the input channel" in new DistributeFixture {
+  it should "distribute the pitch bend values of the input channel" in new DistributeFixture {
     // When
     private val pitchBends1 = extractPitchBends(pitchBend(1, 10.0))
     private val pitchBends3 = extractPitchBends(pitchBend(3, 30.0))
 
     // Then
+    // Input channel 1 feeds output channels 1 and 2. Output channel 1 also holds D5, which arrived on
+    // input channel 3 and still carries no bend, so its Expression Pitch Bend is the average of the two.
     pitchBends1.map(_.channel) shouldEqual Seq(output1Channel, output2Channel)
-    pitchBends1.head.cents shouldEqual (quarterCommaMeantone.d + 10.0)
+    pitchBends1.head.cents shouldEqual (quarterCommaMeantone.d + (10.0 + 0.0) / 2)
     pitchBends1(1).cents shouldEqual (quarterCommaMeantone.e + 10.0)
 
     pitchBends3.map(_.channel) shouldEqual Seq(output3Channel, output4Channel, output1Channel)
@@ -1755,7 +1760,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- High-expression-PB dropping — runtime developed ----
 
-  ignore should "drop other notes on a shared channel when one note develops a high expression pitch bend" in
+  it should "drop other notes on a shared channel when one note develops a high expression pitch bend" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
@@ -1765,7 +1770,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Will share
       private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
-      private val e2OutputChannel = extractNoteOns(e1Output).head.channel
+      private val e2OutputChannel = extractNoteOns(e2Output).head.channel
       e1OutputChannel shouldEqual e2OutputChannel
 
       // When
@@ -1799,8 +1804,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Shared-channel dropping with common input channel ----
 
-  ignore should "drop all notes on a shared channel with a common input channel when a high expression pitch bend is " +
-    "received on it" in
+  it should "keep the most recently sounded note on a shared channel with a common input channel when a high " +
+    "expression pitch bend is received on it" in
     new Fixture(tuner3MpeInput) {
       // Given
       // tuner3 in MPE input: PCG=1, EG=2. Input channels are 1..3.
@@ -1812,14 +1817,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOn(1, E5)
 
       // When
-      // High Expression Pitch Bend (> 50 cents threshold) on input ch 1 -> drops co-resident E4 and E5.
+      // One Pitch Bend message gives both notes a High Expression Pitch Bend (> 50 cents), so the
+      // divergence rule keeps the most recently sounded (E5) and drops the other.
       private val output = pitchBend(1, 100.0)
       // Then
       private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
-      noteOffs should contain theSameElementsAs Seq(
-        (sharedChannel, E4),
-        (sharedChannel, E5)
-      )
+      noteOffs should contain theSameElementsAs Seq((sharedChannel, E4))
     }
 
   behavior of "MpeTuner - process() - Zone-level Messages - Non-MPE Input"
