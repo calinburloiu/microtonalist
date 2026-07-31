@@ -161,6 +161,10 @@ as the current state of the code.
 GitHub conventions — issues, branches, pull requests, labels, milestones, and the Projects-v2 `gh` fallback — live in
 the `contributing` skill (`.claude/skills/contributing/`). Invoke it when creating an issue or opening a PR.
 
+Only load or update files from `issues/` directory when explicitly asked to by the user. You may load or update files linked to them, directly or indirectly. But do not search for other files from that directory to load or update, because they may contain stale docs (plans, design docs, specs) or unrevised reports with incorrect data.
+
+All files from that directory must be dated and linked to a git commit SHA, such that the agent knows if the information inside them is state.
+
 # Coding Conventions
 
 Follow these conventions whenever you write code. They are imported here so they are always in context:

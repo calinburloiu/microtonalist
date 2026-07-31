@@ -338,7 +338,7 @@ identity = NoteIdentity(inputChannel, midiNote)
 alloc    = getAllocatorForInput(inputChannel)    // same resolution as the Note On path
 
 alloc.release(identity, resetPressureOnEmpty = (inputMode == NonMpe)) match {
-  case None => log and discard                                  // §5.1 rule 4
+  case None => discard                                  // §5.1 rule 4
   case Some(result) =>
     if (result.pressureWasReset) emit Channel Pressure          // §7.5 exception, before the Note Off
     emit Note Off on result.channel
