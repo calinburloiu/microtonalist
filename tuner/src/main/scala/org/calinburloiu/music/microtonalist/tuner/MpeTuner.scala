@@ -74,14 +74,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
   private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
-  // Track which output channel each active note is on, keyed by input channel and then by note:
-  //   inputChannel -> (midiNote -> outputChannel)
-  // The nested layout makes it cheap to enumerate all output channels currently fed by a given
-  // input channel — required for fanning out expressive Pitch Bend / CC #74 / Channel Pressure
-  // when the pitch-class invariant has split that input channel's notes onto multiple output
-  // channels (MPE input mode only).
-  private val channelNoteMap: mutable.Map[Int, mutable.Map[MidiNote, Int]] = mutable.Map.empty
-
   // Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
   // timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
   // (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
@@ -141,7 +133,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def resetState(): Unit = {
     _tuning = Tuning.Standard
-    channelNoteMap.clear()
     tracker.reset()
 
     lowerAllocator = createAllocator(lowerZone)
@@ -191,15 +182,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   private def processNoteOn(buffer: mutable.Buffer[MidiMessage], msg: NoteOnScMidiMessage): Unit = {
-    val inputChannel = msg.channel
-    val midiNote = msg.midiNote
-
-    if (_inputMode == MpeInputMode.Mpe && isMasterChannel(inputChannel)) {
+    if (_inputMode == MpeInputMode.Mpe && isMasterChannel(msg.channel)) {
       // Master Channel notes are forwarded as-is: no allocator, no tuning offset, no control
       // dimension setup. They play in 12-EDO (modulated only by Master Pitch Bend) because
       // applying a per-pitch-class tuning offset on the Master Channel would affect every
-      // note in the Zone.
-      trackNote(inputChannel, midiNote, inputChannel)
+      // note in the Zone. `tracker` keeps them, which is all stopAllNotes needs.
       buffer += msg.asJava
     } else {
       processMemberNoteOn(buffer, msg)
@@ -225,9 +212,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         if (result.droppedNotes.isDefined) {
           emitDroppedNoteOffs(buffer, result.droppedNotes.get, "allocation overflow on new Note On")
         }
-
-        // Track the note
-        trackNote(inputChannel, midiNote, outChannel)
 
         // Compute and send control dimensions before Note On
         val tuningOffset = _tuning(midiNote.pitchClass)
@@ -259,16 +243,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val midiNote = msg.midiNote
     val velocity = msg.velocity
 
-    untrackNote(inputChannel, midiNote) match {
-      case Some(outChannel) =>
-        val allocator = getAllocatorForOutput(outChannel)
-        allocator.foreach(_.release(NoteIdentity(inputChannel, midiNote)))
-        buffer += NoteOffScMidiMessage(outChannel, midiNote, velocity).asJava
-      // $COVERAGE-OFF$ Defensive branch: only reached on phantom Note Offs (mid-stream MCM/reset clearing tracking,
-      // or stale Note Offs from a sender after MIDI panic). Not exercised by tests.
-      case None =>
-        logger.warn(s"Dropping Note Off for $midiNote on input channel $inputChannel: no matching Note On tracked")
-      // $COVERAGE-ON$
+    if (_inputMode == MpeInputMode.Mpe && isMasterChannel(inputChannel)) {
+      buffer += msg.asJava
+    } else {
+      getAllocatorForInput(inputChannel).foreach { alloc =>
+        // A `None` result means the identity holds no active count — chiefly after the Tuner dropped the
+        // note itself, having already emitted its Note Offs — so the message is discarded.
+        alloc.release(NoteIdentity(inputChannel, midiNote)).foreach { result =>
+          buffer += NoteOffScMidiMessage(result.channel, midiNote, velocity).asJava
+        }
+      }
     }
   }
 
@@ -288,11 +272,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         getAllocatorForInput(inputChannel).foreach { alloc =>
           val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
             pitchBendValue, currentZone(alloc).memberPitchBendSensitivity)
-          val result = alloc.updateExpressionPitchBend(inputChannel, pitchBendCents)
-          result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, "expression pitch bend too high"))
-          result.channelUpdates.foreach { channelUpdate =>
-            emitTuningPitchBend(buffer, channelUpdate.channel, alloc)
-          }
+          emitExpressionUpdateResult(buffer, alloc.updateExpressionPitchBend(inputChannel, pitchBendCents),
+            alloc, "expression pitch bend too high")
         }
       }
     } else {
@@ -333,12 +314,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if isPbsRpn =>
         processPbs(buffer, inputChannel, ccNumber, ccValue)
 
-      // CC #74 (MPE Slide / timbre): in MPE mode, route to the allocated Member Channel as
-      // per-note timbre; in non-MPE mode, route to the Zone's Master Channel as Zone-level timbre
-      // (MPE spec §2.6: CC #74 is both Note-Level and Zone-Level).
+      // CC #74 (MPE Slide / timbre): in MPE mode it is a per-note Expression Value of the notes active on
+      // the input channel; in non-MPE mode it is a Zone-level control on the Master Channel, and never
+      // reaches a Member Channel.
       case ScMidiCc.MpeSlide =>
         if (inputMode == MpeInputMode.Mpe) {
-          forwardToMemberChannel(buffer, msg)
+          getAllocatorForInput(inputChannel).foreach { alloc =>
+            emitExpressionUpdateResult(buffer, alloc.updateSlide(inputChannel, ccValue), alloc)
+          }
         } else {
           forwardOnZoneMasterChannel(buffer, msg)
         }
@@ -506,52 +489,40 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Sends Note Off for all active notes tracked in `channelNoteMap`.
+   * Emits a Note Off for every note the Tuner currently considers active: the allocators' own bindings for
+   * Member Channel notes, and — in MPE Input Mode — the Master Channel notes the tracker holds, which are
+   * forwarded on the channel they arrived on.
    */
   private def stopAllNotes(buffer: mutable.Buffer[MidiMessage]): Unit = {
     for {
-      notes <- channelNoteMap.values
-      (midiNote, outChannel) <- notes
+      alloc <- Seq(lowerAllocator, upperAllocator).flatten
+      (noteIdentity, outChannel) <- alloc.activeAllocations
     } {
-      buffer += NoteOffScMidiMessage(outChannel, midiNote).asJava
+      buffer += NoteOffScMidiMessage(outChannel, noteIdentity.midiNote).asJava
     }
-  }
 
-  private def trackNote(inputChannel: Int, midiNote: MidiNote, outChannel: Int): Unit = {
-    channelNoteMap.getOrElseUpdate(inputChannel, mutable.Map.empty).update(midiNote, outChannel)
-  }
-
-  private def untrackNote(inputChannel: Int, midiNote: MidiNote): Option[Int] = {
-    channelNoteMap.get(inputChannel).flatMap { notes =>
-      val removedOutputChannel = notes.remove(midiNote)
-      if (notes.isEmpty) channelNoteMap.remove(inputChannel)
-      removedOutputChannel
+    if (_inputMode == MpeInputMode.Mpe) {
+      for {
+        zone <- Seq(lowerZone, upperZone) if zone.isEnabled
+        midiNote <- tracker.activeNotes(zone.masterChannel)
+      } {
+        buffer += NoteOffScMidiMessage(zone.masterChannel, midiNote).asJava
+      }
     }
-  }
-
-  /**
-   * Returns the set of output channels currently holding notes routed from `inputChannel`.
-   *
-   * In MPE input mode, the pitch-class invariant may force notes from a single input Member Channel to be split onto
-   * multiple output Member Channels. Callers that forward expressive controls (Pitch Bend, CC #74, Channel Pressure)
-   * must fan the message out to every entry in this set.
-   */
-  private def outputChannelsFor(inputChannel: Int): Set[Int] = {
-    channelNoteMap.get(inputChannel).map(_.values.toSet).getOrElse(Set.empty)
   }
 
   private def processChannelPressure(buffer: mutable.Buffer[MidiMessage],
                                      msg: ChannelPressureScMidiMessage): Unit = {
-    val inputChannel = msg.channel
-    val pressure = msg.value
-
     if (inputMode == MpeInputMode.Mpe) {
-      // Per-note pressure in MPE input: route to the allocated Member Channel.
-      forwardToMemberChannel(buffer, msg)
+      // Per-note pressure in MPE input: it belongs to every note active on the input channel, wherever the
+      // pitch-class invariant placed them. A Master Channel carries no allocated note, so nothing is
+      // emitted for one; forwarding Master Channel Channel Pressure as a Zone-level control is TODO #154.
+      getAllocatorForInput(msg.channel).foreach { alloc =>
+        emitExpressionUpdateResult(buffer, alloc.updatePressure(msg.channel, msg.value), alloc)
+      }
     } else {
       // Non-MPE input: Channel Pressure applies to all notes on the input channel. Route to the
-      // Zone's Master Channel as Zone-level pressure (MPE spec §2.5: CP is both Note-Level and
-      // Zone-Level; receivers combine Master + Member data per sounding note).
+      // Zone's Master Channel as Zone-level pressure.
       forwardOnZoneMasterChannel(buffer, msg)
     }
   }
@@ -570,28 +541,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         buffer += msg.asJava
       }
     } else {
-      // Non-MPE input: convert Polyphonic Key Pressure to Channel Pressure on the allocated
-      // Member Channel, since MPE forbids Polyphonic Key Pressure on Member Channels.
-      for {
-        notes <- channelNoteMap.get(inputChannel)
-        outChannel <- notes.get(midiNote)
-      } {
-        buffer += ChannelPressureScMidiMessage(outChannel, pressure).asJava
+      // Non-MPE input: convert Polyphonic Key Pressure to Channel Pressure on the allocated Member
+      // Channel, since MPE forbids Polyphonic Key Pressure on Member Channels. The value is the addressed
+      // note's own Expression Value and is averaged with those of the other notes on its output channel.
+      getAllocatorForInput(inputChannel).foreach { alloc =>
+        emitExpressionUpdateResult(buffer,
+          alloc.updatePressure(NoteIdentity(inputChannel, midiNote), pressure), alloc)
       }
-    }
-  }
-
-  /**
-   * Forwards `msg` to every output Member Channel that currently holds a note originated on `msg.channel`. MPE input
-   * mode only: in non-MPE mode these controls are routed to the Master Channel by the callers.
-   *
-   * The pitch-class invariant may have split a single input channel's notes onto multiple output channels; the MPE
-   * Specification states that Channel Pressure and CC #74 on a Member Channel apply to every note on that channel, so
-   * the message is fanned out to all of them.
-   */
-  private def forwardToMemberChannel(buffer: mutable.Buffer[MidiMessage], msg: ChannelScMidiMessage): Unit = {
-    outputChannelsFor(msg.channel).foreach { outChannel =>
-      buffer += msg.mapChannel(_ => outChannel).asJava
     }
   }
 
@@ -653,10 +609,34 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
+   * Emits the control dimension messages for the Expression Values that changed on an output Member
+   * Channel, in the relative order Pitch Bend, CC #74, Channel Pressure.
+   */
+  private def emitExpressionUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
+                                   update: MpeExpressionUpdate, alloc: MpeChannelAllocator): Unit = {
+    if (update.pitchBendCents.isDefined) emitOutputPitchBend(buffer, channel, alloc)
+    update.slide.foreach { value => buffer += CcScMidiMessage(channel, ScMidiCc.MpeSlide, value).asJava }
+    update.pressure.foreach { value => buffer += ChannelPressureScMidiMessage(channel, value).asJava }
+  }
+
+  /**
+   * Applies an Expression Value update received on an input Member Channel: emits the Note Offs of any
+   * notes the update dropped first, then the recomputed Expression Values of each affected output channel.
+   */
+  private def emitExpressionUpdateResult(buffer: mutable.Buffer[MidiMessage], result: ExpressionUpdateResult,
+                                         alloc: MpeChannelAllocator,
+                                         dropReason: String = "expression pitch bend too high"): Unit = {
+    result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, dropReason))
+    result.channelUpdates.foreach { channelUpdate =>
+      emitExpressionUpdate(buffer, channelUpdate.channel, channelUpdate.update, alloc)
+    }
+  }
+
+  /**
    * Emits a Pitch Bend message for a channel based on the current tuning offset, if the channel has active notes.
    * The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone type.
    */
-  private def emitTuningPitchBend(buffer: mutable.Buffer[MidiMessage], channel: Int,
+  private def emitOutputPitchBend(buffer: mutable.Buffer[MidiMessage], channel: Int,
                                   alloc: MpeChannelAllocator): Unit = {
     val zone = currentZone(alloc)
     alloc.channelPitchClass(channel).foreach { pc =>
@@ -671,7 +651,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val zone = currentZone(alloc)
     // Only occupied channels have a pitch class assigned
     for (ch <- zone.memberChannels) {
-      emitTuningPitchBend(buffer, ch, alloc)
+      emitOutputPitchBend(buffer, ch, alloc)
     }
   }
 
@@ -728,16 +708,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       } else {
         lowerAllocator.orElse(upperAllocator)
       }
-    }
-  }
-
-  private def getAllocatorForOutput(outputChannel: Int): Option[MpeChannelAllocator] = {
-    if (lowerZone.isEnabled && lowerZone.memberChannels.contains(outputChannel)) {
-      lowerAllocator
-    } else if (upperZone.isEnabled && upperZone.memberChannels.contains(outputChannel)) {
-      upperAllocator
-    } else {
-      None
     }
   }
 

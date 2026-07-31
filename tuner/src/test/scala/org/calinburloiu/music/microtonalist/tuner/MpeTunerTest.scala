@@ -1515,14 +1515,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     pitchBends3(2).cents shouldEqual (quarterCommaMeantone.d + (10.0 + 30.0) / 2)
   }
 
-  ignore should "distribute the channel pressure values of the input channel" in new DistributeFixture {
+  it should "distribute the channel pressure values of the input channel" in new DistributeFixture {
     // When
     private val channelPressures1 = extractChannelPressures(pressure(1, 10))
     private val channelPressures3 = extractChannelPressures(pressure(3, 30))
 
     // Then
+    // Output channel 1 also holds D5, which arrived on input channel 3 and still carries pressure 0, so
+    // the channel emits the average of the two notes.
     channelPressures1 should contain theSameElementsAs Seq(
-      ChannelPressureScMidiMessage(output1Channel, 10),
+      ChannelPressureScMidiMessage(output1Channel, (10 + 0) / 2),
       ChannelPressureScMidiMessage(output2Channel, 10)
     )
     channelPressures3 should contain theSameElementsAs Seq(
@@ -1532,14 +1534,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
-  ignore should "distribute the slide values of the input channel" in new DistributeFixture {
+  it should "distribute the slide values of the input channel" in new DistributeFixture {
     // When
     private val slides1 = extractSlides(slide(1, 10))
     private val slides3 = extractSlides(slide(3, 30))
 
     // Then
+    // Output channel 1 also holds D5, which arrived on input channel 3 and still carries the default CC #74
+    // of 64, so the channel emits the average of the two notes.
     slides1 should contain theSameElementsAs Seq(
-      CcScMidiMessage(output1Channel, ScMidiCc.MpeSlide, 10),
+      CcScMidiMessage(output1Channel, ScMidiCc.MpeSlide, (10 + 64) / 2),
       CcScMidiMessage(output2Channel, ScMidiCc.MpeSlide, 10)
     )
     slides3 should contain theSameElementsAs Seq(
@@ -1672,6 +1676,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
     droppedNotes should contain(C4)
+  }
+
+  it should "discard the Note Off of a note the Tuner has dropped" in new Fixture(tuner3MpeInput) {
+    // Given
+    // PCG=1, EG=2: C4, E4 and G4 fill the three Member Channels; A4 then forces a channel to be freed and
+    // the middle note E4 is the only non-boundary candidate.
+    noteOn(1, C4)
+    private val e4Output = noteOn(2, E4)
+    private val e4Channel = extractNoteOns(e4Output).head.channel
+    noteOn(3, G4)
+    private val dropOutput = noteOn(1, A4)
+    extractNoteOffs(dropOutput) shouldEqual Seq(NoteOffScMidiMessage(e4Channel, E4))
+
+    // When
+    // The performer eventually releases the note the Tuner had already dropped.
+    private val output = noteOff(2, E4)
+
+    // Then
+    // No second Note Off downstream: the Tuner has already discharged this note's obligation.
+    extractNoteOffs(output) shouldBe empty
+    // And no stale binding steers a later expressive update at the dropped note's former channel.
+    extractPitchBends(pitchBend(2, 20.0)) shouldBe empty
   }
 
   // ---- Single-channel edge case ----
