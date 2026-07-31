@@ -825,6 +825,28 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.channelExpression(channel).pressure shouldBe 32
   }
 
+  it should "apply the divergence rule when a duplicate Note On raises a note to a High Expression Pitch Bend" in {
+    // Given
+    // first and third end up sharing a channel; second occupies a channel of its own.
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = NoteIdentity(1, C4)
+    val second = NoteIdentity(2, C5)
+    val third = NoteIdentity(3, C3)
+    val channel = alloc.allocate(first).channel
+    alloc.allocate(second)
+    alloc.allocate(third).channel shouldBe channel
+    // When
+    // A duplicate Note On for the shared note now carries a High Expression Pitch Bend. The allocation
+    // algorithm is bypassed for a duplicate, but the divergence rule must still apply so the channel never
+    // ends up with a High-Expression-Pitch-Bend note co-resident with another.
+    val result = alloc.allocate(third, Some(ImmutableMpeExpression(highPitchBendCents)))
+    // Then
+    result.isDuplicate shouldBe true
+    assertDroppedNotes(result.droppedNotes, Seq(C4))
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(third)
+    alloc.channelOf(first) shouldBe None
+  }
+
   it should "count two identities sharing a note number as two active notes" in {
     // Given
     // Three C notes from three input channels occupy the three channels of the zone; a fourth shares the

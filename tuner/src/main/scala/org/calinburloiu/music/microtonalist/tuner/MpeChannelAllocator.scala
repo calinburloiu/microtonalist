@@ -127,7 +127,9 @@ case class DroppedNotes(channel: Int,
  *
  * @param channel      The 0-indexed MIDI channel assigned to the note.
  * @param update       The Expression Values of `channel` that changed as a result of the allocation.
- * @param droppedNotes Any notes that were dropped as a result of this allocation.
+ * @param droppedNotes Any notes that were dropped as a result of this allocation, including a duplicate Note
+ *                     On whose overridden Expression Values raise it to a High Expression Pitch Bend — the
+ *                     allocation algorithm is bypassed for a duplicate, but the divergence rule is not.
  * @param isDuplicate  `true` when the Note On raised an already active identity's reference count, so the
  *                     allocation algorithm was bypassed.
  */
@@ -397,6 +399,12 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * algorithm is bypassed and the note stays a single term in its channel's averages. The recomputation is
    * performed rather than assumed, so that a missed update surfaces as an emitted message instead of
    * silence.
+   *
+   * Overriding Expression Values can raise the note to a High Expression Pitch Bend even though no
+   * allocation takes place, so the divergence rule is applied before the recomputation, exactly as
+   * [[updateExpressionValues]] applies it for an Expression Pitch Bend received on an input channel. This
+   * keeps the invariant that a High-Expression-Pitch-Bend note is never co-resident with another note true
+   * regardless of which path raised the bend.
    */
   private def allocateDuplicate(state: ChannelState,
                                 noteIdentity: NoteIdentity,
@@ -409,8 +417,9 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       noteExpression.pressure = newExpression.pressure
       noteExpression.slide = newExpression.slide
     }
+    val dropped = applyDivergenceRule(state)
     state.recomputeExpression()
-    AllocationResult(state.channel, diff(before, state.expression), isDuplicate = true)
+    AllocationResult(state.channel, diff(before, state.expression), dropped, isDuplicate = true)
   }
 
   private def allocateFresh(noteIdentity: NoteIdentity,
