@@ -692,7 +692,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "not emit a Channel Pressure reset when the channel already holds the default" in new Fixture(tuner7) {
     // Given
     private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
-    extractNoteOns(noteOnOutput).head.channel
+    extractNoteOns(noteOnOutput) should have size 1
     // When
     // No Polyphonic Key Pressure ever arrived, so the retained value is already 0.
     private val output = noteOff(nonMpeInputChannel, C4)
@@ -1257,7 +1257,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "reproduce paper section \"Duplicate Note On messages\" part 1 — the same input channel" in
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // 1. Note On E4 on input Channel 1: the reference count goes 0 -> 1, so allocation runs and the
-      //    tuning Pitch Bend precedes the Note On.
+      //    tuning Pitch Bend is emitted for the allocating Note On.
       private val out1 = noteOn(1, E4)
       private val channel = extractNoteOns(out1).head.channel
       extractPitchBends(out1).head.cents shouldEqual quarterCommaMeantone.e
@@ -1286,8 +1286,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractScMidiMessages(out5) should have size 1
 
       // Two Note Ons entered and two were forwarded, two Note Offs entered and two were forwarded.
-      // A third Note Off finds no count and is discarded.
-      extractNoteOffs(noteOff(1, E4)) shouldBe empty
+      // A third Note Off finds no count and every message for it is discarded entirely.
+      extractScMidiMessages(noteOff(1, E4)) shouldBe empty
     }
 
   it should "reproduce paper section \"Duplicate Note On messages\" part 2 — different input channels" in

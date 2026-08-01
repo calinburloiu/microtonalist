@@ -371,6 +371,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   reset()
 
+  /** @return the [[MpeZoneType]] (Lower or Upper) of the zone this allocator manages channels for. */
   def zoneType: MpeZoneType = zone.zoneType
 
   /**
@@ -405,6 +406,11 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * [[updateExpressionValues]] applies it for an Expression Pitch Bend received on an input channel. This
    * keeps the invariant that a High-Expression-Pitch-Bend note is never co-resident with another note true
    * regardless of which path raised the bend.
+   *
+   * The duplicated identity always survives when the rule drops notes here, never one of the others:
+   * invariant 2 of Section 6.3 guarantees that a channel holding more than one note has no High
+   * Expression Pitch Bend note among them ''before'' this call, so once this identity's Expression Values
+   * are overridden, it is the only note on the channel that can possibly qualify as high-bend.
    */
   private def allocateDuplicate(state: ChannelState,
                                 noteIdentity: NoteIdentity,
