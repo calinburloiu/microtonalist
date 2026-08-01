@@ -1944,6 +1944,48 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     droppedNotes should contain(C4)
   }
 
+  it should "emit a dropped note's Note Off before the incoming note's own setup messages" in
+    new Fixture(tuner1MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // A single Member Channel, so the incoming note reuses the very channel it frees. Emitting the setup
+      // messages first would retune C4 on its way out.
+      private val c4Output = noteOn(1, C4)
+      private val channel = extractNoteOns(c4Output).head.channel
+
+      // When
+      private val output = noteOn(1, E4)
+
+      // Then
+      extractScMidiMessages(output).collect {
+        case _: NoteOffScMidiMessage => "noteOff"
+        case _: PitchBendScMidiMessage => "pitchBend"
+        case _: NoteOnScMidiMessage => "noteOn"
+      } shouldEqual Seq("noteOff", "pitchBend", "noteOn")
+
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(channel, C4))
+      extractPitchBends(output).head.cents shouldEqual quarterCommaMeantone.e
+    }
+
+  it should "emit one Note Off per forwarded Note On when a duplicated note is dropped" in
+    new Fixture(tuner1MpeInput) {
+      // Given
+      // A single Member Channel and two Note Ons for the same identity, so the Tuner has forwarded two Note
+      // Ons and owes two Note Offs for it.
+      private val c4Output = noteOn(1, C4)
+      private val channel = extractNoteOns(c4Output).head.channel
+      noteOn(1, C4)
+
+      // When
+      // E4 needs the only channel, dropping the duplicated C4.
+      private val output = noteOn(1, E4)
+
+      // Then
+      extractNoteOffs(output) shouldEqual Seq(
+        NoteOffScMidiMessage(channel, C4),
+        NoteOffScMidiMessage(channel, C4)
+      )
+    }
+
   it should "discard the Note Off of a note the Tuner has dropped" in new Fixture(tuner3MpeInput) {
     // Given
     // PCG=1, EG=2: C4, E4 and G4 fill the three Member Channels; A4 then forces a channel to be freed and

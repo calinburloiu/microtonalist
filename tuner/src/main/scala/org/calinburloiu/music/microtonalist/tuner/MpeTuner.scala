@@ -53,7 +53,8 @@ enum MpeInputMode {
  * The tuner processes incoming MPE Configuration Messages (MCM) and Pitch Bend Sensitivity (PBS)
  * RPN messages to dynamically reconfigure zones and pitch bend ranges.
  *
- * For the technical specification check the white paper in `docs/tuner/mpe-tuner-paper.md`.
+ * For the technical specification check the white paper in `docs/architecture/tuner/mpe-tuner-paper.md`.
+ * Comments in this file cite its sections by name rather than by number, so that they survive a renumbering.
  *
  * @param initialZones     The initial [[MpeZones]] configuration for the Lower and Upper Zones.
  * @param initialInputMode Initial [[MpeInputMode]]. The tuner switches to MPE mode automatically
@@ -61,6 +62,8 @@ enum MpeInputMode {
  */
 class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
                private val initialInputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {
+
+  import MpeTuner.*
 
   override val typeName: String = MpeTuner.TypeName
 
@@ -227,7 +230,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
         // Dropped notes are released before every message emitted for the new note: emitting the setup
         // messages first would retune the notes being dropped on their way out.
-        result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, "allocation overflow on new Note On"))
+        result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, DropReasonOnNoteOn))
 
         // Pitch Bend, CC #74, Channel Pressure, then the Note On. Pitch Bend is emitted unconditionally on
         // a fresh allocation: what goes on the wire is Tuning Pitch Bend + Expression Pitch Bend, and the
@@ -318,7 +321,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
           val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
             pitchBendValue, currentZone(alloc).memberPitchBendSensitivity)
           emitExpressionUpdateResult(buffer, alloc.updateExpressionPitchBend(inputChannel, pitchBendCents),
-            alloc, "expression pitch bend too high")
+            alloc, DropReasonOnPitchBend)
         }
       }
     } else {
@@ -362,6 +365,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // CC #74 (MPE Slide / timbre): in MPE mode it is a per-note Expression Value of the notes active on
       // the input channel; in non-MPE mode it is a Zone-level control on the Master Channel, and never
       // reaches a Member Channel.
+      // TODO #250 In MPE mode a CC #74 arriving on a Master Channel is dropped, for the same reason and with
+      //  the same regression as the Channel Pressure case in `processChannelPressure`.
       case ScMidiCc.MpeSlide =>
         if (inputMode == MpeInputMode.Mpe) {
           getAllocatorForInput(inputChannel).foreach { alloc =>
@@ -539,11 +544,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * forwarded on the channel they arrived on.
    *
    * Unlike [[emitDroppedNoteOffs]], this emits exactly one Note Off per active Note Identity, not one per
-   * reference count — a duplicated Note On does not get a duplicated Note Off here. This is within spec:
-   * Section 5.1's one-Note-Off-per-Note-On obligation is explicitly exempted for notes ended by Zone
-   * reconfiguration, and Section 4.2 leaves the choice of whether to emit any Note Off at all — before an
-   * MCM or a reset — to the implementation. The asymmetry with `emitDroppedNoteOffs` is deliberate, not an
-   * oversight.
+   * reference count — a duplicated Note On does not get a duplicated Note Off here. This is within spec: the
+   * one-Note-Off-per-Note-On obligation of the paper's "Note Identity and Reference Counting" section is
+   * explicitly exempted for notes ended by Zone reconfiguration, and its "Zones" section leaves the choice
+   * of whether to emit any Note Off at all — before an MCM or a reset — to the implementation. The asymmetry
+   * with `emitDroppedNoteOffs` is deliberate, not an oversight.
    */
   private def stopAllNotes(buffer: mutable.Buffer[MidiMessage]): Unit = {
     for {
@@ -567,8 +572,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
                                      msg: ChannelPressureScMidiMessage): Unit = {
     if (inputMode == MpeInputMode.Mpe) {
       // Per-note pressure in MPE input: it belongs to every note active on the input channel, wherever the
-      // pitch-class invariant placed them. A Master Channel carries no allocated note, so nothing is
-      // emitted for one; forwarding its Channel Pressure as a Zone-level control is not implemented yet.
+      // pitch-class invariant placed them.
+      // TODO #250 A Master Channel carries no allocated note, so nothing is emitted for one at all. The
+      //  paper's "Master Channel Forwarding" section requires it to be forwarded unmodified as a Zone-level
+      //  control instead. Note this is a regression: before the Expression Value model, a Master Channel
+      //  note was recorded in the Tuner's own note map and its Channel Pressure was forwarded on the Master
+      //  Channel for as long as such a note sounded.
       getAllocatorForInput(msg.channel).foreach { alloc =>
         emitExpressionUpdateResult(buffer, alloc.updatePressure(msg.channel, msg.value), alloc, NoDropExpected)
       }
@@ -692,13 +701,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * A drop reason for callers of [[emitExpressionUpdateResult]] whose update can never actually produce
-   * drops: `result.droppedNotes` is always empty for slide and pressure updates (see
-   * [[ExpressionUpdateResult]]), so this value is never surfaced in a log line.
-   */
-  private val NoDropExpected: String = "unreachable: slide/pressure updates never drop notes"
-
-  /**
    * Applies an Expression Value update received on an input Member Channel: emits the Note Offs of any
    * notes the update dropped first, then the recomputed Expression Values of each affected output channel.
    *
@@ -799,6 +801,26 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 }
 
+/** Plugin type name and the reasons logged when [[MpeTuner]] ends a note by its own decision. */
 object MpeTuner {
+  /** The `Tuner` plugin type name this tuner is (de)serialized under. */
   val TypeName: String = "mpe"
+
+  /**
+   * Logged when a Note On drops notes. The allocation algorithm freeing an occupied channel is the common
+   * cause, but a new note assigned to a channel holding a High Expression Pitch Bend note — or one whose own
+   * bend is high — drops its co-residents too, as does a duplicate Note On whose overridden Expression
+   * Values raise it to a high bend.
+   */
+  private val DropReasonOnNoteOn: String = "channel freed, or High Expression Pitch Bend, on a new Note On"
+
+  /** Logged when an Expression Pitch Bend makes a note diverge from the others sharing its channel. */
+  private val DropReasonOnPitchBend: String = "High Expression Pitch Bend diverging on a shared channel"
+
+  /**
+   * A drop reason for callers of `emitExpressionUpdateResult` whose update can never actually produce drops:
+   * `result.droppedNotes` is always empty for slide and pressure updates (see [[ExpressionUpdateResult]]),
+   * so this value is never surfaced in a log line.
+   */
+  private val NoDropExpected: String = "unreachable: slide/pressure updates never drop notes"
 }

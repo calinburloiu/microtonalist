@@ -887,6 +887,39 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     shared.update shouldBe MpeExpressionUpdate(Some(-5.0), Some(64), Some(72))
   }
 
+  it should "round a fractional average of the integer dimensions half up" in {
+    // Given
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = alloc.allocate(NoteIdentity(1, C4), Some(ImmutableMpeExpression(10.0, 32, 48)))
+    alloc.allocate(NoteIdentity(2, C5))
+    // When
+    // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
+    // Both integer dimensions average to exactly .5, which truncation would round down and half-even would
+    // round to the even neighbour.
+    val shared = alloc.allocate(NoteIdentity(3, C3), Some(ImmutableMpeExpression(-20.0, 97, 97)))
+    // Then
+    shared.channel shouldBe first.channel
+    val expression = alloc.channelExpression(shared.channel)
+    expression.pressure shouldBe 65 // (32 + 97) / 2 = 64.5
+    expression.slide shouldBe 73 // (48 + 97) / 2 = 72.5
+  }
+
+  it should "return an Expression Values snapshot that does not track later mutations" in {
+    // Given
+    val alloc = allocator15
+    val identity = NoteIdentity(1, C4)
+    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10.0, 32, 48))).channel
+    val channelBefore = alloc.channelExpression(channel)
+    val noteBefore = alloc.expressionFor(identity)
+    // When
+    alloc.updateExpressionPitchBend(1, 30.0)
+    // Then
+    channelBefore.pitchBendCents shouldBe 10.0
+    noteBefore.pitchBendCents shouldBe 10.0
+    alloc.channelExpression(channel).pitchBendCents shouldBe 30.0
+    alloc.expressionFor(identity).pitchBendCents shouldBe 30.0
+  }
+
   it should "return each note's own Expression Values, distinct from the channel's aggregate" in {
     // Given
     val alloc = allocator2 // PCG=1, EG=1
@@ -1041,6 +1074,40 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.channelOf(first) shouldBe None
     result.channelUpdates shouldEqual Seq(
       ChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBendCents = Some(100.0))))
+  }
+
+  it should "drop the co-resident note when an Expression Pitch Bend diverges downwards" in {
+    // Given
+    // A High Expression Pitch Bend exceeds the threshold in either direction, so a negative bend of the same
+    // magnitude must drop just as a positive one does.
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = NoteIdentity(1, C4)
+    val second = NoteIdentity(2, C5)
+    val channel = alloc.allocate(first).channel
+    alloc.allocate(NoteIdentity(3, D4))
+    alloc.allocate(second).channel shouldBe channel
+    // When
+    val result = alloc.updateExpressionPitchBend(2, -100.0)
+    // Then
+    result.droppedNotes should have size 1
+    result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
+  }
+
+  it should "not drop a co-resident note for a bend exactly at the High Expression Pitch Bend threshold" in {
+    // Given
+    // The threshold is exclusive: a bend must exceed it, so a bend exactly at it leaves the channel shared.
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = NoteIdentity(1, C4)
+    val second = NoteIdentity(2, C5)
+    val channel = alloc.allocate(first).channel
+    alloc.allocate(NoteIdentity(3, D4))
+    alloc.allocate(second).channel shouldBe channel
+    // When
+    val result = alloc.updateExpressionPitchBend(2, 50.0)
+    // Then
+    result.droppedNotes shouldBe empty
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
   }
 
   it should "report the reference count of each dropped note" in {
