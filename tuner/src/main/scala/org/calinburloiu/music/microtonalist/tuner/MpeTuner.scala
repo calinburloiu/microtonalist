@@ -197,39 +197,40 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val inputChannel = msg.channel
     val midiNote = msg.midiNote
     val velocity = msg.velocity
-    val allocator = getAllocatorForInput(inputChannel)
 
-    allocator match {
+    getAllocatorForInput(inputChannel) match {
       case Some(alloc) =>
         val zone = currentZone(alloc)
-        val preferredChannel = if (inputMode == MpeInputMode.Mpe && zone.memberChannels.contains(inputChannel))
-          Some(inputChannel) else None
+        // In MPE Input Mode the note's Expression Values are initialized from the state remembered for its
+        // input Member Channel; in Non-MPE Input Mode there are none to take, and the allocator's defaults
+        // apply — which is also what keeps CC #74 off the Member Channel in that mode.
+        val expression = Option.when(_inputMode == MpeInputMode.Mpe)(inputExpressionOf(inputChannel, zone))
+        val preferredChannel = Option.when(
+          _inputMode == MpeInputMode.Mpe && zone.memberChannels.contains(inputChannel))(inputChannel)
 
-        val result = alloc.allocate(NoteIdentity(inputChannel, midiNote), preferredChannel = preferredChannel)
+        val result = alloc.allocate(NoteIdentity(inputChannel, midiNote), expression, preferredChannel)
         val outChannel = result.channel
 
-        // Handle dropped notes
-        if (result.droppedNotes.isDefined) {
-          emitDroppedNoteOffs(buffer, result.droppedNotes.get, "allocation overflow on new Note On")
+        // Dropped notes are released before every message emitted for the new note: emitting the setup
+        // messages first would retune the notes being dropped on their way out.
+        result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, "allocation overflow on new Note On"))
+
+        // Pitch Bend, CC #74, Channel Pressure, then the Note On. Pitch Bend is emitted unconditionally on
+        // a fresh allocation: what goes on the wire is Tuning Pitch Bend + Expression Pitch Bend, and the
+        // tuning half is invisible to the allocator — a channel that was unoccupied retains the bend of a
+        // note of a different pitch class and has missed every tune() that ran while it was empty. On a
+        // duplicate Note On the channel was occupied by this very identity throughout, so the tuning half
+        // is current by construction and Pitch Bend follows the same "only when changed" rule as the rest.
+        if (!result.isDuplicate || result.update.pitchBendCents.isDefined) {
+          emitOutputPitchBend(buffer, outChannel, alloc)
+        }
+        result.update.slide.foreach { value =>
+          buffer += CcScMidiMessage(outChannel, ScMidiCc.MpeSlide, value).asJava
+        }
+        result.update.pressure.foreach { value =>
+          buffer += ChannelPressureScMidiMessage(outChannel, value).asJava
         }
 
-        // Compute and send control dimensions before Note On
-        val tuningOffset = _tuning(midiNote.pitchClass)
-        val totalPitchBend = computeOutputPitchBend(outChannel, alloc, zone, tuningOffset)
-        buffer += PitchBendScMidiMessage(outChannel, totalPitchBend).asJava
-
-        // CC #74 (slide) and Channel Pressure: in MPE mode, seed the output Member Channel with
-        // the sender's last-known per-input-channel value so per-note articulation carries over
-        // across Note boundaries. In non-MPE mode, sender CC #74 / CP arrive on the Master Channel
-        // as Zone-level controls, so the Member Channel is initialized to neutral defaults
-        // (MPE spec §3.3.5 Initial-64 for CC #74, §3.3.4 CP=0) to avoid double-counting.
-        val slide = if (inputMode == MpeInputMode.Mpe) tracker.cc(inputChannel, ScMidiCc.MpeSlide) else 64
-        buffer += CcScMidiMessage(outChannel, ScMidiCc.MpeSlide, slide).asJava
-
-        val pressure = if (inputMode == MpeInputMode.Mpe) tracker.channelPressure(inputChannel) else 0
-        buffer += ChannelPressureScMidiMessage(outChannel, pressure).asJava
-
-        // Note On
         buffer += NoteOnScMidiMessage(outChannel, midiNote, velocity).asJava
 
       case None =>
@@ -237,6 +238,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         buffer += NoteOnScMidiMessage(inputChannel, midiNote, velocity).asJava
     }
   }
+
+  /**
+   * The Expression Values a note arriving on an input Member Channel starts with, taken from the control
+   * state remembered for that channel — the state-tracking obligation the MPE Specification places on
+   * receivers, so that a Pitch Bend, CC #74 or Channel Pressure sent before the Note On is not lost.
+   */
+  private def inputExpressionOf(inputChannel: Int, zone: MpeZone): MpeExpression = ImmutableMpeExpression(
+    pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
+      tracker.pitchBend(inputChannel), zone.memberPitchBendSensitivity),
+    pressure = tracker.channelPressure(inputChannel),
+    slide = tracker.cc(inputChannel, ScMidiCc.MpeSlide))
 
   private def processNoteOff(buffer: mutable.Buffer[MidiMessage], msg: NoteOffScMidiMessage): Unit = {
     val inputChannel = msg.channel
