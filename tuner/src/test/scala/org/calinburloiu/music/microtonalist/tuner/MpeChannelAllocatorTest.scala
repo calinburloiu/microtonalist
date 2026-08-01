@@ -887,6 +887,28 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     shared.update shouldBe MpeExpressionUpdate(Some(-5.0), Some(64), Some(72))
   }
 
+  it should "return each note's own Expression Values, distinct from the channel's aggregate" in {
+    // Given
+    val alloc = allocator2 // PCG=1, EG=1
+    val firstIdentity = NoteIdentity(1, C4)
+    val thirdIdentity = NoteIdentity(3, C3)
+    val first = alloc.allocate(firstIdentity, Some(ImmutableMpeExpression(10.0, 32, 48)))
+    alloc.allocate(NoteIdentity(2, C5))
+    // When
+    // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
+    val shared = alloc.allocate(thirdIdentity, Some(ImmutableMpeExpression(-20.0, 96, 96)))
+    // Then
+    shared.channel shouldBe first.channel
+    alloc.expressionFor(firstIdentity).pitchBendCents shouldBe 10.0
+    alloc.expressionFor(firstIdentity).pressure shouldBe 32
+    alloc.expressionFor(firstIdentity).slide shouldBe 48
+    alloc.expressionFor(thirdIdentity).pitchBendCents shouldBe -20.0
+    alloc.expressionFor(thirdIdentity).pressure shouldBe 96
+    alloc.expressionFor(thirdIdentity).slide shouldBe 96
+    // The channel's aggregate is the average of the two, not either note's own value.
+    alloc.channelExpression(shared.channel).pitchBendCents shouldBe -5.0
+  }
+
   it should "retain the last Expression Values when the channel becomes unoccupied" in {
     // Given
     val alloc = allocator15
