@@ -157,7 +157,8 @@ These are signalled directly in the code:
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
 - `MpeTuner`'s MIDI message routing and filtering does not yet conform to the paper: RPN/NRPN sequences, the scope of
-  the state reset on Zone reconfiguration, messages arriving outside every Zone or at the wrong level, and the MIDI
-  Mode messages 124–127 are still open (TODO #250). The per-note Expression Value model itself — averaging, fan-out,
-  reference counting and the Note On/Note Off emission rules — is implemented.
+  the state reset on Zone reconfiguration, messages arriving outside every Zone or at the wrong level, Master Channel
+  CC #74 and Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages 124–127 are still open
+  (TODO #250). The per-note Expression Value model itself — averaging, fan-out, reference counting and the Note
+  On/Note Off emission rules — is implemented.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).

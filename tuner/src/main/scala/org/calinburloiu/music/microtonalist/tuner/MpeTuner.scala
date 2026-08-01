@@ -625,9 +625,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * the original channel.
    */
   // TODO #250 Message routing and filtering conformance: a channel outside every Zone must have its
-  //  messages discarded rather than passed through, a Zone-level message arriving on an input Member
-  //  Channel must be discarded, Master Channel CC #74 and Channel Pressure must be forwarded as
-  //  Zone-level controls, and the MIDI Mode messages 124-127 must never be forwarded.
+  //  messages discarded rather than passed through, including when no Zone is enabled at all; a
+  //  Zone-level message arriving on an input Member Channel must be discarded; Master Channel CC #74
+  //  and Channel Pressure must be forwarded as Zone-level controls; uninterpreted RPN/NRPN traffic
+  //  must be routed per the paper and an invalid MCM ignored in its entirety; a forwarded Pitch Bend
+  //  Sensitivity sequence must be closed with an RPN Null; a Zone reconfiguration must reset state
+  //  only for the channels entering or leaving MPE control and must not discard the active Tuning;
+  //  and the MIDI Mode messages 124-127 must never be forwarded.
   private def resolveZoneMasterChannel(inputChannel: Int): Option[Int] = {
     if (inputMode == MpeInputMode.NonMpe) {
       routingZoneForNonMpeInput.map(_.masterChannel)
