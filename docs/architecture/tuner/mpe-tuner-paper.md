@@ -783,12 +783,12 @@ sharing the channel would receive an unintended pitch deviation due to the avera
 5.7), and the note that develops High Expression Pitch Bend will have its final Expression Pitch Bend diluted due to
 averaging.
 
-Several notes on a shared channel may acquire a High Expression Pitch Bend from the *same* message, since a Pitch Bend
-is a channel message that belongs to every note active on the input channel it arrives on (Section 7.2). The rule above
-then has no single bending note to protect. In that case the Tuner retains the most recently sounded of them — the one
-whose Note On is latest — and drops all the others. Retaining one preserves the performer's gesture on a voice rather
-than silencing the channel, and leaving exactly one active note restores invariant 2 of Section 6.3, which the incoming
-message had broken.
+Several notes on a shared channel may acquire a High Expression Pitch Bend from the *same* Pitch Bend message, when
+those notes originate from the same input channel, because a Pitch Bend is a channel message that belongs to every note
+active on the input channel it arrives on (Section 7.2). The rule above then has no single bending note to protect. In
+that case the Tuner retains the most recently sounded of them — the one whose Note On is latest — and drops all the
+others. Retaining one preserves the performer's gesture on a voice rather than silencing the channel, and leaving
+exactly one active note restores invariant 2 of Section 6.3, which the incoming message had broken.
 
 #### 6.2.2 New Note with High Expression Pitch Bend on an Occupied Channel
 
