@@ -52,9 +52,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   private val C6: MidiNote = C5 + 12
   private val C7: MidiNote = C5 + 24
 
-  // High expressive pitch bend in cents (> 50 cents threshold)
+  // High Expression Pitch Bend in cents (> 50 cents threshold)
   private val highPitchBendCents: Double = 100.0
-  // Low expressive pitch bend in cents (< 50 cents threshold)
+  // Low Expression Pitch Bend in cents (< 50 cents threshold)
   private val lowPitchBendCents: Double = 25.0
 
   /**

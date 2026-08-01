@@ -347,8 +347,8 @@ private class ChannelState(val channel: Int) {
  * Manages channel allocation for a single MPE Zone following the dual-group allocation strategy.
  *
  * The dual-group strategy partitions available Member Channels into a Pitch Class Group
- * and an Expression Group to prioritize intonation precision over polyphony and expressive
- * independence when necessary.
+ * and an Expression Group to prioritize intonation precision over polyphony and per-note
+ * Expression Value independence when necessary.
  *
  * @param zone The MPE zone to allocate channels for.
  */

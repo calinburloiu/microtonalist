@@ -317,7 +317,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // Forward master channel pitch bend without modification
         buffer += msg.asJava
       } else {
-        // Per-note pitch bend in MPE input - treat as expressive pitch bend.
+        // Per-note pitch bend in MPE input - treat as Expression Pitch Bend.
         // The allocator fans the update out by itself to every output channel holding a note of
         // this input channel.
         getAllocatorForInput(inputChannel).foreach { alloc =>

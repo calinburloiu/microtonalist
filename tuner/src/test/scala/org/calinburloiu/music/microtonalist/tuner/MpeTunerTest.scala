@@ -1962,7 +1962,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     // No second Note Off downstream: the Tuner has already discharged this note's obligation.
     extractNoteOffs(output) shouldBe empty
-    // And no stale binding steers a later expressive update at the dropped note's former channel.
+    // And no stale binding steers a later Expression Value update at the dropped note's former channel.
     extractPitchBends(pitchBend(2, 20.0)) shouldBe empty
   }
 
