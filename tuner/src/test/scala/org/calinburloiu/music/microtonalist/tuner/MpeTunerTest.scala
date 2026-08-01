@@ -1754,6 +1754,71 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
+  // ---- Paper worked examples ----
+
+  it should "reproduce paper section \"Averaging Expression Values\"" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // 1. E1 arrives on input Channel 1, which carries Pitch Bend +10 cents, Channel Pressure 32 and
+      //    CC #74 48 — remembered from before the note and used to initialize its Expression Values.
+      //    Step 1 assigns output Channel 1.
+      private val out1 = noteOn(1, E1, pbCents = Some(10.0), pressure = Some(32), slide = Some(48))
+      private val ch = extractNoteOns(out1).head.channel
+      ch shouldBe 1
+      extractPitchBends(out1).head.cents shouldEqual (quarterCommaMeantone.e + 10.0)
+      extractSlides(out1) shouldEqual Seq(CcScMidiMessage(ch, ScMidiCc.MpeSlide, 48))
+      extractChannelPressures(out1) shouldEqual Seq(ChannelPressureScMidiMessage(ch, 32))
+
+      // 2. E3 and E4 arrive on input Channels 3 and 4, both at default expression: pitch class E is
+      //    already in the Pitch Class Group, so Step 2 places them in the Expression Group, which is now
+      //    at full capacity. Each emits only its tuning Pitch Bend.
+      private val out2 = noteOn(3, E3)
+      private val out3 = noteOn(4, E4)
+      extractPitchBends(out2).head.cents shouldEqual quarterCommaMeantone.e
+      extractSlides(out2) shouldBe empty
+      extractChannelPressures(out2) shouldBe empty
+      extractPitchBends(out3).head.cents shouldEqual quarterCommaMeantone.e
+
+      // 3. E2 arrives on input Channel 2 carrying Pitch Bend −20 cents, Channel Pressure 96 and CC #74 96.
+      //    Both groups are unavailable for it, so Step 3 shares the oldest E channel and all three
+      //    Expression Values become averages.
+      private val out4 = noteOn(2, E2, pbCents = Some(-20.0), pressure = Some(96), slide = Some(96))
+      extractNoteOns(out4).head.channel shouldBe ch
+      extractPitchBends(out4).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
+      extractSlides(out4) shouldEqual Seq(CcScMidiMessage(ch, ScMidiCc.MpeSlide, (48 + 96) / 2))
+      extractChannelPressures(out4) shouldEqual Seq(ChannelPressureScMidiMessage(ch, (32 + 96) / 2))
+
+      // 4. The performer bends E2 to +30 cents: the channel's Expression Pitch Bend becomes +20 — the
+      //    half-amplitude attenuation of a shared channel — and no note is dropped, the threshold applying
+      //    to a note's own bend.
+      private val out5 = pitchBend(2, 30.0)
+      extractPitchBends(out5) should have size 1
+      extractPitchBends(out5).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 30.0) / 2)
+      extractNoteOffs(out5) shouldBe empty
+
+      // 5. Note Off for E1: the Note Off is emitted first and the values recomputed without it follow.
+      //    The Channel Pressure becomes the surviving note's own value rather than 0: in MPE Input Mode
+      //    the dimension passes through from the sender.
+      private val out6 = noteOff(1, E1)
+      extractScMidiMessages(out6).collect {
+        case _: NoteOffScMidiMessage => "noteOff"
+        case _: PitchBendScMidiMessage => "pitchBend"
+        case cc: CcScMidiMessage if cc.number == ScMidiCc.MpeSlide => "slide"
+        case _: ChannelPressureScMidiMessage => "pressure"
+      } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
+      extractPitchBends(out6).head.cents shouldEqual (quarterCommaMeantone.e + 30.0)
+      extractSlides(out6) shouldEqual Seq(CcScMidiMessage(ch, ScMidiCc.MpeSlide, 96))
+      extractChannelPressures(out6) shouldEqual Seq(ChannelPressureScMidiMessage(ch, 96))
+
+      // 6. Note Off for E2, the channel's last active note: removal empties the channel, so averaging no
+      //    longer applies and retention fixes what it keeps. None of the three values changes, so the
+      //    Note Off is emitted alone — the Channel Pressure in particular is not zeroed.
+      private val out7 = noteOff(2, E2)
+      extractNoteOffs(out7) shouldEqual Seq(NoteOffScMidiMessage(ch, E2))
+      extractPitchBends(out7) shouldBe empty
+      extractSlides(out7) shouldBe empty
+      extractChannelPressures(out7) shouldBe empty
+    }
+
   behavior of "MpeTuner - process() - Note Dropping - Non-MPE Input"
 
   // ---- Single-channel edge case ----
@@ -2050,6 +2115,39 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
       noteOffs should contain theSameElementsAs Seq((sharedChannel, E4))
+    }
+
+  // ---- Paper worked examples ----
+
+  it should "reproduce paper section \"Note dropping under High Expression Pitch Bend\"" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // The state reached at step 4 of "Averaging Expression Values": E1 (input Channel 1, +10 cents) and
+      // E2 (input Channel 2, +30 cents) share an output channel, averaging to +20.
+      private val out1 = noteOn(1, E1, pbCents = Some(10.0))
+      private val ch = extractNoteOns(out1).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+      extractNoteOns(noteOn(2, E2, pbCents = Some(30.0))).head.channel shouldBe ch
+
+      // When
+      // The performer sends Pitch Bend +101 cents on input Channel 1: the value belongs to E1, which
+      // thereby acquires a High Expression Pitch Bend.
+      private val output = pitchBend(1, 101.0)
+
+      // Then
+      // E1 shares its channel, so the divergence rule drops E2 — whose own bend is well below the
+      // threshold. The Note Off comes first, carrying the neutral release velocity 64 that any note ended
+      // by the Tuner's decision receives, and the recomputed Pitch Bend follows: emitting it first would
+      // sweep E2 to E1's bend on its way out.
+      extractScMidiMessages(output).collect {
+        case _: NoteOffScMidiMessage => "noteOff"
+        case _: PitchBendScMidiMessage => "pitchBend"
+      } shouldEqual Seq("noteOff", "pitchBend")
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(ch, E2, 64))
+      extractPitchBends(output) should have size 1
+      extractPitchBends(output).head.channel shouldBe ch
+      extractPitchBends(output).head.cents shouldEqual (quarterCommaMeantone.e + 101.0)
     }
 
   behavior of "MpeTuner - process() - Zone-level Messages - Non-MPE Input"
