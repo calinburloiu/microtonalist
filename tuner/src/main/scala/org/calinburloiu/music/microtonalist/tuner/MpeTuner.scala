@@ -64,8 +64,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   override val typeName: String = MpeTuner.TypeName
 
-  // TODO #154 Warn when MpeTuner is configured with non-MPE input mode while both zones are
-  //  enabled
   private var _zones: MpeZones = initialZones
   private var _inputMode: MpeInputMode = initialInputMode
 
@@ -78,6 +76,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   // timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
   // (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
   private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
+
+  warnOnNonMpeInputWithBothZones()
 
   /**
    * @return current [[MpeZones]] configuration for the Lower and Upper Zones.
@@ -102,6 +102,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     _zones = initialZones
     _inputMode = initialInputMode
     resetState()
+    warnOnNonMpeInputWithBothZones()
     buffer ++= configurationMessages()
     buffer.toSeq
   }
@@ -127,6 +128,19 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def lowerZone: MpeZone = _zones.lower
 
   private def upperZone: MpeZone = _zones.upper
+
+  /**
+   * Warns when the Tuner is configured in Non-MPE Input Mode with both Zones enabled: non-MPE input is
+   * routed exclusively to the Lower Zone, so the Upper Zone is unreachable and its Member Channels are
+   * wasted. Logged at construction and again on `reset()`, where the initial configuration is re-applied.
+   */
+  private def warnOnNonMpeInputWithBothZones(): Unit = {
+    if (_inputMode == MpeInputMode.NonMpe && lowerZone.isEnabled && upperZone.isEnabled) {
+      logger.warn("MpeTuner is configured in Non-MPE Input Mode with both Zones enabled: non-MPE input is " +
+        "routed exclusively to the Lower Zone, so the Upper Zone's Member Channels are unreachable. " +
+        s"Consider disabling the Upper Zone or switching to MPE Input Mode. Zones: ${_zones}")
+    }
+  }
 
   /**
    * Clears internal mutable state and recreates allocators from `currentZones`.

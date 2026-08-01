@@ -782,6 +782,17 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pb2.cents shouldEqual -14.0
     }
 
+  it should "route notes to the Lower Zone only when both Zones are enabled" in new Fixture(dualZoneTuner) {
+    // Non-MPE input is routed exclusively to the Lower Zone, so the Upper Zone's Member Channels (8..14)
+    // are unreachable and wasted — the configuration the Tuner warns about at construction and on reset().
+    private val out1 = noteOn(nonMpeInputChannel, C4)
+    private val out2 = noteOn(nonMpeInputChannel, E4)
+    // Then
+    Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
+      channel should (be >= 1 and be <= 7)
+    }
+  }
+
   // ---- Channel reuse after Note Off ----
 
   it should "make channel available for reuse after Note Off" in new Fixture(tuner3) {
