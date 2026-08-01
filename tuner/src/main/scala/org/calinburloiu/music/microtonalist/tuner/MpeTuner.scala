@@ -259,10 +259,35 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       buffer += msg.asJava
     } else {
       getAllocatorForInput(inputChannel).foreach { alloc =>
+        // The Channel Pressure reset applies in Non-MPE Input Mode only: there the Tuner is the controller
+        // that synthesized the value, whereas in MPE Input Mode the dimension passes through from the
+        // sender and a conforming sender's own pre-release reset reaches the output as an ordinary update.
+        val resetPressureOnEmpty = _inputMode == MpeInputMode.NonMpe
+
         // A `None` result means the identity holds no active count — chiefly after the Tuner dropped the
         // note itself, having already emitted its Note Offs — so the message is discarded.
-        alloc.release(NoteIdentity(inputChannel, midiNote)).foreach { result =>
-          buffer += NoteOffScMidiMessage(result.channel, midiNote, velocity).asJava
+        alloc.release(NoteIdentity(inputChannel, midiNote), resetPressureOnEmpty).foreach { result =>
+          val outChannel = result.channel
+
+          // The reset is the sole control message emitted before the Note Off; every other recomputed
+          // value follows it, so that the released note's control state is final at the moment of release.
+          if (result.pressureWasReset) {
+            result.update.pressure.foreach { value =>
+              buffer += ChannelPressureScMidiMessage(outChannel, value).asJava
+            }
+          }
+
+          buffer += NoteOffScMidiMessage(outChannel, midiNote, velocity).asJava
+
+          if (result.update.pitchBendCents.isDefined) emitOutputPitchBend(buffer, outChannel, alloc)
+          result.update.slide.foreach { value =>
+            buffer += CcScMidiMessage(outChannel, ScMidiCc.MpeSlide, value).asJava
+          }
+          if (!result.pressureWasReset) {
+            result.update.pressure.foreach { value =>
+              buffer += ChannelPressureScMidiMessage(outChannel, value).asJava
+            }
+          }
         }
       }
     }

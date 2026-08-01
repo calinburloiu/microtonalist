@@ -649,6 +649,57 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     extractNoteOffs(noteOffOutput) should contain(NoteOffScMidiMessage(noteOnChannel, C4))
   }
 
+  it should "reset Channel Pressure before the Note Off when the released note was the last on its channel" in
+    new Fixture(tuner7) {
+      // Given
+      private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
+      private val channel = extractNoteOns(noteOnOutput).head.channel
+      tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C4, 80).asJava)
+      // When
+      private val output = noteOff(nonMpeInputChannel, C4)
+      // Then
+      // In this mode the Tuner is the controller that synthesized the Channel Pressure, so it zeroes it
+      // itself — the one control message emitted before the Note Off.
+      extractScMidiMessages(output).collect {
+        case _: ChannelPressureScMidiMessage => "pressure"
+        case _: NoteOffScMidiMessage => "noteOff"
+      } shouldEqual Seq("pressure", "noteOff")
+      extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(channel, 0))
+    }
+
+  it should "emit the reduced Channel Pressure average after the Note Off when other notes remain" in
+    new Fixture(tuner2) {
+      // Given
+      // PCG=1, EG=1: C4 and C5 take the two channels and C3 shares C4's, the oldest by onset.
+      private val out1 = noteOn(nonMpeInputChannel, C4)
+      private val sharedChannel = extractNoteOns(out1).head.channel
+      noteOn(nonMpeInputChannel, C5)
+      extractNoteOns(noteOn(nonMpeInputChannel, C3)).head.channel shouldBe sharedChannel
+      tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C4, 80).asJava)
+      tuner.process(PolyPressureScMidiMessage(nonMpeInputChannel, C3, 20).asJava)
+      // When
+      private val output = noteOff(nonMpeInputChannel, C4)
+      // Then
+      // The channel keeps a note, so the withdrawal reduces the average rather than zeroing it, and the
+      // recomputed value follows the Note Off.
+      extractScMidiMessages(output).collect {
+        case _: ChannelPressureScMidiMessage => "pressure"
+        case _: NoteOffScMidiMessage => "noteOff"
+      } shouldEqual Seq("noteOff", "pressure")
+      extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(sharedChannel, 20))
+    }
+
+  it should "not emit a Channel Pressure reset when the channel already holds the default" in new Fixture(tuner7) {
+    // Given
+    private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
+    extractNoteOns(noteOnOutput).head.channel
+    // When
+    // No Polyphonic Key Pressure ever arrived, so the retained value is already 0.
+    private val output = noteOff(nonMpeInputChannel, C4)
+    // Then
+    extractChannelPressures(output) shouldBe empty
+  }
+
   // ---- Member-channel control-dimension initialization ----
 
   it should "initialize member channel Pitch Bend to default 0 even after sending a non-0 Pitch Bend on that channel" in
@@ -864,6 +915,53 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     extractNoteOffs(noteOffOutput) should contain(NoteOffScMidiMessage(noteOnChannel, C4))
   }
+
+  it should "emit the Expression Values recomputed over the remaining notes after the Note Off" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // PCG=2, EG=2: E1 takes a Pitch Class Group channel, E3 and E4 fill the Expression Group, and E2
+      // shares E1's channel (criterion (c): the oldest onset).
+      private val e1Output = noteOn(1, E1, pbCents = Some(10.0), pressure = Some(32), slide = Some(48))
+      private val sharedChannel = extractNoteOns(e1Output).head.channel
+      noteOn(3, E3)
+      noteOn(4, E4)
+      noteOn(2, E2, pbCents = Some(30.0), pressure = Some(96), slide = Some(96))
+
+      // When
+      private val output = noteOff(1, E1)
+
+      // Then
+      // The Note Off is emitted first, then the values recomputed over E2 alone, in the order
+      // Pitch Bend, CC #74, Channel Pressure.
+      extractScMidiMessages(output).collect {
+        case _: NoteOffScMidiMessage => "noteOff"
+        case _: PitchBendScMidiMessage => "pitchBend"
+        case cc: CcScMidiMessage if cc.number == ScMidiCc.MpeSlide => "slide"
+        case _: ChannelPressureScMidiMessage => "pressure"
+      } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
+
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(sharedChannel, E1))
+      extractPitchBends(output).head.cents shouldEqual (quarterCommaMeantone.e + 30.0)
+      extractSlides(output) shouldEqual Seq(CcScMidiMessage(sharedChannel, ScMidiCc.MpeSlide, 96))
+      extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(sharedChannel, 96))
+    }
+
+  it should "emit the Note Off alone when the released note was the last on its channel" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val noteOnOutput = noteOn(1, E4, pbCents = Some(30.0), pressure = Some(96), slide = Some(96))
+      private val channel = extractNoteOns(noteOnOutput).head.channel
+      // When
+      private val output = noteOff(1, E4)
+      // Then
+      // Averaging no longer applies and the channel retains its latest Expression Values, so none of the
+      // three changes and none is emitted. In MPE Input Mode the Tuner emits no Channel Pressure reset of
+      // its own either: that dimension passes through from the sender.
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(channel, E4))
+      extractPitchBends(output) shouldBe empty
+      extractSlides(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
+    }
 
   // ---- Pitch bend computation ----
 
