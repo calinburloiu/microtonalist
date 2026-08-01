@@ -567,7 +567,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     if (inputMode == MpeInputMode.Mpe) {
       // Per-note pressure in MPE input: it belongs to every note active on the input channel, wherever the
       // pitch-class invariant placed them. A Master Channel carries no allocated note, so nothing is
-      // emitted for one; forwarding Master Channel Channel Pressure as a Zone-level control is TODO #154.
+      // emitted for one; forwarding its Channel Pressure as a Zone-level control is not implemented yet.
       getAllocatorForInput(msg.channel).foreach { alloc =>
         emitExpressionUpdateResult(buffer, alloc.updatePressure(msg.channel, msg.value), alloc)
       }
@@ -624,6 +624,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * belong to any zone, it is outside the MPE zone structure and the message passes through on
    * the original channel.
    */
+  // TODO #250 Message routing and filtering conformance: a channel outside every Zone must have its
+  //  messages discarded rather than passed through, a Zone-level message arriving on an input Member
+  //  Channel must be discarded, Master Channel CC #74 and Channel Pressure must be forwarded as
+  //  Zone-level controls, and the MIDI Mode messages 124-127 must never be forwarded.
   private def resolveZoneMasterChannel(inputChannel: Int): Option[Int] = {
     if (inputMode == MpeInputMode.NonMpe) {
       routingZoneForNonMpeInput.map(_.masterChannel)
