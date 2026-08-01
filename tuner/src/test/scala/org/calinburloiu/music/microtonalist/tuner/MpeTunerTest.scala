@@ -1243,6 +1243,88 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.head.cents shouldEqual (0.0 + cExprCents)
     }
 
+  it should "reproduce paper section \"Duplicate Note On messages\" part 1 — the same input channel" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // 1. Note On E4 on input Channel 1: the reference count goes 0 -> 1, so allocation runs and the
+      //    tuning Pitch Bend precedes the Note On.
+      private val out1 = noteOn(1, E4)
+      private val channel = extractNoteOns(out1).head.channel
+      extractPitchBends(out1).head.cents shouldEqual quarterCommaMeantone.e
+
+      // 2. Channel Pressure 80 on input Channel 1: the channel holds one identity, so its average is 80.
+      private val out2 = pressure(1, 80)
+      extractChannelPressures(out2) shouldEqual Seq(ChannelPressureScMidiMessage(channel, 80))
+
+      // 3. A second Note On for E4 on input Channel 1, the first still active: the identity is unchanged,
+      //    so the count goes 1 -> 2, allocation is bypassed, and overriding the note's Expression Values
+      //    with the input channel's current state moves no average — the Note On is emitted alone.
+      private val out3 = noteOn(1, E4)
+      extractNoteOns(out3) shouldEqual Seq(NoteOnScMidiMessage(channel, E4))
+      extractScMidiMessages(out3) should have size 1
+
+      // 4. Note Off E4: the count goes 2 -> 1; the identity stays active and stays in the channel's
+      //    averages, so nothing follows the Note Off.
+      private val out4 = noteOff(1, E4)
+      extractNoteOffs(out4) shouldEqual Seq(NoteOffScMidiMessage(channel, E4))
+      extractScMidiMessages(out4) should have size 1
+
+      // 5. Note Off E4: the count goes 1 -> 0 and the identity leaves the averages, emptying the channel;
+      //    retention leaves all three values unchanged, so the Note Off is again emitted alone.
+      private val out5 = noteOff(1, E4)
+      extractNoteOffs(out5) shouldEqual Seq(NoteOffScMidiMessage(channel, E4))
+      extractScMidiMessages(out5) should have size 1
+
+      // Two Note Ons entered and two were forwarded, two Note Offs entered and two were forwarded.
+      // A third Note Off finds no count and is discarded.
+      extractNoteOffs(noteOff(1, E4)) shouldBe empty
+    }
+
+  it should "reproduce paper section \"Duplicate Note On messages\" part 2 — different input channels" in
+    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // PCG=2, EG=2. Input Channel 1 carries an Expression Pitch Bend of +10 cents and input Channel 2
+      // one of −20 cents; neither channel has an active note yet, so nothing is emitted for them.
+      extractPitchBends(pitchBend(1, 10.0)) shouldBe empty
+      extractPitchBends(pitchBend(2, -20.0)) shouldBe empty
+
+      // 1. Note On E4 on input Channel 1 -> identity (1, E4), Step 1 assigns output Channel 1.
+      private val out1 = noteOn(1, E4)
+      private val chE = extractNoteOns(out1).head.channel
+      chE shouldBe 1
+      extractPitchBends(out1).head.cents shouldEqual (quarterCommaMeantone.e + 10.0)
+
+      // 2. Note On G4 on input Channel 1 -> identity (1, G4): the same input channel, a different note
+      //    number and hence a different identity, filling the Pitch Class Group.
+      private val out2 = noteOn(1, G4)
+      private val chG = extractNoteOns(out2).head.channel
+      chG should not be chE
+      extractPitchBends(out2).head.cents shouldEqual (quarterCommaMeantone.g + 10.0)
+
+      // 3. C4 and A4 fill the Expression Group; all four Member Channels are now occupied.
+      noteOn(3, C4)
+      noteOn(4, A4)
+
+      // 4. Note On E4 on input Channel 2 -> identity (2, E4), distinct from (1, E4). Steps 1 and 2 fail,
+      //    so Step 3 assigns the channel already holding pitch class E, and its Expression Pitch Bend
+      //    becomes the average of the two identities.
+      private val out4 = noteOn(2, E4)
+      extractNoteOns(out4).head.channel shouldBe chE
+      extractPitchBends(out4).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
+
+      // The fan-out that accompanies this fan-in: a Pitch Bend on input Channel 1 reaches both output
+      // channels its notes were placed on, and only its own note's contribution moves on the shared one.
+      private val bendOutput = pitchBend(1, 20.0)
+      private val bends = extractPitchBends(bendOutput).map(pb => pb.channel -> pb.cents).toMap
+      bends.keySet shouldEqual Set(chE, chG)
+      bends(chE) shouldEqual (quarterCommaMeantone.e + (20.0 - 20.0) / 2)
+      bends(chG) shouldEqual (quarterCommaMeantone.g + 20.0)
+
+      // Both reference counts remain 1: no merging occurred, so each identity is released by its own
+      // Note Off and both are forwarded on the shared channel.
+      extractNoteOffs(noteOff(1, E4)) shouldEqual Seq(NoteOffScMidiMessage(chE, E4))
+      extractNoteOffs(noteOff(2, E4)) shouldEqual Seq(NoteOffScMidiMessage(chE, E4))
+    }
+
   behavior of "MpeTuner - process() - Expression - Non-MPE Input"
 
   // ---- Zone-level redirection from Pitch Bend ----
