@@ -39,7 +39,7 @@ messages it requires now, and `process(message)` rewrites each message flowing t
   folding all input onto one output channel and combining the performer's expressive bend with the tuning bend.
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
   pitch-class bend, and reconfigures zones on an MPE Configuration Message. `MpeZone*` models the zone layout, while
-  `MpeChannelAllocator` owns both note→channel allocation and the per-note *Expression Value* model — `NoteIdentity`,
+  `MpeChannelAllocator` owns both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`,
   reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   `MpeTuner` remains the only component aware of the input mode. See [Supported tuning
   protocols](#supported-tuning-protocols) and the linked design docs.

@@ -225,7 +225,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         val expression = Option.when(isMpeInput)(inputExpressionOf(inputChannel, zone))
         val preferredChannel = Option.when(isMpeInput && zone.memberChannels.contains(inputChannel))(inputChannel)
 
-        val result = alloc.allocate(NoteIdentity(inputChannel, midiNote), expression, preferredChannel)
+        val result = alloc.allocate(MpeNoteIdentity(inputChannel, midiNote), expression, preferredChannel)
         val outChannel = result.channel
 
         // Dropped notes are released before every message emitted for the new note: emitting the setup
@@ -277,7 +277,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // sender and a conforming sender's own pre-release reset reaches the output as an ordinary update.
         val resetPressureOnEmpty = _inputMode == MpeInputMode.NonMpe
 
-        alloc.release(NoteIdentity(inputChannel, midiNote), resetPressureOnEmpty) match {
+        alloc.release(MpeNoteIdentity(inputChannel, midiNote), resetPressureOnEmpty) match {
           case Some(result) =>
             val outChannel = result.channel
 
@@ -607,7 +607,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // note's own Expression Value and is averaged with those of the other notes on its output channel.
       getAllocatorForInput(inputChannel).foreach { alloc =>
         emitExpressionUpdateResult(buffer,
-          alloc.updatePressure(NoteIdentity(inputChannel, midiNote), pressure), alloc, NoDropExpected)
+          alloc.updatePressure(MpeNoteIdentity(inputChannel, midiNote), pressure), alloc, NoDropExpected)
       }
     }
   }
@@ -665,7 +665,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Emits Note Off messages for dropped notes: one per Note On forwarded for each note, at the neutral
    * release velocity 64 that a note ended by the Tuner's own decision receives.
    */
-  private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMessage], droppedNotes: DroppedNotes,
+  private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMessage], droppedNotes: MpeDroppedNotes,
                                   reason: String): Unit = {
     logger.trace(s"Dropping notes ${droppedNotes.notes.map(_.noteIdentity.midiNote)} " +
       s"on channel ${droppedNotes.channel} ($reason)")
@@ -708,7 +708,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *                    actually produce drops, so it is the sole path that passes a meaningful reason;
    *                    callers on the slide and pressure paths pass [[NoDropExpected]] instead.
    */
-  private def emitExpressionUpdateResult(buffer: mutable.Buffer[MidiMessage], result: ExpressionUpdateResult,
+  private def emitExpressionUpdateResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
                                          alloc: MpeChannelAllocator, dropReason: String): Unit = {
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, dropReason))
     result.channelUpdates.foreach { channelUpdate =>
@@ -819,7 +819,7 @@ object MpeTuner {
 
   /**
    * A drop reason for callers of `emitExpressionUpdateResult` whose update can never actually produce drops:
-   * `result.droppedNotes` is always empty for slide and pressure updates (see [[ExpressionUpdateResult]]),
+   * `result.droppedNotes` is always empty for slide and pressure updates (see [[MpeExpressionUpdateResult]]),
    * so this value is never surfaced in a log line.
    */
   private val NoDropExpected: String = "unreachable: slide/pressure updates never drop notes"

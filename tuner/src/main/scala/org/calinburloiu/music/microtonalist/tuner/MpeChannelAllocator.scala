@@ -46,7 +46,6 @@ trait MpeExpression {
   def slide: Int
 }
 
-/** The default Expression Values a note or channel starts from, before the performer moves any dimension. */
 object MpeExpression {
   /** Default Expression Pitch Bend value in cents (no bend). */
   val DefaultPitchBendCents: Double = 0.0
@@ -78,7 +77,7 @@ case class ImmutableMpeExpression(pitchBendCents: Double = MpeExpression.Default
  * addressed to a note in Non-MPE Input Mode — so two notes with the same note number arriving on different
  * input channels are independent notes.
  */
-case class NoteIdentity(inputChannel: Int, midiNote: MidiNote)
+case class MpeNoteIdentity(inputChannel: Int, midiNote: MidiNote)
 
 /**
  * Which of an output Member Channel's aggregated Expression Values changed as the result of an operation.
@@ -97,13 +96,13 @@ object MpeExpressionUpdate {
 }
 
 /** An [[MpeExpressionUpdate]] addressed to a specific output Member Channel. */
-case class ChannelExpressionUpdate(channel: Int, update: MpeExpressionUpdate)
+case class MpeChannelExpressionUpdate(channel: Int, update: MpeExpressionUpdate)
 
 /**
  * A dropped note together with the number of Note Off messages owed for it: one per Note On that was
  * forwarded for it, which is the reference count it held at the moment of the drop.
  */
-case class DroppedNote(noteIdentity: NoteIdentity, referenceCount: Int)
+case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
 
 /**
  * Describes the notes that were removed from a channel as a side-effect of an allocation or of an
@@ -120,8 +119,8 @@ case class DroppedNote(noteIdentity: NoteIdentity, referenceCount: Int)
  * @param notes   The dropped notes, oldest onset first, each with the reference count it held.
  * @param group   The [[ChannelGroup]] that `channel` belonged to at the time of the drop.
  */
-case class DroppedNotes(channel: Int,
-                        notes: Seq[DroppedNote],
+case class MpeDroppedNotes(channel: Int,
+                        notes: Seq[MpeDroppedNote],
                         group: ChannelGroup)
 
 /**
@@ -135,9 +134,9 @@ case class DroppedNotes(channel: Int,
  * @param isDuplicate  `true` when the Note On raised an already active identity's reference count, so the
  *                     allocation algorithm was bypassed.
  */
-case class AllocationResult(channel: Int,
+case class MpeAllocationResult(channel: Int,
                             update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                            droppedNotes: Option[DroppedNotes] = None,
+                            droppedNotes: Option[MpeDroppedNotes] = None,
                             isDuplicate: Boolean = false)
 
 /**
@@ -150,7 +149,7 @@ case class AllocationResult(channel: Int,
  *                         is carried by `update.pressure` and must be emitted ''before'' the Note Off — the
  *                         sole exception to the Note Off message ordering.
  */
-case class ReleaseResult(channel: Int,
+case class MpeReleaseResult(channel: Int,
                          update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
                          pressureWasReset: Boolean = false)
 
@@ -162,8 +161,8 @@ case class ReleaseResult(channel: Int,
  *                       the earliest onset among the notes updated on it.
  * @param droppedNotes   Notes dropped by the divergence rule; always empty for pressure and slide updates.
  */
-case class ExpressionUpdateResult(channelUpdates: Seq[ChannelExpressionUpdate] = Nil,
-                                  droppedNotes: Seq[DroppedNotes] = Nil)
+case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChannelExpressionUpdate] = Nil,
+                                  droppedNotes: Seq[MpeDroppedNotes] = Nil)
 
 /**
  * Per-note state on an output Member Channel: the note's own Expression Values, its reference count and
@@ -185,7 +184,7 @@ private class NoteState(val expression: MutableMpeExpression,
  * @param channel The 0-indexed MIDI channel number this state object represents.
  */
 private class ChannelState(val channel: Int) {
-  private val _notes: mutable.HashMap[NoteIdentity, NoteState] = mutable.HashMap.empty
+  private val _notes: mutable.HashMap[MpeNoteIdentity, NoteState] = mutable.HashMap.empty
   private val _expression: MutableMpeExpression = MutableMpeExpression()
   private var _pitchClass: Option[PitchClass] = None
   private var _group: Option[ChannelGroup] = None
@@ -193,7 +192,7 @@ private class ChannelState(val channel: Int) {
   private var _lastNoteOffTime: Long = 0L
 
   /** An immutable snapshot of the Note Identities currently active on this channel. */
-  def noteIdentities: Set[NoteIdentity] = _notes.keySet.toSet
+  def noteIdentities: Set[MpeNoteIdentity] = _notes.keySet.toSet
 
   /** The number of distinct active Note Identities, whatever their reference counts. */
   def noteCount: Int = _notes.size
@@ -206,14 +205,14 @@ private class ChannelState(val channel: Int) {
   def expression: MpeExpression = _expression
 
   /** The live, mutable Expression Values of an active note on this channel. */
-  def expressionFor(noteIdentity: NoteIdentity): MutableMpeExpression = _notes(noteIdentity).expression
+  def expressionFor(noteIdentity: MpeNoteIdentity): MutableMpeExpression = _notes(noteIdentity).expression
 
   /** The reference count of an active identity, or 0 when it is not active on this channel. */
-  def referenceCountOf(noteIdentity: NoteIdentity): Int =
+  def referenceCountOf(noteIdentity: MpeNoteIdentity): Int =
     _notes.get(noteIdentity).map(_.referenceCount).getOrElse(0)
 
   /** The logical timestamp of the Note On that allocated an active identity. */
-  def onsetTimeOf(noteIdentity: NoteIdentity): Long = _notes(noteIdentity).onsetTime
+  def onsetTimeOf(noteIdentity: MpeNoteIdentity): Long = _notes(noteIdentity).onsetTime
 
   /**
    * The pitch class shared by all active notes on this channel, or `None` when the channel is
@@ -254,7 +253,7 @@ private class ChannelState(val channel: Int) {
    * @param targetGroup  The channel group; must match the existing group when the channel is already
    *                     occupied.
    */
-  def addNote(noteIdentity: NoteIdentity,
+  def addNote(noteIdentity: MpeNoteIdentity,
               expression: MutableMpeExpression,
               time: Long,
               targetGroup: ChannelGroup): Unit = {
@@ -274,7 +273,7 @@ private class ChannelState(val channel: Int) {
    * changes: the identity keeps its onset time, and the channel keeps its own timestamps, because no
    * allocation occurs.
    */
-  def incrementReferenceCount(noteIdentity: NoteIdentity): Unit = {
+  def incrementReferenceCount(noteIdentity: MpeNoteIdentity): Unit = {
     _notes(noteIdentity).referenceCount += 1
   }
 
@@ -283,7 +282,7 @@ private class ChannelState(val channel: Int) {
    *
    * @return `true` when the identity was removed, i.e. the count reached 0.
    */
-  def decrementReferenceCount(noteIdentity: NoteIdentity, time: Long): Boolean = {
+  def decrementReferenceCount(noteIdentity: MpeNoteIdentity, time: Long): Boolean = {
     val noteState = _notes(noteIdentity)
     noteState.referenceCount -= 1
     if (noteState.referenceCount <= 0) {
@@ -302,7 +301,7 @@ private class ChannelState(val channel: Int) {
    * @param noteIdentity The note to remove.
    * @param time         The logical timestamp of the removal.
    */
-  def removeNote(noteIdentity: NoteIdentity, time: Long): Unit = {
+  def removeNote(noteIdentity: MpeNoteIdentity, time: Long): Unit = {
     if (_notes.remove(noteIdentity).isDefined) {
       _lastNoteOffTime = time
       if (_notes.isEmpty) {
@@ -359,12 +358,12 @@ private class ChannelState(val channel: Int) {
  *
  * '''Expression Values''' are owned here as well, in three layers (see the paper's "Expression Value
  * Processing" section):
- *  - each active [[NoteIdentity]] carries its own [[MpeExpression]] and a reference count, one per Note On
+ *  - each active [[MpeNoteIdentity]] carries its own [[MpeExpression]] and a reference count, one per Note On
  *    forwarded for it;
  *  - each output Member Channel carries an aggregate, the average over its active identities — one term per
  *    identity whatever its reference count — which is '''retained''' unchanged when the channel empties, so
  *    that every dimension has a defined value at all times;
- *  - a `NoteIdentity -> channel` binding, maintained on every path that adds or removes a note, dropping
+ *  - a `MpeNoteIdentity -> channel` binding, maintained on every path that adds or removes a note, dropping
  *    included, so that a Note Off for a note the allocator has already dropped finds nothing.
  *
  * Every mutating method reports which of the affected channels' three Expression Values actually changed, so
@@ -384,7 +383,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
   private val channelStates: Map[Int, ChannelState] = zone.memberChannels.map(ch => ch -> ChannelState(ch)).toMap
 
   /** The output Member Channel each active Note Identity is bound to. */
-  private val noteChannels: mutable.HashMap[NoteIdentity, Int] = mutable.HashMap.empty
+  private val noteChannels: mutable.HashMap[MpeNoteIdentity, Int] = mutable.HashMap.empty
 
   private var _time: Long = 0L
 
@@ -411,9 +410,9 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    *                         preference is input-mode-dependent and this class is unaware of the input mode.
    * @return the assigned channel, the Expression Values that changed on it, and any notes dropped.
    */
-  def allocate(noteIdentity: NoteIdentity,
+  def allocate(noteIdentity: MpeNoteIdentity,
                expression: Option[MpeExpression] = None,
-               preferredChannel: Option[Int] = None): AllocationResult =
+               preferredChannel: Option[Int] = None): MpeAllocationResult =
     noteChannels.get(noteIdentity) match {
       case Some(channel) => allocateDuplicate(channelStates(channel), noteIdentity, expression)
       case None => allocateFresh(noteIdentity, expression, preferredChannel)
@@ -438,8 +437,8 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * overridden, it is the only note on the channel that can possibly qualify as high-bend.
    */
   private def allocateDuplicate(state: ChannelState,
-                                noteIdentity: NoteIdentity,
-                                expression: Option[MpeExpression]): AllocationResult = {
+                                noteIdentity: MpeNoteIdentity,
+                                expression: Option[MpeExpression]): MpeAllocationResult = {
     val before = snapshotOf(state.expression)
     state.incrementReferenceCount(noteIdentity)
     expression.foreach { newExpression =>
@@ -450,12 +449,12 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     }
     val dropped = applyDivergenceRule(state)
     state.recomputeExpression()
-    AllocationResult(state.channel, diff(before, state.expression), dropped, isDuplicate = true)
+    MpeAllocationResult(state.channel, diff(before, state.expression), dropped, isDuplicate = true)
   }
 
-  private def allocateFresh(noteIdentity: NoteIdentity,
+  private def allocateFresh(noteIdentity: MpeNoteIdentity,
                             expression: Option[MpeExpression],
-                            preferredChannel: Option[Int]): AllocationResult = boundary {
+                            preferredChannel: Option[Int]): MpeAllocationResult = boundary {
     val pc = noteIdentity.midiNote.pitchClass
     val time = nextTime()
 
@@ -503,7 +502,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    *         otherwise the resolved channel, the Expression Values that changed on it, and whether the
    *         Channel Pressure reset was applied.
    */
-  def release(noteIdentity: NoteIdentity, resetPressureOnEmpty: Boolean = false): Option[ReleaseResult] =
+  def release(noteIdentity: MpeNoteIdentity, resetPressureOnEmpty: Boolean = false): Option[MpeReleaseResult] =
     noteChannels.get(noteIdentity).map { channel =>
       val state = channelStates(channel)
       val before = snapshotOf(state.expression)
@@ -517,7 +516,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
         state.expression.pressure != MpeExpression.DefaultPressure
       if (pressureWasReset) state.resetPressure()
 
-      ReleaseResult(channel, diff(before, state.expression), pressureWasReset)
+      MpeReleaseResult(channel, diff(before, state.expression), pressureWasReset)
     }
 
   /**
@@ -529,7 +528,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param pitchBendCents The new Expression Pitch Bend in cents.
    * @return the output channels whose aggregate changed and any notes dropped by the divergence rule.
    */
-  def updateExpressionPitchBend(inputChannel: Int, pitchBendCents: Double): ExpressionUpdateResult =
+  def updateExpressionPitchBend(inputChannel: Int, pitchBendCents: Double): MpeExpressionUpdateResult =
     updateExpressionValues(identitiesOn(inputChannel),
       noteExpression => noteExpression.pitchBendCents = pitchBendCents,
       applyDivergenceRule)
@@ -542,7 +541,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param pressure     The new Channel Pressure value.
    * @return the output channels whose aggregate changed; never drops notes.
    */
-  def updatePressure(inputChannel: Int, pressure: Int): ExpressionUpdateResult =
+  def updatePressure(inputChannel: Int, pressure: Int): MpeExpressionUpdateResult =
     updateExpressionValues(identitiesOn(inputChannel), noteExpression => noteExpression.pressure = pressure)
 
   /**
@@ -554,7 +553,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param pressure     The new pressure value.
    * @return the output channel whose aggregate changed, or an empty result; never drops notes.
    */
-  def updatePressure(noteIdentity: NoteIdentity, pressure: Int): ExpressionUpdateResult =
+  def updatePressure(noteIdentity: MpeNoteIdentity, pressure: Int): MpeExpressionUpdateResult =
     updateExpressionValues(Seq(noteIdentity), noteExpression => noteExpression.pressure = pressure)
 
   /**
@@ -565,7 +564,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param slide        The new CC #74 (Timbre / Slide) value.
    * @return the output channels whose aggregate changed; never drops notes.
    */
-  def updateSlide(inputChannel: Int, slide: Int): ExpressionUpdateResult =
+  def updateSlide(inputChannel: Int, slide: Int): MpeExpressionUpdateResult =
     updateExpressionValues(identitiesOn(inputChannel), noteExpression => noteExpression.slide = slide)
 
   /**
@@ -583,7 +582,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
   // State inspection accessors
 
   /** The output Member Channel bound to an active note, or `None` when it holds no active count. */
-  def channelOf(noteIdentity: NoteIdentity): Option[Int] = noteChannels.get(noteIdentity)
+  def channelOf(noteIdentity: MpeNoteIdentity): Option[Int] = noteChannels.get(noteIdentity)
 
   /**
    * An immutable snapshot of the aggregated Expression Values of a channel, retained while the channel is
@@ -601,18 +600,18 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @throws NoSuchElementException if the note holds no active count. Use [[referenceCountOf]] or
    *                                [[channelOf]] to test for that beforehand.
    */
-  def expressionFor(noteIdentity: NoteIdentity): MpeExpression =
+  def expressionFor(noteIdentity: MpeNoteIdentity): MpeExpression =
     snapshotOf(channelStates(noteChannels(noteIdentity)).expressionFor(noteIdentity))
 
   /** The reference count of a note, or 0 when it holds no active count. */
-  def referenceCountOf(noteIdentity: NoteIdentity): Int =
+  def referenceCountOf(noteIdentity: MpeNoteIdentity): Int =
     noteChannels.get(noteIdentity).map(channelStates(_).referenceCountOf(noteIdentity)).getOrElse(0)
 
   /** The Note Identities currently active on a channel. */
-  def activeNotes(channel: Int): Set[NoteIdentity] = channelStates(channel).noteIdentities
+  def activeNotes(channel: Int): Set[MpeNoteIdentity] = channelStates(channel).noteIdentities
 
   /** Every active note with the output Member Channel it is bound to, ordered by channel. */
-  def activeAllocations: Seq[(NoteIdentity, Int)] = noteChannels.toSeq.sortBy(_._2)
+  def activeAllocations: Seq[(MpeNoteIdentity, Int)] = noteChannels.toSeq.sortBy(_._2)
 
   /**
    * Returns the pitch class currently associated with a channel.
@@ -670,10 +669,10 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
   }
 
   private def doAllocate(state: ChannelState,
-                         noteIdentity: NoteIdentity,
+                         noteIdentity: MpeNoteIdentity,
                          expression: Option[MpeExpression],
                          time: Long,
-                         targetGroup: ChannelGroup): AllocationResult = {
+                         targetGroup: ChannelGroup): MpeAllocationResult = {
     val before = snapshotOf(state.expression)
     val existingIdentities = state.noteIdentities
     val noteExpression = MutableMpeExpression(
@@ -686,7 +685,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     val dropped = dropExistingNotesForHighBend(state, existingIdentities, noteExpression.pitchBendCents, time)
     state.recomputeExpression()
 
-    AllocationResult(state.channel, diff(before, state.expression), dropped)
+    MpeAllocationResult(state.channel, diff(before, state.expression), dropped)
   }
 
   /**
@@ -695,9 +694,9 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * note with one.
    */
   private def dropExistingNotesForHighBend(state: ChannelState,
-                                           existingIdentities: Set[NoteIdentity],
+                                           existingIdentities: Set[MpeNoteIdentity],
                                            newPitchBendCents: Double,
-                                           time: Long): Option[DroppedNotes] = {
+                                           time: Long): Option[MpeDroppedNotes] = {
     if (existingIdentities.isEmpty) {
       None
     } else {
@@ -749,7 +748,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param time The logical timestamp at which the freed notes are dropped.
    * @return The notes dropped from the freed channel.
    */
-  private def freeChannel(time: Long): DroppedNotes = {
+  private def freeChannel(time: Long): MpeDroppedNotes = {
     val occupied = occupiedChannelStates
     assert(occupied.nonEmpty)
 
@@ -774,7 +773,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     dropIdentities(target, target.noteIdentities.toSeq, time)
   }
 
-  private def identitiesOn(inputChannel: Int): Seq[NoteIdentity] =
+  private def identitiesOn(inputChannel: Int): Seq[MpeNoteIdentity] =
     noteChannels.keys.filter(_.inputChannel == inputChannel).toSeq
 
   /**
@@ -789,10 +788,10 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @param write          Writes the new value into a note's Expression Values.
    * @param afterWrite     Applied to each affected channel after the writes and before the recomputation.
    */
-  private def updateExpressionValues(noteIdentities: Seq[NoteIdentity],
+  private def updateExpressionValues(noteIdentities: Seq[MpeNoteIdentity],
                                      write: MutableMpeExpression => Unit,
-                                     afterWrite: ChannelState => Option[DroppedNotes] = _ => None)
-  : ExpressionUpdateResult = {
+                                     afterWrite: ChannelState => Option[MpeDroppedNotes] = _ => None)
+  : MpeExpressionUpdateResult = {
     val identitiesByChannel = noteIdentities
       .flatMap(noteIdentity => noteChannels.get(noteIdentity).map(channel => (channel, noteIdentity)))
       .groupMap(_._1)(_._2)
@@ -801,8 +800,8 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
         (identities.map(channelStates(channel).onsetTimeOf).min, channel)
       }
 
-    val channelUpdates = Seq.newBuilder[ChannelExpressionUpdate]
-    val droppedNotes = Seq.newBuilder[DroppedNotes]
+    val channelUpdates = Seq.newBuilder[MpeChannelExpressionUpdate]
+    val droppedNotes = Seq.newBuilder[MpeDroppedNotes]
     for ((channel, identities) <- identitiesByChannel) {
       val state = channelStates(channel)
       val before = snapshotOf(state.expression)
@@ -811,11 +810,11 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       state.recomputeExpression()
       val update = diff(before, state.expression)
       if (update != MpeExpressionUpdate.Unchanged) {
-        channelUpdates += ChannelExpressionUpdate(channel, update)
+        channelUpdates += MpeChannelExpressionUpdate(channel, update)
       }
     }
 
-    ExpressionUpdateResult(channelUpdates.result(), droppedNotes.result())
+    MpeExpressionUpdateResult(channelUpdates.result(), droppedNotes.result())
   }
 
   /**
@@ -829,7 +828,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * them; retaining the most recently sounded preserves the performer's gesture on one voice, and leaving
    * exactly one note restores the invariant that a high-bend note is the sole note on its channel.
    */
-  private def applyDivergenceRule(state: ChannelState): Option[DroppedNotes] = {
+  private def applyDivergenceRule(state: ChannelState): Option[MpeDroppedNotes] = {
     val identities = state.noteIdentities
     val highBendIdentities = identities.filter { noteIdentity =>
       isHighExpressionPitchBend(state.expressionFor(noteIdentity).pitchBendCents)
@@ -850,18 +849,18 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * @return the dropped notes, oldest onset first, each with the reference count it held.
    */
   private def dropIdentities(state: ChannelState,
-                             noteIdentities: Seq[NoteIdentity],
-                             time: Long): DroppedNotes = {
+                             noteIdentities: Seq[MpeNoteIdentity],
+                             time: Long): MpeDroppedNotes = {
     val group = state.group.get
     val dropped = noteIdentities
       .sortBy(state.onsetTimeOf)
-      .map(noteIdentity => DroppedNote(noteIdentity, state.referenceCountOf(noteIdentity)))
+      .map(noteIdentity => MpeDroppedNote(noteIdentity, state.referenceCountOf(noteIdentity)))
     dropped.foreach { droppedNote =>
       state.removeNote(droppedNote.noteIdentity, time)
       noteChannels.remove(droppedNote.noteIdentity)
     }
 
-    DroppedNotes(state.channel, dropped, group)
+    MpeDroppedNotes(state.channel, dropped, group)
   }
 
   /**
