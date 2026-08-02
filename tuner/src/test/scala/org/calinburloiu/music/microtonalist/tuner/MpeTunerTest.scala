@@ -397,6 +397,20 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       noteOffs should contain(NoteOffScMidiMessage(ch2, G4))
     }
 
+  it should "emit one Note Off per forwarded Note On for a duplicated note on reset" in
+    new Fixture(mpeTunerMpeInput) {
+      // Given
+      // Two Note Ons for the same Note Identity, so it holds a reference count of 2 and two Note Ons were
+      // forwarded for it.
+      private val out1 = noteOn(1, C4)
+      noteOn(1, C4)
+      private val channel = extractNoteOns(out1).head.channel
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractNoteOffs(resetOutput).count(_ == NoteOffScMidiMessage(channel, C4)) shouldBe 2
+    }
+
   it should "not emit Note Off messages on reset when no notes are active" in new Fixture {
     // When
     private val resetOutput = tuner.reset()

@@ -163,4 +163,10 @@ These are signalled directly in the code:
   CC #74 and Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages 124–127 are still open
   (TODO #250). The per-note Expression Value model itself — averaging, fan-out, reference counting and the Note
   On/Note Off emission rules — is implemented.
+- `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
+  the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded
+  cents disagree with the cents retained for already-active notes (TODO #253).
+- `MpeTuner.stopAllNotes` emits one Note Off per active Master Channel note rather than one per forwarded Note On,
+  because `ScMidiChannelStateTracker` tracks active notes as a set with no reference count (TODO #254). Member Channel
+  notes, which the allocator reference-counts, are unaffected.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).

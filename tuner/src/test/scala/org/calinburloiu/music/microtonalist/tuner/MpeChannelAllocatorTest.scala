@@ -800,7 +800,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.release(MpeNoteIdentity(1, C4)) shouldBe None
   }
 
-  it should "override the Expression Values of a duplicate Note On when they are given" in {
+  it should "ignore the Expression Values given with a duplicate Note On" in {
     // Given
     val alloc = allocator15
     val identity = MpeNoteIdentity(1, C4)
@@ -809,8 +809,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val result = alloc.allocate(identity, Some(ImmutableMpeExpression(20.0, 64, 96)))
     // Then
     result.isDuplicate shouldBe true
-    result.update shouldBe MpeExpressionUpdate(Some(20.0), Some(64), Some(96))
-    alloc.channelExpression(channel).pitchBendCents shouldBe 20.0
+    result.update shouldBe MpeExpressionUpdate.Unchanged
+    alloc.expressionFor(identity) shouldBe ImmutableMpeExpression(10.0, 32, 48)
+    alloc.channelExpression(channel) shouldBe ImmutableMpeExpression(10.0, 32, 48)
   }
 
   it should "leave the Expression Values of a duplicate Note On untouched when none are given" in {
@@ -825,7 +826,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.channelExpression(channel).pressure shouldBe 32
   }
 
-  it should "apply the divergence rule when a duplicate Note On raises a note to a High Expression Pitch Bend" in {
+  it should "not drop notes when a duplicate Note On carries a High Expression Pitch Bend" in {
     // Given
     // first and third end up sharing a channel; second occupies a channel of its own.
     val alloc = allocator2 // PCG=1, EG=1
@@ -836,15 +837,16 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocate(second)
     alloc.allocate(third).channel shouldBe channel
     // When
-    // A duplicate Note On for the shared note now carries a High Expression Pitch Bend. The allocation
-    // algorithm is bypassed for a duplicate, but the divergence rule must still apply so the channel never
-    // ends up with a High-Expression-Pitch-Bend note co-resident with another.
+    // A duplicate Note On for the shared note carries a High Expression Pitch Bend. Allocation is bypassed
+    // and the Expression Values are ignored, so the channel's set of active notes is unchanged and no
+    // divergence can arise: the note never acquires the high bend in the first place.
     val result = alloc.allocate(third, Some(ImmutableMpeExpression(highPitchBendCents)))
     // Then
     result.isDuplicate shouldBe true
-    assertDroppedNotes(result.droppedNotes, Seq(C4))
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(third)
-    alloc.channelOf(first) shouldBe None
+    result.droppedNotes shouldBe empty
+    result.update shouldBe MpeExpressionUpdate.Unchanged
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, third)
+    alloc.channelOf(first) shouldBe Some(channel)
   }
 
   it should "count two identities sharing a note number as two active notes" in {
@@ -869,6 +871,24 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   }
 
   behavior of "MpeChannelAllocator - Expression Value aggregation"
+
+  it should "not report an Expression Pitch Bend change caused only by floating-point rounding" in {
+    // Given
+    // Three notes of the same pitch class share the single Member Channel, all with the same Expression
+    // Pitch Bend, so the channel's average is a sum of three terms divided by three.
+    val alloc = allocator1
+    val expression = Some(ImmutableMpeExpression(0.1))
+    alloc.allocate(MpeNoteIdentity(1, C4), expression)
+    alloc.allocate(MpeNoteIdentity(2, C4), expression)
+    val third = MpeNoteIdentity(3, C4)
+    alloc.allocate(third, expression)
+    // When
+    // Releasing one leaves two terms averaging to the same value mathematically, but to a `Double` that
+    // differs in its last bits.
+    val result = alloc.release(third).value
+    // Then
+    result.update.pitchBendCents shouldBe None
+  }
 
   it should "average the Expression Values of the notes active on a channel" in {
     // Given

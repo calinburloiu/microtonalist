@@ -156,16 +156,17 @@ def allocate(noteIdentity: NoteIdentity,
              preferredChannel: Option[Int] = None): AllocationResult
 ```
 
-`expression` is optional with a deliberate three-way meaning:
+`expression` is optional, and it applies only to a fresh allocation:
 
 | Case | `Some(e)` | `None` |
 |---|---|---|
 | Fresh allocation (count 0 → 1) | seed the note's Expression Values from `e` | seed from the defaults of `MpeExpression` |
-| Duplicate (count ≥ 1) | override the note's Expression Values with `e` (§7.6.1) | leave the note untouched |
+| Duplicate (count ≥ 1) | ignored | ignored |
 
-`MpeTuner` passes `Some(...)` in MPE Input Mode and `None` in Non-MPE Input Mode. The `None` duplicate case is exactly
-what §7.6.1 requires of Non-MPE Input Mode: "the note keeps whatever pressure it has accumulated since the Note On that
-allocated it."
+`MpeTuner` passes `Some(...)` in MPE Input Mode and `None` in Non-MPE Input Mode. Ignoring it on the duplicate path is
+what §7.6.1 requires of both modes: in MPE Input Mode the override it describes "is a **no-op** — the note already holds
+those values, having received them as they arrived on the input channel"; in Non-MPE Input Mode there is nothing to
+override from, so "the note keeps whatever pressure it has accumulated since the Note On that allocated it."
 
 `preferredChannel` is **kept as a separate parameter** rather than derived from `noteIdentity.inputChannel`. Tie-break
 criterion (e) of §5.6 is input-mode-dependent — MPE Input Mode prefers the note's own input channel when that channel is
@@ -176,14 +177,13 @@ input-mode-unaware while leaving §5.6(e) exact.
 
 Behavior:
 
-- **Duplicate.** If the identity already holds an active count, the count is incremented, the override is applied when
-  given, the channel aggregate is recomputed through the same code path as any other mutation, and the result reports
-  whatever actually changed with `isDuplicate = true`. The allocation algorithm of §5.6 does not run and no note is
-  dropped (§7.6.1: allocation is bypassed; the High Expression Pitch Bend rules of §6.2.2 and §6.2.3 are predicated on
-  an assignment that does not occur here). The recomputed update is normally empty — in MPE Input Mode the override
-  writes values the note already holds, because §7.2's update propagation kept it current — but it is computed rather
-  than assumed, so an implementation change or a missed update surfaces as an emitted message instead of silence.
-  §7.6.1 keeps the rule in override form for exactly this reason.
+- **Duplicate.** If the identity already holds an active count, the count is incremented and nothing else happens: the
+  result is `MpeExpressionUpdate.Unchanged` with no dropped notes and `isDuplicate = true`. The allocation algorithm of
+  §5.6 does not run and no note is dropped (§7.6.1: allocation is bypassed; the High Expression Pitch Bend rules of
+  §6.2.2 and §6.2.3 are predicated on an assignment that does not occur here). No Expression Value is written either:
+  §7.6.1 states the MPE-Input-Mode override is a no-op, because §7.2's update propagation has kept the note current, and
+  the identity remains a single term in the averages whatever its reference count — so the aggregate cannot move and
+  needs no recomputation. Since no Expression Pitch Bend moves, the divergence rule of §6.2.1 cannot engage here either.
 - **Fresh allocation.** Steps 1–4 of §5.6 run as they do today, with two corrections: candidate ranking counts
   **distinct Note Identities** rather than note numbers (N5, §5.6 criterion (b)), and both the channel's notes and the
   identity → channel map are updated. The result reports the channel's Expression Value changes and any notes dropped
@@ -300,7 +300,7 @@ preferred  = if (MPE && zone.memberChannels.contains(inputChannel)) Some(inputCh
 result     = alloc.allocate(identity, expression, preferred)
 
 emit dropped Note Offs                          // §6: before every message emitted for the new note
-if (!result.isDuplicate || result.update.pitchBendCents.isDefined) emit Pitch Bend
+if (!result.isDuplicate) emit Pitch Bend
 result.update.slide    -> emit CC #74           // only when changed
 result.update.pressure -> emit Channel Pressure // only when changed
 emit Note On
@@ -322,9 +322,8 @@ of a note of a **different pitch class** and has also missed every `tune()` that
 does not imply an unchanged output Pitch Bend, and omitting the message would leave the new note on the previous pitch
 class's offset: the swooping artifact of §2.5.
 
-On a duplicate Note On the channel is occupied by that identity throughout, so the tuning half is current by
-construction and Pitch Bend falls back to the same "only when changed" footing as the other two dimensions. Normally
-nothing is emitted, matching §9.6 Part 1 step 3 — "no average moves and the Note On is emitted alone".
+A duplicate Note On, by contrast, moves nothing: the allocator reports `Unchanged` for all three dimensions, so the
+Note On is emitted alone, matching §9.6 Part 1 step 3 — "no average moves and the Note On is emitted alone".
 
 CC #74 and Channel Pressure have no tuning component: the emitted value *is* the Expression Value, so an unchanged
 report genuinely means the channel already holds it, and §7.1/§7.5 permit the omission. In Non-MPE Input Mode CC #74
@@ -381,8 +380,8 @@ their conformance gaps (C5) belong to cycle 2.
 ### Configuration warning
 
 The outstanding TODO is resolved by logging a warning when the Tuner is configured in Non-MPE Input Mode with both
-Zones enabled: §4.2 routes non-MPE input exclusively to the Lower Zone, so the Upper Zone is unreachable and its
-Member Channels are wasted. Logged once at construction and again on `reset()`, which is where the initial
+Zones enabled: §4.2 routes non-MPE input to a single Zone — the Lower Zone when it is enabled, otherwise the Upper
+Zone — so with both enabled the Upper Zone is unreachable and its Member Channels are wasted. Logged once at construction and again on `reset()`, which is where the initial
 configuration is re-applied.
 
 ---
