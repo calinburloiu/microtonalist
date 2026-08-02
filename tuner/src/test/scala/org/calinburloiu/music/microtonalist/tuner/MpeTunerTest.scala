@@ -2535,16 +2535,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "route PBS to lower zone master in dual-zone setup regardless of input channel" in
     new Fixture(dualZoneTuner) {
-    // When - PBS arrives on channel 12 (would be an upper zone member in MPE mode)
-    private var output = sendPbsMsb(tuner, channel = 4, semitones = 12)
+      // When - PBS arrives on channel 12 (would be an upper zone member in MPE mode)
+      private var output = sendPbsMsb(tuner, channel = 4, semitones = 12)
       output ++= sendPbsMsb(tuner, channel = 12, semitones = 2)
-    // Then - Non-MPE mode always routes to lower zone master (ch 0)
-    private val ccs = extractCc(output)
-    ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12))
+      // Then - Non-MPE mode always routes to lower zone master (ch 0)
+      private val ccs = extractCc(output)
+      ccs should contain(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12))
       ccs should not contain CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 2)
       tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(2)
       tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-  }
+    }
 
   // ---- LSB (cents) handling ----
 

@@ -119,8 +119,8 @@ case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
  * @param group   The [[ChannelGroup]] that `channel` belonged to at the time of the drop.
  */
 case class MpeDroppedNotes(channel: Int,
-                        notes: Seq[MpeDroppedNote],
-                        group: ChannelGroup)
+                           notes: Seq[MpeDroppedNote],
+                           group: ChannelGroup)
 
 /**
  * Result of a channel allocation operation.
@@ -130,13 +130,14 @@ case class MpeDroppedNotes(channel: Int,
  * @param droppedNotes Any notes that were dropped as a result of this allocation, including a duplicate Note
  *                     On whose overridden Expression Values raise it to a High Expression Pitch Bend — the
  *                     allocation algorithm is bypassed for a duplicate, but the divergence rule is not.
+ *
  * @param isDuplicate  `true` when the Note On raised an already active identity's reference count, so the
  *                     allocation algorithm was bypassed.
  */
 case class MpeAllocationResult(channel: Int,
-                            update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                            droppedNotes: Option[MpeDroppedNotes] = None,
-                            isDuplicate: Boolean = false)
+                               update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
+                               droppedNotes: Option[MpeDroppedNotes] = None,
+                               isDuplicate: Boolean = false)
 
 /**
  * Result of releasing a note.
@@ -149,8 +150,8 @@ case class MpeAllocationResult(channel: Int,
  *                         sole exception to the Note Off message ordering.
  */
 case class MpeReleaseResult(channel: Int,
-                         update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                         pressureWasReset: Boolean = false)
+                            update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
+                            pressureWasReset: Boolean = false)
 
 /**
  * Result of an Expression Value update received on an input channel and fanned out to every output Member
@@ -158,18 +159,19 @@ case class MpeReleaseResult(channel: Int,
  *
  * @param channelUpdates One entry per affected output channel whose aggregate actually changed, ordered by
  *                       the earliest onset among the notes updated on it.
+ *
  * @param droppedNotes   Notes dropped by the divergence rule; always empty for pressure and slide updates.
  */
 case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChannelExpressionUpdate] = Nil,
-                                  droppedNotes: Seq[MpeDroppedNotes] = Nil)
+                                     droppedNotes: Seq[MpeDroppedNotes] = Nil)
 
 /**
  * Per-note state on an output Member Channel: the note's own Expression Values, its reference count and
  * the logical time of the Note On that allocated it.
  */
 private class MpeNoteState(val expression: MutableMpeExpression,
-                        var referenceCount: Int,
-                        val onsetTime: Long)
+                           var referenceCount: Int,
+                           val onsetTime: Long)
 
 /**
  * Holds all mutable runtime state for a single MPE Member Channel within the allocator.
@@ -725,12 +727,20 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    */
   private def bestCandidate(candidates: Seq[MpeChannelState], preferredChannel: Option[Int]): MpeChannelState =
     candidates.minBy { s =>
-      (hasHighExpressionPitchBend(s),                       // (a) no high bend (false < true)
-        s.noteCount,                                        // (b) fewest active Note Identities
-        s.lastNoteOnTime,                                   // (c) oldest onset
-        s.lastNoteOffTime,                                  // (d) oldest last Note Off
-        if (preferredChannel.contains(s.channel)) 0 else 1, // (e) prefer the input channel
-        s.channel)                                          // (e) then the lowest channel number
+      (
+        // (a) no high bend (false < true)
+        hasHighExpressionPitchBend(s),
+        // (b) fewest active Note Identities
+        s.noteCount,
+        // (c) oldest onset
+        s.lastNoteOnTime,
+        // (d) oldest last Note Off
+        s.lastNoteOffTime,
+        // (e) prefer the input channel
+        if (preferredChannel.contains(s.channel)) 0 else 1,
+        // (e) then the lowest channel number
+        s.channel
+      )
     }
 
   /**

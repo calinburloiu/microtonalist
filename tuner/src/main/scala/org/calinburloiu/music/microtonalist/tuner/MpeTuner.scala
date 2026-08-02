@@ -705,8 +705,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * notes the update dropped first, then the recomputed Expression Values of each affected output channel.
    *
    * @param dropReason The reason logged for each dropped note. Only an Expression Pitch Bend update can
-   *                    actually produce drops, so it is the sole path that passes a meaningful reason;
-   *                    callers on the slide and pressure paths pass [[NoDropExpected]] instead.
+   *                   actually produce drops, so it is the sole path that passes a meaningful reason;
+   *                   callers on the slide and pressure paths pass [[NoDropExpected]] instead.
    */
   private def emitExpressionUpdateResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
                                          alloc: MpeChannelAllocator, dropReason: String): Unit = {
