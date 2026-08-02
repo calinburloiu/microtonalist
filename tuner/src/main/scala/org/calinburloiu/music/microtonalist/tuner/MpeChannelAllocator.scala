@@ -69,6 +69,10 @@ case class ImmutableMpeExpression(pitchBendCents: Double = MpeExpression.Default
                                   pressure: Int = MpeExpression.DefaultPressure,
                                   slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
 
+case object ImmutableMpeExpression {
+  val Default: ImmutableMpeExpression = ImmutableMpeExpression()
+}
+
 /**
  * A note together with its origin: the pair (input channel, note number).
  *
@@ -127,9 +131,7 @@ case class MpeDroppedNotes(channel: Int,
  *
  * @param channel      The 0-indexed MIDI channel assigned to the note.
  * @param update       The Expression Values of `channel` that changed as a result of the allocation.
- * @param droppedNotes Any notes that were dropped as a result of this allocation, including a duplicate Note
- *                     On whose overridden Expression Values raise it to a High Expression Pitch Bend — the
- *                     allocation algorithm is bypassed for a duplicate, but the divergence rule is not.
+ * @param droppedNotes Any notes that were dropped as a result of this allocation.
  *
  * @param isDuplicate  `true` when the Note On raised an already active identity's reference count, so the
  *                     allocation algorithm was bypassed.
@@ -676,10 +678,9 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
                          targetGroup: ChannelGroup): MpeAllocationResult = {
     val before = snapshotOf(state.expression)
     val existingIdentities = state.noteIdentities
-    val noteExpression = MutableMpeExpression(
-      expression.map(_.pitchBendCents).getOrElse(MpeExpression.DefaultPitchBendCents),
-      expression.map(_.pressure).getOrElse(MpeExpression.DefaultPressure),
-      expression.map(_.slide).getOrElse(MpeExpression.DefaultSlide))
+    val actualExpression = expression.getOrElse(ImmutableMpeExpression.Default)
+    val noteExpression = MutableMpeExpression(actualExpression.pitchBendCents,
+      actualExpression.pressure, actualExpression.slide)
 
     state.addNote(noteIdentity, noteExpression, time, targetGroup)
     noteChannels(noteIdentity) = state.channel
@@ -853,7 +854,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   /**
    * Drops the given notes from a channel, clearing their channel bindings so that a Note Off the performer
-   * sends for them afterwards is discarded.
+   * sends for them afterward is discarded.
    *
    * @return the dropped notes, oldest onset first, each with the reference count it held.
    */

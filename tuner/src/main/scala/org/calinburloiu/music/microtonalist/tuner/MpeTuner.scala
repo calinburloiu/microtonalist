@@ -215,7 +215,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val midiNote = msg.midiNote
     val velocity = msg.velocity
 
-    getAllocatorForInput(inputChannel) match {
+    allocatorFor(inputChannel) match {
       case Some(alloc) =>
         val zone = currentZone(alloc)
         val isMpeInput = _inputMode == MpeInputMode.Mpe
@@ -247,6 +247,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         buffer += NoteOnScMidiMessage(outChannel, midiNote, velocity).asJava
 
       case None =>
+        // TODO #250 This is not correct
         // No allocator for this channel, forward as-is
         buffer += NoteOnScMidiMessage(inputChannel, midiNote, velocity).asJava
     }
@@ -271,7 +272,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     if (_inputMode == MpeInputMode.Mpe && isMasterChannel(inputChannel)) {
       buffer += msg.asJava
     } else {
-      getAllocatorForInput(inputChannel).foreach { alloc =>
+      allocatorFor(inputChannel).foreach { alloc =>
         // The Channel Pressure reset applies in Non-MPE Input Mode only: there the Tuner is the controller
         // that synthesized the value, whereas in MPE Input Mode the dimension passes through from the
         // sender and a conforming sender's own pre-release reset reaches the output as an ordinary update.
@@ -317,7 +318,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         // Per-note pitch bend in MPE input - treat as Expression Pitch Bend.
         // The allocator fans the update out by itself to every output channel holding a note of
         // this input channel.
-        getAllocatorForInput(inputChannel).foreach { alloc =>
+        allocatorFor(inputChannel).foreach { alloc =>
           val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
             pitchBendValue, currentZone(alloc).memberPitchBendSensitivity)
           emitExpressionUpdateResult(buffer, alloc.updateExpressionPitchBend(inputChannel, pitchBendCents),
@@ -369,7 +370,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       //  the same regression as the Channel Pressure case in `processChannelPressure`.
       case ScMidiCc.MpeSlide =>
         if (inputMode == MpeInputMode.Mpe) {
-          getAllocatorForInput(inputChannel).foreach { alloc =>
+          allocatorFor(inputChannel).foreach { alloc =>
             emitExpressionUpdateResult(buffer, alloc.updateSlide(inputChannel, ccValue), alloc, NoDropExpected)
           }
         } else {
@@ -578,7 +579,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       //  control instead. Note this is a regression: before the Expression Value model, a Master Channel
       //  note was recorded in the Tuner's own note map and its Channel Pressure was forwarded on the Master
       //  Channel for as long as such a note sounded.
-      getAllocatorForInput(msg.channel).foreach { alloc =>
+      allocatorFor(msg.channel).foreach { alloc =>
         emitExpressionUpdateResult(buffer, alloc.updatePressure(msg.channel, msg.value), alloc, NoDropExpected)
       }
     } else {
@@ -605,7 +606,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // Non-MPE input: convert Polyphonic Key Pressure to Channel Pressure on the allocated Member
       // Channel, since MPE forbids Polyphonic Key Pressure on Member Channels. The value is the addressed
       // note's own Expression Value and is averaged with those of the other notes on its output channel.
-      getAllocatorForInput(inputChannel).foreach { alloc =>
+      allocatorFor(inputChannel).foreach { alloc =>
         emitExpressionUpdateResult(buffer,
           alloc.updatePressure(MpeNoteIdentity(inputChannel, midiNote), pressure), alloc, NoDropExpected)
       }
@@ -777,17 +778,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     if (zone.isEnabled) Some(MpeChannelAllocator(zone)) else None
   }
 
-  private def getAllocatorForInput(inputChannel: Int): Option[MpeChannelAllocator] = {
+  private def allocatorFor(channel: Int): Option[MpeChannelAllocator] = {
     // For non-MPE input, use the first enabled zone's allocator
     if (_inputMode == MpeInputMode.NonMpe) {
       lowerAllocator.orElse(upperAllocator)
     } else {
       // For MPE input, determine zone based on input channel
-      if (lowerZone.isEnabled && (lowerZone.memberChannels.contains(inputChannel) ||
-        inputChannel == lowerZone.masterChannel)) {
+      if (lowerZone.isEnabled && (lowerZone.memberChannels.contains(channel) ||
+        channel == lowerZone.masterChannel)) {
         lowerAllocator
-      } else if (upperZone.isEnabled && (upperZone.memberChannels.contains(inputChannel) ||
-        inputChannel == upperZone.masterChannel)) {
+      } else if (upperZone.isEnabled && (upperZone.memberChannels.contains(channel) ||
+        channel == upperZone.masterChannel)) {
         upperAllocator
       } else {
         lowerAllocator.orElse(upperAllocator)
@@ -801,7 +802,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 }
 
-/** Plugin type name and the reasons logged when [[MpeTuner]] ends a note by its own decision. */
 object MpeTuner {
   /** The `Tuner` plugin type name this tuner is (de)serialized under. */
   val TypeName: String = "mpe"
@@ -809,8 +809,7 @@ object MpeTuner {
   /**
    * Logged when a Note On drops notes. The allocation algorithm freeing an occupied channel is the common
    * cause, but a new note assigned to a channel holding a High Expression Pitch Bend note — or one whose own
-   * bend is high — drops its co-residents too, as does a duplicate Note On whose overridden Expression
-   * Values raise it to a high bend.
+   * bend is high — drops its co-residents too.
    */
   private val DropReasonOnNoteOn: String = "channel freed, or High Expression Pitch Bend, on a new Note On"
 
