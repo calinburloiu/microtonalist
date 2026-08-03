@@ -209,7 +209,7 @@ private class MpeChannelState(val channel: Int) {
    * The average is recomputed on demand, the first time it is read after a mutation that can move it. The
    * value is immutable, so it stays valid across later mutations and serves as a "before" reference.
    */
-  def expression: ImmutableMpeExpression = {
+  def expression: MpeExpression = {
     if (_isExpressionStale) {
       // Averaging is defined only while at least one note is active. When the channel is unoccupied the
       // aggregate is left untouched, which gives every dimension a defined value at all times.
@@ -230,7 +230,7 @@ private class MpeChannelState(val channel: Int) {
   }
 
   /** An immutable snapshot of the Expression Values of an active note on this channel. */
-  def expressionFor(noteIdentity: MpeNoteIdentity): ImmutableMpeExpression = {
+  def expressionFor(noteIdentity: MpeNoteIdentity): MpeExpression = {
     val expression = _notes(noteIdentity).expression
     ImmutableMpeExpression(expression.pitchBendCents, expression.pressure, expression.slide)
   }
@@ -371,7 +371,7 @@ private class MpeChannelState(val channel: Int) {
 
   /** Returns the retained Channel Pressure to its default of 0. */
   def resetPressure(): Unit = {
-    _expression = expression.copy(pressure = MpeExpression.DefaultPressure)
+    _expression = expression.asInstanceOf[ImmutableMpeExpression].copy(pressure = MpeExpression.DefaultPressure)
   }
 }
 

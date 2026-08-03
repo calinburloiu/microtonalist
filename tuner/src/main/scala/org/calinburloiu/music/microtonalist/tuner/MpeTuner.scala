@@ -811,28 +811,28 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 object MpeTuner {
   /** The `Tuner` plugin type name this tuner is (de)serialized under. */
   val TypeName: String = "mpe"
+}
+
+/**
+ * Why the Tuner ended a note by its own decision, logged alongside the notes it dropped.
+ *
+ * @param message The human-readable reason written to the log.
+ */
+private enum DropReason(val message: String) {
+  /**
+   * A Note On dropped notes. The allocation algorithm freeing an occupied channel is the common cause, but
+   * a new note assigned to a channel holding a High Expression Pitch Bend note — or one whose own bend is
+   * high — drops its co-residents too.
+   */
+  case OnNoteOn extends DropReason("channel freed, or High Expression Pitch Bend, on a new Note On")
+
+  /** An Expression Pitch Bend made a note diverge from the others sharing its channel. */
+  case OnPitchBend extends DropReason("High Expression Pitch Bend diverging on a shared channel")
 
   /**
-   * Why the Tuner ended a note by its own decision, logged alongside the notes it dropped.
-   *
-   * @param message The human-readable reason written to the log.
+   * For callers of `emitExpressionUpdateResult` whose update can never actually produce drops:
+   * `result.droppedNotes` is always empty for slide and pressure updates (see
+   * [[MpeExpressionUpdateResult]]), so this reason is never surfaced in a log line.
    */
-  private enum DropReason(val message: String) {
-    /**
-     * A Note On dropped notes. The allocation algorithm freeing an occupied channel is the common cause, but
-     * a new note assigned to a channel holding a High Expression Pitch Bend note — or one whose own bend is
-     * high — drops its co-residents too.
-     */
-    case OnNoteOn extends DropReason("channel freed, or High Expression Pitch Bend, on a new Note On")
-
-    /** An Expression Pitch Bend made a note diverge from the others sharing its channel. */
-    case OnPitchBend extends DropReason("High Expression Pitch Bend diverging on a shared channel")
-
-    /**
-     * For callers of `emitExpressionUpdateResult` whose update can never actually produce drops:
-     * `result.droppedNotes` is always empty for slide and pressure updates (see
-     * [[MpeExpressionUpdateResult]]), so this reason is never surfaced in a log line.
-     */
-    case NotExpected extends DropReason("unreachable: slide/pressure updates never drop notes")
-  }
+  case NotExpected extends DropReason("unreachable: slide/pressure updates never drop notes")
 }
