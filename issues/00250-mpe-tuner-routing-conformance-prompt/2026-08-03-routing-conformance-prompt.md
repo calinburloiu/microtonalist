@@ -5,17 +5,19 @@
   filtering conform to the paper"
 - **Base commit**: `9feda4adf8be21da2db7a354b873bad576abbea4`
 - **Source of truth**: the MPE Tuner paper,
-  [`docs/architecture/tuner/mpe-tuner-paper.md`](../../../docs/architecture/tuner/mpe-tuner-paper.md)
-- **MPE Specification**: [`docs/architecture/tuner/mpe-spec.md`](../../../docs/architecture/tuner/mpe-spec.md)
-- **Cycle-1 prompt this one derives from**: [`code-prompt.md`](code-prompt.md)
+  [`docs/architecture/tuner/mpe-tuner-paper.md`](../../docs/architecture/tuner/mpe-tuner-paper.md)
+- **MPE Specification**: [`docs/architecture/tuner/mpe-spec.md`](../../docs/architecture/tuner/mpe-spec.md)
+- **Cycle-1 prompt this one derives from**:
+  [`code-prompt.md`](../00154-mpe-tuner-poly-expr/code/code-prompt.md)
 
 Your task is to make the MIDI message routing and filtering of the MPE Tuner
 (`tuner/src/main/scala/org/calinburloiu/music/microtonalist/tuner/MpeTuner.scala`) conform to the MPE Tuner paper, which
 is the source of truth. For reference, the MPE Specification on which the MPE Tuner is based is in `mpe-spec.md`.
 
 Use /superpowers:brainstorming . Sections, facts and bullets are numbered / identified to facilitate discussions. We are
-working on issue #250, so write superpowers' artifacts to `issues/00154-mpe-tuner-poly-expr/code/` — the same directory
-this prompt lives in, beside the cycle-1 artifacts.
+working on issue #250, so write superpowers' artifacts to `issues/00250-mpe-tuner-routing-conformance-prompt/` — the
+same directory this prompt lives in. The cycle-1 artifacts stay where they are, under
+`issues/00154-mpe-tuner-poly-expr/`.
 
 ## Scope
 
@@ -52,7 +54,8 @@ per forwarded Note On, because the tracker holds a set with no reference count).
 
 ## A note on the identifiers used here
 
-This document is a **filtered derivative** of the cycle-1 prompt [`code-prompt.md`](code-prompt.md). Every identifier is
+This document is a **filtered derivative** of the cycle-1 prompt
+[`code-prompt.md`](../00154-mpe-tuner-poly-expr/code/code-prompt.md). Every identifier is
 inherited from it verbatim and deliberately **not** renumbered: the message-handling bullets keep their `§2.2(d)`,
 `§2.2(e)`, `§2.2(f)` labels under the original `## 2. Implementation details` / `### 2.2. Changes in MpeTuner`
 headings, and the gaps keep their `P7`, `C3`, `C4`, `C5`, `C6`, `N4`, `I2`, `I3`, `I1` identifiers, in the cycle-1
