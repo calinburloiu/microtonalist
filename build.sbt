@@ -17,7 +17,7 @@
 import Dependencies.*
 
 ThisBuild / scalaVersion := "3.6.3"
-ThisBuild / version := "1.3.0-SNAPSHOT"
+ThisBuild / version := "1.3.0"
 ThisBuild / organization := "org.calinburloiu.music"
 
 // Register the coverage-related commands
