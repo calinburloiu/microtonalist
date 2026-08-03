@@ -415,7 +415,7 @@ The MPE Tuner maintains a single Zone configuration shared by its input and its 
 
 Beyond the non-MIDI configuration interface, the Zone configuration may be changed in-band, through an MCM. Validity is determined by channel number rather than by the channel's current role: the specification admits an MCM only on MIDI Channel 1, addressing the Lower Zone, or MIDI Channel 16, addressing the Upper Zone, and declares it invalid on any other channel [1, §2.1.1]. An MCM on one of those two channels is therefore honored even when that channel is at the time a Member Channel of the other Zone — a configuration the specification explicitly contemplates, since a single Zone may span fifteen Member Channels (Section 2.1) — and honoring it is what allows the collapsed Zone to be restored. An invalid MCM is ignored in its entirety: neither its selector nor its Data Entry is relayed (Section 4). A valid MCM — which also switches the Tuner to MPE Input Mode if it is not already in it (Section 4.1) — reconfigures the addressed Zone to the received number of Member Channels, applying the specification's rules: an MCM with zero Member Channels deactivates the Zone, and channels claimed from the other Zone are reassigned to the Zone configured most recently [1, §2.1.1]. An MCM that deactivates all Zones suspends MPE operation altogether (Section 4.1).
 
-The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.3) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64, the centered initial value the MPE Specification prescribes for a bipolar third dimension [1, §3.3.5] — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, an implementation may either emit no Note Off messages — relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4] — or emit explicit Note Off messages before the MCM, for robustness with receivers that do not fully conform; the choice is left to the implementer.
+The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.3) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64, the centered initial value the MPE Specification prescribes for a bipolar third dimension [1, §3.3.5] — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state. For the dropped notes, the Tuner emits explicit Note Off messages before the MCM — one per forwarded Note On, as Section 5.1 requires — rather than relying on the downstream receiver's obligation to stop ongoing notes upon receiving the MCM [1, §2.1.4], for robustness with receivers that do not fully conform.
 
 ### 4.3 Pitch Bend Sensitivity
 
@@ -485,7 +485,7 @@ message, and if the receiver in fact assigned the two Note On messages to differ
 exactly as many Note Offs as Note Ons, the Tuner emits exactly one Note Off for every Note On it forwarded. Where the
 Tuner ends a note by its own decision the obligation is discharged by the Note Offs of Section 6 — again one per
 forwarded Note On — after which the performer's later Note Offs find no count and are discarded, by the fourth rule
-above. Notes ended by Zone reconfiguration are the one exception, governed by Section 4.2.
+above. Notes ended by Zone reconfiguration are discharged the same way (Section 4.2).
 
 Throughout this paper, a channel's **count of active notes** means the number of distinct active Note Identities on it,
 not the sum of their reference counts.
@@ -782,6 +782,13 @@ that channel are dropped**. The rationale is that the performer's intent is to b
 sharing the channel would receive an unintended pitch deviation due to the averaged Pitch Bend computation (Section
 5.7), and the note that develops High Expression Pitch Bend will have its final Expression Pitch Bend diluted due to
 averaging.
+
+Several notes on a shared channel may acquire a High Expression Pitch Bend from the *same* Pitch Bend message, when
+those notes originate from the same input channel, because a Pitch Bend is a channel message that belongs to every note
+active on the input channel it arrives on (Section 7.2). The rule above then has no single bending note to protect. In
+that case the Tuner retains the most recently sounded of them — the one whose Note On is latest — and drops all the
+others. Retaining one preserves the performer's gesture on a voice rather than silencing the channel, and leaving
+exactly one active note restores invariant 2 of Section 6.3, which the incoming message had broken.
 
 #### 6.2.2 New Note with High Expression Pitch Bend on an Occupied Channel
 

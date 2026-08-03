@@ -38,8 +38,10 @@ messages it requires now, and `process(message)` rewrites each message flowing t
 - `MonophonicPitchBendTuner` tunes via per-channel Pitch Bend; because Pitch Bend is channel-wide it enforces monophony,
   folding all input onto one output channel and combining the performer's expressive bend with the tuning bend.
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
-  pitch-class bend, and reconfigures zones on an MPE Configuration Message. Its supporting types (`MpeZone*`,
-  `MpeChannelAllocator`) model the zone layout and note→channel allocation. See [Supported tuning
+  pitch-class bend, and reconfigures zones on an MPE Configuration Message. `MpeZone*` models the zone layout, while
+  `MpeChannelAllocator` owns both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`,
+  reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
+  `MpeTuner` remains the only component aware of the input mode. See [Supported tuning
   protocols](#supported-tuning-protocols) and the linked design docs.
 
 **Tuning-change detection.** `TuningChanger` (`@NotThreadSafe` plugin) inspects messages and returns a `TuningChange`;
@@ -156,6 +158,15 @@ These are signalled directly in the code:
 - `Track#run` is an unimplemented stub (TODO #121); `TrackManager` already provisions a per-track thread pool, but track
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
-- `MpeTuner` warns/forbids are still TODO for the non-MPE-input-with-both-zones case, and per-note MPE expression is not
-  yet updated continuously (TODO #154).
+- `MpeTuner`'s MIDI message routing and filtering does not yet conform to the paper: RPN/NRPN sequences, the scope of
+  the state reset on Zone reconfiguration, messages arriving outside every Zone or at the wrong level, Master Channel
+  CC #74 and Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages 124–127 are still open
+  (TODO #250). The per-note Expression Value model itself — averaging, fan-out, reference counting and the Note
+  On/Note Off emission rules — is implemented.
+- `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
+  the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded
+  cents disagree with the cents retained for already-active notes (TODO #253).
+- `MpeTuner.stopAllNotes` emits one Note Off per active Master Channel note rather than one per forwarded Note On,
+  because `ScMidiChannelStateTracker` tracks active notes as a set with no reference count (TODO #254). Member Channel
+  notes, which the allocator reference-counts, are unaffected.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).

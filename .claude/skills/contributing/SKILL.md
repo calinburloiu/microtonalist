@@ -82,6 +82,13 @@ The `pr` script applies it to PR titles automatically when you pass `<parent>/<c
 `32/33`, which always wins over auto-detection); writing commit messages with this prefix
 stays your responsibility.
 
+## Escaping stray `#<number>` references
+
+GitHub autolinks any `#<number>` in an issue/PR title or body to an issue or PR — including
+when the number isn't one, e.g. a MIDI CC number like `CC #74`. Wrap it in backticks
+(`` `#74` ``) so it doesn't turn into a bogus issue/PR link; `\#74` does not prevent the
+autolink.
+
 ## Issue documents
 
 Documents related to an issue (plans, specs, design documents, prompts, etc.) live under `issues/`,

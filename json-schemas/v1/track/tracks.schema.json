@@ -1,5 +1,5 @@
 {
-    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/tracks/tracks.schema.json",
+    "$id": "https://raw.githubusercontent.com/calinburloiu/microtonalist/main/json-schemas/v1/track/tracks.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Tracks Setup",
     "description": "File format that configures tracks for MIDI musical instruments to play with microtones.",
