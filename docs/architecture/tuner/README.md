@@ -43,6 +43,15 @@ messages it requires now, and `process(message)` rewrites each message flowing t
   reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   `MpeTuner` remains the only component aware of the input mode. See [Supported tuning
   protocols](#supported-tuning-protocols) and the linked design docs.
+    * The allocator's supporting types live in their own files next to it: `MpeExpression.scala` holds the Expression
+      Value model (`MpeExpression` and its `Mutable`/`Immutable` implementations, plus the `MpeExpressionUpdate` /
+      `MpeChannelExpressionUpdate` change vocabulary), `MpeNoteIdentity.scala` the note identity, and
+      `MpeChannelState.scala` the allocator's per-channel and per-note mutable state. `MpeChannelAllocator.scala` keeps
+      the allocation algorithm and the result types it returns (`MpeAllocationResult`, `MpeReleaseResult`,
+      `MpeExpressionUpdateResult`, `MpeDroppedNote`/`MpeDroppedNotes`).
+    * All of these — the allocator included — are `private[tuner]`: they are implementation detail shared between
+      `MpeTuner` and `MpeChannelAllocator`, not API for the rest of the module. Only `MpeTuner`, `MpeZone*` and
+      `MpeInputMode` are public, because `format` references them.
 
 **Tuning-change detection.** `TuningChanger` (`@NotThreadSafe` plugin) inspects messages and returns a `TuningChange`;
 `PedalTuningChanger` triggers on a pedal-like CC crossing a threshold, reading its trigger map from a

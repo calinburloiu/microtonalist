@@ -24,89 +24,10 @@ import scala.collection.mutable
 import scala.util.boundary
 
 /**
- * Holds the MPE '''Expression Values''' of a note, or the aggregated Expression Values of an output MPE
- * Member Channel.
- *
- * A note's Expression Values are the performer-controlled values of the three MPE control dimensions:
- * its Expression Pitch Bend, its Channel Pressure and its CC #74 (Timbre / Slide). The Tuning Pitch Bend
- * is ''not'' an Expression Value — it belongs to the tuning domain rather than to the expression domain,
- * and is added to the Expression Pitch Bend only when the Pitch Bend emitted on a Member Channel is
- * computed.
- */
-trait MpeExpression {
-  /**
-   * Expression Pitch Bend in cents, excluding any tuning offset. 0.0 means no bend.
-   * Stored in cents so that the value is independent of the current Pitch Bend Sensitivity.
-   */
-  def pitchBendCents: Double
-
-  /** Channel pressure (aftertouch) value. Ranges from 0 to 127. */
-  def pressure: Int
-
-  /** MIDI CC #74 (Timbre / Slide) value. Ranges from 0 to 127; 64 is the centre. */
-  def slide: Int
-}
-
-object MpeExpression {
-  /** Default Expression Pitch Bend value in cents (no bend). */
-  val DefaultPitchBendCents: Double = 0.0
-
-  /** Default channel pressure value (no pressure). */
-  val DefaultPressure: Int = 0
-
-  /** Default slide (CC #74) value (centre position). */
-  val DefaultSlide: Int = 64
-}
-
-private class MutableMpeExpression(var pitchBendCents: Double = MpeExpression.DefaultPitchBendCents,
-                                   var pressure: Int = MpeExpression.DefaultPressure,
-                                   var slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
-
-/**
- * Immutable [[MpeExpression]], used to hand Expression Values to [[MpeChannelAllocator]] and to snapshot a
- * channel's aggregate.
- */
-case class ImmutableMpeExpression(pitchBendCents: Double = MpeExpression.DefaultPitchBendCents,
-                                  pressure: Int = MpeExpression.DefaultPressure,
-                                  slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
-
-case object ImmutableMpeExpression {
-  val Default: ImmutableMpeExpression = ImmutableMpeExpression()
-}
-
-/**
- * A note together with its origin: the pair (input channel, note number).
- *
- * The input channel belongs in a note's identity because it is the carrier of per-note information in both
- * input modes — of a note's Expression Values in MPE Input Mode, and of the Polyphonic Key Pressure
- * addressed to a note in Non-MPE Input Mode — so two notes with the same note number arriving on different
- * input channels are independent notes.
- */
-case class MpeNoteIdentity(inputChannel: Int, midiNote: MidiNote)
-
-/**
- * Which of an output Member Channel's aggregated Expression Values changed as the result of an operation.
- *
- * `None` means the dimension is unchanged and needs no message on the output channel; `Some(value)` means
- * it changed to `value`.
- */
-case class MpeExpressionUpdate(pitchBendCents: Option[Double] = None,
-                               pressure: Option[Int] = None,
-                               slide: Option[Int] = None)
-
-object MpeExpressionUpdate {
-  /** No Expression Value changed. */
-  val Unchanged: MpeExpressionUpdate = MpeExpressionUpdate()
-}
-
-/** An [[MpeExpressionUpdate]] addressed to a specific output Member Channel. */
-case class MpeChannelExpressionUpdate(channel: Int, update: MpeExpressionUpdate)
-
-/**
  * A dropped note together with the number of Note Off messages owed for it: one per Note On that was
  * forwarded for it, which is the reference count it held at the moment of the drop.
  */
-case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
+private[tuner] case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
 
 /**
  * Describes the notes that were removed from a channel as a side-effect of an allocation or of an
@@ -123,9 +44,9 @@ case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
  * @param notes   The dropped notes, oldest onset first, each with the reference count it held.
  * @param group   The [[ChannelGroup]] that `channel` belonged to at the time of the drop.
  */
-case class MpeDroppedNotes(channel: Int,
-                           notes: Seq[MpeDroppedNote],
-                           group: ChannelGroup)
+private[tuner] case class MpeDroppedNotes(channel: Int,
+                                          notes: Seq[MpeDroppedNote],
+                                          group: ChannelGroup)
 
 /**
  * Result of a channel allocation operation.
@@ -137,10 +58,10 @@ case class MpeDroppedNotes(channel: Int,
  * @param isDuplicate  `true` when the Note On raised an already active identity's reference count, so the
  *                     allocation algorithm was bypassed.
  */
-case class MpeAllocationResult(channel: Int,
-                               update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                               droppedNotes: Option[MpeDroppedNotes] = None,
-                               isDuplicate: Boolean = false)
+private[tuner] case class MpeAllocationResult(channel: Int,
+                                              update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
+                                              droppedNotes: Option[MpeDroppedNotes] = None,
+                                              isDuplicate: Boolean = false)
 
 /**
  * Result of releasing a note.
@@ -152,9 +73,9 @@ case class MpeAllocationResult(channel: Int,
  *                         is carried by `update.pressure` and must be emitted ''before'' the Note Off — the
  *                         sole exception to the Note Off message ordering.
  */
-case class MpeReleaseResult(channel: Int,
-                            update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                            pressureWasReset: Boolean = false)
+private[tuner] case class MpeReleaseResult(channel: Int,
+                                           update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
+                                           pressureWasReset: Boolean = false)
 
 /**
  * Result of an Expression Value update received on an input channel and fanned out to every output Member
@@ -165,215 +86,8 @@ case class MpeReleaseResult(channel: Int,
  *
  * @param droppedNotes   Notes dropped by the divergence rule; always empty for pressure and slide updates.
  */
-case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChannelExpressionUpdate] = Nil,
-                                     droppedNotes: Seq[MpeDroppedNotes] = Nil)
-
-/**
- * Per-note state on an output Member Channel: the note's own Expression Values, its reference count and
- * the logical time of the Note On that allocated it.
- */
-private class MpeNoteState(val expression: MutableMpeExpression,
-                           var referenceCount: Int,
-                           val onsetTime: Long)
-
-/**
- * Holds all mutable runtime state for a single MPE Member Channel within the allocator.
- *
- * A channel is considered ''occupied'' while it has at least one active Note Identity (i.e. a Note On has
- * been received but the matching Note Off has not yet arrived). Once it becomes unoccupied its pitch-class
- * and group assignments are cleared and the channel is eligible for reuse, but it '''retains''' its
- * aggregated Expression Values: averaging is defined only while at least one note is active, and the
- * retained values are what let the caller omit control messages whose value would not change.
- *
- * @param channel The 0-indexed MIDI channel number this state object represents.
- */
-private class MpeChannelState(val channel: Int) {
-  private val _notes: mutable.HashMap[MpeNoteIdentity, MpeNoteState] = mutable.HashMap.empty
-  private var _expression: ImmutableMpeExpression = ImmutableMpeExpression.Default
-  private var _isExpressionStale: Boolean = false
-  private var _pitchClass: Option[PitchClass] = None
-  private var _group: Option[ChannelGroup] = None
-  private var _lastNoteOnTime: Long = 0L
-  private var _lastNoteOffTime: Long = 0L
-
-  /** An immutable snapshot of the Note Identities currently active on this channel. */
-  def noteIdentities: Set[MpeNoteIdentity] = _notes.keySet.toSet
-
-  /** The number of distinct active Note Identities, whatever their reference counts. */
-  def noteCount: Int = _notes.size
-
-  /**
-   * The channel's aggregated Expression Values: the average of its active notes' values, one term per Note
-   * Identity whatever its reference count, retained unchanged while the channel is unoccupied.
-   *
-   * The average is recomputed on demand, the first time it is read after a mutation that can move it. The
-   * value is immutable, so it stays valid across later mutations and serves as a "before" reference.
-   */
-  def expression: MpeExpression = {
-    if (_isExpressionStale) {
-      // Averaging is defined only while at least one note is active. When the channel is unoccupied the
-      // aggregate is left untouched, which gives every dimension a defined value at all times.
-      if (_notes.nonEmpty) _expression = averageExpression
-      _isExpressionStale = false
-    }
-    _expression
-  }
-
-  /** The average of the active notes' Expression Values, rounding the two integer dimensions half up. */
-  private def averageExpression: ImmutableMpeExpression = {
-    val noteStates = _notes.values
-    val count = _notes.size
-    ImmutableMpeExpression(
-      pitchBendCents = noteStates.map(_.expression.pitchBendCents).sum / count,
-      pressure = Math.round(noteStates.map(_.expression.pressure).sum.toDouble / count).toInt,
-      slide = Math.round(noteStates.map(_.expression.slide).sum.toDouble / count).toInt)
-  }
-
-  /** An immutable snapshot of the Expression Values of an active note on this channel. */
-  def expressionFor(noteIdentity: MpeNoteIdentity): MpeExpression = {
-    val expression = _notes(noteIdentity).expression
-    ImmutableMpeExpression(expression.pitchBendCents, expression.pressure, expression.slide)
-  }
-
-  /** The Expression Pitch Bend of an active note, read without copying the other two dimensions. */
-  def pitchBendCentsOf(noteIdentity: MpeNoteIdentity): Double = _notes(noteIdentity).expression.pitchBendCents
-
-  /** Sets the Expression Pitch Bend of an active note, invalidating the channel's aggregate. */
-  def setPitchBendCents(noteIdentity: MpeNoteIdentity, pitchBendCents: Double): Unit = {
-    _notes(noteIdentity).expression.pitchBendCents = pitchBendCents
-    _isExpressionStale = true
-  }
-
-  /** Sets the Channel Pressure of an active note, invalidating the channel's aggregate. */
-  def setPressure(noteIdentity: MpeNoteIdentity, pressure: Int): Unit = {
-    _notes(noteIdentity).expression.pressure = pressure
-    _isExpressionStale = true
-  }
-
-  /** Sets the CC #74 (Timbre / Slide) value of an active note, invalidating the channel's aggregate. */
-  def setSlide(noteIdentity: MpeNoteIdentity, slide: Int): Unit = {
-    _notes(noteIdentity).expression.slide = slide
-    _isExpressionStale = true
-  }
-
-  /** The reference count of an active identity, or 0 when it is not active on this channel. */
-  def referenceCountOf(noteIdentity: MpeNoteIdentity): Int =
-    _notes.get(noteIdentity).map(_.referenceCount).getOrElse(0)
-
-  /** The logical timestamp of the Note On that allocated an active identity. */
-  def onsetTimeOf(noteIdentity: MpeNoteIdentity): Long = _notes(noteIdentity).onsetTime
-
-  /**
-   * The pitch class shared by all active notes on this channel, or `None` when the channel is
-   * unoccupied. All notes on a single channel are required to belong to the same pitch class so
-   * that one tuning offset can serve all of them.
-   */
-  def pitchClass: Option[PitchClass] = _pitchClass
-
-  /**
-   * The [[ChannelGroup]] this channel is currently assigned to, or `None` when the channel is
-   * unoccupied.
-   */
-  def group: Option[ChannelGroup] = _group
-
-  /**
-   * The logical timestamp of the most recent Note On event processed on this channel.
-   * Zero when the channel is unoccupied (never received a note, or all notes have been released).
-   */
-  def lastNoteOnTime: Long = _lastNoteOnTime
-
-  /**
-   * The logical timestamp of the most recent Note Off event processed on this channel.
-   * Zero when the channel has never had a note released.
-   */
-  def lastNoteOffTime: Long = _lastNoteOffTime
-
-  /** `true` if this channel has at least one active note; `false` if it is free for allocation. */
-  def isOccupied: Boolean = _notes.nonEmpty
-
-  /**
-   * Adds a note to this channel with a reference count of 1, updating pitch class, group, and onset time
-   * accordingly. Pitch class and group are only set when the channel transitions from unoccupied to
-   * occupied. When the channel is already occupied, the `targetGroup` must match the existing group.
-   *
-   * @param noteIdentity The note being added.
-   * @param expression   The initial Expression Values of the note.
-   * @param time         The logical timestamp of the onset.
-   * @param targetGroup  The channel group; must match the existing group when the channel is already
-   *                     occupied.
-   */
-  def addNote(noteIdentity: MpeNoteIdentity,
-              expression: MpeExpression,
-              time: Long,
-              targetGroup: ChannelGroup): Unit = {
-    if (_notes.isEmpty) {
-      _pitchClass = Some(noteIdentity.midiNote.pitchClass)
-      _group = Some(targetGroup)
-    } else {
-      require(_group.contains(targetGroup),
-        s"targetGroup $targetGroup does not match existing group ${_group.orNull} on channel $channel")
-    }
-    val noteExpression = MutableMpeExpression(expression.pitchBendCents, expression.pressure, expression.slide)
-    _notes(noteIdentity) = MpeNoteState(noteExpression, referenceCount = 1, onsetTime = time)
-    _lastNoteOnTime = time
-    _isExpressionStale = true
-  }
-
-  /**
-   * Increments the reference count of an already active identity, for a duplicate Note On. Nothing else
-   * changes: the identity keeps its onset time, the channel keeps its own timestamps because no allocation
-   * occurs, and the aggregate is not invalidated because an identity contributes a single term to it
-   * whatever its reference count.
-   */
-  def incrementReferenceCount(noteIdentity: MpeNoteIdentity): Unit = {
-    require(referenceCountOf(noteIdentity) >= 1,
-      s"$noteIdentity holds no active reference count on channel $channel")
-    _notes(noteIdentity).referenceCount += 1
-  }
-
-  /**
-   * Decrements the reference count of an active identity, removing it when the count reaches 0.
-   *
-   * @return `true` when the identity was removed, i.e. the count reached 0.
-   */
-  def decrementReferenceCount(noteIdentity: MpeNoteIdentity, time: Long): Boolean = {
-    require(referenceCountOf(noteIdentity) >= 1,
-      s"$noteIdentity holds no active reference count on channel $channel")
-    val noteState = _notes(noteIdentity)
-    noteState.referenceCount -= 1
-    if (noteState.referenceCount == 0) {
-      removeNote(noteIdentity, time)
-      true
-    } else {
-      false
-    }
-  }
-
-  /**
-   * Removes a note from this channel whatever its reference count, updating note-off time accordingly.
-   * Clears pitch class, group, and onset time when the channel becomes unoccupied. The aggregate is
-   * invalidated, but a channel left unoccupied retains it rather than recomputing over an empty set.
-   *
-   * @param noteIdentity The note to remove.
-   * @param time         The logical timestamp of the removal.
-   */
-  def removeNote(noteIdentity: MpeNoteIdentity, time: Long): Unit = {
-    if (_notes.remove(noteIdentity).isDefined) {
-      _lastNoteOffTime = time
-      _isExpressionStale = true
-      if (_notes.isEmpty) {
-        _pitchClass = None
-        _group = None
-        _lastNoteOnTime = 0L
-      }
-    }
-  }
-
-  /** Returns the retained Channel Pressure to its default of 0. */
-  def resetPressure(): Unit = {
-    _expression = expression.asInstanceOf[ImmutableMpeExpression].copy(pressure = MpeExpression.DefaultPressure)
-  }
-}
+private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChannelExpressionUpdate] = Nil,
+                                                    droppedNotes: Seq[MpeDroppedNotes] = Nil)
 
 /**
  * Manages channel allocation and the Expression Value model for a single MPE Zone.
@@ -404,7 +118,7 @@ private class MpeChannelState(val channel: Int) {
  *
  * @param zone The MPE zone to allocate channels for.
  */
-class MpeChannelAllocator(private val zone: MpeZoneStructure) {
+private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 
   import MpeChannelAllocator.*
 
@@ -891,7 +605,7 @@ class MpeChannelAllocator(private val zone: MpeZoneStructure) {
 }
 
 /** Constants and the [[MpeChannelAllocator.ChannelGroup]] taxonomy of the dual-group allocation strategy. */
-object MpeChannelAllocator {
+private[tuner] object MpeChannelAllocator {
 
   /**
    * The absolute threshold in cents above which an Expression Pitch Bend is considered "high" and triggers note
