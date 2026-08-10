@@ -1,9 +1,10 @@
 # MPE Tuner MIDI Message Routing and Filtering Conformance (Prompt)
 
 - **Date**: 2026-08-03
+- **Revised**: 2026-08-10 — rebased onto #252's file split (see "Rebase onto #252" below)
 - **Issue**: [#250](https://github.com/calinburloiu/microtonalist/issues/250) — "Make MPE Tuner MIDI message routing and
   filtering conform to the paper"
-- **Base commit**: `9feda4adf8be21da2db7a354b873bad576abbea4`
+- **Base commit**: `5f55a84bf81eb95cb8619d56a918f22768b7b686`
 - **Source of truth**: the MPE Tuner paper,
   [`docs/architecture/tuner/mpe-tuner-paper.md`](../../docs/architecture/tuner/mpe-tuner-paper.md)
 - **MPE Specification**: [`docs/architecture/tuner/mpe-spec.md`](../../docs/architecture/tuner/mpe-spec.md)
@@ -66,6 +67,37 @@ and the gap report, so renumbering would silently break all three mappings.
 Every line number and every statement about the current state of the code in this document was re-derived against the
 base commit above. The cycle-1 prompt's line numbers predate cycle 1's rewrite of `MpeTuner.scala` and
 `MpeChannelAllocator.scala` and must not be trusted.
+
+## Rebase onto #252
+
+This prompt was first written against commit `9feda4a` (PR #251, cycle 1). It has since been rebased onto
+`5f55a84` — issue [#252](https://github.com/calinburloiu/microtonalist/issues/252), PR #257 — which split
+`MpeChannelAllocator.scala` and made the MPE Tuner's internal types package-private. That change is **pure
+relocation plus visibility modifiers, with no behaviour change**, so every requirement, gap identifier and
+paper citation below is unaffected. Two things about the code you will be editing did change:
+
+1. **Where the types live.** `MpeChannelAllocator.scala` is now 643 lines rather than 929, holding the
+   allocation algorithm and its result types (`MpeDroppedNote`, `MpeDroppedNotes`, `MpeAllocationResult`,
+   `MpeReleaseResult`, `MpeExpressionUpdateResult`). The rest moved to three new files in the same package and
+   directory: `MpeExpression.scala` (the `MpeExpression` trait and its `Mutable`/`Immutable` implementations,
+   plus `MpeExpressionUpdate` and `MpeChannelExpressionUpdate`), `MpeNoteIdentity.scala`, and
+   `MpeChannelState.scala` (`MpeNoteState` and `MpeChannelState`). Every `MpeChannelAllocator.scala` line
+   number below is re-derived against the split file. To map an old number yourself: the allocator class and
+   its companion (formerly lines 378-929) shifted down by 286, and the result types (formerly 105-169) by 79;
+   everything between them left the file. `MpeTuner.scala` was **not touched** by #252, so all of its line
+   numbers — the four `TODO #250` anchors included — carry over unchanged, as do those for `MpeZone.scala` and
+   every `sc-midi` file cited here.
+
+2. **Visibility.** All eighteen declarations across those four files are now `private[tuner]`, including
+   `MpeChannelAllocator` itself and its companion. They are implementation detail shared between `MpeTuner`
+   and `MpeChannelAllocator`. Consequences for this work: nothing you add outside the `tuner` module may name
+   these types (`MpeTuner`, `MpeZone*` and `MpeInputMode` remain public, which is what `format` relies on),
+   any new test touching them belongs in `package org.calinburloiu.music.microtonalist.tuner`, and a new
+   top-level helper of your own in this area should carry `private[tuner]` too — bare top-level `private` is
+   not reliably package-scoped under Scala 3.
+
+If **C3**'s rescoping of Zone-reconfiguration state reset leads you into the allocator's per-channel state,
+that state now lives in `MpeChannelState.scala`, not alongside the allocator.
 
 ## 2. Implementation details
 
@@ -259,11 +291,12 @@ not. In MPE Input Mode both are handed straight to the allocator:
 - CC #74: `processCc`'s `case ScMidiCc.MpeSlide` (lines 374-381) calls `alloc.updateSlide(inputChannel, ccValue)`.
 - Channel Pressure: `processChannelPressure` (lines 578-590) calls `alloc.updatePressure(msg.channel, msg.value)`.
 
-Both allocator methods (`MpeChannelAllocator.scala:558-560` and `583-585`) resolve their targets through
-`identitiesOn(inputChannel)` (lines 784-785), which filters `noteChannels` — the allocator's identity → output-channel
+Both allocator methods (`MpeChannelAllocator.scala:272-274` and `297-299`) resolve their targets through
+`identitiesOn(inputChannel)` (lines 498-499), which filters `noteChannels` — the allocator's identity → output-channel
 bindings. A Master Channel note never enters that map: `processNoteOn` forwards it before `processMemberNoteOn` is
-reached (lines 203-208). So `identitiesOn` returns an empty sequence, `updateExpressionValues` (lines 799-825) produces
-an empty `MpeExpressionUpdateResult`, and **nothing at all is emitted** for a Master Channel CC #74 or Channel Pressure.
+reached (`MpeTuner.scala:203-208`). So `identitiesOn` returns an empty sequence, `updateExpressionValues`
+(`MpeChannelAllocator.scala:513-539`) produces an empty `MpeExpressionUpdateResult`, and **nothing at all is emitted**
+for a Master Channel CC #74 or Channel Pressure.
 
 Both sites already carry a `TODO #250` saying so (lines 372-373 and 583-587). The second records that this is a
 **regression** relative to the pre-cycle-1 code, where a Master Channel note was recorded in the Tuner's own note map
