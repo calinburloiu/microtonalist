@@ -1062,16 +1062,23 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
   it should "update a single identity's Channel Pressure contribution" in {
     // Given
+    // C4 and C5 both arrive on input channel 1 but land on different channels, and C3, from another input
+    // channel, shares C4's.
     val alloc = allocator2 // PCG=1, EG=1
     val first = MpeNoteIdentity(1, C4)
+    val sibling = MpeNoteIdentity(1, C5)
     val channel = alloc.allocate(first).channel
-    alloc.allocate(MpeNoteIdentity(2, C5))
+    val siblingChannel = alloc.allocate(sibling).channel
+    siblingChannel should not equal channel
     alloc.allocate(MpeNoteIdentity(3, C3)).channel shouldBe channel
     // When
     val result = alloc.updatePressure(first, 80)
     // Then
+    // Only C4's own contribution changes: its channel averages 80 with C3's 0, and — unlike an input-channel
+    // update — nothing fans out to C5, which shares C4's input channel.
     result.channelUpdates shouldEqual Seq(
       MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pressure = Some(40))))
+    alloc.channelExpression(siblingChannel).pressure shouldBe MpeExpression.DefaultPressure
   }
 
   it should "keep the most recently sounded note when several notes on a channel acquire a high bend at once" in {

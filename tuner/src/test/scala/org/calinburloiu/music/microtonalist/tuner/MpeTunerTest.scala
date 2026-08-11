@@ -133,6 +133,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 7))
   )
 
+  private def upperZoneOnlyTuner: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 7))
+  )
+
   private def tuner7MpeInput: MpeTuner = MpeTuner(
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0)),
     initialInputMode = MpeInputMode.Mpe
@@ -796,14 +800,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pb2.cents shouldEqual -14.0
     }
 
-  it should "route notes to the Lower Zone only when both Zones are enabled" in new Fixture(dualZoneTuner) {
-    // Non-MPE input is routed exclusively to the Lower Zone, so the Upper Zone's Member Channels (8..14)
-    // are unreachable and wasted — the configuration the Tuner warns about at construction and on reset().
+  it should "route notes to the Lower Zone when both Zones are enabled" in new Fixture(dualZoneTuner) {
+    // When
     private val out1 = noteOn(nonMpeInputChannel, C4)
     private val out2 = noteOn(nonMpeInputChannel, E4)
     // Then
+    // Non-MPE input is routed to a single Zone and the Lower Zone takes precedence when both are enabled,
+    // so the Upper Zone's Member Channels (8..14) are ignored and wasted — the configuration the Tuner
+    // warns about at construction and on reset().
     Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
       channel should (be >= 1 and be <= 7)
+    }
+  }
+
+  it should "route notes to the Upper Zone when it is the only Zone enabled" in new Fixture(upperZoneOnlyTuner) {
+    // When
+    private val out1 = noteOn(nonMpeInputChannel, C4)
+    private val out2 = noteOn(nonMpeInputChannel, E4)
+    // Then
+    // With no Lower Zone to take precedence, the single Zone non-MPE input is routed to is the Upper one,
+    // so its Member Channels (8..14) carry the notes.
+    Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
+      channel should (be >= 8 and be <= 14)
     }
   }
 
@@ -1791,6 +1809,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractSlides(out2) shouldBe empty
       extractChannelPressures(out2) shouldBe empty
       extractPitchBends(out3).head.cents shouldEqual quarterCommaMeantone.e
+      extractSlides(out3) shouldBe empty
+      extractChannelPressures(out3) shouldBe empty
 
       // 3. E2 arrives on input Channel 2 carrying Pitch Bend −20 cents, Channel Pressure 96 and CC #74 96.
       //    Both groups are unavailable for it, so Step 3 shares the oldest E channel and all three
@@ -1801,13 +1821,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractSlides(out4) shouldEqual Seq(CcScMidiMessage(ch, ScMidiCc.MpeSlide, (48 + 96) / 2))
       extractChannelPressures(out4) shouldEqual Seq(ChannelPressureScMidiMessage(ch, (32 + 96) / 2))
 
-      // 4. The performer bends E2 to +30 cents: the channel's Expression Pitch Bend becomes +20 — the
-      //    half-amplitude attenuation of a shared channel — and no note is dropped, the threshold applying
-      //    to a note's own bend.
-      private val out5 = pitchBend(2, 30.0)
+      // 4. The performer bends E2 to +31 cents: the channel's Expression Pitch Bend becomes +20.5 — the
+      //    half-amplitude attenuation of a shared channel — and no note is dropped. The threshold is
+      //    compared against a note's own bend in absolute value, and +31 stays below it even though the
+      //    51-cent excursion from E2's initial −20 exceeds it. Only the Pitch Bend dimension moves.
+      private val out5 = pitchBend(2, 31.0)
       extractPitchBends(out5) should have size 1
-      extractPitchBends(out5).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 30.0) / 2)
+      extractPitchBends(out5).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 31.0) / 2)
       extractNoteOffs(out5) shouldBe empty
+      extractSlides(out5) shouldBe empty
+      extractChannelPressures(out5) shouldBe empty
 
       // 5. Note Off for E1: the Note Off is emitted first and the values recomputed without it follow.
       //    The Channel Pressure becomes the surviving note's own value rather than 0: in MPE Input Mode
@@ -1819,7 +1842,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         case cc: CcScMidiMessage if cc.number == ScMidiCc.MpeSlide => "slide"
         case _: ChannelPressureScMidiMessage => "pressure"
       } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
-      extractPitchBends(out6).head.cents shouldEqual (quarterCommaMeantone.e + 30.0)
+      extractPitchBends(out6).head.cents shouldEqual (quarterCommaMeantone.e + 31.0)
       extractSlides(out6) shouldEqual Seq(CcScMidiMessage(ch, ScMidiCc.MpeSlide, 96))
       extractChannelPressures(out6) shouldEqual Seq(ChannelPressureScMidiMessage(ch, 96))
 
@@ -2179,12 +2202,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
       // Given
       // The state reached at step 4 of "Averaging Expression Values": E1 (input Channel 1, +10 cents) and
-      // E2 (input Channel 2, +30 cents) share an output channel, averaging to +20.
+      // E2 (input Channel 2, +31 cents) share an output channel, averaging to +20.5.
       private val out1 = noteOn(1, E1, pbCents = Some(10.0))
       private val ch = extractNoteOns(out1).head.channel
       noteOn(3, E3)
       noteOn(4, E4)
-      extractNoteOns(noteOn(2, E2, pbCents = Some(30.0))).head.channel shouldBe ch
+      extractNoteOns(noteOn(2, E2, pbCents = Some(31.0))).head.channel shouldBe ch
 
       // When
       // The performer sends Pitch Bend +101 cents on input Channel 1: the value belongs to E1, which

@@ -1142,17 +1142,18 @@ pitch class E, so the pitch-class invariant permits any of them to share a chann
    The Note On for E2 follows. Channels 4 and 5 are untouched, and output Channel 3 remains unoccupied: the pitch-class
    invariant, not channel scarcity, forced the sharing (Section 5.8.1).
 
-4. **The performer bends E2 to +30 cents.** Channel 2's Expression Pitch Bend becomes `(+10 + 30) / 2 = +20`, emitted as
-   `T(E) + 20 = +6.3` cents (Section 7.2). E2's 50-cent excursion yields 25 cents on the output — the half-amplitude
-   attenuation of Section 5.7. No note is dropped: the threshold applies to a note's own bend, and +30 is below `t`.
+4. **The performer bends E2 to +31 cents.** Channel 2's Expression Pitch Bend becomes `(+10 + 31) / 2 = +20.5`, emitted
+   as `T(E) + 20.5 = +6.8` cents (Section 7.2). E2's 51-cent excursion yields 25.5 cents on the output — the
+   half-amplitude attenuation of Section 5.7. No note is dropped: the threshold is compared against the absolute value
+   of a note's own bend, not against its excursion, and +31 is below `t` although the excursion exceeds it.
 
 5. **Note Off for E1.** The Note Off is emitted first, and the values recomputed without E1 follow (Section 7.5):
-   Channel 2 takes E2's values alone — Pitch Bend `T(E) + 30 = +16.3` cents, CC #74 96, Channel Pressure 96. The Channel
+   Channel 2 takes E2's values alone — Pitch Bend `T(E) + 31 = +17.3` cents, CC #74 96, Channel Pressure 96. The Channel
    Pressure becomes the surviving note's own value rather than 0; in MPE Input Mode the dimension passes through from
    the sender, so the Tuner emits no reset of its own (Section 7.4).
 
 6. **Note Off for E2**, the channel's last active note. Removal empties output Channel 2, so averaging no longer applies
-   and the retention rule of Section 7.1 fixes what the channel keeps: Expression Pitch Bend +30 (Pitch Bend `+16.3`
+   and the retention rule of Section 7.1 fixes what the channel keeps: Expression Pitch Bend +31 (Pitch Bend `+17.3`
    cents), CC #74 96, and Channel Pressure 96. None of the three values changes, so the Tuner emits the Note Off alone.
    The Channel Pressure in particular is *not* zeroed: in MPE Input Mode the Tuner defers to the sender (Section 7.4).
    Had the sender preceded its Note Off with Channel Pressure 0 on input Channel 3, that update would have propagated
@@ -1178,14 +1179,14 @@ Consider a Zone with 3 Member Channels (`n = 3`, Pitch Class Group = 1, Expressi
 Where the previous example drops notes because channels ran out, this one drops a note that a channel can no longer
 represent. It continues from step 4 of Section 9.3, at which output Channel 2 shares two notes that reached it from
 different input channels: E1, from input Channel 2, with an Expression Pitch Bend of +10 cents, and E2, from input
-Channel 3, with +30 cents — averaging to +20. The performer now sends Pitch Bend +101 cents on input Channel 2.
+Channel 3, with +31 cents — averaging to +20.5. The performer now sends Pitch Bend +101 cents on input Channel 2.
 
 1. Pitch Bend is a channel message, so the value belongs to every note active on input Channel 2 — here only E1, which
    carries it as its Expression Pitch Bend under the update propagation rule of Section 7.2. At +101 cents it exceeds
    the threshold `t = 50`, so E1 acquires a High Expression Pitch Bend (Section 5.5). The test applies to the note's
    own Expression Value, not to the channel's average.
 2. E1 shares its output channel, so the divergence rule of Section 6.2.1 applies: **all other notes on that channel are
-   dropped**. E2's own Expression Pitch Bend, +30 cents from input Channel 3, is left untouched by this message and is
+   dropped**. E2's own Expression Pitch Bend, +31 cents from input Channel 3, is left untouched by this message and is
    well below `t` — yet E2 is dropped all the same.
 3. E1 is now the channel's only note, so each average collapses to its own value: Pitch Bend `T(E) + 101 = +87.3`
    cents. The Note Off for E2 is emitted first on output Channel 2, carrying the neutral release velocity 64 that any
@@ -1194,7 +1195,7 @@ Channel 3, with +30 cents — averaging to +20. The performer now sends Pitch Be
    updates first would sweep E2 to `+87.3` cents on its way out — a bend it never asked for, audible for as long as its
    Note Off is delayed.
 
-Had both notes been kept, the averaged Expression Pitch Bend would have been `(+101 + 30) / 2 = +65.5` cents: E2 would
+Had both notes been kept, the averaged Expression Pitch Bend would have been `(+101 + 31) / 2 = +66` cents: E2 would
 have been pulled more than half a semitone away from its tuned pitch, while E1 would have received under two thirds of
 the bend the performer asked for. Dropping E2 is what delivers the gesture intact, and it restores invariant 2 of
 Section 6.3 — a note with a High Expression Pitch Bend is always the sole active note on its channel. Channels 4 and 5
