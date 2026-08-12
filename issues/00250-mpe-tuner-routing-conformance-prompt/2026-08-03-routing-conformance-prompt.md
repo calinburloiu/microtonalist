@@ -203,10 +203,10 @@ paper to restore its older distinction between sequences the Tuner *originates* 
 paper as committed at the base commit states the single rule and is the source of truth, so prefer the code-side fix and
 raise it with the author if you disagree.
 
-**Out of scope, noted only because you will be reading this code:** `applyPbsUpdate` emits the selector RPN MSB before
+**Inconsistency:** `applyPbsUpdate` emits the selector RPN MSB before
 the RPN LSB (lines 518-519), whereas `mcmMessages` (lines 757-758) and `PitchBendSensitivityMessages.create`
 (`PitchBendSensitivity.scala:73-74`) emit LSB before MSB. Neither the paper nor the gap report requires either order,
-and both are valid on the wire. Do **not** change it under #250; raise it as its own issue if it bothers you.
+and both are valid on the wire. Let's make them consistency by using the same order everywhere. Use the more common convention in the industry (maybe MSB first?).
 
 ### C3. Scope of state reset on MCM reconfiguration (§4.2)
 
