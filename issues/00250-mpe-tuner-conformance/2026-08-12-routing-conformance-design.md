@@ -1,6 +1,8 @@
 # MPE Tuner Routing and Filtering Conformance (Design)
 
 - **Date**: 2026-08-12
+- **Revised**: 2026-08-13 — two refinements found while writing the implementation plan (Sections 5 C3 and 5 C6), and
+  Section 7's delivery rules corrected: no phase PR resolves #250, and phases 1, 2 and 4 may run in parallel
 - **Issue**: [#250](https://github.com/calinburloiu/microtonalist/issues/250) — "Make MPE Tuner MIDI message routing
   and filtering conform to the paper"
 - **Base commit**: `271cfb314cd537cdb6fb655de6799ec1d30262c8`
@@ -231,8 +233,11 @@ Two sub-decisions:
 - **No closing RPN Null for uninterpreted parameters.** §4's Null rule governs sequences the Tuner *originates*.
   Appending one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null
   for NRPN traffic.
-- **A value CC with `RpnSelector.None` is discarded.** No complete sequence can be formed, and relaying a bare Data
-  Entry is precisely what §4's Null exists to prevent.
+- **A value CC with an incomplete selector is discarded.** `RpnSelector.None` is the plain case: no complete sequence
+  can be formed, and relaying a bare Data Entry is precisely what §4's Null exists to prevent. The same applies to a
+  *half-set* selector — one whose MSB or LSB is still Null, which the tracker produces after a lone CC #101 or
+  CC #100 — because `ScMidiChannelStateTracker.writeDataEntry` itself refuses to record a value for one. If the
+  tracker will not record it, the Tuner will not relay it.
 
 ### P7 — the forwarded Pitch Bend Sensitivity sequence
 
@@ -268,9 +273,16 @@ Then, in `processMcm`:
   `TODO #254` stays in place and stays accurate — the rescoping does not give the tracker a reference count.
 - `tracker.reset()` becomes `affected.foreach(tracker.reset)`.
 - The allocators are rebuilt through a new companion factory
-  `MpeChannelAllocator.retaining(newZone, from, retainedChannels)`, which constructs an allocator for the new Zone
-  structure and transplants each retained channel's `MpeChannelState` — notes, reference counts, Expression Values,
-  pitch class, group — together with its `noteChannels` bindings.
+  `MpeChannelAllocator.retaining(newZone, from, retainedChannels, droppedInputChannels)`, which constructs an
+  allocator for the new Zone structure and transplants each retained channel's `MpeChannelState` — notes, reference
+  counts, Expression Values, pitch class, group — together with its `noteChannels` bindings.
+
+**A note is dropped when either its output channel or its input channel is affected.** Scoping the drop to output
+Member Channels alone is not enough, which is why `retaining` takes `droppedInputChannels` as well: a note that
+arrived on input channel 7 and was allocated to output channel 2 survives a reconfiguration shrinking the Lower Zone
+from 10 Member Channels to 4, because output channel 2 is retained — but input channel 7 is now `Outside`, so the
+performer's Note Off is discarded and the note hangs forever. That is the same failure class **C4** describes, and it
+would be reintroduced by the very fix meant to remove it.
 
 Two edges are recorded rather than defended against:
 
@@ -306,21 +318,27 @@ The note-level verdict of *Discarded* is unchanged, and no other section is touc
 
 ## 7. Delivery
 
-Four sub-issues of #250, one pull request each. The cross-module change lands first so its risk is isolated; the
-largest change lands once the router exists.
+Four sub-issues of #250, one pull request each. The largest change lands once the router exists.
 
-| Phase | Scope | Gaps | Touches |
-|---|---|---|---|
-| 1 | PBS sequence closure and RPN selector order | P7 | `MpeTuner`, `sc-midi` `PitchBendSensitivity`, `MonophonicPitchBendTuner` tests |
-| 2 | Channel role and the routing table | I2, C4, I3, C5, N4 | new `MpeMessageRouting.scala`, `MpeTuner`, `ScMidiCc` |
-| 3 | RPN/NRPN sequencing and MCM validity | C6, §2.2(f) | `MpeMessageRouting`, `MpeTuner`, paper amendment |
-| 4 | MCM reset scoping | C3, I1 | `MpeTuner`, `MpeChannelAllocator.retaining`, `ScMidiChannelStateTracker.reset(channel)` |
+| Phase | Sub-issue | Scope | Gaps | Touches |
+|---|---|---|---|---|
+| 1 | #259 | PBS sequence closure and RPN selector order | P7 | `MpeTuner`, `sc-midi` `PitchBendSensitivity`, `MonophonicPitchBendTuner` tests |
+| 2 | #260 | Channel role and the routing table | I2, C4, I3, C5, N4 | new `MpeMessageRouting.scala`, `MpeTuner`, `ScMidiCc` |
+| 3 | #261 | RPN/NRPN sequencing and MCM validity | C6, §2.2(f) | `MpeMessageRouting`, `MpeTuner`, paper amendment |
+| 4 | #262 | MCM reset scoping | C3, I1 | `MpeTuner`, `MpeChannelAllocator.retaining`, `ScMidiChannelStateTracker.reset(channel)` |
 
-Phases 1 and 4 are independent of the others; phase 3 depends on phase 2's `route`. The last phase to merge resolves
-#250. By then all four `TODO #250` markers are gone, `TODO #253` and `TODO #254` still stand and are still accurate,
-and the "Subject to change" bullet for #250 comes out of
-[`docs/architecture/tuner/README.md`](../../docs/architecture/tuner/README.md), whose "Key types" section gains
-`MpeMessageRouting`.
+Phase 3 depends on phase 2's `route` and branches from it. Phases 1, 2 and 4 are independent and may be branched from
+`main` and developed **in parallel**. Phase 4 must therefore derive its Zone assignments from the existing
+`findChannelRole` rather than from `roleOf`, which phase 2 introduces; since phase 2 also deletes `findChannelRole`,
+whichever of the two merges second repoints `assignmentOf` at `MpeMessageRouting.roleOf`. Git merges those two
+changes cleanly and the result does not compile, so that merge must be followed by a compile.
+
+**No phase PR resolves #250.** Each resolves its own sub-issue; #250 is closed by hand once all four have merged.
+Because the merge order is not fixed, each phase removes only its own items from the `TODO #250` marker and from the
+"Subject to change" bullet in [`docs/architecture/tuner/README.md`](../../docs/architecture/tuner/README.md), and
+whichever merges last removes the marker and the bullet outright. Once all four have merged, all four `TODO #250`
+markers are gone, `TODO #253` and `TODO #254` still stand and are still accurate, and that README's "Key types"
+section has gained `MpeMessageRouting`.
 
 ## 8. Testing
 
@@ -336,8 +354,9 @@ Strict red/green/refactor throughout, per the repository workflow. No `ignore`d 
   `PBS Processing` categories, each split by input mode, added as new `// ---- … ----` subgroups rather than new
   `behavior of` blocks.
 - **`MpeChannelAllocatorTest`** covers `retaining`: notes, reference counts, Expression Values, pitch class and group
-  survive on retained channels; dropped channels take their notes with them; an over-subscribed group admits no new
-  channel and breaks nothing.
+  survive on retained channels; dropped channels take their notes with them; a note whose input channel left MPE
+  control goes even when its output channel is retained; an over-subscribed group admits no new channel and breaks
+  nothing.
 - **`ScMidiChannelStateTrackerTest`** covers `reset(channel)` leaving the other fifteen channels untouched.
 - **`PitchBendSensitivityTest`** and **`MonophonicPitchBendTunerTest`** absorb the MSB-first reordering.
 
