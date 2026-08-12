@@ -16,7 +16,7 @@ Your task is to make the MIDI message routing and filtering of the MPE Tuner
 is the source of truth. For reference, the MPE Specification on which the MPE Tuner is based is in `mpe-spec.md`.
 
 Use /superpowers:brainstorming . Sections, facts and bullets are numbered / identified to facilitate discussions. We are
-working on issue #250, so write superpowers' artifacts to `issues/00250-mpe-tuner-routing-conformance-prompt/` — the
+working on issue #250, so write superpowers' artifacts to `issues/00250-mpe-tuner-conformance/` — the
 same directory this prompt lives in. The cycle-1 artifacts stay where they are, under
 `issues/00154-mpe-tuner-poly-expr/`.
 
