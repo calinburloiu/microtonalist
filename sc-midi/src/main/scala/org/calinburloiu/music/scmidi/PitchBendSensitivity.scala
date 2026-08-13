@@ -64,6 +64,10 @@ object PitchBendSensitivityMessages {
    * Creates a sequence of MIDI messages to configure the pitch bend sensitivity
    * for a specified channel.
    *
+   * The RPN selector and the closing RPN Null are emitted LSB (CC #100) before MSB (CC #101). MIDI 1.0 mandates no
+   * order for the selector pair — it requires only that the parameter be selected before the Data Entry — but every
+   * byte-level RPN example it gives is LSB-first, as is RP-053 §2.1.1's MPE Configuration Message format.
+   *
    * @param channel              The MIDI channel for which the pitch bend sensitivity is configured.
    * @param pitchBendSensitivity The pitch bend sensitivity settings, including semitones and cents.
    * @return A sequence of MIDI messages representing the pitch bend sensitivity configuration.
@@ -74,7 +78,7 @@ object PitchBendSensitivityMessages {
       CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
       CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
       CcScMidiMessage(channel, ScMidiCc.DataEntryLsb, pitchBendSensitivity.cents),
-      // Setting cr number to Null to prevent accidental changes of values
+      // Selecting the Null RPN prevents a later stray Data Entry from changing this parameter.
       CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
       CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
     ).map(_.asJava)
