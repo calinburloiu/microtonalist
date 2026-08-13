@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
+import org.calinburloiu.music.scmidi.message.*
+
 /**
  * The part a MIDI channel plays in the Tuner's Zone structure, as seen by the message router.
  *
@@ -38,6 +41,20 @@ private[tuner] enum MpeChannelRole {
    * section discards everything received here, an MCM on MIDI Channel 1 or 16 excepted.
    */
   case Outside
+}
+
+/**
+ * What the Tuner does with a received channel message, as decided by [[MpeMessageRouting.route]].
+ */
+private[tuner] enum MpeRoutingVerdict {
+  /** Emit nothing. The message is outside the Zone structure, or at the wrong level for its class. */
+  case Discard
+
+  /** Relay the message unmodified, on the given output channel — its own, or a Zone's Master Channel. */
+  case ForwardOn(channel: Int)
+
+  /** The Tuner acts on the message itself: note allocation, an Expression Value, the MCM, or Pitch Bend Sensitivity. */
+  case Interpret
 }
 
 /**
@@ -76,4 +93,92 @@ private[tuner] object MpeMessageRouting {
     else if (zone.memberChannels.contains(channel)) Some(MpeChannelRole.Member(zone))
     else None
   }
+
+  /**
+   * Decides what to do with a channel message, implementing the paper's message-handling table row by row: the
+   * message supplies the row, the role the column.
+   *
+   * @param role        The role of the channel the message arrived on, from [[roleOf]].
+   * @param message     The received message.
+   * @param rpnSelector The parameter currently selected on the arrival channel, which is what distinguishes an MCM
+   *                    Data Entry from a Pitch Bend Sensitivity one from uninterpreted parameter traffic. It must
+   *                    already account for the message being routed — [[MpeTuner]] feeds every message to its
+   *                    tracker before dispatching it.
+   */
+  def route(role: MpeChannelRole,
+            message: ChannelScMidiMessage,
+            rpnSelector: RpnSelector): MpeRoutingVerdict = message match {
+    case msg: CcScMidiMessage => routeCc(role, msg, rpnSelector)
+    case _: NoteScMidiMessage => role match {
+      case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
+      case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+    }
+    // The first two of the three per-note control dimensions; CC #74 is the third, in `routeCc`.
+    case _: PitchBendScMidiMessage | _: ChannelPressureScMidiMessage => routeControlDimension(role, message)
+    case _: PolyPressureScMidiMessage => role match {
+      // Forbidden on a Member Channel by the MPE Specification; converted to Channel Pressure for a non-MPE input.
+      case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
+      case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+      case MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
+      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+    }
+    case _: ProgramChangeScMidiMessage => routeZoneLevel(role, message)
+  }
+
+  /** One of Pitch Bend, Channel Pressure and CC #74: the note's own Expression Value at Member level. */
+  private def routeControlDimension(role: MpeChannelRole, message: ChannelScMidiMessage): MpeRoutingVerdict =
+    role match {
+      case MpeChannelRole.Member(_) => MpeRoutingVerdict.Interpret
+      case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+      case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
+      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+    }
+
+  /**
+   * A Zone-level message: forwarded unmodified on a Master Channel, redirected to the routing Zone's Master Channel
+   * for a non-MPE input, and discarded on a Member Channel — the receiver obligation the paper's message-handling
+   * section states — or outside every Zone.
+   */
+  private def routeZoneLevel(role: MpeChannelRole, message: ChannelScMidiMessage): MpeRoutingVerdict = role match {
+    case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
+    case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+    case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
+    case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+  }
+
+  private def routeCc(role: MpeChannelRole,
+                      msg: CcScMidiMessage,
+                      rpnSelector: RpnSelector): MpeRoutingVerdict = msg.number match {
+    // The MIDI Mode messages are discarded at every role in both input modes: the Tuner is fixed-mode on both
+    // sides, and a Mono On reaching an output Member Channel would turn every shared allocation into a note drop.
+    case ScMidiCc.OmniModeOff | ScMidiCc.OmniModeOn | ScMidiCc.MonoModeOn | ScMidiCc.PolyModeOn =>
+      MpeRoutingVerdict.Discard
+
+    case ScMidiCc.MpeSlide => routeControlDimension(role, msg)
+
+    // The selector of a parameter the Tuner interprets is consumed: `MpeTuner` re-emits a complete sequence of its
+    // own for the MCM and for Pitch Bend Sensitivity, and relaying the sender's selector would duplicate it.
+    case ScMidiCc.RpnMsb | ScMidiCc.RpnLsb if isInterpreted(rpnSelector) => MpeRoutingVerdict.Discard
+
+    case ScMidiCc.DataEntryMsb if isMcm(rpnSelector) && isMcmChannel(msg.channel) => MpeRoutingVerdict.Interpret
+
+    case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if isPbs(rpnSelector) => role match {
+      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+      case _ => MpeRoutingVerdict.Interpret
+    }
+
+    case _ => routeZoneLevel(role, msg)
+  }
+
+  /** Whether an MCM received on this channel is valid: MIDI Channel 1 or 16, whatever the channel's current role. */
+  private def isMcmChannel(channel: Int): Boolean = channel == 0 || channel == 15
+
+  private def isMcm(rpnSelector: RpnSelector): Boolean =
+    rpnSelector == RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+
+  private def isPbs(rpnSelector: RpnSelector): Boolean =
+    rpnSelector == RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+
+  private def isInterpreted(rpnSelector: RpnSelector): Boolean = isMcm(rpnSelector) || isPbs(rpnSelector)
 }

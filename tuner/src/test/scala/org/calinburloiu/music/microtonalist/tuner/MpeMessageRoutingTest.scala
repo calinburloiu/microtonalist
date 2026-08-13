@@ -16,6 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import org.calinburloiu.music.microtonalist.tuner.MpeRoutingVerdict.*
+import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
+import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -25,7 +29,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
  *
  * == Test Organization ==
  *
- * One `behavior of` block for the public function `roleOf`.
+ * Two `behavior of` blocks, one per public function: `roleOf` and `route`. The `route` block is the paper's
+ * message-handling table ("How the MPE Tuner Handles Common MIDI Messages in MPE Input Mode") expressed as
+ * table-driven checks, one `Table` row per cell: the role supplies the column and the message the row. Add a new
+ * case by adding a row, not a new test, unless the cell needs a rule the table cannot express.
  */
 class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -38,6 +45,11 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   private val lowerOnlyZones: MpeZones = MpeZones(lower7, disabledUpper)
   private val upperOnlyZones: MpeZones = MpeZones(disabledLower, upper7)
   private val noZones: MpeZones = MpeZones(disabledLower, disabledUpper)
+
+  private val mcmSelector: RpnSelector =
+    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+  private val pbsSelector: RpnSelector =
+    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
   behavior of "MpeMessageRouting.roleOf"
 
@@ -98,5 +110,141 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "classify every channel as Outside when no Zone is enabled in Non-MPE Input Mode" in {
     // When / Then
     MpeMessageRouting.roleOf(MpeInputMode.NonMpe, noZones, 3) shouldEqual MpeChannelRole.Outside
+  }
+
+  behavior of "MpeMessageRouting.route"
+
+  private val memberRole: MpeChannelRole = MpeChannelRole.Member(lower7)
+  private val masterRole: MpeChannelRole = MpeChannelRole.Master(lower7)
+  private val nonMpeRole: MpeChannelRole = MpeChannelRole.NonMpeInput(lower7)
+  private val outsideRole: MpeChannelRole = MpeChannelRole.Outside
+
+  private val noSelector: RpnSelector = RpnSelector.None
+
+  // The input channel every table row below uses: Member Channel 3 of the Lower Zone, so that a redirection to
+  // the Zone's Master Channel (0) is visibly different from a forward on the arrival channel. The same message is
+  // replayed against all four roles, so the `Master` column expects `ForwardOn(3)`: `route` forwards on the
+  // channel the message carries, not on the role's Master Channel. The next test covers the realistic pairing.
+  private val inputChannel: Int = 3
+
+  // ---- Channel Voice messages ----
+
+  it should "route the message classes of the paper's table" in {
+    // Given
+    val verdicts = Table(
+      ("description", "message", "member", "master", "nonMpe", "outside"),
+      ("Note On",
+        NoteOnScMidiMessage(inputChannel, MidiNote.C4, 100),
+        Interpret, ForwardOn(inputChannel), Interpret, Discard),
+      ("Note Off",
+        NoteOffScMidiMessage(inputChannel, MidiNote.C4),
+        Interpret, ForwardOn(inputChannel), Interpret, Discard),
+      ("Pitch Bend",
+        PitchBendScMidiMessage(inputChannel, 1000),
+        Interpret, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Channel Pressure",
+        ChannelPressureScMidiMessage(inputChannel, 90),
+        Interpret, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("CC #74",
+        CcScMidiMessage(inputChannel, ScMidiCc.MpeSlide, 100),
+        Interpret, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Polyphonic Key Pressure",
+        PolyPressureScMidiMessage(inputChannel, MidiNote.C4, 80),
+        Discard, ForwardOn(inputChannel), Interpret, Discard),
+      ("Program Change",
+        ProgramChangeScMidiMessage(inputChannel, 5),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Bank Select MSB",
+        CcScMidiMessage(inputChannel, ScMidiCc.BankSelectMsb, 1),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Damper Pedal",
+        CcScMidiMessage(inputChannel, ScMidiCc.SustainPedal, 127),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("All Sound Off (CC #120)",
+        CcScMidiMessage(inputChannel, ScMidiCc.AllSoundOff, 0),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Reset All Controllers (CC #121)",
+        CcScMidiMessage(inputChannel, ScMidiCc.ResetAllControllers, 0),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Local Control (CC #122)",
+        CcScMidiMessage(inputChannel, ScMidiCc.LocalControl, 0),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("All Notes Off (CC #123)",
+        CcScMidiMessage(inputChannel, ScMidiCc.AllNotesOff, 0),
+        Discard, ForwardOn(inputChannel), ForwardOn(0), Discard),
+      ("Omni Mode Off (CC #124)",
+        CcScMidiMessage(inputChannel, ScMidiCc.OmniModeOff, 0),
+        Discard, Discard, Discard, Discard),
+      ("Omni Mode On (CC #125)",
+        CcScMidiMessage(inputChannel, ScMidiCc.OmniModeOn, 0),
+        Discard, Discard, Discard, Discard),
+      ("Mono Mode On (CC #126)",
+        CcScMidiMessage(inputChannel, ScMidiCc.MonoModeOn, 1),
+        Discard, Discard, Discard, Discard),
+      ("Poly Mode On (CC #127)",
+        CcScMidiMessage(inputChannel, ScMidiCc.PolyModeOn, 0),
+        Discard, Discard, Discard, Discard)
+    )
+    forAll(verdicts) { (_, message, member, master, nonMpe, outside) =>
+      // When / Then
+      MpeMessageRouting.route(memberRole, message, noSelector) shouldEqual member
+      MpeMessageRouting.route(masterRole, message, noSelector) shouldEqual master
+      MpeMessageRouting.route(nonMpeRole, message, noSelector) shouldEqual nonMpe
+      MpeMessageRouting.route(outsideRole, message, noSelector) shouldEqual outside
+    }
+  }
+
+  it should "forward a Master Channel message on its own channel" in {
+    // Given
+    val message = CcScMidiMessage(0, ScMidiCc.SustainPedal, 127)
+    // When / Then
+    MpeMessageRouting.route(masterRole, message, noSelector) shouldEqual ForwardOn(0)
+  }
+
+  it should "redirect a Non-MPE input message to the Upper Zone Master Channel when only it is enabled" in {
+    // Given
+    val message = CcScMidiMessage(inputChannel, ScMidiCc.SustainPedal, 127)
+    // When / Then
+    MpeMessageRouting.route(MpeChannelRole.NonMpeInput(upper7), message, noSelector) shouldEqual ForwardOn(15)
+  }
+
+  // ---- Interpreted parameters ----
+
+  it should "interpret an MCM Data Entry MSB on MIDI Channel 1 or 16 whatever the role" in {
+    // Given
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    val channels = Table("channel", 0, 15)
+    forAll(channels) { channel =>
+      val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, 7)
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Interpret
+      }
+    }
+  }
+
+  it should "interpret a PBS Data Entry at every role but Outside" in {
+    // Given
+    val ccNumbers = Table("ccNumber", ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb)
+    forAll(ccNumbers) { ccNumber =>
+      val message = CcScMidiMessage(inputChannel, ccNumber, 24)
+      // When / Then
+      MpeMessageRouting.route(memberRole, message, pbsSelector) shouldEqual Interpret
+      MpeMessageRouting.route(masterRole, message, pbsSelector) shouldEqual Interpret
+      MpeMessageRouting.route(nonMpeRole, message, pbsSelector) shouldEqual Interpret
+      MpeMessageRouting.route(outsideRole, message, pbsSelector) shouldEqual Discard
+    }
+  }
+
+  it should "consume the selector of an interpreted parameter" in {
+    // Given
+    val selectors = Table("selector", mcmSelector, pbsSelector)
+    val ccNumbers = Table("ccNumber", ScMidiCc.RpnMsb, ScMidiCc.RpnLsb)
+    forAll(selectors) { selector =>
+      forAll(ccNumbers) { ccNumber =>
+        // When / Then
+        MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ccNumber, 0), selector) shouldEqual Discard
+      }
+    }
   }
 }
