@@ -406,19 +406,43 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     logger.info(s"MCM received on channel $channel: configuring $zoneType zone with $memberCount member channel(s)...")
 
-    // Remember the other zone before update to detect overlap resolution changes
-    val otherZoneBefore = if (channel == 0) upperZone else lowerZone
-
     val zonesBefore = _zones
-    val zonesAfter = _zones.update(newZone)
-    // Leaving Non-MPE Input Mode changes how every channel is interpreted, so every channel enters MPE
-    // control and the reset is wholesale. Within MPE Input Mode only the channels whose Zone assignment
-    // changes are affected.
-    val affected =
-      if (_inputMode == MpeInputMode.NonMpe) AllChannels
-      else affectedChannels(zonesBefore, zonesAfter)
+    val zonesAfter = zonesBefore.update(newZone)
 
-    // Stop the affected notes while the old Zone structure and allocators are still in place.
+    // Remember the other zone before update to detect overlap resolution changes. Read from `zonesBefore`,
+    // not from the `_zones`-backed `lowerZone`/`upperZone` getters, so this holds the pre-update view
+    // regardless of where `_zones` is reassigned below.
+    val otherZoneBefore = if (channel == 0) zonesBefore.upper else zonesBefore.lower
+
+    // Leaving Non-MPE Input Mode is treated as affecting every channel, deliberately conservatively rather
+    // than out of strict necessity: an input Member Channel becoming a Lower/Upper Member keeps resolving
+    // through the same allocator, so strictly only input channels becoming Master Channels strand. But the
+    // Expression Values on Member Channels were synthesized under different (Non-MPE) semantics, and the
+    // Channel-Pressure-reset rule differs by mode, so a wholesale reset is still the safer call.
+    //
+    // A change in the Lower Zone's enabled-ness is also treated as affecting every channel, for a different
+    // reason: `allocatorFor` resolves a channel lying outside every Zone via `lowerAllocator.orElse(
+    // upperAllocator)`, and that fallback target moves when the Lower Zone goes from disabled to enabled or
+    // back. A channel outside every Zone before and after has an unchanged Zone assignment and so is not
+    // otherwise affected, but the note it is bound to would strand behind the moved fallback the moment the
+    // old allocator becomes unreachable through it. Only the Lower Zone's enabled-ness matters here: with the
+    // Lower Zone disabled throughout, an Upper flip either binds nothing beforehand (both allocators absent)
+    // or already marks every Upper channel affected; with it enabled throughout, the fallback is
+    // `lowerAllocator` before and after.
+    //
+    // Within MPE Input Mode with the Lower Zone's enabled-ness unchanged, only the channels whose Zone
+    // assignment actually changes are affected.
+    val affected =
+      if (_inputMode == MpeInputMode.NonMpe || zonesBefore.lower.isEnabled != zonesAfter.lower.isEnabled) {
+        AllChannels
+      } else {
+        affectedChannels(zonesBefore, zonesAfter)
+      }
+
+    // Stop the affected notes while the old Zone structure and allocators are still in place. This must emit a
+    // Note Off for exactly the notes `rebuildAllocator` drops below when it rebuilds each allocator against
+    // the same `affected` set: if the two ever disagree on which notes are affected, the result is either a
+    // hanging note (dropped without a Note Off) or an unmatched Note Off (stopped without being dropped).
     stopNotesOn(buffer, affected)
 
     _zones = zonesAfter

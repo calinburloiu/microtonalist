@@ -137,6 +137,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 7))
   )
 
+  private def upperZoneOnlyTunerMpeInput: MpeTuner = MpeTuner(
+    initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 7)),
+    initialInputMode = MpeInputMode.Mpe
+  )
+
   private def tuner7MpeInput: MpeTuner = MpeTuner(
     initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 7), MpeZone(MpeZoneType.Upper, 0)),
     initialInputMode = MpeInputMode.Mpe
@@ -2519,6 +2524,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // The note is stopped on its retained output channel, and its stale Note Off then produces nothing at all.
       extractNoteOffs(mcmOutput) should contain(NoteOffScMidiMessage(outChannel, D4))
       noteOff(6, D4) shouldBe empty
+    }
+
+  it should "stop a note on a channel outside every Zone when the Lower Zone's enabled-ness flips" in
+    new Fixture(upperZoneOnlyTunerMpeInput) {
+      // Given
+      // Lower Zone disabled, Upper Zone master 15, members 8..14. Channel 3 lies outside every Zone, so
+      // `allocatorFor` falls through to `lowerAllocator.orElse(upperAllocator)`, which resolves to the Upper
+      // allocator while the Lower Zone is disabled.
+      private val output = noteOn(3, C4)
+      private val outChannel = extractNoteOns(output).head.channel
+      outChannel should (be >= 8 and be <= 14)
+
+      // When
+      // The Lower Zone becomes enabled with 2 Members (1..2). Channel 3's own Zone assignment is unchanged —
+      // it is outside every Zone both before and after — but the fallback allocator it resolves through moves
+      // from Upper to Lower now that the Lower Zone is enabled.
+      private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 2)
+
+      // Then
+      // The note is stopped on the Upper-Zone output channel the allocator actually chose, while that channel
+      // is still resolvable through the old fallback.
+      extractNoteOffs(mcmOutput) should contain(NoteOffScMidiMessage(outChannel, C4))
     }
 
   it should "reset the tracked control state of an affected channel only" in

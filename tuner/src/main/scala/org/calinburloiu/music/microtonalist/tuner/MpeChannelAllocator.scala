@@ -123,7 +123,9 @@ private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChann
  * @param zone           The MPE zone to allocate channels for.
  * @param retainedStates The per-channel state to seed this allocator with, keyed by output Member Channel,
  *                       for a Zone reconfiguration that keeps some channels' notes and state. Empty for a
- *                       freshly constructed allocator. See [[MpeChannelAllocator.retaining]].
+ *                       freshly constructed allocator. Adopted by reference and mutated in place: the caller
+ *                       must not keep or reuse these [[MpeChannelState]] instances after passing them in. See
+ *                       [[MpeChannelAllocator.retaining]].
  */
 private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
                                          retainedStates: Map[Int, MpeChannelState] = Map.empty) {
@@ -686,7 +688,9 @@ private[tuner] object MpeChannelAllocator {
    *
    * A retained channel may end up in a group holding more occupied channels than the new Zone's group size
    * allows. No invariant breaks: the allocation algorithm reads the group counts only to decide whether a
-   * group has room, so an over-subscribed group simply admits no new channel until notes are released.
+   * group has room, so an over-subscribed group simply admits no new channel until notes are released — a
+   * promise kept by the `unoccupied.nonEmpty` guard on [[allocateFresh]]'s Steps 1 and 2, whose comment
+   * cross-references this one so neither can be edited in ignorance of the other.
    *
    * @note `from` is consumed, not merely read: the retained [[MpeChannelState]] objects are transplanted into
    *       the returned allocator by reference, and any note whose input channel is in `droppedInputChannels`
