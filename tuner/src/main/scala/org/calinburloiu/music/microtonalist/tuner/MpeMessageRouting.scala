@@ -50,7 +50,10 @@ private[tuner] enum MpeRoutingVerdict {
   /** Emit nothing. The message is outside the Zone structure, or at the wrong level for its class. */
   case Discard
 
-  /** Relay the message unmodified, on the given output channel — its own, or a Zone's Master Channel. */
+  /**
+   * Relay the message unmodified, on the given output channel: the Master Channel of the Zone the deciding role
+   * belongs to, which for a [[MpeChannelRole.Master]] is the arrival channel itself.
+   */
   case ForwardOn(channel: Int)
 
   /** The Tuner acts on the message itself: note allocation, an Expression Value, the MCM, or Pitch Bend Sensitivity. */
@@ -113,38 +116,37 @@ private[tuner] object MpeMessageRouting {
     case msg: CcScMidiMessage => routeCc(role, msg, rpnSelector)
     case _: NoteScMidiMessage => role match {
       case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
-      case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+      case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
     // The first two of the three per-note control dimensions; CC #74 is the third, in `routeCc`.
-    case _: PitchBendScMidiMessage | _: ChannelPressureScMidiMessage => routeControlDimension(role, message)
+    case _: PitchBendScMidiMessage | _: ChannelPressureScMidiMessage => routeControlDimension(role)
     case _: PolyPressureScMidiMessage => role match {
       // Forbidden on a Member Channel by the MPE Specification; converted to Channel Pressure for a non-MPE input.
       case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
-      case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+      case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
       case MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
-    case _: ProgramChangeScMidiMessage => routeZoneLevel(role, message)
+    case _: ProgramChangeScMidiMessage => routeZoneLevel(role)
   }
 
   /** One of Pitch Bend, Channel Pressure and CC #74: the note's own Expression Value at Member level. */
-  private def routeControlDimension(role: MpeChannelRole, message: ChannelScMidiMessage): MpeRoutingVerdict =
-    role match {
-      case MpeChannelRole.Member(_) => MpeRoutingVerdict.Interpret
-      case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
-      case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
-      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
-    }
+  private def routeControlDimension(role: MpeChannelRole): MpeRoutingVerdict = role match {
+    case MpeChannelRole.Member(_) => MpeRoutingVerdict.Interpret
+    case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
+    case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
+    case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+  }
 
   /**
-   * A Zone-level message: forwarded unmodified on a Master Channel, redirected to the routing Zone's Master Channel
-   * for a non-MPE input, and discarded on a Member Channel — the receiver obligation the paper's message-handling
-   * section states — or outside every Zone.
+   * A Zone-level message: forwarded on the Master Channel of the Zone the role belongs to — its own channel for a
+   * Master, the routing Zone's for a non-MPE input — and discarded on a Member Channel, the receiver obligation the
+   * paper's message-handling section states, or outside every Zone.
    */
-  private def routeZoneLevel(role: MpeChannelRole, message: ChannelScMidiMessage): MpeRoutingVerdict = role match {
+  private def routeZoneLevel(role: MpeChannelRole): MpeRoutingVerdict = role match {
     case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
-    case MpeChannelRole.Master(_) => MpeRoutingVerdict.ForwardOn(message.channel)
+    case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
     case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
     case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
   }
@@ -157,10 +159,12 @@ private[tuner] object MpeMessageRouting {
     case ScMidiCc.OmniModeOff | ScMidiCc.OmniModeOn | ScMidiCc.MonoModeOn | ScMidiCc.PolyModeOn =>
       MpeRoutingVerdict.Discard
 
-    case ScMidiCc.MpeSlide => routeControlDimension(role, msg)
+    case ScMidiCc.MpeSlide => routeControlDimension(role)
 
-    // The selector of a parameter the Tuner interprets is consumed: `MpeTuner` re-emits a complete sequence of its
-    // own for the MCM and for Pitch Bend Sensitivity, and relaying the sender's selector would duplicate it.
+    // The CC that completes the selector of a parameter the Tuner interprets is consumed: `MpeTuner` re-emits a
+    // complete sequence of its own for the MCM and for Pitch Bend Sensitivity, and relaying the sender's selector
+    // would duplicate it. The opening CC of the pair leaves the selector incomplete, so it still falls through to
+    // the catch-all below; #261 consumes both.
     case ScMidiCc.RpnMsb | ScMidiCc.RpnLsb if isInterpreted(rpnSelector) => MpeRoutingVerdict.Discard
 
     case ScMidiCc.DataEntryMsb if isMcm(rpnSelector) && isMcmChannel(msg.channel) => MpeRoutingVerdict.Interpret
@@ -171,8 +175,10 @@ private[tuner] object MpeMessageRouting {
     }
 
     // TODO #261 Uninterpreted RPN/NRPN traffic must be re-emitted as complete sequences and an invalid MCM ignored
-    //   in its entirety; until then, such traffic falls through to the ordinary-CC catch-all below.
-    case _ => routeZoneLevel(role, msg)
+    //   in its entirety — the whole of an MCM's parameter traffic included, since the arm above singles out only its
+    //   Data Entry MSB and leaves its Data Entry LSB and Data Increment/Decrement here. Until then, all of it falls
+    //   through to the ordinary-CC catch-all below.
+    case _ => routeZoneLevel(role)
   }
 
   /** Whether an MCM received on this channel is valid: MIDI Channel 1 or 16, whatever the channel's current role. */

@@ -173,13 +173,14 @@ These are signalled directly in the code:
 - `Track#run` is an unimplemented stub (TODO #121); `TrackManager` already provisions a per-track thread pool, but track
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
-- `MpeTuner`'s MIDI message routing does not yet fully conform to the paper (TODO #250): RPN/NRPN traffic must be
-  re-emitted as complete sequences, with an invalid MCM ignored in its entirety (#261); and a Zone reconfiguration
-  must reset state only for the channels entering or leaving MPE control, and must not discard the active Tuning
-  (#262). Channel-role-based routing and filtering — messages outside every enabled Zone or at the wrong level,
-  Master Channel CC `#74` and Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages
-  124–127 — is implemented in `MpeMessageRouting`. The per-note Expression Value model itself — averaging, fan-out,
-  reference counting and the Note On/Note Off emission rules — is implemented.
+- `MpeTuner`'s MIDI message routing does not yet fully conform to the paper: a forwarded Pitch Bend Sensitivity
+  sequence must be closed with an RPN Null (TODO #259); RPN/NRPN traffic must be re-emitted as complete sequences,
+  with an invalid MCM ignored in its entirety (TODO #261); and a Zone reconfiguration must reset state only for the
+  channels entering or leaving MPE control, and must not discard the active Tuning (TODO #262). Channel-role-based
+  routing and filtering — messages outside every enabled Zone or at the wrong level, Master Channel CC `#74` and
+  Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages 124–127 — is implemented in
+  `MpeMessageRouting`. The per-note Expression Value model itself — averaging, fan-out, reference counting and the
+  Note On/Note Off emission rules — is implemented.
 - `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
   the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded
   cents disagree with the cents retained for already-active notes (TODO #253).

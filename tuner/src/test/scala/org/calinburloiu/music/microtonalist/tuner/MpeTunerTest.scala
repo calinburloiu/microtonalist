@@ -2238,10 +2238,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ("ccName", "ccNumber", "ccValue"),
       ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
       ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
-      ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
       ("Modulation", ScMidiCc.ModulationMsb, 64),
       ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
-      ("Soft Pedal", ScMidiCc.SoftPedal, 127)
+      ("Soft Pedal", ScMidiCc.SoftPedal, 127),
+      // The Channel Mode messages 120-123, which unlike 124-127 keep being forwarded
+      ("All Sound Off", ScMidiCc.AllSoundOff, 0),
+      ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
+      ("Local Control", ScMidiCc.LocalControl, 0),
+      ("All Notes Off", ScMidiCc.AllNotesOff, 0)
     )
     forAll(ccs) { (_, ccNumber, ccValue) =>
       // When
@@ -2292,6 +2296,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.process(NoteOnScMidiMessage(channel, C4, 100).asJava) shouldBe empty
       tuner.process(NoteOffScMidiMessage(channel, C4).asJava) shouldBe empty
       tuner.process(PitchBendScMidiMessage(channel, 1000).asJava) shouldBe empty
+      tuner.process(ChannelPressureScMidiMessage(channel, 90).asJava) shouldBe empty
+      tuner.process(PolyPressureScMidiMessage(channel, C4, 80).asJava) shouldBe empty
+      tuner.process(CcScMidiMessage(channel, ScMidiCc.MpeSlide, 100).asJava) shouldBe empty
       tuner.process(CcScMidiMessage(channel, ScMidiCc.SustainPedal, 127).asJava) shouldBe empty
       tuner.process(ProgramChangeScMidiMessage(channel, 5).asJava) shouldBe empty
     }
@@ -2305,7 +2312,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // Then
     tuner.zones.lower.memberCount shouldEqual 7
     tuner.inputMode shouldBe MpeInputMode.Mpe
-    output should not be empty
+    // The MCM the Tuner emits downstream is addressed to the Master Channel of the Zone it just configured
+    extractCc(output) should contain inOrder(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7)
+    )
   }
 
   behavior of "MpeTuner - process() - Zone-level Messages - MPE Input"

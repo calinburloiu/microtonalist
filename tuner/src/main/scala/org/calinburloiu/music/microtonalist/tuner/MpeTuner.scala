@@ -338,11 +338,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       }
     case ScMidiCc.DataEntryMsb if MpeMessageRouting.isMcm(rpnSelector) =>
       processMcm(buffer, msg.channel, msg.value)
-    // TODO #261 Correct only while `MpeMessageRouting.route` returns `Interpret` for exactly the three CC shapes
-    //   it does today; a mis-routed CC reaching here would silently rewrite a Zone's Pitch Bend Sensitivity
-    //   through `applyPbsUpdate`.
-    case _ =>
+    case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if MpeMessageRouting.isPbs(rpnSelector) =>
       processPbs(buffer, msg.channel, msg.number, msg.value, role)
+    case _ =>
+      // The arms above are the three CC shapes `MpeMessageRouting.route` returns `Interpret` for; matching them
+      // here rather than trusting a catch-all keeps a future routing table row from silently rewriting a Zone's
+      // Pitch Bend Sensitivity through `applyPbsUpdate`.
+      logger.error(s"Unexpected request to interpret $msg")
   }
 
   /**
@@ -351,9 +353,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Stops all active notes, reconfigures zones (with overlap resolution), resets internal state,
    * and outputs the new configuration messages downstream.
    */
-  // TODO #250 Uninterpreted RPN/NRPN traffic must be re-emitted as complete sequences and an invalid MCM ignored
-  //  in its entirety; a Zone reconfiguration must reset state only for the channels entering or leaving MPE
-  //  control and must not discard the active Tuning.
+  // TODO #262 A Zone reconfiguration must reset state only for the channels entering or leaving MPE control, and
+  //  must not discard the active Tuning.
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
     // Per MPE spec Section 2.4, receiving MCM resets PBS to defaults
@@ -447,8 +448,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *
    * The PBS RPN selector (RPN MSB/LSB = 0, 0) is re-emitted on `channel` immediately before the
    * Data Entry to guard against interleaving from other devices that may have changed the active
-   * RPN on this channel between the original selector and the Data Entry. The original selector
-   * CCs from the sender are suppressed upstream in [[MpeMessageRouting.route]] to avoid duplication.
+   * RPN on this channel between the original selector and the Data Entry. The CC that completed the
+   * sender's own selector is suppressed upstream in [[MpeMessageRouting.route]] to avoid duplication;
+   * the opening CC of that pair still passes through until #261.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
@@ -464,6 +466,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Forward the RPN setup and Data Entry CC on the original channel only.
     // The RPN is re-sent to guard against interleaving from other devices that may have changed the
     // active RPN on this channel.
+    // TODO #259 Close this forwarded sequence with an RPN Null, as `mcmMessages` and
+    //  `PitchBendSensitivityMessages.create` already do, so that a later Data Entry from another device cannot
+    //  land on Pitch Bend Sensitivity.
     buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava
     buffer += CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava
     buffer += CcScMidiMessage(channel, ccNumber, ccValue).asJava
