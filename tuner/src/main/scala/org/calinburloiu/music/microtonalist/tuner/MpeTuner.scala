@@ -101,7 +101,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val buffer = mutable.Buffer[MidiMessage]()
     // Emit Note Off for every active note before switching input mode / zone layout,
     // so downstream receivers are never left with hanging notes (MPE spec Section 2.1.4).
-    stopAllNotes(buffer)
+    stopNotesOn(buffer, AllChannels)
     _zones = initialZones
     _inputMode = initialInputMode
     // Full re-initialization restores the Standard Tuning; an in-band Zone reconfiguration must not, since
@@ -391,8 +391,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   /**
    * Processes an incoming MPE Configuration Message (MCM).
    *
-   * Stops all active notes, reconfigures zones (with overlap resolution), resets internal state,
-   * and outputs the new configuration messages downstream.
+   * Reconfigures zones (with overlap resolution) and outputs the new configuration messages downstream. Only the
+   * channels entering or leaving MPE control by the reconfiguration have their notes stopped and their tracked
+   * state reset; a Zone untouched by the reconfiguration keeps its notes and state, as the paper's
+   * Zone-configuration section requires.
    */
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
@@ -407,14 +409,19 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Remember the other zone before update to detect overlap resolution changes
     val otherZoneBefore = if (channel == 0) upperZone else lowerZone
 
-    // Stop all active notes before reconfiguring
-    stopAllNotes(buffer)
+    val zonesBefore = _zones
+    val zonesAfter = _zones.update(newZone)
+    // Only the channels entering or leaving MPE control are reset; a Zone untouched by the reconfiguration keeps
+    // its notes and its state, as the paper's Zone-configuration section requires.
+    val affected = affectedChannels(zonesBefore, zonesAfter)
 
-    // Update zones with overlap resolution
-    _zones = _zones.update(newZone)
+    // Stop the affected notes while the old Zone structure and allocators are still in place.
+    stopNotesOn(buffer, affected)
 
-    // Reset internal state and recreate allocators
-    resetState()
+    _zones = zonesAfter
+    affected.foreach(tracker.reset)
+    lowerAllocator = rebuildAllocator(lowerAllocator, lowerZone, affected)
+    upperAllocator = rebuildAllocator(upperAllocator, upperZone, affected)
 
     // Forward MCM for the updated zone. PBS is not sent because the downstream receiver
     // resets PBS to defaults upon receiving MCM (MPE spec Section 2.4).
@@ -432,6 +439,21 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     // Switch to MPE input mode
     _inputMode = MpeInputMode.Mpe
+  }
+
+  /**
+   * Rebuilds a Zone's allocator after a reconfiguration, transplanting the state of every Member Channel the
+   * reconfiguration left untouched. A Zone that is now disabled loses its allocator altogether.
+   */
+  private def rebuildAllocator(previous: Option[MpeChannelAllocator],
+                               zone: MpeZone,
+                               affected: Set[Int]): Option[MpeChannelAllocator] = {
+    if (!zone.isEnabled) None
+    else previous match {
+      case Some(alloc) => Some(MpeChannelAllocator.retaining(zone, alloc,
+        retainedChannels = zone.memberChannels.toSet -- affected, droppedInputChannels = affected))
+      case None => Some(MpeChannelAllocator(zone))
+    }
   }
 
   /**
@@ -546,20 +568,41 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Emits a Note Off for every note the Tuner currently considers active: the allocators' own bindings for
-   * Member Channel notes, and — in MPE Input Mode — the Master Channel notes the tracker holds, which are
-   * forwarded on the channel they arrived on.
+   * The channels whose Zone assignment changes across a reconfiguration — the paper's channels "entering or leaving
+   * MPE control".
+   *
+   * Assignments are compared rather than the sets of MPE-controlled channels differenced: a channel handed from one
+   * Zone's Member Channels to the other's has both left and entered MPE control, and a set difference would miss it.
+   */
+  private def affectedChannels(before: MpeZones, after: MpeZones): Set[Int] =
+    (0 until MidiChannelCount).filter(ch => assignmentOf(before, ch) != assignmentOf(after, ch)).toSet
+
+  /** A channel's Zone assignment: its Zone's type and whether it is that Zone's Master Channel. */
+  private def assignmentOf(zones: MpeZones, channel: Int): Option[(MpeZoneType, Boolean)] =
+    findChannelRole(zones.lower, channel)
+      .orElse(findChannelRole(zones.upper, channel))
+      .map { case (zone, isMaster) => (zone.zoneType, isMaster) }
+
+  /**
+   * Emits a Note Off for every note the Tuner currently considers active on the given channels: the allocators' own
+   * bindings for Member Channel notes, and — in MPE Input Mode — the Master Channel notes the tracker holds, which
+   * are forwarded on the channel they arrived on.
+   *
+   * A Member Channel note counts as being on `channels` when either its output channel or the input channel it
+   * arrived on is among them. A note whose input channel leaves MPE control must go even if its output channel
+   * stays: the performer's Note Off would arrive on a channel that is no longer under any Zone's control and be
+   * discarded, leaving the note hanging.
    *
    * Member Channel notes get one Note Off per Note On forwarded for them, as [[emitDroppedNoteOffs]] does,
-   * discharging the one-Note-Off-per-Note-On obligation of the paper's "Note Identity and Reference
-   * Counting" section. Master Channel notes get exactly one each: they bypass the allocator, and
-   * [[ScMidiChannelStateTracker]] models a channel's active notes as a set, so no count is available for
-   * them.
+   * discharging the one-Note-Off-per-Note-On obligation of the paper's "Note Identity and Reference Counting"
+   * section. Master Channel notes get exactly one each: they bypass the allocator, and
+   * [[ScMidiChannelStateTracker]] models a channel's active notes as a set, so no count is available for them.
    */
-  private def stopAllNotes(buffer: mutable.Buffer[MidiMessage]): Unit = {
+  private def stopNotesOn(buffer: mutable.Buffer[MidiMessage], channels: Set[Int]): Unit = {
     for {
       alloc <- Seq(lowerAllocator, upperAllocator).flatten
       (noteIdentity, outChannel) <- alloc.activeAllocations
+      if channels.contains(outChannel) || channels.contains(noteIdentity.inputChannel)
       _ <- 1 to alloc.referenceCountOf(noteIdentity)
     } {
       buffer += NoteOffScMidiMessage(outChannel, noteIdentity.midiNote).asJava
@@ -570,7 +613,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       //   active notes with no reference count, so a Master Channel note struck twice leaves one unmatched
       //   Note On downstream.
       for {
-        zone <- Seq(lowerZone, upperZone) if zone.isEnabled
+        zone <- Seq(lowerZone, upperZone) if zone.isEnabled && channels.contains(zone.masterChannel)
         midiNote <- tracker.activeNotes(zone.masterChannel)
       } {
         buffer += NoteOffScMidiMessage(zone.masterChannel, midiNote).asJava
@@ -814,6 +857,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 object MpeTuner {
   /** The `Tuner` plugin type name this tuner is (de)serialized under. */
   val TypeName: String = "mpe"
+
+  /** The number of MIDI channels. */
+  private val MidiChannelCount: Int = 16
+
+  /** Every MIDI channel, the scope of the state reset performed by a full re-initialization. */
+  private val AllChannels: Set[Int] = (0 until MidiChannelCount).toSet
 }
 
 /**

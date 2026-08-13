@@ -2444,16 +2444,94 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Effects on active notes / other state ----
 
-  it should "stop all active notes when MCM is received" in new Fixture(mpeTunerMpeInput) {
-    // Given - Play notes on MPE member channels
-    noteOn(2, C4)
-    noteOn(2, E4)
-    // When
-    private val output = sendMcm(tuner, channel = 0, memberCount = 7)
-    // Then
-    private val noteOffs = extractNoteOffs(output)
-    noteOffs.map(_.midiNote) should contain allOf(C4, E4)
-  }
+  it should "stop the notes of channels leaving MPE control when an MCM shrinks a Zone" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Default zones: Lower Zone master 0, members 1..15. Occupy a channel that will survive the shrink and one
+      // that will not, by sending each note on the input Member Channel it prefers.
+      private val keptOutput = noteOn(2, C4)
+      private val droppedOutput = noteOn(12, E4)
+      private val keptChannel = extractNoteOns(keptOutput).head.channel
+      private val droppedChannel = extractNoteOns(droppedOutput).head.channel
+      keptChannel shouldEqual 2
+      droppedChannel shouldEqual 12
+
+      // When
+      // The Lower Zone shrinks to members 1..7, so channels 8..15 leave MPE control.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+      // Then
+      private val noteOffs = extractNoteOffs(output)
+      noteOffs should contain(NoteOffScMidiMessage(droppedChannel, E4))
+      noteOffs.filter(_.channel == keptChannel) shouldBe empty
+    }
+
+  it should "keep the notes of channels untouched by the reconfiguration sounding and tunable" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      noteOn(2, C4)
+      // When
+      sendMcm(tuner, channel = 0, memberCount = 7)
+      // Then
+      // The retained note is still known: retuning emits a Pitch Bend for its channel.
+      private val tuneOutput = tuner.tune(pythagoreanTuning)
+      extractPitchBends(tuneOutput).map(_.channel) should contain(2)
+      // And its Note Off is still honoured, on the same output channel.
+      extractNoteOffs(noteOff(2, C4)) should contain(NoteOffScMidiMessage(2, C4))
+    }
+
+  it should "drop a note whose input channel leaves MPE control even when its output channel is retained" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Lower Zone master 0, members 1..7. A Member Channel note is allocated to its own input channel by
+      // preference, so occupy Member Channel 6 first; the note under test then arrives on the same input channel
+      // and is allocated elsewhere, on a channel the reconfiguration will keep.
+      noteOn(6, C4)
+      private val output = noteOn(6, D4)
+      private val outChannel = extractNoteOns(output).head.channel
+      outChannel should be <= 4
+
+      // When
+      // The Lower Zone shrinks to members 1..4: input channel 6 leaves MPE control while `outChannel` stays.
+      private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 4)
+
+      // Then
+      // The note is stopped on its retained output channel, and its stale Note Off then produces nothing at all.
+      extractNoteOffs(mcmOutput) should contain(NoteOffScMidiMessage(outChannel, D4))
+      noteOff(6, D4) shouldBe empty
+    }
+
+  it should "reset the tracked control state of an affected channel only" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Seed the per-input-channel control state of a channel that survives and one that does not.
+      slide(2, 100)
+      slide(12, 100)
+      // When
+      sendMcm(tuner, channel = 0, memberCount = 7)
+      // Then
+      // A note on the surviving channel is seeded from the retained CC #74; the reconfigured channel is gone.
+      private val output = noteOn(2, C4)
+      extractSlides(output).map(_.value) should contain(100)
+    }
+
+  it should "reset the state of channels handed from one Zone to the other" in
+    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14.
+      private val output = noteOn(6, C4)
+      extractNoteOns(output).head.channel shouldEqual 6
+
+      // When
+      // An MCM enlarging the Upper Zone to 10 Members shrinks the Lower Zone to 4 by overlap resolution, so
+      // channels 5..7 pass from Lower Member to Upper Member: they leave and re-enter MPE control.
+      private val mcmOutput = sendMcm(tuner, channel = 15, memberCount = 10)
+
+      // Then
+      extractNoteOffs(mcmOutput) should contain(NoteOffScMidiMessage(6, C4))
+      tuner.zones.lower.memberCount shouldEqual 4
+      tuner.zones.upper.memberCount shouldEqual 10
+    }
 
   it should "reset PBS to defaults when MCM is received" in new Fixture(tuner7MpeInput) {
     // Given - Set custom PBS on the lower zone
