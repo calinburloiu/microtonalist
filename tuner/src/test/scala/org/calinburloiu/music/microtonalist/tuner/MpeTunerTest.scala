@@ -2600,14 +2600,32 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
     }
 
-  it should "close the forwarded PBS sequence with an RPN Null" in new Fixture(tuner7) {
-    // When
-    private val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
-    // Then
+  it should "forward a PBS update as a complete RPN sequence with both Data Entry bytes and a closing Null" in
+    new Fixture(tuner7) {
+      // When
+      private val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12),
+        CcScMidiMessage(0, ScMidiCc.DataEntryLsb, MpeZone.DefaultMasterPitchBendSensitivity.cents),
+        CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+      )
+    }
+
+  it should "carry the unchanged Data Entry half from the Tuner's own state" in new Fixture(tuner7) {
+    // Given - the sender sets the semitones half, which the Tuner records on the Zone
+    sendPbsMsb(tuner, channel = 5, semitones = 12)
+    // When - only the cents half is sent afterwards
+    private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
+    // Then - the semitones half is re-emitted from the recorded sensitivity, not from this message
     extractCc(output) shouldEqual Seq(
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 50),
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
     )
@@ -2733,7 +2751,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
   }
 
-  it should "close the forwarded PBS sequence with an RPN Null on the receiving Member Channel" in
+  it should "forward a member PBS update as a complete RPN sequence on the receiving Member Channel" in
     new Fixture(tuner7MpeInput) {
       // When
       private val output = sendPbsMsb(tuner, channel = 3, semitones = 24)
@@ -2742,6 +2760,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
         CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
         CcScMidiMessage(3, ScMidiCc.DataEntryMsb, 24),
+        CcScMidiMessage(3, ScMidiCc.DataEntryLsb, MpeZone.DefaultMemberPitchBendSensitivity.cents),
         CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
         CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
       )

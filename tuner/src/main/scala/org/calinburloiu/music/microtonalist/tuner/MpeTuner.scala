@@ -489,21 +489,24 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Applies a PBS update: updates the internal zone configuration, forwards a complete RPN sequence for the
-   * Data Entry message on the target channel, and recomputes pitch bends on occupied member channels if needed.
+   * Applies a PBS update: updates the internal zone configuration, emits a complete Pitch Bend Sensitivity RPN
+   * sequence on the target channel, and recomputes pitch bends on occupied member channels if needed.
    *
-   * The Data Entry CC is forwarded only on `channel` — not broadcast to all member channels.
+   * The sequence is emitted only on `channel` — not broadcast to all member channels.
    * Per the MPE Specification, the sender is responsible for sending PBS to all member channels;
-   * the tuner forwards each received Data Entry on the destination channel 1:1.
+   * the tuner emits one sequence per received Data Entry on the destination channel 1:1.
    *
-   * The forwarded sequence follows the shape the paper's "Configuration" preamble gives every re-emitted RPN
-   * sequence: selector, Data Entry, closing RPN Null. The PBS RPN selector (CC #100 LSB, then CC #101 MSB,
-   * both = 0) is re-emitted on `channel`, LSB before MSB, immediately before the Data Entry, to guard against
-   * interleaving from other devices that may have changed the active RPN on this channel between the
-   * original selector and the Data Entry. The sequence closes with an RPN Null (CC #100 = 0x7F, then
-   * CC #101 = 0x7F) that protects Pitch Bend Sensitivity from a later stray Data Entry. The CC that completed
-   * the sender's own selector is suppressed upstream in `processCc` to avoid duplication; the opening CC of that
-   * pair still passes through until #261, since a half-set selector matches neither the PBS nor the MCM RPN.
+   * It follows the shape the paper's "Configuration" preamble gives every re-emitted RPN sequence — selector,
+   * Data Entry, closing RPN Null — and is built by [[PitchBendSensitivityMessages.create]] from the Zone's
+   * updated sensitivity rather than relayed byte-for-byte. It therefore always carries *both* Data Entry halves
+   * (CC #6 semitones, CC #38 cents), which keeps the receiver's Pitch Bend Sensitivity equal to the value this
+   * Tuner encodes its output Pitch Bend against; forwarding only the half that arrived would leave the other at
+   * whatever the receiver happened to hold. The selector is likewise re-emitted rather than relayed, guarding
+   * against another device having changed the active RPN on this channel between the sender's selector and its
+   * Data Entry, and the closing RPN Null protects Pitch Bend Sensitivity from a later stray Data Entry. The CC
+   * that completed the sender's own selector is suppressed upstream in `processCc` to avoid duplication; the
+   * opening CC of that pair still passes through until #261, since a half-set selector matches neither the PBS
+   * nor the MCM RPN.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
@@ -516,16 +519,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       logger.info(s"PBS updated on $channelRole channel $channel of ${updatedZone.zoneType} zone: $pbsField = $ccValue")
     }
 
-    // Forward a complete RPN sequence on the destination channel only: selector, Data Entry, and the closing
-    // RPN Null that protects Pitch Bend Sensitivity from a later stray Data Entry (paper, "Configuration"
-    // preamble). The selector is re-sent rather than relayed, guarding against another device having changed
-    // the active RPN on this channel between the sender's selector and its Data Entry; only the CC that
+    // Emit the complete sequence on the destination channel only, built from the Zone's updated sensitivity
+    // rather than relayed byte-for-byte, so that both Data Entry halves are always sent. Only the CC that
     // completed the sender's own selector is consumed upstream — the opening one still passes through until #261.
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava
-    buffer += CcScMidiMessage(channel, ccNumber, ccValue).asJava
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb).asJava
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb).asJava
+    val sensitivity = if (isMaster) updatedZone.masterPitchBendSensitivity else updatedZone.memberPitchBendSensitivity
+    buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
 
     // Recompute pitch bends on occupied member channels if member PBS changed
     if (!isMaster) {
