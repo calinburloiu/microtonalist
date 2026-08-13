@@ -489,17 +489,21 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Applies a PBS update: updates the internal zone configuration, forwards the Data Entry message
-   * on the target channel, and recomputes pitch bends on occupied member channels if needed.
+   * Applies a PBS update: updates the internal zone configuration, forwards a complete RPN sequence for the
+   * Data Entry message on the target channel, and recomputes pitch bends on occupied member channels if needed.
    *
    * The Data Entry CC is forwarded only on `channel` — not broadcast to all member channels.
    * Per the MPE Specification, the sender is responsible for sending PBS to all member channels;
    * the tuner forwards each received Data Entry on the destination channel 1:1.
    *
-   * The PBS RPN selector (RPN MSB/LSB = 0, 0) is re-emitted on `channel` immediately before the
-   * Data Entry to guard against interleaving from other devices that may have changed the active
-   * RPN on this channel between the original selector and the Data Entry. The original selector
-   * CCs from the sender are suppressed upstream in `processCc` to avoid duplication.
+   * The forwarded sequence follows the shape the paper's "Configuration" preamble gives every re-emitted RPN
+   * sequence: selector, Data Entry, closing RPN Null. The PBS RPN selector (CC #100 LSB, then CC #101 MSB,
+   * both = 0) is re-emitted on `channel`, LSB before MSB, immediately before the Data Entry, to guard against
+   * interleaving from other devices that may have changed the active RPN on this channel between the
+   * original selector and the Data Entry. The sequence closes with an RPN Null (CC #100 = 0x7F, then
+   * CC #101 = 0x7F) that protects Pitch Bend Sensitivity from a later stray Data Entry. The CC that completed
+   * the sender's own selector is suppressed upstream in `processCc` to avoid duplication; the opening CC of that
+   * pair still passes through until #261, since a half-set selector matches neither the PBS nor the MCM RPN.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
@@ -512,12 +516,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       logger.info(s"PBS updated on $channelRole channel $channel of ${updatedZone.zoneType} zone: $pbsField = $ccValue")
     }
 
-    // Forward the RPN setup and Data Entry CC on the original channel only.
-    // The RPN is re-sent to guard against interleaving from other devices that may have changed the
-    // active RPN on this channel.
-    buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava
+    // Forward a complete RPN sequence on the destination channel only: selector, Data Entry, and the closing
+    // RPN Null that protects Pitch Bend Sensitivity from a later stray Data Entry (paper, "Configuration"
+    // preamble). The selector is re-sent rather than relayed, guarding against another device having changed
+    // the active RPN on this channel between the sender's selector and its Data Entry; only the CC that
+    // completed the sender's own selector is consumed upstream — the opening one still passes through until #261.
     buffer += CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava
+    buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava
     buffer += CcScMidiMessage(channel, ccNumber, ccValue).asJava
+    buffer += CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb).asJava
+    buffer += CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb).asJava
 
     // Recompute pitch bends on occupied member channels if member PBS changed
     if (!isMaster) {
@@ -645,10 +653,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   //  messages discarded rather than passed through, including when no Zone is enabled at all; a
   //  Zone-level message arriving on an input Member Channel must be discarded; Master Channel CC #74
   //  and Channel Pressure must be forwarded as Zone-level controls; uninterpreted RPN/NRPN traffic
-  //  must be routed per the paper and an invalid MCM ignored in its entirety; a forwarded Pitch Bend
-  //  Sensitivity sequence must be closed with an RPN Null; a Zone reconfiguration must reset state
-  //  only for the channels entering or leaving MPE control and must not discard the active Tuning;
-  //  and the MIDI Mode messages 124-127 must never be forwarded.
+  //  must be routed per the paper and an invalid MCM ignored in its entirety; a Zone reconfiguration
+  //  must reset state only for the channels entering or leaving MPE control and must not discard the
+  //  active Tuning; and the MIDI Mode messages 124-127 must never be forwarded.
   private def resolveZoneMasterChannel(inputChannel: Int): Option[Int] = {
     if (inputMode == MpeInputMode.NonMpe) {
       routingZoneForNonMpeInput.map(_.masterChannel)
@@ -752,7 +759,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   private def mcmMessages(zone: MpeZone): Seq[MidiMessage] = {
-    // MCM: RPN 6 on master channel with data = memberCount
+    // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null.
+    // Selector and Null are emitted LSB before MSB, matching RP-053 §2.1.1's MCM Message Format and
+    // `PitchBendSensitivityMessages.create`.
     Seq(
       CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
       CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
