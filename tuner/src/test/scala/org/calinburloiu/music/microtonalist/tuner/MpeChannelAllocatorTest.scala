@@ -1229,13 +1229,14 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     rebuilt.activeAllocations shouldBe empty
   }
 
-  // ---- Over-subscribed groups ----
+  // ---- At-capacity and over-subscribed groups ----
 
-  it should "keep working when a retained channel's group is over-subscribed in the smaller Zone" in {
+  it should "keep working when a retained channel's group is filled to exact capacity in the smaller Zone" in {
     // Given
     // A 10-Member Zone has an Expression Group of 3; a 3-Member Zone has one of 2. Three notes of the same pitch
     // class on different input channels cannot share the Pitch Class Group channel, so beyond the first they
-    // occupy Expression Group channels — more of them than the smaller Zone's Expression Group can hold.
+    // occupy Expression Group channels. Retaining channel 1 (Pitch Class Group) and channels 2-3 (Expression
+    // Group) fills both of the smaller Zone's groups to exactly their capacity — not beyond it.
     val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 10))
     val identities = Seq(
       MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.C4), MpeNoteIdentity(3, MidiNote.C4))
@@ -1250,6 +1251,57 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Then
     // Nothing throws, and a fresh note still lands on a Member Channel of the new Zone.
     val result = rebuilt.allocate(MpeNoteIdentity(1, MidiNote.G4))
+    small.memberChannels.toSet should contain(result.channel)
+  }
+
+  it should "keep working when a retained channel's Pitch Class Group is over-subscribed in the smaller Zone" in {
+    // Given
+    // A 10-Member Zone has a Pitch Class Group of 7, room enough for three distinct pitch classes, so all three
+    // land there. A 3-Member Zone has a Pitch Class Group of only 1: retaining all three channels genuinely
+    // over-subscribes it (3 occupied Pitch Class Group channels against a capacity of 1), and — because the
+    // channel count is conserved — leaves the Expression Group nominally under capacity (0 against 2) even
+    // though the Zone is, in fact, fully occupied.
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 10))
+    val identities = Seq(
+      MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.D4), MpeNoteIdentity(3, MidiNote.E4))
+    val channels = identities.map(alloc.allocate(_).channel).toSet
+
+    // When
+    val small = MpeZone(MpeZoneType.Lower, 3)
+    val rebuilt = MpeChannelAllocator.retaining(small, alloc,
+      retainedChannels = channels.intersect(small.memberChannels.toSet),
+      droppedInputChannels = Set.empty)
+
+    // Then
+    // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
+    // Zone, even though the Expression Group's nominal room check finds no actual unoccupied channel to grant.
+    val result = rebuilt.allocate(MpeNoteIdentity(4, MidiNote.G4))
+    small.memberChannels.toSet should contain(result.channel)
+  }
+
+  it should "keep working when a retained channel's Expression Group is over-subscribed in the smaller Zone" in {
+    // Given
+    // A 10-Member Zone has an Expression Group of 3. One note claims the Pitch Class Group (channel 10, via
+    // preferredChannel); three more of the same pitch class each claim an Expression Group channel (1, 2, 3).
+    // Retaining only channels 1-3 — the Expression Group ones — into a 3-Member Zone (Expression Group of 2)
+    // genuinely over-subscribes it (3 occupied against a capacity of 2), while leaving the Pitch Class Group
+    // nominally under capacity (0 against 1) even though the Zone is, in fact, fully occupied.
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 10))
+    alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(10))
+    val egChannels = Seq(2, 3, 4).map { inputChannel =>
+      alloc.allocate(MpeNoteIdentity(inputChannel, MidiNote.C4), preferredChannel = Some(inputChannel - 1)).channel
+    }.toSet
+    egChannels shouldEqual Set(1, 2, 3)
+
+    // When
+    val small = MpeZone(MpeZoneType.Lower, 3)
+    val rebuilt = MpeChannelAllocator.retaining(small, alloc,
+      retainedChannels = egChannels, droppedInputChannels = Set.empty)
+
+    // Then
+    // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
+    // Zone, even though the Pitch Class Group's nominal room check finds no actual unoccupied channel to grant.
+    val result = rebuilt.allocate(MpeNoteIdentity(5, MidiNote.D4))
     small.memberChannels.toSet should contain(result.channel)
   }
 }

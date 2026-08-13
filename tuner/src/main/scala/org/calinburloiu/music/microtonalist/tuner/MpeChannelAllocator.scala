@@ -212,16 +212,25 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
     val pc = noteIdentity.midiNote.pitchClass
     val time = nextTime()
 
+    // A channel transplanted by MpeChannelAllocator.retaining can leave a group holding more occupied
+    // channels than the new Zone's group size allows (see its ScalaDoc). When that happens, the "this
+    // group still has nominal room" checks below can hold true with no unoccupied channel actually left to
+    // grant, because the channel budget spent by the over-subscribed group is not reflected in either
+    // group's own count. The `unoccupied.nonEmpty` guard on Steps 1 and 2 catches that case and falls
+    // through to Steps 3/4, which already handle a fully occupied Zone; it is not a guard against
+    // over-subscription arising in the first place, which #262 leaves unguarded by design.
+    val unoccupied = unoccupiedChannels.map(channelStates)
+
     // Step 1: Check Pitch Class Group availability
     val pitchClassInPCG = pitchClassGroupChannels.exists(_.pitchClass.contains(pc))
-    if (!pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize) {
-      val target = bestCandidate(unoccupiedChannels.map(channelStates), preferredChannel)
+    if (!pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize && unoccupied.nonEmpty) {
+      val target = bestCandidate(unoccupied, preferredChannel)
       boundary.break(doAllocate(target, noteIdentity, expression, time, ChannelGroup.PitchClass))
     }
 
     // Step 2: Try Expression Group
-    if (expressionGroupCount < zone.expressionGroupSize) {
-      val target = bestCandidate(unoccupiedChannels.map(channelStates), preferredChannel)
+    if (expressionGroupCount < zone.expressionGroupSize && unoccupied.nonEmpty) {
+      val target = bestCandidate(unoccupied, preferredChannel)
       boundary.break(doAllocate(target, noteIdentity, expression, time, ChannelGroup.Expression))
     }
 
@@ -679,8 +688,17 @@ private[tuner] object MpeChannelAllocator {
    * allows. No invariant breaks: the allocation algorithm reads the group counts only to decide whether a
    * group has room, so an over-subscribed group simply admits no new channel until notes are released.
    *
+   * @note `from` is consumed, not merely read: the retained [[MpeChannelState]] objects are transplanted into
+   *       the returned allocator by reference, and any note whose input channel is in `droppedInputChannels`
+   *       is removed from its shared state in place. `from` must not be used again after this call — in
+   *       particular, releasing on `from` a note that this call dropped will fail the reference-count
+   *       invariant `from` no longer holds, because the shared state's note is already gone while `from`'s
+   *       own `noteChannels` binding for it is not. The sole caller ([[MpeTuner]]'s Zone-reconfiguration path)
+   *       discards `from` the moment this method returns.
+   *
    * @param zone                 The reconfigured Zone.
-   * @param from                 The allocator of the same Zone before the reconfiguration.
+   * @param from                 The allocator of the same Zone before the reconfiguration. Mutated in place and
+   *                             must not be used after this call returns — see the `@note` above.
    * @param retainedChannels     The output Member Channels that keep their role. Any channel not listed — and
    *                             any listed channel that the new Zone no longer contains — starts empty, so
    *                             its notes are dropped.
