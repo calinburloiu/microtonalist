@@ -2533,6 +2533,23 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
+  it should "emit the MCM RPN selector LSB before its MSB, closed by an RPN Null" in new Fixture(mpeTunerMpeInput) {
+    // When
+    private val output = tuner.reset()
+    // Then
+    // Pin the exact prefix rather than using `contain inOrder`: the MCM is the first thing emitted on the Master
+    // Channel, and the master PBS sequence that follows carries its own closing RPN Null, which would satisfy the
+    // Null expectations on the MCM's behalf.
+    private val ccs = extractCc(output).filter(_.channel == 0)
+    ccs.take(5) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 15),
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+    )
+  }
+
   // ---- MCM-driven zone reconfiguration ----
 
   it should "reconfigure lower zone on MCM received on channel 0" in new Fixture(dualZoneTunerMpeInput) {
@@ -2733,6 +2750,37 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
     }
 
+  it should "forward a PBS update as a complete RPN sequence with both Data Entry bytes and a closing Null" in
+    new Fixture(tuner7) {
+      // When
+      private val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12),
+        CcScMidiMessage(0, ScMidiCc.DataEntryLsb, MpeZone.DefaultMasterPitchBendSensitivity.cents),
+        CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+      )
+    }
+
+  it should "carry the unchanged Data Entry half from the Tuner's own state" in new Fixture(tuner7) {
+    // Given - the sender sets the semitones half, which the Tuner records on the Zone
+    sendPbsMsb(tuner, channel = 5, semitones = 12)
+    // When - only the cents half is sent afterwards
+    private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
+    // Then - the semitones half is re-emitted from the recorded sensitivity, not from this message
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 50),
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+    )
+  }
+
   // ---- LSB (cents) handling ----
 
   it should "handle PBS LSB (cents) update by forwarding to master channel" in new Fixture(tuner7) {
@@ -2852,6 +2900,21 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       MpeZone.DefaultMemberPitchBendSensitivity.semitones, cents = 50)
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
   }
+
+  it should "forward a member PBS update as a complete RPN sequence on the receiving Member Channel" in
+    new Fixture(tuner7MpeInput) {
+      // When
+      private val output = sendPbsMsb(tuner, channel = 3, semitones = 24)
+      // Then
+      extractCc(output).filter(_.channel == 3) shouldEqual Seq(
+        CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+        CcScMidiMessage(3, ScMidiCc.DataEntryMsb, 24),
+        CcScMidiMessage(3, ScMidiCc.DataEntryLsb, MpeZone.DefaultMemberPitchBendSensitivity.cents),
+        CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+        CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+      )
+    }
 
   // ---- Pitch-bend recomputation after PBS change ----
 
