@@ -2323,6 +2323,65 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
+  // ---- Uninterpreted RPN/NRPN sequences ----
+
+  it should "hold back an uninterpreted RPN selector and re-emit it ahead of the Data Entry" in new Fixture(tuner7) {
+    // Given
+    private val selectorOutput =
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava) ++
+        tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava)
+    // Then
+    selectorOutput shouldBe empty
+
+    // When
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+    // Then
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70)
+    )
+  }
+
+  it should "re-emit the selector ahead of each value message of an NRPN sequence" in new Fixture(tuner7) {
+    // Given
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    // When
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava) ++
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryLsb, 5).asJava)
+    // Then
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5)
+    )
+  }
+
+  it should "keep two interleaved input sequences apart on the output Master Channel" in new Fixture(tuner7) {
+    // Given
+    // Two senders on different input channels select different parameters, then interleave their Data Entries.
+    tuner.process(CcScMidiMessage(2, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava)
+    tuner.process(CcScMidiMessage(2, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava)
+    tuner.process(CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb).asJava)
+    tuner.process(CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.CoarseTuningLsb).asJava)
+    // When
+    private val output = tuner.process(CcScMidiMessage(2, ScMidiCc.DataEntryMsb, 70).asJava) ++
+      tuner.process(CcScMidiMessage(3, ScMidiCc.DataEntryMsb, 60).asJava)
+    // Then
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb),
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.CoarseTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 60)
+    )
+  }
+
   behavior of "MpeTuner - process() - Zone-level Messages - MPE Input"
 
   // ---- Discarding Zone-level messages received on a Member Channel ----
@@ -2370,6 +2429,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         output shouldBe empty
       }
     }
+
+  it should "discard an uninterpreted RPN sequence received on a Member Channel" in new Fixture(tuner7MpeInput) {
+    // Given / When
+    private val output =
+      tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava) ++
+        tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava) ++
+        tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+    // Then
+    output shouldBe empty
+  }
 
   // ---- Forwarding Zone-level messages received on a Master Channel ----
 
@@ -2495,6 +2564,23 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       }
     }
 
+  // ---- Uninterpreted RPN/NRPN sequences ----
+
+  it should "re-emit an uninterpreted RPN sequence on the Master Channel it arrived on" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava)
+      tuner.process(CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava)
+      // When
+      private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70).asJava)
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+        CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70)
+      )
+    }
+
   behavior of "MpeTuner - MCM Processing - Non-MPE Input"
 
   // ---- Mode switching ----
@@ -2517,6 +2603,20 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
     tuner.zones.lower.memberCount shouldEqual 7
     tuner.zones.upper.memberCount shouldEqual 0
+  }
+
+  // ---- Channel-of-receipt gating ----
+
+  it should "ignore an MCM received on a channel other than 1 or 16, in its entirety" in new Fixture(tuner7) {
+    // When
+    private val output =
+      tuner.process(CcScMidiMessage(5, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb).asJava) ++
+        tuner.process(CcScMidiMessage(5, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).asJava) ++
+        tuner.process(CcScMidiMessage(5, ScMidiCc.DataEntryMsb, 3).asJava)
+    // Then
+    output shouldBe empty
+    tuner.inputMode shouldBe MpeInputMode.NonMpe
+    tuner.zones.lower.memberCount shouldEqual 7
   }
 
   behavior of "MpeTuner - MCM Processing - MPE Input"
@@ -2678,12 +2778,32 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Channel-of-receipt gating ----
 
-  it should "ignore MCM on non-master channel" in new Fixture(mpeTunerMpeInput) {
-    // When
-    private val output = sendMcm(tuner, channel = 5, memberCount = 7)
-    // Then - Should NOT trigger MCM processing
-    extractNoteOffs(output) shouldBe empty
-  }
+  // Regression guard: phase 2's Member-Channel discard already covers this case, so it was expected to be
+  // green before the RPN/NRPN sequence emission change (#261) too.
+  it should "ignore an MCM received on a channel other than 1 or 16, in its entirety" in
+    new Fixture(mpeTunerMpeInput) {
+      // When
+      private val output =
+        tuner.process(CcScMidiMessage(5, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb).asJava) ++
+          tuner.process(CcScMidiMessage(5, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).asJava) ++
+          tuner.process(CcScMidiMessage(5, ScMidiCc.DataEntryMsb, 7).asJava)
+      // Then
+      output shouldBe empty
+      tuner.zones.lower.memberCount shouldEqual 15
+    }
+
+  it should "discard a Data Entry LSB received while an MCM is selected on a valid MCM channel" in
+    new Fixture(mpeTunerMpeInput) {
+      // Given
+      // The MPE Specification's MCM uses the Data Entry MSB alone; the LSB is not part of it, even on a channel
+      // (0, i.e. MIDI Channel 1) that is otherwise a valid MCM channel.
+      tuner.process(CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb).asJava)
+      tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).asJava)
+      // When
+      private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5).asJava)
+      // Then
+      output shouldBe empty
+    }
 
   // ---- Revert on reset ----
 

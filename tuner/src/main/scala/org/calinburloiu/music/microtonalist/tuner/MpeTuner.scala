@@ -193,8 +193,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
             logger.trace(s"Discarding $msg received on a channel with role $role")
           case MpeRoutingVerdict.ForwardOn(channel) =>
             buffer += msg.mapChannel(_ => channel).asJava
-          case MpeRoutingVerdict.ForwardRpnSequenceOn(_) =>
-            // TODO #261 Filled in by the next task: emit the re-rendered sequence.
+          case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
+            case cc: CcScMidiMessage =>
+              buffer ++= MpeMessageRouting.rpnSequence(rpnSelector, cc.number, cc.value, channel).map(_.asJava)
+            case _ =>
+              // `route` returns this verdict only for a Data Entry, Data Increment or Data Decrement CC.
+              logger.error(s"Unexpected RPN sequence verdict for $msg")
+          }
           case MpeRoutingVerdict.Interpret =>
             interpret(buffer, msg, role, rpnSelector)
         }
