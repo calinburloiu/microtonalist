@@ -217,7 +217,16 @@ private[tuner] object MpeMessageRouting {
     }
   }
 
-  /** Whether both halves of the selected parameter have been set, which is what a value message needs to apply. */
+  /**
+   * Whether both halves of the selected parameter have been set, which is what a value message needs to apply.
+   *
+   * An unset half is indistinguishable from a genuine half of 127: [[ScMidiChannelStateTracker]]'s `RpnSelector`
+   * reuses the Null value (127) as its "not yet received" sentinel, so an RPN or NRPN whose MSB or LSB is
+   * genuinely 127 reads the same as a half-set selector. Such a parameter is therefore treated as incomplete here,
+   * and its value messages are discarded rather than relayed.
+   */
+  // TODO #267 The real fix is to model the unset halves explicitly in `sc-midi`'s `RpnSelector` rather than by
+  //  sentinel, so a genuine half of 127 can be told apart from "not yet received".
   private def isComplete(rpnSelector: RpnSelector): Boolean = rpnSelector match {
     case RpnSelector.None => false
     case RpnSelector.Rpn(msb, lsb) => msb != ScMidiRpn.NullMsb && lsb != ScMidiRpn.NullLsb

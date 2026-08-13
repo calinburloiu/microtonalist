@@ -184,6 +184,9 @@ These are signalled directly in the code:
   `MpeMessageRouting`. A forwarded Pitch Bend Sensitivity sequence is closed with an RPN Null, and the per-note
   Expression Value model itself — averaging, fan-out, reference counting and the Note On/Note Off emission rules — is
   implemented.
+- An RPN or NRPN whose MSB or LSB is 127 is indistinguishable from a half-set selector, because
+  `ScMidiChannelStateTracker`'s `RpnSelector` uses the Null value as its "not yet received" sentinel, so
+  `MpeMessageRouting` treats it as incomplete and discards its value messages (TODO #267).
 - `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
   the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded
   cents disagree with the cents retained for already-active notes (TODO #253).

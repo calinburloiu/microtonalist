@@ -460,10 +460,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Tuner encodes its output Pitch Bend against; forwarding only the half that arrived would leave the other at
    * whatever the receiver happened to hold. The selector is likewise re-emitted rather than relayed, guarding
    * against another device having changed the active RPN on this channel between the sender's selector and its
-   * Data Entry, and the closing RPN Null protects Pitch Bend Sensitivity from a later stray Data Entry. The CC
-   * that completed the sender's own selector is suppressed upstream in [[MpeMessageRouting.route]] to avoid
-   * duplication, while the opening CC of that pair still passes through, since a half-set selector matches
-   * neither the PBS nor the MCM RPN.
+   * Data Entry, and the closing RPN Null protects Pitch Bend Sensitivity from a later stray Data Entry. The
+   * sender's own selector CCs are consumed upstream in [[MpeMessageRouting.route]], so re-emitting the selector
+   * here cannot duplicate them.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,

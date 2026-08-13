@@ -288,7 +288,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
         // When / Then
         MpeMessageRouting.route(memberRole, message, selector) shouldEqual Discard
         MpeMessageRouting.route(masterRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
-        MpeMessageRouting.route(nonMpeRole, message, selector) shouldEqual ForwardRpnSequenceOn(0)
+        MpeMessageRouting.route(nonMpeRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
         MpeMessageRouting.route(outsideRole, message, selector) shouldEqual Discard
       }
     }
@@ -300,20 +300,29 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
       RpnSelector.None,
       RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.NullLsb),
       RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.FineTuningLsb))
+    val ccNumbers = Table("ccNumber",
+      ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(selectors) { selector =>
-      // When / Then
-      MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64), selector) shouldEqual
-        Discard
+      forAll(ccNumbers) { ccNumber =>
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), selector) shouldEqual Discard
+        }
+      }
     }
   }
 
   it should "discard an MCM Data Entry received on a channel other than MIDI Channel 1 or 16" in {
     // Given
     val channels = Table("channel", 1, 5, 14)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(channels) { channel =>
-      // When / Then
-      MpeMessageRouting.route(memberRole, CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, 7), mcmSelector) shouldEqual
-        Discard
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, 7), mcmSelector) shouldEqual
+          Discard
+      }
     }
   }
 

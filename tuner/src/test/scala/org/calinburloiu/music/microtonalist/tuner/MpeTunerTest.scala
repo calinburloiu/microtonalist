@@ -2345,8 +2345,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "re-emit the selector ahead of each value message of an NRPN sequence" in new Fixture(tuner7) {
     // Given
-    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
-    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    private val selectorOutput =
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava) ++
+        tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    // Then
+    selectorOutput shouldBe empty
+
     // When
     private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava) ++
       tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryLsb, 5).asJava)
@@ -2364,10 +2368,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "keep two interleaved input sequences apart on the output Master Channel" in new Fixture(tuner7) {
     // Given
     // Two senders on different input channels select different parameters, then interleave their Data Entries.
-    tuner.process(CcScMidiMessage(2, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava)
-    tuner.process(CcScMidiMessage(2, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava)
-    tuner.process(CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb).asJava)
-    tuner.process(CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.CoarseTuningLsb).asJava)
+    private val selectorOutput =
+      tuner.process(CcScMidiMessage(2, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava) ++
+        tuner.process(CcScMidiMessage(2, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava) ++
+        tuner.process(CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb).asJava) ++
+        tuner.process(CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.CoarseTuningLsb).asJava)
+    // Then
+    selectorOutput shouldBe empty
+
     // When
     private val output = tuner.process(CcScMidiMessage(2, ScMidiCc.DataEntryMsb, 70).asJava) ++
       tuner.process(CcScMidiMessage(3, ScMidiCc.DataEntryMsb, 60).asJava)
@@ -2778,8 +2786,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- Channel-of-receipt gating ----
 
-  // Regression guard: phase 2's Member-Channel discard already covers this case, so it was expected to be
-  // green before the RPN/NRPN sequence emission change (#261) too.
+  // Regression guard: a Member Channel discards the whole sequence regardless of the MCM channel rule, which is
+  // why this case is a regression guard rather than a new behaviour.
   it should "ignore an MCM received on a channel other than 1 or 16, in its entirety" in
     new Fixture(mpeTunerMpeInput) {
       // When
