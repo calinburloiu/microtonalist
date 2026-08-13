@@ -1,0 +1,79 @@
+/*
+ * Copyright 2026 Calin-Andrei Burloiu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+package org.calinburloiu.music.microtonalist.tuner
+
+/**
+ * The part a MIDI channel plays in the Tuner's Zone structure, as seen by the message router.
+ *
+ * The role is a total classification: every channel has exactly one in either input mode. It carries the Zone it
+ * belongs to, so that a routing decision needs nothing else to name its destination channel.
+ */
+private[tuner] enum MpeChannelRole {
+  /** Non-MPE Input Mode, with a Zone enabled to route this input's Zone-level messages to. */
+  case NonMpeInput(routingZone: MpeZone)
+
+  /** MPE Input Mode, the Master Channel of an enabled Zone. */
+  case Master(zone: MpeZone)
+
+  /** MPE Input Mode, a Member Channel of an enabled Zone. */
+  case Member(zone: MpeZone)
+
+  /**
+   * Under no Zone's control, in either input mode: an MPE input channel outside every enabled Zone, and — when no
+   * Zone is enabled at all — every channel in both input modes. The paper's "Messages Outside the Zone Structure"
+   * section discards everything received here, an MCM on MIDI Channel 1 or 16 excepted.
+   */
+  case Outside
+}
+
+/**
+ * The MPE Tuner's MIDI message routing and filtering rules, as pure functions of the channel's role, the message
+ * and the channel's currently selected Registered or Non-Registered Parameter.
+ *
+ * This object holds no state: everything it needs is passed in, which is what lets the paper's message-handling
+ * table be read straight off [[route]].
+ */
+private[tuner] object MpeMessageRouting {
+
+  /**
+   * Classifies a channel within a Zone configuration.
+   *
+   * In Non-MPE Input Mode the input carries no Zone structure of its own, so every channel takes the same role,
+   * naming the Zone its Zone-level messages are routed to: the Lower Zone when enabled, otherwise the Upper Zone.
+   *
+   * @param inputMode The Tuner's current input mode.
+   * @param zones     The Tuner's current Zone configuration.
+   * @param channel   The 0-indexed MIDI channel to classify.
+   */
+  def roleOf(inputMode: MpeInputMode, zones: MpeZones, channel: Int): MpeChannelRole = inputMode match {
+    case MpeInputMode.NonMpe =>
+      if (zones.lower.isEnabled) MpeChannelRole.NonMpeInput(zones.lower)
+      else if (zones.upper.isEnabled) MpeChannelRole.NonMpeInput(zones.upper)
+      else MpeChannelRole.Outside
+    case MpeInputMode.Mpe =>
+      roleInZone(zones.lower, channel)
+        .orElse(roleInZone(zones.upper, channel))
+        .getOrElse(MpeChannelRole.Outside)
+  }
+
+  private def roleInZone(zone: MpeZone, channel: Int): Option[MpeChannelRole] = {
+    if (!zone.isEnabled) None
+    else if (channel == zone.masterChannel) Some(MpeChannelRole.Master(zone))
+    else if (zone.memberChannels.contains(channel)) Some(MpeChannelRole.Member(zone))
+    else None
+  }
+}
