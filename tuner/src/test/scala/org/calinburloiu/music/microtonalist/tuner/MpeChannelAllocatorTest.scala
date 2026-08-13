@@ -1149,4 +1149,107 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     result.droppedNotes.value.notes shouldEqual Seq(MpeDroppedNote(identity, 2))
     alloc.channelOf(identity) shouldBe None
   }
+
+  behavior of "MpeChannelAllocator.retaining"
+
+  // ---- Retained channels ----
+
+  it should "keep the notes, reference counts, Expression Values, pitch class and group of a retained channel" in {
+    // Given
+    val zone = MpeZone(MpeZoneType.Lower, 7)
+    val alloc = MpeChannelAllocator(zone)
+    val identity = MpeNoteIdentity(1, MidiNote.C4)
+    val expression = ImmutableMpeExpression(pitchBendCents = 20.0, pressure = 70, slide = 100)
+    val channel = alloc.allocate(identity, Some(expression)).channel
+    alloc.allocate(identity)
+    val group = alloc.channelGroupOf(channel)
+
+    // When
+    val shrunk = MpeZone(MpeZoneType.Lower, 4)
+    val rebuilt = MpeChannelAllocator.retaining(shrunk, alloc,
+      retainedChannels = Set(channel), droppedInputChannels = Set.empty)
+
+    // Then
+    rebuilt.channelOf(identity) shouldEqual Some(channel)
+    rebuilt.referenceCountOf(identity) shouldEqual 2
+    rebuilt.channelExpression(channel).pressure shouldEqual 70
+    rebuilt.channelExpression(channel).slide shouldEqual 100
+    rebuilt.channelPitchClass(channel) shouldEqual Some(MidiNote.C4.pitchClass)
+    rebuilt.channelGroupOf(channel) shouldEqual group
+  }
+
+  it should "drop the notes of a channel that is not retained" in {
+    // Given
+    val zone = MpeZone(MpeZoneType.Lower, 7)
+    val alloc = MpeChannelAllocator(zone)
+    val kept = MpeNoteIdentity(1, MidiNote.C4)
+    val dropped = MpeNoteIdentity(2, MidiNote.E4)
+    val keptChannel = alloc.allocate(kept).channel
+    val droppedChannel = alloc.allocate(dropped).channel
+    keptChannel should not equal droppedChannel
+
+    // When
+    val rebuilt = MpeChannelAllocator.retaining(zone, alloc,
+      retainedChannels = Set(keptChannel), droppedInputChannels = Set.empty)
+
+    // Then
+    rebuilt.channelOf(kept) shouldEqual Some(keptChannel)
+    rebuilt.channelOf(dropped) shouldEqual None
+    rebuilt.isChannelOccupied(droppedChannel) shouldBe false
+  }
+
+  it should "drop a note whose input channel left MPE control even when its output channel is retained" in {
+    // Given
+    val zone = MpeZone(MpeZoneType.Lower, 7)
+    val alloc = MpeChannelAllocator(zone)
+    val identity = MpeNoteIdentity(6, MidiNote.C4)
+    val channel = alloc.allocate(identity, preferredChannel = Some(1)).channel
+
+    // When
+    val rebuilt = MpeChannelAllocator.retaining(zone, alloc,
+      retainedChannels = Set(channel), droppedInputChannels = Set(6))
+
+    // Then
+    rebuilt.channelOf(identity) shouldEqual None
+    rebuilt.isChannelOccupied(channel) shouldBe false
+  }
+
+  it should "start every channel of the new Zone that is not retained empty" in {
+    // Given
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4))
+    alloc.allocate(MpeNoteIdentity(1, MidiNote.C4))
+
+    // When
+    val grown = MpeZone(MpeZoneType.Lower, 7)
+    val rebuilt = MpeChannelAllocator.retaining(grown, alloc,
+      retainedChannels = Set.empty, droppedInputChannels = Set.empty)
+
+    // Then
+    rebuilt.activeChannelCount shouldEqual 0
+    rebuilt.activeAllocations shouldBe empty
+  }
+
+  // ---- Over-subscribed groups ----
+
+  it should "keep working when a retained channel's group is over-subscribed in the smaller Zone" in {
+    // Given
+    // A 10-Member Zone has an Expression Group of 3; a 3-Member Zone has one of 2. Three notes of the same pitch
+    // class on different input channels cannot share the Pitch Class Group channel, so beyond the first they
+    // occupy Expression Group channels — more of them than the smaller Zone's Expression Group can hold.
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 10))
+    val identities = Seq(
+      MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.C4), MpeNoteIdentity(3, MidiNote.C4))
+    val channels = identities.map(alloc.allocate(_).channel).toSet
+
+    // When
+    val small = MpeZone(MpeZoneType.Lower, 3)
+    val rebuilt = MpeChannelAllocator.retaining(small, alloc,
+      retainedChannels = channels.intersect(small.memberChannels.toSet),
+      droppedInputChannels = Set.empty)
+
+    // Then
+    // Nothing throws, and a fresh note still lands on a Member Channel of the new Zone.
+    val result = rebuilt.allocate(MpeNoteIdentity(1, MidiNote.G4))
+    small.memberChannels.toSet should contain(result.channel)
+  }
 }
