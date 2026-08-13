@@ -2366,6 +2366,26 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.upper.memberCount shouldEqual 0
   }
 
+  // ---- Effects on active notes ----
+
+  it should "stop a note bound while still in Non-MPE Input Mode when the MCM that follows leaves that mode" in
+    new Fixture {
+      // Given
+      // In Non-MPE Input Mode channel 0 is an ordinary input channel: the note is bound in the allocator like
+      // any other. Only the MCM that follows reinterprets channel 0 as a Master Channel.
+      private val noteOutput = noteOn(0, C4)
+      private val outChannel = extractNoteOns(noteOutput).head.channel
+
+      // When
+      // This MCM does not even change a Zone boundary (the default zones already have 15 Lower members), yet
+      // leaving Non-MPE Input Mode still means every channel is now interpreted differently, so the note bound
+      // while still in Non-MPE Input Mode must be stopped regardless.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 15)
+
+      // Then
+      extractNoteOffs(output) should contain(NoteOffScMidiMessage(outChannel, C4))
+    }
+
   behavior of "MpeTuner - MCM Processing - MPE Input"
 
   // ---- MCM emission on reset ----
@@ -2513,6 +2533,22 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // A note on the surviving channel is seeded from the retained CC #74; the reconfigured channel is gone.
       private val output = noteOn(2, C4)
       extractSlides(output).map(_.value) should contain(100)
+    }
+
+  it should "clear the tracked control state of a channel that left and later re-entered MPE control" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Seed channel 12's control state, then shrink the Zone so it leaves MPE control.
+      slide(12, 100)
+      sendMcm(tuner, channel = 0, memberCount = 7)
+      // When
+      // Grow the Zone back so channel 12 re-enters MPE control.
+      sendMcm(tuner, channel = 0, memberCount = 15)
+      // Then
+      // The channel's tracked state was cleared, not merely left behind: a note on it now starts with no
+      // seeded Slide.
+      private val output = noteOn(12, C4)
+      extractSlides(output).map(_.value) should not contain 100
     }
 
   it should "reset the state of channels handed from one Zone to the other" in

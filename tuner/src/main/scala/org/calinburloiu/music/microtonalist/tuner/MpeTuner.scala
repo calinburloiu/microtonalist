@@ -207,7 +207,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // Master Channel notes are forwarded as-is: no allocator, no tuning offset, no control
       // dimension setup. They play in 12-EDO (modulated only by Master Pitch Bend) because
       // applying a per-pitch-class tuning offset on the Master Channel would affect every
-      // note in the Zone. `tracker` keeps them, which is all stopAllNotes needs.
+      // note in the Zone. `tracker` keeps them, which is all stopNotesOn needs.
       buffer += msg.asJava
     } else {
       processMemberNoteOn(buffer, msg)
@@ -411,9 +411,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     val zonesBefore = _zones
     val zonesAfter = _zones.update(newZone)
-    // Only the channels entering or leaving MPE control are reset; a Zone untouched by the reconfiguration keeps
-    // its notes and its state, as the paper's Zone-configuration section requires.
-    val affected = affectedChannels(zonesBefore, zonesAfter)
+    // Leaving Non-MPE Input Mode changes how every channel is interpreted, so every channel enters MPE
+    // control and the reset is wholesale. Within MPE Input Mode only the channels whose Zone assignment
+    // changes are affected.
+    val affected =
+      if (_inputMode == MpeInputMode.NonMpe) AllChannels
+      else affectedChannels(zonesBefore, zonesAfter)
 
     // Stop the affected notes while the old Zone structure and allocators are still in place.
     stopNotesOn(buffer, affected)
@@ -447,13 +450,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def rebuildAllocator(previous: Option[MpeChannelAllocator],
                                zone: MpeZone,
-                               affected: Set[Int]): Option[MpeChannelAllocator] = {
-    if (!zone.isEnabled) None
-    else previous match {
-      case Some(alloc) => Some(MpeChannelAllocator.retaining(zone, alloc,
-        retainedChannels = zone.memberChannels.toSet -- affected, droppedInputChannels = affected))
-      case None => Some(MpeChannelAllocator(zone))
-    }
+                               affected: Set[Int]): Option[MpeChannelAllocator] = previous match {
+    case Some(alloc) if zone.isEnabled => Some(MpeChannelAllocator.retaining(zone, alloc,
+      retainedChannels = zone.memberChannels.toSet -- affected, droppedInputChannels = affected))
+    case _ => createAllocator(zone)
   }
 
   /**
