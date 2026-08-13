@@ -2269,77 +2269,207 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     programChanges should contain(ProgramChangeScMidiMessage(0, 5))
   }
 
+  // ---- MIDI Mode messages (N4) ----
+
+  it should "discard the MIDI Mode messages 124-127" in new Fixture {
+    private val ccNumbers = Table("ccNumber",
+      ScMidiCc.OmniModeOff, ScMidiCc.OmniModeOn, ScMidiCc.MonoModeOn, ScMidiCc.PolyModeOn)
+    forAll(ccNumbers) { ccNumber =>
+      // When / Then
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ccNumber, 0).asJava) shouldBe empty
+    }
+  }
+
+  // ---- No Zone enabled (C4) ----
+
+  it should "discard every Channel Voice and Channel Mode message when no Zone is enabled" in {
+    // Given
+    val tuner = MpeTuner(initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 0)))
+    val channels = Table("channel", 0, 5, 15)
+    forAll(channels) { channel =>
+      // When / Then
+      tuner.process(NoteOnScMidiMessage(channel, C4, 100).asJava) shouldBe empty
+      tuner.process(NoteOffScMidiMessage(channel, C4).asJava) shouldBe empty
+      tuner.process(PitchBendScMidiMessage(channel, 1000).asJava) shouldBe empty
+      tuner.process(CcScMidiMessage(channel, ScMidiCc.SustainPedal, 127).asJava) shouldBe empty
+      tuner.process(ProgramChangeScMidiMessage(channel, 5).asJava) shouldBe empty
+    }
+  }
+
+  it should "still act on a valid MCM when no Zone is enabled" in {
+    // Given
+    val tuner = MpeTuner(initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 0)))
+    // When
+    val output = sendMcm(tuner, channel = 0, memberCount = 7)
+    // Then
+    tuner.zones.lower.memberCount shouldEqual 7
+    tuner.inputMode shouldBe MpeInputMode.Mpe
+    output should not be empty
+  }
+
   behavior of "MpeTuner - process() - Zone-level Messages - MPE Input"
 
-  // ---- Forwarding to zone Master Channel (single-zone) ----
+  // ---- Discarding Zone-level messages received on a Member Channel ----
 
-  it should "forward zone-level CCs received on member channel to zone Master Channel" in
+  it should "discard zone-level CCs received on a Member Channel" in new Fixture(tuner7MpeInput) {
+    private val zoneLevelCcs = Table(
+      ("ccName", "ccNumber", "ccValue"),
+      ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
+      ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
+      ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
+      ("Modulation", ScMidiCc.ModulationMsb, 64),
+      ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
+      ("Soft Pedal", ScMidiCc.SoftPedal, 127),
+      ("Sustain Pedal", ScMidiCc.SustainPedal, 127)
+    )
+    forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
+      // When
+      val output = tuner.process(CcScMidiMessage(mpeInputChannel, ccNumber, ccValue).asJava)
+      // Then
+      output shouldBe empty
+    }
+  }
+
+  it should "discard Program Change received on a Member Channel" in new Fixture(tuner7MpeInput) {
+    // When
+    private val output = tuner.process(ProgramChangeScMidiMessage(mpeInputChannel, 5).asJava)
+    // Then
+    output shouldBe empty
+  }
+
+  it should "discard uninterpreted RPN/NRPN selector CCs received on a Member Channel" in
     new Fixture(tuner7MpeInput) {
-      private val zoneLevelCcs = Table(
-        ("ccName", "ccNumber", "ccValue"),
-        ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
-        ("Bank Select LSB", ScMidiCc.BankSelectLsb, 0),
-        ("Reset All Controllers", ScMidiCc.ResetAllControllers, 0),
-        ("Modulation", ScMidiCc.ModulationMsb, 64),
-        ("Sostenuto Pedal", ScMidiCc.SostenutoPedal, 127),
-        ("Soft Pedal", ScMidiCc.SoftPedal, 127)
-      )
-      forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
+      // Given
+      // Parameter number 5 selects neither the MPE Configuration Message (0, 6) nor Pitch Bend Sensitivity (0, 0),
+      // so the selector stays uninterpreted and its CCs remain ordinary Zone-level traffic at Member level.
+      private val uninterpretedParameterNumber = 5
+      private val selectorCcs = Table("ccNumber",
+        ScMidiCc.RpnMsb, ScMidiCc.RpnLsb, ScMidiCc.NrpnMsb, ScMidiCc.NrpnLsb)
+      forAll(selectorCcs) { ccNumber =>
         // When
-        val output = tuner.process(CcScMidiMessage(mpeInputChannel, ccNumber, ccValue).asJava)
+        val output = tuner.process(
+          CcScMidiMessage(mpeInputChannel, ccNumber, uninterpretedParameterNumber).asJava)
         // Then
-        extractCc(output) should contain(CcScMidiMessage(0, ccNumber, ccValue))
+        output shouldBe empty
       }
     }
 
-  it should "forward Sustain Pedal (CC #64) received on member channel to zone Master Channel" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = tuner.process(CcScMidiMessage(mpeInputChannel, ScMidiCc.SustainPedal, 127)
-        .asJava)
-      // Then
-      extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 127))
-    }
+  // ---- Forwarding Zone-level messages received on a Master Channel ----
 
-  it should "forward Program Change received on member channel to zone Master Channel" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = tuner.process(ProgramChangeScMidiMessage(mpeInputChannel, 5).asJava)
-      // Then
-      private val programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
-      programChanges should contain(ProgramChangeScMidiMessage(0, 5))
-    }
-
-  // ---- Routing to upper zone Master Channel (dual-zone) ----
-
-  it should "route zone-level CC to the appropriate zone Master Channel when received on a member channel" in
+  it should "forward zone-level CCs received on a Master Channel unmodified" in
     new Fixture(dualZoneTunerMpeInput) {
-      // When
-      // lower zone: members 1-7, master 0
-      private var output = tuner.process(CcScMidiMessage(3, ScMidiCc.SustainPedal, 72).asJava)
-      // Then
-      extractCc(output) should contain(CcScMidiMessage(0, ScMidiCc.SustainPedal, 72))
-
-      // When
-      // upper zone: members 8-14, master 15
-      output = tuner.process(CcScMidiMessage(8, ScMidiCc.SustainPedal, 127).asJava)
-      // Then
-      extractCc(output) should contain(CcScMidiMessage(15, ScMidiCc.SustainPedal, 127))
+      private val masterChannels = Table("masterChannel", 0, 15)
+      forAll(masterChannels) { masterChannel =>
+        // When
+        val output = tuner.process(CcScMidiMessage(masterChannel, ScMidiCc.SustainPedal, 72).asJava)
+        // Then
+        extractCc(output) shouldEqual Seq(CcScMidiMessage(masterChannel, ScMidiCc.SustainPedal, 72))
+      }
     }
 
-  it should "route Program Change to the appropriate zone Master Channel when received on a member channel" in
+  it should "forward Program Change received on a Master Channel unmodified" in
     new Fixture(dualZoneTunerMpeInput) {
-      // When
-      private var output = tuner.process(ProgramChangeScMidiMessage(4, 6).asJava)
-      // Then
-      private var programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
-      programChanges should contain(ProgramChangeScMidiMessage(0, 6))
+      private val masterChannels = Table("masterChannel", 0, 15)
+      forAll(masterChannels) { masterChannel =>
+        // When
+        val output = tuner.process(ProgramChangeScMidiMessage(masterChannel, 6).asJava)
+        // Then
+        output.map(_.asScala) shouldEqual Seq(ProgramChangeScMidiMessage(masterChannel, 6))
+      }
+    }
 
+  // ---- Out-of-zone traffic (I2) ----
+
+  it should "discard zone-level messages received on a channel outside every enabled Zone" in
+    new Fixture(tuner7MpeInput) {
+      // Given
+      // tuner7MpeInput: Lower Zone master 0, members 1..7. Channels 8..15 are outside every Zone.
+      private val outsideChannels = Table("channel", 8, 12, 15)
+      forAll(outsideChannels) { channel =>
+        // When / Then
+        tuner.process(CcScMidiMessage(channel, ScMidiCc.SustainPedal, 127).asJava) shouldBe empty
+        tuner.process(ProgramChangeScMidiMessage(channel, 5).asJava) shouldBe empty
+        tuner.process(PitchBendScMidiMessage(channel, 1000).asJava) shouldBe empty
+        tuner.process(ChannelPressureScMidiMessage(channel, 90).asJava) shouldBe empty
+        tuner.process(CcScMidiMessage(channel, ScMidiCc.MpeSlide, 100).asJava) shouldBe empty
+      }
+    }
+
+  it should "neither forward nor allocate a note received on a channel outside every enabled Zone" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
       // When
-      output = tuner.process(ProgramChangeScMidiMessage(8, 5).asJava)
+      private val onOutput = noteOn(10, C4)
       // Then
-      programChanges = output.map(_.asScala).collect { case m: ProgramChangeScMidiMessage => m }
-      programChanges should contain(ProgramChangeScMidiMessage(15, 5))
+      onOutput shouldBe empty
+      // When
+      private val offOutput = noteOff(10, C4)
+      // Then
+      offOutput shouldBe empty
+    }
+
+  // ---- Master Channel Zone-level control dimensions (C5) ----
+
+  it should "forward Master Channel CC #74 unmodified" in new Fixture(dualZoneTunerMpeInput) {
+    private val masterChannels = Table("masterChannel", 0, 15)
+    forAll(masterChannels) { masterChannel =>
+      // When
+      val output = tuner.process(CcScMidiMessage(masterChannel, ScMidiCc.MpeSlide, 100).asJava)
+      // Then
+      extractCc(output) shouldEqual Seq(CcScMidiMessage(masterChannel, ScMidiCc.MpeSlide, 100))
+    }
+  }
+
+  it should "forward Master Channel Channel Pressure unmodified, with no note sounding" in
+    new Fixture(dualZoneTunerMpeInput) {
+      private val masterChannels = Table("masterChannel", 0, 15)
+      forAll(masterChannels) { masterChannel =>
+        // When
+        val output = tuner.process(ChannelPressureScMidiMessage(masterChannel, 90).asJava)
+        // Then
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(masterChannel, 90))
+      }
+    }
+
+  it should "not apply Master Channel CC #74 or Channel Pressure to Member Channel notes" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      private val noteOutput = noteOn(mpeInputChannel, C4)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+      // When
+      private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.MpeSlide, 100).asJava) ++
+        tuner.process(ChannelPressureScMidiMessage(0, 90).asJava)
+      // Then
+      extractCc(output).map(_.channel) should contain only 0
+      extractChannelPressures(output).map(_.channel) should contain only 0
+      extractCc(output).filter(_.channel == noteChannel) shouldBe empty
+    }
+
+  // ---- MIDI Mode messages (N4) ----
+
+  it should "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
+    private val cases = Table(
+      ("ccNumber", "channel"),
+      (ScMidiCc.OmniModeOff, 0), (ScMidiCc.OmniModeOff, mpeInputChannel), (ScMidiCc.OmniModeOff, 10),
+      (ScMidiCc.OmniModeOn, 0), (ScMidiCc.OmniModeOn, mpeInputChannel), (ScMidiCc.OmniModeOn, 10),
+      (ScMidiCc.MonoModeOn, 0), (ScMidiCc.MonoModeOn, mpeInputChannel), (ScMidiCc.MonoModeOn, 10),
+      (ScMidiCc.PolyModeOn, 0), (ScMidiCc.PolyModeOn, mpeInputChannel), (ScMidiCc.PolyModeOn, 10)
+    )
+    forAll(cases) { (ccNumber, channel) =>
+      // When / Then
+      tuner.process(CcScMidiMessage(channel, ccNumber, 0).asJava) shouldBe empty
+    }
+  }
+
+  it should "still forward the Channel Mode messages 120-123 received on a Master Channel" in
+    new Fixture(tuner7MpeInput) {
+      private val ccNumbers = Table("ccNumber",
+        ScMidiCc.AllSoundOff, ScMidiCc.ResetAllControllers, ScMidiCc.LocalControl, ScMidiCc.AllNotesOff)
+      forAll(ccNumbers) { ccNumber =>
+        // When
+        val output = tuner.process(CcScMidiMessage(0, ccNumber, 0).asJava)
+        // Then
+        extractCc(output) shouldEqual Seq(CcScMidiMessage(0, ccNumber, 0))
+      }
     }
 
   behavior of "MpeTuner - MCM Processing - Non-MPE Input"
