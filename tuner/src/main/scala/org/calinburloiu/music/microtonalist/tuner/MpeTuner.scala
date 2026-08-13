@@ -104,6 +104,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     stopAllNotes(buffer)
     _zones = initialZones
     _inputMode = initialInputMode
+    // Full re-initialization restores the Standard Tuning; an in-band Zone reconfiguration must not, since
+    // nothing in the paper sanctions discarding the performer's active Tuning.
+    _tuning = Tuning.Standard
     resetState()
     warnOnNonMpeInputWithBothZones()
     buffer ++= configurationMessages()
@@ -147,10 +150,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Clears internal mutable state and recreates allocators from `currentZones`.
+   * Clears internal channel-tracking state and recreates allocators from `currentZones`. Does not touch the active
+   * Tuning; see `reset()` for full re-initialization.
    */
   private def resetState(): Unit = {
-    _tuning = Tuning.Standard
     tracker.reset()
 
     lowerAllocator = createAllocator(lowerZone)

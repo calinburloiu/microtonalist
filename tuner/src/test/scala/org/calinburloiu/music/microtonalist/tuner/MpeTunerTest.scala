@@ -2479,6 +2479,28 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     pbsRpnMessages shouldBe empty
   }
 
+  it should "keep the active Tuning when an MCM reconfigures the Zones" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      tuner.tuning shouldEqual quarterCommaMeantone
+      // When
+      sendMcm(tuner, channel = 0, memberCount = 7)
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
+      private val output = noteOn(2, E4)
+      private val noteChannel = extractNoteOns(output).head.channel
+      extractPitchBendsWithCents(output) should contain((noteChannel, -14))
+    }
+
+  it should "restore the Standard Tuning on reset()" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // When
+      tuner.reset()
+      // Then
+      tuner.tuning shouldEqual Tuning.Standard
+    }
+
   // ---- RPN sequence validation gating ----
 
   it should "not trigger MCM on incomplete RPN sequence" in new Fixture(mpeTunerMpeInput) {
