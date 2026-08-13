@@ -2272,6 +2272,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   // ---- MIDI Mode messages (N4) ----
 
   it should "discard the MIDI Mode messages 124-127" in new Fixture {
+    // Given
     private val ccNumbers = Table("ccNumber",
       ScMidiCc.OmniModeOff, ScMidiCc.OmniModeOn, ScMidiCc.MonoModeOn, ScMidiCc.PolyModeOn)
     forAll(ccNumbers) { ccNumber =>
@@ -2312,6 +2313,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   // ---- Discarding Zone-level messages received on a Member Channel ----
 
   it should "discard zone-level CCs received on a Member Channel" in new Fixture(tuner7MpeInput) {
+    // Given
     private val zoneLevelCcs = Table(
       ("ccName", "ccNumber", "ccValue"),
       ("Bank Select MSB", ScMidiCc.BankSelectMsb, 1),
@@ -2358,6 +2360,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "forward zone-level CCs received on a Master Channel unmodified" in
     new Fixture(dualZoneTunerMpeInput) {
+      // Given
       private val masterChannels = Table("masterChannel", 0, 15)
       forAll(masterChannels) { masterChannel =>
         // When
@@ -2369,6 +2372,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "forward Program Change received on a Master Channel unmodified" in
     new Fixture(dualZoneTunerMpeInput) {
+      // Given
       private val masterChannels = Table("masterChannel", 0, 15)
       forAll(masterChannels) { masterChannel =>
         // When
@@ -2410,6 +2414,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   // ---- Master Channel Zone-level control dimensions (C5) ----
 
   it should "forward Master Channel CC #74 unmodified" in new Fixture(dualZoneTunerMpeInput) {
+    // Given
     private val masterChannels = Table("masterChannel", 0, 15)
     forAll(masterChannels) { masterChannel =>
       // When
@@ -2421,6 +2426,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "forward Master Channel Channel Pressure unmodified, with no note sounding" in
     new Fixture(dualZoneTunerMpeInput) {
+      // Given
       private val masterChannels = Table("masterChannel", 0, 15)
       forAll(masterChannels) { masterChannel =>
         // When
@@ -2447,6 +2453,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   // ---- MIDI Mode messages (N4) ----
 
   it should "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
+    // Given
     private val cases = Table(
       ("ccNumber", "channel"),
       (ScMidiCc.OmniModeOff, 0), (ScMidiCc.OmniModeOff, mpeInputChannel), (ScMidiCc.OmniModeOff, 10),
@@ -2462,6 +2469,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "still forward the Channel Mode messages 120-123 received on a Master Channel" in
     new Fixture(tuner7MpeInput) {
+      // Given
       private val ccNumbers = Table("ccNumber",
         ScMidiCc.AllSoundOff, ScMidiCc.ResetAllControllers, ScMidiCc.LocalControl, ScMidiCc.AllNotesOff)
       forAll(ccNumbers) { ccNumber =>

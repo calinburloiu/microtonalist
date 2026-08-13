@@ -95,8 +95,10 @@ private[tuner] object MpeMessageRouting {
   }
 
   /**
-   * Decides what to do with a channel message, implementing the paper's message-handling table row by row: the
-   * message supplies the row, the role the column.
+   * Decides what to do with a channel message, implementing the rows of the paper's message-handling table that
+   * Phase 2 owns, row by row: the message supplies the row, the role the column. The table's RPN/NRPN rows —
+   * re-emitting an uninterpreted parameter sequence as a complete one and ignoring an invalid MCM in its entirety —
+   * are #261's; see the `TODO #261` on [[routeCc]]'s catch-all arm for what falls through in the meantime.
    *
    * @param role        The role of the channel the message arrived on, from [[roleOf]].
    * @param message     The received message.
@@ -168,16 +170,20 @@ private[tuner] object MpeMessageRouting {
       case _ => MpeRoutingVerdict.Interpret
     }
 
+    // TODO #261 Uninterpreted RPN/NRPN traffic must be re-emitted as complete sequences and an invalid MCM ignored
+    //   in its entirety; until then, such traffic falls through to the ordinary-CC catch-all below.
     case _ => routeZoneLevel(role, msg)
   }
 
   /** Whether an MCM received on this channel is valid: MIDI Channel 1 or 16, whatever the channel's current role. */
   private def isMcmChannel(channel: Int): Boolean = channel == 0 || channel == 15
 
-  private def isMcm(rpnSelector: RpnSelector): Boolean =
+  /** Whether `rpnSelector` currently selects the MPE Configuration Message RPN. */
+  private[tuner] def isMcm(rpnSelector: RpnSelector): Boolean =
     rpnSelector == RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
 
-  private def isPbs(rpnSelector: RpnSelector): Boolean =
+  /** Whether `rpnSelector` currently selects the Pitch Bend Sensitivity RPN. */
+  private[tuner] def isPbs(rpnSelector: RpnSelector): Boolean =
     rpnSelector == RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
   private def isInterpreted(rpnSelector: RpnSelector): Boolean = isMcm(rpnSelector) || isPbs(rpnSelector)

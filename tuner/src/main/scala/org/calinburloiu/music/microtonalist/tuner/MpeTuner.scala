@@ -336,9 +336,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       allocatorFor(role).foreach { alloc =>
         emitExpressionUpdateResult(buffer, alloc.updateSlide(msg.channel, msg.value), alloc, DropReason.NotExpected)
       }
-    case ScMidiCc.DataEntryMsb if rpnSelector ==
-      RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb) =>
+    case ScMidiCc.DataEntryMsb if MpeMessageRouting.isMcm(rpnSelector) =>
       processMcm(buffer, msg.channel, msg.value)
+    // TODO #261 Correct only while `MpeMessageRouting.route` returns `Interpret` for exactly the three CC shapes
+    //   it does today; a mis-routed CC reaching here would silently rewrite a Zone's Pitch Bend Sensitivity
+    //   through `applyPbsUpdate`.
     case _ =>
       processPbs(buffer, msg.channel, msg.number, msg.value, role)
   }
@@ -446,7 +448,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * The PBS RPN selector (RPN MSB/LSB = 0, 0) is re-emitted on `channel` immediately before the
    * Data Entry to guard against interleaving from other devices that may have changed the active
    * RPN on this channel between the original selector and the Data Entry. The original selector
-   * CCs from the sender are suppressed upstream in `processCc` to avoid duplication.
+   * CCs from the sender are suppressed upstream in [[MpeMessageRouting.route]] to avoid duplication.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
