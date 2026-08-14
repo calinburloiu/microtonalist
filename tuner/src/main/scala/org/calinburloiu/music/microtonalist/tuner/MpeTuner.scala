@@ -455,7 +455,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * against another device having changed the active RPN on this channel between the sender's selector and its
    * Data Entry, and the closing RPN Null protects Pitch Bend Sensitivity from a later stray Data Entry. The CC
    * that completed the sender's own selector is suppressed upstream in [[MpeMessageRouting.route]] to avoid
-   * duplication; the opening CC of that pair still passes through until #261, since a half-set selector matches
+   * duplication, while the opening CC of that pair still passes through, since a half-set selector matches
    * neither the PBS nor the MCM RPN.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
@@ -471,7 +471,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     // Emit the complete sequence on the destination channel only, built from the Zone's updated sensitivity
     // rather than relayed byte-for-byte, so that both Data Entry halves are always sent. Only the CC that
-    // completed the sender's own selector is consumed upstream — the opening one still passes through until #261.
+    // completed the sender's own selector is consumed upstream — the opening one still passes through.
+    // TODO #261 Consume the opening selector CC as well, so that the sender's half-set selector is not relayed
+    //   ahead of the complete sequence emitted here.
     val sensitivity = if (isMaster) updatedZone.masterPitchBendSensitivity else updatedZone.memberPitchBendSensitivity
     buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
 

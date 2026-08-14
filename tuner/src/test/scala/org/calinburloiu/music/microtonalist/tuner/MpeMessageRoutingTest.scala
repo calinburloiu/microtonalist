@@ -102,7 +102,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  it should "fall back to the Upper Zone when only it is enabled" in {
+  it should "fall back to the Upper Zone only when it is enabled" in {
     // When / Then
     MpeMessageRouting.roleOf(MpeInputMode.NonMpe, upperOnlyZones, 3) shouldEqual MpeChannelRole.NonMpeInput(upper7)
   }
@@ -211,7 +211,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     MpeMessageRouting.route(MpeChannelRole.Master(upper7), message, noSelector) shouldEqual ForwardOn(15)
   }
 
-  it should "redirect a Non-MPE input message to the Upper Zone Master Channel when only it is enabled" in {
+  it should "redirect a Non-MPE input message to the Upper Zone Master Channel only when it is enabled" in {
     // Given
     val message = CcScMidiMessage(inputChannel, ScMidiCc.SustainPedal, 127)
     // When / Then
@@ -220,7 +220,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   // ---- Interpreted parameters ----
 
-  it should "interpret an MCM Data Entry MSB on MIDI Channel 1 or 16 whatever the role" in {
+  it should "interpret an MCM Data Entry MSB on MIDI Channel 1 or 16 (1-based) whatever the role" in {
     // Given
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     val channels = Table("channel", 0, 15)
@@ -258,12 +258,13 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  // ---- Uninterpreted parameter traffic, until #261 ----
+  // ---- Uninterpreted parameter traffic ----
   //
-  // These two cases pin what phase 2 deliberately leaves on the ordinary-CC path, so that #261 starts from a state
-  // a test asserts rather than one only a comment describes.
+  // TODO #261 The two cases below pin what is deliberately left on the ordinary-CC path for now, so that the work
+  //   starts from a state a test asserts rather than one only a comment describes. Replace them with the
+  //   complete-sequence re-emission and invalid-MCM expectations once those rows of the table are implemented.
 
-  it should "still forward the opening CC of an interpreted parameter's selector pair (TODO #261)" in {
+  it should "still forward the opening CC of an interpreted parameter's selector pair" in {
     // Given the mid-sequence states the tracker reports after the first CC of either selector order
     val incompleteSelectors = Table("selector",
       RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb),
@@ -275,7 +276,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  it should "leave uninterpreted RPN and NRPN traffic on the ordinary-CC path (TODO #261)" in {
+  it should "leave uninterpreted RPN and NRPN traffic on the ordinary-CC path" in {
     // Given a parameter the Tuner does not interpret, selected by either an RPN or an NRPN
     val selectors = Table("selector",
       RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, 1),

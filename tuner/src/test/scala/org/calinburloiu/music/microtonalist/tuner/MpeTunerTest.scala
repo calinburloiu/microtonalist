@@ -111,6 +111,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   )
   //@formatter:on
 
+  /** Neither Zone enabled, so that no channel is under any Zone's control. */
+  private val noZones: MpeZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 0))
+
   private def defaultTuner: MpeTuner = MpeTuner()
 
   private def tuner7: MpeTuner = MpeTuner(
@@ -2273,7 +2276,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     programChanges should contain(ProgramChangeScMidiMessage(0, 5))
   }
 
-  // ---- MIDI Mode messages (N4) ----
+  // ---- MIDI Mode messages ----
 
   it should "discard the MIDI Mode messages 124-127" in new Fixture {
     // Given
@@ -2285,11 +2288,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
-  // ---- No Zone enabled (C4) ----
+  // ---- No Zone enabled ----
 
   it should "discard every Channel Voice and Channel Mode message when no Zone is enabled" in {
     // Given
-    val tuner = MpeTuner(initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 0)))
+    val tuner = MpeTuner(initialZones = noZones)
     val channels = Table("channel", 0, 5, 15)
     forAll(channels) { channel =>
       // When / Then
@@ -2306,7 +2309,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "still act on a valid MCM when no Zone is enabled" in {
     // Given
-    val tuner = MpeTuner(initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 0)))
+    val tuner = MpeTuner(initialZones = noZones)
     // When
     val output = sendMcm(tuner, channel = 0, memberCount = 7)
     // Then
@@ -2394,7 +2397,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       }
     }
 
-  // ---- Out-of-zone traffic (I2) ----
+  // ---- Out-of-zone traffic ----
 
   it should "discard zone-level messages received on a channel outside every enabled Zone" in
     new Fixture(tuner7MpeInput) {
@@ -2423,7 +2426,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       offOutput shouldBe empty
     }
 
-  // ---- Master Channel Zone-level control dimensions (C5) ----
+  // ---- Master Channel Zone-level control dimensions ----
 
   it should "forward Master Channel CC #74 unmodified" in new Fixture(dualZoneTunerMpeInput) {
     // Given
@@ -2462,7 +2465,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(output).filter(_.channel == noteChannel) shouldBe empty
     }
 
-  // ---- MIDI Mode messages (N4) ----
+  // ---- MIDI Mode messages ----
 
   it should "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
     // Given

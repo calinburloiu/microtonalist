@@ -27,7 +27,7 @@ import org.calinburloiu.music.scmidi.message.*
  */
 private[tuner] enum MpeChannelRole {
   /** Non-MPE Input Mode, with a Zone enabled to route this input's Zone-level messages to. */
-  case NonMpeInput(routingZone: MpeZone)
+  case NonMpeInput(zone: MpeZone)
 
   /** MPE Input Mode, the Master Channel of an enabled Zone. */
   case Master(zone: MpeZone)
@@ -38,7 +38,7 @@ private[tuner] enum MpeChannelRole {
   /**
    * Under no Zone's control, in either input mode: an MPE input channel outside every enabled Zone, and — when no
    * Zone is enabled at all — every channel in both input modes. The paper's "Messages Outside the Zone Structure"
-   * section discards everything received here, an MCM on MIDI Channel 1 or 16 excepted.
+   * section discards everything received here, an MCM on MIDI Channel 1 or 16 excepted (1-based).
    */
   case Outside
 }
@@ -98,10 +98,8 @@ private[tuner] object MpeMessageRouting {
   }
 
   /**
-   * Decides what to do with a channel message, implementing the rows of the paper's message-handling table that
-   * Phase 2 owns, row by row: the message supplies the row, the role the column. The table's RPN/NRPN rows —
-   * re-emitting an uninterpreted parameter sequence as a complete one and ignoring an invalid MCM in its entirety —
-   * are #261's; see the `TODO #261` on [[routeCc]]'s catch-all arm for what falls through in the meantime.
+   * Decides what to do with a channel message, implementing the rows of the paper's message-handling table, row by
+   * row: the message supplies the row, the role the column.
    *
    * @param role        The role of the channel the message arrived on, from [[roleOf]].
    * @param message     The received message.
@@ -164,7 +162,7 @@ private[tuner] object MpeMessageRouting {
     // The CC that completes the selector of a parameter the Tuner interprets is consumed: `MpeTuner` re-emits a
     // complete sequence of its own for the MCM and for Pitch Bend Sensitivity, and relaying the sender's selector
     // would duplicate it. The opening CC of the pair leaves the selector incomplete, so it still falls through to
-    // the catch-all below; #261 consumes both.
+    // the catch-all below.
     case ScMidiCc.RpnMsb | ScMidiCc.RpnLsb if isInterpreted(rpnSelector) => MpeRoutingVerdict.Discard
 
     case ScMidiCc.DataEntryMsb if isMcm(rpnSelector) && isMcmChannel(msg.channel) => MpeRoutingVerdict.Interpret
@@ -181,7 +179,10 @@ private[tuner] object MpeMessageRouting {
     case _ => routeZoneLevel(role)
   }
 
-  /** Whether an MCM received on this channel is valid: MIDI Channel 1 or 16, whatever the channel's current role. */
+  /**
+   * Whether an MCM received on this channel is valid: MIDI Channel 1 or 16 (1-based), whatever the channel's current
+   * role.
+   */
   private def isMcmChannel(channel: Int): Boolean = channel == 0 || channel == 15
 
   /** Whether `rpnSelector` currently selects the MPE Configuration Message RPN. */
