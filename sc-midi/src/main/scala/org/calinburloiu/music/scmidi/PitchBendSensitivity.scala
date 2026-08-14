@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, MidiRequirements, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, MidiRequirements, ScMidiCc}
 
 import javax.sound.midi.MidiMessage
 
@@ -64,23 +64,21 @@ object PitchBendSensitivityMessages {
    * Creates a sequence of MIDI messages to configure the pitch bend sensitivity
    * for a specified channel.
    *
-   * The RPN selector and the closing RPN Null are emitted LSB (CC #100) before MSB (CC #101). MIDI 1.0 mandates no
-   * order for the selector pair — it requires only that the parameter be selected before the Data Entry — but every
-   * byte-level RPN example it gives is LSB-first, as is RP-053 §2.1.1's MPE Configuration Message format.
+   * The RPN selector and the closing RPN Null are rendered by [[RpnMessages.select]], which decides the transmission
+   * order of the selector pair for every sequence Microtonalist emits.
    *
    * @param channel              The MIDI channel for which the pitch bend sensitivity is configured.
    * @param pitchBendSensitivity The pitch bend sensitivity settings, including semitones and cents.
    * @return A sequence of MIDI messages representing the pitch bend sensitivity configuration.
    */
   def create(channel: Int, pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
-    Seq(
-      CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
-      CcScMidiMessage(channel, ScMidiCc.DataEntryLsb, pitchBendSensitivity.cents),
+    val sequence = RpnMessages.select(channel, RpnMessages.PitchBendSensitivitySelector) ++
+      Seq(
+        CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
+        CcScMidiMessage(channel, ScMidiCc.DataEntryLsb, pitchBendSensitivity.cents)) ++
       // Selecting the Null RPN prevents a later stray Data Entry from changing this parameter.
-      CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
-    ).map(_.asJava)
+      RpnMessages.select(channel, RpnMessages.NullSelector)
+
+    sequence.map(_.asJava)
   }
 }

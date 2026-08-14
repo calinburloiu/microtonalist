@@ -2390,6 +2390,34 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
+  it should "discard a value message received with no parameter selected" in new Fixture(tuner7) {
+    // Given
+    // No selector has been sent on this channel, so a Data Entry has no parameter to apply to. Forwarding one would
+    // let a stray CC #6 rewrite whatever parameter the receiver happens to hold selected — Pitch Bend Sensitivity
+    // among them.
+    private val ccNumbers =
+      Table("ccNumber", ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    forAll(ccNumbers) { ccNumber =>
+      // When
+      val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ccNumber, 70).asJava)
+      // Then
+      output shouldBe empty
+    }
+  }
+
+  it should "discard a value message received with a half-set selector" in new Fixture(tuner7) {
+    // Given
+    private val selectorOutput =
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    // Then
+    selectorOutput shouldBe empty
+
+    // When
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+    // Then
+    output shouldBe empty
+  }
+
   behavior of "MpeTuner - process() - Zone-level Messages - MPE Input"
 
   // ---- Discarding Zone-level messages received on a Member Channel ----
@@ -2626,6 +2654,21 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.inputMode shouldBe MpeInputMode.NonMpe
     tuner.zones.lower.memberCount shouldEqual 7
   }
+
+  // ---- Member-count gating ----
+
+  it should "ignore an MCM requesting more Member Channels than a Zone can hold, in its entirety" in
+    new Fixture(tuner7) {
+      // When
+      private val output =
+        tuner.process(CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb).asJava) ++
+          tuner.process(CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb).asJava) ++
+          tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, MpeZone.MaxMemberCount + 1).asJava)
+      // Then
+      output shouldBe empty
+      tuner.inputMode shouldBe MpeInputMode.NonMpe
+      tuner.zones.lower.memberCount shouldEqual 7
+    }
 
   behavior of "MpeTuner - MCM Processing - MPE Input"
 

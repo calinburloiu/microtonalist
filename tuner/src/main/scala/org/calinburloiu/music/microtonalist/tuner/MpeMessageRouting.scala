@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import org.calinburloiu.music.scmidi.RpnMessages
 import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.*
 
@@ -182,14 +183,14 @@ private[tuner] object MpeMessageRouting {
   }
 
   /**
-   * Routes a Data Entry, Data Increment or Data Decrement, which the currently selected parameter gives its meaning.
+   * Routes a Data Entry, Data Increment or Data Decrement, to which the currently selected parameter gives meaning.
    *
-   * Three parameters get special treatment. The MCM is accepted only as a Data Entry MSB on MIDI Channel 1 or 16 —
-   * the MPE Specification does not use its LSB — and an MCM that fails either test is ignored in its entirety, its
-   * selector having already been consumed above. Pitch Bend Sensitivity is accepted at every role but `Outside`. A
-   * Data Increment or Decrement of either is discarded: neither the paper nor the MPE Specification covers it, and
-   * relaying one would desync the Tuner's stored value from the receiver's, since the Tuner does not interpret the
-   * increment.
+   * Two parameters get special treatment. The MCM is accepted only as a Data Entry MSB on MIDI Channel 1 or 16 —
+   * the MPE Specification does not use its LSB — carrying a Member Channel count a Zone can hold, and an MCM that
+   * fails any of those tests is ignored in its entirety, its selector having already been consumed above. Pitch Bend
+   * Sensitivity is accepted at every role but `Outside`. A Data Increment or Decrement of either is discarded:
+   * neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's stored value
+   * from the receiver's, since the Tuner does not interpret the increment.
    *
    * A value message is also discarded when no complete parameter is selected. `RpnSelector.None` is the plain case;
    * a half-set selector — one whose MSB or LSB is still Null — is treated the same way, because
@@ -200,13 +201,14 @@ private[tuner] object MpeMessageRouting {
                              msg: CcScMidiMessage,
                              rpnSelector: RpnSelector): MpeRoutingVerdict = rpnSelector match {
     case selector if isMcm(selector) =>
-      if (msg.number == ScMidiCc.DataEntryMsb && isMcmChannel(msg.channel)) MpeRoutingVerdict.Interpret
+      if (msg.number == ScMidiCc.DataEntryMsb && isValidMcm(msg)) MpeRoutingVerdict.Interpret
       else MpeRoutingVerdict.Discard
     case selector if isPbs(selector) =>
       val isDataEntry = msg.number == ScMidiCc.DataEntryMsb || msg.number == ScMidiCc.DataEntryLsb
       role match {
+        case MpeChannelRole.Member(_) | MpeChannelRole.Master(_) | MpeChannelRole.NonMpeInput(_) =>
+          if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
         case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
-        case _ => if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
       }
     case selector if !isComplete(selector) => MpeRoutingVerdict.Discard
     case _ => role match {
@@ -234,28 +236,29 @@ private[tuner] object MpeMessageRouting {
   }
 
   /**
-   * Whether an MCM received on this channel is valid: MIDI Channel 1 or 16 (1-based), whatever the channel's current
-   * role.
+   * Whether the MCM this Data Entry MSB carries is valid: received on MIDI Channel 1 or 16 (1-based), whatever the
+   * channel's current role, and requesting a number of Member Channels a Zone can hold.
+   *
+   * The count is checked here rather than left to [[MpeZone]]'s own `require`, which would throw out of the Tuner
+   * and into the MIDI transmitter's thread for a value the input is free to send.
    */
-  private def isMcmChannel(channel: Int): Boolean = channel == 0 || channel == 15
+  private def isValidMcm(msg: CcScMidiMessage): Boolean =
+    (msg.channel == 0 || msg.channel == 15) && MpeZone.isValidMemberCount(msg.value)
 
   /** Whether `rpnSelector` currently selects the MPE Configuration Message RPN. */
   private[tuner] def isMcm(rpnSelector: RpnSelector): Boolean =
-    rpnSelector == RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+    rpnSelector == RpnMessages.MpeConfigurationMessageSelector
 
   /** Whether `rpnSelector` currently selects the Pitch Bend Sensitivity RPN. */
   private[tuner] def isPbs(rpnSelector: RpnSelector): Boolean =
-    rpnSelector == RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    rpnSelector == RpnMessages.PitchBendSensitivitySelector
 
   /**
    * Renders a complete Registered or Non-Registered Parameter sequence on an output channel: the selector, then the
    * value message.
    *
-   * The selector is emitted LSB before MSB, matching every other sequence the Tuner emits — the MCM and Pitch Bend
-   * Sensitivity ones and their closing RPN Nulls; see
-   * [[org.calinburloiu.music.scmidi.PitchBendSensitivityMessages.create]] for the citations.
-   * Either order latches the same parameter on a conformant receiver, so this is a matter of the Tuner speaking with
-   * one voice rather than of correctness on the wire.
+   * The selector is rendered by [[RpnMessages.select]], which decides the transmission order of the pair for every
+   * sequence Microtonalist emits — the MCM and Pitch Bend Sensitivity ones and their closing RPN Nulls included.
    *
    * No closing RPN Null is appended. The paper's Null rule governs the sequences the Tuner ''originates''; appending
    * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for
@@ -267,17 +270,9 @@ private[tuner] object MpeMessageRouting {
    * @param outputChannel The channel the whole sequence is emitted on.
    * @return the sequence, or empty when no parameter is selected and no sequence can be formed.
    */
-  def rpnSequence(selector: RpnSelector, ccNumber: Int, ccValue: Int, outputChannel: Int): Seq[CcScMidiMessage] = {
-    val selectorCcs = selector match {
-      case RpnSelector.Rpn(msb, lsb) => Seq(
-        CcScMidiMessage(outputChannel, ScMidiCc.RpnLsb, lsb),
-        CcScMidiMessage(outputChannel, ScMidiCc.RpnMsb, msb))
-      case RpnSelector.Nrpn(msb, lsb) => Seq(
-        CcScMidiMessage(outputChannel, ScMidiCc.NrpnLsb, lsb),
-        CcScMidiMessage(outputChannel, ScMidiCc.NrpnMsb, msb))
+  def rpnSequence(selector: RpnSelector, ccNumber: Int, ccValue: Int, outputChannel: Int): Seq[CcScMidiMessage] =
+    selector match {
       case RpnSelector.None => Seq.empty
+      case _ => RpnMessages.select(outputChannel, selector) :+ CcScMidiMessage(outputChannel, ccNumber, ccValue)
     }
-    if (selectorCcs.isEmpty) Seq.empty
-    else selectorCcs :+ CcScMidiMessage(outputChannel, ccNumber, ccValue)
-  }
 }

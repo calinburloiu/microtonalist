@@ -224,11 +224,31 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Given
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     val channels = Table("channel", 0, 15)
+    // A Zone holds between 0 Member Channels, which deactivates it, and 15, which is the whole rest of the port.
+    val memberCounts = Table("memberCount", 0, 7, 15)
     forAll(channels) { channel =>
-      val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, 7)
-      forAll(roles) { role =>
-        // When / Then
-        MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Interpret
+      forAll(memberCounts) { memberCount =>
+        val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, memberCount)
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Interpret
+        }
+      }
+    }
+  }
+
+  it should "discard an MCM Data Entry MSB requesting more Member Channels than a Zone can hold" in {
+    // Given
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    val channels = Table("channel", 0, 15)
+    val memberCounts = Table("memberCount", 16, 100, 127)
+    forAll(channels) { channel =>
+      forAll(memberCounts) { memberCount =>
+        val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, memberCount)
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Discard
+        }
       }
     }
   }
@@ -246,14 +266,17 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  it should "consume the completing selector CC of an interpreted parameter" in {
+  it should "consume the selector CCs of an interpreted parameter as well" in {
     // Given
     val selectors = Table("selector", mcmSelector, pbsSelector)
     val ccNumbers = Table("ccNumber", ScMidiCc.RpnMsb, ScMidiCc.RpnLsb)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(selectors) { selector =>
       forAll(ccNumbers) { ccNumber =>
-        // When / Then
-        MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ccNumber, 0), selector) shouldEqual Discard
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, CcScMidiMessage(0, ccNumber, 0), selector) shouldEqual Discard
+        }
       }
     }
   }
@@ -299,7 +322,9 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val selectors = Table("selector",
       RpnSelector.None,
       RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.NullLsb),
-      RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.FineTuningLsb))
+      RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.FineTuningLsb),
+      RpnSelector.Nrpn(12, ScMidiNrpn.NullLsb),
+      RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 34))
     val ccNumbers = Table("ccNumber",
       ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
@@ -310,6 +335,37 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
           MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), selector) shouldEqual Discard
         }
       }
+    }
+  }
+
+  // TODO #267 This pins the collateral of the discard rule, not a behavior worth keeping: an NRPN whose MSB or LSB is
+  //  genuinely 127 is indistinguishable from a half-set selector, because `RpnSelector` uses the Null value as its
+  //  "not yet received" sentinel. Modelling the unset halves explicitly in `sc-midi` turns these rows into
+  //  `ForwardRpnSequenceOn`, and this test red.
+  it should "discard a data value of an NRPN whose MSB or LSB is genuinely 127" in {
+    // Given
+    val selectors = Table("selector",
+      RpnSelector.Nrpn(msb = 127, lsb = 34),
+      RpnSelector.Nrpn(msb = 12, lsb = 127),
+      RpnSelector.Nrpn(msb = 127, lsb = 127))
+    forAll(selectors) { selector =>
+      // When / Then
+      MpeMessageRouting.route(masterRole, CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64), selector) shouldEqual
+        Discard
+    }
+  }
+
+  it should "route an NRPN that shares the numbers of an interpreted RPN as uninterpreted" in {
+    // Given
+    val selectors = Table("selector",
+      RpnSelector.Nrpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb),
+      RpnSelector.Nrpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb))
+    forAll(selectors) { selector =>
+      // When / Then: an MCM is valid on MIDI Channel 1, so the NRPN of the same numbers is the case that could be
+      // mistaken for one.
+      MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual
+        ForwardRpnSequenceOn(zoneMasterChannel)
+      MpeMessageRouting.route(memberRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual Discard
     }
   }
 
@@ -335,12 +391,15 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  it should "discard a Data Increment or Decrement of Pitch Bend Sensitivity" in {
+  it should "discard a Data Increment or Decrement of Pitch Bend Sensitivity at every role" in {
     // Given
     val ccNumbers = Table("ccNumber", ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(ccNumbers) { ccNumber =>
-      // When / Then
-      MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ccNumber, 1), pbsSelector) shouldEqual Discard
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(0, ccNumber, 1), pbsSelector) shouldEqual Discard
+      }
     }
   }
 

@@ -54,7 +54,8 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       (`Master`/`Member`/`NonMpeInput`/`Outside`) from the input mode and Zone configuration, `route` maps a role,
       message and the channel's currently selected RPN to an `MpeRoutingVerdict`
       (`Discard`/`ForwardOn`/`ForwardRpnSequenceOn`/`Interpret`), and `rpnSequence` renders an uninterpreted
-      parameter's selector-then-value messages for the `ForwardRpnSequenceOn` verdict. `MpeTuner` is a client of it: it
+      parameter's selector-then-value messages for the `ForwardRpnSequenceOn` verdict, selecting through `sc-midi`'s
+      `RpnMessages` like every other sequence the Tuner emits. `MpeTuner` is a client of it: it
       classifies the arrival channel, calls `route`, and dispatches on the verdict, making it a classify-then-act
       coordinator over the note allocation, Expression Value, MCM and Pitch Bend Sensitivity logic it still owns
       directly.

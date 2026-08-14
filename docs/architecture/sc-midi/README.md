@@ -97,7 +97,10 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 The package object and a few value types provide `MidiNote` (a value class over a 0–127 note number, with `pitchClass`,
 `octave`, `freq`, and named constants), `PitchClass` (a value class over 0–11 with sharp/flat names and parsing), and
 `PitchBendSensitivity` (RPN #0 pitch-bend range, default ±2 semitones, with a helper that builds the RPN message
-sequence). Smaller helpers (`isInputDevice`/`isOutputDevice`, `mapShortMessageChannel`, clamping) round out the object.
+sequence). `RpnMessages` names the parameters Microtonalist selects (Pitch Bend Sensitivity, the MPE Configuration
+Message, and the Null Function) and renders a selector as its pair of Control Change messages, so that the
+transmission order of the pair — LSB before MSB — is decided in one place for every sequence the application emits.
+Smaller helpers (`isInputDevice`/`isOutputDevice`, `mapShortMessageChannel`, clamping) round out the object.
 
 ## How MIDI devices are opened, enumerated, and used
 

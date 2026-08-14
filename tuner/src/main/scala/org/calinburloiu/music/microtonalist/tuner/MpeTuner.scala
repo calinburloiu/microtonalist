@@ -364,6 +364,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   //  must not discard the active Tuning.
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
+    assert(MpeZone.isValidMemberCount(memberCount), s"An invalid MCM member count of $memberCount reached the Tuner!")
     // Per MPE spec Section 2.4, receiving MCM resets PBS to defaults
     val (zoneType, newZone) = if (channel == 0)
       (MpeZoneType.Lower, MpeZone(MpeZoneType.Lower, memberCount))
@@ -476,10 +477,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
 
     // Emit the complete sequence on the destination channel only, built from the Zone's updated sensitivity
-    // rather than relayed byte-for-byte, so that both Data Entry halves are always sent. Only the CC that
-    // completed the sender's own selector is consumed upstream — the opening one still passes through.
-    // TODO #261 Consume the opening selector CC as well, so that the sender's half-set selector is not relayed
-    //   ahead of the complete sequence emitted here.
+    // rather than relayed byte-for-byte, so that both Data Entry halves are always sent.
     val sensitivity = if (isMaster) updatedZone.masterPitchBendSensitivity else updatedZone.memberPitchBendSensitivity
     buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
 
@@ -635,16 +633,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   private def mcmMessages(zone: MpeZone): Seq[MidiMessage] = {
-    // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null.
-    // Selector and Null are emitted LSB before MSB, matching RP-053 §2.1.1's MCM Message Format and
-    // `PitchBendSensitivityMessages.create`.
-    Seq(
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
-    ).map(_.asJava)
+    // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null. The selector and
+    // the Null are rendered by `RpnMessages.select`, which decides their transmission order.
+    val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
+      CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount)
+
+    (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullSelector)).map(_.asJava)
   }
 
   private def pitchBendSensitivityMessages(zone: MpeZone): Seq[MidiMessage] = {
