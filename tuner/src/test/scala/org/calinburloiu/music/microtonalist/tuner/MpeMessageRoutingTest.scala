@@ -351,8 +351,8 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val messages = MpeMessageRouting.rpnSequence(fineTuningSelector, ScMidiCc.DataEntryMsb, 64, outputChannel = 0)
     // Then
     messages shouldEqual Seq(
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
     )
   }
@@ -362,8 +362,8 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val messages = MpeMessageRouting.rpnSequence(nrpnSelector, ScMidiCc.DataIncrement, 1, outputChannel = 15)
     // Then
     messages shouldEqual Seq(
-      CcScMidiMessage(15, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(15, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(15, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(15, ScMidiCc.DataIncrement, 1)
     )
   }

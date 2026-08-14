@@ -251,6 +251,12 @@ private[tuner] object MpeMessageRouting {
    * Renders a complete Registered or Non-Registered Parameter sequence on an output channel: the selector, then the
    * value message.
    *
+   * The selector is emitted LSB before MSB, matching every other sequence the Tuner emits — the MCM and Pitch Bend
+   * Sensitivity ones and their closing RPN Nulls; see
+   * [[org.calinburloiu.music.scmidi.PitchBendSensitivityMessages.create]] for the citations.
+   * Either order latches the same parameter on a conformant receiver, so this is a matter of the Tuner speaking with
+   * one voice rather than of correctness on the wire.
+   *
    * No closing RPN Null is appended. The paper's Null rule governs the sequences the Tuner ''originates''; appending
    * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for
    * NRPN traffic.
@@ -264,11 +270,11 @@ private[tuner] object MpeMessageRouting {
   def rpnSequence(selector: RpnSelector, ccNumber: Int, ccValue: Int, outputChannel: Int): Seq[CcScMidiMessage] = {
     val selectorCcs = selector match {
       case RpnSelector.Rpn(msb, lsb) => Seq(
-        CcScMidiMessage(outputChannel, ScMidiCc.RpnMsb, msb),
-        CcScMidiMessage(outputChannel, ScMidiCc.RpnLsb, lsb))
+        CcScMidiMessage(outputChannel, ScMidiCc.RpnLsb, lsb),
+        CcScMidiMessage(outputChannel, ScMidiCc.RpnMsb, msb))
       case RpnSelector.Nrpn(msb, lsb) => Seq(
-        CcScMidiMessage(outputChannel, ScMidiCc.NrpnMsb, msb),
-        CcScMidiMessage(outputChannel, ScMidiCc.NrpnLsb, lsb))
+        CcScMidiMessage(outputChannel, ScMidiCc.NrpnLsb, lsb),
+        CcScMidiMessage(outputChannel, ScMidiCc.NrpnMsb, msb))
       case RpnSelector.None => Seq.empty
     }
     if (selectorCcs.isEmpty) Seq.empty

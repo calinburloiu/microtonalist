@@ -2337,8 +2337,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
     // Then
     extractCc(output) shouldEqual Seq(
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70)
     )
   }
@@ -2356,11 +2356,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryLsb, 5).asJava)
     // Then
     extractCc(output) shouldEqual Seq(
-      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
-      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5)
     )
   }
@@ -2381,11 +2381,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.process(CcScMidiMessage(3, ScMidiCc.DataEntryMsb, 60).asJava)
     // Then
     extractCc(output) shouldEqual Seq(
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
-      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb),
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.CoarseTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 60)
     )
   }
@@ -2583,8 +2583,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70).asJava)
       // Then
       extractCc(output) shouldEqual Seq(
-        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
         CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
         CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70)
       )
     }
