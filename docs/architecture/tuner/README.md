@@ -49,9 +49,15 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       `MpeChannelState.scala` the allocator's per-channel and per-note mutable state. `MpeChannelAllocator.scala` keeps
       the allocation algorithm and the result types it returns (`MpeAllocationResult`, `MpeReleaseResult`,
       `MpeExpressionUpdateResult`, `MpeDroppedNote`/`MpeDroppedNotes`).
-    * All of these — the allocator included — are `private[tuner]`: they are implementation detail shared between
-      `MpeTuner` and `MpeChannelAllocator`, not API for the rest of the module. Only `MpeTuner`, `MpeZone*` and
-      `MpeInputMode` are public, because `format` references them.
+    * `MpeMessageRouting.scala` holds the channel-role classification and the paper's message-handling table as pure
+      functions: `MpeChannelRole` (`Master`/`Member`/`NonMpeInput`/`Outside`) classifies a channel from the input
+      mode and Zone configuration, and `route` maps a role, message and the channel's currently selected RPN to an
+      `MpeRoutingVerdict` (`Discard`/`ForwardOn`/`Interpret`). `MpeTuner` is a client of it: it classifies the
+      arrival channel, calls `route`, and dispatches on the verdict, making it a classify-then-act coordinator over
+      the note allocation, Expression Value, MCM and Pitch Bend Sensitivity logic it still owns directly.
+    * All of these — the allocator and `MpeMessageRouting` included — are `private[tuner]`: they are implementation
+      detail shared between `MpeTuner`, `MpeChannelAllocator` and `MpeMessageRouting`, not API for the rest of the
+      module. Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `format` references them.
 
 **Tuning-change detection.** `TuningChanger` (`@NotThreadSafe` plugin) inspects messages and returns a `TuningChange`;
 `PedalTuningChanger` triggers on a pedal-like CC crossing a threshold, reading its trigger map from a
@@ -167,11 +173,14 @@ These are signalled directly in the code:
 - `Track#run` is an unimplemented stub (TODO #121); `TrackManager` already provisions a per-track thread pool, but track
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
-- `MpeTuner`'s MIDI message routing and filtering does not yet conform to the paper: RPN/NRPN sequences, the scope of
-  the state reset on Zone reconfiguration, messages arriving outside every Zone or at the wrong level, Master Channel
-  CC #74 and Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages 124–127 are still open
-  (TODO #250). The per-note Expression Value model itself — averaging, fan-out, reference counting and the Note
-  On/Note Off emission rules — is implemented.
+- `MpeTuner`'s MIDI message routing does not yet fully conform to the paper: RPN/NRPN traffic must be re-emitted as
+  complete sequences, with an invalid MCM ignored in its entirety (TODO #261); and a Zone reconfiguration must reset
+  state only for the channels entering or leaving MPE control, and must not discard the active Tuning (TODO #262).
+  Channel-role-based routing and filtering — messages outside every enabled Zone or at the wrong level, Master Channel
+  CC `#74` and Channel Pressure forwarding as Zone-level controls, and the MIDI Mode messages 124–127 — is implemented
+  in `MpeMessageRouting`. A forwarded Pitch Bend Sensitivity sequence is closed with an RPN Null, and the per-note
+  Expression Value model itself — averaging, fan-out, reference counting and the Note On/Note Off emission rules — is
+  implemented.
 - `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
   the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded
   cents disagree with the cents retained for already-active notes (TODO #253).
