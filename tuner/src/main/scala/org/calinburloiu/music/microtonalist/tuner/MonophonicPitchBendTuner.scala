@@ -19,7 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, ScMidiChannelStateTracker, clampValue, mapShortMessageChannel}
+import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, RpnMessages}
+import org.calinburloiu.music.scmidi.{ScMidiChannelStateTracker, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -158,8 +159,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def isSettingPitchBendSensitivity: Boolean =
-    tracker.rpnSelector(trackedChannel) == ScMidiChannelStateTracker.RpnSelector.Rpn(
-      ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.rpnSelector(trackedChannel) == RpnMessages.PitchBendSensitivitySelector
 
   private def applyPitchBendSensitivityMsb(buffer: mutable.Buffer[MidiMessage], value: Int): Unit = {
     if (isSettingPitchBendSensitivity) {

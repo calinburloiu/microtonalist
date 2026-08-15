@@ -442,19 +442,6 @@ object ScMidiChannelStateTracker {
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
 
-  /**
-   * Represents the currently selected parameter on a channel. The selected parameter determines which
-   * RPN or NRPN value will be updated by subsequent Data Entry, Data Increment, or Data Decrement CC messages.
-   */
-  enum RpnSelector {
-    /** No parameter is currently selected. Data Entry and Increment/Decrement messages are ignored. */
-    case None
-    /** An RPN with the given MSB and LSB is selected. */
-    case Rpn(msb: Int, lsb: Int)
-    /** An NRPN with the given MSB and LSB is selected. */
-    case Nrpn(msb: Int, lsb: Int)
-  }
-
   private class ActiveNote(val velocity: Int, var polyPressure: Int = 0)
 
   private class ChannelState {

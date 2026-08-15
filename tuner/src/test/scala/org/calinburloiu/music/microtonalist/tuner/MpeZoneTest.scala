@@ -36,6 +36,14 @@ class MpeZoneTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChec
     zone.expressionGroupSize shouldBe 3
   }
 
+  it should "reject a member channel count no Zone can hold" in {
+    // When / Then
+    MpeZone.isValidMemberCount(MpeZone.MaxMemberCount + 1) shouldBe false
+    MpeZone.isValidMemberCount(-1) shouldBe false
+    an[IllegalArgumentException] should be thrownBy MpeZone(MpeZoneType.Lower, MpeZone.MaxMemberCount + 1)
+    an[IllegalArgumentException] should be thrownBy MpeZone(MpeZoneType.Upper, -1)
+  }
+
   it should "create a Lower Zone with 7 member channels" in {
     // When
     val zone = MpeZone(MpeZoneType.Lower, 7)

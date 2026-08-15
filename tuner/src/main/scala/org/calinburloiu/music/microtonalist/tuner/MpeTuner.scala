@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.*
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 
@@ -76,10 +75,28 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
   private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
-  // Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
-  // timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
-  // (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
+  /**
+   * Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
+   * timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
+   * (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
+   */
   private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
+
+  /**
+   * What the Tuner last left selected on each output channel, so that a relayed uninterpreted sequence spends its
+   * selector only when the parameter changes. [[MpeMessageRouting]] discards every selector CC the input sends and
+   * never relays a value message raw, so every RPN or NRPN message an output channel receives is one the Tuner
+   * composed itself, and this can be kept exact rather than guessed — provided it is maintained on both sides.
+   *
+   * Every sequence emitted on a channel must be recorded here, the closing RPN Null of the Tuner's own MCM and
+   * Pitch Bend Sensitivity sequences included, which is why they go through `mcmMessages` and `pbsSequence`. And
+   * every relayed message that deselects at the receiver must remove the entry: the Tuner authors the parameter
+   * selected on its output channels, but not every message that changes it — see
+   * [[MpeMessageRouting.deselectsOnRelay]] and the System Reset case in `processShortMessage`.
+   *
+   * An absent entry means "not known", and re-emits.
+   */
+  private val outputRpnSelectors: mutable.Map[Int, RpnSelector] = mutable.Map.empty
 
   warnOnNonMpeInputWithBothZones()
 
@@ -153,6 +170,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def resetState(): Unit = {
     _tuning = Tuning.Standard
     tracker.reset()
+    // Forget what each output channel held selected. The configuration messages that follow a reset re-record it
+    // for every Master Channel anyway; clearing keeps the "only skip a selector when we know" rule from depending
+    // on which channels those messages happen to reach, and a channel may be changing role entirely.
+    outputRpnSelectors.clear()
 
     lowerAllocator = createAllocator(lowerZone)
     upperAllocator = createAllocator(upperZone)
@@ -193,12 +214,27 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
             logger.trace(s"Discarding $msg received on a channel with role $role")
           case MpeRoutingVerdict.ForwardOn(channel) =>
             buffer += msg.mapChannel(_ => channel).asJava
+            // A relayed Reset All Controllers deselects the parameter at the receiver, so what the Tuner recorded
+            // for that channel has stopped being a fact about it.
+            if (MpeMessageRouting.deselectsOnRelay(msg)) outputRpnSelectors.remove(channel)
+          case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
+            case cc: CcScMidiMessage =>
+              val (messages, latchedSelector) =
+                MpeMessageRouting.rpnSequence(rpnSelector, cc, channel, latchedSelectorOn(channel))
+              buffer ++= messages.map(_.asJava)
+              outputRpnSelectors(channel) = latchedSelector
+            case _ =>
+              // `route` returns this verdict only for a Data Entry, Data Increment or Data Decrement CC.
+              logger.error(s"Unexpected RPN sequence verdict for $msg")
+          }
           case MpeRoutingVerdict.Interpret =>
             interpret(buffer, msg, role, rpnSelector)
         }
       case _ =>
         // System Exclusive, System Common and System Real-Time messages affect the whole system and pass through.
         buffer += message
+        // A System Reset returns every receiving channel to its power-up state, parameter selection included.
+        if (scMessage == SystemResetScMidiMessage) outputRpnSelectors.clear()
     }
 
     buffer.toSeq
@@ -357,6 +393,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   //  must not discard the active Tuning.
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
+    assert(MpeZone.isValidMemberCount(memberCount), s"An invalid MCM member count of $memberCount reached the Tuner!")
     // Per MPE spec Section 2.4, receiving MCM resets PBS to defaults
     val (zoneType, newZone) = if (channel == 0)
       (MpeZoneType.Lower, MpeZone(MpeZoneType.Lower, memberCount))
@@ -453,10 +490,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Tuner encodes its output Pitch Bend against; forwarding only the half that arrived would leave the other at
    * whatever the receiver happened to hold. The selector is likewise re-emitted rather than relayed, guarding
    * against another device having changed the active RPN on this channel between the sender's selector and its
-   * Data Entry, and the closing RPN Null protects Pitch Bend Sensitivity from a later stray Data Entry. The CC
-   * that completed the sender's own selector is suppressed upstream in [[MpeMessageRouting.route]] to avoid
-   * duplication, while the opening CC of that pair still passes through, since a half-set selector matches
-   * neither the PBS nor the MCM RPN.
+   * Data Entry, and the closing RPN Null protects Pitch Bend Sensitivity from a later stray Data Entry. The
+   * sender's own selector CCs are consumed upstream in [[MpeMessageRouting.route]], so re-emitting the selector
+   * here cannot duplicate them.
    */
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                              ccNumber: Int, ccValue: Int,
@@ -470,12 +506,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
 
     // Emit the complete sequence on the destination channel only, built from the Zone's updated sensitivity
-    // rather than relayed byte-for-byte, so that both Data Entry halves are always sent. Only the CC that
-    // completed the sender's own selector is consumed upstream — the opening one still passes through.
-    // TODO #261 Consume the opening selector CC as well, so that the sender's half-set selector is not relayed
-    //   ahead of the complete sequence emitted here.
+    // rather than relayed byte-for-byte, so that both Data Entry halves are always sent.
     val sensitivity = if (isMaster) updatedZone.masterPitchBendSensitivity else updatedZone.memberPitchBendSensitivity
-    buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
+    buffer ++= pbsSequence(channel, sensitivity)
 
     // Recompute pitch bends on occupied member channels if member PBS changed
     if (!isMaster) {
@@ -629,28 +662,42 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   private def mcmMessages(zone: MpeZone): Seq[MidiMessage] = {
-    // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null.
-    // Selector and Null are emitted LSB before MSB, matching RP-053 §2.1.1's MCM Message Format and
-    // `PitchBendSensitivityMessages.create`.
-    Seq(
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnLsb, ScMidiRpn.MpeConfigurationMessageLsb),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnMsb, ScMidiRpn.MpeConfigurationMessageMsb),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcScMidiMessage(zone.masterChannel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
-    ).map(_.asJava)
+    // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null. The selector and
+    // the Null are rendered by `RpnMessages.select`, which decides their transmission order.
+    val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
+      CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount)
+    val messages = (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullRpnSelector)).map(_.asJava)
+
+    outputRpnSelectors(zone.masterChannel) = RpnMessages.NullRpnSelector
+    messages
   }
+
+  /**
+   * The Pitch Bend Sensitivity sequence for one output channel — selector, both Data Entry halves, closing RPN
+   * Null — recording that the Null leaves the channel with no parameter selected.
+   *
+   * Every Pitch Bend Sensitivity sequence the Tuner emits goes through here, and every MCM one through
+   * [[mcmMessages]], so that [[outputRpnSelectors]] can never claim a parameter one of their Nulls has cleared.
+   */
+  private def pbsSequence(channel: Int, sensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
+    outputRpnSelectors(channel) = RpnMessages.NullRpnSelector
+    PitchBendSensitivityMessages.create(channel, sensitivity)
+  }
+
+  /** The parameter the Tuner last left selected on `channel`, or `RpnSelector.None` when it does not know. */
+  private def latchedSelectorOn(channel: Int): RpnSelector =
+    outputRpnSelectors.getOrElse(channel, RpnSelector.None)
 
   private def pitchBendSensitivityMessages(zone: MpeZone): Seq[MidiMessage] = {
     if (zone.isEnabled) {
       val buffer = mutable.Buffer[MidiMessage]()
 
       // Master channel PBS
-      buffer ++= PitchBendSensitivityMessages.create(zone.masterChannel, zone.masterPitchBendSensitivity)
+      buffer ++= pbsSequence(zone.masterChannel, zone.masterPitchBendSensitivity)
 
       // Member channel PBS
       zone.memberChannels.foreach { ch =>
-        buffer ++= PitchBendSensitivityMessages.create(ch, zone.memberPitchBendSensitivity)
+        buffer ++= pbsSequence(ch, zone.memberPitchBendSensitivity)
       }
 
       buffer.toSeq

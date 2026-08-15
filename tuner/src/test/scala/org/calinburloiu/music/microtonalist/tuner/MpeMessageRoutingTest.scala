@@ -17,8 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.MpeRoutingVerdict.*
-import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
+import org.calinburloiu.music.scmidi.{MidiNote, RpnMessages, RpnSelector}
 import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -29,10 +28,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
  *
  * == Test Organization ==
  *
- * Two `behavior of` blocks, one per public function: `roleOf` and `route`. The `route` block is the paper's
- * message-handling table ("How the MPE Tuner Handles Common MIDI Messages in MPE Input Mode") expressed as
- * table-driven checks, one `Table` row per cell: the role supplies the column and the message the row. Add a new
- * case by adding a row, not a new test, unless the cell needs a rule the table cannot express.
+ * One `behavior of` block per public function. The `route` block is the paper's message-handling table ("How the MPE
+ * Tuner Handles Common MIDI Messages in MPE Input Mode") expressed as table-driven checks, one `Table` row per cell:
+ * the role supplies the column and the message the row. Add a new case by adding a row, not a new test, unless the
+ * cell needs a rule the table cannot express.
  */
 class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -121,10 +120,12 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   private val noSelector: RpnSelector = RpnSelector.None
 
-  // The input channel every table row below uses: Member Channel 3 of the Lower Zone, so that a forward on the
-  // Zone's Master Channel is visibly different from a forward on the arrival channel. The same message is replayed
-  // against all four roles, and both forwarding columns name the role's Zone Master Channel rather than the channel
-  // the message carries, which is what makes `route` a function of its arguments alone.
+  /**
+   * The input channel every table row below uses: Member Channel 3 of the Lower Zone, so that a forward on the
+   * Zone's Master Channel is visibly different from a forward on the arrival channel. The same message is replayed
+   * against all four roles, and both forwarding columns name the role's Zone Master Channel rather than the channel
+   * the message carries, which is what makes `route` a function of its arguments alone.
+   */
   private val inputChannel: Int = 3
 
   /** The Master Channel of the Lower Zone that every role below is built from. */
@@ -224,11 +225,31 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Given
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     val channels = Table("channel", 0, 15)
+    // A Zone holds between 0 Member Channels, which deactivates it, and 15, which is the whole rest of the port.
+    val memberCounts = Table("memberCount", 0, 7, 15)
     forAll(channels) { channel =>
-      val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, 7)
-      forAll(roles) { role =>
-        // When / Then
-        MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Interpret
+      forAll(memberCounts) { memberCount =>
+        val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, memberCount)
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Interpret
+        }
+      }
+    }
+  }
+
+  it should "discard an MCM Data Entry MSB requesting more Member Channels than a Zone can hold" in {
+    // Given
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    val channels = Table("channel", 0, 15)
+    val memberCounts = Table("memberCount", 16, 100, 127)
+    forAll(channels) { channel =>
+      forAll(memberCounts) { memberCount =>
+        val message = CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, memberCount)
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Discard
+        }
       }
     }
   }
@@ -246,53 +267,228 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  it should "consume the completing selector CC of an interpreted parameter" in {
+  it should "consume the selector CCs of an interpreted parameter as well" in {
     // Given
     val selectors = Table("selector", mcmSelector, pbsSelector)
     val ccNumbers = Table("ccNumber", ScMidiCc.RpnMsb, ScMidiCc.RpnLsb)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(selectors) { selector =>
       forAll(ccNumbers) { ccNumber =>
-        // When / Then
-        MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ccNumber, 0), selector) shouldEqual Discard
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, CcScMidiMessage(0, ccNumber, 0), selector) shouldEqual Discard
+        }
       }
     }
   }
 
-  // ---- Uninterpreted parameter traffic ----
-  //
-  // TODO #261 The two cases below pin what is deliberately left on the ordinary-CC path for now, so that the work
-  //   starts from a state a test asserts rather than one only a comment describes. Replace them with the
-  //   complete-sequence re-emission and invalid-MCM expectations once those rows of the table are implemented.
+  // ---- Uninterpreted Registered and Non-Registered Parameters ----
 
-  it should "still forward the opening CC of an interpreted parameter's selector pair" in {
-    // Given the mid-sequence states the tracker reports after the first CC of either selector order
-    val incompleteSelectors = Table("selector",
-      RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb),
-      RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.MpeConfigurationMessageLsb))
-    forAll(incompleteSelectors) { selector =>
-      // When / Then
-      MpeMessageRouting.route(masterRole, CcScMidiMessage(inputChannel, ScMidiCc.RpnMsb, 0), selector) shouldEqual
-        ForwardOn(zoneMasterChannel)
+  private val fineTuningSelector: RpnSelector =
+    RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+  private val nrpnSelector: RpnSelector = RpnSelector.Nrpn(12, 34)
+
+  it should "consume every RPN and NRPN selector CC" in {
+    // Given
+    val ccNumbers = Table("ccNumber", ScMidiCc.RpnMsb, ScMidiCc.RpnLsb, ScMidiCc.NrpnMsb, ScMidiCc.NrpnLsb)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    forAll(ccNumbers) { ccNumber =>
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 0), fineTuningSelector) shouldEqual
+          Discard
+      }
     }
   }
 
-  it should "leave uninterpreted RPN and NRPN traffic on the ordinary-CC path" in {
-    // Given a parameter the Tuner does not interpret, selected by either an RPN or an NRPN
-    val selectors = Table("selector",
-      RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, 1),
-      RpnSelector.Nrpn(1, 2))
+  it should "re-emit a complete sequence for a data value of an uninterpreted parameter" in {
+    // Given
+    val selectors = Table("selector", fineTuningSelector, nrpnSelector)
     val ccNumbers = Table("ccNumber",
-      ScMidiCc.RpnMsb, ScMidiCc.RpnLsb, ScMidiCc.NrpnMsb, ScMidiCc.NrpnLsb,
-      ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb)
+      ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
     forAll(selectors) { selector =>
       forAll(ccNumbers) { ccNumber =>
-        val message = CcScMidiMessage(inputChannel, ccNumber, 5)
+        val message = CcScMidiMessage(inputChannel, ccNumber, 64)
         // When / Then
         MpeMessageRouting.route(memberRole, message, selector) shouldEqual Discard
-        MpeMessageRouting.route(masterRole, message, selector) shouldEqual ForwardOn(zoneMasterChannel)
-        MpeMessageRouting.route(nonMpeRole, message, selector) shouldEqual ForwardOn(zoneMasterChannel)
+        MpeMessageRouting.route(masterRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
+        MpeMessageRouting.route(nonMpeRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
         MpeMessageRouting.route(outsideRole, message, selector) shouldEqual Discard
       }
     }
+  }
+
+  // TODO #267 Only the `RpnSelector.None` row is a behavior worth keeping. The four half-set rows spell "this half
+  //  has not arrived" with the Null value, the sentinel `RpnSelector` currently uses for it; modelling the unset
+  //  halves explicitly in `sc-midi` as `Option`s makes every one of them a genuinely complete parameter — RPN 00/7F,
+  //  RPN 7F/01, NRPN 0C/7F and NRPN 7F/22 — so they turn into `ForwardRpnSequenceOn`, and this test red for them.
+  it should "discard a data value when no complete parameter is selected" in {
+    // Given
+    val selectors = Table("selector",
+      RpnSelector.None,
+      RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.NullLsb),
+      RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.FineTuningLsb),
+      RpnSelector.Nrpn(12, ScMidiNrpn.NullLsb),
+      RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 34))
+    val ccNumbers = Table("ccNumber",
+      ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    forAll(selectors) { selector =>
+      forAll(ccNumbers) { ccNumber =>
+        forAll(roles) { role =>
+          // When / Then
+          MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), selector) shouldEqual Discard
+        }
+      }
+    }
+  }
+
+  // TODO #267 This pins the collateral of the discard rule, not a behavior worth keeping: an NRPN whose MSB or LSB is
+  //  genuinely 127 is indistinguishable from a half-set selector, because `RpnSelector` uses the Null value as its
+  //  "not yet received" sentinel. Modelling the unset halves explicitly in `sc-midi` turns these rows into
+  //  `ForwardRpnSequenceOn`, and this test red.
+  it should "discard a data value of an NRPN whose MSB or LSB is genuinely 127" in {
+    // Given
+    val selectors = Table("selector",
+      RpnSelector.Nrpn(msb = 127, lsb = 34),
+      RpnSelector.Nrpn(msb = 12, lsb = 127),
+      RpnSelector.Nrpn(msb = 127, lsb = 127))
+    val message = CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64)
+    forAll(selectors) { selector =>
+      // When / Then
+      MpeMessageRouting.route(masterRole, message, selector) shouldEqual Discard
+    }
+  }
+
+  it should "route an NRPN that shares the numbers of an interpreted RPN as uninterpreted" in {
+    // Given
+    val selectors = Table("selector",
+      RpnSelector.Nrpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb),
+      RpnSelector.Nrpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb))
+    forAll(selectors) { selector =>
+      // When / Then: an MCM is valid on MIDI Channel 1 (1-based), so the NRPN of the same numbers is the case that
+      // could be mistaken for one.
+      MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual
+        ForwardRpnSequenceOn(zoneMasterChannel)
+      MpeMessageRouting.route(memberRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual Discard
+    }
+  }
+
+  it should "discard an MCM Data Entry received on a channel other than MIDI Channel 1 or 16 (1-based)" in {
+    // Given
+    val channels = Table("channel", 1, 5, 14)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    forAll(channels) { channel =>
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, 7), mcmSelector) shouldEqual
+          Discard
+      }
+    }
+  }
+
+  it should "discard a Data Entry LSB and a Data Increment or Decrement of the MCM" in {
+    // Given
+    val ccNumbers = Table("ccNumber", ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    forAll(ccNumbers) { ccNumber =>
+      // When / Then
+      MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ccNumber, 7), mcmSelector) shouldEqual Discard
+    }
+  }
+
+  it should "discard a Data Increment or Decrement of Pitch Bend Sensitivity at every role" in {
+    // Given
+    val ccNumbers = Table("ccNumber", ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
+    forAll(ccNumbers) { ccNumber =>
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(0, ccNumber, 1), pbsSelector) shouldEqual Discard
+      }
+    }
+  }
+
+  behavior of "MpeMessageRouting.rpnSequence"
+
+  /**
+   * A value message as it arrived, on an input channel that is deliberately none of the output channels the
+   * sequences below are rendered on, so that the re-addressing to the output channel is visible in the result.
+   */
+  private def receivedValueCc(number: Int, value: Int): CcScMidiMessage = CcScMidiMessage(9, number, value)
+
+  it should "render an RPN selector ahead of its value message" in {
+    // When
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = RpnSelector.None)
+    // Then the value message is re-addressed from its input channel to the output one
+    messages shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
+    )
+    latchedSelector shouldEqual fineTuningSelector
+  }
+
+  it should "render an NRPN selector ahead of its value message" in {
+    // When
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(nrpnSelector,
+      receivedValueCc(ScMidiCc.DataIncrement, 1), outputChannel = 15, latchedSelector = RpnSelector.None)
+    // Then
+    messages shouldEqual Seq(
+      CcScMidiMessage(15, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(15, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(15, ScMidiCc.DataIncrement, 1)
+    )
+    latchedSelector shouldEqual nrpnSelector
+  }
+
+  it should "render nothing when no parameter is selected" in {
+    // When
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(RpnSelector.None,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
+    // Then the output channel keeps the parameter it already held: nothing was emitted to change it
+    messages shouldBe empty
+    latchedSelector shouldEqual nrpnSelector
+  }
+
+  it should "omit the selector when the output channel already holds the parameter selected" in {
+    // Given
+    val selectors = Table("selector", fineTuningSelector, nrpnSelector)
+    forAll(selectors) { selector =>
+      // When
+      val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(selector,
+        receivedValueCc(ScMidiCc.DataEntryLsb, 5), outputChannel = 0, latchedSelector = selector)
+      // Then
+      messages shouldEqual Seq(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5))
+      latchedSelector shouldEqual selector
+    }
+  }
+
+  it should "render the selector when the output channel holds a different parameter selected" in {
+    // When
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
+    // Then
+    messages shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
+    )
+    latchedSelector shouldEqual fineTuningSelector
+  }
+
+  it should "render the selector when the output channel was left deselected by an RPN Null" in {
+    // Given the state the Tuner's own MCM and Pitch Bend Sensitivity sequences leave behind, both closing with one
+    // When
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0,
+      latchedSelector = RpnMessages.NullRpnSelector)
+    // Then
+    messages shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
+    )
+    latchedSelector shouldEqual fineTuningSelector
   }
 }

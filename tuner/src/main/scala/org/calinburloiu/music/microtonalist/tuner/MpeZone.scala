@@ -103,14 +103,23 @@ case class MpeZone(zoneType: MpeZoneType,
                    masterPitchBendSensitivity: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity,
                    memberPitchBendSensitivity: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity)
   extends MpeZoneStructure {
-  require(memberCount >= 0 && memberCount <= 15,
-    s"memberCount must be between 0 and 15; got $memberCount")
+  require(MpeZone.isValidMemberCount(memberCount),
+    s"memberCount must be between 0 and ${MpeZone.MaxMemberCount}; got $memberCount")
 }
 
 /**
  * Companion object for [[MpeZone]].
  */
 object MpeZone {
+  /** The greatest number of Member Channels a Zone can hold: every channel of the port but its Master Channel. */
+  val MaxMemberCount: Int = 15
+
+  /**
+   * Whether a Zone can hold `memberCount` Member Channels. Zero is valid and deactivates the Zone, as the MPE
+   * Specification provides for.
+   */
+  def isValidMemberCount(memberCount: Int): Boolean = memberCount >= 0 && memberCount <= MaxMemberCount
+
   /** The default Master Channel Pitch Bend Sensitivity as defined by the MPE Specification: ±2 semitones. */
   val DefaultMasterPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(2)
   /** The default Member Channel Pitch Bend Sensitivity as defined by the MPE Specification: ±48 semitones. */
