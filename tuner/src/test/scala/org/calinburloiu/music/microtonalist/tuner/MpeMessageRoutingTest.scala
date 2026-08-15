@@ -17,8 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.MpeRoutingVerdict.*
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
-import org.calinburloiu.music.scmidi.{MidiNote, RpnMessages}
+import org.calinburloiu.music.scmidi.{MidiNote, RpnMessages, RpnSelector}
 import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -411,34 +410,45 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   behavior of "MpeMessageRouting.rpnSequence"
 
+  /**
+   * A value message as it arrived, on an input channel that is deliberately none of the output channels the
+   * sequences below are rendered on, so that the re-addressing to the output channel is visible in the result.
+   */
+  private def receivedValueCc(number: Int, value: Int): CcScMidiMessage = CcScMidiMessage(9, number, value)
+
   it should "render an RPN selector ahead of its value message" in {
     // When
-    val messages = MpeMessageRouting.rpnSequence(fineTuningSelector, ScMidiCc.DataEntryMsb, 64, outputChannel = 0,
-      latchedSelector = RpnSelector.None)
-    // Then
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = RpnSelector.None)
+    // Then the value message is re-addressed from its input channel to the output one
     messages shouldEqual Seq(
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
     )
+    latchedSelector shouldEqual fineTuningSelector
   }
 
   it should "render an NRPN selector ahead of its value message" in {
     // When
-    val messages = MpeMessageRouting.rpnSequence(nrpnSelector, ScMidiCc.DataIncrement, 1, outputChannel = 15,
-      latchedSelector = RpnSelector.None)
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(nrpnSelector,
+      receivedValueCc(ScMidiCc.DataIncrement, 1), outputChannel = 15, latchedSelector = RpnSelector.None)
     // Then
     messages shouldEqual Seq(
       CcScMidiMessage(15, ScMidiCc.NrpnLsb, 34),
       CcScMidiMessage(15, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(15, ScMidiCc.DataIncrement, 1)
     )
+    latchedSelector shouldEqual nrpnSelector
   }
 
   it should "render nothing when no parameter is selected" in {
-    // When / Then
-    MpeMessageRouting.rpnSequence(RpnSelector.None, ScMidiCc.DataEntryMsb, 64, outputChannel = 0,
-      latchedSelector = RpnSelector.None) shouldBe empty
+    // When
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(RpnSelector.None,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
+    // Then the output channel keeps the parameter it already held: nothing was emitted to change it
+    messages shouldBe empty
+    latchedSelector shouldEqual nrpnSelector
   }
 
   it should "omit the selector when the output channel already holds the parameter selected" in {
@@ -446,29 +456,32 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val selectors = Table("selector", fineTuningSelector, nrpnSelector)
     forAll(selectors) { selector =>
       // When
-      val messages = MpeMessageRouting.rpnSequence(selector, ScMidiCc.DataEntryLsb, 5, outputChannel = 0,
-        latchedSelector = selector)
+      val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(selector,
+        receivedValueCc(ScMidiCc.DataEntryLsb, 5), outputChannel = 0, latchedSelector = selector)
       // Then
       messages shouldEqual Seq(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5))
+      latchedSelector shouldEqual selector
     }
   }
 
   it should "render the selector when the output channel holds a different parameter selected" in {
     // When
-    val messages = MpeMessageRouting.rpnSequence(fineTuningSelector, ScMidiCc.DataEntryMsb, 64, outputChannel = 0,
-      latchedSelector = nrpnSelector)
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
     // Then
     messages shouldEqual Seq(
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
     )
+    latchedSelector shouldEqual fineTuningSelector
   }
 
   it should "render the selector when the output channel was left deselected by an RPN Null" in {
     // Given the state the Tuner's own MCM and Pitch Bend Sensitivity sequences leave behind, both closing with one
     // When
-    val messages = MpeMessageRouting.rpnSequence(fineTuningSelector, ScMidiCc.DataEntryMsb, 64, outputChannel = 0,
+    val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
+      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0,
       latchedSelector = RpnMessages.NullRpnSelector)
     // Then
     messages shouldEqual Seq(
@@ -476,5 +489,6 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 64)
     )
+    latchedSelector shouldEqual fineTuningSelector
   }
 }

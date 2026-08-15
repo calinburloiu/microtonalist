@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiNrpn, ScMidiRpn}
 
 /**

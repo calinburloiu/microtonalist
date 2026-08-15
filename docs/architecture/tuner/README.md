@@ -56,12 +56,13 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       (`Discard`/`ForwardOn`/`ForwardRpnSequenceOn`/`Interpret`), and `rpnSequence` renders an uninterpreted
       parameter's value message for the `ForwardRpnSequenceOn` verdict, preceded by the selector — through
       `sc-midi`'s `RpnMessages`, like every other sequence the Tuner emits — whenever the parameter differs from the
-      one its `latchedSelector` argument says the output channel already holds. `MpeTuner` supplies that argument
-      from `outputRpnSelectors`, its record of what it last left selected on each output channel, which its own MCM
-      and Pitch Bend Sensitivity sequences update as well, both closing with a deselecting RPN Null. The record is a
-      claim about the receiver, so `MpeTuner` also drops it whenever it relays a message that deselects there — a
-      Reset All Controllers, which `MpeMessageRouting.deselectsOnRelay` identifies, for the one channel, and a
-      System Reset for all of them.
+      one its `latchedSelector` argument says the output channel already holds; it returns the new latched selector
+      alongside the messages, so what the channel holds cannot drift from what was emitted on it. `MpeTuner` supplies
+      that argument from `outputRpnSelectors`, its record of what it last left selected on each output channel, which
+      its own MCM and Pitch Bend Sensitivity sequences update as well, both closing with a deselecting RPN Null. The
+      record is a claim about the receiver, so `MpeTuner` also drops it whenever it relays a message that deselects
+      there — a Reset All Controllers, which `MpeMessageRouting.deselectsOnRelay` identifies, for the one channel,
+      and a System Reset for all of them.
     * `MpeTuner` is a client of `MpeMessageRouting`: it classifies the arrival channel, calls `route`, and dispatches
       on the verdict, making it a classify-then-act coordinator over the note allocation, Expression Value, MCM and
       Pitch Bend Sensitivity logic it still owns directly.
@@ -192,7 +193,7 @@ These are signalled directly in the code:
   per-note Expression Value model itself — averaging, fan-out, reference counting and the Note On/Note Off emission
   rules — is implemented.
 - An RPN or NRPN whose MSB or LSB is 127 is indistinguishable from a half-set selector, because
-  `ScMidiChannelStateTracker`'s `RpnSelector` uses the Null value as its "not yet received" sentinel, so
+  `RpnSelector` uses the Null value as the "not yet received" sentinel `ScMidiChannelStateTracker` fills it with, so
   `MpeMessageRouting` treats it as incomplete and discards its value messages (TODO #267).
 - `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
   the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded

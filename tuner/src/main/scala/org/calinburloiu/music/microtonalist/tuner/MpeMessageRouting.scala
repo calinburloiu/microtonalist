@@ -16,8 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{RpnMessages, ScMidiChannelStateTracker}
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
+import org.calinburloiu.music.scmidi.{RpnMessages, RpnSelector, ScMidiChannelStateTracker}
 import org.calinburloiu.music.scmidi.message.*
 
 /**
@@ -222,10 +221,10 @@ private[tuner] object MpeMessageRouting {
   /**
    * Whether both halves of the selected parameter have been set, which is what a value message needs to apply.
    *
-   * An unset half is indistinguishable from a genuine half of 127: [[ScMidiChannelStateTracker]]'s `RpnSelector`
-   * reuses the Null value (127) as its "not yet received" sentinel, so an RPN or NRPN whose MSB or LSB is
-   * genuinely 127 reads the same as a half-set selector. Such a parameter is therefore treated as incomplete here,
-   * and its value messages are discarded rather than relayed.
+   * An unset half is indistinguishable from a genuine half of 127: [[RpnSelector]] reuses the Null value (127) as
+   * the "not yet received" sentinel [[ScMidiChannelStateTracker]] fills it with, so an RPN or NRPN whose MSB or LSB
+   * is genuinely 127 reads the same as a half-set selector. Such a parameter is therefore treated as incomplete
+   * here, and its value messages are discarded rather than relayed.
    */
   // TODO #267 The real fix is to model the unset halves explicitly in `sc-midi`'s `RpnSelector` rather than by
   //  sentinel, so a genuine half of 127 can be told apart from "not yet received".
@@ -289,25 +288,33 @@ private[tuner] object MpeMessageRouting {
    * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for
    * NRPN traffic.
    *
+   * The new latched selector is returned alongside the sequence rather than left for the caller to infer, so that
+   * what the output channel now holds selected cannot drift from what was actually emitted on it.
+   *
    * @param selector        The parameter selected on the input channel, from
    *                        [[ScMidiChannelStateTracker.rpnSelector]].
-   * @param ccNumber        The value CC number: Data Entry MSB or LSB, Data Increment or Data Decrement.
-   * @param ccValue         The value CC value.
+   * @param valueCc         The received value message: Data Entry MSB or LSB, Data Increment or Data Decrement. Its
+   *                        channel is the input's and is remapped to `outputChannel`; only its number and value are
+   *                        carried through.
    * @param outputChannel   The channel the whole sequence is emitted on.
    * @param latchedSelector The parameter the Tuner last left selected on `outputChannel`, or [[RpnSelector.None]]
    *                        when it does not know. Only a caller that records ''every'' sequence it emits on that
    *                        channel — the closing RPN Nulls of the Tuner's own MCM and Pitch Bend Sensitivity
    *                        sequences included — may pass anything else, a stale value being what would let a value
    *                        message ride a selection the Null has since cleared.
-   * @return the sequence, or empty when no parameter is selected and no sequence can be formed.
+   * @return the sequence and the parameter `outputChannel` holds selected after it, which the caller must record.
+   *         The sequence is empty, and the latched selector unchanged, when no parameter is selected and no
+   *         sequence can be formed.
    */
-  def rpnSequence(selector: RpnSelector, ccNumber: Int, ccValue: Int, outputChannel: Int,
-                  latchedSelector: RpnSelector): Seq[CcScMidiMessage] = {
-    val valueMessage = CcScMidiMessage(outputChannel, ccNumber, ccValue)
+  def rpnSequence(selector: RpnSelector,
+                  valueCc: CcScMidiMessage,
+                  outputChannel: Int,
+                  latchedSelector: RpnSelector): (Seq[CcScMidiMessage], RpnSelector) = {
+    val valueMessage = valueCc.mapChannel(_ => outputChannel)
     selector match {
-      case RpnSelector.None => Seq.empty
-      case _ if selector == latchedSelector => Seq(valueMessage)
-      case _ => RpnMessages.select(outputChannel, selector) :+ valueMessage
+      case RpnSelector.None => (Seq.empty, latchedSelector)
+      case _ if selector == latchedSelector => (Seq(valueMessage), latchedSelector)
+      case _ => (RpnMessages.select(outputChannel, selector) :+ valueMessage, selector)
     }
   }
 }

@@ -18,7 +18,6 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.*
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 
@@ -220,10 +219,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
             if (MpeMessageRouting.deselectsOnRelay(msg)) outputRpnSelectors.remove(channel)
           case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
             case cc: CcScMidiMessage =>
-              buffer ++= MpeMessageRouting
-                .rpnSequence(rpnSelector, cc.number, cc.value, channel, latchedSelectorOn(channel))
-                .map(_.asJava)
-              outputRpnSelectors(channel) = rpnSelector
+              val (messages, latchedSelector) =
+                MpeMessageRouting.rpnSequence(rpnSelector, cc, channel, latchedSelectorOn(channel))
+              buffer ++= messages.map(_.asJava)
+              outputRpnSelectors(channel) = latchedSelector
             case _ =>
               // `route` returns this verdict only for a Data Entry, Data Increment or Data Decrement CC.
               logger.error(s"Unexpected RPN sequence verdict for $msg")
