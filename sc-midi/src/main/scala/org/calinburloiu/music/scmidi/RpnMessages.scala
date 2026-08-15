@@ -20,19 +20,28 @@ import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiNrpn, ScMidiRpn}
 
 /**
- * Renders the selector half of MIDI 1.0's Registered and Non-Registered Parameter procedure, and names the parameters
- * Microtonalist selects by name.
+ * The home of MIDI 1.0's Registered and Non-Registered Parameter message vocabulary: the parameters Microtonalist
+ * works with, named, and the renderers that turn a step of the parameter procedure into the Control Change messages
+ * carrying it.
  *
- * Every sequence Microtonalist emits selects its parameter through [[select]], so that the transmission order of the
- * selector pair is decided in exactly one place.
+ * Any step of that procedure belongs here — selecting a parameter, entering, incrementing or decrementing its value,
+ * deselecting it — so that each has a single encoding for the whole application. What it currently provides is the
+ * selector step: [[select]] renders the Control Change pair that selects a parameter, and because every sequence
+ * Microtonalist emits selects through it, the transmission order of that pair is decided in exactly one place.
  */
 object RpnMessages {
 
   /**
-   * The Null Function (RPN 7F 7F), which deselects the current parameter so that a later stray Data Entry cannot
-   * change it.
+   * The Null Function as a Registered Parameter (RPN 7F 7F), which deselects the current parameter so that a later
+   * stray Data Entry cannot change it.
    */
-  val NullSelector: RpnSelector = RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
+  val NullRpnSelector: RpnSelector = RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
+
+  /**
+   * The Null Function as a Non-Registered Parameter (NRPN 7F 7F), the counterpart of [[NullRpnSelector]] for a
+   * Non-Registered Parameter sequence.
+   */
+  val NullNrpnSelector: RpnSelector = RpnSelector.Nrpn(ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
 
   /** Pitch Bend Sensitivity (RPN 00 00), the pitch bend range of a channel in semitones and cents. */
   val PitchBendSensitivitySelector: RpnSelector =
@@ -52,7 +61,7 @@ object RpnMessages {
    * MPE Configuration Message format. Either order selects the same parameter on a conformant receiver, so this is a
    * matter of speaking with one voice rather than of correctness on the wire.
    *
-   * @param channel  The MIDI channel to emit the selector on.
+   * @param channel  The MIDI 0-based channel number to emit the selector on.
    * @param selector The parameter to select.
    * @return the two selector messages, or an empty sequence for [[RpnSelector.None]], which selects no parameter and
    *         therefore has no encoding of its own.

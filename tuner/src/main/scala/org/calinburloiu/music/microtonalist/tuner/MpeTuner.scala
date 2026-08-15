@@ -638,7 +638,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
       CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount)
 
-    (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullSelector)).map(_.asJava)
+    (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullRpnSelector)).map(_.asJava)
   }
 
   private def pitchBendSensitivityMessages(zone: MpeZone): Seq[MidiMessage] = {

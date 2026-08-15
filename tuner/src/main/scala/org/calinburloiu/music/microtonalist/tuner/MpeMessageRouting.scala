@@ -185,12 +185,12 @@ private[tuner] object MpeMessageRouting {
   /**
    * Routes a Data Entry, Data Increment or Data Decrement, to which the currently selected parameter gives meaning.
    *
-   * Two parameters get special treatment. The MCM is accepted only as a Data Entry MSB on MIDI Channel 1 or 16 —
-   * the MPE Specification does not use its LSB — carrying a Member Channel count a Zone can hold, and an MCM that
-   * fails any of those tests is ignored in its entirety, its selector having already been consumed above. Pitch Bend
-   * Sensitivity is accepted at every role but `Outside`. A Data Increment or Decrement of either is discarded:
-   * neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's stored value
-   * from the receiver's, since the Tuner does not interpret the increment.
+   * Two parameters get special treatment. The MCM is accepted only as a Data Entry MSB on MIDI Channel 1 or 16
+   * (1-based) — the MPE Specification does not use its LSB — carrying a Member Channel count a Zone can hold, and
+   * an MCM that fails any of those tests is ignored in its entirety, its selector having already been consumed above.
+   * Pitch Bend Sensitivity is accepted at every role but `Outside`. A Data Increment or Decrement of either is
+   * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's
+   * stored value from the receiver's, since the Tuner does not interpret the increment.
    *
    * A value message is also discarded when no complete parameter is selected. `RpnSelector.None` is the plain case;
    * a half-set selector — one whose MSB or LSB is still Null — is treated the same way, because

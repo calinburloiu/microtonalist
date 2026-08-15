@@ -317,6 +317,10 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
+  // TODO #267 Only the `RpnSelector.None` row is a behavior worth keeping. The four half-set rows spell "this half
+  //  has not arrived" with the Null value, the sentinel `RpnSelector` currently uses for it; modelling the unset
+  //  halves explicitly in `sc-midi` as `Option`s makes every one of them a genuinely complete parameter — RPN 00/7F,
+  //  RPN 7F/01, NRPN 0C/7F and NRPN 7F/22 — so they turn into `ForwardRpnSequenceOn`, and this test red for them.
   it should "discard a data value when no complete parameter is selected" in {
     // Given
     val selectors = Table("selector",
@@ -348,10 +352,10 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
       RpnSelector.Nrpn(msb = 127, lsb = 34),
       RpnSelector.Nrpn(msb = 12, lsb = 127),
       RpnSelector.Nrpn(msb = 127, lsb = 127))
+    val message = CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64)
     forAll(selectors) { selector =>
       // When / Then
-      MpeMessageRouting.route(masterRole, CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64), selector) shouldEqual
-        Discard
+      MpeMessageRouting.route(masterRole, message, selector) shouldEqual Discard
     }
   }
 
@@ -361,15 +365,15 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
       RpnSelector.Nrpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb),
       RpnSelector.Nrpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb))
     forAll(selectors) { selector =>
-      // When / Then: an MCM is valid on MIDI Channel 1, so the NRPN of the same numbers is the case that could be
-      // mistaken for one.
+      // When / Then: an MCM is valid on MIDI Channel 1 (1-based), so the NRPN of the same numbers is the case that
+      // could be mistaken for one.
       MpeMessageRouting.route(masterRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual
         ForwardRpnSequenceOn(zoneMasterChannel)
       MpeMessageRouting.route(memberRole, CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual Discard
     }
   }
 
-  it should "discard an MCM Data Entry received on a channel other than MIDI Channel 1 or 16" in {
+  it should "discard an MCM Data Entry received on a channel other than MIDI Channel 1 or 16 (1-based)" in {
     // Given
     val channels = Table("channel", 1, 5, 14)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)

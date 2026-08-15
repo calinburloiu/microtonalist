@@ -23,25 +23,6 @@ import org.scalatest.matchers.should.Matchers
 
 class RpnMessagesTest extends AnyFlatSpec with Matchers {
 
-  behavior of "RpnMessages selector constants"
-
-  it should "name the Null Function parameter" in {
-    // When / Then
-    RpnMessages.NullSelector shouldEqual RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
-  }
-
-  it should "name the Pitch Bend Sensitivity parameter" in {
-    // When / Then
-    RpnMessages.PitchBendSensitivitySelector shouldEqual
-      RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-  }
-
-  it should "name the MPE Configuration Message parameter" in {
-    // When / Then
-    RpnMessages.MpeConfigurationMessageSelector shouldEqual
-      RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
-  }
-
   behavior of "RpnMessages.select"
 
   it should "emit a Registered Parameter selector LSB before MSB" in {
@@ -74,7 +55,7 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
 
   it should "emit the Null Function as a Registered Parameter selector" in {
     // When
-    val messages = RpnMessages.select(channel = 3, RpnMessages.NullSelector)
+    val messages = RpnMessages.select(channel = 3, RpnMessages.NullRpnSelector)
 
     // Then
     messages shouldEqual Seq(
@@ -89,11 +70,8 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
   }
 
   it should "emit the Non-Registered Null Function selector when it is the one selected" in {
-    // Given
-    val selector = RpnSelector.Nrpn(ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
-
     // When
-    val messages = RpnMessages.select(channel = 7, selector)
+    val messages = RpnMessages.select(channel = 7, RpnMessages.NullNrpnSelector)
 
     // Then
     messages shouldEqual Seq(
