@@ -29,10 +29,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
  *
  * == Test Organization ==
  *
- * Three `behavior of` blocks, one per public function: `roleOf`, `route` and `rpnSequence`. The `route` block is the
- * paper's message-handling table ("How the MPE Tuner Handles Common MIDI Messages in MPE Input Mode") expressed as
- * table-driven checks, one `Table` row per cell: the role supplies the column and the message the row. Add a new
- * case by adding a row, not a new test, unless the cell needs a rule the table cannot express.
+ * One `behavior of` block per public function. The `route` block is the paper's message-handling table ("How the MPE
+ * Tuner Handles Common MIDI Messages in MPE Input Mode") expressed as table-driven checks, one `Table` row per cell:
+ * the role supplies the column and the message the row. Add a new case by adding a row, not a new test, unless the
+ * cell needs a rule the table cannot express.
  */
 class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -121,10 +121,12 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   private val noSelector: RpnSelector = RpnSelector.None
 
-  // The input channel every table row below uses: Member Channel 3 of the Lower Zone, so that a forward on the
-  // Zone's Master Channel is visibly different from a forward on the arrival channel. The same message is replayed
-  // against all four roles, and both forwarding columns name the role's Zone Master Channel rather than the channel
-  // the message carries, which is what makes `route` a function of its arguments alone.
+  /**
+   * The input channel every table row below uses: Member Channel 3 of the Lower Zone, so that a forward on the
+   * Zone's Master Channel is visibly different from a forward on the arrival channel. The same message is replayed
+   * against all four roles, and both forwarding columns name the role's Zone Master Channel rather than the channel
+   * the message carries, which is what makes `route` a function of its arguments alone.
+   */
   private val inputChannel: Int = 3
 
   /** The Master Channel of the Lower Zone that every role below is built from. */

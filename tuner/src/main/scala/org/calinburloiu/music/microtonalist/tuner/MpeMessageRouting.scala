@@ -257,17 +257,14 @@ private[tuner] object MpeMessageRouting {
    * Renders a complete Registered or Non-Registered Parameter sequence on an output channel: the selector, then the
    * value message.
    *
-   * The selector is rendered by [[RpnMessages.select]], which decides the transmission order of the pair for every
-   * sequence Microtonalist emits — the MCM and Pitch Bend Sensitivity ones and their closing RPN Nulls included —
-   * and is omitted when `latchedSelector` says the output channel already holds this parameter selected. Parameter
-   * selection latches, so a run of value messages of one parameter needs one selector, which is the shape the sender
-   * itself sent; two senders whose sequences the routing rules bring onto a shared output channel still get a
-   * selector each, their parameters differing.
+   * The selector is rendered by [[RpnMessages.select]], which fixes the transmission order of the pair for every
+   * sequence Microtonalist emits, and is omitted when `latchedSelector` says the output channel already holds this
+   * parameter selected: selection latches, so a run of value messages of one parameter needs one selector, while two
+   * senders sharing an output channel still get a selector each, their parameters differing.
    *
    * Exactly one value message goes out per value message received. Unlike `PitchBendSensitivityMessages.create`,
-   * which always sends both Data Entry halves because the Tuner owns the Pitch Bend Sensitivity value and encodes
-   * its own output Pitch Bend against it, an uninterpreted parameter's value means nothing to the Tuner: a half the
-   * sender did not send would be a value it never wrote. A Data Increment or Data Decrement has no halves at all.
+   * which owns the value it sends and therefore always sends both Data Entry halves, the Tuner has no reading of an
+   * uninterpreted parameter from which to supply a half the sender did not send.
    *
    * No closing RPN Null is appended. The paper's Null rule governs the sequences the Tuner ''originates''; appending
    * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for

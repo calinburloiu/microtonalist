@@ -76,17 +76,21 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
   private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
-  // Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
-  // timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
-  // (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
+  /**
+   * Per-input-channel state derived from incoming MIDI messages: Channel Pressure, CC #74 (MPE Slide /
+   * timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
+   * (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
+   */
   private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
 
-  // What the Tuner last left selected on each output channel, so that a relayed uninterpreted sequence spends its
-  // selector only when the parameter changes. The Tuner is the sole author of that selection: `MpeMessageRouting`
-  // discards every selector CC the input sends and never relays a value message raw, so this can be kept exact
-  // rather than guessed. Every sequence emitted on a channel must be recorded here — the closing RPN Null of the
-  // Tuner's own MCM and Pitch Bend Sensitivity sequences included, which is why they go through `mcmMessages` and
-  // `pbsSequence`. An absent entry means "not known", and re-emits.
+  /**
+   * What the Tuner last left selected on each output channel, so that a relayed uninterpreted sequence spends its
+   * selector only when the parameter changes. The Tuner is the sole author of that selection: [[MpeMessageRouting]]
+   * discards every selector CC the input sends and never relays a value message raw, so this can be kept exact
+   * rather than guessed. Every sequence emitted on a channel must be recorded here — the closing RPN Null of the
+   * Tuner's own MCM and Pitch Bend Sensitivity sequences included, which is why they go through `mcmMessages` and
+   * `pbsSequence`. An absent entry means "not known", and re-emits.
+   */
   private val outputRpnSelectors: mutable.Map[Int, RpnSelector] = mutable.Map.empty
 
   warnOnNonMpeInputWithBothZones()

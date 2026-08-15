@@ -28,22 +28,22 @@ import org.scalatest.matchers.should.Matchers
  */
 class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValues {
 
-  // Lower Zone with 15 members: PCG=12, EG=3, channels 1..15
+  /** Lower Zone with 15 members: PCG=12, EG=3, channels 1..15 */
   private def allocator15: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15))
 
-  // Lower Zone with 7 members: PCG=5, EG=2, channels 1..7
+  /** Lower Zone with 7 members: PCG=5, EG=2, channels 1..7 */
   private def allocator7: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 7))
 
-  // Lower Zone with 4 members: PCG=2, EG=2, channels 1..4
+  /** Lower Zone with 4 members: PCG=2, EG=2, channels 1..4 */
   private def allocator4: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4))
 
-  // Lower Zone with 3 members: PCG=1, EG=2, channels 1..3
+  /** Lower Zone with 3 members: PCG=1, EG=2, channels 1..3 */
   private def allocator3: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 3))
 
-  // Lower Zone with 2 members: PCG=1, EG=1, channels 1..2
+  /** Lower Zone with 2 members: PCG=1, EG=1, channels 1..2 */
   private def allocator2: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 2))
 
-  // Lower Zone with 1 member: PCG=1, EG=0, channels 1..1
+  /** Lower Zone with 1 member: PCG=1, EG=0, channels 1..1 */
   private def allocator1: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 1))
 
   import MidiNote.{A4, B4, C4, C5, D4, E4, F4, G4}
@@ -52,9 +52,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   private val C6: MidiNote = C5 + 12
   private val C7: MidiNote = C5 + 24
 
-  // High Expression Pitch Bend in cents (> 50 cents threshold)
+  /** High Expression Pitch Bend in cents (> 50 cents threshold) */
   private val highPitchBendCents: Double = 100.0
-  // Low Expression Pitch Bend in cents (< 50 cents threshold)
+  /** Low Expression Pitch Bend in cents (< 50 cents threshold) */
   private val lowPitchBendCents: Double = 25.0
 
   /**

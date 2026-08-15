@@ -70,14 +70,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private val nonMpeInputChannel = 2
   private val mpeInputChannel: Int = 1
 
-  // One Pitch Bend unit is ≈0.586 cents at the default Member Channel Pitch Bend Sensitivity of ±48
-  // semitones, and an average over quantized per-note values lands up to half a unit from the arithmetic
-  // expectation, so the tolerance is one unit. Assertions that need finer resolution compare MIDI values.
+  /**
+   * One Pitch Bend unit is ≈0.586 cents at the default Member Channel Pitch Bend Sensitivity of ±48
+   * semitones, and an average over quantized per-note values lands up to half a unit from the arithmetic
+   * expectation, so the tolerance is one unit. Assertions that need finer resolution compare MIDI values.
+   */
   private val epsilon: Double = 6e-1
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  // Quarter-comma meantone tuning (approximate offsets in cents)
   //@formatter:off
+  /** Quarter-comma meantone tuning (approximate offsets in cents). */
   private val quarterCommaMeantone = Tuning("quarter-comma meantone",
     0.0,    // C
     -24.0,  // C#

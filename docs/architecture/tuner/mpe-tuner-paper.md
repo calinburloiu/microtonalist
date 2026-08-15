@@ -238,8 +238,8 @@ When the input is non-MPE, the MPE Tuner must perform the following conversions 
    upon receiving them (Section 3.6). Redirection admits one exception: the MIDI Mode messages (124–127) are
    discarded under the fixed-mode policy of Section 3.6. The traffic of every Registered and Non-Registered Parameter
    Number other than RPN 00 00 and RPN 00 06 is redirected like the rest, uninterpreted, and re-emitted there as a
-   sequence of the Tuner's own, save for a value message received while no parameter is completely selected, which
-   is discarded (Section 4).
+   sequence of the Tuner's own: each Data Entry, Data Increment, or Data Decrement is preceded by its selector, and
+   is discarded instead when the input has not selected a parameter in full (Section 4).
 
 ### 3.4 Master Channel Forwarding
 
