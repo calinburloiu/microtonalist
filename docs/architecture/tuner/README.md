@@ -58,11 +58,13 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       `sc-midi`'s `RpnMessages`, like every other sequence the Tuner emits — whenever the parameter differs from the
       one its `latchedSelector` argument says the output channel already holds. `MpeTuner` supplies that argument
       from `outputRpnSelectors`, its record of what it last left selected on each output channel, which its own MCM
-      and Pitch Bend Sensitivity sequences update as well, both closing with a deselecting RPN Null.
-      `MpeTuner` is a client of it: it
-      classifies the arrival channel, calls `route`, and dispatches on the verdict, making it a classify-then-act
-      coordinator over the note allocation, Expression Value, MCM and Pitch Bend Sensitivity logic it still owns
-      directly.
+      and Pitch Bend Sensitivity sequences update as well, both closing with a deselecting RPN Null. The record is a
+      claim about the receiver, so `MpeTuner` also drops it whenever it relays a message that deselects there — a
+      Reset All Controllers, which `MpeMessageRouting.deselectsOnRelay` identifies, for the one channel, and a
+      System Reset for all of them.
+    * `MpeTuner` is a client of `MpeMessageRouting`: it classifies the arrival channel, calls `route`, and dispatches
+      on the verdict, making it a classify-then-act coordinator over the note allocation, Expression Value, MCM and
+      Pitch Bend Sensitivity logic it still owns directly.
     * All of these — the allocator and `MpeMessageRouting` included — are `private[tuner]`: they are implementation
       detail shared between `MpeTuner`, `MpeChannelAllocator` and `MpeMessageRouting`, not API for the rest of the
       module. Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `format` references them.
@@ -186,10 +188,9 @@ These are signalled directly in the code:
   Channel-role-based routing and filtering — messages outside every enabled Zone or at the wrong level, Master Channel
   CC `#74` and Channel Pressure forwarding as Zone-level controls, the MIDI Mode messages 124–127, uninterpreted
   RPN/NRPN traffic re-emitted as sequences of the Tuner's own, and an invalid MCM ignored in its entirety — is
-  implemented in
-  `MpeMessageRouting`. A forwarded Pitch Bend Sensitivity sequence is closed with an RPN Null, and the per-note
-  Expression Value model itself — averaging, fan-out, reference counting and the Note On/Note Off emission rules — is
-  implemented.
+  implemented in `MpeMessageRouting`. A forwarded Pitch Bend Sensitivity sequence is closed with an RPN Null, and the
+  per-note Expression Value model itself — averaging, fan-out, reference counting and the Note On/Note Off emission
+  rules — is implemented.
 - An RPN or NRPN whose MSB or LSB is 127 is indistinguishable from a half-set selector, because
   `ScMidiChannelStateTracker`'s `RpnSelector` uses the Null value as its "not yet received" sentinel, so
   `MpeMessageRouting` treats it as incomplete and discards its value messages (TODO #267).

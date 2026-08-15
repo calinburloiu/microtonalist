@@ -85,11 +85,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   /**
    * What the Tuner last left selected on each output channel, so that a relayed uninterpreted sequence spends its
-   * selector only when the parameter changes. The Tuner is the sole author of that selection: [[MpeMessageRouting]]
-   * discards every selector CC the input sends and never relays a value message raw, so this can be kept exact
-   * rather than guessed. Every sequence emitted on a channel must be recorded here — the closing RPN Null of the
-   * Tuner's own MCM and Pitch Bend Sensitivity sequences included, which is why they go through `mcmMessages` and
-   * `pbsSequence`. An absent entry means "not known", and re-emits.
+   * selector only when the parameter changes. [[MpeMessageRouting]] discards every selector CC the input sends and
+   * never relays a value message raw, so every RPN or NRPN message an output channel receives is one the Tuner
+   * composed itself, and this can be kept exact rather than guessed — provided it is maintained on both sides.
+   *
+   * Every sequence emitted on a channel must be recorded here, the closing RPN Null of the Tuner's own MCM and
+   * Pitch Bend Sensitivity sequences included, which is why they go through `mcmMessages` and `pbsSequence`. And
+   * every relayed message that deselects at the receiver must remove the entry: the Tuner authors the parameter
+   * selected on its output channels, but not every message that changes it — see
+   * [[MpeMessageRouting.deselectsOnRelay]] and the System Reset case in `processShortMessage`.
+   *
+   * An absent entry means "not known", and re-emits.
    */
   private val outputRpnSelectors: mutable.Map[Int, RpnSelector] = mutable.Map.empty
 
@@ -209,6 +215,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
             logger.trace(s"Discarding $msg received on a channel with role $role")
           case MpeRoutingVerdict.ForwardOn(channel) =>
             buffer += msg.mapChannel(_ => channel).asJava
+            // A relayed Reset All Controllers deselects the parameter at the receiver, so what the Tuner recorded
+            // for that channel has stopped being a fact about it.
+            if (MpeMessageRouting.deselectsOnRelay(msg)) outputRpnSelectors.remove(channel)
           case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
             case cc: CcScMidiMessage =>
               buffer ++= MpeMessageRouting
@@ -225,6 +234,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       case _ =>
         // System Exclusive, System Common and System Real-Time messages affect the whole system and pass through.
         buffer += message
+        // A System Reset returns every receiving channel to its power-up state, parameter selection included.
+        if (scMessage == SystemResetScMidiMessage) outputRpnSelectors.clear()
     }
 
     buffer.toSeq

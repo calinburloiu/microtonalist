@@ -2436,6 +2436,68 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
+  it should "re-emit the selector after a forwarded Reset All Controllers" in new Fixture(tuner7) {
+    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+
+    // When a Reset All Controllers is redirected onto that same Master Channel
+    private val resetOutput =
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.ResetAllControllers, 0).asJava)
+    // Then it reaches the receiver, which deselects its parameter in response
+    extractCc(resetOutput) shouldEqual Seq(CcScMidiMessage(0, ScMidiCc.ResetAllControllers, 0))
+
+    // When the sender selects the NRPN again and sends another value
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 71).asJava)
+    // Then the selector goes out again: the Tuner relayed the message that cleared the selection, so riding the
+    // earlier one would leave this value with no parameter to apply to.
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71)
+    )
+  }
+
+  it should "re-emit the selector after a relayed System Reset" in new Fixture(tuner7) {
+    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+
+    // When a System Reset passes through to the receiver, which returns to its power-up state
+    tuner.process(SystemResetScMidiMessage.asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 71).asJava)
+    // Then the selector goes out again, on every output channel the Tuner had a selection recorded for.
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71)
+    )
+  }
+
+  it should "keep the selector latched across a System Real-Time message that does not deselect" in
+    new Fixture(tuner7) {
+      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+
+      // When an Active Sensing passes through, which leaves the receiver's parameter selection alone
+      private val passThroughOutput = tuner.process(ActiveSensingScMidiMessage.asJava)
+      // Then
+      extractScMidiMessages(passThroughOutput) shouldEqual Seq(ActiveSensingScMidiMessage)
+
+      // When the sender sends another value of the same parameter
+      private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryLsb, 5).asJava)
+      // Then it rides the latched selection: only a message that deselects at the receiver spends a new selector.
+      extractCc(output) shouldEqual Seq(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5))
+    }
+
   it should "discard a value message received with no parameter selected" in new Fixture(tuner7) {
     // Given
     // No selector has been sent on this channel, so a Data Entry has no parameter to apply to. Forwarding one would
@@ -2587,6 +2649,32 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
       CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71)
+    )
+  }
+
+  it should "latch a selector per output Master Channel" in new Fixture(dualZoneTunerMpeInput) {
+    // Given a different parameter selected at Zone level on each Zone's Master Channel
+    tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34).asJava)
+    tuner.process(CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb).asJava)
+    tuner.process(CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb).asJava)
+
+    // When the two Zones alternate value messages
+    private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70).asJava) ++
+      tuner.process(CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 60).asJava) ++
+      tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5).asJava) ++
+      tuner.process(CcScMidiMessage(15, ScMidiCc.DataEntryLsb, 6).asJava)
+    // Then each Master Channel spends its selector once and keeps it: the latch is per output channel, so neither
+    // Zone's sequence displaces the other's.
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
+      CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
+      CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
+      CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 60),
+      CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5),
+      CcScMidiMessage(15, ScMidiCc.DataEntryLsb, 6)
     )
   }
 

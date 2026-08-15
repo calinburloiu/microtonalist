@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.RpnMessages
+import org.calinburloiu.music.scmidi.{RpnMessages, ScMidiChannelStateTracker}
 import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.*
 
@@ -252,6 +252,25 @@ private[tuner] object MpeMessageRouting {
   /** Whether `rpnSelector` currently selects the Pitch Bend Sensitivity RPN. */
   private[tuner] def isPbs(rpnSelector: RpnSelector): Boolean =
     rpnSelector == RpnMessages.PitchBendSensitivitySelector
+
+  /**
+   * Whether relaying `msg` unmodified deselects the parameter the receiving channel holds, obliging the caller to
+   * forget what it last left selected there.
+   *
+   * Reset All Controllers is the case that arises in ordinary traffic: the paper forwards it unmodified onto the
+   * very output Master Channel a relayed sequence latches its selector on, and a receiver responds to it by
+   * returning its parameter selection to Null — as [[ScMidiChannelStateTracker]] does for the channels it tracks.
+   * The Tuner therefore authors the parameter selected on its output channels without authoring every message that
+   * changes it, which is what this predicate exists to catch.
+   *
+   * All Sound Off, All Notes Off and Local Control leave the selection alone and are not included. A System Reset
+   * does deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than
+   * this predicate.
+   */
+  private[tuner] def deselectsOnRelay(msg: ChannelScMidiMessage): Boolean = msg match {
+    case cc: CcScMidiMessage => cc.number == ScMidiCc.ResetAllControllers
+    case _ => false
+  }
 
   /**
    * Renders a complete Registered or Non-Registered Parameter sequence on an output channel: the selector, then the
