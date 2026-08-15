@@ -97,7 +97,16 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 The package object and a few value types provide `MidiNote` (a value class over a 0–127 note number, with `pitchClass`,
 `octave`, `freq`, and named constants), `PitchClass` (a value class over 0–11 with sharp/flat names and parsing), and
 `PitchBendSensitivity` (RPN #0 pitch-bend range, default ±2 semitones, with a helper that builds the RPN message
-sequence). Smaller helpers (`isInputDevice`/`isOutputDevice`, `mapShortMessageChannel`, clamping) round out the object.
+sequence). Smaller helpers (`isInputDevice`/`isOutputDevice`, `mapShortMessageChannel`, clamping) round out the package
+object.
+
+`RpnSelector` and `RpnMessages` are the two halves of the Registered and Non-Registered Parameter vocabulary.
+`RpnSelector` is the parameter a channel holds selected — `None`, an `Rpn(msb, lsb)`, or an `Nrpn(msb, lsb)` — and is
+the type the two directions of MIDI 1.0's parameter procedure meet in: `ScMidiChannelStateTracker` derives it from an
+incoming stream, `RpnMessages` renders it back out. `RpnMessages` also names the parameters Microtonalist selects
+(Pitch Bend Sensitivity, the MPE Configuration Message, and the Null Function as an RPN and as an NRPN) and renders a
+selector as its pair of Control Change messages, so that the transmission order of the pair — LSB before MSB — is
+decided in one place for every sequence the application emits.
 
 ## How MIDI devices are opened, enumerated, and used
 

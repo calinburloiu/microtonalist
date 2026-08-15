@@ -42,6 +42,16 @@ object ScMidiCc {
   val ResetAllControllers: Int = 121
   /** All Notes Off controller number (#123). */
   val AllNotesOff: Int = 123
+  /** Local Control controller number (#122). */
+  val LocalControl: Int = 122
+  /** Omni Mode Off controller number (#124). */
+  val OmniModeOff: Int = 124
+  /** Omni Mode On controller number (#125). */
+  val OmniModeOn: Int = 125
+  /** Mono Mode On controller number (#126). */
+  val MonoModeOn: Int = 126
+  /** Poly Mode On controller number (#127). */
+  val PolyModeOn: Int = 127
 
   /** Bank Select MSB controller number (#0). */
   val BankSelectMsb: Int = 0

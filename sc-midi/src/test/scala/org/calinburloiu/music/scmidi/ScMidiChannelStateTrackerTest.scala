@@ -17,7 +17,6 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.MidiNote.{C4, E4, G4}
-import org.calinburloiu.music.scmidi.ScMidiChannelStateTracker.RpnSelector
 import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
