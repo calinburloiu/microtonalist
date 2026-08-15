@@ -2343,7 +2343,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     )
   }
 
-  it should "re-emit the selector ahead of each value message of an NRPN sequence" in new Fixture(tuner7) {
+  it should "emit the selector once for a run of value messages of the same parameter" in new Fixture(tuner7) {
     // Given
     private val selectorOutput =
       tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava) ++
@@ -2354,13 +2354,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     // When
     private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava) ++
       tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryLsb, 5).asJava)
-    // Then
+    // Then the second value message rides the selection the first left on the output channel, which is the shape
+    // the sender itself sent.
     extractCc(output) shouldEqual Seq(
       CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
       CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
-      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
-      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
       CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5)
     )
   }
@@ -2387,6 +2386,51 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.CoarseTuningLsb),
       CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.CoarseTuningMsb),
       CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 60)
+    )
+  }
+
+  it should "re-emit the selector after its own Pitch Bend Sensitivity sequence has deselected it" in
+    new Fixture(tuner7) {
+      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+      private val firstOutput =
+        tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava) ++
+          tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava) ++
+          tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+      // Then
+      extractCc(firstOutput) should contain(CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12))
+
+      // When a Pitch Bend Sensitivity sequence goes out on that same Master Channel, closing with an RPN Null, and
+      // the sender selects the NRPN again
+      sendPbsMsb(tuner, nonMpeInputChannel, 3)
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+      private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 71).asJava)
+      // Then the selector goes out again: the Null deselected the parameter on the receiver, so riding the earlier
+      // selection would apply this value to the Null parameter instead.
+      extractCc(output) shouldEqual Seq(
+        CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+        CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71)
+      )
+    }
+
+  it should "re-emit the selector after reset()" in new Fixture(tuner7) {
+    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+
+    // When the Tuner is reset — on connect, where the receiver may be a device whose selected parameter the Tuner
+    // knows nothing about
+    tuner.reset()
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, 34).asJava)
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 71).asJava)
+    // Then
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71)
     )
   }
 
@@ -2501,6 +2545,48 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         output.map(_.asScala) shouldEqual Seq(ProgramChangeScMidiMessage(masterChannel, 6))
       }
     }
+
+  // ---- Uninterpreted RPN/NRPN sequences ----
+
+  it should "emit the selector once for a run of value messages of the same parameter" in
+    new Fixture(tuner7MpeInput) {
+      // Given a parameter selected at Zone level, on the Master Channel
+      private val selectorOutput =
+        tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12).asJava) ++
+          tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34).asJava)
+      // Then
+      selectorOutput shouldBe empty
+
+      // When
+      private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70).asJava) ++
+        tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5).asJava)
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+        CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70),
+        CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5)
+      )
+    }
+
+  it should "re-emit the selector after a Zone reconfiguration" in new Fixture(tuner7MpeInput) {
+    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+    tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34).asJava)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70).asJava)
+
+    // When an MCM reconfigures the Lower Zone, and the sender selects the NRPN again
+    sendMcm(tuner, 0, 4)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12).asJava)
+    tuner.process(CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34).asJava)
+    private val output = tuner.process(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71).asJava)
+    // Then
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, 34),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 71)
+    )
+  }
 
   // ---- Out-of-zone traffic ----
 

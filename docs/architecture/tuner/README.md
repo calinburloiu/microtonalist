@@ -54,8 +54,12 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       (`Master`/`Member`/`NonMpeInput`/`Outside`) from the input mode and Zone configuration, `route` maps a role,
       message and the channel's currently selected RPN to an `MpeRoutingVerdict`
       (`Discard`/`ForwardOn`/`ForwardRpnSequenceOn`/`Interpret`), and `rpnSequence` renders an uninterpreted
-      parameter's selector-then-value messages for the `ForwardRpnSequenceOn` verdict, selecting through `sc-midi`'s
-      `RpnMessages` like every other sequence the Tuner emits. `MpeTuner` is a client of it: it
+      parameter's value message for the `ForwardRpnSequenceOn` verdict, preceded by the selector — through
+      `sc-midi`'s `RpnMessages`, like every other sequence the Tuner emits — whenever the parameter differs from the
+      one its `latchedSelector` argument says the output channel already holds. `MpeTuner` supplies that argument
+      from `outputRpnSelectors`, its record of what it last left selected on each output channel, which its own MCM
+      and Pitch Bend Sensitivity sequences update as well, both closing with a deselecting RPN Null.
+      `MpeTuner` is a client of it: it
       classifies the arrival channel, calls `route`, and dispatches on the verdict, making it a classify-then-act
       coordinator over the note allocation, Expression Value, MCM and Pitch Bend Sensitivity logic it still owns
       directly.
@@ -181,7 +185,8 @@ These are signalled directly in the code:
   only for the channels entering or leaving MPE control, and must not discard the active Tuning (TODO #262).
   Channel-role-based routing and filtering — messages outside every enabled Zone or at the wrong level, Master Channel
   CC `#74` and Channel Pressure forwarding as Zone-level controls, the MIDI Mode messages 124–127, uninterpreted
-  RPN/NRPN traffic re-emitted as complete sequences, and an invalid MCM ignored in its entirety — is implemented in
+  RPN/NRPN traffic re-emitted as sequences of the Tuner's own, and an invalid MCM ignored in its entirety — is
+  implemented in
   `MpeMessageRouting`. A forwarded Pitch Bend Sensitivity sequence is closed with an RPN Null, and the per-note
   Expression Value model itself — averaging, fan-out, reference counting and the Note On/Note Off emission rules — is
   implemented.

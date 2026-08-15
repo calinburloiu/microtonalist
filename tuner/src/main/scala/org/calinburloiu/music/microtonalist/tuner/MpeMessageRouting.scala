@@ -58,11 +58,11 @@ private[tuner] enum MpeRoutingVerdict {
   case ForwardOn(channel: Int)
 
   /**
-   * Re-emit a complete Registered or Non-Registered Parameter sequence — selector then value, via
-   * [[MpeMessageRouting.rpnSequence]] — on the given output channel, for a value message of a parameter the Tuner
-   * does not interpret. The sender's own selector CCs are discarded rather than relayed, which is what keeps
-   * interleaved RPN/NRPN streams from different input channels from being merged into one another on a shared
-   * output channel.
+   * Re-emit a Registered or Non-Registered Parameter sequence of the Tuner's own — the value message, preceded by
+   * the selector whenever the parameter selected on the output channel changes, via
+   * [[MpeMessageRouting.rpnSequence]] — for a value message of a parameter the Tuner does not interpret. The
+   * sender's own selector CCs are discarded rather than relayed, which is what keeps interleaved RPN/NRPN streams
+   * from different input channels from being merged into one another on a shared output channel.
    */
   case ForwardRpnSequenceOn(channel: Int)
 
@@ -110,7 +110,7 @@ private[tuner] object MpeMessageRouting {
   /**
    * Decides what to do with a channel message, implementing the rows of the paper's message-handling table, row by
    * row: the message supplies the row, the role the column. The table's RPN/NRPN rows discard every selector CC,
-   * re-emit a value message of an uninterpreted parameter as a complete sequence of its own via [[rpnSequence]], and
+   * re-emit a value message of an uninterpreted parameter as a sequence of the Tuner's own via [[rpnSequence]], and
    * ignore an invalid MCM's parameter traffic in its entirety.
    *
    * @param role        The role of the channel the message arrived on, from [[roleOf]].
@@ -171,8 +171,8 @@ private[tuner] object MpeMessageRouting {
 
     case ScMidiCc.MpeSlide => routeControlDimension(role)
 
-    // Every selector is consumed, never relayed: the Tuner re-emits a complete sequence of its own ahead of each
-    // value message, which is what keeps interleaved RPN/NRPN streams from different input channels from being
+    // Every selector is consumed, never relayed: the Tuner decides for itself what each value message it re-emits
+    // needs ahead of it, which is what keeps interleaved RPN/NRPN streams from different input channels from being
     // merged into one another on a shared output channel.
     case ScMidiCc.RpnMsb | ScMidiCc.RpnLsb | ScMidiCc.NrpnMsb | ScMidiCc.NrpnLsb => MpeRoutingVerdict.Discard
 
@@ -258,21 +258,40 @@ private[tuner] object MpeMessageRouting {
    * value message.
    *
    * The selector is rendered by [[RpnMessages.select]], which decides the transmission order of the pair for every
-   * sequence Microtonalist emits — the MCM and Pitch Bend Sensitivity ones and their closing RPN Nulls included.
+   * sequence Microtonalist emits — the MCM and Pitch Bend Sensitivity ones and their closing RPN Nulls included —
+   * and is omitted when `latchedSelector` says the output channel already holds this parameter selected. Parameter
+   * selection latches, so a run of value messages of one parameter needs one selector, which is the shape the sender
+   * itself sent; two senders whose sequences the routing rules bring onto a shared output channel still get a
+   * selector each, their parameters differing.
+   *
+   * Exactly one value message goes out per value message received. Unlike `PitchBendSensitivityMessages.create`,
+   * which always sends both Data Entry halves because the Tuner owns the Pitch Bend Sensitivity value and encodes
+   * its own output Pitch Bend against it, an uninterpreted parameter's value means nothing to the Tuner: a half the
+   * sender did not send would be a value it never wrote. A Data Increment or Data Decrement has no halves at all.
    *
    * No closing RPN Null is appended. The paper's Null rule governs the sequences the Tuner ''originates''; appending
    * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for
    * NRPN traffic.
    *
-   * @param selector      The parameter selected on the input channel, from [[ScMidiChannelStateTracker.rpnSelector]].
-   * @param ccNumber      The value CC number: Data Entry MSB or LSB, Data Increment or Data Decrement.
-   * @param ccValue       The value CC value.
-   * @param outputChannel The channel the whole sequence is emitted on.
+   * @param selector        The parameter selected on the input channel, from
+   *                        [[ScMidiChannelStateTracker.rpnSelector]].
+   * @param ccNumber        The value CC number: Data Entry MSB or LSB, Data Increment or Data Decrement.
+   * @param ccValue         The value CC value.
+   * @param outputChannel   The channel the whole sequence is emitted on.
+   * @param latchedSelector The parameter the Tuner last left selected on `outputChannel`, or [[RpnSelector.None]]
+   *                        when it does not know. Only a caller that records ''every'' sequence it emits on that
+   *                        channel — the closing RPN Nulls of the Tuner's own MCM and Pitch Bend Sensitivity
+   *                        sequences included — may pass anything else, a stale value being what would let a value
+   *                        message ride a selection the Null has since cleared.
    * @return the sequence, or empty when no parameter is selected and no sequence can be formed.
    */
-  def rpnSequence(selector: RpnSelector, ccNumber: Int, ccValue: Int, outputChannel: Int): Seq[CcScMidiMessage] =
+  def rpnSequence(selector: RpnSelector, ccNumber: Int, ccValue: Int, outputChannel: Int,
+                  latchedSelector: RpnSelector): Seq[CcScMidiMessage] = {
+    val valueMessage = CcScMidiMessage(outputChannel, ccNumber, ccValue)
     selector match {
       case RpnSelector.None => Seq.empty
-      case _ => RpnMessages.select(outputChannel, selector) :+ CcScMidiMessage(outputChannel, ccNumber, ccValue)
+      case _ if selector == latchedSelector => Seq(valueMessage)
+      case _ => RpnMessages.select(outputChannel, selector) :+ valueMessage
     }
+  }
 }
