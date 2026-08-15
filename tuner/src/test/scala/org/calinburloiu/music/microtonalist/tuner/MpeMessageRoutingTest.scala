@@ -46,9 +46,9 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   private val noZones: MpeZones = MpeZones(disabledLower, disabledUpper)
 
   private val mcmSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+    RpnSelector.Rpn(Some(ScMidiRpn.MpeConfigurationMessageMsb), Some(ScMidiRpn.MpeConfigurationMessageLsb))
   private val pbsSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    RpnSelector.Rpn(Some(ScMidiRpn.PitchBendSensitivityMsb), Some(ScMidiRpn.PitchBendSensitivityLsb))
 
   behavior of "MpeMessageRouting.roleOf"
 
@@ -285,8 +285,8 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   // ---- Uninterpreted Registered and Non-Registered Parameters ----
 
   private val fineTuningSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-  private val nrpnSelector: RpnSelector = RpnSelector.Nrpn(12, 34)
+    RpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), Some(ScMidiRpn.FineTuningLsb))
+  private val nrpnSelector: RpnSelector = RpnSelector.Nrpn(Some(12), Some(34))
 
   it should "consume every RPN and NRPN selector CC" in {
     // Given
@@ -318,18 +318,14 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  // TODO #267 Only the `RpnSelector.None` row is a behavior worth keeping. The four half-set rows spell "this half
-  //  has not arrived" with the Null value, the sentinel `RpnSelector` currently uses for it; modelling the unset
-  //  halves explicitly in `sc-midi` as `Option`s makes every one of them a genuinely complete parameter — RPN 00/7F,
-  //  RPN 7F/01, NRPN 0C/7F and NRPN 7F/22 — so they turn into `ForwardRpnSequenceOn`, and this test red for them.
   it should "discard a data value when no complete parameter is selected" in {
-    // Given
+    // Given — no parameter at all, and the four half-set selectors a lone selector CC leaves behind
     val selectors = Table("selector",
       RpnSelector.None,
-      RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.NullLsb),
-      RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.FineTuningLsb),
-      RpnSelector.Nrpn(12, ScMidiNrpn.NullLsb),
-      RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 34))
+      RpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None),
+      RpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb)),
+      RpnSelector.Nrpn(Some(12), None),
+      RpnSelector.Nrpn(None, Some(34)))
     val ccNumbers = Table("ccNumber",
       ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
@@ -343,28 +339,24 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  // TODO #267 This pins the collateral of the discard rule, not a behavior worth keeping: an NRPN whose MSB or LSB is
-  //  genuinely 127 is indistinguishable from a half-set selector, because `RpnSelector` uses the Null value as its
-  //  "not yet received" sentinel. Modelling the unset halves explicitly in `sc-midi` turns these rows into
-  //  `ForwardRpnSequenceOn`, and this test red.
-  it should "discard a data value of an NRPN whose MSB or LSB is genuinely 127" in {
-    // Given
+  it should "re-emit a sequence for a data value of an NRPN whose MSB or LSB is 127" in {
+    // Given — 127 is a legitimate half of a parameter number, and NRPN 7F/22 and 0C/7F are ordinary parameters on
+    // current gear; only the pair 127/127 is the Null Function, which the tracker never reports as a selection.
     val selectors = Table("selector",
-      RpnSelector.Nrpn(msb = 127, lsb = 34),
-      RpnSelector.Nrpn(msb = 12, lsb = 127),
-      RpnSelector.Nrpn(msb = 127, lsb = 127))
+      RpnSelector.Nrpn(msb = Some(127), lsb = Some(34)),
+      RpnSelector.Nrpn(msb = Some(12), lsb = Some(127)))
     val message = CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64)
     forAll(selectors) { selector =>
       // When / Then
-      MpeMessageRouting.route(masterRole, message, selector) shouldEqual Discard
+      MpeMessageRouting.route(masterRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
     }
   }
 
   it should "route an NRPN that shares the numbers of an interpreted RPN as uninterpreted" in {
     // Given
     val selectors = Table("selector",
-      RpnSelector.Nrpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb),
-      RpnSelector.Nrpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb))
+      RpnSelector.Nrpn(Some(ScMidiRpn.PitchBendSensitivityMsb), Some(ScMidiRpn.PitchBendSensitivityLsb)),
+      RpnSelector.Nrpn(Some(ScMidiRpn.MpeConfigurationMessageMsb), Some(ScMidiRpn.MpeConfigurationMessageLsb)))
     forAll(selectors) { selector =>
       // When / Then: an MCM is valid on MIDI Channel 1 (1-based), so the NRPN of the same numbers is the case that
       // could be mistaken for one.
@@ -449,6 +441,22 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Then the output channel keeps the parameter it already held: nothing was emitted to change it
     messages shouldBe empty
     latchedSelector shouldEqual nrpnSelector
+  }
+
+  it should "render nothing for a half-set selector" in {
+    // Given
+    val selectors = Table("selector",
+      RpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None),
+      RpnSelector.Nrpn(None, Some(34)))
+    forAll(selectors) { selector =>
+      // When
+      val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(selector,
+        receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
+      // Then half a selector names no parameter to apply the value to, so nothing goes out and the output channel
+      // keeps the parameter it already held
+      messages shouldBe empty
+      latchedSelector shouldEqual nrpnSelector
+    }
   }
 
   it should "omit the selector when the output channel already holds the parameter selected" in {

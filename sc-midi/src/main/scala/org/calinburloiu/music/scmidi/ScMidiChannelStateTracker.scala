@@ -200,7 +200,8 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * @return the current RPN/NRPN selector state on the given channel. [[RpnSelector.None]] is returned when no
    *         parameter is selected — for instance before any RPN/NRPN CC messages have been received, or after a
-   *         Reset All Controllers or Null RPN/NRPN has been applied.
+   *         Reset All Controllers or Null RPN/NRPN has been applied, in either order of its two CCs. A parameter
+   *         only one of whose two selector CCs has arrived is returned with its other half unset.
    */
   def rpnSelector(channel: Int): RpnSelector = {
     MidiRequirements.requireChannel(channel)
@@ -268,37 +269,54 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   private def handleParameterCc(state: ChannelState, ccNumber: Int, value: Int): Unit = ccNumber match {
     case ScMidiCc.RpnMsb =>
-      state.rpnSelector = state.rpnSelector match {
-        case RpnSelector.Rpn(_, lsb) => RpnSelector.Rpn(value, lsb)
-        case _ => RpnSelector.Rpn(value, lsb = ScMidiRpn.NullLsb)
-      }
+      val (_, lsb) = rpnHalves(state.rpnSelector)
+      state.rpnSelector = selectedRpn(msb = Some(value), lsb = lsb)
     case ScMidiCc.RpnLsb =>
-      state.rpnSelector = state.rpnSelector match {
-        case RpnSelector.Rpn(msb, _) =>
-          if (msb == ScMidiRpn.NullMsb && value == ScMidiRpn.NullLsb) RpnSelector.None
-          else RpnSelector.Rpn(msb, value)
-        case _ =>
-          RpnSelector.Rpn(ScMidiRpn.NullMsb, value)
-      }
+      val (msb, _) = rpnHalves(state.rpnSelector)
+      state.rpnSelector = selectedRpn(msb = msb, lsb = Some(value))
     case ScMidiCc.NrpnMsb =>
-      state.rpnSelector = state.rpnSelector match {
-        case RpnSelector.Nrpn(_, lsb) => RpnSelector.Nrpn(value, lsb)
-        case _ => RpnSelector.Nrpn(value, lsb = ScMidiNrpn.NullLsb)
-      }
+      val (_, lsb) = nrpnHalves(state.rpnSelector)
+      state.rpnSelector = selectedNrpn(msb = Some(value), lsb = lsb)
     case ScMidiCc.NrpnLsb =>
-      state.rpnSelector = state.rpnSelector match {
-        case RpnSelector.Nrpn(msb, _) =>
-          if (msb == ScMidiNrpn.NullMsb && value == ScMidiNrpn.NullLsb) RpnSelector.None
-          else RpnSelector.Nrpn(msb, value)
-        case _ =>
-          RpnSelector.Nrpn(ScMidiNrpn.NullMsb, value)
-      }
+      val (msb, _) = nrpnHalves(state.rpnSelector)
+      state.rpnSelector = selectedNrpn(msb = msb, lsb = Some(value))
     case ScMidiCc.DataEntryMsb => writeDataEntry(state, isMsb = true, value)
     case ScMidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)
     case ScMidiCc.DataIncrement => applyDataDelta(state, delta = 1)
     case ScMidiCc.DataDecrement => applyDataDelta(state, delta = -1)
     case _ => // not part of the RPN/NRPN protocol
   }
+
+  /**
+   * The halves of the Registered Parameter `selector` holds selected, both unset when what it holds is not an RPN:
+   * a selector CC of one kind starts a fresh selection rather than inheriting a half of the other's.
+   */
+  private def rpnHalves(selector: RpnSelector): (Option[Int], Option[Int]) = selector match {
+    case RpnSelector.Rpn(msb, lsb) => (msb, lsb)
+    case _ => (None, None)
+  }
+
+  /** The halves of the Non-Registered Parameter `selector` holds selected; the counterpart of [[rpnHalves]]. */
+  private def nrpnHalves(selector: RpnSelector): (Option[Int], Option[Int]) = selector match {
+    case RpnSelector.Nrpn(msb, lsb) => (msb, lsb)
+    case _ => (None, None)
+  }
+
+  /**
+   * The selection the given Registered Parameter halves stand for: the Null Function deselects, whichever of its two
+   * CCs completed the pair, which is what makes Null detection insensitive to the order MIDI 1.0 lets them arrive in.
+   *
+   * A half that is still unset cannot complete the pair, so a lone Null MSB or LSB stays a half-set selector rather
+   * than reading as a Null.
+   */
+  private def selectedRpn(msb: Option[Int], lsb: Option[Int]): RpnSelector =
+    if (msb.contains(ScMidiRpn.NullMsb) && lsb.contains(ScMidiRpn.NullLsb)) RpnSelector.None
+    else RpnSelector.Rpn(msb, lsb)
+
+  /** The Non-Registered counterpart of [[selectedRpn]], its Null Function being NRPN 7F 7F. */
+  private def selectedNrpn(msb: Option[Int], lsb: Option[Int]): RpnSelector =
+    if (msb.contains(ScMidiNrpn.NullMsb) && lsb.contains(ScMidiNrpn.NullLsb)) RpnSelector.None
+    else RpnSelector.Nrpn(msb, lsb)
 
   private def handleChannelModeCc(state: ChannelState, ccNumber: Int): Unit =
     if (shallRespondToResetMessages) ccNumber match {
@@ -314,13 +332,13 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     }
 
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = state.rpnSelector match {
-    case RpnSelector.Rpn(rmsb, rlsb) if rmsb != ScMidiRpn.NullMsb && rlsb != ScMidiRpn.NullLsb =>
+    case RpnSelector.Rpn(Some(rmsb), Some(rlsb)) =>
       val (curMsb, curLsb) = state.rpnValues.get((rmsb, rlsb))
         .orElse(resolvedRpnDefault(rmsb, rlsb))
         .getOrElse((0, 0))
       val updated = if (isMsb) (value, curLsb) else (curMsb, value)
       state.rpnValues((rmsb, rlsb)) = updated
-    case RpnSelector.Nrpn(nmsb, nlsb) if nmsb != ScMidiNrpn.NullMsb && nlsb != ScMidiNrpn.NullLsb =>
+    case RpnSelector.Nrpn(Some(nmsb), Some(nlsb)) =>
       val (curMsb, curLsb) = state.nrpnValues.get((nmsb, nlsb))
         .orElse(resolvedNrpnDefault(nmsb, nlsb))
         .getOrElse((0, 0))
@@ -330,10 +348,10 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   private def applyDataDelta(state: ChannelState, delta: Int): Unit = state.rpnSelector match {
-    case RpnSelector.Rpn(rmsb, rlsb) if rmsb != ScMidiRpn.NullMsb && rlsb != ScMidiRpn.NullLsb =>
+    case RpnSelector.Rpn(Some(rmsb), Some(rlsb)) =>
       state.rpnValues.get((rmsb, rlsb)).orElse(resolvedRpnDefault(rmsb, rlsb))
         .foreach { starting => state.rpnValues((rmsb, rlsb)) = bumped(starting, delta) }
-    case RpnSelector.Nrpn(nmsb, nlsb) if nmsb != ScMidiNrpn.NullMsb && nlsb != ScMidiNrpn.NullLsb =>
+    case RpnSelector.Nrpn(Some(nmsb), Some(nlsb)) =>
       state.nrpnValues.get((nmsb, nlsb)).orElse(resolvedNrpnDefault(nmsb, nlsb))
         .foreach { starting => state.nrpnValues((nmsb, nlsb)) = bumped(starting, delta) }
     case _ =>

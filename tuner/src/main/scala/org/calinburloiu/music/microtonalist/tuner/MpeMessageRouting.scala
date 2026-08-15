@@ -192,9 +192,11 @@ private[tuner] object MpeMessageRouting {
    * stored value from the receiver's, since the Tuner does not interpret the increment.
    *
    * A value message is also discarded when no complete parameter is selected. `RpnSelector.None` is the plain case;
-   * a half-set selector — one whose MSB or LSB is still Null — is treated the same way, because
+   * a half-set selector — one only one of whose two CCs has arrived — is treated the same way, because
    * [[ScMidiChannelStateTracker]] itself refuses to record a value for one, and relaying a value with no parameter
-   * to apply it to is precisely what the closing RPN Null exists to prevent.
+   * to apply it to is precisely what the closing RPN Null exists to prevent. A parameter whose MSB or LSB is 127 is
+   * not one of those cases: 127 is a parameter number like any other, and only the pair 127/127 — the Null Function,
+   * which the tracker reports as `RpnSelector.None` — deselects.
    */
   private def routeDataValue(role: MpeChannelRole,
                              msg: CcScMidiMessage,
@@ -209,29 +211,13 @@ private[tuner] object MpeMessageRouting {
           if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
         case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
       }
-    case selector if !isComplete(selector) => MpeRoutingVerdict.Discard
+    case selector if !selector.isComplete => MpeRoutingVerdict.Discard
     case _ => role match {
       case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
       case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
-  }
-
-  /**
-   * Whether both halves of the selected parameter have been set, which is what a value message needs to apply.
-   *
-   * An unset half is indistinguishable from a genuine half of 127: [[RpnSelector]] reuses the Null value (127) as
-   * the "not yet received" sentinel [[ScMidiChannelStateTracker]] fills it with, so an RPN or NRPN whose MSB or LSB
-   * is genuinely 127 reads the same as a half-set selector. Such a parameter is therefore treated as incomplete
-   * here, and its value messages are discarded rather than relayed.
-   */
-  // TODO #267 The real fix is to model the unset halves explicitly in `sc-midi`'s `RpnSelector` rather than by
-  //  sentinel, so a genuine half of 127 can be told apart from "not yet received".
-  private def isComplete(rpnSelector: RpnSelector): Boolean = rpnSelector match {
-    case RpnSelector.None => false
-    case RpnSelector.Rpn(msb, lsb) => msb != ScMidiRpn.NullMsb && lsb != ScMidiRpn.NullLsb
-    case RpnSelector.Nrpn(msb, lsb) => msb != ScMidiNrpn.NullMsb && lsb != ScMidiNrpn.NullLsb
   }
 
   /**
@@ -303,8 +289,8 @@ private[tuner] object MpeMessageRouting {
    *                        sequences included — may pass anything else, a stale value being what would let a value
    *                        message ride a selection the Null has since cleared.
    * @return the sequence and the parameter `outputChannel` holds selected after it, which the caller must record.
-   *         The sequence is empty, and the latched selector unchanged, when no parameter is selected and no
-   *         sequence can be formed.
+   *         The sequence is empty, and the latched selector unchanged, when no complete parameter is selected and no
+   *         sequence can be formed — with no parameter selected at all, or with only one half of one received.
    */
   def rpnSequence(selector: RpnSelector,
                   valueCc: CcScMidiMessage,
@@ -312,7 +298,7 @@ private[tuner] object MpeMessageRouting {
                   latchedSelector: RpnSelector): (Seq[CcScMidiMessage], RpnSelector) = {
     val valueMessage = valueCc.mapChannel(_ => outputChannel)
     selector match {
-      case RpnSelector.None => (Seq.empty, latchedSelector)
+      case _ if !selector.isComplete => (Seq.empty, latchedSelector)
       case _ if selector == latchedSelector => (Seq(valueMessage), latchedSelector)
       case _ => (RpnMessages.select(outputChannel, selector) :+ valueMessage, selector)
     }
