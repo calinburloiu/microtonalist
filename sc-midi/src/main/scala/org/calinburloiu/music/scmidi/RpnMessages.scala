@@ -34,21 +34,21 @@ object RpnMessages {
    * The Null Function as a Registered Parameter (RPN 7F 7F), which deselects the current parameter so that a later
    * stray Data Entry cannot change it.
    */
-  val NullRpnSelector: RpnSelector = RpnSelector.Rpn(Some(ScMidiRpn.NullMsb), Some(ScMidiRpn.NullLsb))
+  val NullRpnSelector: RpnSelector = RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
 
   /**
    * The Null Function as a Non-Registered Parameter (NRPN 7F 7F), the counterpart of [[NullRpnSelector]] for a
    * Non-Registered Parameter sequence.
    */
-  val NullNrpnSelector: RpnSelector = RpnSelector.Nrpn(Some(ScMidiNrpn.NullMsb), Some(ScMidiNrpn.NullLsb))
+  val NullNrpnSelector: RpnSelector = RpnSelector.Nrpn(ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
 
   /** Pitch Bend Sensitivity (RPN 00 00), the pitch bend range of a channel in semitones and cents. */
   val PitchBendSensitivitySelector: RpnSelector =
-    RpnSelector.Rpn(Some(ScMidiRpn.PitchBendSensitivityMsb), Some(ScMidiRpn.PitchBendSensitivityLsb))
+    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
   /** The MPE Configuration Message (RPN 00 06), which configures an MPE Zone. */
   val MpeConfigurationMessageSelector: RpnSelector =
-    RpnSelector.Rpn(Some(ScMidiRpn.MpeConfigurationMessageMsb), Some(ScMidiRpn.MpeConfigurationMessageLsb))
+    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
 
   /**
    * Renders the pair of Control Change messages that select `selector` on `channel`, ahead of the Data Entry, Data
@@ -62,19 +62,16 @@ object RpnMessages {
    *
    * @param channel  The MIDI 0-based channel number to emit the selector on.
    * @param selector The parameter to select.
-   * @return the two selector messages; the one message a half-set selector holds a half for, its unset half having
-   *         no value to render, not even a Null one; or an empty sequence for [[RpnSelector.None]], which selects no
-   *         parameter and therefore has no encoding of its own.
+   * @return the two selector messages, or an empty sequence for [[RpnSelector.None]], which selects no parameter and
+   *         therefore has no encoding of its own.
    */
   def select(channel: Int, selector: RpnSelector): Seq[CcScMidiMessage] = selector match {
-    case RpnSelector.Rpn(msb, lsb) => selectorCcs(channel, ScMidiCc.RpnLsb, ScMidiCc.RpnMsb, msb, lsb)
-    case RpnSelector.Nrpn(msb, lsb) => selectorCcs(channel, ScMidiCc.NrpnLsb, ScMidiCc.NrpnMsb, msb, lsb)
+    case RpnSelector.Rpn(msb, lsb) => Seq(
+      CcScMidiMessage(channel, ScMidiCc.RpnLsb, lsb),
+      CcScMidiMessage(channel, ScMidiCc.RpnMsb, msb))
+    case RpnSelector.Nrpn(msb, lsb) => Seq(
+      CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb),
+      CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
     case RpnSelector.None => Seq.empty
   }
-
-  /** The selector CCs of a parameter, LSB before MSB, skipping a half the selector does not hold. */
-  private def selectorCcs(channel: Int, lsbCcNumber: Int, msbCcNumber: Int,
-                          msb: Option[Int], lsb: Option[Int]): Seq[CcScMidiMessage] =
-    lsb.map(CcScMidiMessage(channel, lsbCcNumber, _)).toSeq ++
-      msb.map(CcScMidiMessage(channel, msbCcNumber, _)).toSeq
 }

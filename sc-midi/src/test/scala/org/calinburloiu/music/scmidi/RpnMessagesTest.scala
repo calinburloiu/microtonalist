@@ -26,7 +26,7 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
 
   it should "emit a Registered Parameter selector LSB before MSB" in {
     // Given
-    val selector = RpnSelector.Rpn(msb = Some(0x12), lsb = Some(0x34))
+    val selector = RpnSelector.Rpn(msb = 0x12, lsb = 0x34)
 
     // When
     val messages = RpnMessages.select(channel = 5, selector)
@@ -40,7 +40,7 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
 
   it should "emit a Non-Registered Parameter selector LSB before MSB" in {
     // Given
-    val selector = RpnSelector.Nrpn(msb = Some(0x12), lsb = Some(0x34))
+    val selector = RpnSelector.Nrpn(msb = 0x12, lsb = 0x34)
 
     // When
     val messages = RpnMessages.select(channel = 5, selector)
@@ -66,19 +66,6 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
   it should "emit nothing when no parameter is selected" in {
     // When / Then
     RpnMessages.select(channel = 5, RpnSelector.None) shouldBe empty
-  }
-
-  it should "emit only the half a half-set selector holds" in {
-    // Given a selector one of whose CCs has not arrived: the unset half has no value to render, not even a Null one
-    // When / Then
-    RpnMessages.select(channel = 5, RpnSelector.Rpn(msb = Some(0x12), lsb = None)) shouldEqual
-      Seq(CcScMidiMessage(5, ScMidiCc.RpnMsb, 0x12))
-    RpnMessages.select(channel = 5, RpnSelector.Rpn(msb = None, lsb = Some(0x34))) shouldEqual
-      Seq(CcScMidiMessage(5, ScMidiCc.RpnLsb, 0x34))
-    RpnMessages.select(channel = 5, RpnSelector.Nrpn(msb = Some(0x12), lsb = None)) shouldEqual
-      Seq(CcScMidiMessage(5, ScMidiCc.NrpnMsb, 0x12))
-    RpnMessages.select(channel = 5, RpnSelector.Nrpn(msb = None, lsb = Some(0x34))) shouldEqual
-      Seq(CcScMidiMessage(5, ScMidiCc.NrpnLsb, 0x34))
   }
 
   it should "emit the Non-Registered Null Function selector when it is the one selected" in {

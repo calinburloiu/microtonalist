@@ -46,9 +46,9 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   private val noZones: MpeZones = MpeZones(disabledLower, disabledUpper)
 
   private val mcmSelector: RpnSelector =
-    RpnSelector.Rpn(Some(ScMidiRpn.MpeConfigurationMessageMsb), Some(ScMidiRpn.MpeConfigurationMessageLsb))
+    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
   private val pbsSelector: RpnSelector =
-    RpnSelector.Rpn(Some(ScMidiRpn.PitchBendSensitivityMsb), Some(ScMidiRpn.PitchBendSensitivityLsb))
+    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
   behavior of "MpeMessageRouting.roleOf"
 
@@ -285,8 +285,8 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   // ---- Uninterpreted Registered and Non-Registered Parameters ----
 
   private val fineTuningSelector: RpnSelector =
-    RpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), Some(ScMidiRpn.FineTuningLsb))
-  private val nrpnSelector: RpnSelector = RpnSelector.Nrpn(Some(12), Some(34))
+    RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+  private val nrpnSelector: RpnSelector = RpnSelector.Nrpn(12, 34)
 
   it should "consume every RPN and NRPN selector CC" in {
     // Given
@@ -318,33 +318,26 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  it should "discard a data value when no complete parameter is selected" in {
-    // Given — no parameter at all, and the four half-set selectors a lone selector CC leaves behind
-    val selectors = Table("selector",
-      RpnSelector.None,
-      RpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None),
-      RpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb)),
-      RpnSelector.Nrpn(Some(12), None),
-      RpnSelector.Nrpn(None, Some(34)))
+  it should "discard a data value when no parameter is selected" in {
+    // Given — what `ScMidiChannelStateTracker` reports for a parameter with a selector CC still to arrive as much as
+    // for one a Null deselected: either way the value has no parameter to apply to.
     val ccNumbers = Table("ccNumber",
       ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
-    forAll(selectors) { selector =>
-      forAll(ccNumbers) { ccNumber =>
-        forAll(roles) { role =>
-          // When / Then
-          MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), selector) shouldEqual Discard
-        }
+    forAll(ccNumbers) { ccNumber =>
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), noSelector) shouldEqual Discard
       }
     }
   }
 
   it should "re-emit a sequence for a data value of an NRPN whose MSB or LSB is 127" in {
-    // Given — 127 is a legitimate half of a parameter number, and NRPN 7F/22 and 0C/7F are ordinary parameters on
-    // current gear; only the pair 127/127 is the Null Function, which the tracker never reports as a selection.
+    // Given — 127 is a parameter number like any other, and NRPN 7F/22 and 0C/7F are ordinary parameters on current
+    // gear; only the pair 127/127 is the Null Function, which the tracker reports as no selection at all.
     val selectors = Table("selector",
-      RpnSelector.Nrpn(msb = Some(127), lsb = Some(34)),
-      RpnSelector.Nrpn(msb = Some(12), lsb = Some(127)))
+      RpnSelector.Nrpn(msb = 127, lsb = 34),
+      RpnSelector.Nrpn(msb = 12, lsb = 127))
     val message = CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64)
     forAll(selectors) { selector =>
       // When / Then
@@ -355,8 +348,8 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "route an NRPN that shares the numbers of an interpreted RPN as uninterpreted" in {
     // Given
     val selectors = Table("selector",
-      RpnSelector.Nrpn(Some(ScMidiRpn.PitchBendSensitivityMsb), Some(ScMidiRpn.PitchBendSensitivityLsb)),
-      RpnSelector.Nrpn(Some(ScMidiRpn.MpeConfigurationMessageMsb), Some(ScMidiRpn.MpeConfigurationMessageLsb)))
+      RpnSelector.Nrpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb),
+      RpnSelector.Nrpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb))
     forAll(selectors) { selector =>
       // When / Then: an MCM is valid on MIDI Channel 1 (1-based), so the NRPN of the same numbers is the case that
       // could be mistaken for one.
@@ -441,22 +434,6 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Then the output channel keeps the parameter it already held: nothing was emitted to change it
     messages shouldBe empty
     latchedSelector shouldEqual nrpnSelector
-  }
-
-  it should "render nothing for a half-set selector" in {
-    // Given
-    val selectors = Table("selector",
-      RpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None),
-      RpnSelector.Nrpn(None, Some(34)))
-    forAll(selectors) { selector =>
-      // When
-      val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(selector,
-        receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
-      // Then half a selector names no parameter to apply the value to, so nothing goes out and the output channel
-      // keeps the parameter it already held
-      messages shouldBe empty
-      latchedSelector shouldEqual nrpnSelector
-    }
   }
 
   it should "omit the selector when the output channel already holds the parameter selected" in {

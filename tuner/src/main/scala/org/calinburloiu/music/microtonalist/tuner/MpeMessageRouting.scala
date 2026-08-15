@@ -191,12 +191,10 @@ private[tuner] object MpeMessageRouting {
    * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's
    * stored value from the receiver's, since the Tuner does not interpret the increment.
    *
-   * A value message is also discarded when no complete parameter is selected. `RpnSelector.None` is the plain case;
-   * a half-set selector — one only one of whose two CCs has arrived — is treated the same way, because
-   * [[ScMidiChannelStateTracker]] itself refuses to record a value for one, and relaying a value with no parameter
-   * to apply it to is precisely what the closing RPN Null exists to prevent. A parameter whose MSB or LSB is 127 is
-   * not one of those cases: 127 is a parameter number like any other, and only the pair 127/127 — the Null Function,
-   * which the tracker reports as `RpnSelector.None` — deselects.
+   * A value message is discarded when no parameter is selected, which [[ScMidiChannelStateTracker]] reports for a
+   * parameter with a selector CC still to arrive as much as for one deselected by a Null: it records no value for
+   * either, and relaying a value with no parameter to apply it to is precisely what the closing RPN Null exists to
+   * prevent.
    */
   private def routeDataValue(role: MpeChannelRole,
                              msg: CcScMidiMessage,
@@ -211,7 +209,7 @@ private[tuner] object MpeMessageRouting {
           if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
         case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
       }
-    case selector if !selector.isComplete => MpeRoutingVerdict.Discard
+    case RpnSelector.None => MpeRoutingVerdict.Discard
     case _ => role match {
       case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
@@ -289,8 +287,8 @@ private[tuner] object MpeMessageRouting {
    *                        sequences included — may pass anything else, a stale value being what would let a value
    *                        message ride a selection the Null has since cleared.
    * @return the sequence and the parameter `outputChannel` holds selected after it, which the caller must record.
-   *         The sequence is empty, and the latched selector unchanged, when no complete parameter is selected and no
-   *         sequence can be formed — with no parameter selected at all, or with only one half of one received.
+   *         The sequence is empty, and the latched selector unchanged, when no parameter is selected and no
+   *         sequence can be formed.
    */
   def rpnSequence(selector: RpnSelector,
                   valueCc: CcScMidiMessage,
@@ -298,7 +296,7 @@ private[tuner] object MpeMessageRouting {
                   latchedSelector: RpnSelector): (Seq[CcScMidiMessage], RpnSelector) = {
     val valueMessage = valueCc.mapChannel(_ => outputChannel)
     selector match {
-      case _ if !selector.isComplete => (Seq.empty, latchedSelector)
+      case RpnSelector.None => (Seq.empty, latchedSelector)
       case _ if selector == latchedSelector => (Seq(valueMessage), latchedSelector)
       case _ => (RpnMessages.select(outputChannel, selector) :+ valueMessage, selector)
     }

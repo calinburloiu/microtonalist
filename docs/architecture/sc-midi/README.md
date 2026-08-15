@@ -103,14 +103,14 @@ object.
 `RpnSelector` and `RpnMessages` are the two halves of the Registered and Non-Registered Parameter vocabulary.
 `RpnSelector` is the parameter a channel holds selected — `None`, an `Rpn(msb, lsb)`, or an `Nrpn(msb, lsb)` — and is
 the type the two directions of MIDI 1.0's parameter procedure meet in: `ScMidiChannelStateTracker` derives it from an
-incoming stream, `RpnMessages` renders it back out. Each half is an `Option`, because the two selector CCs may arrive
-in either order: an unset half is one no CC has carried yet, distinct from every value one could, the Null value (127)
-included — so a parameter whose MSB or LSB genuinely is 127 is complete like any other, and `isComplete` asks the
-question a value message needs answered. Only the Null *pair* deselects, which `ScMidiChannelStateTracker` collapses
-to `RpnSelector.None` whichever of its two CCs completes it. `RpnMessages` also names the parameters Microtonalist
-selects (Pitch Bend Sensitivity, the MPE Configuration Message, and the Null Function as an RPN and as an NRPN) and
-renders a selector as its pair of Control Change messages, so that the transmission order of the pair — LSB before
-MSB — is decided in one place for every sequence the application emits.
+incoming stream, `RpnMessages` renders it back out. It carries only *complete* parameters: the tracker assembles each
+one from its two selector CCs privately, in whichever order they arrive, and a parameter with a half still pending
+selects nothing and so reads as `RpnSelector.None`. Only the Null *pair* deselects — a lone CC carrying 127 does not,
+127 being a parameter number like any other, so an RPN or NRPN with a 127 half is selected and tracked like any other.
+`RpnMessages` also names the parameters Microtonalist selects (Pitch Bend Sensitivity, the MPE Configuration Message,
+and the Null Function as an RPN and as an NRPN) and renders a selector as its pair of Control Change messages, so that
+the transmission order of the pair — LSB before MSB — is decided in one place for every sequence the application
+emits.
 
 ## How MIDI devices are opened, enumerated, and used
 
