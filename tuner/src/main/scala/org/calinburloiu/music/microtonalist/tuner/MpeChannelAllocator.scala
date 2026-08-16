@@ -116,19 +116,46 @@ private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChann
  * an argument (`preferredChannel` on [[allocate]], `resetPressureOnEmpty` on [[release]], and the choice of
  * whether to pass Expression Values at all). This keeps the mode a concern of [[MpeTuner]] alone.
  *
- * @param zone The MPE zone to allocate channels for.
+ * On an MPE Configuration Message that reconfigures the Zone, a fresh allocator is not built directly: it is
+ * built through [[MpeChannelAllocator.retaining]], which transplants the state of the channels untouched by
+ * the reconfiguration instead of discarding it.
+ *
+ * @param zone           The MPE zone to allocate channels for.
+ * @param retainedStates The per-channel state to seed this allocator with, keyed by output Member Channel,
+ *                       for a Zone reconfiguration that keeps some channels' notes and state. Empty for a
+ *                       freshly constructed allocator. Adopted by reference and mutated in place: the caller
+ *                       must not keep or reuse these [[MpeChannelState]] instances after passing them in. See
+ *                       [[MpeChannelAllocator.retaining]].
  */
-private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure) {
+private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
+                                         retainedStates: Map[Int, MpeChannelState] = Map.empty) {
 
   import MpeChannelAllocator.*
 
-  /** Data structures with allocation information, keyed by output Member Channel. */
-  private val channelStates: Map[Int, MpeChannelState] = zone.memberChannels.map(ch => ch -> MpeChannelState(ch)).toMap
+  /**
+   * Data structures with allocation information, keyed by output Member Channel. A channel present in
+   * `retainedStates` adopts that state — notes, reference counts, Expression Values, pitch class and group —
+   * and every other Member Channel of the Zone starts empty.
+   */
+  private val channelStates: Map[Int, MpeChannelState] =
+    zone.memberChannels.map(ch => ch -> retainedStates.getOrElse(ch, MpeChannelState(ch))).toMap
 
-  /** The output Member Channel each active Note Identity is bound to. */
-  private val noteChannels: mutable.HashMap[MpeNoteIdentity, Int] = mutable.HashMap.empty
+  /**
+   * The output Member Channel each active Note Identity is bound to, derived from the channel states so that
+   * a transplanted state and its bindings can never disagree.
+   */
+  private val noteChannels: mutable.HashMap[MpeNoteIdentity, Int] = mutable.HashMap.from(
+    for {
+      (channel, state) <- channelStates
+      noteIdentity <- state.noteIdentities
+    } yield noteIdentity -> channel)
 
-  private var _time: Long = 0L
+  /**
+   * The logical clock, resumed past the newest event of any transplanted state so that timestamps stay
+   * monotonic across a Zone reconfiguration.
+   */
+  private var _time: Long =
+    channelStates.values.map(state => Math.max(state.lastNoteOnTime, state.lastNoteOffTime)).maxOption.getOrElse(0L)
 
   private def nextTime(): Long = {
     _time += 1
@@ -187,16 +214,25 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure) {
     val pc = noteIdentity.midiNote.pitchClass
     val time = nextTime()
 
+    // A channel transplanted by MpeChannelAllocator.retaining can leave a group holding more occupied
+    // channels than the new Zone's group size allows (see its ScalaDoc). When that happens, the "this
+    // group still has nominal room" checks below can hold true with no unoccupied channel actually left to
+    // grant, because the channel budget spent by the over-subscribed group is not reflected in either
+    // group's own count. The `unoccupied.nonEmpty` guard on Steps 1 and 2 catches that case and falls
+    // through to Steps 3/4, which already handle a fully occupied Zone; it is not a guard against
+    // over-subscription arising in the first place, which #262 leaves unguarded by design.
+    val unoccupied = unoccupiedChannels.map(channelStates)
+
     // Step 1: Check Pitch Class Group availability
     val pitchClassInPCG = pitchClassGroupChannels.exists(_.pitchClass.contains(pc))
-    if (!pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize) {
-      val target = bestCandidate(unoccupiedChannels.map(channelStates), preferredChannel)
+    if (!pitchClassInPCG && pitchClassGroupCount < zone.pitchClassGroupSize && unoccupied.nonEmpty) {
+      val target = bestCandidate(unoccupied, preferredChannel)
       boundary.break(doAllocate(target, noteIdentity, expression, time, ChannelGroup.PitchClass))
     }
 
     // Step 2: Try Expression Group
-    if (expressionGroupCount < zone.expressionGroupSize) {
-      val target = bestCandidate(unoccupiedChannels.map(channelStates), preferredChannel)
+    if (expressionGroupCount < zone.expressionGroupSize && unoccupied.nonEmpty) {
+      val target = bestCandidate(unoccupied, preferredChannel)
       boundary.break(doAllocate(target, noteIdentity, expression, time, ChannelGroup.Expression))
     }
 
@@ -352,6 +388,10 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure) {
    * Returns the group to which a channel is currently assigned.
    */
   def channelGroupOf(channel: Int): Option[ChannelGroup] = channelStates(channel).group
+
+  /** The per-channel state of the given channels, for transplanting into a reconfigured Zone's allocator. */
+  private def statesOf(channels: Set[Int]): Map[Int, MpeChannelState] =
+    channelStates.view.filterKeys(channels.contains).toMap
 
   private def pitchClassGroupChannels: Seq[MpeChannelState] =
     channelStates.values.filter(_.group.contains(ChannelGroup.PitchClass)).toSeq
@@ -604,7 +644,10 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure) {
       slide = Option.when(after.slide != before.slide)(after.slide))
 }
 
-/** Constants and the [[MpeChannelAllocator.ChannelGroup]] taxonomy of the dual-group allocation strategy. */
+/**
+ * Companion of [[MpeChannelAllocator]], holding the types, constants, helpers and factory methods of the dual-group
+ * allocation strategy.
+ */
 private[tuner] object MpeChannelAllocator {
 
   /**
@@ -640,4 +683,47 @@ private[tuner] object MpeChannelAllocator {
 
   private def hasHighExpressionPitchBend(state: MpeChannelState): Boolean =
     state.noteIdentities.exists(n => isHighExpressionPitchBend(state.pitchBendCentsOf(n)))
+
+  /**
+   * Builds the allocator of a reconfigured Zone, transplanting the state of the channels that keep their role
+   * across the reconfiguration, as the paper's Zone-configuration section requires: "Channels of a Zone
+   * untouched by the reconfiguration keep their notes and state."
+   *
+   * A retained channel may end up in a group holding more occupied channels than the new Zone's group size
+   * allows. No invariant breaks: the allocation algorithm reads the group counts only to decide whether a
+   * group has room, so an over-subscribed group simply admits no new channel until notes are released — a
+   * promise kept by the `unoccupied.nonEmpty` guard on [[allocateFresh]]'s Steps 1 and 2, whose comment
+   * cross-references this one so neither can be edited in ignorance of the other.
+   *
+   * @note `from` is consumed, not merely read: the retained [[MpeChannelState]] objects are transplanted into
+   *       the returned allocator by reference, and any note whose input channel is affected is removed from
+   *       its shared state in place. `from` must not be used again after this call — in particular, releasing
+   *       on `from` a note that this call dropped will fail the reference-count invariant `from` no longer
+   *       holds, because the shared state's note is already gone while `from`'s own `noteChannels` binding for
+   *       it is not. The sole caller ([[MpeTuner]]'s Zone-reconfiguration path) discards `from` the moment this
+   *       method returns.
+   *
+   * @param zone             The reconfigured Zone.
+   * @param from             The allocator of the same Zone before the reconfiguration. Mutated in place and must
+   *                         not be used after this call returns — see the `@note` above.
+   * @param affectedChannels The channels entering or leaving MPE control by the reconfiguration. They are read in
+   *                         both directions, which is why one set suffices. As output channels: a Member Channel
+   *                         of the new Zone keeps its state unless it is affected, and every other channel of the
+   *                         new Zone — one the old Zone did not have — starts empty. As input channels: a note
+   *                         that arrived on an affected channel is dropped even when its output channel is
+   *                         retained, because the performer's Note Off will arrive on a channel that is no longer
+   *                         under this Zone's control and would be discarded, leaving the note hanging.
+   */
+  def retaining(zone: MpeZoneStructure,
+                from: MpeChannelAllocator,
+                affectedChannels: Set[Int]): MpeChannelAllocator = {
+    val retainedStates = from.statesOf(zone.memberChannels.toSet -- affectedChannels)
+    for {
+      state <- retainedStates.values
+      noteIdentity <- state.noteIdentities if affectedChannels.contains(noteIdentity.inputChannel)
+    } {
+      state.removeNote(noteIdentity, from._time)
+    }
+    MpeChannelAllocator(zone, retainedStates)
+  }
 }
