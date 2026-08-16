@@ -24,7 +24,8 @@ import scala.collection.mutable
 /**
  * A [[ScMidiReceiver]] that tracks per-channel MIDI state derived from the messages it receives: active notes
  * (with their velocities and Polyphonic Key Pressure), Control Change values, Registered and Non-Registered
- * Parameter Number values, Channel Pressure, Pitch Bend, and Program Change.
+ * Parameter Number values together with the parameter each channel currently has selected, Channel Pressure,
+ * Pitch Bend, and Program Change.
  *
  * Default values for Control Change, Registered Parameter Number, and Non-Registered Parameter Number lookups
  * may be supplied via the constructor; if not, the companion object's [[ScMidiChannelStateTracker.DefaultCcValues]],
@@ -209,6 +210,17 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
+   * @return the parameter the given channel is assembling from its selector CCs, each half either received or still
+   *         pending. Unlike [[rpnSelector]], which collapses every incomplete parameter into [[RpnSelector.None]],
+   *         this tells a channel waiting for the second CC of a parameter apart from one holding no selection at all,
+   *         and shows which half it is still waiting for.
+   */
+  def partialRpnSelector(channel: Int): PartialRpnSelector = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).partialRpnSelector
+  }
+
+  /**
    * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry
    *         (or Data Increment / Decrement) has updated this RPN.
    */
@@ -269,17 +281,17 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   private def handleParameterCc(state: ChannelState, ccNumber: Int, value: Int): Unit = ccNumber match {
     case ScMidiCc.RpnMsb =>
-      val (_, lsb) = rpnHalves(state.partialSelector)
-      state.partialSelector = assembledRpn(msb = Some(value), lsb = lsb)
+      val (_, lsb) = rpnHalves(state.partialRpnSelector)
+      state.partialRpnSelector = assembledRpn(msb = Some(value), lsb = lsb)
     case ScMidiCc.RpnLsb =>
-      val (msb, _) = rpnHalves(state.partialSelector)
-      state.partialSelector = assembledRpn(msb = msb, lsb = Some(value))
+      val (msb, _) = rpnHalves(state.partialRpnSelector)
+      state.partialRpnSelector = assembledRpn(msb = msb, lsb = Some(value))
     case ScMidiCc.NrpnMsb =>
-      val (_, lsb) = nrpnHalves(state.partialSelector)
-      state.partialSelector = assembledNrpn(msb = Some(value), lsb = lsb)
+      val (_, lsb) = nrpnHalves(state.partialRpnSelector)
+      state.partialRpnSelector = assembledNrpn(msb = Some(value), lsb = lsb)
     case ScMidiCc.NrpnLsb =>
-      val (msb, _) = nrpnHalves(state.partialSelector)
-      state.partialSelector = assembledNrpn(msb = msb, lsb = Some(value))
+      val (msb, _) = nrpnHalves(state.partialRpnSelector)
+      state.partialRpnSelector = assembledNrpn(msb = msb, lsb = Some(value))
     case ScMidiCc.DataEntryMsb => writeDataEntry(state, isMsb = true, value)
     case ScMidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)
     case ScMidiCc.DataIncrement => applyDataDelta(state, delta = 1)
@@ -291,14 +303,14 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * The halves of the Registered Parameter being assembled on the channel, both pending when what it is assembling
    * is not an RPN: a selector CC of one kind starts a fresh parameter rather than inheriting a half of the other's.
    */
-  private def rpnHalves(partialSelector: PartialSelector): (Option[Int], Option[Int]) = partialSelector match {
-    case PartialSelector.Rpn(msb, lsb) => (msb, lsb)
+  private def rpnHalves(partial: PartialRpnSelector): (Option[Int], Option[Int]) = partial match {
+    case PartialRpnSelector.Rpn(msb, lsb) => (msb, lsb)
     case _ => (None, None)
   }
 
   /** The halves of the Non-Registered Parameter being assembled on the channel; the counterpart of [[rpnHalves]]. */
-  private def nrpnHalves(partialSelector: PartialSelector): (Option[Int], Option[Int]) = partialSelector match {
-    case PartialSelector.Nrpn(msb, lsb) => (msb, lsb)
+  private def nrpnHalves(partial: PartialRpnSelector): (Option[Int], Option[Int]) = partial match {
+    case PartialRpnSelector.Nrpn(msb, lsb) => (msb, lsb)
     case _ => (None, None)
   }
 
@@ -310,23 +322,23 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * A half that is still pending cannot complete the Null pair, so a lone Null MSB or LSB leaves the parameter
    * half-assembled rather than deselecting: 127 is a parameter number like any other.
    */
-  private def assembledRpn(msb: Option[Int], lsb: Option[Int]): PartialSelector =
-    if (msb.contains(ScMidiRpn.NullMsb) && lsb.contains(ScMidiRpn.NullLsb)) PartialSelector.None
-    else PartialSelector.Rpn(msb, lsb)
+  private def assembledRpn(msb: Option[Int], lsb: Option[Int]): PartialRpnSelector =
+    if (msb.contains(ScMidiRpn.NullMsb) && lsb.contains(ScMidiRpn.NullLsb)) PartialRpnSelector.None
+    else PartialRpnSelector.Rpn(msb, lsb)
 
   /** The Non-Registered counterpart of [[assembledRpn]], its Null Function being NRPN 7F 7F. */
-  private def assembledNrpn(msb: Option[Int], lsb: Option[Int]): PartialSelector =
-    if (msb.contains(ScMidiNrpn.NullMsb) && lsb.contains(ScMidiNrpn.NullLsb)) PartialSelector.None
-    else PartialSelector.Nrpn(msb, lsb)
+  private def assembledNrpn(msb: Option[Int], lsb: Option[Int]): PartialRpnSelector =
+    if (msb.contains(ScMidiNrpn.NullMsb) && lsb.contains(ScMidiNrpn.NullLsb)) PartialRpnSelector.None
+    else PartialRpnSelector.Nrpn(msb, lsb)
 
   /**
    * The parameter the channel holds selected: the one its two selector CCs have completed, both halves having
    * arrived. A parameter with a half still pending gives a Data Entry, Data Increment or Data Decrement nothing to
    * apply to, so it reads as [[RpnSelector.None]] exactly as an absent selection does.
    */
-  private def selectorOf(state: ChannelState): RpnSelector = state.partialSelector match {
-    case PartialSelector.Rpn(Some(msb), Some(lsb)) => RpnSelector.Rpn(msb, lsb)
-    case PartialSelector.Nrpn(Some(msb), Some(lsb)) => RpnSelector.Nrpn(msb, lsb)
+  private def selectorOf(state: ChannelState): RpnSelector = state.partialRpnSelector match {
+    case PartialRpnSelector.Rpn(Some(msb), Some(lsb)) => RpnSelector.Rpn(msb, lsb)
+    case PartialRpnSelector.Nrpn(Some(msb), Some(lsb)) => RpnSelector.Nrpn(msb, lsb)
     case _ => RpnSelector.None
   }
 
@@ -339,7 +351,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
         state.activeNotes.valuesIterator.foreach(_.polyPressure = 0)
         state.channelPressure = None
         state.pitchBend = None
-        state.partialSelector = PartialSelector.None
+        state.partialRpnSelector = PartialRpnSelector.None
       case _ =>
     }
 
@@ -472,27 +484,6 @@ object ScMidiChannelStateTracker {
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
 
-  /**
-   * The parameter a channel is assembling from its selector CCs, half by half: [[RpnSelector]] with each half
-   * optional, MIDI 1.0 letting the two CCs of a parameter arrive in either order.
-   *
-   * A pending half distinguishes a selector CC that has not arrived from one that carried the Null value (127), a
-   * parameter number like any other — the distinction the tracker needs in order to record a value for an RPN or
-   * NRPN with a 127 half, and to recognize the Null ''pair'' whichever of its two CCs completes it. It stays private
-   * because only assembling needs it: a parameter with a half still pending selects nothing, so
-   * [[ScMidiChannelStateTracker.rpnSelector]] reports it as [[RpnSelector.None]], as it does an absent selection.
-   */
-  private enum PartialSelector {
-    /** No parameter is selected and no half of one is pending. */
-    case None
-
-    /** An RPN is being assembled, each half either received or still pending. */
-    case Rpn(msb: Option[Int], lsb: Option[Int])
-
-    /** An NRPN is being assembled, each half either received or still pending. */
-    case Nrpn(msb: Option[Int], lsb: Option[Int])
-  }
-
   private class ActiveNote(val velocity: Int, var polyPressure: Int = 0)
 
   private class ChannelState {
@@ -500,7 +491,7 @@ object ScMidiChannelStateTracker {
     val ccValues: mutable.Map[Int, Int] = mutable.Map.empty
     val rpnValues: mutable.Map[(Int, Int), (Int, Int)] = mutable.Map.empty
     val nrpnValues: mutable.Map[(Int, Int), (Int, Int)] = mutable.Map.empty
-    var partialSelector: PartialSelector = PartialSelector.None
+    var partialRpnSelector: PartialRpnSelector = PartialRpnSelector.None
     var channelPressure: Option[Int] = None
     var pitchBend: Option[Int] = None
     var programChange: Option[Int] = None

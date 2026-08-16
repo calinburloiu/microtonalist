@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiNrpn, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiRpn}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -52,30 +52,33 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "emit the Null Function as a Registered Parameter selector" in {
+  it should "emit the Null Function when no parameter is selected" in {
     // When
-    val messages = RpnMessages.select(channel = 3, RpnMessages.NullRpnSelector)
+    val messages = RpnMessages.select(channel = 3, RpnSelector.None)
 
-    // Then
+    // Then — holding no parameter selected is not the absence of a selector on the wire; it is the Null Function,
+    // RPN 7F 7F, which is what deselects at the receiver
     messages shouldEqual Seq(
       CcScMidiMessage(3, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
       CcScMidiMessage(3, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
     )
   }
 
-  it should "emit nothing when no parameter is selected" in {
-    // When / Then
-    RpnMessages.select(channel = 5, RpnSelector.None) shouldBe empty
-  }
+  it should "round-trip every selector through the tracker that reads it back" in {
+    // Given
+    val channel = 9
+    val tracker = ScMidiChannelStateTracker()
+    val selectors = Seq(
+      RpnSelector.Rpn(msb = 0x12, lsb = 0x34),
+      RpnSelector.Nrpn(msb = 0x56, lsb = 0x78),
+      // A parameter whose halves are the Null value without being the Null pair, the case #267 turned on.
+      RpnSelector.Rpn(msb = ScMidiRpn.NullMsb, lsb = 0x00),
+      RpnSelector.None)
 
-  it should "emit the Non-Registered Null Function selector when it is the one selected" in {
-    // When
-    val messages = RpnMessages.select(channel = 7, RpnMessages.NullNrpnSelector)
-
-    // Then
-    messages shouldEqual Seq(
-      CcScMidiMessage(7, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb),
-      CcScMidiMessage(7, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb)
-    )
+    // When / Then — what `select` renders is exactly what the tracker reads back as selected
+    for (selector <- selectors) {
+      RpnMessages.select(channel, selector).foreach(tracker.send(_))
+      tracker.rpnSelector(channel) shouldEqual selector
+    }
   }
 }

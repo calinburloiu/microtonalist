@@ -467,7 +467,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
       receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0,
-      latchedSelector = RpnMessages.NullRpnSelector)
+      latchedSelector = RpnSelector.None)
     // Then
     messages shouldEqual Seq(
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),

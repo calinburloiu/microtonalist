@@ -76,8 +76,9 @@ object PitchBendSensitivityMessages {
       Seq(
         CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
         CcScMidiMessage(channel, ScMidiCc.DataEntryLsb, pitchBendSensitivity.cents)) ++
-      // Selecting the Null RPN prevents a later stray Data Entry from changing this parameter.
-      RpnMessages.select(channel, RpnMessages.NullRpnSelector)
+      // Leaving the channel with no parameter selected — the Null RPN on the wire — prevents a later stray Data
+      // Entry from changing this parameter.
+      RpnMessages.select(channel, RpnSelector.None)
 
     sequence.map(_.asJava)
   }
