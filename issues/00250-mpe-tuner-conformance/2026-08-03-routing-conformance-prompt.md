@@ -2,6 +2,9 @@
 
 - **Date**: 2026-08-03
 - **Revised**: 2026-08-10 — rebased onto #252's file split (see "Rebase onto #252" below)
+- **Revised**: 2026-08-16 (commit `8e636d7`) — §2.2(f)'s always-emit-the-selector requirement was superseded during
+  implementation; see the note in that bullet. The requirement text is left as written, so that what was asked for and
+  what shipped stay both visible.
 - **Issue**: [#250](https://github.com/calinburloiu/microtonalist/issues/250) — "Make MPE Tuner MIDI message routing and
   filtering conform to the paper"
 - **Base commit**: `5f55a84bf81eb95cb8619d56a918f22768b7b686`
@@ -170,6 +173,18 @@ that state now lives in `MpeChannelState.scala`, not alongside the allocator.
       Increment/Decrement (CC #96/#97), are forwarded separately through that same catch-all. See **C6**, which is the
       paper-conformance half of the same code path: it asks where these messages must *go*, this bullet asks how they
       must be *grouped*, and the two verdicts differ in Non-MPE Input Mode.
+    - **Superseded during implementation (2026-08-16, commit `8e636d7`).** The always-emit rule above — "the selector
+      is always emitted before such a message, even if it's verbose" — is *not* what shipped, and the author has
+      accepted the change. `MpeMessageRouting.rpnSequence` emits the selector only when the parameter it selects
+      differs from the one `MpeTuner.outputRpnSelectors` records as last left selected on that output channel;
+      selection latches, so a run of value messages of one parameter spends one selector while two senders alternating
+      between parameters still get a selector each, which is the separation this bullet was asking for. The record is
+      exact rather than presumed — the Tuner consumes every selector its input sends and never relays a value message
+      verbatim — and it is dropped for any channel a relayed Reset All Controllers or a System Reset deselects at the
+      receiver (`MpeMessageRouting.deselectsOnRelay`). §4's preamble in the paper was amended to state the shipped
+      rule, and the paper remains the source of truth. Note that the design
+      ([`2026-08-12-routing-conformance-design.md`](2026-08-12-routing-conformance-design.md) §5, C6), issue #261 and
+      PR #268 all still describe the always-emit shape.
 
 ## 3. Implementation gaps
 

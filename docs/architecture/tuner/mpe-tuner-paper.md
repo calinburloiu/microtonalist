@@ -388,9 +388,12 @@ output Zone to be allocated into. Passing it through would emit an untuned note 
 contradicting the guarantee of Section 3.2 that the output is always MPE-conformant, and it would sound in 12-EDO
 without the deliberate trade-off that makes Master Channel notes acceptable (Section 3.4).
 
-MPE Configuration Messages are the sole exception. An MCM's validity is governed by Section 4.2 — it must arrive on a
-Master Channel — and it is acted upon regardless of whether the Zone it addresses is currently enabled; this is what
-allows a deactivated Zone to be re-activated in band (Section 4.1).
+MPE Configuration Messages are the sole exception. An MCM's validity is governed by Section 4.2 — it must arrive on
+MIDI Channel 1 or 16, a test of channel number rather than of the channel's current role — and it is acted upon
+regardless of whether the Zone it addresses is currently enabled. That the test does not consult the role is what makes
+the exception operative here at all: with the addressed Zone disabled, the channel carrying the MCM lies outside the
+Zone structure like any other, and a role-based test would reject the very message that re-activates the Zone in band
+(Section 4.1).
 
 In Non-MPE Input Mode this subsection does not apply: notes are recognized on all sixteen channels (Section 3.2) and
 routed to the single output Zone selected by Section 4.2. If no Zone is enabled at all, however, there is no output Zone

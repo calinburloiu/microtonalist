@@ -241,10 +241,17 @@ private[tuner] object MpeMessageRouting {
    * forget what it last left selected there.
    *
    * Reset All Controllers is the case that arises in ordinary traffic: the paper forwards it unmodified onto the
-   * very output Master Channel a relayed sequence latches its selector on, and a receiver responds to it by
-   * returning its parameter selection to Null — as [[ScMidiChannelStateTracker]] does for the channels it tracks.
-   * The Tuner therefore authors the parameter selected on its output channels without authoring every message that
-   * changes it, which is what this predicate exists to catch.
+   * very output Master Channel a relayed sequence latches its selector on, and a conformant receiver responds to it
+   * by returning its parameter selection to Null. The Tuner therefore authors the parameter selected on its output
+   * channels without authoring every message that changes it, which is what this predicate exists to catch.
+   *
+   * This is a statement about the ''receiver'', not about the Tuner's own view of its input.
+   * [[ScMidiChannelStateTracker]] can model the same response, but only when constructed with
+   * `shallRespondToResetMessages`, and [[MpeTuner]] deliberately leaves that off: the paper has the Tuner keep its
+   * tracked state across a relayed Reset All Controllers rather than clear it. So the two sides part company here by
+   * design — the output-channel record is dropped while the input channel keeps its selection — and the parting is
+   * safe in the only direction that matters, a dropped record costing a re-emitted selector rather than a value
+   * message riding a selection the receiver no longer holds.
    *
    * All Sound Off, All Notes Off and Local Control leave the selection alone and are not included. A System Reset
    * does deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than
