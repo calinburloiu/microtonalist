@@ -996,6 +996,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy tracker.nrpnOption(16, 0, 0)
   }
 
+  it should "throw on reset(channel) with an invalid channel" in new TrackerFixture {
+    // When / Then
+    an[IllegalArgumentException] should be thrownBy tracker.reset(-1)
+    an[IllegalArgumentException] should be thrownBy tracker.reset(16)
+  }
+
   behavior of "ScMidiChannelStateTracker Channel Mode messages"
 
   it should "cancel active notes on the channel when All Sound Off is received" in new ResettableTrackerFixture {
@@ -1259,6 +1265,40 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // When
     tracker.reset()
+
+    // Then
+    tracker.activeNotes(Channel) should contain only C4
+    tracker.isClosed shouldBe true
+  }
+
+  it should "clear the state of a single channel, leaving the other fifteen untouched" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SustainPedal, 127))
+    tracker.send(PitchBendScMidiMessage(Channel, 1000))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 90))
+    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.SustainPedal, 127))
+    tracker.send(PitchBendScMidiMessage(OtherChannel, 2000))
+
+    // When
+    tracker.reset(Channel)
+
+    // Then
+    tracker.activeNotes(Channel) shouldBe empty
+    tracker.ccOption(Channel, ScMidiCc.SustainPedal) shouldBe None
+    tracker.pitchBend(Channel) shouldEqual 0
+    tracker.activeNotes(OtherChannel) should contain(E4)
+    tracker.ccOption(OtherChannel, ScMidiCc.SustainPedal) shouldEqual Some(127)
+    tracker.pitchBend(OtherChannel) shouldEqual 2000
+  }
+
+  it should "be a no-op on a channel after close() has been called" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.close()
+
+    // When
+    tracker.reset(Channel)
 
     // Then
     tracker.activeNotes(Channel) should contain only C4
