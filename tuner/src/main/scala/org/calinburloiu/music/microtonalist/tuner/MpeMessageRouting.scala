@@ -191,10 +191,10 @@ private[tuner] object MpeMessageRouting {
    * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's
    * stored value from the receiver's, since the Tuner does not interpret the increment.
    *
-   * A value message is also discarded when no complete parameter is selected. `RpnSelector.None` is the plain case;
-   * a half-set selector — one whose MSB or LSB is still Null — is treated the same way, because
-   * [[ScMidiChannelStateTracker]] itself refuses to record a value for one, and relaying a value with no parameter
-   * to apply it to is precisely what the closing RPN Null exists to prevent.
+   * A value message is discarded when no parameter is selected, which [[ScMidiChannelStateTracker]] reports for a
+   * parameter with a selector CC still to arrive as much as for one deselected by a Null: it records no value for
+   * either, and relaying a value with no parameter to apply it to is precisely what the closing RPN Null exists to
+   * prevent.
    */
   private def routeDataValue(role: MpeChannelRole,
                              msg: CcScMidiMessage,
@@ -209,29 +209,13 @@ private[tuner] object MpeMessageRouting {
           if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
         case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
       }
-    case selector if !isComplete(selector) => MpeRoutingVerdict.Discard
+    case RpnSelector.None => MpeRoutingVerdict.Discard
     case _ => role match {
       case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
       case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
-  }
-
-  /**
-   * Whether both halves of the selected parameter have been set, which is what a value message needs to apply.
-   *
-   * An unset half is indistinguishable from a genuine half of 127: [[RpnSelector]] reuses the Null value (127) as
-   * the "not yet received" sentinel [[ScMidiChannelStateTracker]] fills it with, so an RPN or NRPN whose MSB or LSB
-   * is genuinely 127 reads the same as a half-set selector. Such a parameter is therefore treated as incomplete
-   * here, and its value messages are discarded rather than relayed.
-   */
-  // TODO #267 The real fix is to model the unset halves explicitly in `sc-midi`'s `RpnSelector` rather than by
-  //  sentinel, so a genuine half of 127 can be told apart from "not yet received".
-  private def isComplete(rpnSelector: RpnSelector): Boolean = rpnSelector match {
-    case RpnSelector.None => false
-    case RpnSelector.Rpn(msb, lsb) => msb != ScMidiRpn.NullMsb && lsb != ScMidiRpn.NullLsb
-    case RpnSelector.Nrpn(msb, lsb) => msb != ScMidiNrpn.NullMsb && lsb != ScMidiNrpn.NullLsb
   }
 
   /**

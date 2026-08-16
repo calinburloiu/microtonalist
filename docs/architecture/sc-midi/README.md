@@ -103,10 +103,21 @@ object.
 `RpnSelector` and `RpnMessages` are the two halves of the Registered and Non-Registered Parameter vocabulary.
 `RpnSelector` is the parameter a channel holds selected — `None`, an `Rpn(msb, lsb)`, or an `Nrpn(msb, lsb)` — and is
 the type the two directions of MIDI 1.0's parameter procedure meet in: `ScMidiChannelStateTracker` derives it from an
-incoming stream, `RpnMessages` renders it back out. `RpnMessages` also names the parameters Microtonalist selects
-(Pitch Bend Sensitivity, the MPE Configuration Message, and the Null Function as an RPN and as an NRPN) and renders a
-selector as its pair of Control Change messages, so that the transmission order of the pair — LSB before MSB — is
-decided in one place for every sequence the application emits.
+incoming stream, `RpnMessages` renders it back out. It carries only *complete* parameters: the tracker assembles each
+one from its two selector CCs, in whichever order they arrive, and a parameter with a half still pending selects
+nothing and so reads as `RpnSelector.None`. Only the Null *pair* deselects — a lone CC carrying 127 does not, 127 being
+a parameter number like any other, so an RPN or NRPN with a 127 half is selected and tracked like any other.
+`PartialRpnSelector`, alongside it in the same file, is the assembly in progress — `RpnSelector` with each half
+optional — read through the tracker's `partialRpnSelector` accessor by callers that need to tell a channel awaiting a
+parameter's second CC apart from one holding no selection at all, a distinction `rpnSelector` collapses.
+
+`RpnSelector.None` is the deselected state on both sides: `RpnMessages.select` renders it as the Null Function
+(RPN 7F 7F), and the tracker reads that same pair back as `None`, so every selector survives a round trip through the
+two. Deselecting therefore has no separate vocabulary — there is no `NullRpnSelector` constant to reach for, and the
+Null goes out as an RPN whatever it closes, MIDI 1.0 giving the RPN Null the job of cancelling an RPN *or* NRPN
+selection. `RpnMessages` also names the parameters Microtonalist selects (Pitch Bend Sensitivity and the MPE
+Configuration Message) and renders a selector as its pair of Control Change messages, so that the transmission order of
+the pair — LSB before MSB — is decided in one place for every sequence the application emits.
 
 ## How MIDI devices are opened, enumerated, and used
 

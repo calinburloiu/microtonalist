@@ -2503,6 +2503,25 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractCc(output) shouldEqual Seq(CcScMidiMessage(0, ScMidiCc.DataEntryLsb, 5))
     }
 
+  it should "re-emit a sequence for an NRPN whose LSB is 127" in new Fixture(tuner7) {
+    // Given — NRPN 0C/7F, an ordinary parameter whose LSB happens to be the Null value
+    private val selectorOutput =
+      tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnMsb, 12).asJava) ++
+        tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb).asJava)
+    // Then
+    selectorOutput shouldBe empty
+
+    // When
+    private val output = tuner.process(CcScMidiMessage(nonMpeInputChannel, ScMidiCc.DataEntryMsb, 70).asJava)
+    // Then the whole sequence goes out: a 127 half is a parameter number like any other, not a half that has yet
+    // to arrive.
+    extractCc(output) shouldEqual Seq(
+      CcScMidiMessage(0, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb),
+      CcScMidiMessage(0, ScMidiCc.NrpnMsb, 12),
+      CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 70)
+    )
+  }
+
   it should "discard a value message received with no parameter selected" in new Fixture(tuner7) {
     // Given
     // No selector has been sent on this channel, so a Data Entry has no parameter to apply to. Forwarding one would

@@ -373,6 +373,109 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
   }
 
+  it should "deselect the parameter when the Null RPN is selected MSB before LSB" in new TrackerFixture {
+    // Given
+    selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
+
+    // Then
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
+
+  it should "deselect the parameter when the Null RPN is selected LSB before MSB" in new TrackerFixture {
+    // Given
+    selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+
+    // When — the order MIDI 1.0 allows just as much as the other, and a third-party sender may well emit
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+
+    // Then
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
+
+  it should "keep a lone RPN MSB of 127 pending rather than reading it as a Null" in new TrackerFixture {
+    // When — only the pair 127/127 is the Null Function; a lone Null MSB deselects nothing on its own
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+
+    // Then nothing is selected yet, the LSB not having arrived
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+
+    // When the LSB arrives, completing RPN 7F/00
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, 0))
+
+    // Then — had the lone Null MSB been read as a Null, it would have cleared the pending half and left this
+    // selecting nothing
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.NullMsb, 0)
+  }
+
+  it should "initially have no RPN/NRPN partially assembled" in new TrackerFixture {
+    // When / Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
+  }
+
+  it should "report an RPN whose LSB has not arrived as a half still pending" in new TrackerFixture {
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+
+    // Then — the LSB is pending, which rpnSelector cannot express and reports as None
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+
+    // When the LSB completes the pair
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual
+      PartialRpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), Some(ScMidiRpn.FineTuningLsb))
+  }
+
+  it should "report an RPN whose MSB has not arrived as a half still pending" in new TrackerFixture {
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb))
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
+
+  it should "tell a lone RPN half carrying 127 apart from a Null that deselects" in new TrackerFixture {
+    // When — a lone Null MSB, which is a pending half of a parameter, not a deselection
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(Some(ScMidiRpn.NullMsb), None)
+
+    // When the Null LSB completes the Null pair
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
+
+    // Then nothing is left half-assembled either
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
+  }
+
+  it should "start a fresh partial RPN rather than inherit a pending NRPN half" in new TrackerFixture {
+    // Given — an NRPN with its LSB still pending
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
+
+    // When a selector CC of the other kind arrives
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+
+    // Then the pending NRPN MSB is dropped rather than becoming the new parameter's MSB
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb))
+  }
+
+  it should "track the partially assembled RPN independently per channel" in new TrackerFixture {
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None)
+    tracker.partialRpnSelector(OtherChannel) shouldEqual PartialRpnSelector.None
+  }
+
   it should "record an RPN value via Data Entry MSB after RPN selection" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
@@ -409,6 +512,17 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 50)))
     }
 
+  it should "record an RPN value for a parameter whose LSB is 127" in new TrackerFixture {
+    // Given — 127 is a legitimate half of a parameter number; only the pair 127/127 is the Null Function
+    selectRpn(tracker, Channel, msb = 0, lsb = ScMidiRpn.NullLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 24))
+
+    // Then
+    tracker.rpnOption(Channel, 0, ScMidiRpn.NullLsb) should equal(Some((24, 0)))
+  }
+
   it should "keep recorded RPN values when a different RPN is selected" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
@@ -437,7 +551,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb) shouldBe empty
-    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.NullLsb)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
     tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual 0
     tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual ScMidiRpn.NullLsb
   }
@@ -455,7 +569,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
     tracker.rpnOption(Channel, ScMidiRpn.NullMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
-    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
     tracker.cc(Channel, ScMidiCc.RpnMsb) shouldEqual ScMidiRpn.NullMsb
     tracker.cc(Channel, ScMidiCc.RpnLsb) shouldEqual 0
   }
@@ -735,6 +849,80 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(NrpnA._1, NrpnA._2)
   }
 
+  it should "deselect the parameter when the Null NRPN is selected MSB before LSB" in new TrackerFixture {
+    // Given
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb))
+
+    // Then
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
+
+  it should "deselect the parameter when the Null NRPN is selected LSB before MSB" in new TrackerFixture {
+    // Given
+    selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
+
+    // When — the order MIDI 1.0 allows just as much as the other, and a third-party sender may well emit
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb))
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
+
+    // Then
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
+
+  it should "keep a lone NRPN MSB of 127 pending rather than reading it as a Null" in new TrackerFixture {
+    // When — only the pair 127/127 is the Null Function; a lone Null MSB deselects nothing on its own
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
+
+    // Then nothing is selected yet, the LSB not having arrived
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+
+    // When the LSB arrives, completing NRPN 7F/22
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, 34))
+
+    // Then — had the lone Null MSB been read as a Null, it would have cleared the pending half and left this
+    // selecting nothing
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 34)
+  }
+
+  it should "report an NRPN whose LSB has not arrived as a half still pending" in new TrackerFixture {
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(Some(NrpnA._1), None)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+
+    // When the LSB completes the pair
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(Some(NrpnA._1), Some(NrpnA._2))
+  }
+
+  it should "report an NRPN whose MSB has not arrived as a half still pending" in new TrackerFixture {
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+
+    // Then
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(None, Some(NrpnA._2))
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
+
+  it should "start a fresh partial NRPN rather than inherit a pending RPN half" in new TrackerFixture {
+    // Given — an RPN with its LSB still pending
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+
+    // When an NRPN selector CC of the other kind arrives
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+
+    // Then the pending RPN MSB is dropped rather than becoming the new parameter's MSB
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(None, Some(NrpnA._2))
+  }
+
   it should "record an NRPN value via Data Entry MSB after NRPN selection" in new TrackerFixture {
     // Given
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
@@ -744,6 +932,28 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((17, 0)))
+  }
+
+  it should "record an NRPN value for a parameter whose MSB is 127" in new TrackerFixture {
+    // Given — NRPN 7F/22, an ordinary parameter on current gear, whose MSB happens to be the Null value
+    selectNrpn(tracker, Channel, msb = ScMidiNrpn.NullMsb, lsb = 34)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+
+    // Then
+    tracker.nrpnOption(Channel, ScMidiNrpn.NullMsb, 34) should equal(Some((17, 0)))
+  }
+
+  it should "record an NRPN value for a parameter whose LSB is 127" in new TrackerFixture {
+    // Given — NRPN 00/7F, the other half of the same case
+    selectNrpn(tracker, Channel, msb = 0, lsb = ScMidiNrpn.NullLsb)
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+
+    // Then
+    tracker.nrpnOption(Channel, 0, ScMidiNrpn.NullLsb) should equal(Some((17, 0)))
   }
 
   it should "let NRPN selection take over a previous RPN selection" in new TrackerFixture {
@@ -800,7 +1010,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Then
     tracker.nrpnOption(Channel, 0, 0) shouldBe empty
     tracker.nrpnOption(Channel, 0, ScMidiNrpn.NullLsb) shouldBe empty
-    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(0, ScMidiNrpn.NullLsb)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
     tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual 0
     tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual ScMidiNrpn.NullLsb
   }
@@ -818,9 +1028,21 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // Then
     tracker.nrpnOption(Channel, 0, 0) shouldBe empty
     tracker.nrpnOption(Channel, ScMidiNrpn.NullMsb, 0) shouldBe empty
-    tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 0)
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
     tracker.cc(Channel, ScMidiCc.NrpnMsb) shouldEqual ScMidiNrpn.NullMsb
     tracker.cc(Channel, ScMidiCc.NrpnLsb) shouldEqual 0
+  }
+
+  it should "increment a recorded NRPN value for a parameter whose LSB is 127" in new TrackerFixture {
+    // Given
+    selectNrpn(tracker, Channel, msb = 0, lsb = ScMidiNrpn.NullLsb)
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+
+    // Then
+    tracker.nrpnOption(Channel, 0, ScMidiNrpn.NullLsb) should equal(Some((17, 1)))
   }
 
   it should "increment a recorded NRPN value with constructor-supplied default" in {
@@ -996,6 +1218,14 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy tracker.nrpnOption(16, 0, 0)
   }
 
+  it should "throw on rpnSelector / partialRpnSelector with an invalid channel" in new TrackerFixture {
+    // When / Then
+    an[IllegalArgumentException] should be thrownBy tracker.rpnSelector(-1)
+    an[IllegalArgumentException] should be thrownBy tracker.rpnSelector(16)
+    an[IllegalArgumentException] should be thrownBy tracker.partialRpnSelector(-1)
+    an[IllegalArgumentException] should be thrownBy tracker.partialRpnSelector(16)
+  }
+
   it should "throw on reset(channel) with an invalid channel" in new TrackerFixture {
     // When / Then
     an[IllegalArgumentException] should be thrownBy tracker.reset(-1)
@@ -1088,9 +1318,25 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.channelPressure(Channel) should equal(0)
       tracker.pitchBend(Channel) should equal(0)
       tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+      tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
       tracker.ccOption(Channel, ScMidiCc.RpnMsb) shouldBe None
       tracker.ccOption(Channel, ScMidiCc.RpnLsb) shouldBe None
     }
+
+  it should "clear a half-assembled RPN when Reset All Controllers is received" in new ResettableTrackerFixture {
+    // Given — only the MSB has arrived, so nothing is selected yet but a half is pending
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+
+    // When
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+    // Then the pending half is gone, so the LSB that follows starts a parameter of its own rather than completing
+    // the one begun before the reset
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
+    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb))
+    tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
+  }
 
   it should "clear the RPN/NRPN selector so subsequent Data Entry is ignored after Reset All Controllers" in
     new ResettableTrackerFixture {
@@ -1203,6 +1449,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.pitchBend(Channel) should equal(1234)
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(
       ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(
+      Some(ScMidiRpn.PitchBendSensitivityMsb), Some(ScMidiRpn.PitchBendSensitivityLsb))
   }
 
   behavior of "ScMidiChannelStateTracker reset"
@@ -1233,6 +1481,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.pitchBend(channel) should equal(0)
       tracker.programChange(channel) should equal(0)
       tracker.rpnSelector(channel) shouldEqual RpnSelector.None
+      tracker.partialRpnSelector(channel) shouldEqual PartialRpnSelector.None
     }
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe None
     tracker.nrpnOption(OtherChannel, NrpnA._1, NrpnA._2) shouldBe None

@@ -735,9 +735,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // the Null are rendered by `RpnMessages.select`, which decides their transmission order.
     val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
       CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount)
-    buffer ++= (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullRpnSelector)).map(_.asJava)
+    buffer ++= (sequence ++ RpnMessages.select(zone.masterChannel, RpnSelector.None)).map(_.asJava)
 
-    outputRpnSelectors(zone.masterChannel) = RpnMessages.NullRpnSelector
+    outputRpnSelectors(zone.masterChannel) = RpnSelector.None
   }
 
   /**
@@ -749,7 +749,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def emitPbsSequence(buffer: mutable.Buffer[MidiMessage], channel: Int,
                               sensitivity: PitchBendSensitivity): Unit = {
-    outputRpnSelectors(channel) = RpnMessages.NullRpnSelector
+    outputRpnSelectors(channel) = RpnSelector.None
     buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
   }
 

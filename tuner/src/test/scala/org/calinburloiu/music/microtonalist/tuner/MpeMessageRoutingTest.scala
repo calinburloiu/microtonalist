@@ -318,45 +318,30 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     }
   }
 
-  // TODO #267 Only the `RpnSelector.None` row is a behavior worth keeping. The four half-set rows spell "this half
-  //  has not arrived" with the Null value, the sentinel `RpnSelector` currently uses for it; modelling the unset
-  //  halves explicitly in `sc-midi` as `Option`s makes every one of them a genuinely complete parameter — RPN 00/7F,
-  //  RPN 7F/01, NRPN 0C/7F and NRPN 7F/22 — so they turn into `ForwardRpnSequenceOn`, and this test red for them.
-  it should "discard a data value when no complete parameter is selected" in {
-    // Given
-    val selectors = Table("selector",
-      RpnSelector.None,
-      RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.NullLsb),
-      RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.FineTuningLsb),
-      RpnSelector.Nrpn(12, ScMidiNrpn.NullLsb),
-      RpnSelector.Nrpn(ScMidiNrpn.NullMsb, 34))
+  it should "discard a data value when no parameter is selected" in {
+    // Given — what `ScMidiChannelStateTracker` reports for a parameter with a selector CC still to arrive as much as
+    // for one a Null deselected: either way the value has no parameter to apply to.
     val ccNumbers = Table("ccNumber",
       ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
-    forAll(selectors) { selector =>
-      forAll(ccNumbers) { ccNumber =>
-        forAll(roles) { role =>
-          // When / Then
-          MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), selector) shouldEqual Discard
-        }
+    forAll(ccNumbers) { ccNumber =>
+      forAll(roles) { role =>
+        // When / Then
+        MpeMessageRouting.route(role, CcScMidiMessage(inputChannel, ccNumber, 64), noSelector) shouldEqual Discard
       }
     }
   }
 
-  // TODO #267 This pins the collateral of the discard rule, not a behavior worth keeping: an NRPN whose MSB or LSB is
-  //  genuinely 127 is indistinguishable from a half-set selector, because `RpnSelector` uses the Null value as its
-  //  "not yet received" sentinel. Modelling the unset halves explicitly in `sc-midi` turns these rows into
-  //  `ForwardRpnSequenceOn`, and this test red.
-  it should "discard a data value of an NRPN whose MSB or LSB is genuinely 127" in {
-    // Given
+  it should "re-emit a sequence for a data value of an NRPN whose MSB or LSB is 127" in {
+    // Given — 127 is a parameter number like any other, and NRPN 7F/22 and 0C/7F are ordinary parameters on current
+    // gear; only the pair 127/127 is the Null Function, which the tracker reports as no selection at all.
     val selectors = Table("selector",
       RpnSelector.Nrpn(msb = 127, lsb = 34),
-      RpnSelector.Nrpn(msb = 12, lsb = 127),
-      RpnSelector.Nrpn(msb = 127, lsb = 127))
+      RpnSelector.Nrpn(msb = 12, lsb = 127))
     val message = CcScMidiMessage(inputChannel, ScMidiCc.DataEntryMsb, 64)
     forAll(selectors) { selector =>
       // When / Then
-      MpeMessageRouting.route(masterRole, message, selector) shouldEqual Discard
+      MpeMessageRouting.route(masterRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
     }
   }
 
@@ -482,7 +467,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
       receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0,
-      latchedSelector = RpnMessages.NullRpnSelector)
+      latchedSelector = RpnSelector.None)
     // Then
     messages shouldEqual Seq(
       CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),

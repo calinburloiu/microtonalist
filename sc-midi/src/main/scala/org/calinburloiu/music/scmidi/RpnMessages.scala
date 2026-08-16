@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiNrpn, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiRpn}
 
 /**
  * The home of MIDI 1.0's Registered and Non-Registered Parameter message vocabulary: the parameters Microtonalist
@@ -29,18 +29,6 @@ import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiN
  * Microtonalist emits selects through it, the transmission order of that pair is decided in exactly one place.
  */
 object RpnMessages {
-
-  /**
-   * The Null Function as a Registered Parameter (RPN 7F 7F), which deselects the current parameter so that a later
-   * stray Data Entry cannot change it.
-   */
-  val NullRpnSelector: RpnSelector = RpnSelector.Rpn(ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
-
-  /**
-   * The Null Function as a Non-Registered Parameter (NRPN 7F 7F), the counterpart of [[NullRpnSelector]] for a
-   * Non-Registered Parameter sequence.
-   */
-  val NullNrpnSelector: RpnSelector = RpnSelector.Nrpn(ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
 
   /** Pitch Bend Sensitivity (RPN 00 00), the pitch bend range of a channel in semitones and cents. */
   val PitchBendSensitivitySelector: RpnSelector =
@@ -60,10 +48,19 @@ object RpnMessages {
    * MPE Configuration Message format. Either order selects the same parameter on a conformant receiver, so this is a
    * matter of speaking with one voice rather than of correctness on the wire.
    *
+   * [[RpnSelector.None]] renders as the Null Function (RPN 7F 7F), the encoding MIDI 1.0 gives to holding no
+   * parameter selected: deselecting is a selector pair on the wire like any other, and it is what stops a later
+   * stray Data Entry from reaching the parameter this sequence just set. Rendering it here rather than at each call
+   * site is what makes the two directions mirror each other — [[ScMidiChannelStateTracker]] reads that same pair
+   * back as [[RpnSelector.None]], so every selector survives a round trip through the two.
+   *
+   * The Null is emitted as an RPN whatever the parameter it closes, an NRPN Null having no separate encoding here.
+   * MIDI 1.0 gives the RPN Null the job of cancelling the current ''RPN or NRPN'' selection, and the tracker
+   * likewise clears either on it.
+   *
    * @param channel  The MIDI 0-based channel number to emit the selector on.
-   * @param selector The parameter to select.
-   * @return the two selector messages, or an empty sequence for [[RpnSelector.None]], which selects no parameter and
-   *         therefore has no encoding of its own.
+   * @param selector The parameter to select, or [[RpnSelector.None]] to deselect.
+   * @return the two selector messages.
    */
   def select(channel: Int, selector: RpnSelector): Seq[CcScMidiMessage] = selector match {
     case RpnSelector.Rpn(msb, lsb) => Seq(
@@ -72,6 +69,8 @@ object RpnMessages {
     case RpnSelector.Nrpn(msb, lsb) => Seq(
       CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb),
       CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
-    case RpnSelector.None => Seq.empty
+    case RpnSelector.None => Seq(
+      CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+      CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
   }
 }
