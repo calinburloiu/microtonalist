@@ -1360,4 +1360,46 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val result = rebuilt.allocate(MpeNoteIdentity(5, MidiNote.D4))
     small.memberChannels.toSet should contain(result.channel)
   }
+
+  behavior of "MpeChannelAllocator - High Expression Pitch Bend threshold"
+
+  it should "re-apply the divergence rule when a lowered threshold reclassifies a shared channel's notes" in {
+    // Given
+    // Two C notes from different input channels share the Pitch Class Group channel, with different bends, both
+    // below the current threshold of 100.
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = MpeNoteIdentity(1, C4)
+    val second = MpeNoteIdentity(2, C5)
+    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
+    alloc.allocate(MpeNoteIdentity(3, D4))
+    alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
+    // When
+    // Both cross the new threshold at once, which the same-input-channel case never produces.
+    val result = alloc.setExpressionPitchBendThreshold(50)
+    // Then
+    // The latest onset survives, the rest of the channel goes, and the channel's aggregate is reported.
+    alloc.expressionPitchBendThreshold shouldEqual 50
+    result.droppedNotes should have size 1
+    result.droppedNotes.head.channel shouldBe channel
+    result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
+    result.channelUpdates shouldEqual Seq(
+      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(90))))
+  }
+
+  it should "drop nothing when a raised threshold leaves every note below it" in {
+    // Given
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = MpeNoteIdentity(1, C4)
+    val second = MpeNoteIdentity(2, C5)
+    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
+    alloc.allocate(MpeNoteIdentity(3, D4))
+    alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
+    // When
+    val result = alloc.setExpressionPitchBendThreshold(150)
+    // Then
+    // The pass only ever drops: nothing is restored, because nothing was retained.
+    result shouldEqual MpeExpressionUpdateResult()
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
+  }
 }

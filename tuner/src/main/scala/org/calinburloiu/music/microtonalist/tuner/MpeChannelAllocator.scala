@@ -351,6 +351,22 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    */
   def expressionPitchBendThreshold: Int = _expressionPitchBendThreshold
 
+  /**
+   * Assigns a new High Expression Pitch Bend threshold and re-applies the divergence rule to every occupied
+   * channel, since the reclassification can leave a high-bend note sharing its channel — an invariant the paper's
+   * "Summary of Note-Dropping Invariants" section requires at all times, so it cannot wait for the next event.
+   *
+   * Assignment and re-evaluation are one operation rather than a setter plus a separate pass: Scala requires an
+   * assignment setter (`expressionPitchBendThreshold_=`) to return `Unit`, which would leave the caller no way to
+   * receive the drops, and splitting the two would let a caller perform one without the other.
+   *
+   * @return the output channels whose aggregate changed and any notes dropped by the divergence rule.
+   */
+  def setExpressionPitchBendThreshold(threshold: Int): MpeExpressionUpdateResult = {
+    _expressionPitchBendThreshold = threshold
+    reapplyDivergenceRule()
+  }
+
   /** The output Member Channel bound to an active note, or `None` when it holds no active count. */
   def channelOf(noteIdentity: MpeNoteIdentity): Option[Int] = noteChannels.get(noteIdentity)
 
@@ -599,10 +615,13 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    * Bend, the high-bend note with the greatest onset time — the most recently sounded — survives and every
    * other note on the channel is dropped.
    *
-   * The single-high-bend case is the paper's rule as written. Several notes can acquire a high bend at once
-   * only when they share an input channel, the Pitch Bend being a channel message that belongs to all of
-   * them; retaining the most recently sounded preserves the performer's gesture on one voice, and leaving
-   * exactly one note restores the invariant that a high-bend note is the sole note on its channel.
+   * Several notes can acquire a high bend at once in two ways. They may share an input channel, the Pitch Bend
+   * being a channel message that belongs to all of them, in which case their bends are identical. Or the
+   * threshold itself may move under them, a member Pitch Bend Sensitivity change reinterpreting every held bend
+   * at once, in which case the co-residents may come from different input channels and carry genuinely different
+   * bends. The resolution is the same either way: retaining the most recently sounded preserves the note the
+   * performer is most likely still shaping, and leaving exactly one note restores the invariant that a high-bend
+   * note is the sole note on its channel.
    */
   private def applyDivergenceRule(state: MpeChannelState): Option[MpeDroppedNotes] = {
     val identities = state.noteIdentities
@@ -617,6 +636,15 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
       None
     }
   }
+
+  /**
+   * Re-applies the divergence rule across every occupied channel, writing no new Expression Value. Reusing
+   * [[updateExpressionValues]] with a no-op write gives the pass the same channel ordering — by the earliest
+   * onset among a channel's notes — and the same "report only channels whose aggregate actually changed"
+   * behaviour as an ordinary Expression Value update, so no second traversal and no second rule is written.
+   */
+  private def reapplyDivergenceRule(): MpeExpressionUpdateResult =
+    updateExpressionValues(noteChannels.keys.toSeq, (_, _) => (), applyDivergenceRule)
 
   /**
    * Drops the given notes from a channel, clearing their channel bindings so that a Note Off the performer

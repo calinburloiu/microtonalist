@@ -540,10 +540,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val sensitivity = if (isMaster) updatedZone.masterPitchBendSensitivity else updatedZone.memberPitchBendSensitivity
     emitPbsSequence(buffer, channel, sensitivity)
 
-    // Recompute pitch bends on occupied member channels if member PBS changed
+    // A member sensitivity change reinterprets every held Expression Pitch Bend at once, so it can turn sounding
+    // notes into High Expression Pitch Bend notes with no note or Pitch Bend message arriving. Re-derive the
+    // threshold and re-apply the divergence rule before the Zone's occupied channels are retuned. Master
+    // sensitivity does not affect Member Channel interpretation, and in Non-MPE Input Mode all Pitch Bend
+    // Sensitivity input is treated as master, so neither reaches this path.
     if (!isMaster) {
       val alloc = if (updatedZone.zoneType == MpeZoneType.Lower) lowerAllocator else upperAllocator
-      alloc.foreach(updateTuningOnZone(buffer, _))
+      alloc.foreach(applyExpressionPitchBendThreshold(buffer, _))
     }
   }
 
@@ -700,6 +704,45 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, dropReason))
     result.channelUpdates.foreach { channelUpdate =>
       emitExpressionUpdate(buffer, channelUpdate.channel, channelUpdate.update, alloc)
+    }
+  }
+
+  /**
+   * Re-derives a Zone's High Expression Pitch Bend threshold from its current member Pitch Bend Sensitivity, hands
+   * it to the allocator — which re-applies the divergence rule as part of the assignment — and emits the result.
+   *
+   * Both triggers of a member sensitivity change go through here: an explicit Pitch Bend Sensitivity message, and
+   * the reset an MPE Configuration Message performs, an MCM's reset being a member Pitch Bend Sensitivity change
+   * like any other.
+   */
+  private def applyExpressionPitchBendThreshold(buffer: mutable.Buffer[MidiMessage],
+                                                alloc: MpeChannelAllocator): Unit = {
+    val threshold = expressionPitchBendThresholdOf(currentZone(alloc).memberPitchBendSensitivity)
+    emitThresholdUpdateResult(buffer, alloc.setExpressionPitchBendThreshold(threshold), alloc)
+  }
+
+  /**
+   * Emits the consequences of a member Pitch Bend Sensitivity change on one Zone, in the relative order the
+   * paper's "Message Ordering" section gives the control dimensions after a Note Off: Note Offs, Pitch Bends,
+   * CC #74, Channel Pressure.
+   *
+   * The Pitch Bend dimension of `result` is deliberately not emitted here. [[updateTuningOnZone]] re-emits one
+   * Pitch Bend on every occupied Member Channel of the Zone, which both subsumes it and is required in its own
+   * right, a sensitivity change re-encoding the tuning term on ''every'' occupied channel rather than only on the
+   * ones a drop touched; emitting both would duplicate the message on exactly the channels that changed.
+   *
+   * CC #74 and Channel Pressure stay `diff`-driven and therefore conditional: the sensitivity change moves neither
+   * by itself, but a drop removes a note's term from all three of its channel's averages, and notes sharing a
+   * channel may come from different input channels with different values. When nothing is dropped the result is
+   * empty and neither is emitted.
+   */
+  private def emitThresholdUpdateResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
+                                        alloc: MpeChannelAllocator): Unit = {
+    result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, DropReason.OnMemberPbsChange))
+    updateTuningOnZone(buffer, alloc)
+    result.channelUpdates.foreach { channelUpdate =>
+      emitSlide(buffer, channelUpdate.channel, channelUpdate.update)
+      emitPressure(buffer, channelUpdate.channel, channelUpdate.update)
     }
   }
 
@@ -866,4 +909,10 @@ private enum DropReason(val message: String) {
    * [[MpeExpressionUpdateResult]]), so this reason is never surfaced in a log line.
    */
   case NotExpected extends DropReason("unreachable: slide/pressure updates never drop notes")
+
+  /**
+   * A member Pitch Bend Sensitivity change — an explicit Pitch Bend Sensitivity message, or the reset an MPE
+   * Configuration Message performs — moved the High Expression Pitch Bend threshold and reclassified the note.
+   */
+  case OnMemberPbsChange extends DropReason("member Pitch Bend Sensitivity change reclassified the note")
 }

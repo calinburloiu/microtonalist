@@ -66,6 +66,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private val E3: MidiNote = MidiNote(E4 - 12)
   private val D5: MidiNote = MidiNote(D4 + 12)
   private val E5: MidiNote = MidiNote(E4 + 12)
+  private val C6: MidiNote = MidiNote(C5 + 12)
+  private val Cs4: MidiNote = MidiNote(C4 + 1)
 
   private val nonMpeInputChannel = 2
   private val mpeInputChannel: Int = 1
@@ -3537,6 +3539,104 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.map(_.channel) should contain(noteChannel)
       // The output pitch bend should still represent -14.0 cents under the new PBS
       pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
+    }
+
+  // ---- Reclassification after a member PBS change ----
+
+  it should "drop all but the latest-onset note when a member PBS change carries several notes on one channel " +
+    "past the threshold" in new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Lower Zone with 3 Member Channels (PCG=1, EG=2). At ±2 semitones the threshold is 2048 raw. C4 takes the
+      // Pitch Class Group channel, C5 and C3 the Expression Group ones, and C6 then shares the oldest channel —
+      // channel 1 — with C4, from a different input channel.
+      sendPbsMsb(tuner, channel = 1, semitones = 2)
+      noteOn(1, C4)
+      noteOn(2, C5)
+      noteOn(3, C3)
+      noteOn(2, C6)
+      pitchBendValue(1, 500)
+      pitchBendValue(2, 700)
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(2)
+
+      // When
+      // Widening the range to ±48 semitones lowers the threshold to 85 raw, so both notes on channel 1 cross it
+      // at once — carrying different bends, having arrived on different input channels.
+      private val output = sendPbsMsb(tuner, channel = 1, semitones = 48)
+
+      // Then
+      // The latest-onset note survives and the rest of the channel is dropped.
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(1, C4))
+      // One recomputed Pitch Bend per occupied Member Channel, C having a zero tuning offset in quarter-comma
+      // meantone: channel 1 now carries C6's bend alone.
+      extractPitchBends(output) shouldEqual Seq(
+        PitchBendScMidiMessage(1, 700),
+        PitchBendScMidiMessage(2, 700),
+        PitchBendScMidiMessage(3, 0))
+    }
+
+  it should "emit no CC #74 or Channel Pressure from a member PBS change that drops nothing" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given - A single note carrying both other control dimensions.
+      noteOn(1, E4, pressure = Some(90), slide = Some(30))
+      // When
+      private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      // Then
+      // The sensitivity change moves neither dimension by itself, and no drop occurred, so only the recomputed
+      // Pitch Bend goes out.
+      extractSlides(output) shouldBe empty
+      extractChannelPressures(output) shouldBe empty
+      extractPitchBends(output) should have size 1
+    }
+
+  it should "emit the CC #74 and Channel Pressure a reclassification drop moved" in
+    new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // As above, but the two co-residents of channel 1 carry different values in the other two dimensions, so
+      // dropping one moves the channel's averages.
+      sendPbsMsb(tuner, channel = 1, semitones = 2)
+      noteOn(1, C4, pressure = Some(20), slide = Some(20))
+      noteOn(2, C5)
+      noteOn(3, C3)
+      noteOn(2, C6, pressure = Some(100), slide = Some(100))
+      pitchBendValue(1, 500)
+      pitchBendValue(2, 700)
+
+      // When
+      private val output = sendPbsMsb(tuner, channel = 1, semitones = 48)
+
+      // Then - Channel 1 keeps C6 alone, so both dimensions take its values.
+      extractSlides(output) shouldEqual Seq(CcScMidiMessage(1, ScMidiCc.MpeSlide, 100))
+      extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(1, 100))
+    }
+
+  it should "classify nothing as a High Expression Pitch Bend at a member PBS range no bend can exceed the " +
+    "threshold in" in new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // At ±2 semitones the threshold is 2048 raw, so C4 and C5 coexist on channel 1 with bends below it. C#4
+      // occupies a channel of its own, its -24-cent offset exceeding the degenerate range set below.
+      sendPbsMsb(tuner, channel = 1, semitones = 2)
+      noteOn(1, C4)
+      noteOn(2, Cs4)
+      noteOn(3, C3)
+      noteOn(2, C5)
+      pitchBendValue(1, 500)
+      pitchBendValue(2, 700)
+
+      // When
+      // ±0 semitones 20 cents is a range in which no Pitch Bend value can deviate by more than the 50-cent
+      // threshold, so the threshold becomes unreachable rather than a value the conversion would reject.
+      sendPbsMsb(tuner, channel = 1, semitones = 0)
+      private val output = sendPbsLsb(tuner, channel = 1, cents = 20)
+
+      // Then
+      // Nothing is reclassified and nothing throws: the tuning term is clamped into the degenerate range before
+      // conversion, and the sum is clamped in raw units.
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(0, 20)
+      extractNoteOffs(output) shouldBe empty
+      extractPitchBends(output) shouldEqual Seq(
+        PitchBendScMidiMessage(1, 600),
+        PitchBendScMidiMessage(2, -7492),
+        PitchBendScMidiMessage(3, 0))
     }
 
   // ---- Revert on reset ----
