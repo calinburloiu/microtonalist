@@ -212,6 +212,14 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractScMidiMessages(output: Seq[MidiMessage]): Seq[ScMidiMessage] =
     output.map(_.asScala)
 
+  /**
+   * The raw signed 14-bit Pitch Bend value a deviation in cents takes under a Pitch Bend Sensitivity. Assertions
+   * that mention a raw value pin it with an explicit golden number as well, so they do not become tautologies
+   * against the production conversion.
+   */
+  private def rawPitchBend(cents: Double, pbs: PitchBendSensitivity = defaultPbs): Int =
+    PitchBendScMidiMessage.convertCentsToValue(cents, pbs)
+
   private abstract class Fixture(protected val tuner: MpeTuner = defaultTuner,
                                  initialTuning: Option[Tuning] = None) {
     initialTuning.foreach(tuner.tune)
@@ -229,10 +237,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     def noteOff(channel: Int, note: MidiNote, velocity: Int = 64): Seq[MidiMessage] =
       tuner.process(NoteOffScMidiMessage(channel, note, velocity).asJava)
 
-    def pitchBend(channel: Int, cents: Double): Seq[MidiMessage] = {
-      val value = PitchBendScMidiMessage.convertCentsToValue(cents, defaultPbs)
+    /** Sends a Pitch Bend carrying an exact raw value, for cases where the value itself is what matters. */
+    def pitchBendValue(channel: Int, value: Int): Seq[MidiMessage] =
       tuner.process(PitchBendScMidiMessage(channel, value).asJava)
-    }
+
+    def pitchBend(channel: Int, cents: Double): Seq[MidiMessage] =
+      pitchBendValue(channel, PitchBendScMidiMessage.convertCentsToValue(cents, defaultPbs))
 
     def pressure(channel: Int, value: Int): Seq[MidiMessage] =
       tuner.process(ChannelPressureScMidiMessage(channel, value).asJava)
@@ -3464,21 +3474,53 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       pitchBends.head.centsFor(PitchBendSensitivity(24)).round.toInt shouldEqual -14
     }
 
-  it should "preserve intonation of active note with expression pitch bend after PBS change" in
+  it should "reinterpret the Expression Pitch Bend of an active note under the new PBS, preserving its tuning" in
     new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given - Play E4 on member channel 1 with initial expression PB: tuning offset for E is -14.0 cents
-      private val eExprCents = 293.0
-      private val noteOutput = noteOn(1, E4, 100, pbCents = Some(eExprCents))
+      // Given
+      // E4 on input Member Channel 1 with an Expression Pitch Bend of 293 cents at the default ±48 semitones,
+      // which is raw 500. The tuning offset of E in quarter-comma meantone is -14 cents.
+      private val exprCents = 293.0
+      rawPitchBend(exprCents) shouldEqual 500
+      private val noteOutput = noteOn(1, E4, 100, pbCents = Some(exprCents))
       private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When - Now change member PBS from 48 to 24 semitones
+
+      // When - The member PBS narrows from ±48 to ±24 semitones.
       private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+
       // Then
+      // The tuning term is re-encoded against the new sensitivity while the held raw bend carries over
+      // untouched: -14 cents is -48 raw at ±24, and the raw 500 now means 146.5 cents rather than 293. A
+      // sensitivity change reinterprets a held bend rather than conserving its deviation.
       private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
       pitchBends should have size 1
-      // The output pitch bend should still represent tuning offset + expression bend in cents.
-      // E tuning offset = -14.0 cents; total ≈ -14 + 293 = 279 cents.
-      private val expectedCents = -14.0 + eExprCents
-      pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual expectedCents
+      pitchBends.head.value shouldEqual rawPitchBend(-14.0, PitchBendSensitivity(24)) + 500
+      pitchBends.head.value shouldEqual 452
+    }
+
+  it should "seed a new note's Expression Pitch Bend with the same raw value an active note of its input " +
+    "channel carries, after a member PBS change" in
+    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // 25 cents at the default ±48 semitones is raw 43, and C has a zero tuning offset in quarter-comma
+      // meantone, so an emitted Pitch Bend on a C channel is exactly the raw expression value.
+      rawPitchBend(25.0) shouldEqual 43
+      pitchBend(1, 25.0)
+      private val firstOutput = noteOn(1, C4)
+      private val firstChannel = extractNoteOns(firstOutput).head.channel
+
+      // When
+      // The member PBS changes, then a second note arrives on the same input channel with no intervening Pitch
+      // Bend, so it is seeded from the raw value the tracker still holds.
+      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val secondOutput = noteOn(1, C5)
+      private val secondChannel = extractNoteOns(secondOutput).head.channel
+
+      // Then
+      // The two paths agree, both being the tracker's raw value. Neither the old cents nor the new cents is
+      // privileged: agreement is the property under test.
+      secondChannel should not equal firstChannel
+      extractPitchBends(pbsOutput).filter(_.channel == firstChannel).map(_.value) shouldEqual Seq(43)
+      extractPitchBends(secondOutput).filter(_.channel == secondChannel).map(_.value) shouldEqual Seq(43)
     }
 
   it should "emit a single recomputed pitch bend on each occupied channel after member PBS change, " +

@@ -274,7 +274,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // In MPE Input Mode the note's Expression Values are initialized from the state remembered for its
       // input Member Channel; in Non-MPE Input Mode there are none to take, and the allocator's defaults
       // apply — which is also what keeps CC #74 off the Member Channel in that mode.
-      val expression = Option.when(isMpeInput)(inputExpressionOf(inputChannel, zone))
+      val expression = Option.when(isMpeInput)(inputExpressionOf(inputChannel))
       val preferredChannel = Option.when(isMpeInput && zone.memberChannels.contains(inputChannel))(inputChannel)
 
       val result = alloc.allocate(MpeNoteIdentity(inputChannel, midiNote), expression, preferredChannel)
@@ -303,13 +303,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * The Expression Values a note arriving on an input Member Channel starts with, taken from the control
    * state remembered for that channel — the state-tracking obligation the MPE Specification places on
    * receivers, so that a Pitch Bend, CC #74 or Channel Pressure sent before the Note On is not lost.
+   *
+   * The Pitch Bend is taken exactly as the tracker holds it, with no conversion and no reference to the Zone's
+   * Pitch Bend Sensitivity, which is what keeps it from disagreeing with the value already stored for the notes
+   * active on the same input channel (see [[MpeExpression.pitchBend]]).
    */
-  // TODO #253 The Expression Pitch Bend is re-derived from the tracker's raw Pitch Bend under the Zone's
-  //   current member PBS. After a member PBS change that raw value predates, the cents computed here
-  //   disagree with the cents already stored for active notes, which `applyPbsUpdate` preserves.
-  private def inputExpressionOf(inputChannel: Int, zone: MpeZone): MpeExpression = ImmutableMpeExpression(
-    pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
-      tracker.pitchBend(inputChannel), zone.memberPitchBendSensitivity),
+  private def inputExpressionOf(inputChannel: Int): MpeExpression = ImmutableMpeExpression(
+    pitchBend = tracker.pitchBend(inputChannel),
     pressure = tracker.channelPressure(inputChannel),
     slide = tracker.cc(inputChannel, ScMidiCc.MpeSlide))
 
@@ -338,7 +338,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
           buffer += NoteOffScMidiMessage(outChannel, midiNote, velocity).asJava
 
-          if (result.update.pitchBendCents.isDefined) emitPitchBend(buffer, outChannel, alloc)
+          if (result.update.pitchBend.isDefined) emitPitchBend(buffer, outChannel, alloc)
           emitSlide(buffer, outChannel, result.update)
           if (!result.pressureWasReset) emitPressure(buffer, outChannel, result.update)
 
@@ -356,12 +356,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def processPitchBend(buffer: mutable.Buffer[MidiMessage], msg: PitchBendScMidiMessage,
                                role: MpeChannelRole): Unit = {
-    // Per-note Pitch Bend on an input Member Channel: the note's Expression Pitch Bend. The allocator fans the
-    // update out by itself to every output channel holding a note of this input channel.
+    // Per-note Pitch Bend on an input Member Channel: the note's Expression Pitch Bend, stored as received. The
+    // allocator fans the update out by itself to every output channel holding a note of this input channel.
     allocatorFor(role).foreach { alloc =>
-      val pitchBendCents = PitchBendScMidiMessage.convertValueToCents(
-        msg.value, currentZone(alloc).memberPitchBendSensitivity)
-      emitExpressionUpdateResult(buffer, alloc.updateExpressionPitchBend(msg.channel, pitchBendCents),
+      emitExpressionUpdateResult(buffer, alloc.updateExpressionPitchBend(msg.channel, msg.value),
         alloc, DropReason.OnPitchBend)
     }
   }
@@ -632,12 +630,22 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
+  /**
+   * The Pitch Bend value emitted on an output Member Channel: the Tuning Pitch Bend of the channel's pitch class
+   * plus the channel's aggregated Expression Pitch Bend, summed in raw signed 14-bit units.
+   *
+   * Only the tuning term is converted, [[Tuning]] defining its offsets in cents. It is clamped in the cents domain
+   * first, [[PitchBendScMidiMessage.convertCentsToValue]] carrying a `require` that rejects a value beyond the
+   * sensitivity, and the sum is then clamped to the same interval expressed in raw units. The expression term is
+   * never converted in either direction: the allocator already holds it in the units the wire carries.
+   */
   private def computeOutputPitchBend(channel: Int, alloc: MpeChannelAllocator, zone: MpeZone,
                                      tuningOffsetCents: Double): Int = {
-    val totalCents = tuningOffsetCents + alloc.channelExpression(channel).pitchBendCents
     val pbs = zone.memberPitchBendSensitivity
-    val clampedCents = clampValue(totalCents, -pbs.totalCents, pbs.totalCents)
-    PitchBendScMidiMessage.convertCentsToValue(clampedCents, pbs)
+    val tuningValue = PitchBendScMidiMessage.convertCentsToValue(
+      clampValue(tuningOffsetCents, -pbs.totalCents, pbs.totalCents), pbs)
+    clampValue(tuningValue + alloc.channelExpression(channel).pitchBend,
+      PitchBendScMidiMessage.MinValue, PitchBendScMidiMessage.MaxValue)
   }
 
   /**
@@ -674,7 +682,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def emitExpressionUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
                                    update: MpeExpressionUpdate, alloc: MpeChannelAllocator): Unit = {
-    if (update.pitchBendCents.isDefined) emitPitchBend(buffer, channel, alloc)
+    if (update.pitchBend.isDefined) emitPitchBend(buffer, channel, alloc)
     emitSlide(buffer, channel, update)
     emitPressure(buffer, channel, update)
   }
@@ -774,7 +782,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   private def createAllocator(zone: MpeZone): Option[MpeChannelAllocator] = {
-    if (zone.isEnabled) Some(MpeChannelAllocator(zone)) else None
+    if (zone.isEnabled) {
+      Some(MpeChannelAllocator(zone, expressionPitchBendThresholdOf(zone.memberPitchBendSensitivity)))
+    } else {
+      None
+    }
   }
 
   /**
@@ -805,6 +817,31 @@ object MpeTuner {
 
   /** Every MIDI channel, the scope of the state reset performed by a full re-initialization. */
   private val AllChannels: Set[Int] = (0 until MidiChannelCount).toSet
+
+  /** The paper's High Expression Pitch Bend threshold `t`: an absolute pitch deviation of half a semitone. */
+  private val HighExpressionPitchBendThresholdCents: Double = 50.0
+
+  /**
+   * The threshold used when the threshold in cents is not below the Member Channel Pitch Bend Sensitivity range —
+   * a sender configuring, say, ±0 semitones 20 cents, where no bend the Pitch Bend range can express deviates by
+   * more than `t`. Its value is one greater than the largest magnitude a signed 14-bit Pitch Bend can take, so the
+   * strict `>` of the classification is false for every value, `MinValue` included: nothing is a High Expression
+   * Pitch Bend at such a range, and [[PitchBendScMidiMessage.convertCentsToValue]] — whose `require` rejects a
+   * value beyond the sensitivity — is never called with one.
+   */
+  private val UnreachableExpressionPitchBendThreshold: Int = -PitchBendScMidiMessage.MinValue
+
+  /**
+   * The raw Expression Pitch Bend magnitude an [[MpeChannelAllocator]] classifies a High Expression Pitch Bend
+   * against, for a given Member Channel Pitch Bend Sensitivity.
+   *
+   * A single threshold serves both signs even though [[PitchBendScMidiMessage.convertCentsToValue]] scales
+   * negatives by 8192 and positives by 8191: the discrepancy is below one raw unit — 85.32 against 85.33 at ±48
+   * semitones — and so invisible after rounding at every sensitivity of practical interest.
+   */
+  private def expressionPitchBendThresholdOf(pbs: PitchBendSensitivity): Int =
+    if (HighExpressionPitchBendThresholdCents >= pbs.totalCents) UnreachableExpressionPitchBendThreshold
+    else PitchBendScMidiMessage.convertCentsToValue(HighExpressionPitchBendThresholdCents, pbs)
 }
 
 /**

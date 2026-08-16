@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import com.google.common.math.DoubleMath
 import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
@@ -99,8 +98,9 @@ private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChann
  *
  * '''Expression Values''' are owned here as well, in two layers (see the paper's "Expression Value
  * Processing" section):
- *  - each active [[MpeNoteIdentity]] carries its own [[MpeExpression]] and a reference count, one per Note On
- *    forwarded for it;
+ *  - each active [[MpeNoteIdentity]] carries its own [[MpeExpression]] — with the Expression Pitch Bend in raw
+ *    signed 14-bit units, see [[MpeExpression.pitchBend]] — and a reference count, one per Note On forwarded
+ *    for it;
  *  - each output Member Channel carries an aggregate, the average over its active identities — one term per
  *    identity whatever its reference count — which is '''retained''' unchanged when the channel empties, so
  *    that every dimension has a defined value at all times.
@@ -120,14 +120,21 @@ private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChann
  * built through [[MpeChannelAllocator.retaining]], which transplants the state of the channels untouched by
  * the reconfiguration instead of discarding it.
  *
- * @param zone           The MPE zone to allocate channels for.
- * @param retainedStates The per-channel state to seed this allocator with, keyed by output Member Channel,
- *                       for a Zone reconfiguration that keeps some channels' notes and state. Empty for a
- *                       freshly constructed allocator. Adopted by reference and mutated in place: the caller
- *                       must not keep or reuse these [[MpeChannelState]] instances after passing them in. See
- *                       [[MpeChannelAllocator.retaining]].
+ * @param zone                              The MPE zone to allocate channels for.
+ * @param initialExpressionPitchBendThreshold The raw Expression Pitch Bend magnitude above which a note counts
+ *                                          as having a High Expression Pitch Bend. Supplied by [[MpeTuner]],
+ *                                          which is the only component that knows the Member Channel Pitch Bend
+ *                                          Sensitivity the threshold's definition in cents is evaluated
+ *                                          against. It has no default for that reason.
+ * @param retainedStates                    The per-channel state to seed this allocator with, keyed by
+ *                                          output Member Channel, for a Zone reconfiguration that keeps some
+ *                                          channels' notes and state. Empty for a freshly constructed
+ *                                          allocator. Adopted by reference and mutated in place: the caller
+ *                                          must not keep or reuse these [[MpeChannelState]] instances after
+ *                                          passing them in. See [[MpeChannelAllocator.retaining]].
  */
 private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
+                                         initialExpressionPitchBendThreshold: Int,
                                          retainedStates: Map[Int, MpeChannelState] = Map.empty) {
 
   import MpeChannelAllocator.*
@@ -156,6 +163,8 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    */
   private var _time: Long =
     channelStates.values.map(state => Math.max(state.lastNoteOnTime, state.lastNoteOffTime)).maxOption.getOrElse(0L)
+
+  private var _expressionPitchBendThreshold: Int = initialExpressionPitchBendThreshold
 
   private def nextTime(): Long = {
     _time += 1
@@ -288,13 +297,13 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    * pitch-class invariant has placed those notes, and applies the divergence rule to each affected output
    * channel.
    *
-   * @param inputChannel   The input channel the Pitch Bend arrived on.
-   * @param pitchBendCents The new Expression Pitch Bend in cents.
+   * @param inputChannel The input channel the Pitch Bend arrived on.
+   * @param pitchBend    The new Expression Pitch Bend, as the raw signed 14-bit value received.
    * @return the output channels whose aggregate changed and any notes dropped by the divergence rule.
    */
-  def updateExpressionPitchBend(inputChannel: Int, pitchBendCents: Double): MpeExpressionUpdateResult =
+  def updateExpressionPitchBend(inputChannel: Int, pitchBend: Int): MpeExpressionUpdateResult =
     updateExpressionValues(identitiesOn(inputChannel),
-      (state, noteIdentity) => state.setPitchBendCents(noteIdentity, pitchBendCents),
+      (state, noteIdentity) => state.setPitchBend(noteIdentity, pitchBend),
       applyDivergenceRule)
 
   /**
@@ -335,6 +344,12 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
       (state, noteIdentity) => state.setSlide(noteIdentity, slide))
 
   // State inspection accessors
+
+  /**
+   * The raw Expression Pitch Bend magnitude above which a note counts as having a High Expression Pitch Bend.
+   * Read by [[MpeChannelAllocator.retaining]], which transplants it into the allocator it rebuilds.
+   */
+  def expressionPitchBendThreshold: Int = _expressionPitchBendThreshold
 
   /** The output Member Channel bound to an active note, or `None` when it holds no active count. */
   def channelOf(noteIdentity: MpeNoteIdentity): Option[Int] = noteChannels.get(noteIdentity)
@@ -437,7 +452,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
 
     state.addNote(noteIdentity, actualExpression, time, targetGroup)
     noteChannels(noteIdentity) = state.channel
-    val dropped = dropExistingNotesForHighBend(state, existingIdentities, actualExpression.pitchBendCents, time)
+    val dropped = dropExistingNotesForHighBend(state, existingIdentities, actualExpression.pitchBend, time)
 
     MpeAllocationResult(state.channel, diff(before, state.expression), dropped)
   }
@@ -449,15 +464,15 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    */
   private def dropExistingNotesForHighBend(state: MpeChannelState,
                                            existingIdentities: Set[MpeNoteIdentity],
-                                           newPitchBendCents: Double,
+                                           newPitchBend: Int,
                                            time: Long): Option[MpeDroppedNotes] = {
     if (existingIdentities.isEmpty) {
       None
     } else {
       val existingHighBend = existingIdentities.exists { noteIdentity =>
-        isHighExpressionPitchBend(state.pitchBendCentsOf(noteIdentity))
+        isHighExpressionPitchBend(state.pitchBendOf(noteIdentity))
       }
-      val newHighBend = isHighExpressionPitchBend(newPitchBendCents)
+      val newHighBend = isHighExpressionPitchBend(newPitchBend)
       if (existingHighBend || newHighBend) {
         Some(dropIdentities(state, existingIdentities.toSeq, time))
       } else {
@@ -592,7 +607,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
   private def applyDivergenceRule(state: MpeChannelState): Option[MpeDroppedNotes] = {
     val identities = state.noteIdentities
     val highBendIdentities = identities.filter { noteIdentity =>
-      isHighExpressionPitchBend(state.pitchBendCentsOf(noteIdentity))
+      isHighExpressionPitchBend(state.pitchBendOf(noteIdentity))
     }
 
     if (identities.sizeIs > 1 && highBendIdentities.nonEmpty) {
@@ -624,22 +639,20 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
     MpeDroppedNotes(state.channel, dropped, group)
   }
 
+  private def isHighExpressionPitchBend(pitchBend: Int): Boolean =
+    Math.abs(pitchBend) > _expressionPitchBendThreshold
+
+  private def hasHighExpressionPitchBend(state: MpeChannelState): Boolean =
+    state.noteIdentities.exists(n => isHighExpressionPitchBend(state.pitchBendOf(n)))
+
   /**
-   * Reports which of the three dimensions changed between two aggregates.
-   *
-   * The Expression Pitch Bend is compared within [[DefaultCentsTolerance]] rather than exactly: it is
-   * averaged in `Double`, so a value that is mathematically unchanged can differ in its last bits — three
-   * equal terms divided by three do not give that term back. Without the tolerance such an artifact would
-   * be emitted as a Pitch Bend message. The tolerance is far below the resolution of a Pitch Bend message
-   * — one 14-bit step spans about 0.29 cents at the default ±48-semitone Member Channel sensitivity — so no
-   * change that could reach the wire is suppressed. The other two dimensions are integers and compare
-   * exactly.
+   * Reports which of the three dimensions changed between two aggregates. All three are integers and compare
+   * exactly: a channel's aggregate is what reaches the wire, modulo the tuning term, so a difference here is
+   * exactly a message that has to go out.
    */
   private def diff(before: MpeExpression, after: MpeExpression): MpeExpressionUpdate =
     MpeExpressionUpdate(
-      pitchBendCents = Option.when(
-        !DoubleMath.fuzzyEquals(after.pitchBendCents, before.pitchBendCents, DefaultCentsTolerance))(
-        after.pitchBendCents),
+      pitchBend = Option.when(after.pitchBend != before.pitchBend)(after.pitchBend),
       pressure = Option.when(after.pressure != before.pressure)(after.pressure),
       slide = Option.when(after.slide != before.slide)(after.slide))
 }
@@ -649,12 +662,6 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
  * allocation strategy.
  */
 private[tuner] object MpeChannelAllocator {
-
-  /**
-   * The absolute threshold in cents above which an Expression Pitch Bend is considered "high" and triggers note
-   * dropping on shared channels.
-   */
-  private val ExpressionPitchBendThreshold: Double = 50.0
 
   /**
    * Logical partitioning of Member Channels into two groups to manage note allocation while
@@ -678,12 +685,6 @@ private[tuner] object MpeChannelAllocator {
     case Expression
   }
 
-  private def isHighExpressionPitchBend(pitchBendCents: Double): Boolean =
-    Math.abs(pitchBendCents) > ExpressionPitchBendThreshold
-
-  private def hasHighExpressionPitchBend(state: MpeChannelState): Boolean =
-    state.noteIdentities.exists(n => isHighExpressionPitchBend(state.pitchBendCentsOf(n)))
-
   /**
    * Builds the allocator of a reconfigured Zone, transplanting the state of the channels that keep their role
    * across the reconfiguration, as the paper's Zone-configuration section requires: "Channels of a Zone
@@ -694,6 +695,11 @@ private[tuner] object MpeChannelAllocator {
    * group has room, so an over-subscribed group simply admits no new channel until notes are released — a
    * promise kept by the `unoccupied.nonEmpty` guard on [[allocateFresh]]'s Steps 1 and 2, whose comment
    * cross-references this one so neither can be edited in ignorance of the other.
+   *
+   * The High Expression Pitch Bend threshold is transplanted too: the rebuilt allocator adopts `from`'s, and
+   * [[MpeTuner]] then applies the reconfigured Zone's own threshold through
+   * `setExpressionPitchBendThreshold`, which is also what re-evaluates the transplanted notes. One place
+   * computes the new threshold and one call applies it.
    *
    * @note `from` is consumed, not merely read: the retained [[MpeChannelState]] objects are transplanted into
    *       the returned allocator by reference, and any note whose input channel is affected is removed from
@@ -724,6 +730,6 @@ private[tuner] object MpeChannelAllocator {
     } {
       state.removeNote(noteIdentity, from._time)
     }
-    MpeChannelAllocator(zone, retainedStates)
+    MpeChannelAllocator(zone, from.expressionPitchBendThreshold, retainedStates)
   }
 }
