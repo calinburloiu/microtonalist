@@ -459,6 +459,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // channel's Pitch Bend would otherwise be read against the wrong range, and the threshold has moved under its
     // notes. Lower before Upper, as `tune()` already orders them. An allocator built fresh by `createAllocator`
     // already holds the right threshold and holds no notes, so its call emits nothing and needs no condition.
+    // A Zone the MCM neither addressed nor shrank runs the pass just the same, although its sensitivity — and so
+    // its threshold — did not move: its occupied channels take a redundant, bit-identical Pitch Bend on every
+    // MCM. That is deliberate, in keeping with the paper's commitment to redundant messages for robustness
+    // against receivers that do not fully conform, and not an unguarded case.
     Seq(lowerAllocator, upperAllocator).flatten.foreach(applyExpressionPitchBendThreshold(buffer, _))
 
     // Switch to MPE input mode
@@ -522,6 +526,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   /**
    * Applies a PBS update: updates the internal zone configuration, emits a complete Pitch Bend Sensitivity RPN
    * sequence on the target channel, and recomputes pitch bends on occupied member channels if needed.
+   *
+   * A ''member'' sensitivity change does more than recompute. It moves the High Expression Pitch Bend threshold
+   * under every note the Zone holds, so it can also drop the notes that reclassification leaves diverging on a
+   * shared channel — emitting their Note Offs — and emit CC #74 and Channel Pressure for a channel whose average
+   * such a drop moved. [[emitThresholdUpdateResult]] renders all of that, in the order the paper's "Message
+   * Ordering" section prescribes.
    *
    * The sequence is emitted only on `channel` — not broadcast to all member channels.
    * Per the MPE Specification, the sender is responsible for sending PBS to all member channels;
@@ -881,10 +891,11 @@ object MpeTuner {
   /**
    * The threshold used when the threshold in cents is not below the Member Channel Pitch Bend Sensitivity range —
    * a sender configuring, say, ±0 semitones 20 cents, where no bend the Pitch Bend range can express deviates by
-   * more than `t`. Its value is one greater than the largest magnitude a signed 14-bit Pitch Bend can take, so the
-   * strict `>` of the classification is false for every value, `MinValue` included: nothing is a High Expression
-   * Pitch Bend at such a range, and [[PitchBendScMidiMessage.convertCentsToValue]] — whose `require` rejects a
-   * value beyond the sensitivity — is never called with one.
+   * more than `t`. Its value ''is'' the largest magnitude a signed 14-bit Pitch Bend can take — `MinValue` being
+   * -8192 against `MaxValue`'s 8191 — so the strict `>` of the classification is false for every value, `MinValue`
+   * included: nothing is a High Expression Pitch Bend at such a range, and
+   * [[PitchBendScMidiMessage.convertCentsToValue]] — whose `require` rejects a value beyond the sensitivity — is
+   * never called with one.
    */
   private val UnreachableExpressionPitchBendThreshold: Int = -PitchBendScMidiMessage.MinValue
 

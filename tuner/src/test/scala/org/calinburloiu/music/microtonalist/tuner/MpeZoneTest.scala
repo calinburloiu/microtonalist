@@ -153,10 +153,10 @@ class MpeZoneTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChec
     // When
     val reset = zone.withDefaultPitchBendSensitivities
     // Then
-    reset.zoneType shouldEqual MpeZoneType.Upper
-    reset.memberCount shouldEqual 4
-    reset.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-    reset.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    reset.zoneType shouldBe MpeZoneType.Upper
+    reset.memberCount shouldBe 4
+    reset.masterPitchBendSensitivity shouldBe MpeZone.DefaultMasterPitchBendSensitivity
+    reset.memberPitchBendSensitivity shouldBe MpeZone.DefaultMemberPitchBendSensitivity
   }
 
   // --- MpeZones ---

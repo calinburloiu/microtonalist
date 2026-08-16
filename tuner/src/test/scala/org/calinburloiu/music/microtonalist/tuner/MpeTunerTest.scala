@@ -3146,7 +3146,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   }
 
   it should "reset the Pitch Bend Sensitivity of the Zone shrunk by overlap resolution" in
-    new Fixture(dualZoneTunerMpeInput) {
+    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
       // Given
       // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14. Custom sensitivities on the
       // Upper Zone, which the MCM below does not address.
@@ -3155,15 +3155,27 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
       tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
 
+      // E4 sounding on Upper Member Channel 13, which the shrink below keeps, at its -14-cent offset encoded
+      // against the custom ±24 semitones: -14 / 2400 * 8192 rounds to -48.
+      rawPitchBend(-14.0, PitchBendSensitivity(24)) shouldEqual -48
+      private val noteOutput = noteOn(13, E4)
+      extractNoteOns(noteOutput).head.channel shouldEqual 13
+      extractPitchBends(noteOutput) shouldEqual Seq(
+        PitchBendScMidiMessage(13, rawPitchBend(-14.0, PitchBendSensitivity(24))))
+
       // When
       // An MCM on the Lower Zone forces overlap resolution to shrink the Upper Zone to 4 Members, so the Tuner
       // re-emits the Upper Zone's MCM — which resets that Zone's Pitch Bend Sensitivity at the receiver.
-      sendMcm(tuner, channel = 0, memberCount = 10)
+      private val output = sendMcm(tuner, channel = 0, memberCount = 10)
 
       // Then - The model mirrors the reset the message it emitted performs.
       tuner.zones.upper.memberCount shouldEqual 4
       tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
       tuner.zones.upper.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+      // And the retained channel is retuned against that reset default rather than the custom ±24 semitones,
+      // so the reset must already be in the model when the retuning pass runs: -14 / 4800 * 8192 rounds to -24.
+      rawPitchBend(-14.0) shouldEqual -24
+      extractPitchBends(output) shouldEqual Seq(PitchBendScMidiMessage(13, rawPitchBend(-14.0)))
     }
 
   it should "keep the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone" in
@@ -3661,6 +3673,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         PitchBendScMidiMessage(1, 700),
         PitchBendScMidiMessage(2, 700),
         PitchBendScMidiMessage(3, 0))
+      // And the Note Off precedes every Pitch Bend, the relative order the paper's "Message Ordering" section
+      // gives the control dimensions after a Note Off: the receiver is told the note ended before it is told
+      // the new value of the channel that carried it.
+      private val messages = extractScMidiMessages(output)
+      messages.indexOf(NoteOffScMidiMessage(1, C4)) should be <
+        messages.indexOf(PitchBendScMidiMessage(1, 700))
     }
 
   it should "emit no CC #74 or Channel Pressure from a member PBS change that drops nothing" in

@@ -918,17 +918,18 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   it should "round a fractional average of the integer dimensions half up" in {
     // Given
     val alloc = allocator2 // PCG=1, EG=1
-    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(11, 32, 48)))
+    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
     alloc.allocate(MpeNoteIdentity(2, C5))
     // When
     // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    // All three dimensions average to exactly .5, which truncation would round down and half-even would round
-    // to the even neighbour.
-    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(-20, 97, 97)))
+    // All three dimensions average to exactly .5 above an even value, which truncation would round down and
+    // half-even would round down to as well. A negative half would pin nothing: at -4.5 truncation and half-even
+    // both give -4, exactly what rounding half up gives.
+    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(11, 97, 97)))
     // Then
     shared.channel shouldBe first.channel
     val expression = alloc.channelExpression(shared.channel)
-    expression.pitchBend shouldBe -4 // (11 + -20) / 2 = -4.5
+    expression.pitchBend shouldBe 11 // (10 + 11) / 2 = 10.5
     expression.pressure shouldBe 65 // (32 + 97) / 2 = 64.5
     expression.slide shouldBe 73 // (48 + 97) / 2 = 72.5
   }

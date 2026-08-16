@@ -431,10 +431,12 @@ the Tuner emits — the addressed Zone, and the other Zone when overlap resoluti
 of channels entering or leaving MPE control, because that is the scope the emitted MCM has at the receiver [1, §2.4].
 A channel the reconfiguration left untouched therefore keeps its notes and state while the range its Pitch Bend is
 read against changes underneath them, with two consequences. Its Pitch Bend is re-emitted, encoded against the new
-sensitivity, so the notes it carries keep sounding at the pitch they had. And its notes are reclassified against the
-High Expression Pitch Bend threshold, which is a deviation in cents (Section 5.5) and so moves with the sensitivity;
-the notes this reclassification drops are dropped *after* the MCM, the MCM's own reset being what caused it, unlike
-the reconfiguration's own drops, whose Note Offs precede it.
+sensitivity, so the tuned pitch of the notes it carries is correctly re-encoded. Only that term is preserved: the
+held Expression Pitch Bend is reinterpreted rather than rescaled, so its own contribution in cents moves with the
+sensitivity. And its notes are reclassified against the High Expression Pitch Bend threshold, which is a deviation
+in cents (Section 5.5) and so moves with the sensitivity; the notes this reclassification drops are dropped *after*
+the MCM, the MCM's own reset being what caused it, unlike the reconfiguration's own drops, whose Note Offs precede
+it.
 
 A note counts as affected, and is dropped, when *either* its output channel or its input channel is affected — not its output channel alone. A note's Note Identity (Section 5.1) is an (input channel, note number) pair bound to an output Member Channel, and the two halves can be affected independently: a note received on an input channel that leaves the Zone structure can keep sounding on an output channel the reconfiguration never touches, if that output channel remains a Member Channel of the same Zone throughout. Both halves are dropped, because at that point the Tuner is the only place that still knows the note exists: the performer's eventual Note Off would arrive on the now-unassigned input channel and be discarded (Section 3.7), so nothing else will ever release the binding.
 

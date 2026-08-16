@@ -610,18 +610,19 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
   }
 
   /**
-   * Applies the divergence rule to a channel whose notes have just received a new Expression Pitch Bend:
-   * when the channel holds more than one note and at least one of them now has a High Expression Pitch
-   * Bend, the high-bend note with the greatest onset time — the most recently sounded — survives and every
-   * other note on the channel is dropped.
+   * Applies the divergence rule to a channel whose notes may have just crossed the High Expression Pitch Bend
+   * threshold — either because a new Expression Pitch Bend was written to them, or because the threshold itself
+   * moved under them: when the channel holds more than one note and at least one of them now has a High
+   * Expression Pitch Bend, the high-bend note with the greatest onset time — the most recently sounded —
+   * survives and every other note on the channel is dropped.
    *
-   * Several notes can acquire a high bend at once in two ways. They may share an input channel, the Pitch Bend
-   * being a channel message that belongs to all of them, in which case their bends are identical. Or the
-   * threshold itself may move under them, a member Pitch Bend Sensitivity change reinterpreting every held bend
-   * at once, in which case the co-residents may come from different input channels and carry genuinely different
-   * bends. The resolution is the same either way: retaining the most recently sounded preserves the note the
-   * performer is most likely still shaping, and leaving exactly one note restores the invariant that a high-bend
-   * note is the sole note on its channel.
+   * The single-high-bend case is the paper's rule as written. Several notes can acquire a high bend at once in
+   * two ways. They may share an input channel, the Pitch Bend being a channel message that belongs to all of
+   * them, in which case their bends are identical. Or the threshold itself may move under them, a member Pitch
+   * Bend Sensitivity change reinterpreting every held bend at once, in which case the co-residents may come from
+   * different input channels and carry genuinely different bends. The resolution is the same either way:
+   * retaining the most recently sounded preserves the note the performer is most likely still shaping, and
+   * leaving exactly one note restores the invariant that a high-bend note is the sole note on its channel.
    */
   private def applyDivergenceRule(state: MpeChannelState): Option[MpeDroppedNotes] = {
     val identities = state.noteIdentities
