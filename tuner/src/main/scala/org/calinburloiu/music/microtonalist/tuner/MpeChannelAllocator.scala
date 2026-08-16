@@ -644,7 +644,10 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
       slide = Option.when(after.slide != before.slide)(after.slide))
 }
 
-/** Constants and the [[MpeChannelAllocator.ChannelGroup]] taxonomy of the dual-group allocation strategy. */
+/**
+ * Companion of [[MpeChannelAllocator]], holding the types, constants, helpers and factory methods of the dual-group
+ * allocation strategy.
+ */
 private[tuner] object MpeChannelAllocator {
 
   /**
@@ -693,32 +696,31 @@ private[tuner] object MpeChannelAllocator {
    * cross-references this one so neither can be edited in ignorance of the other.
    *
    * @note `from` is consumed, not merely read: the retained [[MpeChannelState]] objects are transplanted into
-   *       the returned allocator by reference, and any note whose input channel is in `droppedInputChannels`
-   *       is removed from its shared state in place. `from` must not be used again after this call — in
-   *       particular, releasing on `from` a note that this call dropped will fail the reference-count
-   *       invariant `from` no longer holds, because the shared state's note is already gone while `from`'s
-   *       own `noteChannels` binding for it is not. The sole caller ([[MpeTuner]]'s Zone-reconfiguration path)
-   *       discards `from` the moment this method returns.
+   *       the returned allocator by reference, and any note whose input channel is affected is removed from
+   *       its shared state in place. `from` must not be used again after this call — in particular, releasing
+   *       on `from` a note that this call dropped will fail the reference-count invariant `from` no longer
+   *       holds, because the shared state's note is already gone while `from`'s own `noteChannels` binding for
+   *       it is not. The sole caller ([[MpeTuner]]'s Zone-reconfiguration path) discards `from` the moment this
+   *       method returns.
    *
-   * @param zone                 The reconfigured Zone.
-   * @param from                 The allocator of the same Zone before the reconfiguration. Mutated in place and
-   *                             must not be used after this call returns — see the `@note` above.
-   * @param retainedChannels     The output Member Channels that keep their role. Any channel not listed — and
-   *                             any listed channel that the new Zone no longer contains — starts empty, so
-   *                             its notes are dropped.
-   * @param droppedInputChannels Input channels that left or changed their MPE role. A note that arrived on
-   *                             one of them is dropped even when its output channel is retained: the
-   *                             performer's Note Off will arrive on a channel that is no longer under this
-   *                             Zone's control and would be discarded, leaving the note hanging.
+   * @param zone             The reconfigured Zone.
+   * @param from             The allocator of the same Zone before the reconfiguration. Mutated in place and must
+   *                         not be used after this call returns — see the `@note` above.
+   * @param affectedChannels The channels entering or leaving MPE control by the reconfiguration. They are read in
+   *                         both directions, which is why one set suffices. As output channels: a Member Channel
+   *                         of the new Zone keeps its state unless it is affected, and every other channel of the
+   *                         new Zone — one the old Zone did not have — starts empty. As input channels: a note
+   *                         that arrived on an affected channel is dropped even when its output channel is
+   *                         retained, because the performer's Note Off will arrive on a channel that is no longer
+   *                         under this Zone's control and would be discarded, leaving the note hanging.
    */
   def retaining(zone: MpeZoneStructure,
                 from: MpeChannelAllocator,
-                retainedChannels: Set[Int],
-                droppedInputChannels: Set[Int]): MpeChannelAllocator = {
-    val retainedStates = from.statesOf(retainedChannels)
+                affectedChannels: Set[Int]): MpeChannelAllocator = {
+    val retainedStates = from.statesOf(zone.memberChannels.toSet -- affectedChannels)
     for {
       state <- retainedStates.values
-      noteIdentity <- state.noteIdentities if droppedInputChannels.contains(noteIdentity.inputChannel)
+      noteIdentity <- state.noteIdentities if affectedChannels.contains(noteIdentity.inputChannel)
     } {
       state.removeNote(noteIdentity, from._time)
     }

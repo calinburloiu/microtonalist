@@ -2868,7 +2868,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = sendMcm(tuner, channel = 0, memberCount = 15)
 
       // Then
-      extractNoteOffs(output) should contain(NoteOffScMidiMessage(outChannel, C4))
+      // Exactly one Note Off, and no other: a single Note On was forwarded, so a second Note Off for it — or one
+      // for a note that was never struck — would leave the receiver with an unmatched Note Off.
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(outChannel, C4))
     }
 
   behavior of "MpeTuner - MCM Processing - MPE Input"

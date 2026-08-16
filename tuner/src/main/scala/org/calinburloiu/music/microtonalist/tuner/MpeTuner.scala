@@ -393,7 +393,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
-    assert(MpeZone.isValidMemberCount(memberCount), s"An invalid MCM member count of $memberCount reached the Tuner!")
+    assert(MpeZone.isValidMemberCount(memberCount),
+      s"An invalid MCM member count of $memberCount reached the MpeTuner!")
     // Per MPE spec Section 2.4, receiving MCM resets PBS to defaults
     val (zoneType, newZone) = if (channel == 0)
       (MpeZoneType.Lower, MpeZone(MpeZoneType.Lower, memberCount))
@@ -421,7 +422,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // arriving on a channel under no Zone's control, and `allocatorFor` would have no allocator to offer it in
     // any case.
     val affected =
-      if (_inputMode == MpeInputMode.NonMpe) AllChannels else affectedChannels(zonesBefore, zonesAfter)
+      if (_inputMode == MpeInputMode.NonMpe) AllChannels else channelsAffectedByMcm(zonesBefore, zonesAfter)
 
     // Stop the affected notes while the old Zone structure and allocators are still in place. This must emit a
     // Note Off for exactly the notes `rebuildAllocator` drops below when it rebuilds each allocator against
@@ -459,8 +460,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def rebuildAllocator(previous: Option[MpeChannelAllocator],
                                zone: MpeZone,
                                affected: Set[Int]): Option[MpeChannelAllocator] = previous match {
-    case Some(alloc) if zone.isEnabled => Some(MpeChannelAllocator.retaining(zone, alloc,
-      retainedChannels = zone.memberChannels.toSet -- affected, droppedInputChannels = affected))
+    case Some(alloc) if zone.isEnabled => Some(MpeChannelAllocator.retaining(zone, alloc, affected))
     case _ => createAllocator(zone)
   }
 
@@ -550,13 +550,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * The channels whose Zone assignment changes across a reconfiguration — the paper's channels "entering or leaving
-   * MPE control".
+   * The channels whose Zone assignment an MCM changes — the paper's channels "entering or leaving MPE control" —
+   * given the Zone configuration before and after that MCM was applied.
    *
    * Assignments are compared rather than the sets of MPE-controlled channels differenced: a channel handed from one
    * Zone's Member Channels to the other's has both left and entered MPE control, and a set difference would miss it.
    */
-  private def affectedChannels(before: MpeZones, after: MpeZones): Set[Int] =
+  private def channelsAffectedByMcm(before: MpeZones, after: MpeZones): Set[Int] =
     (0 until MidiChannelCount).filter(ch => assignmentOf(before, ch) != assignmentOf(after, ch)).toSet
 
   /**
@@ -564,8 +564,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *
    * The role is asked for in MPE Input Mode explicitly, whatever the Tuner's current mode is: in Non-MPE Input Mode
    * [[MpeMessageRouting.roleOf]] gives every channel the same Zone-routing role irrespective of the Zone layout,
-   * which would make every comparison in [[affectedChannels]] trivially equal. Nothing is lost by it — [[processMcm]]
-   * treats a reconfiguration in Non-MPE Input Mode as affecting every channel and never consults this.
+   * which would make every comparison in [[channelsAffectedByMcm]] trivially equal. Nothing is lost by it —
+   * [[processMcm]] treats a reconfiguration in Non-MPE Input Mode as affecting every channel and never consults this.
    */
   private def assignmentOf(zones: MpeZones, channel: Int): Option[(MpeZoneType, Boolean)] =
     MpeMessageRouting.roleOf(MpeInputMode.Mpe, zones, channel) match {
