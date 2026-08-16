@@ -443,9 +443,23 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val otherZoneAfter = if (channel == 0) upperZone else lowerZone
     if (otherZoneAfter != otherZoneBefore) {
       val otherZoneType = if (channel == 0) MpeZoneType.Upper else MpeZoneType.Lower
-      logger.info(s"$otherZoneType zone adjusted by overlap resolution: $otherZoneAfter")
-      emitMcmSequence(buffer, otherZoneAfter)
+      // The MCM about to be emitted resets that Zone's Pitch Bend Sensitivity at the receiver (MPE spec Section
+      // 2.4), so the model mirrors it. `MpeZones.update` preserves the sensitivity of a Zone that overlap
+      // resolution shrank, which is right at construction and when `applyPbsUpdate` stores one; the reset belongs
+      // to the decision to emit, and only this method makes it. Re-applying the Zone cannot disturb the one just
+      // configured: `zonesAfter` is already non-overlapping, so `wouldOverlap` is false and no shrink retriggers.
+      val resetOtherZone = otherZoneAfter.withDefaultPitchBendSensitivities
+      _zones = _zones.update(resetOtherZone)
+      logger.info(s"$otherZoneType zone adjusted by overlap resolution: $resetOtherZone")
+      emitMcmSequence(buffer, resetOtherZone)
     }
+
+    // Reclassify each Zone's retained notes against its Pitch Bend Sensitivity and retune the channels that kept
+    // them: the receiver has just reset its own sensitivity for every Zone whose MCM went out, so a retained
+    // channel's Pitch Bend would otherwise be read against the wrong range, and the threshold has moved under its
+    // notes. Lower before Upper, as `tune()` already orders them. An allocator built fresh by `createAllocator`
+    // already holds the right threshold and holds no notes, so its call emits nothing and needs no condition.
+    Seq(lowerAllocator, upperAllocator).flatten.foreach(applyExpressionPitchBendThreshold(buffer, _))
 
     // Switch to MPE input mode
     _inputMode = MpeInputMode.Mpe

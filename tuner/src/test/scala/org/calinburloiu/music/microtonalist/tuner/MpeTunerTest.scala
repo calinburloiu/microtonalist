@@ -3019,6 +3019,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val noteOffs = extractNoteOffs(output)
       noteOffs should contain(NoteOffScMidiMessage(droppedChannel, E4))
       noteOffs.filter(_.channel == keptChannel) shouldBe empty
+      // The retained channel is retuned against the Zone's reset Pitch Bend Sensitivity.
+      extractPitchBends(output).map(_.channel) shouldEqual Seq(keptChannel)
     }
 
   it should "keep the notes of channels untouched by the reconfiguration sounding and tunable" in
@@ -3026,8 +3028,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Given
       noteOn(2, C4)
       // When
-      sendMcm(tuner, channel = 0, memberCount = 7)
+      private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 7)
       // Then
+      // The retained channel is retuned by the MCM itself, the reset sensitivity re-encoding its Pitch Bend.
+      extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(2)
       // The retained note is still known: retuning emits a Pitch Bend for its channel.
       private val tuneOutput = tuner.tune(pythagoreanTuning)
       extractPitchBends(tuneOutput).map(_.channel) should contain(2)
@@ -3054,6 +3058,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // The note is stopped on its retained output channel, and its stale Note Off then produces nothing at all.
       extractNoteOffs(mcmOutput) should contain(NoteOffScMidiMessage(outChannel, D4))
       noteOff(6, D4) shouldBe empty
+      // Nothing is left occupied, so the retuning pass emits nothing.
+      extractPitchBends(mcmOutput) shouldBe empty
     }
 
   it should "keep an Upper Zone note when an MCM enables the Lower Zone, leaving the Upper Zone untouched" in
@@ -3074,6 +3080,8 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // still honoured on the output channel it was allocated to.
       extractNoteOffs(mcmOutput) shouldBe empty
       extractNoteOffs(noteOff(8, D4)) should contain(NoteOffScMidiMessage(outChannel, D4))
+      // The Upper Zone's retained channel is retuned all the same: the pass runs on both Zones' allocators.
+      extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(outChannel)
     }
 
   it should "reset the tracked control state of an affected channel only" in
@@ -3136,6 +3144,87 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
     tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
   }
+
+  it should "reset the Pitch Bend Sensitivity of the Zone shrunk by overlap resolution" in
+    new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14. Custom sensitivities on the
+      // Upper Zone, which the MCM below does not address.
+      sendPbsMsb(tuner, channel = 15, semitones = 12)
+      sendPbsMsb(tuner, channel = 8, semitones = 24)
+      tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+      tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+
+      // When
+      // An MCM on the Lower Zone forces overlap resolution to shrink the Upper Zone to 4 Members, so the Tuner
+      // re-emits the Upper Zone's MCM — which resets that Zone's Pitch Bend Sensitivity at the receiver.
+      sendMcm(tuner, channel = 0, memberCount = 10)
+
+      // Then - The model mirrors the reset the message it emitted performs.
+      tuner.zones.upper.memberCount shouldEqual 4
+      tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+      tuner.zones.upper.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    }
+
+  it should "keep the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone" in
+    new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      sendPbsMsb(tuner, channel = 8, semitones = 24)
+      // When
+      // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched, so no MCM is emitted for it
+      // and the receiver's sensitivity for it stands.
+      sendMcm(tuner, channel = 0, memberCount = 4)
+      // Then
+      tuner.zones.upper.memberCount shouldEqual 7
+      tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+    }
+
+  it should "re-emit the Pitch Bend of a retained note against the sensitivity the MCM reset" in
+    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Member PBS narrowed to ±24 semitones, then E4 sounding on output Member Channel 2 at its -14-cent offset.
+      sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val noteOutput = noteOn(2, E4)
+      extractNoteOns(noteOutput).head.channel shouldEqual 2
+      extractPitchBends(noteOutput) shouldEqual Seq(
+        PitchBendScMidiMessage(2, rawPitchBend(-14.0, PitchBendSensitivity(24))))
+
+      // When
+      // An MCM shrinks the Lower Zone to 7 Members. Channel 2 is retained, and the MCM resets the Zone's Pitch
+      // Bend Sensitivity to the ±48-semitone default at the receiver.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+      // Then
+      // The retained channel is retuned, so its Pitch Bend still means -14 cents under the reset sensitivity.
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+      extractPitchBends(output) shouldEqual Seq(PitchBendScMidiMessage(2, rawPitchBend(-14.0)))
+    }
+
+  it should "drop the co-residents of a note the MCM's Pitch Bend Sensitivity reset reclassifies as high-bend" in
+    new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // At ±2 semitones the threshold is 2048 raw, so C4 and C5 coexist on output channel 1 with bends below it.
+      sendPbsMsb(tuner, channel = 1, semitones = 2)
+      noteOn(1, C4)
+      noteOn(2, E4)
+      noteOn(3, C3)
+      noteOn(2, C5)
+      pitchBendValue(1, 500)
+      pitchBendValue(2, 700)
+
+      // When
+      // An MCM that changes no Zone boundary still resets the Zone's Pitch Bend Sensitivity to ±48 semitones,
+      // lowering the threshold to 85 raw and carrying both notes on channel 1 past it.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 3)
+
+      // Then
+      // The latest-onset note survives, and its co-resident's Note Off follows the MCM rather than preceding it:
+      // the MCM's own reset is what caused the reclassification, unlike the reconfiguration's own drops.
+      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(1, C4))
+      private val messages = extractScMidiMessages(output)
+      messages.indexOf(NoteOffScMidiMessage(1, C4)) should be >
+        messages.indexOf(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 3))
+    }
 
   it should "not output PBS messages after MCM" in new Fixture(mpeTunerMpeInput) {
     // When

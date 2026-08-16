@@ -145,6 +145,20 @@ class MpeZoneTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChec
     }
   }
 
+  it should "return the Zone with the specification's default Pitch Bend Sensitivities" in {
+    // Given
+    val zone = MpeZone(MpeZoneType.Upper, 4,
+      masterPitchBendSensitivity = PitchBendSensitivity(12),
+      memberPitchBendSensitivity = PitchBendSensitivity(24))
+    // When
+    val reset = zone.withDefaultPitchBendSensitivities
+    // Then
+    reset.zoneType shouldEqual MpeZoneType.Upper
+    reset.memberCount shouldEqual 4
+    reset.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+    reset.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+  }
+
   // --- MpeZones ---
 
   behavior of "MpeZones"
