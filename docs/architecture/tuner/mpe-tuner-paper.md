@@ -426,6 +426,16 @@ Beyond the non-MIDI configuration interface, the Zone configuration may be chang
 
 The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.3) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64, the centered initial value the MPE Specification prescribes for a bipolar third dimension [1, §3.3.5] — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state.
 
+The Pitch Bend Sensitivity reset has a different scope from the rest of that state. It applies to each Zone whose MCM
+the Tuner emits — the addressed Zone, and the other Zone when overlap resolution changed it — rather than to the set
+of channels entering or leaving MPE control, because that is the scope the emitted MCM has at the receiver [1, §2.4].
+A channel the reconfiguration left untouched therefore keeps its notes and state while the range its Pitch Bend is
+read against changes underneath them, with two consequences. Its Pitch Bend is re-emitted, encoded against the new
+sensitivity, so the notes it carries keep sounding at the pitch they had. And its notes are reclassified against the
+High Expression Pitch Bend threshold, which is a deviation in cents (Section 5.5) and so moves with the sensitivity;
+the notes this reclassification drops are dropped *after* the MCM, the MCM's own reset being what caused it, unlike
+the reconfiguration's own drops, whose Note Offs precede it.
+
 A note counts as affected, and is dropped, when *either* its output channel or its input channel is affected — not its output channel alone. A note's Note Identity (Section 5.1) is an (input channel, note number) pair bound to an output Member Channel, and the two halves can be affected independently: a note received on an input channel that leaves the Zone structure can keep sounding on an output channel the reconfiguration never touches, if that output channel remains a Member Channel of the same Zone throughout. Both halves are dropped, because at that point the Tuner is the only place that still knows the note exists: the performer's eventual Note Off would arrive on the now-unassigned input channel and be discarded (Section 3.7), so nothing else will ever release the binding.
 
 For every dropped note, the Tuner emits an explicit Note Off before the MCM — one per forwarded Note On, as Section 5.1 requires. The two halves of "affected" require this for different reasons. For a note whose *input* channel alone is affected, this Note Off is the receiver's only signal: the output channel's Zone assignment did not change, so the downstream MCM gives even a fully conformant receiver no basis to invoke its own §2.1.4 obligation there. Absent it, the note would never end, and the Tuner would go on to reassign that same output channel to a later note, corrupting the later note's Pitch Bend rather than leaving the earlier one merely hanging. For a note whose *output* channel is affected, a conformant receiver's own §2.1.4 response to the accompanying MCM already ends it, and this Note Off is deliberate redundancy against a receiver that does not fully conform — justified by the same corruption risk, not a cosmetic one, and consistent with this design's priority of intonation precision over minimizing message traffic (Section 5).
@@ -802,6 +812,16 @@ active on the input channel it arrives on (Section 7.2). The rule above then has
 that case the Tuner retains the most recently sounded of them — the one whose Note On is latest — and drops all the
 others. Retaining one preserves the performer's gesture on a voice rather than silencing the channel, and leaving
 exactly one active note restores invariant 2 of Section 6.3, which the incoming message had broken.
+
+Several notes may also cross the threshold with no Pitch Bend message arriving at all. A change to the Member Channel
+Pitch Bend Sensitivity — including the reset an MCM performs (Section 4.2) — reinterprets every held bend at once: `t`
+is an absolute pitch deviation (Section 5.5), and a held Pitch Bend value is reinterpreted rather than rescaled when
+the range changes, so widening the range raises the deviation every held bend represents and can carry several notes
+past `t` simultaneously. Unlike the same-input-channel case, the notes crossing together may carry *different* bends,
+having arrived on different input channels. The resolution is unchanged: the Tuner retains the note with the latest
+onset and drops the rest of the channel, leaving exactly one active note and restoring invariant 2 of Section 6.3. The
+justification differs, there being no single bending gesture to protect — only that the latest-onset note is the one
+the performer is most likely still shaping.
 
 #### 6.2.2 New Note with High Expression Pitch Bend on an Occupied Channel
 
