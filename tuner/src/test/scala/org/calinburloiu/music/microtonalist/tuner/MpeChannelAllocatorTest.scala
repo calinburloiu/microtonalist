@@ -1174,6 +1174,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Then
     rebuilt.channelOf(identity) shouldEqual Some(channel)
     rebuilt.referenceCountOf(identity) shouldEqual 2
+    rebuilt.channelExpression(channel).pitchBendCents shouldEqual 20.0
     rebuilt.channelExpression(channel).pressure shouldEqual 70
     rebuilt.channelExpression(channel).slide shouldEqual 100
     rebuilt.channelPitchClass(channel) shouldEqual Some(MidiNote.C4.pitchClass)
@@ -1225,12 +1226,19 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
   it should "start every channel of the new Zone empty when the reconfiguration affects them all" in {
     // Given
-    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4))
-    alloc.allocate(MpeNoteIdentity(1, MidiNote.C4))
+    // The Lower Zone MpeTuner runs in Non-MPE Input Mode, holding a note on channel 1 — a channel the
+    // reconfigured Zone below still has, so its loss can only come from the affected set.
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15))
+    alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
+    alloc.activeChannelCount shouldEqual 1
 
     // When
-    val grown = MpeZone(MpeZoneType.Lower, 7)
-    val rebuilt = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = grown.memberChannels.toSet)
+    // The first MCM leaves Non-MPE Input Mode, which MpeTuner treats as affecting every channel of the port.
+    // This is the only reconfiguration that affects every Member Channel of a Zone that held notes: a Zone
+    // enabled on both sides of an MCM keeps its anchor channel — 1 for a Lower Zone, 14 for an Upper one —
+    // under an unchanged assignment, and a Zone that was disabled before has no channel state to lose.
+    val configured = MpeZone(MpeZoneType.Lower, 7)
+    val rebuilt = MpeChannelAllocator.retaining(configured, alloc, affectedChannels = (0 until 16).toSet)
 
     // Then
     rebuilt.activeChannelCount shouldEqual 0
