@@ -58,7 +58,7 @@ lazy val root = (project in file("."))
     commonSettings,
     // Aggregate thresholds — enforced by `coverageAggregate` on the combined report from all modules.
     // TODO #183 Raise toward 80% statement and branch coverage once the per-module floors do.
-    coverageSettings(stmt = 71, branch = 65),
+    coverageSettings(stmt = 73, branch = 68),
   )
 
 lazy val appModule = (project in file("app"))
@@ -200,8 +200,7 @@ lazy val tunerModule = (project in file("tuner"))
     name := "microtonalist-tuner",
     commonSettings,
     libraryDependencies ++= Seq(),
-    // TODO #178 Raise branch coverage toward 80% (statement now at the 80% target).
-    coverageSettings(stmt = 80, branch = 75),
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 lazy val formatModule = (project in file("format"))
@@ -251,7 +250,7 @@ lazy val scMidiModule = (project in file("sc-midi"))
       coreMidi4j,
     ),
     // TODO #177 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 62, branch = 44),
+    coverageSettings(stmt = 67, branch = 52),
   )
 
 lazy val experimentsModule = (project in file("experiments"))
