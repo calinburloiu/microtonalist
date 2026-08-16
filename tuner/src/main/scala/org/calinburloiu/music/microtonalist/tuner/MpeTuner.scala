@@ -89,8 +89,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * composed itself, and this can be kept exact rather than guessed — provided it is maintained on both sides.
    *
    * Every sequence emitted on a channel must be recorded here, the closing RPN Null of the Tuner's own MCM and
-   * Pitch Bend Sensitivity sequences included, which is why they go through `mcmMessages` and `pbsSequence`. And
-   * every relayed message that deselects at the receiver must remove the entry: the Tuner authors the parameter
+   * Pitch Bend Sensitivity sequences included, which is why they go through `emitMcmSequence` and `emitPbsSequence`.
+   * And every relayed message that deselects at the receiver must remove the entry: the Tuner authors the parameter
    * selected on its output channels, but not every message that changes it — see
    * [[MpeMessageRouting.deselectsOnRelay]] and the System Reset case in `processShortMessage`.
    *
@@ -127,7 +127,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     _tuning = Tuning.Standard
     resetState()
     warnOnNonMpeInputWithBothZones()
-    buffer ++= configurationMessages()
+    emitConfiguration(buffer)
     buffer.toSeq
   }
 
@@ -136,8 +136,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val buffer = mutable.Buffer[MidiMessage]()
 
     // Update pitch bend on all occupied member channels
-    lowerAllocator.foreach(updateTuningOnZone(_, buffer))
-    upperAllocator.foreach(updateTuningOnZone(_, buffer))
+    lowerAllocator.foreach(updateTuningOnZone(buffer, _))
+    upperAllocator.foreach(updateTuningOnZone(buffer, _))
 
     buffer.toSeq
   }
@@ -183,17 +183,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Returns MCM and PBS messages for all enabled zones in `currentZones`.
+   * Emits the MCM and Pitch Bend Sensitivity sequences of both Zones. Only an enabled Zone contributes Pitch Bend
+   * Sensitivity sequences; see [[emitZonePbsSequences]].
    */
-  private def configurationMessages(): Seq[MidiMessage] = {
-    val buffer = mutable.Buffer[MidiMessage]()
-
-    buffer ++= mcmMessages(lowerZone)
-    buffer ++= pitchBendSensitivityMessages(lowerZone)
-    buffer ++= mcmMessages(upperZone)
-    buffer ++= pitchBendSensitivityMessages(upperZone)
-
-    buffer.toSeq
+  private def emitConfiguration(buffer: mutable.Buffer[MidiMessage]): Unit = {
+    emitMcmSequence(buffer, lowerZone)
+    emitZonePbsSequences(buffer, lowerZone)
+    emitMcmSequence(buffer, upperZone)
+    emitZonePbsSequences(buffer, upperZone)
   }
 
   private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
@@ -441,14 +438,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // resets PBS to defaults upon receiving MCM (MPE spec Section 2.4).
     val updatedZone = if (channel == 0) lowerZone else upperZone
     logger.info(s"$zoneType zone updated: $updatedZone")
-    buffer ++= mcmMessages(updatedZone)
+    emitMcmSequence(buffer, updatedZone)
 
     // Forward MCM for the other zone only if it was changed by overlap resolution
     val otherZoneAfter = if (channel == 0) upperZone else lowerZone
     if (otherZoneAfter != otherZoneBefore) {
       val otherZoneType = if (channel == 0) MpeZoneType.Upper else MpeZoneType.Lower
       logger.info(s"$otherZoneType zone adjusted by overlap resolution: $otherZoneAfter")
-      buffer ++= mcmMessages(otherZoneAfter)
+      emitMcmSequence(buffer, otherZoneAfter)
     }
 
     // Switch to MPE input mode
@@ -543,12 +540,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Emit the complete sequence on the destination channel only, built from the Zone's updated sensitivity
     // rather than relayed byte-for-byte, so that both Data Entry halves are always sent.
     val sensitivity = if (isMaster) updatedZone.masterPitchBendSensitivity else updatedZone.memberPitchBendSensitivity
-    buffer ++= pbsSequence(channel, sensitivity)
+    emitPbsSequence(buffer, channel, sensitivity)
 
     // Recompute pitch bends on occupied member channels if member PBS changed
     if (!isMaster) {
       val alloc = if (updatedZone.zoneType == MpeZoneType.Lower) lowerAllocator else upperAllocator
-      alloc.foreach(updateTuningOnZone(_, buffer))
+      alloc.foreach(updateTuningOnZone(buffer, _))
     }
   }
 
@@ -703,7 +700,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone type.
    */
   private def emitPitchBend(buffer: mutable.Buffer[MidiMessage], channel: Int,
-                                  alloc: MpeChannelAllocator): Unit = {
+                            alloc: MpeChannelAllocator): Unit = {
     val zone = currentZone(alloc)
     alloc.channelPitchClass(channel).foreach { pc =>
       val tuningOffset = _tuning(pc)
@@ -712,8 +709,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def updateTuningOnZone(alloc: MpeChannelAllocator,
-                                 buffer: mutable.Buffer[MidiMessage]): Unit = {
+  private def updateTuningOnZone(buffer: mutable.Buffer[MidiMessage],
+                                 alloc: MpeChannelAllocator): Unit = {
     val zone = currentZone(alloc)
     // Only occupied channels have a pitch class assigned
     for (ch <- zone.memberChannels) {
@@ -726,48 +723,53 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     case MpeZoneType.Upper => upperZone
   }
 
-  private def mcmMessages(zone: MpeZone): Seq[MidiMessage] = {
+  /**
+   * Emits the MPE Configuration Message sequence for a Zone on its Master Channel, recording that its closing RPN
+   * Null leaves that channel with no parameter selected.
+   *
+   * Every MCM sequence the Tuner emits goes through here, and every Pitch Bend Sensitivity one through
+   * [[emitPbsSequence]], so that [[outputRpnSelectors]] can never claim a parameter one of their Nulls has cleared.
+   */
+  private def emitMcmSequence(buffer: mutable.Buffer[MidiMessage], zone: MpeZone): Unit = {
     // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null. The selector and
     // the Null are rendered by `RpnMessages.select`, which decides their transmission order.
     val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
       CcScMidiMessage(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount)
-    val messages = (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullRpnSelector)).map(_.asJava)
+    buffer ++= (sequence ++ RpnMessages.select(zone.masterChannel, RpnMessages.NullRpnSelector)).map(_.asJava)
 
     outputRpnSelectors(zone.masterChannel) = RpnMessages.NullRpnSelector
-    messages
   }
 
   /**
-   * The Pitch Bend Sensitivity sequence for one output channel — selector, both Data Entry halves, closing RPN
+   * Emits the Pitch Bend Sensitivity sequence for one output channel — selector, both Data Entry halves, closing RPN
    * Null — recording that the Null leaves the channel with no parameter selected.
    *
    * Every Pitch Bend Sensitivity sequence the Tuner emits goes through here, and every MCM one through
-   * [[mcmMessages]], so that [[outputRpnSelectors]] can never claim a parameter one of their Nulls has cleared.
+   * [[emitMcmSequence]], so that [[outputRpnSelectors]] can never claim a parameter one of their Nulls has cleared.
    */
-  private def pbsSequence(channel: Int, sensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
+  private def emitPbsSequence(buffer: mutable.Buffer[MidiMessage], channel: Int,
+                              sensitivity: PitchBendSensitivity): Unit = {
     outputRpnSelectors(channel) = RpnMessages.NullRpnSelector
-    PitchBendSensitivityMessages.create(channel, sensitivity)
+    buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
   }
 
   /** The parameter the Tuner last left selected on `channel`, or `RpnSelector.None` when it does not know. */
   private def latchedSelectorOn(channel: Int): RpnSelector =
     outputRpnSelectors.getOrElse(channel, RpnSelector.None)
 
-  private def pitchBendSensitivityMessages(zone: MpeZone): Seq[MidiMessage] = {
+  /**
+   * Emits the Pitch Bend Sensitivity sequences of an enabled Zone: one for its Master Channel and one for each of
+   * its Member Channels. A disabled Zone emits nothing.
+   */
+  private def emitZonePbsSequences(buffer: mutable.Buffer[MidiMessage], zone: MpeZone): Unit = {
     if (zone.isEnabled) {
-      val buffer = mutable.Buffer[MidiMessage]()
-
       // Master channel PBS
-      buffer ++= pbsSequence(zone.masterChannel, zone.masterPitchBendSensitivity)
+      emitPbsSequence(buffer, zone.masterChannel, zone.masterPitchBendSensitivity)
 
       // Member channel PBS
       zone.memberChannels.foreach { ch =>
-        buffer ++= pbsSequence(ch, zone.memberPitchBendSensitivity)
+        emitPbsSequence(buffer, ch, zone.memberPitchBendSensitivity)
       }
-
-      buffer.toSeq
-    } else {
-      Seq.empty
     }
   }
 
