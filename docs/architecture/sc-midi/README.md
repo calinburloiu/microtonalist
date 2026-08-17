@@ -89,8 +89,12 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   end, rewiring the chain automatically on every mutation (and forwarding input straight to the output when empty).
 - **`ScMidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `ScMidiReceiver` (for a single track thread) that
   derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
-  sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages.
-  `MonophonicPitchBendTuner` uses it to track held-note state.
+  sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are
+  **reference-counted**: a note struck twice without an intervening release needs two Note Offs to go inactive, which
+  is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation. Active notes are ordered by their
+  most recent Note On, so a duplicate Note On moves a note to the end of `orderedActiveNotes`.
+  `MonophonicPitchBendTuner` uses it to track held-note state; `MpeTuner` uses it for Master Channel notes, which
+  bypass its allocator.
 
 ### MIDI domain helpers
 
