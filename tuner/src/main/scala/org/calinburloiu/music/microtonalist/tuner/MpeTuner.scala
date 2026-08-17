@@ -424,10 +424,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       if (_inputMode == MpeInputMode.NonMpe) AllChannels else channelsAffectedByMcm(zonesBefore, zonesAfter)
 
     // Stop the affected notes while the old Zone structure and allocators are still in place. This must emit a
-    // Note Off for exactly the notes `rebuildAllocator` drops below — the ones it leaves behind with the channels
-    // it does not retain, plus the ones it drops from the channels it does — each pass reading the same `affected`
-    // set: if they ever disagree on which notes are affected, the result is either a hanging note (dropped without
-    // a Note Off) or an unmatched Note Off (stopped without being dropped).
+    // Note Off for exactly the notes `rebuildAllocator` drops below *for the same reason* — the ones it leaves
+    // behind with the channels it does not retain, plus the ones it takes off the channels it does because their
+    // input channel departed — both passes reading the same `affected` set: if they ever disagree on which notes
+    // are affected, the result is either a hanging note (dropped without a Note Off) or an unmatched Note Off
+    // (stopped without being dropped).
+    //
+    // The rebuild's other drops are not this pass's to emit. Re-applying the divergence rule against the moved
+    // threshold drops notes `affected` does not name; those come back in the rebuild's `MpeExpressionUpdateResult`
+    // and are sounded off by `emitZoneConfigurationResult`. The two sets are disjoint by construction — the
+    // departed-input-channel drop runs first and removes its notes, so the divergence rule can only reach notes
+    // whose input and output channels are both unaffected — which is what keeps a note from taking two Note Offs.
     stopNotesOn(buffer, affected)
 
     _zones = zonesAfter
@@ -478,10 +485,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // receivers that do not fully conform, and not an unguarded case.
     val lowerRebuild = rebuildAllocator(lowerAllocator, lowerZone, affected)
     val upperRebuild = rebuildAllocator(upperAllocator, upperZone, affected)
-    lowerAllocator = lowerRebuild.map(_._1)
-    upperAllocator = upperRebuild.map(_._1)
-    Seq(lowerRebuild, upperRebuild).flatten.foreach { case (alloc, result) =>
-      emitZoneConfigurationResult(buffer, result, alloc)
+    lowerAllocator = lowerRebuild.map(_.allocator)
+    upperAllocator = upperRebuild.map(_.allocator)
+    Seq(lowerRebuild, upperRebuild).flatten.foreach { rebuild =>
+      emitZoneConfigurationResult(buffer, rebuild.settlement, rebuild.allocator)
     }
 
     // Switch to MPE input mode
@@ -494,17 +501,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * disabled loses its allocator altogether.
    *
    * @return the rebuilt allocator and what the caller must emit for it, or `None` for a Zone left with no
-   *         allocator. A Zone whose allocator is built fresh has nothing to settle, so its result is empty; the
-   *         threshold [[createAllocator]] gives it is the same one the transplanting branch injects.
+   *         allocator. A Zone whose allocator is built fresh has nothing to settle, so its settlement is empty;
+   *         the threshold [[createAllocator]] gives it is the same one the transplanting branch injects.
    */
   private def rebuildAllocator(previous: Option[MpeChannelAllocator],
                                zone: MpeZone,
-                               affected: Set[Int]): Option[(MpeChannelAllocator, MpeExpressionUpdateResult)] =
+                               affected: Set[Int]): Option[MpeRebuildResult] =
     previous match {
       case Some(alloc) if zone.isEnabled =>
         Some(MpeChannelAllocator.retaining(zone, alloc, affected,
           expressionPitchBendThresholdOf(zone.memberPitchBendSensitivity)))
-      case _ => createAllocator(zone).map(alloc => (alloc, MpeExpressionUpdateResult()))
+      case _ => createAllocator(zone).map(MpeRebuildResult(_))
     }
 
   /**
@@ -557,7 +564,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * A ''member'' sensitivity change does more than recompute. It moves the High Expression Pitch Bend threshold
    * under every note the Zone holds, so it can also drop the notes that reclassification leaves diverging on a
    * shared channel — emitting their Note Offs — and emit CC #74 and Channel Pressure for a channel whose average
-   * such a drop moved. [[emitThresholdUpdateResult]] renders all of that, in the order the paper's "Message
+   * such a drop moved. [[emitZoneConfigurationResult]] renders all of that, in the order the paper's "Message
    * Ordering" section prescribes.
    *
    * The sequence is emitted only on `channel` — not broadcast to all member channels.

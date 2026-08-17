@@ -1178,8 +1178,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Shrinking the Zone to 4 Members takes Member Channels 5..7 out of MPE control, leaving channel 1 untouched.
     val shrunk = MpeZone(MpeZoneType.Lower, 4)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc,
-      affectedChannels = zone.memberChannels.toSet -- shrunk.memberChannels, expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc,
+      affectedChannels = zone.memberChannels.toSet -- shrunk.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(identity) shouldEqual Some(channel)
@@ -1207,8 +1208,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Shrinking the Zone to 6 Members takes Member Channel 7 out of MPE control, while input channel 2 stays.
     val shrunk = MpeZone(MpeZoneType.Lower, 6)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(7),
-      expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(7),
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(kept) shouldEqual Some(keptChannel)
@@ -1228,8 +1229,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Shrinking the Zone to 5 Members takes Member Channels 6 and 7 out of MPE control — input channel 6 among
     // them — while the note's output channel 1 stays.
     val shrunk = MpeZone(MpeZoneType.Lower, 5)
-    val (rebuilt, result) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7),
-      expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7),
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(identity) shouldEqual None
@@ -1258,8 +1259,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Shrinking the Zone to 2 Members takes Member Channel 3 out of MPE control — the departing note's input
     // channel — while its output channel 1 stays.
-    val (rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
-      affectedChannels = Set(3), expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
+      affectedChannels = Set(3), initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.activeNotes(channel) should contain theSameElementsAs Set(kept)
@@ -1288,8 +1289,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Member Channel 3 leaves MPE control, and the new threshold of 50 carries every note left on channel 1
     // past it.
-    val (rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
-      affectedChannels = Set(3), expressionPitchBendThreshold = 50)
+    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
+      affectedChannels = Set(3), initialExpressionPitchBendThreshold = 50)
 
     // Then
     // The departed note is gone before the divergence rule looks at the channel, so the latest onset among the
@@ -1315,8 +1316,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // enabled on both sides of an MCM keeps its anchor channel — 1 for a Lower Zone, 14 for an Upper one —
     // under an unchanged assignment, and a Zone that was disabled before has no channel state to lose.
     val configured = MpeZone(MpeZoneType.Lower, 7)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(configured, alloc, affectedChannels = (0 until 16).toSet,
-      expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(configured, alloc,
+      affectedChannels = (0 until 16).toSet, initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.activeChannelCount shouldEqual 0
@@ -1331,8 +1332,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Growing the Zone to 7 Members brings Member Channels 5..7 into MPE control; channels 1..4 are untouched.
     val grown = MpeZone(MpeZoneType.Lower, 7)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = Set(5, 6, 7),
-      expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = Set(5, 6, 7),
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(MpeNoteIdentity(1, MidiNote.C4)) shouldEqual Some(1)
@@ -1346,8 +1347,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val zone = MpeZone(MpeZoneType.Lower, 7)
     val alloc = MpeChannelAllocator(zone, threshold)
     // When
-    val (rebuilt, _) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 4), alloc,
-      affectedChannels = Set(5, 6, 7), expressionPitchBendThreshold = 2 * threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 4), alloc,
+      affectedChannels = Set(5, 6, 7), initialExpressionPitchBendThreshold = 2 * threshold)
     // Then
     rebuilt.expressionPitchBendThreshold shouldEqual 2 * threshold
   }
@@ -1369,8 +1370,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     val small = MpeZone(MpeZoneType.Lower, 3)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels, expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     // Nothing throws, and a fresh note still lands on a Member Channel of the new Zone.
@@ -1394,8 +1396,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     val small = MpeZone(MpeZoneType.Lower, 3)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels, expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
@@ -1422,8 +1425,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     val small = MpeZone(MpeZoneType.Lower, 3)
-    val (rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels, expressionPitchBendThreshold = threshold)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
