@@ -652,10 +652,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * stays: the performer's Note Off would arrive on a channel that is no longer under any Zone's control and be
    * discarded, leaving the note hanging.
    *
-   * Member Channel notes get one Note Off per Note On forwarded for them, as [[emitDroppedNoteOffs]] does,
-   * discharging the one-Note-Off-per-Note-On obligation of the paper's "Note Identity and Reference Counting"
-   * section. Master Channel notes get exactly one each: they bypass the allocator, and
-   * [[ScMidiChannelStateTracker]] models a channel's active notes as a set, so no count is available for them.
+   * Every note gets one Note Off per Note On forwarded for it, discharging the one-Note-Off-per-Note-On obligation
+   * of the paper's "Note Identity and Reference Counting" section: Member Channel notes from the allocator's own
+   * reference count, as [[emitDroppedNoteOffs]] does, and Master Channel notes — which bypass the allocator — from
+   * the reference count [[ScMidiChannelStateTracker]] keeps for them.
    */
   private def stopNotesOn(buffer: mutable.Buffer[MidiMessage], channels: Set[Int]): Unit = {
     for {
@@ -668,12 +668,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
 
     if (_inputMode == MpeInputMode.Mpe) {
-      // TODO #254 One Note Off per active note, not one per forwarded Note On: the tracker holds a set of
-      //   active notes with no reference count, so a Master Channel note struck twice leaves one unmatched
-      //   Note On downstream.
       for {
         zone <- Seq(lowerZone, upperZone) if zone.isEnabled && channels.contains(zone.masterChannel)
         midiNote <- tracker.activeNotes(zone.masterChannel)
+        _ <- 1 to tracker.referenceCount(zone.masterChannel, midiNote)
       } {
         buffer += NoteOffScMidiMessage(zone.masterChannel, midiNote).asJava
       }
