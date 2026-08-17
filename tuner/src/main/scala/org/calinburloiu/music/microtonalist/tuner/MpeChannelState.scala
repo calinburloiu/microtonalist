@@ -72,12 +72,12 @@ private[tuner] class MpeChannelState(val channel: Int) {
     _expression
   }
 
-  /** The average of the active notes' Expression Values, rounding the two integer dimensions half up. */
+  /** The average of the active notes' Expression Values, rounding all three dimensions half up. */
   private def averageExpression: ImmutableMpeExpression = {
     val noteStates = _notes.values
     val count = _notes.size
     ImmutableMpeExpression(
-      pitchBendCents = noteStates.map(_.expression.pitchBendCents).sum / count,
+      pitchBend = Math.round(noteStates.map(_.expression.pitchBend).sum.toDouble / count).toInt,
       pressure = Math.round(noteStates.map(_.expression.pressure).sum.toDouble / count).toInt,
       slide = Math.round(noteStates.map(_.expression.slide).sum.toDouble / count).toInt)
   }
@@ -85,15 +85,15 @@ private[tuner] class MpeChannelState(val channel: Int) {
   /** An immutable snapshot of the Expression Values of an active note on this channel. */
   def expressionFor(noteIdentity: MpeNoteIdentity): MpeExpression = {
     val expression = _notes(noteIdentity).expression
-    ImmutableMpeExpression(expression.pitchBendCents, expression.pressure, expression.slide)
+    ImmutableMpeExpression(expression.pitchBend, expression.pressure, expression.slide)
   }
 
   /** The Expression Pitch Bend of an active note, read without copying the other two dimensions. */
-  def pitchBendCentsOf(noteIdentity: MpeNoteIdentity): Double = _notes(noteIdentity).expression.pitchBendCents
+  def pitchBendOf(noteIdentity: MpeNoteIdentity): Int = _notes(noteIdentity).expression.pitchBend
 
   /** Sets the Expression Pitch Bend of an active note, invalidating the channel's aggregate. */
-  def setPitchBendCents(noteIdentity: MpeNoteIdentity, pitchBendCents: Double): Unit = {
-    _notes(noteIdentity).expression.pitchBendCents = pitchBendCents
+  def setPitchBend(noteIdentity: MpeNoteIdentity, pitchBend: Int): Unit = {
+    _notes(noteIdentity).expression.pitchBend = pitchBend
     _isExpressionStale = true
   }
 
@@ -166,7 +166,7 @@ private[tuner] class MpeChannelState(val channel: Int) {
       require(_group.contains(targetGroup),
         s"targetGroup $targetGroup does not match existing group ${_group.orNull} on channel $channel")
     }
-    val noteExpression = MutableMpeExpression(expression.pitchBendCents, expression.pressure, expression.slide)
+    val noteExpression = MutableMpeExpression(expression.pitchBend, expression.pressure, expression.slide)
     _notes(noteIdentity) = MpeNoteState(noteExpression, referenceCount = 1, onsetTime = time)
     _lastNoteOnTime = time
     _isExpressionStale = true

@@ -40,10 +40,19 @@ messages it requires now, and `process(message)` rewrites each message flowing t
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
   pitch-class bend, and reconfigures zones on an MPE Configuration Message. `MpeZone*` models the zone layout, while
   `MpeChannelAllocator` owns both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`,
-  reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from. When
-  a Zone is reconfigured, `MpeChannelAllocator.retaining` rebuilds its allocator, transplanting the state of the
-  Member Channels the reconfiguration left untouched. `MpeTuner` remains the only component aware of the input mode.
-  See [Supported tuning protocols](#supported-tuning-protocols) and the linked design docs.
+  reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
+  Expression Pitch Bend is held in raw signed 14-bit units, exactly as received, and is reinterpreted rather than
+  rescaled when the Member Channel Pitch Bend Sensitivity changes; the allocator classifies a High Expression Pitch Bend
+  against a raw threshold `MpeTuner` injects through the constructor and re-injects through
+  `setExpressionPitchBendThreshold`, which re-applies the divergence rule as part of the assignment. `MpeTuner` is
+  therefore the only component that knows either cents or `PitchBendSensitivity`. When a Zone is reconfigured,
+  `MpeChannelAllocator.retaining` rebuilds its allocator — transplanting the state of the Member Channels the
+  reconfiguration left untouched, then settling the result against the new Zone in one reported pass: dropping the
+  transplanted notes whose *input* channel left MPE control and re-applying the divergence rule against the new
+  threshold, which it takes as an argument rather than carrying over. It returns that report alongside the allocator,
+  so a rebuild cannot leave one behind: every aggregate it moves is measured against what the receiver still holds,
+  a reconfiguration resetting nothing on a channel it left alone. `MpeTuner` remains the only component aware of the
+  input mode. See [Supported tuning protocols](#supported-tuning-protocols) and the linked design docs.
     * The allocator's supporting types live in their own files next to it: `MpeExpression.scala` holds the Expression
       Value model (`MpeExpression` and its `Mutable`/`Immutable` implementations, plus the `MpeExpressionUpdate` /
       `MpeChannelExpressionUpdate` change vocabulary), `MpeNoteIdentity.scala` the note identity, and
@@ -118,6 +127,7 @@ The MPE design has dedicated references (do not duplicate them here):
 - [`mpe-spec.md`](mpe-spec.md) — the MIDI Polyphonic Expression specification (RP-053 v1.0) notes.
 - [`mpe-tuner-paper.md`](mpe-tuner-paper.md) — the MPE Tuner design paper: dual-group Member Channel partitioning,
   non-MPE→MPE conversion, and the deliberate departures from the MPE spec needed for stable microtonal intonation.
+  When updating this paper, always use a concise technical academic tone.
 
 ## Track pipeline
 
@@ -185,9 +195,6 @@ These are signalled directly in the code:
 - `Track#run` is an unimplemented stub (TODO #121); `TrackManager` already provisions a per-track thread pool, but track
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
-- `MpeTuner` seeds a new note's Expression Pitch Bend by re-deriving cents from the input channel's raw Pitch Bend under
-  the Zone's current member Pitch Bend Sensitivity, so after a member PBS change that the raw value predates, the seeded
-  cents disagree with the cents retained for already-active notes (TODO #253).
 - `MpeTuner.stopNotesOn`'s Master Channel branch emits one Note Off per active Master Channel note rather than one per
   forwarded Note On, because `ScMidiChannelStateTracker` tracks active notes as a set with no reference count
   (TODO #254). Member Channel notes, which the allocator reference-counts, are unaffected.

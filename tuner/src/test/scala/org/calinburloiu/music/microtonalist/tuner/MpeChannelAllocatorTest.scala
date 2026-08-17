@@ -28,23 +28,30 @@ import org.scalatest.matchers.should.Matchers
  */
 class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValues {
 
+  /**
+   * The raw High Expression Pitch Bend threshold every allocator in this suite is built with. A plain round number
+   * rather than one derived from a Pitch Bend Sensitivity: the allocator classifies against whatever threshold it is
+   * given and knows nothing of cents. `MpeTunerTest` covers the derivation from a sensitivity.
+   */
+  private val threshold: Int = 100
+
   /** Lower Zone with 15 members: PCG=12, EG=3, channels 1..15 */
-  private def allocator15: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15))
+  private def allocator15: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15), threshold)
 
   /** Lower Zone with 7 members: PCG=5, EG=2, channels 1..7 */
-  private def allocator7: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 7))
+  private def allocator7: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 7), threshold)
 
   /** Lower Zone with 4 members: PCG=2, EG=2, channels 1..4 */
-  private def allocator4: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4))
+  private def allocator4: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4), threshold)
 
   /** Lower Zone with 3 members: PCG=1, EG=2, channels 1..3 */
-  private def allocator3: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 3))
+  private def allocator3: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 3), threshold)
 
   /** Lower Zone with 2 members: PCG=1, EG=1, channels 1..2 */
-  private def allocator2: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 2))
+  private def allocator2: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 2), threshold)
 
   /** Lower Zone with 1 member: PCG=1, EG=0, channels 1..1 */
-  private def allocator1: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 1))
+  private def allocator1: MpeChannelAllocator = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 1), threshold)
 
   import MidiNote.{A4, B4, C4, C5, D4, E4, F4, G4}
 
@@ -52,10 +59,11 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   private val C6: MidiNote = C5 + 12
   private val C7: MidiNote = C5 + 24
 
-  /** High Expression Pitch Bend in cents (> 50 cents threshold) */
-  private val highPitchBendCents: Double = 100.0
-  /** Low Expression Pitch Bend in cents (< 50 cents threshold) */
-  private val lowPitchBendCents: Double = 25.0
+  /** A raw Expression Pitch Bend above `threshold`, so a High Expression Pitch Bend. */
+  private val highPitchBend: Int = 200
+
+  /** A raw Expression Pitch Bend below `threshold`, so not a High Expression Pitch Bend. */
+  private val lowPitchBend: Int = 50
 
   /**
    * Note-centric shorthands for the call sites this suite was originally written against. Each note is
@@ -64,11 +72,11 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
    */
   extension (alloc: MpeChannelAllocator) {
     private def allocateNote(midiNote: MidiNote,
-                             expressionPitchBendCents: Double = MpeExpression.DefaultPitchBendCents,
+                             expressionPitchBend: Int = MpeExpression.DefaultPitchBend,
                              preferredChannel: Option[Int] = None,
                              inputChannel: Int = 0): MpeAllocationResult =
       alloc.allocate(MpeNoteIdentity(inputChannel, midiNote),
-        Some(ImmutableMpeExpression(expressionPitchBendCents)), preferredChannel)
+        Some(ImmutableMpeExpression(expressionPitchBend)), preferredChannel)
 
     private def releaseNote(midiNote: MidiNote, inputChannel: Int = 0): Option[MpeReleaseResult] =
       alloc.release(MpeNoteIdentity(inputChannel, midiNote))
@@ -413,7 +421,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     r1.channel should not equal r2.channel
     alloc.channelPitchClass(r1.channel) shouldBe Some(PitchClass.C)
     alloc.channelPitchClass(r2.channel) shouldBe Some(PitchClass.C)
-    alloc.updateExpressionPitchBend(1, highPitchBendCents)
+    alloc.updateExpressionPitchBend(1, highPitchBend)
     // When
     // The third C must share; it should avoid the high-bend r1 and share r2.
     val r3 = alloc.allocateNote(C3, inputChannel = 3)
@@ -566,7 +574,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocateNote(E4, inputChannel = 2) // candidate, will get a high bend
     alloc.allocateNote(G4, inputChannel = 3) // candidate, no bend
     alloc.allocateNote(B4, inputChannel = 4) // highest (boundary)
-    alloc.updateExpressionPitchBend(2, highPitchBendCents) // E4's channel: high bend
+    alloc.updateExpressionPitchBend(2, highPitchBend) // E4's channel: high bend
     // When
     val result = alloc.allocateNote(A4, inputChannel = 5) // new pitch class -> free a channel
     // Then
@@ -597,7 +605,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val r4 = alloc.allocateNote(C6, inputChannel = 4)
     val sharedChannel = r4.channel
     // When
-    val result = alloc.updateExpressionPitchBend(4, highPitchBendCents)
+    val result = alloc.updateExpressionPitchBend(4, highPitchBend)
     // Then
     result.droppedNotes should not be empty
     alloc.activeMidiNotes(sharedChannel) should contain theSameElementsAs Set(C6)
@@ -611,7 +619,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocateNote(C3, inputChannel = 3)
     alloc.allocateNote(C6, inputChannel = 4)
     // When
-    val result = alloc.updateExpressionPitchBend(4, lowPitchBendCents)
+    val result = alloc.updateExpressionPitchBend(4, lowPitchBend)
     // Then
     result.droppedNotes shouldBe empty
   }
@@ -623,7 +631,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocateNote(C5)
     // When
     // Both channels occupied with C. Third C must share.
-    val result = alloc.allocateNote(C3, highPitchBendCents)
+    val result = alloc.allocateNote(C3, highPitchBend)
     // Then
     assertDroppedNotes(result.droppedNotes, Seq(C4))
     result.channel shouldBe r1.channel
@@ -636,7 +644,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocateNote(C4)
     alloc.allocateNote(C5)
     // When
-    val result = alloc.allocateNote(C3, lowPitchBendCents)
+    val result = alloc.allocateNote(C3, lowPitchBend)
     // Then
     result.droppedNotes shouldBe empty
   }
@@ -644,7 +652,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   it should "free channel when new note is assigned to channel with existing high-bend note" in {
     // Given
     val alloc = allocator2
-    val r1 = alloc.allocateNote(C4, highPitchBendCents)
+    val r1 = alloc.allocateNote(C4, highPitchBend)
     alloc.allocateNote(D4)
     // When
     // Third C must share. r1 has high bend.
@@ -657,7 +665,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   it should "not free channel when new note is assigned to channel with existing low-bend note" in {
     // Given
     val alloc = allocator2
-    alloc.allocateNote(C4, lowPitchBendCents)
+    alloc.allocateNote(C4, lowPitchBend)
     alloc.allocateNote(C5)
     // When
     val result = alloc.allocateNote(C3)
@@ -674,7 +682,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val r4 = alloc.allocateNote(C6, inputChannel = 4)
     val sharedChannel = r4.channel
     // When
-    alloc.updateExpressionPitchBend(4, highPitchBendCents)
+    alloc.updateExpressionPitchBend(4, highPitchBend)
     // Then
     alloc.activeMidiNotes(sharedChannel) should contain theSameElementsAs Set(C6)
   }
@@ -804,21 +812,21 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Given
     val alloc = allocator15
     val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10.0, 32, 48))).channel
+    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
     // When
-    val result = alloc.allocate(identity, Some(ImmutableMpeExpression(20.0, 64, 96)))
+    val result = alloc.allocate(identity, Some(ImmutableMpeExpression(20, 64, 96)))
     // Then
     result.isDuplicate shouldBe true
     result.update shouldBe MpeExpressionUpdate.Unchanged
-    alloc.expressionFor(identity) shouldBe ImmutableMpeExpression(10.0, 32, 48)
-    alloc.channelExpression(channel) shouldBe ImmutableMpeExpression(10.0, 32, 48)
+    alloc.expressionFor(identity) shouldBe ImmutableMpeExpression(10, 32, 48)
+    alloc.channelExpression(channel) shouldBe ImmutableMpeExpression(10, 32, 48)
   }
 
   it should "leave the Expression Values of a duplicate Note On untouched when none are given" in {
     // Given
     val alloc = allocator15
     val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10.0, 32, 48))).channel
+    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
     // When
     val result = alloc.allocate(identity)
     // Then
@@ -840,7 +848,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // A duplicate Note On for the shared note carries a High Expression Pitch Bend. Allocation is bypassed
     // and the Expression Values are ignored, so the channel's set of active notes is unchanged and no
     // divergence can arise: the note never acquires the high bend in the first place.
-    val result = alloc.allocate(third, Some(ImmutableMpeExpression(highPitchBendCents)))
+    val result = alloc.allocate(third, Some(ImmutableMpeExpression(highPitchBend)))
     // Then
     result.isDuplicate shouldBe true
     result.droppedNotes shouldBe empty
@@ -872,54 +880,55 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
   behavior of "MpeChannelAllocator - Expression Value aggregation"
 
-  it should "not report an Expression Pitch Bend change caused only by floating-point rounding" in {
+  it should "report no Expression Pitch Bend change when releasing a note leaves the average unchanged" in {
     // Given
-    // Three notes of the same pitch class share the single Member Channel, all with the same Expression
-    // Pitch Bend, so the channel's average is a sum of three terms divided by three.
+    // Three notes of the same pitch class share the single Member Channel, all with the same Expression Pitch
+    // Bend, so the channel's average is a sum of three equal terms divided by three.
     val alloc = allocator1
-    val expression = Some(ImmutableMpeExpression(0.1))
+    val expression = Some(ImmutableMpeExpression(10))
     alloc.allocate(MpeNoteIdentity(1, C4), expression)
     alloc.allocate(MpeNoteIdentity(2, C4), expression)
     val third = MpeNoteIdentity(3, C4)
     alloc.allocate(third, expression)
     // When
-    // Releasing one leaves two terms averaging to the same value mathematically, but to a `Double` that
-    // differs in its last bits.
+    // Releasing one leaves two terms averaging to the same value.
     val result = alloc.release(third).value
     // Then
-    result.update.pitchBendCents shouldBe None
+    result.update.pitchBend shouldBe None
   }
 
   it should "average the Expression Values of the notes active on a channel" in {
     // Given
     val alloc = allocator2 // PCG=1, EG=1
-    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10.0, 32, 48)))
+    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
     alloc.allocate(MpeNoteIdentity(2, C5))
     // When
     // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(-20.0, 96, 96)))
+    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(-20, 96, 96)))
     // Then
     shared.channel shouldBe first.channel
     val expression = alloc.channelExpression(shared.channel)
-    expression.pitchBendCents shouldBe -5.0
+    expression.pitchBend shouldBe -5
     expression.pressure shouldBe 64
     expression.slide shouldBe 72
-    shared.update shouldBe MpeExpressionUpdate(Some(-5.0), Some(64), Some(72))
+    shared.update shouldBe MpeExpressionUpdate(Some(-5), Some(64), Some(72))
   }
 
   it should "round a fractional average of the integer dimensions half up" in {
     // Given
     val alloc = allocator2 // PCG=1, EG=1
-    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10.0, 32, 48)))
+    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
     alloc.allocate(MpeNoteIdentity(2, C5))
     // When
     // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    // Both integer dimensions average to exactly .5, which truncation would round down and half-even would
-    // round to the even neighbour.
-    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(-20.0, 97, 97)))
+    // All three dimensions average to exactly .5 above an even value, which truncation would round down and
+    // half-even would round down to as well. A negative half would pin nothing: at -4.5 truncation and half-even
+    // both give -4, exactly what rounding half up gives.
+    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(11, 97, 97)))
     // Then
     shared.channel shouldBe first.channel
     val expression = alloc.channelExpression(shared.channel)
+    expression.pitchBend shouldBe 11 // (10 + 11) / 2 = 10.5
     expression.pressure shouldBe 65 // (32 + 97) / 2 = 64.5
     expression.slide shouldBe 73 // (48 + 97) / 2 = 72.5
   }
@@ -928,16 +937,16 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Given
     val alloc = allocator15
     val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10.0, 32, 48))).channel
+    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
     val channelBefore = alloc.channelExpression(channel)
     val noteBefore = alloc.expressionFor(identity)
     // When
-    alloc.updateExpressionPitchBend(1, 30.0)
+    alloc.updateExpressionPitchBend(1, 30)
     // Then
-    channelBefore.pitchBendCents shouldBe 10.0
-    noteBefore.pitchBendCents shouldBe 10.0
-    alloc.channelExpression(channel).pitchBendCents shouldBe 30.0
-    alloc.expressionFor(identity).pitchBendCents shouldBe 30.0
+    channelBefore.pitchBend shouldBe 10
+    noteBefore.pitchBend shouldBe 10
+    alloc.channelExpression(channel).pitchBend shouldBe 30
+    alloc.expressionFor(identity).pitchBend shouldBe 30
   }
 
   it should "return each note's own Expression Values, distinct from the channel's aggregate" in {
@@ -945,35 +954,35 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val alloc = allocator2 // PCG=1, EG=1
     val firstIdentity = MpeNoteIdentity(1, C4)
     val thirdIdentity = MpeNoteIdentity(3, C3)
-    val first = alloc.allocate(firstIdentity, Some(ImmutableMpeExpression(10.0, 32, 48)))
+    val first = alloc.allocate(firstIdentity, Some(ImmutableMpeExpression(10, 32, 48)))
     alloc.allocate(MpeNoteIdentity(2, C5))
     // When
     // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    val shared = alloc.allocate(thirdIdentity, Some(ImmutableMpeExpression(-20.0, 96, 96)))
+    val shared = alloc.allocate(thirdIdentity, Some(ImmutableMpeExpression(-20, 96, 96)))
     // Then
     shared.channel shouldBe first.channel
-    alloc.expressionFor(firstIdentity).pitchBendCents shouldBe 10.0
+    alloc.expressionFor(firstIdentity).pitchBend shouldBe 10
     alloc.expressionFor(firstIdentity).pressure shouldBe 32
     alloc.expressionFor(firstIdentity).slide shouldBe 48
-    alloc.expressionFor(thirdIdentity).pitchBendCents shouldBe -20.0
+    alloc.expressionFor(thirdIdentity).pitchBend shouldBe -20
     alloc.expressionFor(thirdIdentity).pressure shouldBe 96
     alloc.expressionFor(thirdIdentity).slide shouldBe 96
     // The channel's aggregate is the average of the two, not either note's own value.
-    alloc.channelExpression(shared.channel).pitchBendCents shouldBe -5.0
+    alloc.channelExpression(shared.channel).pitchBend shouldBe -5
   }
 
   it should "retain the last Expression Values when the channel becomes unoccupied" in {
     // Given
     val alloc = allocator15
     val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10.0, 32, 48))).channel
+    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
     // When
     val result = alloc.release(identity)
     // Then
     result.value.update shouldBe MpeExpressionUpdate.Unchanged
     alloc.isChannelOccupied(channel) shouldBe false
     val retained = alloc.channelExpression(channel)
-    retained.pitchBendCents shouldBe 10.0
+    retained.pitchBend shouldBe 10
     retained.pressure shouldBe 32
     retained.slide shouldBe 48
   }
@@ -982,7 +991,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Given
     val alloc = allocator15
     val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10.0, 32, 48))).channel
+    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
     // When
     val result = alloc.release(identity, resetPressureOnEmpty = true).value
     // Then
@@ -990,7 +999,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     result.update.pressure shouldBe Some(0)
     alloc.channelExpression(channel).pressure shouldBe 0
     // The other two dimensions are retained.
-    alloc.channelExpression(channel).pitchBendCents shouldBe 10.0
+    alloc.channelExpression(channel).pitchBend shouldBe 10
     alloc.channelExpression(channel).slide shouldBe 48
   }
 
@@ -1032,22 +1041,22 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val eChannel = alloc.allocate(MpeNoteIdentity(1, E4)).channel
     val otherChannel = alloc.allocate(MpeNoteIdentity(2, G4)).channel
     // When
-    val result = alloc.updateExpressionPitchBend(1, 30.0)
+    val result = alloc.updateExpressionPitchBend(1, 30)
     // Then
     result.droppedNotes shouldBe empty
     result.channelUpdates should contain theSameElementsAs Seq(
-      MpeChannelExpressionUpdate(cChannel, MpeExpressionUpdate(pitchBendCents = Some(30.0))),
-      MpeChannelExpressionUpdate(eChannel, MpeExpressionUpdate(pitchBendCents = Some(30.0)))
+      MpeChannelExpressionUpdate(cChannel, MpeExpressionUpdate(pitchBend = Some(30))),
+      MpeChannelExpressionUpdate(eChannel, MpeExpressionUpdate(pitchBend = Some(30)))
     )
-    alloc.channelExpression(otherChannel).pitchBendCents shouldBe 0.0
+    alloc.channelExpression(otherChannel).pitchBend shouldBe 0
   }
 
   it should "report no update for a channel whose average is unchanged" in {
     // Given
     val alloc = allocator15
-    alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(30.0)))
+    alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(30)))
     // When
-    val result = alloc.updateExpressionPitchBend(1, 30.0)
+    val result = alloc.updateExpressionPitchBend(1, 30)
     // Then
     result.channelUpdates shouldBe empty
   }
@@ -1092,7 +1101,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocate(second).channel shouldBe channel
     // When
     // One Pitch Bend message gives both of them a High Expression Pitch Bend.
-    val result = alloc.updateExpressionPitchBend(1, 100.0)
+    val result = alloc.updateExpressionPitchBend(1, highPitchBend)
     // Then
     result.droppedNotes should have size 1
     result.droppedNotes.head.channel shouldBe channel
@@ -1100,7 +1109,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
     alloc.channelOf(first) shouldBe None
     result.channelUpdates shouldEqual Seq(
-      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBendCents = Some(100.0))))
+      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(highPitchBend))))
   }
 
   it should "drop the co-resident note when an Expression Pitch Bend diverges downwards" in {
@@ -1114,7 +1123,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocate(MpeNoteIdentity(3, D4))
     alloc.allocate(second).channel shouldBe channel
     // When
-    val result = alloc.updateExpressionPitchBend(2, -100.0)
+    val result = alloc.updateExpressionPitchBend(2, -highPitchBend)
     // Then
     result.droppedNotes should have size 1
     result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
@@ -1131,7 +1140,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocate(MpeNoteIdentity(3, D4))
     alloc.allocate(second).channel shouldBe channel
     // When
-    val result = alloc.updateExpressionPitchBend(2, 50.0)
+    val result = alloc.updateExpressionPitchBend(2, threshold)
     // Then
     result.droppedNotes shouldBe empty
     alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
@@ -1157,9 +1166,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   it should "keep the notes, reference counts, Expression Values, pitch class and group of a retained channel" in {
     // Given
     val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone)
+    val alloc = MpeChannelAllocator(zone, threshold)
     val identity = MpeNoteIdentity(1, MidiNote.C4)
-    val expression = ImmutableMpeExpression(pitchBendCents = 20.0, pressure = 70, slide = 100)
+    val expression = ImmutableMpeExpression(pitchBend = 20, pressure = 70, slide = 100)
     val channel = alloc.allocate(identity, Some(expression), preferredChannel = Some(1)).channel
     alloc.allocate(identity)
     channel shouldEqual 1
@@ -1168,13 +1177,14 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Shrinking the Zone to 4 Members takes Member Channels 5..7 out of MPE control, leaving channel 1 untouched.
     val shrunk = MpeZone(MpeZoneType.Lower, 4)
-    val rebuilt = MpeChannelAllocator.retaining(shrunk, alloc,
-      affectedChannels = zone.memberChannels.toSet -- shrunk.memberChannels)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc,
+      affectedChannels = zone.memberChannels.toSet -- shrunk.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(identity) shouldEqual Some(channel)
     rebuilt.referenceCountOf(identity) shouldEqual 2
-    rebuilt.channelExpression(channel).pitchBendCents shouldEqual 20.0
+    rebuilt.channelExpression(channel).pitchBend shouldEqual 20
     rebuilt.channelExpression(channel).pressure shouldEqual 70
     rebuilt.channelExpression(channel).slide shouldEqual 100
     rebuilt.channelPitchClass(channel) shouldEqual Some(MidiNote.C4.pitchClass)
@@ -1184,7 +1194,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   it should "drop the notes of a channel that is not retained" in {
     // Given
     val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone)
+    val alloc = MpeChannelAllocator(zone, threshold)
     val kept = MpeNoteIdentity(1, MidiNote.C4)
     val dropped = MpeNoteIdentity(2, MidiNote.E4)
     val keptChannel = alloc.allocate(kept, preferredChannel = Some(1)).channel
@@ -1197,7 +1207,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // When
     // Shrinking the Zone to 6 Members takes Member Channel 7 out of MPE control, while input channel 2 stays.
     val shrunk = MpeZone(MpeZoneType.Lower, 6)
-    val rebuilt = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(7))
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(7),
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(kept) shouldEqual Some(keptChannel)
@@ -1208,7 +1219,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
   it should "drop a note whose input channel left MPE control even when its output channel is retained" in {
     // Given
     val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone)
+    val alloc = MpeChannelAllocator(zone, threshold)
     val identity = MpeNoteIdentity(6, MidiNote.C4)
     val channel = alloc.allocate(identity, preferredChannel = Some(1)).channel
     channel shouldEqual 1
@@ -1217,18 +1228,84 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // Shrinking the Zone to 5 Members takes Member Channels 6 and 7 out of MPE control — input channel 6 among
     // them — while the note's output channel 1 stays.
     val shrunk = MpeZone(MpeZoneType.Lower, 5)
-    val rebuilt = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7))
+    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7),
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(identity) shouldEqual None
     rebuilt.isChannelOccupied(channel) shouldBe false
+    // The drop leaves the channel unoccupied, so it retains its aggregate rather than recomputing over an empty
+    // set: nothing the receiver holds has become wrong, and nothing is reported.
+    result shouldEqual MpeExpressionUpdateResult()
+  }
+
+  it should "report the aggregate a departed note's drop moved on a channel that keeps its other notes" in {
+    // Given
+    // Channel 1 holds two C notes from different input channels, so dropping one moves all three of the
+    // channel's averages.
+    val alloc = allocator3 // PCG=1, EG=2
+    val kept = MpeNoteIdentity(1, C4)
+    val departing = MpeNoteIdentity(3, C5)
+    val channel = alloc.allocate(kept, Some(ImmutableMpeExpression(pitchBend = 10, pressure = 40, slide = 20))).channel
+    alloc.allocate(MpeNoteIdentity(1, D4))
+    alloc.allocate(MpeNoteIdentity(1, E4))
+    alloc.allocate(departing, Some(ImmutableMpeExpression(pitchBend = 30, pressure = 80, slide = 100)))
+      .channel shouldEqual channel
+    alloc.channelExpression(channel).pitchBend shouldEqual 20
+    alloc.channelExpression(channel).pressure shouldEqual 60
+    alloc.channelExpression(channel).slide shouldEqual 60
+
+    // When
+    // Shrinking the Zone to 2 Members takes Member Channel 3 out of MPE control — the departing note's input
+    // channel — while its output channel 1 stays.
+    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
+      affectedChannels = Set(3), initialExpressionPitchBendThreshold = threshold)
+
+    // Then
+    rebuilt.activeNotes(channel) should contain theSameElementsAs Set(kept)
+    result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
+      MpeExpressionUpdate(pitchBend = Some(10), pressure = Some(40), slide = Some(20))))
+    // The departed notes' Note Offs are `MpeTuner`'s to emit, before the allocator is rebuilt, so the rebuild
+    // does not report them a second time.
+    result.droppedNotes shouldBe empty
+  }
+
+  it should "drop the departed notes before re-applying the divergence rule, and report only the latter" in {
+    // Given
+    // Three C notes share channel 1, none of them above the current threshold of 100. The one that will depart
+    // has both the largest bend and the latest onset, so it would win the divergence rule's survivor test if the
+    // two steps ran in the wrong order.
+    val alloc = allocator3 // PCG=1, EG=2
+    val dropped = MpeNoteIdentity(1, C4)
+    val survivor = MpeNoteIdentity(2, C5)
+    val departing = MpeNoteIdentity(3, C6)
+    val channel = alloc.allocate(dropped, Some(ImmutableMpeExpression(60, 40, 20))).channel
+    alloc.allocate(MpeNoteIdentity(1, D4))
+    alloc.allocate(MpeNoteIdentity(1, E4))
+    alloc.allocate(survivor, Some(ImmutableMpeExpression(90, 80, 100))).channel shouldEqual channel
+    alloc.allocate(departing, Some(ImmutableMpeExpression(70, 0, 60))).channel shouldEqual channel
+
+    // When
+    // Member Channel 3 leaves MPE control, and the new threshold of 50 carries every note left on channel 1
+    // past it.
+    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
+      affectedChannels = Set(3), initialExpressionPitchBendThreshold = 50)
+
+    // Then
+    // The departed note is gone before the divergence rule looks at the channel, so the latest onset among the
+    // notes that remain survives.
+    rebuilt.activeNotes(channel) should contain theSameElementsAs Set(survivor)
+    result.droppedNotes.flatMap(_.notes.map(_.noteIdentity)) shouldEqual Seq(dropped)
+    // One report for both drops, measured against the three-note averages the receiver still holds.
+    result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
+      MpeExpressionUpdate(pitchBend = Some(90), pressure = Some(80), slide = Some(100))))
   }
 
   it should "start every channel of the new Zone empty when the reconfiguration affects them all" in {
     // Given
     // The Lower Zone MpeTuner runs in Non-MPE Input Mode, holding a note on channel 1 — a channel the
     // reconfigured Zone below still has, so its loss can only come from the affected set.
-    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15))
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15), threshold)
     alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
     alloc.activeChannelCount shouldEqual 1
 
@@ -1238,7 +1315,8 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // enabled on both sides of an MCM keeps its anchor channel — 1 for a Lower Zone, 14 for an Upper one —
     // under an unchanged assignment, and a Zone that was disabled before has no channel state to lose.
     val configured = MpeZone(MpeZoneType.Lower, 7)
-    val rebuilt = MpeChannelAllocator.retaining(configured, alloc, affectedChannels = (0 until 16).toSet)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(configured, alloc,
+      affectedChannels = (0 until 16).toSet, initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.activeChannelCount shouldEqual 0
@@ -1247,17 +1325,31 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
   it should "start a Member Channel the previous Zone did not have empty" in {
     // Given
-    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4))
+    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4), threshold)
     alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
 
     // When
     // Growing the Zone to 7 Members brings Member Channels 5..7 into MPE control; channels 1..4 are untouched.
     val grown = MpeZone(MpeZoneType.Lower, 7)
-    val rebuilt = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = Set(5, 6, 7))
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = Set(5, 6, 7),
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     rebuilt.channelOf(MpeNoteIdentity(1, MidiNote.C4)) shouldEqual Some(1)
     Seq(5, 6, 7).foreach(rebuilt.isChannelOccupied(_) shouldBe false)
+  }
+
+  it should "adopt the High Expression Pitch Bend threshold of the reconfigured Zone, not the previous one" in {
+    // Given
+    // The threshold is the one piece of state `retaining` does not carry over: only `MpeTuner` knows the Member
+    // Channel Pitch Bend Sensitivity the reconfigured Zone now holds, so it supplies the threshold that implies.
+    val zone = MpeZone(MpeZoneType.Lower, 7)
+    val alloc = MpeChannelAllocator(zone, threshold)
+    // When
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 4), alloc,
+      affectedChannels = Set(5, 6, 7), initialExpressionPitchBendThreshold = 2 * threshold)
+    // Then
+    rebuilt.expressionPitchBendThreshold shouldEqual 2 * threshold
   }
 
   // ---- At-capacity and over-subscribed groups ----
@@ -1269,7 +1361,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // occupy Expression Group channels. Retaining channel 1 (Pitch Class Group) and channels 2-3 (Expression
     // Group) fills both of the smaller Zone's groups to exactly their capacity — not beyond it.
     val big = MpeZone(MpeZoneType.Lower, 10)
-    val alloc = MpeChannelAllocator(big)
+    val alloc = MpeChannelAllocator(big, threshold)
     val identities = Seq(
       MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.C4), MpeNoteIdentity(3, MidiNote.C4))
     val channels = identities.map(alloc.allocate(_).channel).toSet
@@ -1277,8 +1369,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     val small = MpeZone(MpeZoneType.Lower, 3)
-    val rebuilt = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     // Nothing throws, and a fresh note still lands on a Member Channel of the new Zone.
@@ -1294,7 +1387,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // channel count is conserved — leaves the Expression Group nominally under capacity (0 against 2) even
     // though the Zone is, in fact, fully occupied.
     val big = MpeZone(MpeZoneType.Lower, 10)
-    val alloc = MpeChannelAllocator(big)
+    val alloc = MpeChannelAllocator(big, threshold)
     val identities = Seq(
       MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.D4), MpeNoteIdentity(3, MidiNote.E4))
     val channels = identities.map(alloc.allocate(_).channel).toSet
@@ -1302,8 +1395,9 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     val small = MpeZone(MpeZoneType.Lower, 3)
-    val rebuilt = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
@@ -1321,7 +1415,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     // over-subscribes it (3 occupied against a capacity of 2), while leaving the Pitch Class Group nominally
     // under capacity (0 against 1) even though the Zone is, in fact, fully occupied.
     val big = MpeZone(MpeZoneType.Lower, 10)
-    val alloc = MpeChannelAllocator(big)
+    val alloc = MpeChannelAllocator(big, threshold)
     alloc.allocate(MpeNoteIdentity(4, MidiNote.C4), preferredChannel = Some(10))
     val egChannels = Seq(1, 2, 3).map { inputChannel =>
       alloc.allocate(MpeNoteIdentity(inputChannel, MidiNote.C4), preferredChannel = Some(inputChannel)).channel
@@ -1330,13 +1424,56 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     val small = MpeZone(MpeZoneType.Lower, 3)
-    val rebuilt = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels)
+    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+      initialExpressionPitchBendThreshold = threshold)
 
     // Then
     // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
     // Zone, even though the Pitch Class Group's nominal room check finds no actual unoccupied channel to grant.
     val result = rebuilt.allocate(MpeNoteIdentity(5, MidiNote.D4))
     small.memberChannels.toSet should contain(result.channel)
+  }
+
+  behavior of "MpeChannelAllocator - High Expression Pitch Bend threshold"
+
+  it should "re-apply the divergence rule when a lowered threshold reclassifies a shared channel's notes" in {
+    // Given
+    // Two C notes from different input channels share the Pitch Class Group channel, with different bends, both
+    // below the current threshold of 100.
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = MpeNoteIdentity(1, C4)
+    val second = MpeNoteIdentity(2, C5)
+    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
+    alloc.allocate(MpeNoteIdentity(3, D4))
+    alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
+    // When
+    // Both cross the new threshold at once, which the same-input-channel case never produces.
+    val result = alloc.setExpressionPitchBendThreshold(50)
+    // Then
+    // The latest onset survives, the rest of the channel goes, and the channel's aggregate is reported.
+    alloc.expressionPitchBendThreshold shouldEqual 50
+    result.droppedNotes should have size 1
+    result.droppedNotes.head.channel shouldBe channel
+    result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
+    result.channelUpdates shouldEqual Seq(
+      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(90))))
+  }
+
+  it should "drop nothing when a raised threshold leaves every note below it" in {
+    // Given
+    val alloc = allocator2 // PCG=1, EG=1
+    val first = MpeNoteIdentity(1, C4)
+    val second = MpeNoteIdentity(2, C5)
+    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
+    alloc.allocate(MpeNoteIdentity(3, D4))
+    alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
+    // When
+    val result = alloc.setExpressionPitchBendThreshold(150)
+    // Then
+    // The pass only ever drops: nothing is restored, because nothing was retained.
+    result shouldEqual MpeExpressionUpdateResult()
+    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
   }
 }
