@@ -3197,10 +3197,18 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Given
       // Member PBS narrowed to ±24 semitones, then E4 sounding on output Member Channel 2 at its -14-cent offset.
       sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val narrowedPbs = PitchBendSensitivity(24)
       private val noteOutput = noteOn(2, E4)
       extractNoteOns(noteOutput).head.channel shouldEqual 2
-      extractPitchBends(noteOutput) shouldEqual Seq(
-        PitchBendScMidiMessage(2, rawPitchBend(-14.0, PitchBendSensitivity(24))))
+      extractPitchBends(noteOutput) shouldEqual Seq(PitchBendScMidiMessage(2, rawPitchBend(-14.0, narrowedPbs)))
+
+      // And the performer bending that note by 64 raw units, which the Tuner holds as received and sums into the
+      // tuning term. Under ±24 semitones those units mean 18.75 cents.
+      private val expressionPitchBend = 64
+      PitchBendScMidiMessage(2, expressionPitchBend).centsFor(narrowedPbs) shouldEqual 18.75
+      private val bendOutput = pitchBendValue(2, expressionPitchBend)
+      extractPitchBends(bendOutput) shouldEqual Seq(
+        PitchBendScMidiMessage(2, rawPitchBend(-14.0, narrowedPbs) + expressionPitchBend))
 
       // When
       // An MCM shrinks the Lower Zone to 7 Members. Channel 2 is retained, and the MCM resets the Zone's Pitch
@@ -3208,8 +3216,11 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       private val output = sendMcm(tuner, channel = 0, memberCount = 7)
 
       // Then
-      // The retained channel is retuned, so its Pitch Bend still means -14 cents under the reset sensitivity.
-      private val retunedPitchBend = PitchBendScMidiMessage(2, rawPitchBend(-14.0))
+      // The retained channel is retuned, so its tuning term still means -14 cents under the reset sensitivity,
+      // while the held Expression Pitch Bend re-enters the sum at the same 64 raw units: the widened range
+      // reinterprets it as 37.5 cents rather than rescaling it to preserve the 18.75 cents it meant before.
+      PitchBendScMidiMessage(2, expressionPitchBend).cents shouldEqual 37.5
+      private val retunedPitchBend = PitchBendScMidiMessage(2, rawPitchBend(-14.0) + expressionPitchBend)
       private val resetPbsDataEntry = CcScMidiMessage(2, ScMidiCc.DataEntryMsb, defaultPbs.semitones)
       tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
       extractPitchBends(output) shouldEqual Seq(retunedPitchBend)
