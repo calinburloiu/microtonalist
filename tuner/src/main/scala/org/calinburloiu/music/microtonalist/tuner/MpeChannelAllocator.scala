@@ -378,13 +378,13 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    *
    * This is the entry point of a member Pitch Bend Sensitivity change alone. A Zone reconfiguration settles its
    * rebuilt allocator through [[MpeChannelAllocator.retaining]], which injects the new threshold at construction
-   * and runs the same [[settle]] pass with the channels the reconfiguration moved.
+   * and runs the same [[settleAgainstConfiguration]] pass with the channels the reconfiguration moved.
    *
    * @return the output channels whose aggregate changed and any notes dropped by the divergence rule.
    */
   def setExpressionPitchBendThreshold(threshold: Int): MpeExpressionUpdateResult = {
     _expressionPitchBendThreshold = threshold
-    settle(Set.empty)
+    settleAgainstConfiguration(Set.empty)
   }
 
   /** The output Member Channel bound to an active note, or `None` when it holds no active count. */
@@ -668,7 +668,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    *
    * The two are '''one pass''': each channel's aggregate is read once before both and once after both, so the
    * single [[MpeExpressionUpdate]] reported for it measures the net move against the value the receiver actually
-   * holds — which a reconfiguration leaves untouched on a channel it did not affect [1, §2.1.4]. Moving a
+   * holds — which a reconfiguration leaves untouched on a channel it did not affect (MPE Spec §2.1.4). Moving a
    * channel's aggregate outside this pass would compare that aggregate against itself, which is what once left a
    * retained channel's Pitch Bend re-emitted while its CC #74 and Channel Pressure went stale.
    *
@@ -683,7 +683,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
    *         notes dropped for their departed input channel are deliberately absent — see
    *         [[dropNotesFromAffectedInputChannels]].
    */
-  private def settle(affectedInputChannels: Set[Int]): MpeExpressionUpdateResult =
+  private def settleAgainstConfiguration(affectedInputChannels: Set[Int]): MpeExpressionUpdateResult =
     updateExpressionValues(noteChannels.keys.toSeq, (_, _) => (), { state =>
       dropNotesFromAffectedInputChannels(state, affectedInputChannels)
       applyDivergenceRule(state)
@@ -734,7 +734,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
 
   /**
    * Reports which of the three dimensions changed between two aggregates. All three are integers and compare
-   * exactly: a channel's aggregate is what reaches the wire, modulo the tuning term, so a difference here is
+   * exactly: a channel's aggregate is what reaches the wire, except the tuning term, so a difference here is
    * exactly a message that has to go out.
    */
   private def diff(before: MpeExpression, after: MpeExpression): MpeExpressionUpdate =
@@ -784,13 +784,13 @@ private[tuner] object MpeChannelAllocator {
    * cross-references this one so neither can be edited in ignorance of the other.
    *
    * The rebuilt allocator is handed back already consistent with the reconfigured Zone, together with what that
-   * costs the receiver: the transplant is followed by a [[settle]] pass that drops the notes whose ''input''
-   * channel left MPE control and re-applies the divergence rule against the new threshold. Transplanting and
-   * settling are one call rather than two so that neither can happen without the other, and the settling comes
-   * second rather than being folded into the transplant so that every aggregate a rebuild moves does so
-   * ''inside'' the reporting pass, against the value the receiver still holds. Dropping during the transplant
-   * instead, as this method once did, moved them outside any pass and left the receiver holding a stale CC #74
-   * and Channel Pressure.
+   * costs the receiver: the transplant is followed by a [[settleAgainstConfiguration]] pass that drops the notes
+   * whose ''input'' channel left MPE control and re-applies the divergence rule against the new threshold.
+   * Transplanting and settling are one call rather than two so that neither can happen without the other, and
+   * the settling comes second rather than being folded into the transplant so that every aggregate a rebuild
+   * moves does so ''inside'' the reporting pass, against the value the receiver still holds. Dropping during the
+   * transplant instead, as this method once did, moved them outside any pass and left the receiver holding a
+   * stale CC #74 and Channel Pressure.
    *
    * The threshold is the one piece of state that is not carried over but supplied: only [[MpeTuner]] knows the
    * Member Channel Pitch Bend Sensitivity the reconfigured Zone now holds, which the threshold's definition in
@@ -822,8 +822,8 @@ private[tuner] object MpeChannelAllocator {
    *                                            having a High Expression Pitch Bend from now on. Named as the
    *                                            constructor parameter it becomes, since the settling pass
    *                                            classifies against it from the start.
-   * @return the rebuilt allocator and its settlement — see [[settle]] for why the departed notes are absent from
-   *         the latter.
+   * @return the rebuilt allocator and its settlement — see [[settleAgainstConfiguration]] for why the departed
+   *         notes are absent from the latter.
    */
   def retaining(zone: MpeZoneStructure,
                 from: MpeChannelAllocator,
@@ -831,6 +831,6 @@ private[tuner] object MpeChannelAllocator {
                 initialExpressionPitchBendThreshold: Int): MpeRebuildResult = {
     val retainedStates = from.statesOf(zone.memberChannels.toSet -- affectedChannels)
     val allocator = MpeChannelAllocator(zone, initialExpressionPitchBendThreshold, retainedStates)
-    MpeRebuildResult(allocator, allocator.settle(affectedChannels))
+    MpeRebuildResult(allocator, allocator.settleAgainstConfiguration(affectedChannels))
   }
 }

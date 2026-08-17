@@ -891,8 +891,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     val third = MpeNoteIdentity(3, C4)
     alloc.allocate(third, expression)
     // When
-    // Releasing one leaves two terms averaging to the same value. Now that the dimension is integral this is
-    // exact, so `diff` can compare it with `!=` like the other two.
+    // Releasing one leaves two terms averaging to the same value.
     val result = alloc.release(third).value
     // Then
     result.update.pitchBend shouldBe None

@@ -386,9 +386,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *
    * Reconfigures zones (with overlap resolution) and outputs the new configuration messages downstream: for each
    * Zone whose configuration changed, its MCM followed by the Pitch Bend Sensitivity sequences that restate what
-   * that Zone holds. Only the channels entering or leaving MPE control by the reconfiguration have their notes
-   * stopped and their tracked state reset; a Zone untouched by the reconfiguration keeps its notes and state, as
-   * the paper's Zone-configuration section requires.
+   * that Zone holds.
+   *
+   * The addressed Zone has both its Master and its Member Pitch Bend Sensitivity '''reset to the specification's
+   * defaults''' — ±2 and ±48 semitones — because that is what the MCM does at a conforming receiver (MPE Spec
+   * §2.4); the reconfigured Zone is built afresh, so it carries those defaults by construction. A Zone that
+   * overlap resolution merely shrinks in consequence was not addressed by the MCM and keeps its sensitivities.
+   *
+   * Only the channels entering or leaving MPE control by the reconfiguration have their notes stopped and their
+   * tracked state reset; a Zone untouched by the reconfiguration keeps its notes and state, as the paper's
+   * Zone-configuration section requires.
    */
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
@@ -457,9 +464,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       val otherZoneType = if (channel == 0) MpeZoneType.Upper else MpeZoneType.Lower
       // This Zone keeps its Pitch Bend Sensitivity: the received MCM addressed the other Zone, and the MPE
       // Specification does not say whether the Zone that overlap resolution shrinks in response loses its
-      // sensitivity along with its channels. The Tuner follows the prevailing implementation, which does not
-      // reset it — see the paper's "Zones" section. Restating the kept sensitivity after this Zone's own MCM is
-      // what makes that reading safe against a receiver that took the other one and reset it.
+      // sensitivity along with its channels. The Tuner resolves it as JUCE's `MPEZoneLayout` does, narrowing the
+      // yielding Zone's channel range while leaving its sensitivities untouched — see the paper's "Zones"
+      // section. Restating the kept sensitivity after this Zone's own MCM is what makes that reading safe
+      // against a receiver that took the other one and reset it.
       logger.info(s"$otherZoneType zone adjusted by overlap resolution: $otherZoneAfter")
       emitMcmSequence(buffer, otherZoneAfter)
       emitZonePbsSequences(buffer, otherZoneAfter)

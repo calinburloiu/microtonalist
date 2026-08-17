@@ -3158,10 +3158,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // E4 sounding on Upper Member Channel 13, which the shrink below keeps, at its -14-cent offset encoded
       // against the custom ±24 semitones: -14 / 2400 * 8192 rounds to -48.
       rawPitchBend(-14.0, PitchBendSensitivity(24)) shouldEqual -48
+      private val keptPitchBend = PitchBendScMidiMessage(13, rawPitchBend(-14.0, PitchBendSensitivity(24)))
       private val noteOutput = noteOn(13, E4)
       extractNoteOns(noteOutput).head.channel shouldEqual 13
-      extractPitchBends(noteOutput) shouldEqual Seq(
-        PitchBendScMidiMessage(13, rawPitchBend(-14.0, PitchBendSensitivity(24))))
+      extractPitchBends(noteOutput) shouldEqual Seq(keptPitchBend)
 
       // When
       // An MCM on the Lower Zone forces overlap resolution to shrink the Upper Zone to 4 Members, so the Tuner
@@ -3176,8 +3176,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
       // And the retained channel's Pitch Bend still encodes -14 cents against the kept ±24 semitones: the
       // retuning pass re-emits the value the channel already held rather than one rescaled to a reset default.
-      extractPitchBends(output) shouldEqual Seq(
-        PitchBendScMidiMessage(13, rawPitchBend(-14.0, PitchBendSensitivity(24))))
+      extractPitchBends(output) shouldEqual Seq(keptPitchBend)
     }
 
   it should "keep the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone" in
@@ -3210,14 +3209,15 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       // The retained channel is retuned, so its Pitch Bend still means -14 cents under the reset sensitivity.
+      private val retunedPitchBend = PitchBendScMidiMessage(2, rawPitchBend(-14.0))
+      private val resetPbsDataEntry = CcScMidiMessage(2, ScMidiCc.DataEntryMsb, defaultPbs.semitones)
       tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-      extractPitchBends(output) shouldEqual Seq(PitchBendScMidiMessage(2, rawPitchBend(-14.0)))
+      extractPitchBends(output) shouldEqual Seq(retunedPitchBend)
       // And the receiver is told the sensitivity before it is given the Pitch Bend encoded against it, without
       // which it would read that Pitch Bend against the range it still held.
       private val messages = extractScMidiMessages(output)
-      messages should contain(CcScMidiMessage(2, ScMidiCc.DataEntryMsb, defaultPbs.semitones))
-      messages.indexOf(CcScMidiMessage(2, ScMidiCc.DataEntryMsb, defaultPbs.semitones)) should be <
-        messages.indexOf(PitchBendScMidiMessage(2, rawPitchBend(-14.0)))
+      messages should contain(resetPbsDataEntry)
+      messages.indexOf(resetPbsDataEntry) should be < messages.indexOf(retunedPitchBend)
     }
 
   it should "drop the co-residents of a note the MCM's Pitch Bend Sensitivity reset reclassifies as high-bend" in
@@ -3240,10 +3240,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       // The latest-onset note survives, and its co-resident's Note Off follows the MCM rather than preceding it:
       // the MCM's own reset is what caused the reclassification, unlike the reconfiguration's own drops.
-      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(1, C4))
+      private val droppedNoteOff = NoteOffScMidiMessage(1, C4)
+      extractNoteOffs(output) shouldEqual Seq(droppedNoteOff)
       private val messages = extractScMidiMessages(output)
-      messages.indexOf(NoteOffScMidiMessage(1, C4)) should be >
-        messages.indexOf(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 3))
+      messages.indexOf(droppedNoteOff) should be > messages.indexOf(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 3))
     }
 
   it should "correct CC #74 and Channel Pressure on a retained channel a departed note's drop moved" in
@@ -3267,10 +3267,43 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       // Channel 1's averages fall back to C4's own values. The receiver resets nothing on a channel the
-      // reconfiguration left alone [1, §2.1.4], so it still holds the two-note averages and has to be told.
+      // reconfiguration left alone (MPE Spec §2.1.4), so it still holds the two-note averages and has to be told.
       extractNoteOffs(output) should contain(NoteOffScMidiMessage(1, C5))
       extractSlides(output) shouldEqual Seq(CcScMidiMessage(1, ScMidiCc.MpeSlide, 20))
       extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(1, 40))
+    }
+
+  it should "correct CC #74 and Channel Pressure on a channel the MCM's Pitch Bend Sensitivity reset emptied of " +
+    "co-residents" in new Fixture(tuner3MpeInput) {
+      // Given
+      // At ±2 semitones the threshold is 2048 raw. Output Member Channel 1 holds C4 from input channel 1 and C5
+      // from input channel 3 — the pitch-class invariant having placed them together — each carrying its own input
+      // channel's CC #74 and Channel Pressure, so the channel's aggregate of each is the average of the two.
+      sendPbsMsb(tuner, channel = 1, semitones = 2)
+      noteOn(1, C4, pressure = Some(40), slide = Some(20))
+      noteOn(2, D4)
+      noteOn(2, E4)
+      private val sharedOutput = noteOn(3, C5, pressure = Some(80), slide = Some(100))
+      extractNoteOns(sharedOutput).head.channel shouldEqual 1
+      extractSlides(sharedOutput) shouldEqual Seq(CcScMidiMessage(1, ScMidiCc.MpeSlide, 60))
+      extractChannelPressures(sharedOutput) shouldEqual Seq(ChannelPressureScMidiMessage(1, 60))
+      // Both bends stay below the threshold, so the two notes coexist.
+      pitchBendValue(1, 500)
+      pitchBendValue(3, 700)
+
+      // When
+      // An MCM that changes no Zone boundary still resets the Zone's Pitch Bend Sensitivity to ±48 semitones,
+      // lowering the threshold to 85 raw and carrying both notes on channel 1 past it. The divergence rule keeps
+      // the latest-onset note, C5, and drops C4.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 3)
+
+      // Then
+      // Channel 1's averages fall to C5's own values. No channel entered or left MPE control, so the receiver
+      // reset nothing (MPE Spec §2.1.4) and still holds the two-note averages — the drop is what moves them, and
+      // it has to be reported even though the reconfiguration itself moved no channel.
+      extractNoteOffs(output) should contain(NoteOffScMidiMessage(1, C4))
+      extractSlides(output) shouldEqual Seq(CcScMidiMessage(1, ScMidiCc.MpeSlide, 100))
+      extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(1, 80))
     }
 
   it should "output the reconfigured Zone's Pitch Bend Sensitivity on its channels after its MCM" in
@@ -3287,6 +3320,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ccs should contain inOrder(
         CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7),
         CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(0, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
         CcScMidiMessage(0, ScMidiCc.DataEntryMsb, masterPbs.semitones),
         CcScMidiMessage(0, ScMidiCc.DataEntryLsb, masterPbs.cents)
       )
@@ -3320,11 +3354,13 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ccs should contain inOrder(
         CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 4),
         CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
         CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 12)
       )
       (11 to 14).foreach { ch =>
         ccs should contain inOrder(
           CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+          CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
           CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 24)
         )
       }
@@ -3332,6 +3368,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       (8 to 10).foreach { ch =>
         ccs should contain inOrder(
           CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+          CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
           CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, defaultPbs.semitones)
         )
       }
@@ -3767,19 +3804,20 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // Then
       // The latest-onset note survives and the rest of the channel is dropped.
-      extractNoteOffs(output) shouldEqual Seq(NoteOffScMidiMessage(1, C4))
+      private val droppedNoteOff = NoteOffScMidiMessage(1, C4)
+      private val survivorPitchBend = PitchBendScMidiMessage(1, 700)
+      extractNoteOffs(output) shouldEqual Seq(droppedNoteOff)
       // One recomputed Pitch Bend per occupied Member Channel, C having a zero tuning offset in quarter-comma
       // meantone: channel 1 now carries C6's bend alone.
       extractPitchBends(output) shouldEqual Seq(
-        PitchBendScMidiMessage(1, 700),
+        survivorPitchBend,
         PitchBendScMidiMessage(2, 700),
         PitchBendScMidiMessage(3, 0))
       // And the Note Off precedes every Pitch Bend, the relative order the paper's "Message Ordering" section
       // gives the control dimensions after a Note Off: the receiver is told the note ended before it is told
       // the new value of the channel that carried it.
       private val messages = extractScMidiMessages(output)
-      messages.indexOf(NoteOffScMidiMessage(1, C4)) should be <
-        messages.indexOf(PitchBendScMidiMessage(1, 700))
+      messages.indexOf(droppedNoteOff) should be < messages.indexOf(survivorPitchBend)
     }
 
   it should "emit no CC #74 or Channel Pressure from a member PBS change that drops nothing" in
