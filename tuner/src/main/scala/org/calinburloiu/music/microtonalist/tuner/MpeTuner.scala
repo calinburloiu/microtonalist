@@ -384,10 +384,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   /**
    * Processes an incoming MPE Configuration Message (MCM).
    *
-   * Reconfigures zones (with overlap resolution) and outputs the new configuration messages downstream. Only the
-   * channels entering or leaving MPE control by the reconfiguration have their notes stopped and their tracked
-   * state reset; a Zone untouched by the reconfiguration keeps its notes and state, as the paper's
-   * Zone-configuration section requires.
+   * Reconfigures zones (with overlap resolution) and outputs the new configuration messages downstream: for each
+   * Zone whose configuration changed, its MCM followed by the Pitch Bend Sensitivity sequences that restate what
+   * that Zone holds. Only the channels entering or leaving MPE control by the reconfiguration have their notes
+   * stopped and their tracked state reset; a Zone untouched by the reconfiguration keeps its notes and state, as
+   * the paper's Zone-configuration section requires.
    */
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
@@ -435,11 +436,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     lowerAllocator = rebuildAllocator(lowerAllocator, lowerZone, affected)
     upperAllocator = rebuildAllocator(upperAllocator, upperZone, affected)
 
-    // Forward MCM for the updated zone. PBS is not sent because the downstream receiver
-    // resets PBS to defaults upon receiving MCM (MPE spec Section 2.4).
+    // Forward MCM for the updated zone, and restate the Pitch Bend Sensitivity the Zone holds afterwards on every
+    // one of its channels. A conforming receiver resets it to the defaults on the MCM itself (MPE spec Section
+    // 2.4) — which is exactly what a freshly configured Zone carries — so the restatement is idempotent there, and
+    // it repairs a receiver that does not perform that reset. It must follow the MCM: a receiver that does reset
+    // would otherwise overwrite it. And it must precede the retuning pass below, whose Pitch Bends are encoded
+    // against this sensitivity.
     val updatedZone = if (channel == 0) lowerZone else upperZone
     logger.info(s"$zoneType zone updated: $updatedZone")
     emitMcmSequence(buffer, updatedZone)
+    emitZonePbsSequences(buffer, updatedZone)
 
     // Forward MCM for the other zone only if it was changed by overlap resolution
     val otherZoneAfter = if (channel == 0) upperZone else lowerZone
@@ -448,9 +454,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // This Zone keeps its Pitch Bend Sensitivity: the received MCM addressed the other Zone, and the MPE
       // Specification does not say whether the Zone that overlap resolution shrinks in response loses its
       // sensitivity along with its channels. The Tuner follows the prevailing implementation, which does not
-      // reset it — see the paper's "Zones" section.
+      // reset it — see the paper's "Zones" section. Restating the kept sensitivity after this Zone's own MCM is
+      // what makes that reading safe against a receiver that took the other one and reset it.
       logger.info(s"$otherZoneType zone adjusted by overlap resolution: $otherZoneAfter")
       emitMcmSequence(buffer, otherZoneAfter)
+      emitZonePbsSequences(buffer, otherZoneAfter)
     }
 
     // Settle each Zone's retained channels: drop the notes `rebuildAllocator` transplanted from an input channel

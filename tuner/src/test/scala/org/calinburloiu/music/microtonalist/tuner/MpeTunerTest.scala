@@ -3212,6 +3212,12 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // The retained channel is retuned, so its Pitch Bend still means -14 cents under the reset sensitivity.
       tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
       extractPitchBends(output) shouldEqual Seq(PitchBendScMidiMessage(2, rawPitchBend(-14.0)))
+      // And the receiver is told the sensitivity before it is given the Pitch Bend encoded against it, without
+      // which it would read that Pitch Bend against the range it still held.
+      private val messages = extractScMidiMessages(output)
+      messages should contain(CcScMidiMessage(2, ScMidiCc.DataEntryMsb, defaultPbs.semitones))
+      messages.indexOf(CcScMidiMessage(2, ScMidiCc.DataEntryMsb, defaultPbs.semitones)) should be <
+        messages.indexOf(PitchBendScMidiMessage(2, rawPitchBend(-14.0)))
     }
 
   it should "drop the co-residents of a note the MCM's Pitch Bend Sensitivity reset reclassifies as high-bend" in
@@ -3267,16 +3273,82 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(1, 40))
     }
 
-  it should "not output PBS messages after MCM" in new Fixture(mpeTunerMpeInput) {
-    // When
-    private val output = sendMcm(tuner, channel = 0, memberCount = 7)
-    // Then
-    private val ccs = extractCc(output)
-    // PBS RPN uses LSB=0, while MCM RPN uses LSB=6; no PBS RPN should appear in the output
-    private val pbsRpnMessages = ccs.filter(cc =>
-      cc.number == ScMidiCc.RpnLsb && cc.value == ScMidiRpn.PitchBendSensitivityLsb)
-    pbsRpnMessages shouldBe empty
-  }
+  it should "output the reconfigured Zone's Pitch Bend Sensitivity on its channels after its MCM" in
+    new Fixture(mpeTunerMpeInput) {
+      // When
+      // The Lower Zone goes from 15 Member Channels to 7, so afterwards its Master Channel is 0 and its Member
+      // Channels are 1..7.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+      // Then
+      // A conforming receiver performs this reset itself on the MCM, so restating it is idempotent there and
+      // corrective on a receiver that does not.
+      private val ccs = extractCc(output)
+      ccs should contain inOrder(
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 7),
+        CcScMidiMessage(0, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(0, ScMidiCc.DataEntryMsb, masterPbs.semitones),
+        CcScMidiMessage(0, ScMidiCc.DataEntryLsb, masterPbs.cents)
+      )
+      (1 to 7).foreach { ch =>
+        ccs should contain inOrder(
+          CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+          CcScMidiMessage(ch, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+          CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, defaultPbs.semitones),
+          CcScMidiMessage(ch, ScMidiCc.DataEntryLsb, defaultPbs.cents)
+        )
+      }
+      // And no Control Change reaches a channel the reconfiguration took out of the Zone.
+      (8 to 15).foreach { ch => ccs.filter(_.channel == ch) shouldBe empty }
+    }
+
+  it should "output the kept Pitch Bend Sensitivity of the Zone shrunk by overlap resolution on its channels" in
+    new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given custom sensitivities.
+      sendPbsMsb(tuner, channel = 15, semitones = 12)
+      sendPbsMsb(tuner, channel = 8, semitones = 24)
+
+      // When
+      // An MCM on the Lower Zone shrinks the Upper Zone to 4 Members: Master 15, Members 11..14.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 10)
+
+      // Then
+      // The Upper Zone kept its sensitivities, and the MCM that overlap resolution forces out restates them, so a
+      // receiver that did reset them on that MCM is brought back into step with the model.
+      private val ccs = extractCc(output)
+      ccs should contain inOrder(
+        CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 4),
+        CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+        CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 12)
+      )
+      (11 to 14).foreach { ch =>
+        ccs should contain inOrder(
+          CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+          CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, 24)
+        )
+      }
+      // And the channels handed to the Lower Zone take that Zone's member default instead.
+      (8 to 10).foreach { ch =>
+        ccs should contain inOrder(
+          CcScMidiMessage(ch, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+          CcScMidiMessage(ch, ScMidiCc.DataEntryMsb, defaultPbs.semitones)
+        )
+      }
+    }
+
+  it should "output no Pitch Bend Sensitivity for a Zone the reconfiguration leaves alone" in
+    new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      sendPbsMsb(tuner, channel = 8, semitones = 24)
+      // When
+      // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched, so no MCM is emitted for it
+      // and nothing at the receiver has disturbed its sensitivity.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 4)
+      // Then
+      private val ccs = extractCc(output)
+      (8 to 15).foreach { ch => ccs.filter(_.channel == ch) shouldBe empty }
+    }
 
   it should "keep the active Tuning when an MCM reconfigures the Zones" in
     new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
