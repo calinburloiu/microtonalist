@@ -46,9 +46,13 @@ messages it requires now, and `process(message)` rewrites each message flowing t
   against a raw threshold `MpeTuner` injects through the constructor and re-injects through
   `setExpressionPitchBendThreshold`, which re-applies the divergence rule as part of the assignment. `MpeTuner` is
   therefore the only component that knows either cents or `PitchBendSensitivity`. When a Zone is reconfigured,
-  `MpeChannelAllocator.retaining` rebuilds its allocator, transplanting the state of the Member Channels the
-  reconfiguration left untouched. `MpeTuner` remains the only component aware of the input mode. See [Supported tuning
-  protocols](#supported-tuning-protocols) and the linked design docs.
+  `MpeChannelAllocator.retaining` rebuilds its allocator — transplanting the state of the Member Channels the
+  reconfiguration left untouched, then settling the result against the new Zone in one reported pass: dropping the
+  transplanted notes whose *input* channel left MPE control and re-applying the divergence rule against the new
+  threshold, which it takes as an argument rather than carrying over. It returns that report alongside the allocator,
+  so a rebuild cannot leave one behind: every aggregate it moves is measured against what the receiver still holds,
+  a reconfiguration resetting nothing on a channel it left alone. `MpeTuner` remains the only component aware of the
+  input mode. See [Supported tuning protocols](#supported-tuning-protocols) and the linked design docs.
     * The allocator's supporting types live in their own files next to it: `MpeExpression.scala` holds the Expression
       Value model (`MpeExpression` and its `Mutable`/`Immutable` implementations, plus the `MpeExpressionUpdate` /
       `MpeChannelExpressionUpdate` change vocabulary), `MpeNoteIdentity.scala` the note identity, and
@@ -122,7 +126,8 @@ The MPE design has dedicated references (do not duplicate them here):
 
 - [`mpe-spec.md`](mpe-spec.md) — the MIDI Polyphonic Expression specification (RP-053 v1.0) notes.
 - [`mpe-tuner-paper.md`](mpe-tuner-paper.md) — the MPE Tuner design paper: dual-group Member Channel partitioning,
-  non-MPE→MPE conversion, and the deliberate departures from the MPE spec needed for stable microtonal intonation. When updating this paper, always use a concise technical academic tone.
+  non-MPE→MPE conversion, and the deliberate departures from the MPE spec needed for stable microtonal intonation.
+  When updating this paper, always use a concise technical academic tone.
 
 ## Track pipeline
 

@@ -424,15 +424,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       if (_inputMode == MpeInputMode.NonMpe) AllChannels else channelsAffectedByMcm(zonesBefore, zonesAfter)
 
     // Stop the affected notes while the old Zone structure and allocators are still in place. This must emit a
-    // Note Off for exactly the notes `rebuildAllocator` drops below when it rebuilds each allocator against
-    // the same `affected` set: if the two ever disagree on which notes are affected, the result is either a
-    // hanging note (dropped without a Note Off) or an unmatched Note Off (stopped without being dropped).
+    // Note Off for exactly the notes `rebuildAllocator` drops below — the ones it leaves behind with the channels
+    // it does not retain, plus the ones it drops from the channels it does — each pass reading the same `affected`
+    // set: if they ever disagree on which notes are affected, the result is either a hanging note (dropped without
+    // a Note Off) or an unmatched Note Off (stopped without being dropped).
     stopNotesOn(buffer, affected)
 
     _zones = zonesAfter
     affected.foreach(tracker.reset)
-    lowerAllocator = rebuildAllocator(lowerAllocator, lowerZone, affected)
-    upperAllocator = rebuildAllocator(upperAllocator, upperZone, affected)
 
     // Forward MCM for the updated zone, and restate the Pitch Bend Sensitivity the Zone holds afterwards on every
     // one of its channels. A conforming receiver resets it to the defaults on the MCM itself (MPE spec Section
@@ -459,16 +458,31 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       emitZonePbsSequences(buffer, otherZoneAfter)
     }
 
-    // Reclassify each Zone's retained notes against its Pitch Bend Sensitivity and retune the channels that kept
-    // them. The addressed Zone's sensitivity has just been reset to the defaults, so a retained channel's Pitch
-    // Bend would otherwise be read against the wrong range, and the threshold has moved under its notes.
-    // Lower before Upper, as `tune()` already orders them. An allocator built fresh by `createAllocator`
-    // already holds the right threshold and holds no notes, so its call emits nothing and needs no condition.
-    // The other Zone runs the pass just the same, although its sensitivity — and so its threshold — did not move,
-    // whether or not overlap resolution shrank it: its occupied channels take a redundant, bit-identical Pitch
-    // Bend on every MCM. That is deliberate, in keeping with the paper's commitment to redundant messages for
-    // robustness against receivers that do not fully conform, and not an unguarded case.
-    Seq(lowerAllocator, upperAllocator).flatten.foreach(applyExpressionPitchBendThreshold(buffer, _))
+    // Rebuild each Zone's allocator against the new Zone structure and emit what the rebuild moved: the retained
+    // notes are reclassified against the Zone's Pitch Bend Sensitivity, the ones whose input channel left MPE
+    // control are dropped, and the channels that kept notes are retuned. The addressed Zone's sensitivity has just
+    // been reset to the defaults, so a retained channel's Pitch Bend would otherwise be read against the wrong
+    // range, and the threshold has moved under its notes.
+    //
+    // The rebuild sits here, rather than beside the `_zones` assignment above, so that mutating the allocators and
+    // telling the receiver about it stay adjacent: nothing between the two can then read a Zone's notes in a state
+    // the buffer does not yet describe. Its emissions must in any case follow the MCMs above, whose Pitch Bends
+    // are encoded against the sensitivity they restate, and nothing between the assignment and here touches an
+    // allocator.
+    //
+    // Lower before Upper, as `tune()` already orders them. An allocator built fresh by `createAllocator` already
+    // holds the right threshold and holds no notes, so it reports nothing and needs no condition. The other Zone
+    // runs the pass just the same, although its sensitivity — and so its threshold — did not move, whether or not
+    // overlap resolution shrank it: its occupied channels take a redundant, bit-identical Pitch Bend on every MCM.
+    // That is deliberate, in keeping with the paper's commitment to redundant messages for robustness against
+    // receivers that do not fully conform, and not an unguarded case.
+    val lowerRebuild = rebuildAllocator(lowerAllocator, lowerZone, affected)
+    val upperRebuild = rebuildAllocator(upperAllocator, upperZone, affected)
+    lowerAllocator = lowerRebuild.map(_._1)
+    upperAllocator = upperRebuild.map(_._1)
+    Seq(lowerRebuild, upperRebuild).flatten.foreach { case (alloc, result) =>
+      emitZoneConfigurationResult(buffer, result, alloc)
+    }
 
     // Switch to MPE input mode
     _inputMode = MpeInputMode.Mpe
@@ -476,14 +490,22 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   /**
    * Rebuilds a Zone's allocator after a reconfiguration, transplanting the state of every Member Channel the
-   * reconfiguration left untouched. A Zone that is now disabled loses its allocator altogether.
+   * reconfiguration left untouched and settling the result against the reconfigured Zone. A Zone that is now
+   * disabled loses its allocator altogether.
+   *
+   * @return the rebuilt allocator and what the caller must emit for it, or `None` for a Zone left with no
+   *         allocator. A Zone whose allocator is built fresh has nothing to settle, so its result is empty; the
+   *         threshold [[createAllocator]] gives it is the same one the transplanting branch injects.
    */
   private def rebuildAllocator(previous: Option[MpeChannelAllocator],
                                zone: MpeZone,
-                               affected: Set[Int]): Option[MpeChannelAllocator] = previous match {
-    case Some(alloc) if zone.isEnabled => Some(MpeChannelAllocator.retaining(zone, alloc, affected))
-    case _ => createAllocator(zone)
-  }
+                               affected: Set[Int]): Option[(MpeChannelAllocator, MpeExpressionUpdateResult)] =
+    previous match {
+      case Some(alloc) if zone.isEnabled =>
+        Some(MpeChannelAllocator.retaining(zone, alloc, affected,
+          expressionPitchBendThresholdOf(zone.memberPitchBendSensitivity)))
+      case _ => createAllocator(zone).map(alloc => (alloc, MpeExpressionUpdateResult()))
+    }
 
   /**
    * Processes an incoming Pitch Bend Sensitivity RPN Data Entry MSB (semitones) or LSB (cents).
@@ -740,33 +762,40 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Re-derives a Zone's High Expression Pitch Bend threshold from its current member Pitch Bend Sensitivity, hands
    * it to the allocator — which re-applies the divergence rule as part of the assignment — and emits the result.
    *
-   * Both triggers of a member sensitivity change go through here: an explicit Pitch Bend Sensitivity message, and
-   * the reset an MPE Configuration Message performs, an MCM's reset being a member Pitch Bend Sensitivity change
-   * like any other.
+   * This is the path of a member sensitivity change that leaves the Zone's channels where they are: an explicit
+   * Pitch Bend Sensitivity message. The reset an MPE Configuration Message performs is a member sensitivity change
+   * like any other, but its Zone is rebuilt rather than kept, so it reaches the allocator through
+   * [[rebuildAllocator]] instead — one call that also drops the notes the reconfiguration stranded, so that both
+   * are measured against the aggregate the receiver holds. Either way the result is rendered by
+   * [[emitZoneConfigurationResult]].
    */
   private def applyExpressionPitchBendThreshold(buffer: mutable.Buffer[MidiMessage],
                                                 alloc: MpeChannelAllocator): Unit = {
     val threshold = expressionPitchBendThresholdOf(currentZone(alloc).memberPitchBendSensitivity)
-    emitThresholdUpdateResult(buffer, alloc.setExpressionPitchBendThreshold(threshold), alloc)
+    emitZoneConfigurationResult(buffer, alloc.setExpressionPitchBendThreshold(threshold), alloc)
   }
 
   /**
-   * Emits the consequences of a member Pitch Bend Sensitivity change on one Zone, in the relative order the
-   * paper's "Message Ordering" section gives the control dimensions after a Note Off: Note Offs, Pitch Bends,
-   * CC #74, Channel Pressure.
+   * Emits the consequences of a Zone configuration change — a member Pitch Bend Sensitivity message, or the
+   * rebuild an MPE Configuration Message forces — in the relative order the paper's "Message Ordering" section
+   * gives the control dimensions after a Note Off: Note Offs, Pitch Bends, CC #74, Channel Pressure.
    *
    * The Pitch Bend dimension of `result` is deliberately not emitted here. [[updateTuningOnZone]] re-emits one
    * Pitch Bend on every occupied Member Channel of the Zone, which both subsumes it and is required in its own
    * right, a sensitivity change re-encoding the tuning term on ''every'' occupied channel rather than only on the
    * ones a drop touched; emitting both would duplicate the message on exactly the channels that changed.
    *
-   * CC #74 and Channel Pressure stay `diff`-driven and therefore conditional: the sensitivity change moves neither
-   * by itself, but a drop removes a note's term from all three of its channel's averages, and notes sharing a
-   * channel may come from different input channels with different values. When nothing is dropped the result is
-   * empty and neither is emitted.
+   * CC #74 and Channel Pressure stay `diff`-driven and therefore conditional: neither a sensitivity change nor a
+   * Zone reconfiguration moves them by itself, but a drop removes a note's term from all three of its channel's
+   * averages, and notes sharing a channel may come from different input channels with different values. When
+   * nothing is dropped the result is empty and neither is emitted.
+   *
+   * Only the divergence rule's drops reach `result.droppedNotes`, and only they get a Note Off here: the notes
+   * dropped for their input channel leaving MPE control were already sounded off by [[stopNotesOn]], before the
+   * allocators were rebuilt.
    */
-  private def emitThresholdUpdateResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
-                                        alloc: MpeChannelAllocator): Unit = {
+  private def emitZoneConfigurationResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
+                                          alloc: MpeChannelAllocator): Unit = {
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, DropReason.OnMemberPbsChange))
     updateTuningOnZone(buffer, alloc)
     result.channelUpdates.foreach { channelUpdate =>
