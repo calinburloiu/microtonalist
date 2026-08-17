@@ -319,6 +319,68 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       inside(output(6).asScala) { case NoteOnScMidiMessage(_, note, _) => note.number should equal(noteG4) }
     }
 
+  it should "keep a re-pressed note sounding until its last Note Off, then revert to the note still held" in
+    new Fixture {
+      // Given
+      // C4 is pressed, E4 takes over, then C4 is pressed a second time without the first press being released.
+      output ++= tuner.tune(customTuning)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 20).asJava)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4, 40).asJava)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 60).asJava)
+      output.clear()
+
+      // When
+      // The first of the two C4 presses is released.
+      output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4, 25).asJava)
+
+      // Then
+      // C4 is still held by the second press, so nothing at all is emitted and it keeps sounding.
+      output shouldBe empty
+
+      // When
+      // The second press is released too.
+      output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4, 25).asJava)
+
+      // Then
+      // Only now does C4 stop, handing the sound back to the still-held E4 with E's tuning.
+      val outputNotes: Seq[ScMidiMessage] = filterNotes(scMidiOutput)
+      outputNotes should have size 2
+      inside(outputNotes.head) { case NoteOffScMidiMessage(_, note, 25) => note.number shouldEqual noteC4 }
+      inside(outputNotes(1)) { case NoteOnScMidiMessage(_, note, 60) => note.number shouldEqual noteE4 }
+      pitchBendOutput should have size 1
+      PitchBendScMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) shouldEqual
+        customTuning(4)
+    }
+
+  it should "emit nothing when a note that is not the sounding one is released press by press" in new Fixture {
+    // Given
+    // C4 is pressed twice, then E4 takes over as the sounding note while both C4 presses are still down.
+    output ++= tuner.tune(customTuning)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 20).asJava)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 30).asJava)
+    output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4, 40).asJava)
+    output.clear()
+
+    // When
+    // Both of C4's presses are released while E4 is still held.
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4, 25).asJava)
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4, 25).asJava)
+
+    // Then
+    // Neither release is audible: E4 keeps sounding undisturbed.
+    output shouldBe empty
+
+    // When
+    // E4 is released in turn.
+    output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteE4, 45).asJava)
+
+    // Then
+    // E4 simply stops; C4 is not revived, both of its presses having been discharged.
+    val outputNotes: Seq[ScMidiMessage] = filterNotes(scMidiOutput)
+    outputNotes should have size 1
+    inside(outputNotes.head) { case NoteOffScMidiMessage(_, note, 45) => note.number shouldEqual noteE4 }
+  }
+
   behavior of "MonophonicPitchBendTuner when it receives pitch bend messages"
 
   it should "only add the pitch bend received if the note played is not microtonal" in new Fixture {
@@ -599,10 +661,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       output ++= tuner.tune(customTuning)
       output.clear()
 
-      // When holding C, then E, then re-articulating C while E is still held, then releasing C
+      // When holding C, then E, then re-articulating C while E is still held, then releasing C twice — one release
+      // per press, since the tracker now requires every Note On on an already-active note to be matched by its own
+      // Note Off before the note is considered released
       output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).asJava)
       output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4).asJava)
       output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4).asJava)
+      output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4).asJava)
       output ++= tuner.process(NoteOffScMidiMessage(inputChannel, noteC4).asJava)
 
       // Then the last release should turn off C and revert to the still-held E

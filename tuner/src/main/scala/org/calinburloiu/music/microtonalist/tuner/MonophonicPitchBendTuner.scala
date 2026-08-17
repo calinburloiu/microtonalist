@@ -129,16 +129,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def sendToTracker(scMessage: ScMidiMessage): Unit = {
-    // Re-pressing an already-active note must move it to the most-recently-inserted position so
-    // that `tracker.orderedActiveNotes(...).last` continues to reflect the audibly sounding note.
-    // The tracker stores active notes in a `LinkedHashMap`, which keeps the original position
-    // when an existing key is updated, so explicitly remove the note first.
-    scMessage match {
-      case m: NoteOnScMidiMessage if m.velocity > 0 && tracker.isNoteActive(trackedChannel, m.midiNote) =>
-        tracker.send(NoteOffScMidiMessage(trackedChannel, m.midiNote))
-      case _ =>
-    }
-
     val normalized = scMessage match {
       case m: ChannelScMidiMessage => m.mapChannel(_ => trackedChannel)
       case m => m
@@ -224,11 +214,14 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   private def turnNoteOff(buffer: mutable.Buffer[MidiMessage], note: MidiNote, velocity: Int,
                           prevNotes: Seq[MidiNote]): Unit = {
-    if (prevNotes.nonEmpty && prevNotes.last == note) {
+    // `turnNoteOff` runs after `sendToTracker`, so `isNoteActive` reads the post-release state: `false` means this
+    // Note Off discharged the note's last unmatched Note On and it must actually stop sounding.
+    if (prevNotes.nonEmpty && prevNotes.last == note && !tracker.isNoteActive(trackedChannel, note)) {
       applyNoteOff(buffer, note, velocity)
 
       val oldOffset = currTuning(note.pitchClass)
-      // After tracker.send the released note is gone, so the post-state can be read fresh
+      // The guard established that this Note Off discharged the note's last reference, so the post-update state no
+      // longer holds it and can be read fresh
       val notesAfter = tracker.orderedActiveNotes(trackedChannel)
       // Play the next note from the previous one held down, if available
       if (notesAfter.nonEmpty) {
@@ -245,8 +238,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
         _lastSingleNote = note
       }
     }
-    // Otherwise: either no note was on (unexpected note off) or the released note was not the most recent;
-    // the tracker has already removed it on send, so no audible change is needed.
+    // Otherwise: no note was on (unexpected note off), the released note was not the most recent, or the note is
+    // still held down by another Note On this Note Off did not discharge; the tracker has already recorded the
+    // release, so no audible change is needed.
   }
 
   /**
