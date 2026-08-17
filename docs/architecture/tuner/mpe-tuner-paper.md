@@ -426,17 +426,24 @@ Beyond the non-MIDI configuration interface, the Zone configuration may be chang
 
 The Tuner emits the MCM(s) describing its Zone configuration at start-up, and again whenever the configuration changes — through either mechanism — so that the receiving instrument adopts the same Zone structure. A reconfiguration also resets the Tuner's state for every channel entering or leaving MPE control, mirroring the receiver obligations of the MPE Specification [1, §2.1.4]: active notes on the affected channels are dropped, the channels' group assignments (Section 5.3) are cleared, the retained Expression Values and remembered input-channel control values (Section 7) return to their defaults — Expression Pitch Bend 0, Channel Pressure 0, and CC #74 64, the centered initial value the MPE Specification prescribes for a bipolar third dimension [1, §3.3.5] — and Pitch Bend Sensitivity returns to the specification's defaults of ±48 semitones on Member Channels and ±2 semitones on the Master Channel (Section 4.3). Channels of a Zone untouched by the reconfiguration keep their notes and state.
 
-The Pitch Bend Sensitivity reset has a different scope from the rest of that state. It applies to each Zone whose MCM
-the Tuner emits — the addressed Zone, and the other Zone when overlap resolution changed it — rather than to the set
-of channels entering or leaving MPE control, because that is the scope the emitted MCM has at the receiver [1, §2.4].
+The Pitch Bend Sensitivity reset has a different scope from the rest of that state. It applies to the *addressed*
+Zone as a whole, rather than to the set of channels entering or leaving MPE control, because that is the scope the
+MCM has at the receiver [1, §2.4]. It does **not** extend to the other Zone when overlap resolution shrinks it. The
+specification defines the reset as the response to an MCM received on a Zone's Master Channel and is silent on the
+Zone that merely yields channels in consequence, so this is a point on which conforming implementations may differ;
+the Tuner resolves it as JUCE's `MPEZoneLayout` [3] does, narrowing the yielding Zone's channel range while leaving
+its sensitivities untouched, that being the behaviour receivers are most likely to have been built against.
+
 A channel the reconfiguration left untouched therefore keeps its notes and state while the range its Pitch Bend is
-read against changes underneath them, with two consequences. Its Pitch Bend is re-emitted, encoded against the new
-sensitivity, so the tuned pitch of the notes it carries is correctly re-encoded. Only that term is preserved: the
-held Expression Pitch Bend is reinterpreted rather than rescaled, so its own contribution in cents moves with the
-sensitivity. And its notes are reclassified against the High Expression Pitch Bend threshold, which is a deviation
-in cents (Section 5.5) and so moves with the sensitivity; the notes this reclassification drops are dropped *after*
-the MCM, the MCM's own reset being what caused it, unlike the reconfiguration's own drops, whose Note Offs precede
-it.
+read against may change underneath them, with two consequences on the addressed Zone. Its Pitch Bend is re-emitted,
+encoded against the new sensitivity, so the tuned pitch of the notes it carries is correctly re-encoded. Only that
+term is preserved: the held Expression Pitch Bend is reinterpreted rather than rescaled, so its own contribution in
+cents moves with the sensitivity. And its notes are reclassified against the High Expression Pitch Bend threshold,
+which is a deviation in cents (Section 5.5) and so moves with the sensitivity; the notes this reclassification drops
+are dropped *after* the MCM, the MCM's own reset being what caused it, unlike the reconfiguration's own drops, whose
+Note Offs precede it. Both passes run on the other Zone as well, where the sensitivity has not moved and they are
+therefore redundant, in keeping with this design's preference for redundant messages over conditional ones
+(Section 5).
 
 A note counts as affected, and is dropped, when *either* its output channel or its input channel is affected — not its output channel alone. A note's Note Identity (Section 5.1) is an (input channel, note number) pair bound to an output Member Channel, and the two halves can be affected independently: a note received on an input channel that leaves the Zone structure can keep sounding on an output channel the reconfiguration never touches, if that output channel remains a Member Channel of the same Zone throughout. Both halves are dropped, because at that point the Tuner is the only place that still knows the note exists: the performer's eventual Note Off would arrive on the now-unassigned input channel and be discarded (Section 3.7), so nothing else will ever release the binding.
 
@@ -1318,6 +1325,8 @@ These design decisions depart from certain recommendations of the MPE Specificat
 [1] MIDI Manufacturers Association, "MIDI Polyphonic Expression (MPE)," Recommended Practice RP-053, Version 1.0, March 12, 2018.
 
 [2] MIDI Manufacturers Association, "MIDI 1.0 Detailed Specification," Document Version 4.2, revised February 1996; published in *The Complete MIDI 1.0 Detailed Specification*, Document Version 96.1, Third Edition. Page references follow the internal pagination of the MIDI 1.0 Detailed Specification. Page references of the form `A-N` follow the separate pagination of the appendix *Additional Explanations and Application Notes*, which numbers its pages independently of the main body.
+
+[3] JUCE, class `MPEZoneLayout`, module `juce_audio_basics`. Cited as the reference MPE implementation where the specification admits more than one reading.
 
 ---
 

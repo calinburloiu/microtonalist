@@ -105,19 +105,6 @@ case class MpeZone(zoneType: MpeZoneType,
   extends MpeZoneStructure {
   require(MpeZone.isValidMemberCount(memberCount),
     s"memberCount must be between 0 and ${MpeZone.MaxMemberCount}; got $memberCount")
-
-  /**
-   * The Zone as a receiver holds it after an MPE Configuration Message, which resets the addressed Zone's Pitch
-   * Bend Sensitivity to the specification's defaults (MPE spec Section 2.4).
-   *
-   * This is deliberately not folded into `MpeZones.update`: that method is also how a Pitch Bend Sensitivity
-   * message stores a sensitivity, and `MpeZones.apply` performs the same overlap shrink at construction with no
-   * MCM on the wire, where preserving the sensitivity is correct. The reset belongs to the decision to emit an
-   * MCM, which only [[MpeTuner]] makes.
-   */
-  def withDefaultPitchBendSensitivities: MpeZone = copy(
-    masterPitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity,
-    memberPitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity)
 }
 
 /**

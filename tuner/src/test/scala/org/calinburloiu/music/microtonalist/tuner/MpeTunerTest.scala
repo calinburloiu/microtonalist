@@ -3145,7 +3145,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
   }
 
-  it should "reset the Pitch Bend Sensitivity of the Zone shrunk by overlap resolution" in
+  it should "keep the Pitch Bend Sensitivity of the Zone shrunk by overlap resolution" in
     new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
       // Given
       // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14. Custom sensitivities on the
@@ -3165,17 +3165,19 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
       // When
       // An MCM on the Lower Zone forces overlap resolution to shrink the Upper Zone to 4 Members, so the Tuner
-      // re-emits the Upper Zone's MCM — which resets that Zone's Pitch Bend Sensitivity at the receiver.
+      // re-emits the Upper Zone's MCM. That MCM was not addressed to the Upper Zone, and the specification does
+      // not say whether a Zone shrunk this way loses its sensitivity, so the Tuner follows the prevailing
+      // implementation and keeps it.
       private val output = sendMcm(tuner, channel = 0, memberCount = 10)
 
-      // Then - The model mirrors the reset the message it emitted performs.
+      // Then - The shrink moved the Zone's boundary and nothing else.
       tuner.zones.upper.memberCount shouldEqual 4
-      tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-      tuner.zones.upper.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-      // And the retained channel is retuned against that reset default rather than the custom ±24 semitones,
-      // so the reset must already be in the model when the retuning pass runs: -14 / 4800 * 8192 rounds to -24.
-      rawPitchBend(-14.0) shouldEqual -24
-      extractPitchBends(output) shouldEqual Seq(PitchBendScMidiMessage(13, rawPitchBend(-14.0)))
+      tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+      tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      // And the retained channel's Pitch Bend still encodes -14 cents against the kept ±24 semitones: the
+      // retuning pass re-emits the value the channel already held rather than one rescaled to a reset default.
+      extractPitchBends(output) shouldEqual Seq(
+        PitchBendScMidiMessage(13, rawPitchBend(-14.0, PitchBendSensitivity(24))))
     }
 
   it should "keep the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone" in
