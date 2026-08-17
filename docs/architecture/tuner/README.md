@@ -43,15 +43,11 @@ messages it requires now, and `process(message)` rewrites each message flowing t
   reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   Expression Pitch Bend is held in raw signed 14-bit units, exactly as received, and is reinterpreted rather than
   rescaled when the Member Channel Pitch Bend Sensitivity changes; the allocator classifies a High Expression Pitch Bend
-  against a raw threshold `MpeTuner` injects through the constructor and re-injects through `reconfigure`. `MpeTuner` is
+  against a raw threshold `MpeTuner` injects through the constructor and re-injects through
+  `setExpressionPitchBendThreshold`, which re-applies the divergence rule as part of the assignment. `MpeTuner` is
   therefore the only component that knows either cents or `PitchBendSensitivity`. When a Zone is reconfigured,
   `MpeChannelAllocator.retaining` rebuilds its allocator, transplanting the state of the Member Channels the
-  reconfiguration left untouched; `reconfigure` must then be called on the result, and is what settles it against the
-  new Zone — dropping the transplanted notes whose *input* channel left MPE control, adopting the new threshold, and
-  re-applying the divergence rule. The three are one pass so that each channel's aggregate is compared once against
-  what the receiver holds: a reconfiguration resets nothing on a channel it left alone, so anything done outside the
-  pass would compare that aggregate against itself and leave the receiver holding a stale CC #74 and Channel Pressure.
-  `MpeTuner` remains the only component aware of the input mode. See [Supported tuning
+  reconfiguration left untouched. `MpeTuner` remains the only component aware of the input mode. See [Supported tuning
   protocols](#supported-tuning-protocols) and the linked design docs.
     * The allocator's supporting types live in their own files next to it: `MpeExpression.scala` holds the Expression
       Value model (`MpeExpression` and its `Mutable`/`Immutable` implementations, plus the `MpeExpressionUpdate` /

@@ -3246,33 +3246,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         messages.indexOf(CcScMidiMessage(0, ScMidiCc.DataEntryMsb, 3))
     }
 
-  it should "correct CC #74 and Channel Pressure on a retained channel a departed note's drop moved" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      // Output Member Channel 1 holds C4 from input channel 1 and C5 from input channel 3 — the pitch-class
-      // invariant having placed them together — each carrying its own input channel's CC #74 and Channel
-      // Pressure, so the channel's aggregate of each is the average of the two.
-      noteOn(1, C4, pressure = Some(40), slide = Some(20))
-      noteOn(1, D4)
-      noteOn(2, E4)
-      private val sharedOutput = noteOn(3, C5, pressure = Some(80), slide = Some(100))
-      extractNoteOns(sharedOutput).head.channel shouldEqual 1
-      extractSlides(sharedOutput) shouldEqual Seq(CcScMidiMessage(1, ScMidiCc.MpeSlide, 60))
-      extractChannelPressures(sharedOutput) shouldEqual Seq(ChannelPressureScMidiMessage(1, 60))
-
-      // When
-      // Shrinking the Lower Zone to 2 Members takes Member Channel 3 out of MPE control. C5 arrived there, so it
-      // is dropped even though its output channel 1 is retained, leaving C4 alone on it.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 2)
-
-      // Then
-      // Channel 1's averages fall back to C4's own values. The receiver resets nothing on a channel the
-      // reconfiguration left alone [1, §2.1.4], so it still holds the two-note averages and has to be told.
-      extractNoteOffs(output) should contain(NoteOffScMidiMessage(1, C5))
-      extractSlides(output) shouldEqual Seq(CcScMidiMessage(1, ScMidiCc.MpeSlide, 20))
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureScMidiMessage(1, 40))
-    }
-
   it should "output the reconfigured Zone's Pitch Bend Sensitivity on its channels after its MCM" in
     new Fixture(mpeTunerMpeInput) {
       // When
