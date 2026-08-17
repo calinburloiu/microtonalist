@@ -1225,13 +1225,82 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
 
     // When
     // Shrinking the Zone to 5 Members takes Member Channels 6 and 7 out of MPE control — input channel 6 among
-    // them — while the note's output channel 1 stays.
+    // them — while the note's output channel 1 stays. `retaining` transplants such a note rather than dropping
+    // it; the drop belongs to the `reconfigure` pass that must follow, so that the channel's aggregate moves
+    // inside a pass that can report the move.
     val shrunk = MpeZone(MpeZoneType.Lower, 5)
     val rebuilt = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7))
+    rebuilt.channelOf(identity) shouldEqual Some(channel)
+    val result = rebuilt.reconfigure(threshold, affectedInputChannels = Set(6, 7))
 
     // Then
     rebuilt.channelOf(identity) shouldEqual None
     rebuilt.isChannelOccupied(channel) shouldBe false
+    // The drop leaves the channel unoccupied, so it retains its aggregate rather than recomputing over an empty
+    // set: nothing the receiver holds has become wrong, and nothing is reported.
+    result shouldEqual MpeExpressionUpdateResult()
+  }
+
+  it should "report the aggregate a departed note's drop moved on a channel that keeps its other notes" in {
+    // Given
+    // Channel 1 holds two C notes from different input channels, so dropping one moves all three of the
+    // channel's averages.
+    val alloc = allocator3 // PCG=1, EG=2
+    val kept = MpeNoteIdentity(1, C4)
+    val departing = MpeNoteIdentity(3, C5)
+    val channel = alloc.allocate(kept, Some(ImmutableMpeExpression(pitchBend = 10, pressure = 40, slide = 20))).channel
+    alloc.allocate(MpeNoteIdentity(1, D4))
+    alloc.allocate(MpeNoteIdentity(1, E4))
+    alloc.allocate(departing, Some(ImmutableMpeExpression(pitchBend = 30, pressure = 80, slide = 100)))
+      .channel shouldEqual channel
+    alloc.channelExpression(channel).pitchBend shouldEqual 20
+    alloc.channelExpression(channel).pressure shouldEqual 60
+    alloc.channelExpression(channel).slide shouldEqual 60
+
+    // When
+    // Shrinking the Zone to 2 Members takes Member Channel 3 out of MPE control — the departing note's input
+    // channel — while its output channel 1 stays.
+    val rebuilt = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc, affectedChannels = Set(3))
+    val result = rebuilt.reconfigure(threshold, affectedInputChannels = Set(3))
+
+    // Then
+    rebuilt.activeNotes(channel) should contain theSameElementsAs Set(kept)
+    result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
+      MpeExpressionUpdate(pitchBend = Some(10), pressure = Some(40), slide = Some(20))))
+    // The departed notes' Note Offs are `MpeTuner`'s to emit, before the allocator is rebuilt, so the pass does
+    // not report them a second time.
+    result.droppedNotes shouldBe empty
+  }
+
+  it should "drop the departed notes before re-applying the divergence rule, and report only the latter" in {
+    // Given
+    // Three C notes share channel 1, none of them above the current threshold of 100. The one that will depart
+    // has both the largest bend and the latest onset, so it would win the divergence rule's survivor test if the
+    // two steps ran in the wrong order.
+    val alloc = allocator3 // PCG=1, EG=2
+    val dropped = MpeNoteIdentity(1, C4)
+    val survivor = MpeNoteIdentity(2, C5)
+    val departing = MpeNoteIdentity(3, C6)
+    val channel = alloc.allocate(dropped, Some(ImmutableMpeExpression(60, 40, 20))).channel
+    alloc.allocate(MpeNoteIdentity(1, D4))
+    alloc.allocate(MpeNoteIdentity(1, E4))
+    alloc.allocate(survivor, Some(ImmutableMpeExpression(90, 80, 100))).channel shouldEqual channel
+    alloc.allocate(departing, Some(ImmutableMpeExpression(70, 0, 60))).channel shouldEqual channel
+
+    // When
+    // Member Channel 3 leaves MPE control, and the new threshold of 50 carries every note left on channel 1
+    // past it.
+    val rebuilt = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc, affectedChannels = Set(3))
+    val result = rebuilt.reconfigure(50, affectedInputChannels = Set(3))
+
+    // Then
+    // The departed note is gone before the divergence rule looks at the channel, so the latest onset among the
+    // notes that remain survives.
+    rebuilt.activeNotes(channel) should contain theSameElementsAs Set(survivor)
+    result.droppedNotes.flatMap(_.notes.map(_.noteIdentity)) shouldEqual Seq(dropped)
+    // One report for both drops, measured against the three-note averages the receiver still holds.
+    result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
+      MpeExpressionUpdate(pitchBend = Some(90), pressure = Some(80), slide = Some(100))))
   }
 
   it should "start every channel of the new Zone empty when the reconfiguration affects them all" in {
@@ -1376,7 +1445,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
     // When
     // Both cross the new threshold at once, which the same-input-channel case never produces.
-    val result = alloc.setExpressionPitchBendThreshold(50)
+    val result = alloc.reconfigure(50)
     // Then
     // The latest onset survives, the rest of the channel goes, and the channel's aggregate is reported.
     alloc.expressionPitchBendThreshold shouldEqual 50
@@ -1397,7 +1466,7 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     alloc.allocate(MpeNoteIdentity(3, D4))
     alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
     // When
-    val result = alloc.setExpressionPitchBendThreshold(150)
+    val result = alloc.reconfigure(150)
     // Then
     // The pass only ever drops: nothing is restored, because nothing was retained.
     result shouldEqual MpeExpressionUpdateResult()
