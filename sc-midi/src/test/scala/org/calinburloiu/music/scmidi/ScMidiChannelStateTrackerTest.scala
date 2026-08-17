@@ -84,7 +84,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.isNoteActive(Channel, C4) shouldBe false
   }
 
-  it should "preserve insertion order of active notes" in new TrackerFixture {
+  it should "order active notes by their Note On" in new TrackerFixture {
     // When
     tracker.send(NoteOnScMidiMessage(Channel, G4, velocity = 80))
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 90))

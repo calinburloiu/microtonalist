@@ -27,8 +27,9 @@ import scala.collection.mutable
  * discharged), Control Change values, Registered and Non-Registered Parameter Number values together with the
  * parameter each channel currently has selected, Channel Pressure, Pitch Bend, and Program Change.
  *
- * Notes are reference-counted, as MIDI 1.0 requires of a transmitter: a note struck twice without an intervening
- * release stays active until it has received two Note Off messages. See [[referenceCount]].
+ * Notes are reference-counted: a note struck twice without an intervening release stays active until it has received
+ * two Note Off messages, which is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation.
+ * See [[referenceCount]].
  *
  * Default values for Control Change, Registered Parameter Number, and Non-Registered Parameter Number lookups
  * may be supplied via the constructor; if not, the companion object's [[ScMidiChannelStateTracker.DefaultCcValues]],

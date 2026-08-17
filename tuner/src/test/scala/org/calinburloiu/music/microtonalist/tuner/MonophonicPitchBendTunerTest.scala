@@ -352,6 +352,39 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
         customTuning(4)
     }
 
+  it should "keep a re-pressed note sounding until its last velocity-0 Note On, then revert to the note still held" in
+    new Fixture {
+      // Given
+      // C4 is pressed, E4 takes over, then C4 is pressed a second time without the first press being released.
+      output ++= tuner.tune(customTuning)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 20).asJava)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteE4, 40).asJava)
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 60).asJava)
+      output.clear()
+
+      // When
+      // The first of the two C4 presses is released, spelled as a velocity-0 Note On rather than a Note Off.
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 0).asJava)
+
+      // Then
+      // C4 is still held by the second press, so nothing at all is emitted and it keeps sounding.
+      output shouldBe empty
+
+      // When
+      // The second press is released too, again spelled as a velocity-0 Note On.
+      output ++= tuner.process(NoteOnScMidiMessage(inputChannel, noteC4, 0).asJava)
+
+      // Then
+      // Only now does C4 stop, handing the sound back to the still-held E4 with E's tuning.
+      val outputNotes: Seq[ScMidiMessage] = filterNotes(scMidiOutput)
+      outputNotes should have size 2
+      inside(outputNotes.head) { case NoteOnScMidiMessage(_, note, 0) => note.number shouldEqual noteC4 }
+      inside(outputNotes(1)) { case NoteOnScMidiMessage(_, note, 60) => note.number shouldEqual noteE4 }
+      pitchBendOutput should have size 1
+      PitchBendScMidiMessage.convertValueToCents(pitchBendOutput.head.value, pitchBendSensitivity) shouldEqual
+        customTuning(4)
+    }
+
   it should "emit nothing when a note that is not the sounding one is released press by press" in new Fixture {
     // Given
     // C4 is pressed twice, then E4 takes over as the sounding note while both C4 presses are still down.
@@ -655,7 +688,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(outputNotes(4)) { case NoteOnScMidiMessage(_, note, _) => note.number shouldEqual noteBb4 }
   }
 
-  it should "revert to a still-held note after re-pressing then releasing an already-played note" in
+  it should "revert to a still-held note after re-pressing then releasing an already-played note twice" in
     new Fixture {
       // Given a microtonal tuning so pitch-bend updates are observable
       output ++= tuner.tune(customTuning)

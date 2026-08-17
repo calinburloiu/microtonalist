@@ -240,7 +240,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     }
     // Otherwise: no note was on (unexpected note off), the released note was not the most recent, or the note is
     // still held down by another Note On this Note Off did not discharge; the tracker has already recorded the
-    // release, so no audible change is needed.
+    // release, so no audible change is needed. A partial release under the last case is deliberately inaudible —
+    // the note has not stopped sounding — so it also leaves `_lastNoteOffVelocity` unlearned, still holding
+    // whatever velocity the note's most recent full release recorded.
   }
 
   /**
