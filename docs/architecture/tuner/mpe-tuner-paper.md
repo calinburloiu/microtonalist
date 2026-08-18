@@ -445,20 +445,6 @@ reading a receiver took, the sequences that follow its MCM leave it holding the 
 load-bearing in both directions. The sequences must *follow* the MCM, since a receiver that does reset would
 otherwise overwrite them; and they must *precede* the re-emitted Pitch Bends below, which are encoded against them.
 
-The sequences reach further than the MCMs do. An MCM is emitted only for a Zone whose configuration actually
-changed, whereas the Pitch Bend Sensitivity sequences are emitted for **both** Zones on every MCM the Tuner honors:
-for the addressed Zone, for a Zone overlap resolution shrank, and equally for a Zone the reconfiguration left
-entirely alone, which takes no MCM of its own and whose sequences therefore have none to follow. That reach is
-chosen to match the Pitch Bend re-emission below, which likewise covers the occupied Member Channels of both Zones
-rather than only those of the Zone that changed. The two have to agree: a Pitch Bend restated on a channel whose
-sensitivity is left unstated is precisely what a receiver that wrongly took the §2.4 reset Zone-wide would misread,
-and that receiver is the one this redundancy exists for. Against a conforming receiver the additional sequences
-change nothing, the values they restate being the ones it already holds, and the cost is a handful of Control
-Changes per reconfiguration — a trade this design's ordering of intonation precision over message economy
-(Section 5) accepts as readily as it accepts the redundant Note Offs at the end of this section and the redundant
-Pitch Bends below. A disabled Zone has neither a Master Channel nor Member Channels and so contributes no
-sequences at all.
-
 A channel the reconfiguration left untouched therefore keeps its notes and state while the range its Pitch Bend is
 read against may change underneath them, with two consequences on the addressed Zone. Its Pitch Bend is re-emitted,
 encoded against the new sensitivity, so the tuned pitch of the notes it carries is correctly re-encoded. Only that
@@ -476,7 +462,7 @@ For every dropped note, the Tuner emits an explicit Note Off before the MCM — 
 
 ### 4.3 Pitch Bend Sensitivity
 
-The MPE Specification defines default Pitch Bend Sensitivity values — ±48 semitones for Member Channels and ±2 semitones for the Master Channel — and makes the MCM the trigger that applies them: upon receiving an MCM, a receiver must reset the Pitch Bend Sensitivity of the affected channels to these defaults (Section 2.3) [1, §2.4]. The MPE Tuner relies on these defaults both when interpreting incoming Pitch Bend and when encoding Pitch Bend on its output. It does not rely on the *receiver* performing that reset, however: every MCM it emits is followed by explicit Pitch Bend Sensitivity sequences on the Master and Member Channels of both Zones — the addressed Zone's stating the defaults it has just adopted, the other Zone's the values it retains — rather than leaving either implied (Section 4.2).
+The MPE Specification defines default Pitch Bend Sensitivity values — ±48 semitones for Member Channels and ±2 semitones for the Master Channel — and makes the MCM the trigger that applies them: upon receiving an MCM, a receiver must reset the Pitch Bend Sensitivity of the affected channels to these defaults (Section 2.3) [1, §2.4]. The MPE Tuner relies on these defaults both when interpreting incoming Pitch Bend and when encoding Pitch Bend on its output. It does not rely on the *receiver* performing that reset, however: every MCM it emits is followed by explicit Pitch Bend Sensitivity sequences on the Zone's Master and Member Channels, stating what the Tuner holds for that Zone rather than leaving it implied (Section 4.2).
 
 The Tuner also listens for Pitch Bend Sensitivity messages (RPN 00 00) on its input and conforms to them when interpreting incoming Pitch Bend. How a received message propagates to the output depends on the input mode:
 
