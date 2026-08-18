@@ -3388,8 +3388,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   it should "output the kept Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone on its channels" in
     new Fixture(dualZoneTunerMpeInput) {
       // Given
-      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given a custom member
-      // sensitivity that the MCM below neither addresses nor changes.
+      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given custom Master and
+      // Member sensitivities that the MCM below neither addresses nor changes.
+      sendPbsMsb(tuner, channel = 15, semitones = 12)
       sendPbsMsb(tuner, channel = 8, semitones = 24)
 
       // When
@@ -3404,7 +3405,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ccs should contain inOrder(
         CcScMidiMessage(15, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
         CcScMidiMessage(15, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-        CcScMidiMessage(15, ScMidiCc.DataEntryMsb, masterPbs.semitones),
+        CcScMidiMessage(15, ScMidiCc.DataEntryMsb, 12),
         CcScMidiMessage(15, ScMidiCc.DataEntryLsb, masterPbs.cents)
       )
       (8 to 14).foreach { ch =>

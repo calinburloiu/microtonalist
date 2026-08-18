@@ -413,8 +413,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Read from `zonesBefore` rather than the `_zones`-backed getters, so it survives the reassignment below.
     val otherZoneBefore = if (channel == 0) zonesBefore.upper else zonesBefore.lower
 
-    // Leaving Non-MPE Input Mode is conservatively treated as affecting every channel: Member Channel Expression
-    // Values were synthesized under different semantics and the Channel-Pressure-reset rule differs by mode.
+    // Leaving Non-MPE Input Mode is conservatively treated as affecting every channel, wider than strictly
+    // necessary: an input Member Channel becoming a Lower/Upper Member keeps resolving through the same allocator,
+    // so only input channels becoming Master Channels strand. But Member Channel Expression Values were
+    // synthesized under different semantics and the Channel-Pressure-reset rule differs by mode.
     // Within MPE Input Mode only the channels whose Zone assignment changes are affected — and no note is bound
     // outside the Zone structure for that comparison to miss, `route` discarding a Note On from an unassigned
     // channel.
@@ -459,8 +461,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Rebuild each Zone's allocator against the new Zone structure and emit what the rebuild moved: retained
     // notes reclassified against the Zone's sensitivity — reset under them on the addressed Zone, moving its
     // threshold — notes whose input channel left MPE control dropped, and the channels that kept notes retuned.
-    // It sits here so that mutating the allocators and describing that to the receiver stay adjacent, and it must
-    // in any case follow the MCMs above, whose restated sensitivities its Pitch Bends are encoded against.
+    // It sits here so that mutating the allocators and describing that to the receiver stay adjacent — nothing
+    // between the `_zones` assignment above and here touches an allocator — and it must in any case follow the
+    // MCMs above, whose restated sensitivities its Pitch Bends are encoded against.
     //
     // Lower before Upper, as `tune()` orders them; a freshly created allocator holds no notes and reports nothing.
     // The unaddressed Zone runs the pass too, its occupied channels taking a redundant, bit-identical Pitch Bend —
