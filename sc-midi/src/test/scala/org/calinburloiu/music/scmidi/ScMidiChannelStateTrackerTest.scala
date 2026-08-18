@@ -1571,24 +1571,31 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "not cancel active notes on All Sound Off by default" in new TrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 105))
     tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
 
     // When
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
 
-    // Then — a Note Off is still owed for each note, so the record of them must survive
+    // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
     tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
+    tracker.referenceCount(Channel, C4) should equal(2)
+    tracker.referenceCount(Channel, E4) should equal(1)
   }
 
   it should "not cancel active notes on All Notes Off by default" in new TrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 105))
+    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
 
     // When
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
 
-    // Then
-    tracker.activeNotes(Channel) should contain only C4
+    // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
+    tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
+    tracker.referenceCount(Channel, C4) should equal(2)
+    tracker.referenceCount(Channel, E4) should equal(1)
   }
 
   it should "not clear controller state on Reset All Controllers by default" in new TrackerFixture {

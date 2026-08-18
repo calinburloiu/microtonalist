@@ -136,8 +136,9 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     channelStates(channel).activeNotes.keySet.toSet
   }
 
-  /** @return the currently active notes on the given channel, in order of their most recent Note On. A duplicate
-   *          Note On for an already-active note moves it to the end. */
+  /** @return the currently active notes on the given channel, in order of their most recent Note On. Each note
+   *          appears exactly once, no matter how large its reference count is; a duplicate Note On for an
+   *          already-active note does not add a second entry, it only moves the existing one to the end. */
   def orderedActiveNotes(channel: Int): Seq[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keys.toSeq
