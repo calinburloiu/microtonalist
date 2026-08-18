@@ -384,24 +384,22 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   /**
    * Processes an incoming MPE Configuration Message (MCM).
    *
-   * Reconfigures zones (with overlap resolution) and outputs the new configuration messages downstream: for each
-   * Zone whose configuration changed, its MCM followed by the Pitch Bend Sensitivity sequences that restate what
-   * that Zone holds.
+   * Reconfigures the Zones (with overlap resolution) and restates the result downstream: the MCM of each Zone
+   * whose configuration changed, and the Pitch Bend Sensitivity sequences of '''both''' Zones, each following its
+   * own MCM where one is emitted.
    *
-   * The addressed Zone has both its Master and its Member Pitch Bend Sensitivity '''reset to the specification's
-   * defaults''' — ±2 and ±48 semitones — because that is what the MCM does at a conforming receiver (MPE Spec
-   * §2.4); the reconfigured Zone is built afresh, so it carries those defaults by construction. A Zone that
-   * overlap resolution merely shrinks in consequence was not addressed by the MCM and keeps its sensitivities.
+   * The addressed Zone is built afresh and so carries the specification's defaults — ±2 and ±48 semitones — which
+   * is what an MCM does at a conforming receiver (MPE Spec §2.4). The other Zone keeps its sensitivities, whether
+   * or not overlap resolution shrank it.
    *
-   * Only the channels entering or leaving MPE control by the reconfiguration have their notes stopped and their
-   * tracked state reset; a Zone untouched by the reconfiguration keeps its notes and state, as the paper's
-   * Zone-configuration section requires.
+   * Only the channels entering or leaving MPE control have their notes stopped and their tracked state reset; a
+   * Zone untouched by the reconfiguration keeps its notes and state. See the paper's "Zones" section.
    */
   private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
     assert(MpeZone.isValidMemberCount(memberCount),
       s"An invalid MCM member count of $memberCount reached the MpeTuner!")
-    // Per MPE spec Section 2.4, receiving MCM resets PBS to defaults
+    // A freshly built Zone carries the default sensitivities the MCM resets the addressed Zone to (MPE Spec §2.4).
     val (zoneType, newZone) = if (channel == 0)
       (MpeZoneType.Lower, MpeZone(MpeZoneType.Lower, memberCount))
     else
@@ -412,85 +410,64 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val zonesBefore = _zones
     val zonesAfter = zonesBefore.update(newZone)
 
-    // Remember the other zone before update to detect overlap resolution changes. Read from `zonesBefore`,
-    // not from the `_zones`-backed `lowerZone`/`upperZone` getters, so this holds the pre-update view
-    // regardless of where `_zones` is reassigned below.
+    // Read from `zonesBefore` rather than the `_zones`-backed getters, so it survives the reassignment below.
     val otherZoneBefore = if (channel == 0) zonesBefore.upper else zonesBefore.lower
 
-    // Leaving Non-MPE Input Mode is treated as affecting every channel, deliberately conservatively rather
-    // than out of strict necessity: an input Member Channel becoming a Lower/Upper Member keeps resolving
-    // through the same allocator, so strictly only input channels becoming Master Channels strand. But the
-    // Expression Values on Member Channels were synthesized under different (Non-MPE) semantics, and the
-    // Channel-Pressure-reset rule differs by mode, so a wholesale reset is still the safer call.
-    //
-    // Within MPE Input Mode only the channels whose Zone assignment actually changes are affected. No note is
-    // bound outside the Zone structure for that comparison to miss: `MpeMessageRouting.route` discards a Note On
-    // arriving on a channel under no Zone's control, and `allocatorFor` would have no allocator to offer it in
-    // any case.
+    // Leaving Non-MPE Input Mode is conservatively treated as affecting every channel, wider than strictly
+    // necessary: an input Member Channel becoming a Lower/Upper Member keeps resolving through the same allocator,
+    // so only input channels becoming Master Channels strand. But Member Channel Expression Values were
+    // synthesized under different semantics and the Channel-Pressure-reset rule differs by mode.
+    // Within MPE Input Mode only the channels whose Zone assignment changes are affected — and no note is bound
+    // outside the Zone structure for that comparison to miss, `route` discarding a Note On from an unassigned
+    // channel.
     val affected =
       if (_inputMode == MpeInputMode.NonMpe) AllChannels else channelsAffectedByMcm(zonesBefore, zonesAfter)
 
-    // Stop the affected notes while the old Zone structure and allocators are still in place. This must emit a
-    // Note Off for exactly the notes `rebuildAllocator` drops below *for the same reason* — the ones it leaves
-    // behind with the channels it does not retain, plus the ones it takes off the channels it does because their
-    // input channel departed — both passes reading the same `affected` set: if they ever disagree on which notes
-    // are affected, the result is either a hanging note (dropped without a Note Off) or an unmatched Note Off
-    // (stopped without being dropped).
-    //
-    // The rebuild's other drops are not this pass's to emit. Re-applying the divergence rule against the moved
-    // threshold drops notes `affected` does not name; those come back in the rebuild's `MpeExpressionUpdateResult`
-    // and are sounded off by `emitZoneConfigurationResult`. The two sets are disjoint by construction — the
-    // departed-input-channel drop runs first and removes its notes, so the divergence rule can only reach notes
-    // whose input and output channels are both unaffected — which is what keeps a note from taking two Note Offs.
+    // Stop the affected notes while the old Zone structure and allocators are still in place. This must cover
+    // exactly the notes `rebuildAllocator` drops below for the same reason — both passes read the same `affected`
+    // set — or a note hangs (dropped with no Note Off) or takes an unmatched one. The rebuild's divergence-rule
+    // drops are not this pass's: `emitZoneConfigurationResult` sounds those off, and the two sets are disjoint,
+    // the departed-input-channel drop running first.
     stopNotesOn(buffer, affected)
 
     _zones = zonesAfter
     affected.foreach(tracker.reset)
 
-    // Forward MCM for the updated zone, and restate the Pitch Bend Sensitivity the Zone holds afterwards on every
-    // one of its channels. A conforming receiver resets it to the defaults on the MCM itself (MPE spec Section
-    // 2.4) — which is exactly what a freshly configured Zone carries — so the restatement is idempotent there, and
-    // it repairs a receiver that does not perform that reset. It must follow the MCM: a receiver that does reset
-    // would otherwise overwrite it. And it must precede the retuning pass below, whose Pitch Bends are encoded
-    // against this sensitivity.
+    // The addressed Zone's MCM, then the sensitivity it now holds on each of its channels: idempotent against a
+    // receiver that performs the §2.4 reset itself, corrective against one that does not. It must follow the MCM,
+    // which would otherwise overwrite it, and precede the retuning pass below, whose Pitch Bends are encoded
+    // against it.
     val updatedZone = if (channel == 0) lowerZone else upperZone
     logger.info(s"$zoneType zone updated: $updatedZone")
     emitMcmSequence(buffer, updatedZone)
     emitZonePbsSequences(buffer, updatedZone)
 
-    // Forward MCM for the other zone only if it was changed by overlap resolution
+    // The other Zone takes an MCM only if overlap resolution moved its boundary.
     val otherZoneAfter = if (channel == 0) upperZone else lowerZone
     if (otherZoneAfter != otherZoneBefore) {
       val otherZoneType = if (channel == 0) MpeZoneType.Upper else MpeZoneType.Lower
-      // This Zone keeps its Pitch Bend Sensitivity: the received MCM addressed the other Zone, and the MPE
-      // Specification does not say whether the Zone that overlap resolution shrinks in response loses its
-      // sensitivity along with its channels. The Tuner resolves it as JUCE's `MPEZoneLayout` does, narrowing the
-      // yielding Zone's channel range while leaving its sensitivities untouched — see the paper's "Zones"
-      // section. Restating the kept sensitivity after this Zone's own MCM is what makes that reading safe
-      // against a receiver that took the other one and reset it.
       logger.info(s"$otherZoneType zone adjusted by overlap resolution: $otherZoneAfter")
       emitMcmSequence(buffer, otherZoneAfter)
-      emitZonePbsSequences(buffer, otherZoneAfter)
     }
 
-    // Rebuild each Zone's allocator against the new Zone structure and emit what the rebuild moved: the retained
-    // notes are reclassified against the Zone's Pitch Bend Sensitivity, the ones whose input channel left MPE
-    // control are dropped, and the channels that kept notes are retuned. The addressed Zone's sensitivity has just
-    // been reset to the defaults, so a retained channel's Pitch Bend would otherwise be read against the wrong
-    // range, and the threshold has moved under its notes.
+    // Its Pitch Bend Sensitivity is restated either way, with the values it keeps — the MCM addressed the other
+    // Zone, and the Tuner resolves the specification's silence as JUCE's `MPEZoneLayout` does, leaving a shrunk
+    // Zone's sensitivities untouched (the paper's "Zones" section). The reach matches the retuning pass below,
+    // which re-emits Pitch Bend on *both* Zones' occupied channels: a receiver that wrongly took the reset
+    // Zone-wide would otherwise read those bends against a range the Tuner does not share. A disabled Zone emits
+    // nothing.
+    emitZonePbsSequences(buffer, otherZoneAfter)
+
+    // Rebuild each Zone's allocator against the new Zone structure and emit what the rebuild moved: retained
+    // notes reclassified against the Zone's sensitivity — reset under them on the addressed Zone, moving its
+    // threshold — notes whose input channel left MPE control dropped, and the channels that kept notes retuned.
+    // It sits here so that mutating the allocators and describing that to the receiver stay adjacent — nothing
+    // between the `_zones` assignment above and here touches an allocator — and it must in any case follow the
+    // MCMs above, whose restated sensitivities its Pitch Bends are encoded against.
     //
-    // The rebuild sits here, rather than beside the `_zones` assignment above, so that mutating the allocators and
-    // telling the receiver about it stay adjacent: nothing between the two can then read a Zone's notes in a state
-    // the buffer does not yet describe. Its emissions must in any case follow the MCMs above, whose Pitch Bends
-    // are encoded against the sensitivity they restate, and nothing between the assignment and here touches an
-    // allocator.
-    //
-    // Lower before Upper, as `tune()` already orders them. An allocator built fresh by `createAllocator` already
-    // holds the right threshold and holds no notes, so it reports nothing and needs no condition. The other Zone
-    // runs the pass just the same, although its sensitivity — and so its threshold — did not move, whether or not
-    // overlap resolution shrank it: its occupied channels take a redundant, bit-identical Pitch Bend on every MCM.
-    // That is deliberate, in keeping with the paper's commitment to redundant messages for robustness against
-    // receivers that do not fully conform, and not an unguarded case.
+    // Lower before Upper, as `tune()` orders them; a freshly created allocator holds no notes and reports nothing.
+    // The unaddressed Zone runs the pass too, its occupied channels taking a redundant, bit-identical Pitch Bend —
+    // deliberate, per the paper's commitment to redundancy against receivers that do not fully conform.
     val lowerRebuild = rebuildAllocator(lowerAllocator, lowerZone, affected)
     val upperRebuild = rebuildAllocator(upperAllocator, upperZone, affected)
     lowerAllocator = lowerRebuild.map(_.allocator)
