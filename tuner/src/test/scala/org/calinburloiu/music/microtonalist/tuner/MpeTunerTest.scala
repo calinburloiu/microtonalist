@@ -3084,6 +3084,26 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(outChannel)
     }
 
+  it should "stop a twice-struck Master Channel note with one Note Off per forwarded Note On" in
+    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+      // Given
+      // Upper Zone master 15. C4 is struck twice there without an intervening release and E4 once; a Master Channel
+      // note bypasses the allocator and is forwarded on channel 15 unchanged, so three Note Ons went downstream.
+      noteOn(15, C4)
+      noteOn(15, C4)
+      noteOn(15, E4)
+
+      // When
+      // The Upper Zone is disabled, so channel 15 leaves MPE control and everything sounding on it must be stopped.
+      private val output = sendMcm(tuner, channel = 15, memberCount = 0)
+
+      // Then
+      // One Note Off per forwarded Note On: two for C4, one for E4.
+      private val noteOffs = extractNoteOffs(output).filter(_.channel == 15)
+      noteOffs.count(_.midiNote == C4) shouldEqual 2
+      noteOffs.count(_.midiNote == E4) shouldEqual 1
+    }
+
   it should "reset the tracked control state of an affected channel only" in
     new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
       // Given

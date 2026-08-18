@@ -84,7 +84,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.isNoteActive(Channel, C4) shouldBe false
   }
 
-  it should "preserve insertion order of active notes" in new TrackerFixture {
+  it should "order active notes by their Note On" in new TrackerFixture {
     // When
     tracker.send(NoteOnScMidiMessage(Channel, G4, velocity = 80))
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 90))
@@ -137,8 +137,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.activeNotes(Channel) shouldBe empty
   }
 
-  it should "reset Polyphonic Key Pressure to its default when a note is re-triggered with Note On" in new
-      TrackerFixture {
+  it should "preserve Polyphonic Key Pressure when a note is re-triggered with Note On" in new TrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
     tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 90))
@@ -146,8 +145,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     // When
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
 
-    // Then
-    tracker.polyPressureOption(Channel, C4) should equal(Some(0))
+    // Then — two voices sound for one key, so pressure addressed to that key belongs to both of them
+    tracker.polyPressureOption(Channel, C4) should equal(Some(90))
+    tracker.polyPressure(Channel, C4) should equal(90)
   }
 
   it should "overwrite the velocity of an active note when a Note On is re-sent" in new TrackerFixture {
@@ -159,6 +159,114 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // Then
     tracker.velocityOption(Channel, C4) should equal(Some(120))
+    tracker.referenceCount(Channel, C4) should equal(2)
+  }
+
+  it should "count a single Note On as one reference" in new TrackerFixture {
+    // When
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+
+    // Then
+    tracker.referenceCount(Channel, C4) should equal(1)
+  }
+
+  it should "increment the reference count when an already-active note receives another Note On" in
+    new TrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+
+      // When
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+
+      // Then
+      tracker.referenceCount(Channel, C4) should equal(2)
+      tracker.activeNotes(Channel) should contain only C4
+    }
+
+  it should "decrement the reference count on Note Off while a reference remains, keeping the note active" in
+    new TrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+
+      // When
+      tracker.send(NoteOffScMidiMessage(Channel, C4))
+
+      // Then
+      tracker.referenceCount(Channel, C4) should equal(1)
+      tracker.isNoteActive(Channel, C4) shouldBe true
+      tracker.activeNotes(Channel) should contain only C4
+    }
+
+  it should "remove the note when the last Note On is discharged" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+    tracker.send(NoteOffScMidiMessage(Channel, C4))
+
+    // When
+    tracker.send(NoteOffScMidiMessage(Channel, C4))
+
+    // Then
+    tracker.referenceCount(Channel, C4) should equal(0)
+    tracker.isNoteActive(Channel, C4) shouldBe false
+    tracker.activeNotes(Channel) shouldBe empty
+  }
+
+  it should "decrement the reference count on a Note On with velocity 0 exactly as on a Note Off" in
+    new TrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+
+      // When
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = NoteOnScMidiMessage.NoteOffVelocity))
+
+      // Then
+      tracker.referenceCount(Channel, C4) should equal(1)
+      tracker.isNoteActive(Channel, C4) shouldBe true
+    }
+
+  it should "leave the reference count at 0 when a Note Off arrives for an inactive note" in new TrackerFixture {
+    // When
+    tracker.send(NoteOffScMidiMessage(Channel, C4))
+
+    // Then
+    tracker.referenceCount(Channel, C4) should equal(0)
+    tracker.activeNotes(Channel) shouldBe empty
+  }
+
+  it should "report a reference count of 0 for a note that was never played" in new TrackerFixture {
+    // When / Then
+    tracker.referenceCount(Channel, C4) should equal(0)
+  }
+
+  it should "track reference counts independently per channel and per note" in new TrackerFixture {
+    // When
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, C4, velocity = 100))
+
+    // Then
+    tracker.referenceCount(Channel, C4) should equal(2)
+    tracker.referenceCount(Channel, E4) should equal(1)
+    tracker.referenceCount(OtherChannel, C4) should equal(1)
+    tracker.referenceCount(OtherChannel, E4) should equal(0)
+  }
+
+  it should "move a note to the end of the ordered active notes on a duplicate Note On" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 90))
+    tracker.send(NoteOnScMidiMessage(Channel, G4, velocity = 80))
+
+    // When
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+
+    // Then — active notes are ordered by their most recent Note On, not by first insertion
+    tracker.orderedActiveNotes(Channel) should contain theSameElementsInOrderAs Seq(E4, G4, C4)
+    tracker.referenceCount(Channel, C4) should equal(2)
   }
 
   behavior of "ScMidiChannelStateTracker Control Change tracking"
@@ -1184,6 +1292,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy tracker.isNoteActive(16, C4)
   }
 
+  it should "throw on referenceCount with an invalid channel" in new TrackerFixture {
+    // When / Then
+    an[IllegalArgumentException] should be thrownBy tracker.referenceCount(-1, C4)
+    an[IllegalArgumentException] should be thrownBy tracker.referenceCount(16, C4)
+  }
+
   it should "throw on velocity / velocityOption / polyPressure / polyPressureOption with an invalid channel" in
     new TrackerFixture {
       // When / Then
@@ -1261,6 +1375,34 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.activeNotes(OtherChannel) should contain only G4
   }
 
+  it should "clear the reference counts of the channel's notes when All Sound Off is received" in
+    new ResettableTrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+
+      // When
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+
+      // Then
+      tracker.referenceCount(Channel, C4) should equal(0)
+      tracker.activeNotes(Channel) shouldBe empty
+    }
+
+  it should "clear the reference counts of the channel's notes when All Notes Off is received" in
+    new ResettableTrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+
+      // When
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+
+      // Then
+      tracker.referenceCount(Channel, C4) should equal(0)
+      tracker.activeNotes(Channel) shouldBe empty
+    }
+
   it should "clear resettable CCs when Reset All Controllers is received" in new ResettableTrackerFixture {
     // Given
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
@@ -1321,6 +1463,22 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
       tracker.ccOption(Channel, ScMidiCc.RpnMsb) shouldBe None
       tracker.ccOption(Channel, ScMidiCc.RpnLsb) shouldBe None
+    }
+
+  it should "leave reference counts intact while zeroing Polyphonic Key Pressure on Reset All Controllers" in
+    new ResettableTrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 90))
+
+      // When
+      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+
+      // Then — Reset All Controllers is not a note-off, so nothing is discharged
+      tracker.referenceCount(Channel, C4) should equal(2)
+      tracker.isNoteActive(Channel, C4) shouldBe true
+      tracker.polyPressure(Channel, C4) should equal(0)
     }
 
   it should "clear a half-assembled RPN when Reset All Controllers is received" in new ResettableTrackerFixture {
@@ -1413,24 +1571,31 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "not cancel active notes on All Sound Off by default" in new TrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 105))
     tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
 
     // When
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
 
-    // Then — a Note Off is still owed for each note, so the record of them must survive
+    // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
     tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
+    tracker.referenceCount(Channel, C4) should equal(2)
+    tracker.referenceCount(Channel, E4) should equal(1)
   }
 
   it should "not cancel active notes on All Notes Off by default" in new TrackerFixture {
     // Given
     tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 105))
+    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
 
     // When
     tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
 
-    // Then
-    tracker.activeNotes(Channel) should contain only C4
+    // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
+    tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
+    tracker.referenceCount(Channel, C4) should equal(2)
+    tracker.referenceCount(Channel, E4) should equal(1)
   }
 
   it should "not clear controller state on Reset All Controllers by default" in new TrackerFixture {
@@ -1487,6 +1652,21 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.nrpnOption(OtherChannel, NrpnA._1, NrpnA._2) shouldBe None
   }
 
+  it should "clear reference counts across all channels" in new TrackerFixture {
+    // Given
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 90))
+    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 95))
+
+    // When
+    tracker.reset()
+
+    // Then
+    tracker.referenceCount(Channel, C4) should equal(0)
+    tracker.referenceCount(OtherChannel, E4) should equal(0)
+  }
+
   it should "clear the RPN/NRPN selector so subsequent Data Entry is ignored after reset" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
@@ -1540,6 +1720,22 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.ccOption(OtherChannel, ScMidiCc.SustainPedal) shouldEqual Some(127)
     tracker.pitchBend(OtherChannel) shouldEqual 2000
   }
+
+  it should "clear the reference counts of a single channel, leaving the other fifteen untouched" in
+    new TrackerFixture {
+      // Given
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 90))
+      tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 95))
+
+      // When
+      tracker.reset(Channel)
+
+      // Then
+      tracker.referenceCount(Channel, C4) should equal(0)
+      tracker.referenceCount(OtherChannel, E4) should equal(2)
+    }
 
   it should "be a no-op on a channel after close() has been called" in new TrackerFixture {
     // Given

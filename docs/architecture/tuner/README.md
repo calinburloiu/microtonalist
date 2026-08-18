@@ -195,7 +195,4 @@ These are signalled directly in the code:
 - `Track#run` is an unimplemented stub (TODO #121); `TrackManager` already provisions a per-track thread pool, but track
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
-- `MpeTuner.stopNotesOn`'s Master Channel branch emits one Note Off per active Master Channel note rather than one per
-  forwarded Note On, because `ScMidiChannelStateTracker` tracks active notes as a set with no reference count
-  (TODO #254). Member Channel notes, which the allocator reference-counts, are unaffected.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).

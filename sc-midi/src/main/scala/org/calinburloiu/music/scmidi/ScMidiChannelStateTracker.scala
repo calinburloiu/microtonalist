@@ -23,9 +23,13 @@ import scala.collection.mutable
 
 /**
  * A [[ScMidiReceiver]] that tracks per-channel MIDI state derived from the messages it receives: active notes
- * (with their velocities and Polyphonic Key Pressure), Control Change values, Registered and Non-Registered
- * Parameter Number values together with the parameter each channel currently has selected, Channel Pressure,
- * Pitch Bend, and Program Change.
+ * (with their velocities, Polyphonic Key Pressure, and a count of the Note On messages no Note Off has yet
+ * discharged), Control Change values, Registered and Non-Registered Parameter Number values together with the
+ * parameter each channel currently has selected, Channel Pressure, Pitch Bend, and Program Change.
+ *
+ * Notes are reference-counted: a note struck twice without an intervening release stays active until it has received
+ * two Note Off messages, which is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation.
+ * See [[referenceCount]].
  *
  * Default values for Control Change, Registered Parameter Number, and Non-Registered Parameter Number lookups
  * may be supplied via the constructor; if not, the companion object's [[ScMidiChannelStateTracker.DefaultCcValues]],
@@ -57,11 +61,21 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   override def send(message: ScMidiMessage, timeStamp: Long = -1L): Unit = if (!_closed) message match {
     case NoteOnScMidiMessage(channel, midiNote, NoteOnScMidiMessage.NoteOffVelocity) =>
-      channelStates(channel).activeNotes -= midiNote
+      releaseNote(channel, midiNote)
     case NoteOnScMidiMessage(channel, midiNote, velocity) =>
-      channelStates(channel).activeNotes(midiNote) = ActiveNote(velocity)
+      val activeNotes = channelStates(channel).activeNotes
+      activeNotes.remove(midiNote) match {
+        case Some(activeNote) =>
+          activeNote.velocity = velocity
+          activeNote.referenceCount += 1
+          // Removed and re-inserted rather than updated in place: a LinkedHashMap keeps an updated key at its
+          // original position, and active notes are ordered by their most recent Note On.
+          activeNotes(midiNote) = activeNote
+        case None =>
+          activeNotes(midiNote) = ActiveNote(velocity)
+      }
     case NoteOffScMidiMessage(channel, midiNote, _) =>
-      channelStates(channel).activeNotes -= midiNote
+      releaseNote(channel, midiNote)
     case PolyPressureScMidiMessage(channel, midiNote, value) =>
       channelStates(channel).activeNotes.get(midiNote).foreach(_.polyPressure = value)
     case CcScMidiMessage(channel, ccNumber, ccValue) =>
@@ -115,13 +129,16 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /** @return whether [[close]] has been called on this tracker. */
   def isClosed: Boolean = _closed
 
-  /** @return the set of currently active notes on the given channel. */
+  /** @return the set of currently active notes on the given channel — those holding at least one undischarged
+   *          Note On. */
   def activeNotes(channel: Int): Set[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keySet.toSet
   }
 
-  /** @return the currently active notes on the given channel, in the order they were turned on. */
+  /** @return the currently active notes on the given channel, in order of their most recent Note On. Each note
+   *          appears exactly once, no matter how large its reference count is; a duplicate Note On for an
+   *          already-active note does not add a second entry, it only moves the existing one to the end. */
   def orderedActiveNotes(channel: Int): Seq[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keys.toSeq
@@ -133,10 +150,22 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     channelStates(channel).activeNotes.contains(midiNote)
   }
 
+  /**
+   * @return the number of Note On messages received for the given note on the given channel that no Note Off has yet
+   *         discharged, or `0` if the note is not active.
+   */
+  def referenceCount(channel: Int, midiNote: MidiNote): Int = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).activeNotes.get(midiNote).map(_.referenceCount).getOrElse(0)
+  }
+
   /** @return the velocity of the given note on the given channel, or `0` if the note is not active. */
   def velocity(channel: Int, midiNote: MidiNote): Int = velocityOption(channel, midiNote).getOrElse(0)
 
-  /** @return the velocity of the given note on the given channel, or `None` if the note is not active. */
+  /**
+   * @return the velocity of the given note on the given channel, or `None` if the note is not active. A duplicate
+   *         Note On overwrites it with the most recent value.
+   */
   def velocityOption(channel: Int, midiNote: MidiNote): Option[Int] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.get(midiNote).map(_.velocity)
@@ -152,7 +181,8 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * @return the most recent Polyphonic Key Pressure value for the given note on the given channel — `Some(0)` if
    *         the note is active but no Polyphonic Key Pressure has been received for it yet, or `None` if the note
-   *         is not active.
+   *         is not active. A duplicate Note On retains it: with two voices sounding for one key, pressure addressed
+   *         to that key applies to both.
    */
   def polyPressureOption(channel: Int, midiNote: MidiNote): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -290,6 +320,18 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
       .getOrElse(throw new NoSuchElementException(
         s"No value, override, or default available for NRPN ($parameterMsb, $parameterLsb) on channel $channel"
       ))
+  }
+
+  /**
+   * Discharges one Note On for the given note, removing it from the channel's active notes when the last one is
+   * discharged. A release for a note that holds no active count is a no-op.
+   */
+  private def releaseNote(channel: Int, midiNote: MidiNote): Unit = {
+    val activeNotes = channelStates(channel).activeNotes
+    activeNotes.get(midiNote).foreach { activeNote =>
+      activeNote.referenceCount -= 1
+      if (activeNote.referenceCount == 0) activeNotes -= midiNote
+    }
   }
 
   private def resolvedCcDefault(ccNumber: Int): Option[Int] =
@@ -500,7 +542,7 @@ object ScMidiChannelStateTracker {
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
 
-  private class ActiveNote(val velocity: Int, var polyPressure: Int = 0)
+  private class ActiveNote(var velocity: Int, var polyPressure: Int = 0, var referenceCount: Int = 1)
 
   private class ChannelState {
     val activeNotes: mutable.LinkedHashMap[MidiNote, ActiveNote] = mutable.LinkedHashMap.empty
