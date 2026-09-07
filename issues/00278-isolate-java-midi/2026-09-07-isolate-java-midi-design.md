@@ -203,6 +203,50 @@ Java implementation in `scmidi.javamidi`:
 
 After D8 and D9, `grep -r 'javax.sound.midi'` over `src/main` matches only files under `scmidi/javamidi/`.
 
+### D10 — Channel Mode messages are their own types, not Control Changes
+
+MIDI 1.0 sends its eight Channel Mode messages with the Control Change status byte (`0xBn`) and controller numbers
+120–127, and the model currently follows the wire: they are `CcScMidiMessage`s, and every consumer that cares —
+`MidiChannelStateTracker.handleChannelModeCc`, `MpeMessageRouting.routeCc` and `deselectsOnRelay` — tells them apart
+by matching on `number`. The specification, however, defines them as a separate message category with their own
+semantics (they are not controllers, and a receiver must not treat them as such), so the model separates them:
+
+```scala
+sealed abstract class ChannelModeMidiMsg(channel: Int) extends ChannelMidiMsg(channel)
+
+case class AllSoundOffMidiMsg(channel: Int)                        extends ChannelModeMidiMsg(channel)   // 120
+case class ResetAllControllersMidiMsg(channel: Int)                extends ChannelModeMidiMsg(channel)   // 121
+case class LocalControlMidiMsg(channel: Int, isOn: Boolean)        extends ChannelModeMidiMsg(channel)   // 122
+case class AllNotesOffMidiMsg(channel: Int)                        extends ChannelModeMidiMsg(channel)   // 123
+case class OmniModeOffMidiMsg(channel: Int)                        extends ChannelModeMidiMsg(channel)   // 124
+case class OmniModeOnMidiMsg(channel: Int)                         extends ChannelModeMidiMsg(channel)   // 125
+case class MonoModeOnMidiMsg(channel: Int, channelCount: Int)      extends ChannelModeMidiMsg(channel)   // 126
+case class PolyModeOnMidiMsg(channel: Int)                         extends ChannelModeMidiMsg(channel)   // 127
+```
+
+- Only the two messages whose data byte carries meaning get a field: Local Control's `isOn` (`0` off, `127` on) and
+  Mono Mode On's `channelCount` (0–16, `0` meaning "as many as the receiver has voices"). The others carry no value:
+  their data byte is `0` on the wire, so `asJava` emits `0` and `asScala` ignores whatever arrived. This is the one
+  deliberate loss of the byte-level round trip; the messages' meaning is preserved, and `UnsupportedMidiMsg` is not
+  involved because the message *is* supported.
+- The controller numbers move out of `MidiCc` into each case class's companion (`AllSoundOffMidiMsg.Number = 120`, and
+  so on), with `ChannelModeMidiMsg.NumberRange = 120 to 127` for the converters.
+- **`CcMidiMsg.number` is restricted to 0–119.** A new `MidiRequirements.requireControllerNumber` enforces it, so a
+  `CcMidiMsg(ch, 123, 0)` throws at construction and a Channel Mode message can only exist as its own type.
+- `JavaMidiConverters`: inbound, a `CONTROL_CHANGE` with `data1` in 120–127 dispatches to the Channel Mode case
+  class; outbound, each case class gets its own `ToJavaMap` entry rendering `0xBn`, its number, and its data byte.
+- Consumers switch from matching on numbers to matching on types:
+    * `MidiChannelStateTracker` handles `ChannelModeMidiMsg` in its own branch and no longer records 120–127 in
+      `ccValues`, so `tracker.cc(channel, 123)` is `None` afterwards.
+    * `MpeMessageRouting.route` gains a `routeChannelMode` branch that discards the four Mode messages (Omni Off/On,
+      Mono On, Poly On) and relays All Sound Off, Reset All Controllers, Local Control and All Notes Off per role,
+      exactly as `routeCc` does today for those numbers; `deselectsOnRelay` matches `ResetAllControllersMidiMsg`.
+    * `MpeTuner` reaches them through the generic `ChannelMidiMsg` path (`route`, then `ForwardOn`/`Discard` and
+      `deselectsOnRelay`), so its own dispatch does not change, but its `MpeTunerTest` and `MpeMessageRoutingTest`
+      cases that build `CcScMidiMessage(_, 120..127, _)` move to the new types, and the routing table in the MPE
+      Tuner paper and the `tuner` architecture doc say "Channel Mode messages" where they say "CC 120–127".
+- `mapChannel` is implemented on every case class as today.
+
 ## 3. Sub-issues and merge order
 
 Each sub-issue gets its own branch, PR, and design/plan documents under `issues/00278-isolate-java-midi/`.
@@ -214,6 +258,10 @@ Each sub-issue gets its own branch, PR, and design/plan documents under `issues/
 | 3 | [#281](https://github.com/calinburloiu/microtonalist/issues/281) | D5, D6, D7: Scala-typed pipeline, boundary conversion in `MidiDeviceHandle`, `MultiTransmitter` deleted, `tuner` adapted. `tuner` free of `javax.sound.midi`. | 1, 2       |
 | 4 | [#282](https://github.com/calinburloiu/microtonalist/issues/282) | D8, D9: `MidiDeviceInfo`, the two traits, `JavaMidiManager`/`JavaMidiDeviceHandle`, `TunerModule` injection, `cli`/`app`. Only `javamidi` imports Java Sound. | 3          |
 | 5 | [#283](https://github.com/calinburloiu/microtonalist/issues/283) | The MIDI 2.0 outlook document (Section 6).                                                                                                                 | —          |
+| 6 | [#285](https://github.com/calinburloiu/microtonalist/issues/285) | D10: `ChannelModeMidiMsg` and its eight case classes, `CcMidiMsg` restricted to 0–119, converters, tracker and MPE routing adapted.                       | 1          |
+
+Sub-issue 6 is independent of 2–4 and can merge at any point after 1; merging it before 3 keeps the `tuner` adaptation
+in 3 from touching the Channel Mode branches twice.
 
 ## 4. Testing
 
@@ -228,6 +276,10 @@ New unit tests:
   different non-empty, non-empty → empty, same set → no callbacks).
 - A `Track`-level test pinning that a tuner's `reset()` messages reach a receiver added after construction (D6).
 - `MidiDeviceInfo` and the updated `MidiDeviceId`.
+- The eight `ChannelModeMidiMsg` case classes: construction and validation (`channelCount` 0–16), `mapChannel`, the
+  Java round trip through `JavaMidiConvertersTest` (including a non-zero data byte on a valueless message decoding
+  to the same case class), and `CcMidiMsg` rejecting numbers 120–127. The tracker and MPE routing tests that today
+  send `CcScMidiMessage(_, 120..127, _)` move to the new types and keep their assertions.
 
 Migrated tests: every `sc-midi` and `tuner` test that stubs a Java `Receiver` or builds messages with `asJava` moves
 to `MidiReceiver` and plain `MidiMsg` values. `JavaMidiConvertersTest` moves with the converters and remains the
