@@ -70,18 +70,18 @@ messages.
 
 Ordered roughly by dependency, each item a candidate issue.
 
-1. **`ScMidi2Message` hierarchy** (`message` package). The `ScMidi2Message` sealed trait introduced by #279 gets the
+1. **`Midi2Msg` hierarchy** (`message` package). The `Midi2Msg` sealed trait introduced by #279 gets the
    MIDI 2.0 Channel Voice messages: Note On/Off with 16-bit velocity and typed attribute, Poly Pressure, Per-Note
    Pitch Bend, Registered/Assignable Per-Note Controller, Per-Note Management, Control Change, Registered/Assignable
    Controller (absolute and relative), Program Change with bank, Channel Pressure, Pitch Bend. Every case class carries
-   a `group` (0–15) besides `channel`. A `ChannelScMidi2Message.mapChannel`/`mapGroup` mirrors the MIDI 1.0 side.
+   a `group` (0–15) besides `channel`. A `ChannelMidi2Msg.mapChannel`/`mapGroup` mirrors the MIDI 1.0 side.
    Validation goes into `MidiRequirements` (16-bit and 32-bit `require…` helpers).
 
-2. **A UMP codec** (a `ump` package or object modelled after `JavaMidiConverters`): `ScMidiMessage` ↔ UMP words
+2. **A UMP codec** (a `ump` package or object modelled after `JavaMidiConverters`): `MidiMsg` ↔ UMP words
    (`Array[Int]` or an opaque `Ump` value class). It must handle both MIDI 1.0 Channel Voice packets (type 0x2), which
-   map onto the existing `ScMidi1Message` case classes, and MIDI 2.0 Channel Voice packets (type 0x4). SysEx maps to
+   map onto the existing `Midi1Msg` case classes, and MIDI 2.0 Channel Voice packets (type 0x4). SysEx maps to
    Data 64 (SysEx7) packet sequences; System messages to type 0x1. Unknown packets become an
-   `UnsupportedScMidi2Message` holding the raw words, the lossless escape hatch that `UnsupportedScMidiMessage`
+   `UnsupportedMidi2Msg` holding the raw words, the lossless escape hatch that `UnsupportedMidiMsg`
    already provides for bytes. This codec is pure Scala and fully unit-testable without hardware.
 
 3. **A `Midi2Manager` / `Midi2DeviceHandle` implementation** of the `MidiManager` and `MidiDeviceHandle` traits from
@@ -98,10 +98,10 @@ Ordered roughly by dependency, each item a candidate issue.
       endpoint sets; a later revision of the trait may add groups and blocks as first-class concepts.
 
 4. **Boundary translation.** Following D7 of the #278 design, each device handle converts at its boundary:
-    - `JavaMidiDeviceHandle` (MIDI 1.0 only) drops `ScMidi2Message`s with a warning. A later improvement translates
+    - `JavaMidiDeviceHandle` (MIDI 1.0 only) drops `Midi2Msg`s with a warning. A later improvement translates
       them downward with the specification's rules and maps per-note messages onto MPE, since that is the project's
       own domain.
-    - A `Midi2DeviceHandle` sends `ScMidi1Message`s as MIDI 1.0 Channel Voice packets (no loss) or, when the group is
+    - A `Midi2DeviceHandle` sends `Midi1Msg`s as MIDI 1.0 Channel Voice packets (no loss) or, when the group is
       negotiated to MIDI 2.0 protocol, translates them upward.
     - `MidiChannelStateTracker` needs a MIDI 2.0 counterpart (or extension) that reads 32-bit controllers directly and
       tracks per-note state.
@@ -124,7 +124,7 @@ Ordered roughly by dependency, each item a candidate issue.
 
 The #278 refactoring is the prerequisite; the parts a MIDI 2.0 implementation relies on:
 
-- **D3** — `ScMidi1Message` / `ScMidi2Message` under `ScMidiMessage`, so MIDI 2.0 messages flow through the same
+- **D3** — `Midi1Msg` / `Midi2Msg` under `MidiMsg`, so MIDI 2.0 messages flow through the same
   pipeline types and the Java converters reject them at compile time.
 - **D4** — the `MidiTransmitter` family and `MidiReceiver` are protocol-agnostic; nothing in the plumbing knows about
   bytes or packets.
@@ -134,7 +134,7 @@ The #278 refactoring is the prerequisite; the parts a MIDI 2.0 implementation re
 
 ## 5. Out of scope now
 
-- Any MIDI 2.0 code, including the `ScMidi2Message` case classes and the UMP codec.
+- Any MIDI 2.0 code, including the `Midi2Msg` case classes and the UMP codec.
 - MIDI-CI, Profiles, and Property Exchange.
 - Jitter-reduction timestamps; the pipeline's `timeStamp: Long` stays as it is.
 - Choosing the native backend or binding library.

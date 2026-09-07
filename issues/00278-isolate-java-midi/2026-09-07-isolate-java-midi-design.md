@@ -45,33 +45,40 @@ separate `sc-midi-java` module was considered and rejected for now because of th
 dev-stack churn it would add. The package name is `javamidi` rather than `java` because a nested `java` package would
 shadow the JDK's `java` package for relative imports inside `scmidi`.
 
-### D2 — Drop the `Sc` prefix except on the message model
+### D2 — Drop the `Sc` prefix everywhere; message types take the `MidiMsg` suffix
 
 Renamed, with no behavior change: `ScMidiReceiver` → `MidiReceiver`, `ScMidiCc`/`ScMidiRpn`/`ScMidiNrpn` →
 `MidiCc`/`MidiRpn`/`MidiNrpn`, `ScMidiChannelStateTracker` → `MidiChannelStateTracker`, `ScMidiKeySignatureMode` →
 `MidiKeySignatureMode`. `MultiTransmitter` is replaced (D4), so `multiTransmitter` accessors become `transmitter`.
 
-`ScMidiMessage` and its subtypes keep their names: renaming them would produce `MidiMessage`, colliding with
-`javax.sound.midi.MidiMessage` inside the Java implementation, and would be the largest rename in the codebase for no
-functional gain.
+The message model drops `Sc` too, but a plain `MidiMessage` would collide with `javax.sound.midi.MidiMessage` inside
+the Java implementation, so the message types use the suffix **`MidiMsg`** instead: `ScMidiMessage` → `MidiMsg`,
+`NoteOffScMidiMessage` → `NoteOffMidiMsg`, `CcScMidiMessage` → `CcMidiMsg`, `SysExScMidiMessage` → `SysExMidiMsg`,
+`UnsupportedScMidiMessage` → `UnsupportedMidiMsg`, `TextMetaScMidiMessage` → `TextMetaMidiMsg`, and so on — one
+uniform substitution of `ScMidiMessage` by `MidiMsg` across `sc-midi`, `tuner`, `format`, and their tests. Inside
+`javamidi`, `MidiMsg` (ours) and `MidiMessage` (Java's) then read as two distinct names without import aliases.
 
-`mapShortMessageChannel` in the package object is deleted; `ChannelScMidiMessage.mapChannel` already covers it.
+Naming rule, to be recorded in `docs/development/coding-conventions.md` by #279: **`Msg` is the suffix of the message
+*types* only**; helpers and prose keep the full word (`RpnMessages`, `PitchBendSensitivityMessages`,
+`MtsMessageGenerator`, `MidiRequirements`).
+
+`mapShortMessageChannel` in the package object is deleted; `ChannelMidiMsg.mapChannel` already covers it.
 
 ### D3 — Message hierarchy prepared for MIDI 2.0
 
 ```scala
-sealed trait ScMidiMessage
-sealed trait ScMidi1Message extends ScMidiMessage
-sealed trait ScMidi2Message extends ScMidiMessage   // no members yet
+sealed trait MidiMsg
+sealed trait Midi1Msg extends MidiMsg
+sealed trait Midi2Msg extends MidiMsg   // no members yet
 ```
 
 Every existing subtype — channel voice/mode, system common, system real-time, SysEx, all SMF meta events, and
-`UnsupportedScMidiMessage` — moves under `ScMidi1Message`. SMF meta events belong to the MIDI 1.0 specification
+`UnsupportedMidiMsg` — moves under `Midi1Msg`. SMF meta events belong to the MIDI 1.0 specification
 family, so they sit there rather than at the top level. The `asJava` extension in `JavaMidiConverters` is defined on
-`ScMidi1Message` only, so converting a future MIDI 2.0 message to a Java Sound message is a compile-time error.
+`Midi1Msg` only, so converting a future MIDI 2.0 message to a Java Sound message is a compile-time error.
 
 Pipeline signatures (`MidiReceiver.send`, `MidiProcessor.process`, `Tuner.process`, `TuningChanger.decide`) take the
-top-level `ScMidiMessage` for forward compatibility. A full MIDI 2.0 hierarchy is out of scope; see
+top-level `MidiMsg` for forward compatibility. A full MIDI 2.0 hierarchy is out of scope; see
 [#283](https://github.com/calinburloiu/microtonalist/issues/283).
 
 ### D4 — `MidiTransmitter`: a read-only interface with three implementations
@@ -123,7 +130,7 @@ is deliberate: a message arriving on another thread cannot interleave with the r
 emit, and the hooks only send downstream (read-locking this transmitter re-entrantly), so no lock-ordering issue
 arises.
 
-`process(message: ScMidiMessage, timeStamp: Long): Seq[ScMidiMessage]`.
+`process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]`.
 
 Consequences:
 
@@ -149,14 +156,14 @@ implementation as a parameter and default to a non-concurrent one on the track t
 `JavaMidiDeviceHandle` is the only place where messages cross between the Scala model and Java Sound:
 
 - Outbound: its `receiver: MidiReceiver` converts with `asJava` and sends to the open device's Java receiver. A
-  `ScMidi2Message` is dropped with a warning, because a Java Sound device speaks MIDI 1.0 only.
+  `Midi2Msg` is dropped with a warning, because a Java Sound device speaks MIDI 1.0 only.
 - Inbound: the device's Java `Transmitter` gets a Java `Receiver` that converts with `asScala` and hands the message
   to the handle's `MidiSplitter(ConcurrentMidiTransmitter())`.
 
-Everything upstream of the handle (`MidiProcessor`, `MidiSerialProcessor`, the tuners) works on `ScMidiMessage`
+Everything upstream of the handle (`MidiProcessor`, `MidiSerialProcessor`, the tuners) works on `MidiMsg`
 directly, so `MpeTuner`, `MonophonicPitchBendTuner`, `MtsTuner`, and `PedalTuningChanger` lose all their `asScala`/
-`asJava` calls. `PitchBendSensitivityMessages.create` returns `Seq[ScMidiMessage]`. `MtsMessageGenerator` uses two new
-constants on `SysExScMidiMessage` — `StatusByte` (`0xF0`) and `EndOfExclusiveByte` (`0xF7`) — instead of the Java
+`asJava` calls. `PitchBendSensitivityMessages.create` returns `Seq[MidiMsg]`. `MtsMessageGenerator` uses two new
+constants on `SysExMidiMsg` — `StatusByte` (`0xF0`) and `EndOfExclusiveByte` (`0xF7`) — instead of the Java
 ones.
 
 ### D8 — The device layer becomes traits with a Java implementation
@@ -190,7 +197,7 @@ Java implementation in `scmidi.javamidi`:
   `tuner` therefore imports nothing from `javamidi`.
 - `cli` instantiates `JavaMidiManager`, prints the `MidiDeviceInfo` fields, and stops printing the max
   transmitter/receiver counts, a Java Sound detail with no counterpart in the API.
-- `Tuner.reset()`, `tune()`, `process()` and `TuningChanger.decide()` are typed on `ScMidiMessage`; `TunerProcessor`
+- `Tuner.reset()`, `tune()`, `process()` and `TuningChanger.decide()` are typed on `MidiMsg`; `TunerProcessor`
   and `TuningChangeProcessor` follow. `Track` exposes `receiver: MidiReceiver` and `transmitter`; `TrackManager` calls
   `transmitter.addReceiver`.
 
@@ -223,7 +230,7 @@ New unit tests:
 - `MidiDeviceInfo` and the updated `MidiDeviceId`.
 
 Migrated tests: every `sc-midi` and `tuner` test that stubs a Java `Receiver` or builds messages with `asJava` moves
-to `MidiReceiver` and plain `ScMidiMessage` values. `JavaMidiConvertersTest` moves with the converters and remains the
+to `MidiReceiver` and plain `MidiMsg` values. `JavaMidiConvertersTest` moves with the converters and remains the
 Java-boundary test.
 
 `JavaMidiManager` and `JavaMidiDeviceHandle` remain hardware-bound and uncovered, as the current classes are
@@ -235,7 +242,7 @@ Java-boundary test.
 - `docs/architecture/sc-midi/README.md`: rewritten around the API/implementation split (packages, the transmitter
   family, the boundary conversion, the device traits).
 - `docs/architecture/tuner/README.md`: the `Track` pipeline no longer has an output splitter; `Tuner`/`TuningChanger`
-  are typed on `ScMidiMessage`.
+  are typed on `MidiMsg`.
 - `docs/architecture/module-overview.md` and `data-flow.md`: check the "only `sc-midi` touches `javax.sound.midi`"
   statements and narrow them to the `javamidi` package.
 - ScalaDocs on every new public type and member.
@@ -249,7 +256,7 @@ A concise planning document, `issues/00278-isolate-java-midi/<date>-midi2-outloo
    negotiation, with profiles and property exchange in one paragraph.
 2. **How MIDI 1.0 and 2.0 coexist**: MIDI 1.0 messages carried in UMP form, the specified 1.0↔2.0 translation rules,
    backward compatibility through MIDI-CI negotiation, and what a 1.0-only device sees.
-3. **What an `sc-midi` implementation would take**: a `ScMidi2Message` hierarchy for the MIDI 2.0 channel voice
+3. **What an `sc-midi` implementation would take**: a `Midi2Msg` hierarchy for the MIDI 2.0 channel voice
    messages; a UMP codec in place of the Java byte converters; a manager/handle implementation over a native library
    or a platform API, since the JVM has no MIDI 2.0 API; 1.0↔2.0 translation at the device boundary; and the tuner
    implications, notably high-resolution per-note pitch bend as an alternative to MPE.
@@ -257,7 +264,7 @@ A concise planning document, `issues/00278-isolate-java-midi/<date>-midi2-outloo
 
 ## 7. Out of scope
 
-- A full `ScMidi2Message` hierarchy or any MIDI 2.0 code.
+- A full `Midi2Msg` hierarchy or any MIDI 2.0 code.
 - A separate sbt module for the Java implementation.
 - Per-track threads ([#121](https://github.com/calinburloiu/microtonalist/issues/121)) and the switch to
   non-concurrent transmitters inside processors that they enable.
