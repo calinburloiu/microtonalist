@@ -172,9 +172,15 @@ ones.
 
 API types in `scmidi`:
 
-- `case class MidiDeviceInfo(name: String, vendor: String, description: String, version: String)` with a derived
-  `id: MidiDeviceId`. It replaces `MidiDevice.Info` in every public signature. `MidiDeviceId.correspondsToInfo` takes
-  it; the `MidiDeviceId.apply(MidiDevice.Info)` factory moves to the Java side.
+- `case class MidiDeviceInfo(name: String, vendor: String, description: String, version: String,
+  maxTransmitters: MidiConnectionLimit, maxReceivers: MidiConnectionLimit)` with a derived `id: MidiDeviceId` and a
+  derived `endpointType: MidiEndpointType` (input if `maxTransmitters` is not `Limited(0)`, output likewise for
+  `maxReceivers`). It replaces `MidiDevice.Info` in every public signature. `MidiDeviceId.correspondsToInfo` takes
+  it; the factory from `MidiDevice.Info` moves to the Java side.
+- `enum MidiConnectionLimit { case Unlimited; case Limited(count: Int) }`: how many transmitters or receivers a
+  device can open at once. Java Sound encodes "unlimited" as `-1`; the enum makes that explicit and prints as
+  `unlimited` or the count. It is what the `cli` prints and what `MidiDeviceHandle.isInputDevice`/`isOutputDevice`
+  derive from, so the `MidiDevice`-based helpers in the package object disappear once this lands.
 - `trait MidiManager extends AutoCloseable` with the current per-direction surface, unchanged in shape: `refresh()`,
   and for each of input/output: `is…Available`, `…DeviceInfoOf`, `…DeviceIds`, `…DevicesInfo`, `open…`,
   `openFirstAvailable…`, `…DeviceHandleOf`, `…OpenedDevices`, `close…`.
@@ -191,14 +197,18 @@ Java implementation in `scmidi.javamidi`:
   second implementation is the moment to do that.
 - `JavaMidiDeviceHandle`: today's handle, with `device: Option[MidiDevice]` as a public member of the concrete class
   only, and the boundary conversion of D7.
-- `JavaMidiConverters`: moved unchanged, plus a `MidiDeviceInfo` builder and the two `MidiDevice` capability helpers.
+- `JavaMidiConverters`: moved unchanged, plus a `MidiDeviceInfo` builder that takes a `MidiDevice` (not only its
+  `Info`, since the connection limits come from `getMaxTransmitters`/`getMaxReceivers`) and maps `-1` to
+  `MidiConnectionLimit.Unlimited`. The two `MidiDevice` capability helpers moved by #279 are deleted here, replaced
+  by `MidiDeviceInfo.endpointType`.
 
 ### D9 — Consumers pick the implementation at the composition root
 
 - `TunerModule` receives a `MidiManager` through its constructor. `MicrotonalistApp` instantiates `JavaMidiManager`.
   `tuner` therefore imports nothing from `javamidi`.
-- `cli` instantiates `JavaMidiManager`, prints the `MidiDeviceInfo` fields, and stops printing the max
-  transmitter/receiver counts, a Java Sound detail with no counterpart in the API.
+- `cli` instantiates `JavaMidiManager` and prints the `MidiDeviceInfo` fields, including the max transmitter count
+  for inputs and the max receiver count for outputs, as it does today, now read from `MidiConnectionLimit` instead
+  of `MidiSystem`.
 - `Tuner.reset()`, `tune()`, `process()` and `TuningChanger.decide()` are typed on `MidiMsg`; `TunerProcessor`
   and `TuningChangeProcessor` follow. `Track` exposes `receiver: MidiReceiver` and `transmitter`; `TrackManager` calls
   `transmitter.addReceiver`.
