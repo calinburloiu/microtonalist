@@ -261,7 +261,9 @@ case class PolyModeOnMidiMsg(channel: Int)                         extends Chann
 
 ## 3. Sub-issues and merge order
 
-Each sub-issue gets its own branch, PR, and design/plan documents under `issues/00278-isolate-java-midi/`.
+Each sub-issue gets its own branch, PR, and an implementation plan under `issues/00278-isolate-java-midi/`. This
+document is the design for all of them; a sub-issue gets a design document of its own only if its plan uncovers a
+decision this document does not settle.
 
 | # | Issue                                                          | Scope                                                                                                                                                       | Depends on |
 |---|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
