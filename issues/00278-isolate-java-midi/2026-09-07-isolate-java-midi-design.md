@@ -84,13 +84,15 @@ top-level `MidiMsg` for forward compatibility. A full MIDI 2.0 hierarchy is out 
 ### D4 — `MidiTransmitter`: a read-only interface with three implementations
 
 ```scala
-trait MidiTransmitter {
+trait MidiTransmitter extends AutoCloseable {
   def receivers: Seq[MidiReceiver]
 }
 ```
 
-No locks, no `AutoCloseable` (every current `close()` on a transmitter is empty). The name drops `Multi`; multiple
-receivers are implicit. Implementations:
+No locks and no implementation in the trait. It stays `AutoCloseable`, as `MultiTransmitter` is today, so that an
+implementation holding a resource (a native endpoint, a thread) has a release hook; the three implementations below
+implement `close()` as a no-op, and `MidiSplitter` does not close the transmitter it is given, since it does not own
+it. The name drops `Multi`; multiple receivers are implicit. Implementations:
 
 | Type                                        | Annotation       | Modifiers                                                                                   |
 |---------------------------------------------|------------------|---------------------------------------------------------------------------------------------|
