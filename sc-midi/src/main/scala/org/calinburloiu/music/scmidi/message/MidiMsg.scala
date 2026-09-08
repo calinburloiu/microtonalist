@@ -172,7 +172,7 @@ case class PolyPressureMidiMsg(override val channel: Int, midiNote: MidiNote, va
  * Mode messages, which are [[ChannelModeMidiMsg]] subtypes rather than Control Changes.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
- * @param number  The controller number (0-127).
+ * @param number  The controller number (0-119).
  * @param value   The controller value (0-127).
  */
 case class CcMidiMsg(override val channel: Int, number: Int, value: Int)

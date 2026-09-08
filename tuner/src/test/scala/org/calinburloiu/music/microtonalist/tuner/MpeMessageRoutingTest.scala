@@ -131,7 +131,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   /** The Master Channel of the Lower Zone that every role below is built from. */
   private val zoneMasterChannel: Int = lower7.masterChannel
 
-  // ---- Channel Voice messages ----
+  // ---- Channel messages ----
 
   it should "route the message classes of the paper's table" in {
     // Given

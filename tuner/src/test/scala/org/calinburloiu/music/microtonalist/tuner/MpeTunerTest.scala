@@ -2264,6 +2264,23 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
+  it should "forward Sustain Pedal (CC #64) on Master Channel" in new Fixture {
+    // When
+    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+    // Then
+    extractCc(output) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 127))
+  }
+
+  // ---- Other zone-level messages forwarded to Master Channel ----
+
+  it should "forward Program Change on Master Channel" in new Fixture {
+    // When
+    private val output = tuner.process(ProgramChangeMidiMsg(nonMpeInputChannel, 5))
+    // Then
+    private val programChanges = output.collect { case m: ProgramChangeMidiMsg => m }
+    programChanges should contain(ProgramChangeMidiMsg(0, 5))
+  }
+
   it should "forward the Channel Mode messages that are not MIDI Mode messages on Master Channel" in new Fixture {
     // Given
     private val messages = Table(
@@ -2280,23 +2297,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // Then
       extractChannelModes(output) should contain(expected)
     }
-  }
-
-  it should "forward Sustain Pedal (CC #64) on Master Channel" in new Fixture {
-    // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
-    // Then
-    extractCc(output) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 127))
-  }
-
-  // ---- Other zone-level messages forwarded to Master Channel ----
-
-  it should "forward Program Change on Master Channel" in new Fixture {
-    // When
-    private val output = tuner.process(ProgramChangeMidiMsg(nonMpeInputChannel, 5))
-    // Then
-    private val programChanges = output.collect { case m: ProgramChangeMidiMsg => m }
-    programChanges should contain(ProgramChangeMidiMsg(0, 5))
   }
 
   // ---- MIDI Mode messages ----
