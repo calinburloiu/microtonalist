@@ -21,8 +21,20 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiManager
 import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiManager}
 
+/**
+ * Entry point of the `microtonalist-cli` utilities tool, a command-line executable separate from the Microtonalist
+ * desktop application.
+ */
 object MicrotonalistToolApp {
 
+  /**
+   * Runs the subcommand named by the first argument, printing a usage message for anything else.
+   *
+   * This is the composition root of the tool: it creates the [[JavaMidiManager]] that `midi-devices` lists through
+   * and closes it when done.
+   *
+   * @param args Command-line arguments; only `midi-devices` is supported.
+   */
   def main(args: Array[String]): Unit = {
     args match {
       case Array("midi-devices") =>

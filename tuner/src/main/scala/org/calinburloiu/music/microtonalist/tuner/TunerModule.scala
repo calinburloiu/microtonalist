@@ -32,10 +32,13 @@ class TunerModule(businessync: Businessync,
                   trackRepo: TrackRepo,
                   midiManager: MidiManager) extends AutoCloseable {
 
+  /** Thread-safe facade over [[tuningSession]] for the application and UI layers. */
   lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
 
+  /** Holds the sequence of tunings and the current tuning index; may only be touched on the business thread. */
   lazy val tuningSession: TuningSession = new TuningSession(businessync)
 
+  /** Thread-safe facade over this module's [[TrackSession]] for the application and UI layers. */
   lazy val trackService: TrackService = new TrackService(trackSession, businessync)
 
   private lazy val trackManager = new TrackManager(midiManager, tuningService)

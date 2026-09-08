@@ -8,7 +8,7 @@ app
 ├── composition   (domain model, depends on intonation + tuner)
 ├── format        (JSON/file I/O, depends on composition + tuner)
 ├── tuner         (MIDI tuning, depends on sc-midi + businessync)
-├── sc-midi       (Scala-idiomatic MIDI API, depends on businessync)
+├── sc-midi       (Scala-idiomatic MIDI API; Java Sound confined to its javamidi package, depends on businessync)
 ├── intonation    (interval math, no application deps)
 ├── businessync   (event bus + threading, no application deps)
 ├── common        (shared utilities)

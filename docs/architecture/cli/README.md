@@ -12,7 +12,7 @@ device with its metadata (name, vendor, version, description) and its maximum tr
 discovering device names to reference in compositions and track configurations.
 
 In the layered architecture it sits to the side of the main stack: it depends only on `sc-midi` (and the transitive
-`businessync` that `MidiManager` requires). Nothing depends on `cli`.
+`businessync` that a `MidiManager` implementation requires). Nothing depends on `cli`.
 
 Package: `org.calinburloiu.music.microtonalist.cli`.
 
@@ -20,21 +20,28 @@ Package: `org.calinburloiu.music.microtonalist.cli`.
 
 **`MicrotonalistToolApp`** is a plain Scala `object` with a `main` method — the executable's entry point and the
 assembly `mainClass`. It does its own minimal argument dispatch (no CLI-parsing library): `main` pattern-matches the
-first argument, routing `midi-devices` to `printMidiDevices()` and anything else to a usage message. `printMidiDevices`
-constructs a `Businessync` and a `MidiManager`, iterates the input and output devices to print their metadata and
-handler counts (rendering the JVM's `-1` "unlimited" sentinel as `"unlimited"`), and always closes the `MidiManager`
-when done. There is no command framework — the tool is intentionally a single flat object.
+first argument, routing `midi-devices` to `printMidiDevices` and anything else to a usage message. `main` is the
+composition root: it constructs a `Businessync` and a `JavaMidiManager` (`sc-midi`'s Java Sound implementation, from
+its `javamidi` package), hands the manager to `printMidiDevices` and closes it when done. `printMidiDevices` takes a
+`MidiManager` and only prints: it iterates `inputDevicesInfo` and `outputDevicesInfo` and writes each
+`MidiDeviceInfo`'s name, vendor, version and description plus its maximum transmitter (inputs) or receiver (outputs)
+count, which a `MidiConnectionLimit` renders as `unlimited` or as the number — Java Sound's `-1` sentinel is mapped to
+`MidiConnectionLimit.Unlimited` inside `javamidi` and never reaches the `cli`. Taking the manager as a parameter is
+what makes the printing testable without MIDI hardware (`MicrotonalistToolAppTest` drives it over a stubbed
+`MidiManager`). There is no command framework — the tool is intentionally a single flat object.
 
 ## Dependencies
 
-`cli` declares exactly one application dependency, `sc-midi`, used for `MidiManager` and the MIDI
-endpoint abstraction; `businessync` is pulled in transitively (referenced directly only to satisfy
-`MidiManager`'s constructor). It also uses the JDK's `javax.sound.midi` and Guava's `EventBus` (via
-`Businessync`). Nothing depends on `cli`; it is aggregated by `root` for building/testing but
+`cli` declares exactly one application dependency, `sc-midi`, used for the `MidiManager` trait, its
+`JavaMidiManager` implementation and the `MidiDeviceInfo` / `MidiConnectionLimit` value types;
+`businessync` and Guava's `EventBus` are pulled in transitively (referenced directly only to build the
+`Businessync` that `JavaMidiManager`'s constructor takes). The module imports nothing from
+`javax.sound.midi` (#282). Nothing depends on `cli`; it is aggregated by `root` for building/testing but
 packaged as its own fat JAR.
 
 ## Future / planned changes
 
-- Coverage thresholds are currently 0 with `// TODO #181` to raise them toward the project's 80% target, which will
-  require adding tests for this module.
+- Coverage thresholds are currently 0 with `// TODO #181` to raise them toward the project's 80% target. Since #282
+  the module does have a test — `printMidiDevices` is covered through a stubbed `MidiManager` — but `main` is not,
+  because it still builds the real `JavaMidiManager`.
 - The hand-rolled argument dispatch is structured to grow: new subcommands are added as additional `case` branches.
