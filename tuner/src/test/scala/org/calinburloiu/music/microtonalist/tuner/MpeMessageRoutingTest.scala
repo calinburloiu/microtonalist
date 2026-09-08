@@ -164,29 +164,29 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
       ("Damper Pedal",
         CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
-      ("All Sound Off (CC #120)",
-        CcMidiMsg(inputChannel, MidiCc.AllSoundOff, 0),
+      ("All Sound Off",
+        AllSoundOffMidiMsg(inputChannel),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
-      ("Reset All Controllers (CC #121)",
-        CcMidiMsg(inputChannel, MidiCc.ResetAllControllers, 0),
+      ("Reset All Controllers",
+        ResetAllControllersMidiMsg(inputChannel),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
-      ("Local Control (CC #122)",
-        CcMidiMsg(inputChannel, MidiCc.LocalControl, 0),
+      ("Local Control",
+        LocalControlMidiMsg(inputChannel, isOn = false),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
-      ("All Notes Off (CC #123)",
-        CcMidiMsg(inputChannel, MidiCc.AllNotesOff, 0),
+      ("All Notes Off",
+        AllNotesOffMidiMsg(inputChannel),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
-      ("Omni Mode Off (CC #124)",
-        CcMidiMsg(inputChannel, MidiCc.OmniModeOff, 0),
+      ("Omni Mode Off",
+        OmniModeOffMidiMsg(inputChannel),
         Discard, Discard, Discard, Discard),
-      ("Omni Mode On (CC #125)",
-        CcMidiMsg(inputChannel, MidiCc.OmniModeOn, 0),
+      ("Omni Mode On",
+        OmniModeOnMidiMsg(inputChannel),
         Discard, Discard, Discard, Discard),
-      ("Mono Mode On (CC #126)",
-        CcMidiMsg(inputChannel, MidiCc.MonoModeOn, 1),
+      ("Mono Mode On",
+        MonoModeOnMidiMsg(inputChannel, channelCount = 1),
         Discard, Discard, Discard, Discard),
-      ("Poly Mode On (CC #127)",
-        CcMidiMsg(inputChannel, MidiCc.PolyModeOn, 0),
+      ("Poly Mode On",
+        PolyModeOnMidiMsg(inputChannel),
         Discard, Discard, Discard, Discard)
     )
     forAll(verdicts) { (_, message, member, master, nonMpe, outside) =>
@@ -391,6 +391,18 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
         MpeMessageRouting.route(role, CcMidiMsg(0, ccNumber, 1), pbsSelector) shouldEqual Discard
       }
     }
+  }
+
+  behavior of "MpeMessageRouting.deselectsOnRelay"
+
+  it should "hold for Reset All Controllers alone" in {
+    // When / Then
+    MpeMessageRouting.deselectsOnRelay(ResetAllControllersMidiMsg(inputChannel)) shouldBe true
+    MpeMessageRouting.deselectsOnRelay(AllSoundOffMidiMsg(inputChannel)) shouldBe false
+    MpeMessageRouting.deselectsOnRelay(AllNotesOffMidiMsg(inputChannel)) shouldBe false
+    MpeMessageRouting.deselectsOnRelay(LocalControlMidiMsg(inputChannel, isOn = true)) shouldBe false
+    MpeMessageRouting.deselectsOnRelay(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127)) shouldBe false
+    MpeMessageRouting.deselectsOnRelay(NoteOnMidiMsg(inputChannel, MidiNote.C4, 100)) shouldBe false
   }
 
   behavior of "MpeMessageRouting.rpnSequence"

@@ -196,6 +196,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
   private def extractCc(output: Seq[MidiMsg]): Seq[CcMidiMsg] =
     output.collect { case m: CcMidiMsg => m }
 
+  private def extractChannelModes(output: Seq[MidiMsg]): Seq[ChannelModeMidiMsg] =
+    output.collect { case m: ChannelModeMidiMsg => m }
+
   private def extractChannelPressures(output: Seq[MidiMsg]): Seq[ChannelPressureMidiMsg] =
     output.collect { case m: ChannelPressureMidiMsg => m }
 
@@ -2251,18 +2254,31 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ("Bank Select LSB", MidiCc.BankSelectLsb, 0),
       ("Modulation", MidiCc.ModulationMsb, 64),
       ("Sostenuto Pedal", MidiCc.SostenutoPedal, 127),
-      ("Soft Pedal", MidiCc.SoftPedal, 127),
-      // The Channel Mode messages 120-123, which unlike 124-127 keep being forwarded
-      ("All Sound Off", MidiCc.AllSoundOff, 0),
-      ("Reset All Controllers", MidiCc.ResetAllControllers, 0),
-      ("Local Control", MidiCc.LocalControl, 0),
-      ("All Notes Off", MidiCc.AllNotesOff, 0)
+      ("Soft Pedal", MidiCc.SoftPedal, 127)
     )
     forAll(ccs) { (_, ccNumber, ccValue) =>
       // When
       val output = tuner.process(CcMidiMsg(nonMpeInputChannel, ccNumber, ccValue))
       // Then
       extractCc(output) should contain(CcMidiMsg(0, ccNumber, ccValue))
+    }
+  }
+
+  it should "forward the Channel Mode messages that are not MIDI Mode messages on Master Channel" in new Fixture {
+    // Given
+    private val messages = Table(
+      ("description", "message", "expected"),
+      ("All Sound Off", AllSoundOffMidiMsg(nonMpeInputChannel), AllSoundOffMidiMsg(0)),
+      ("Reset All Controllers", ResetAllControllersMidiMsg(nonMpeInputChannel), ResetAllControllersMidiMsg(0)),
+      ("Local Control", LocalControlMidiMsg(nonMpeInputChannel, isOn = false), LocalControlMidiMsg(0, isOn = false)),
+      ("All Notes Off", AllNotesOffMidiMsg(nonMpeInputChannel), AllNotesOffMidiMsg(0))
+    )
+    forAll(messages) { (_, message, expected) =>
+      // When
+      val output = tuner.process(message)
+
+      // Then
+      extractChannelModes(output) should contain(expected)
     }
   }
 
@@ -2285,13 +2301,16 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- MIDI Mode messages ----
 
-  it should "discard the MIDI Mode messages 124-127" in new Fixture {
+  it should "discard the MIDI Mode messages" in new Fixture {
     // Given
-    private val ccNumbers = Table("ccNumber",
-      MidiCc.OmniModeOff, MidiCc.OmniModeOn, MidiCc.MonoModeOn, MidiCc.PolyModeOn)
-    forAll(ccNumbers) { ccNumber =>
+    private val messages = Table("message",
+      OmniModeOffMidiMsg(nonMpeInputChannel),
+      OmniModeOnMidiMsg(nonMpeInputChannel),
+      MonoModeOnMidiMsg(nonMpeInputChannel, channelCount = 1),
+      PolyModeOnMidiMsg(nonMpeInputChannel))
+    forAll(messages) { message =>
       // When / Then
-      tuner.process(CcMidiMsg(nonMpeInputChannel, ccNumber, 0)) shouldBe empty
+      tuner.process(message) shouldBe empty
     }
   }
 
@@ -2311,6 +2330,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       tuner.process(CcMidiMsg(channel, MidiCc.MpeSlide, 100)) shouldBe empty
       tuner.process(CcMidiMsg(channel, MidiCc.SustainPedal, 127)) shouldBe empty
       tuner.process(ProgramChangeMidiMsg(channel, 5)) shouldBe empty
+      tuner.process(AllNotesOffMidiMsg(channel)) shouldBe empty
     }
   }
 
@@ -2448,10 +2468,9 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
 
     // When a Reset All Controllers is redirected onto that same Master Channel
-    private val resetOutput =
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.ResetAllControllers, 0))
+    private val resetOutput = tuner.process(ResetAllControllersMidiMsg(nonMpeInputChannel))
     // Then it reaches the receiver, which deselects its parameter in response
-    extractCc(resetOutput) shouldEqual Seq(CcMidiMsg(0, MidiCc.ResetAllControllers, 0))
+    extractChannelModes(resetOutput) shouldEqual Seq(ResetAllControllersMidiMsg(0))
 
     // When the sender selects the NRPN again and sends another value
     tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
@@ -2560,7 +2579,6 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       ("ccName", "ccNumber", "ccValue"),
       ("Bank Select MSB", MidiCc.BankSelectMsb, 1),
       ("Bank Select LSB", MidiCc.BankSelectLsb, 0),
-      ("Reset All Controllers", MidiCc.ResetAllControllers, 0),
       ("Modulation", MidiCc.ModulationMsb, 64),
       ("Sostenuto Pedal", MidiCc.SostenutoPedal, 127),
       ("Soft Pedal", MidiCc.SoftPedal, 127),
@@ -2571,6 +2589,19 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       val output = tuner.process(CcMidiMsg(mpeInputChannel, ccNumber, ccValue))
       // Then
       output shouldBe empty
+    }
+  }
+
+  it should "discard Channel Mode messages received on a Member Channel" in new Fixture(tuner7MpeInput) {
+    // Given
+    private val messages = Table("message",
+      AllSoundOffMidiMsg(mpeInputChannel),
+      ResetAllControllersMidiMsg(mpeInputChannel),
+      LocalControlMidiMsg(mpeInputChannel, isOn = false),
+      AllNotesOffMidiMsg(mpeInputChannel))
+    forAll(messages) { message =>
+      // When / Then
+      tuner.process(message) shouldBe empty
     }
   }
 
@@ -2771,31 +2802,32 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- MIDI Mode messages ----
 
-  it should "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
+  it should "discard the MIDI Mode messages at every level" in new Fixture(tuner7MpeInput) {
     // Given
-    private val cases = Table(
-      ("ccNumber", "channel"),
-      (MidiCc.OmniModeOff, 0), (MidiCc.OmniModeOff, mpeInputChannel), (MidiCc.OmniModeOff, 10),
-      (MidiCc.OmniModeOn, 0), (MidiCc.OmniModeOn, mpeInputChannel), (MidiCc.OmniModeOn, 10),
-      (MidiCc.MonoModeOn, 0), (MidiCc.MonoModeOn, mpeInputChannel), (MidiCc.MonoModeOn, 10),
-      (MidiCc.PolyModeOn, 0), (MidiCc.PolyModeOn, mpeInputChannel), (MidiCc.PolyModeOn, 10)
-    )
-    forAll(cases) { (ccNumber, channel) =>
+    private val channels = Table("channel", 0, mpeInputChannel, 10)
+    forAll(channels) { channel =>
       // When / Then
-      tuner.process(CcMidiMsg(channel, ccNumber, 0)) shouldBe empty
+      tuner.process(OmniModeOffMidiMsg(channel)) shouldBe empty
+      tuner.process(OmniModeOnMidiMsg(channel)) shouldBe empty
+      tuner.process(MonoModeOnMidiMsg(channel, channelCount = 1)) shouldBe empty
+      tuner.process(PolyModeOnMidiMsg(channel)) shouldBe empty
     }
   }
 
-  it should "still forward the Channel Mode messages 120-123 received on a Master Channel" in
+  it should "still forward the Channel Mode messages that are not MIDI Mode messages on a Master Channel" in
     new Fixture(tuner7MpeInput) {
       // Given
-      private val ccNumbers = Table("ccNumber",
-        MidiCc.AllSoundOff, MidiCc.ResetAllControllers, MidiCc.LocalControl, MidiCc.AllNotesOff)
-      forAll(ccNumbers) { ccNumber =>
+      private val messages = Table("message",
+        AllSoundOffMidiMsg(0),
+        ResetAllControllersMidiMsg(0),
+        LocalControlMidiMsg(0, isOn = false),
+        AllNotesOffMidiMsg(0))
+      forAll(messages) { message =>
         // When
-        val output = tuner.process(CcMidiMsg(0, ccNumber, 0))
+        val output = tuner.process(message)
+
         // Then
-        extractCc(output) shouldEqual Seq(CcMidiMsg(0, ccNumber, 0))
+        extractChannelModes(output) shouldEqual Seq(message)
       }
     }
 
