@@ -127,27 +127,46 @@ Its output is `transmitter: MidiProcessorTransmitter`, which extends `Concurrent
 
 The override runs inside the write lock that `ConcurrentMidiTransmitter`'s modifiers already hold (every modifier of
 the mutable base funnels through `receivers_=`, so `addReceiver`/`removeReceiver`/`clearReceivers` reach this override
-by virtual dispatch). This differs from today's `MidiProcessorTransmitter`, which calls the hooks outside its lock; it
-is deliberate: a message arriving on another thread cannot interleave with the reset/initialisation messages the hooks
-emit, and the hooks only send downstream (read-locking this transmitter re-entrantly), so no lock-ordering issue
-arises.
+by virtual dispatch); an override reached by a direct `receivers = …` assignment runs *before* the base class takes
+the lock, so it takes the write lock itself, re-entrantly. This differs from today's `MidiProcessorTransmitter`, which
+calls the hooks outside its lock; it is deliberate: the receiver set cannot change under a hook, and a message that
+has not yet read the receivers is held off, so it cannot interleave with the reset/initialisation messages the hooks
+emit. A fan-out already in flight is **not** held off: `MidiProcessorReceiver.send` snapshots `transmitter.receivers`
+under the read lock and then forwards with no lock held. A hook may itself send downstream, since the lock is
+re-entrant; it must not wait for another thread.
+
+**Lock-ordering caveat (#281).** The hooks of `TunerProcessor` only send downstream, so they raise no lock-ordering
+question. Those of `MidiSerialProcessor` do: they take **its own** write lock (`wireOutput` / `unwireOutput`) while
+the transmitter's write lock is held, whereas its chain modifiers (`append`, `insert`, `processors_=`, …) take the
+two in the opposite order. Two threads mutating the same pipeline — one through `pipeline.transmitter.addReceiver`,
+the other through `pipeline.append` — could therefore deadlock. Nothing does that today: the only callers of either
+are `Track`'s constructor and `TrackManager.replaceAllTracks`, both on the business thread, and the message path
+takes read locks only, which never deadlock. The atomicity D6 buys is worth the caveat, so it is recorded in the
+`MidiSerialProcessor` ScalaDoc and its resolution left to
+[#121](https://github.com/calinburloiu/microtonalist/issues/121), where a track owns one thread and `MidiProcessor`
+can take a non-concurrent transmitter.
 
 `process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]`.
 
 Consequences:
 
 - `MidiSerialProcessor` wires neighbours with `receivers = Seq(next.receiver)` and unwires with `clearReceivers()`.
-  Its constructor takes `initialOutputReceivers: Seq[MidiReceiver]` instead of an `Option`.
+  Its constructor takes `initialOutputReceivers: Seq[MidiReceiver]` instead of an `Option`. Its `onDisconnect()`
+  unwires the last processor while the old output receivers are still in place, and its `onConnect()` wires the new
+  ones. Today's code instead relies on `setReceiver` calling `onConnect()` even when the new receiver is `null`, a
+  quirk D6 removes, so both hooks are needed to propagate "no output" to the last processor (#281).
 - `Track` no longer needs its output `MidiSplitter`: the pipeline's own transmitter fans out to the device receiver and
   to other tracks. `Track.transmitter` is the pipeline's transmitter.
 - Adding a second output receiver to a connected processor re-fires `onDisconnect()`/`onConnect()`, so
-  `TunerProcessor` re-sends its reset messages to the receivers that were already connected. This is harmless and
-  matches the meaning of "the output configuration changed".
-- Observation from reading `Track.scala` at the base commit (not verified at runtime): the pipeline is built with the
-  splitter as its output *before* the device receiver is added to the splitter, so `TunerProcessor.onConnect()` sends
-  the tuner's `reset()` messages (e.g. Pitch Bend Sensitivity) to an empty splitter. With D6, `onConnect()` fires when
-  the device receiver is added, so the messages reach the device. The implementation plan should add a test that pins
-  this.
+  `TunerProcessor` first tunes the receivers already connected back to standard 12-EDO and then re-sends its reset
+  messages to the whole new set. This matches the meaning of "the output configuration changed", but it is not
+  silent (#281): at inter-track wiring time an output device sees a reset, a 12-EDO retuning and another reset, and
+  an upstream tuner's `reset()` output also reaches the downstream track's pipeline, where that track's own tuner
+  processes it as if it were performance MIDI.
+- Observation from reading `Track.scala` at the base commit: the pipeline is built with the splitter as its output
+  *before* the device receiver is added to the splitter, so `TunerProcessor.onConnect()` sends the tuner's `reset()`
+  messages (e.g. Pitch Bend Sensitivity) to an empty splitter. With D6, `onConnect()` fires when the device receiver
+  is added, so the messages reach the device. `TrackTest` pins this (#281).
 
 The transmitter is concurrent because tracks do not yet own a thread. When
 [#121](https://github.com/calinburloiu/microtonalist/issues/121) lands, `MidiProcessor` can accept the transmitter
