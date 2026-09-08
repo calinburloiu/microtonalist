@@ -1355,7 +1355,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnMidiMsg(OtherChannel, G4, velocity = 90))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.AllSoundOff, value = 0))
+    tracker.send(AllSoundOffMidiMsg(Channel))
 
     // Then
     tracker.activeNotes(Channel) shouldBe empty
@@ -1368,7 +1368,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnMidiMsg(OtherChannel, G4, velocity = 90))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.AllNotesOff, value = 0))
+    tracker.send(AllNotesOffMidiMsg(Channel))
 
     // Then
     tracker.activeNotes(Channel) shouldBe empty
@@ -1382,7 +1382,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.AllSoundOff, value = 0))
+      tracker.send(AllSoundOffMidiMsg(Channel))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(0)
@@ -1396,7 +1396,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.AllNotesOff, value = 0))
+      tracker.send(AllNotesOffMidiMsg(Channel))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(0)
@@ -1415,7 +1415,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(CcMidiMsg(Channel, MidiCc.Hold2Pedal, value = 127))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+    tracker.send(ResetAllControllersMidiMsg(Channel))
 
     // Then
     tracker.ccOption(Channel, MidiCc.ModulationMsb) shouldBe None
@@ -1437,7 +1437,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(CcMidiMsg(Channel, MidiCc.DataDecrement, value = 0))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+      tracker.send(ResetAllControllersMidiMsg(Channel))
 
       // Then
       tracker.ccOption(Channel, MidiCc.DataEntryMsb) shouldBe None
@@ -1454,7 +1454,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       selectRpn(tracker, Channel, MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb)
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+      tracker.send(ResetAllControllersMidiMsg(Channel))
 
       // Then
       tracker.channelPressure(Channel) should equal(0)
@@ -1473,7 +1473,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(PolyPressureMidiMsg(Channel, C4, value = 90))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+      tracker.send(ResetAllControllersMidiMsg(Channel))
 
       // Then — Reset All Controllers is not a note-off, so nothing is discharged
       tracker.referenceCount(Channel, C4) should equal(2)
@@ -1486,7 +1486,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(CcMidiMsg(Channel, MidiCc.RpnMsb, MidiRpn.FineTuningMsb))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+    tracker.send(ResetAllControllersMidiMsg(Channel))
 
     // Then the pending half is gone, so the LSB that follows starts a parameter of its own rather than completing
     // the one begun before the reset
@@ -1503,7 +1503,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(CcMidiMsg(Channel, MidiCc.DataEntryMsb, value = 12))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+      tracker.send(ResetAllControllersMidiMsg(Channel))
       tracker.send(CcMidiMsg(Channel, MidiCc.DataEntryMsb, value = 99))
 
       // Then — the selector was cleared, so the new Data Entry must not affect the previous RPN
@@ -1522,7 +1522,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(CcMidiMsg(Channel, MidiCc.DataEntryMsb, value = 12))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+      tracker.send(ResetAllControllersMidiMsg(Channel))
 
       // Then
       tracker.ccOption(Channel, MidiCc.BankSelectMsb) should equal(Some(3))
@@ -1544,7 +1544,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.send(PolyPressureMidiMsg(OtherChannel, G4, value = 90))
 
       // When
-      tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+      tracker.send(ResetAllControllersMidiMsg(Channel))
 
       // Then — the notes stay active, only their pressure is reset, and only on the addressed channel
       tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
@@ -1560,7 +1560,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(ChannelPressureMidiMsg(OtherChannel, value = 70))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+    tracker.send(ResetAllControllersMidiMsg(Channel))
 
     // Then
     tracker.ccOption(Channel, MidiCc.ModulationMsb) shouldBe None
@@ -1575,7 +1575,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 110))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.AllSoundOff, value = 0))
+    tracker.send(AllSoundOffMidiMsg(Channel))
 
     // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
     tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
@@ -1590,7 +1590,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 110))
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.AllNotesOff, value = 0))
+    tracker.send(AllNotesOffMidiMsg(Channel))
 
     // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
     tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
@@ -1606,7 +1606,7 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb)
 
     // When
-    tracker.send(CcMidiMsg(Channel, MidiCc.ResetAllControllers, value = 0))
+    tracker.send(ResetAllControllersMidiMsg(Channel))
 
     // Then
     tracker.ccOption(Channel, MidiCc.ModulationMsb) should equal(Some(64))
@@ -1617,6 +1617,41 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(
       Some(MidiRpn.PitchBendSensitivityMsb), Some(MidiRpn.PitchBendSensitivityLsb))
   }
+
+  it should "not record a Channel Mode message as a Control Change value" in new ResettableTrackerFixture {
+    // When
+    tracker.send(AllSoundOffMidiMsg(Channel))
+    tracker.send(ResetAllControllersMidiMsg(Channel))
+    tracker.send(LocalControlMidiMsg(Channel, isOn = false))
+    tracker.send(AllNotesOffMidiMsg(Channel))
+    tracker.send(OmniModeOffMidiMsg(Channel))
+    tracker.send(OmniModeOnMidiMsg(Channel))
+    tracker.send(MonoModeOnMidiMsg(Channel, channelCount = 4))
+    tracker.send(PolyModeOnMidiMsg(Channel))
+
+    // Then — Channel Mode messages are not controllers, so none of their numbers holds a CC value
+    ChannelModeMidiMsg.NumberRange.foreach { number =>
+      tracker.ccOption(Channel, number) shouldBe None
+    }
+  }
+
+  it should "leave tracked state untouched for the Channel Mode messages that are not resets" in
+    new ResettableTrackerFixture {
+      // Given
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(CcMidiMsg(Channel, MidiCc.ModulationMsb, value = 64))
+
+      // When
+      tracker.send(LocalControlMidiMsg(Channel, isOn = false))
+      tracker.send(OmniModeOffMidiMsg(Channel))
+      tracker.send(OmniModeOnMidiMsg(Channel))
+      tracker.send(MonoModeOnMidiMsg(Channel, channelCount = 4))
+      tracker.send(PolyModeOnMidiMsg(Channel))
+
+      // Then
+      tracker.activeNotes(Channel) should contain only C4
+      tracker.ccOption(Channel, MidiCc.ModulationMsb) should equal(Some(64))
+    }
 
   behavior of "MidiChannelStateTracker reset"
 

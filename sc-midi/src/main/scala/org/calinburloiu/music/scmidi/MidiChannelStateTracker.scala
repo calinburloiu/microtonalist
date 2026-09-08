@@ -26,6 +26,8 @@ import scala.collection.mutable
  * (with their velocities, Polyphonic Key Pressure, and a count of the Note On messages no Note Off has yet
  * discharged), Control Change values, Registered and Non-Registered Parameter Number values together with the
  * parameter each channel currently has selected, Channel Pressure, Pitch Bend, and Program Change.
+ * Channel Mode messages are not Control Changes and are never recorded as such: no
+ * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] number appears in the tracked CC values.
  *
  * Notes are reference-counted: a note struck twice without an intervening release stays active until it has received
  * two Note Off messages, which is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation.
@@ -41,12 +43,11 @@ import scala.collection.mutable
  * @param ccDefaults                  per-CC-number default values that override the companion's defaults.
  * @param rpnDefaults                 per-RPN default values that override the companion's defaults.
  * @param nrpnDefaults                per-NRPN default values that override the companion's defaults.
- * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off (120), Reset All
- *                                    Controllers (121), and All Notes Off (123) — mutate the tracked state. Defaults
- *                                    to `false`, which records those messages as received but leaves the state
- *                                    untouched. Set to `true` when the tracker models a receiver that is known
- *                                    to act on these messages. Independent of this flag, [[reset]] always clears
- *                                    everything.
+ * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off, Reset All Controllers
+ *                                    and All Notes Off — mutate the tracked state. Defaults to `false`, which
+ *                                    leaves the state untouched. Set to `true` when the tracker models a receiver
+ *                                    that is known to act on these messages. Independent of this flag, [[reset]]
+ *                                    always clears everything.
  */
 @NotThreadSafe
 class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
@@ -82,7 +83,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
       val state = channelStates(channel)
       state.ccValues(ccNumber) = ccValue
       handleParameterCc(state, ccNumber, ccValue)
-      handleChannelModeCc(state, ccNumber)
+    case message: ChannelModeMidiMsg =>
+      handleChannelMode(channelStates(message.channel), message)
     case ChannelPressureMidiMsg(channel, value) =>
       channelStates(channel).channelPressure = Some(value)
     case PitchBendMidiMsg(channel, value) =>
@@ -400,11 +402,11 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case _ => RpnSelector.None
   }
 
-  private def handleChannelModeCc(state: ChannelState, ccNumber: Int): Unit =
-    if (shallRespondToResetMessages) ccNumber match {
-      case MidiCc.AllSoundOff | MidiCc.AllNotesOff =>
+  private def handleChannelMode(state: ChannelState, message: ChannelModeMidiMsg): Unit =
+    if (shallRespondToResetMessages) message match {
+      case _: AllSoundOffMidiMsg | _: AllNotesOffMidiMsg =>
         state.activeNotes.clear()
-      case MidiCc.ResetAllControllers =>
+      case _: ResetAllControllersMidiMsg =>
         ResetAllControllersCcNumbers.foreach(state.ccValues.remove)
         state.activeNotes.valuesIterator.foreach(_.polyPressure = 0)
         state.channelPressure = None
