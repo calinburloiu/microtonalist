@@ -17,8 +17,8 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
-import org.calinburloiu.music.scmidi.message.ScMidiMessage
-import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.Midi1Msg
 
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import javax.sound.midi.{MidiMessage, Receiver, Transmitter}
@@ -62,12 +62,16 @@ trait MidiProcessor extends AutoCloseable {
      * Scala idiomatic version of homonym method that ends a MIDI message and time-stamp to this receiver. If
      * time-stamping is not supported by this receiver, the time-stamp value should be -1.
      *
+     * The parameter is a [[Midi1Msg]] rather than a `MidiMsg` only because this method converts with `asJava`, which
+     * Java Sound defines for MIDI 1.0 only. It widens to `MidiMsg` once conversion moves to the device boundary.
+     *
      * @param scMessage the MIDI message to send
      * @param timeStamp the time-stamp for the message, in microseconds
      * @return `this` instance to allow it to be used as a fluid API
      * @throws IllegalStateException if the receiver is closed
      */
-    def send(scMessage: ScMidiMessage, timeStamp: Long = -1L): this.type = {
+    // TODO #281 This should take a MidiMsg once conversion moves to the device boundary
+    def send(scMessage: Midi1Msg, timeStamp: Long = -1L): this.type = {
       send(scMessage.asJava, timeStamp)
       this
     }

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRpn}
 
 /**
  * The home of MIDI 1.0's Registered and Non-Registered Parameter message vocabulary: the parameters Microtonalist
@@ -32,11 +32,11 @@ object RpnMessages {
 
   /** Pitch Bend Sensitivity (RPN 00 00), the pitch bend range of a channel in semitones and cents. */
   val PitchBendSensitivitySelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    RpnSelector.Rpn(MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb)
 
   /** The MPE Configuration Message (RPN 00 06), which configures an MPE Zone. */
   val MpeConfigurationMessageSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+    RpnSelector.Rpn(MidiRpn.MpeConfigurationMessageMsb, MidiRpn.MpeConfigurationMessageLsb)
 
   /**
    * Renders the pair of Control Change messages that select `selector` on `channel`, ahead of the Data Entry, Data
@@ -51,7 +51,7 @@ object RpnMessages {
    * [[RpnSelector.None]] renders as the Null Function (RPN 7F 7F), the encoding MIDI 1.0 gives to holding no
    * parameter selected: deselecting is a selector pair on the wire like any other, and it is what stops a later
    * stray Data Entry from reaching the parameter this sequence just set. Rendering it here rather than at each call
-   * site is what makes the two directions mirror each other — [[ScMidiChannelStateTracker]] reads that same pair
+   * site is what makes the two directions mirror each other — [[MidiChannelStateTracker]] reads that same pair
    * back as [[RpnSelector.None]], so every selector survives a round trip through the two.
    *
    * The Null is emitted as an RPN whatever the parameter it closes, an NRPN Null having no separate encoding here.
@@ -62,15 +62,15 @@ object RpnMessages {
    * @param selector The parameter to select, or [[RpnSelector.None]] to deselect.
    * @return the two selector messages.
    */
-  def select(channel: Int, selector: RpnSelector): Seq[CcScMidiMessage] = selector match {
+  def select(channel: Int, selector: RpnSelector): Seq[CcMidiMsg] = selector match {
     case RpnSelector.Rpn(msb, lsb) => Seq(
-      CcScMidiMessage(channel, ScMidiCc.RpnLsb, lsb),
-      CcScMidiMessage(channel, ScMidiCc.RpnMsb, msb))
+      CcMidiMsg(channel, MidiCc.RpnLsb, lsb),
+      CcMidiMsg(channel, MidiCc.RpnMsb, msb))
     case RpnSelector.Nrpn(msb, lsb) => Seq(
-      CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb),
-      CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
+      CcMidiMsg(channel, MidiCc.NrpnLsb, lsb),
+      CcMidiMsg(channel, MidiCc.NrpnMsb, msb))
     case RpnSelector.None => Seq(
-      CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+      CcMidiMsg(channel, MidiCc.RpnLsb, MidiRpn.NullLsb),
+      CcMidiMsg(channel, MidiCc.RpnMsb, MidiRpn.NullMsb))
   }
 }

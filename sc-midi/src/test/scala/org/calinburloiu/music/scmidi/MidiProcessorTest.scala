@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{NoteOnScMidiMessage, ScMidiMessage}
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.{Midi1Msg, NoteOnMidiMsg}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -55,7 +55,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val processor: TestMidiProcessor = TestMidiProcessor()
 
     // Create test MIDI message
-    val testScMessage: ScMidiMessage = NoteOnScMidiMessage(1, 60, 100)
+    val testScMessage: Midi1Msg = NoteOnMidiMsg(1, 60, 100)
     val testMessage: MidiMessage = testScMessage.asJava
     val testTimestamp = 123L
 
@@ -80,13 +80,13 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     receiverStub.send.verify(testMessage, testTimestamp)
   }
 
-  it should "be able to send ScMidiMessage objects" in new TestFixture {
+  it should "be able to send MidiMsg objects" in new TestFixture {
     // Set up our mock receiver
     receiverStub.send.when(*, *).returns(())
 
     processor.transmitter.setReceiver(receiverStub)
 
-    // Send using the ScMidiMessage overload
+    // Send using the MidiMsg overload
     processor.receiver.send(testScMessage, testTimestamp)
 
     def matchMessage(msg: MidiMessage): Boolean = {

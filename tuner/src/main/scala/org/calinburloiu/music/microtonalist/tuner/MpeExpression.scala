@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.message.PitchBendScMidiMessage
+import org.calinburloiu.music.scmidi.message.PitchBendMidiMsg
 
 /**
  * Holds the MPE '''Expression Values''' of a note, or the aggregated Expression Values of an output MPE
@@ -56,7 +56,7 @@ private[tuner] trait MpeExpression {
 
 private[tuner] object MpeExpression {
   /** Default Expression Pitch Bend value (no bend). */
-  val DefaultPitchBend: Int = PitchBendScMidiMessage.NoPitchBendValue
+  val DefaultPitchBend: Int = PitchBendMidiMsg.NoPitchBendValue
 
   /** Default channel pressure value (no pressure). */
   val DefaultPressure: Int = 0

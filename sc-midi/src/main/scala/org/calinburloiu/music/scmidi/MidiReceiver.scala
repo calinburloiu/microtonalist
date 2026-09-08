@@ -16,16 +16,16 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.ScMidiMessage
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 /**
- * Scala-idiomatic counterpart of [[javax.sound.midi.Receiver]] that consumes [[ScMidiMessage]] instances directly,
+ * Scala-idiomatic counterpart of [[javax.sound.midi.Receiver]] that consumes [[MidiMsg]] instances directly,
  * without first having to wrap or unwrap [[javax.sound.midi.MidiMessage]] objects.
  *
  * Implementations may be stateful (e.g. tracking the current MIDI state) or stateless (e.g. forwarding to another
  * sink). Once [[close]] is called, [[send]] should become a no-op.
  */
-trait ScMidiReceiver extends AutoCloseable {
+trait MidiReceiver extends AutoCloseable {
   /**
    * Sends a MIDI message to this receiver.
    *
@@ -33,7 +33,7 @@ trait ScMidiReceiver extends AutoCloseable {
    * @param timeStamp the time-stamp for the message, in microseconds; `-1L` indicates that time-stamping is not
    *                  supported by this receiver.
    */
-  def send(message: ScMidiMessage, timeStamp: Long = -1L): Unit
+  def send(message: MidiMsg, timeStamp: Long = -1L): Unit
 
   /**
    * Releases any resources held by this receiver. Subsequent calls to [[send]] become a no-op.

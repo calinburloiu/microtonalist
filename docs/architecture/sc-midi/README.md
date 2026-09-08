@@ -8,7 +8,7 @@ module wraps it to give the rest of Microtonalist:
 
 - **Device handling** — enumeration, connection tracking, and reference-counted opening/closing of MIDI devices,
   publishing device lifecycle events on the [Businessync](../businessync/README.md) bus.
-- **An immutable, typed message model** — a sealed `ScMidiMessage` hierarchy of `case class`es with validated, named
+- **An immutable, typed message model** — a sealed `MidiMsg` hierarchy of `case class`es with validated, named
   fields, plus bidirectional converters to/from Java's `MidiMessage`.
 - **MIDI plumbing** — composable receivers/transmitters and a `MidiProcessor` chain that intercepts and rewrites the
   MIDI stream (the foundation on which `tuner` builds its tuning processors).
@@ -16,13 +16,17 @@ module wraps it to give the rest of Microtonalist:
   state tracker.
 
 It is low-level infrastructure: it knows nothing about scales, tunings, compositions, or the GUI, and depends only on
-`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is the only Microtonalist module that
-touches `javax.sound.midi` directly; the `tuner` module builds tuning logic on top of `MidiProcessor`/`MidiManager` and
-the `cli` utility uses it to enumerate devices.
+`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is not the only Microtonalist module
+that touches `javax.sound.midi` directly — `tuner` and `cli` also import it in a handful of files; the `tuner` module
+builds most of its tuning logic on top of `MidiProcessor`/`MidiManager` and the `cli` utility uses it to enumerate
+devices.
 
-Package: `org.calinburloiu.music.scmidi`, with a `message` sub-package holding the message model and its converters and
-constants. macOS support comes from **CoreMIDI4J**, which replaces the default Java Sound MIDI device provider and
-prefixes device names with `"CoreMIDI4J - "` (stripped for display by `MidiDeviceId.sanitizedName`).
+Package: `org.calinburloiu.music.scmidi`, with a `message` sub-package holding the message model and its constants. A
+`javamidi` sub-package is where the code that touches Java Sound directly is being gathered; today it holds
+`JavaMidiConverters` and its `MidiDevice` capability extensions; the rest of the module is on its way to becoming a pure
+Scala API (see the `Architecture` milestone and #278). macOS support comes from **CoreMIDI4J**, which replaces the
+default Java Sound MIDI device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
+`MidiDeviceId.sanitizedName`).
 
 ## Key types
 
@@ -56,20 +60,24 @@ distinct, separately-evented states.
 
 ### MIDI message model (`message` sub-package)
 
-**`ScMidiMessage`** is the sealed base of the immutable message model — the Scala-idiomatic counterpart to Java's
-mutable, byte-oriented `MidiMessage`/`ShortMessage`. Its sub-hierarchies cover channel voice/mode messages
-(`ChannelScMidiMessage`, with a `mapChannel` that rewrites the channel), system-common and system-real-time messages,
-the full set of Standard MIDI File meta events, and System Exclusive (`SysExScMidiMessage`). Anything with no dedicated
-counterpart becomes `UnsupportedScMidiMessage`, a lossless escape hatch that round-trips back to the right Java type.
-`PitchBendScMidiMessage` is notable: it normalises Java's two raw LSB/MSB bytes into a single signed 14-bit value and
-offers cents conversion against a `PitchBendSensitivity`.
+**`MidiMsg`** is the sealed base of the immutable message model — the Scala-idiomatic counterpart to Java's mutable,
+byte-oriented `MidiMessage`/`ShortMessage`. Directly under it sit **`Midi1Msg`**, the base of every MIDI 1.0 message,
+and **`Midi2Msg`**, the base of every MIDI 2.0 message, with no case classes yet (#292). Pipeline signatures take
+`MidiMsg`. Its sub-hierarchies cover channel voice/mode messages (`ChannelMidiMsg`, with a `mapChannel` that rewrites
+the channel), system-common and system-real-time messages, the full set of Standard MIDI File meta events, and System
+Exclusive (`SysExMidiMsg`). Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape
+hatch that round-trips back to the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw
+LSB/MSB bytes into a single signed 14-bit value and offers cents conversion against a `PitchBendSensitivity`.
 
-**`JavaMidiConverters`** is the boundary with Java Sound MIDI, modelled after `scala.jdk.CollectionConverters`:
-importing its members enables `scMessage.asJava` / `javaMessage.asScala`. Both directions dispatch through lookup tables
-(by concrete subtype `Class` outbound, by status/meta-type byte inbound) rather than large pattern matches. Value
-validation for message constructors is centralized in `MidiRequirements` (channel and bit-width `require…` checks), and
-the controller/parameter numbers live in `ScMidiCc` / `ScMidiRpn` / `ScMidiNrpn` (including the MPE Configuration
-Message and the MPE Slide CC).
+**`JavaMidiConverters`**, in the `javamidi` sub-package
+(`import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*`), is the boundary with Java Sound MIDI, modelled
+after `scala.jdk.CollectionConverters`: importing its members enables `message.asJava` / `javaMessage.asScala`.
+`asJava` is defined on `Midi1Msg` only, so converting a future `Midi2Msg` value is a compile-time error; `asScala`
+returns `MidiMsg`. Both directions dispatch through lookup tables (by concrete subtype `Class` outbound, by
+status/meta-type byte inbound) rather than large pattern matches. The same object also carries the
+`isInputDevice`/`isOutputDevice` extensions on `javax.sound.midi.MidiDevice`. Value validation for message constructors
+is centralized in `MidiRequirements` (channel and bit-width `require…` checks), and the controller/parameter numbers
+live in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE Configuration Message and the MPE Slide CC).
 
 ### MIDI plumbing (receivers, transmitters, processors)
 
@@ -79,7 +87,7 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   `MidiDeviceHandle` to broadcast a device's stream.
 - **`MultiTransmitter`** — a thread-safe transmitter allowing **multiple** receivers, unlike Java's single-receiver
   `Transmitter`.
-- **`ScMidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `ScMidiMessage`
+- **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
   directly, so callers avoid wrapping/unwrapping Java messages.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
   Subclasses implement `process(message, timeStamp): Seq[MidiMessage]`; `onConnect`/`onDisconnect` callbacks let a
@@ -87,7 +95,7 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   MIDI stream.
 - **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end to
   end, rewiring the chain automatically on every mutation (and forwarding input straight to the output when empty).
-- **`ScMidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `ScMidiReceiver` (for a single track thread) that
+- **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that
   derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
   sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are
   **reference-counted**: a note struck twice without an intervening release needs two Note Offs to go inactive, which
@@ -103,12 +111,11 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 The package object and a few value types provide `MidiNote` (a value class over a 0–127 note number, with `pitchClass`,
 `octave`, `freq`, and named constants), `PitchClass` (a value class over 0–11 with sharp/flat names and parsing), and
 `PitchBendSensitivity` (RPN #0 pitch-bend range, default ±2 semitones, with a helper that builds the RPN message
-sequence). Smaller helpers (`isInputDevice`/`isOutputDevice`, `mapShortMessageChannel`, clamping) round out the package
-object.
+sequence). The package object also carries the `clampValue` helpers; channel rewriting is `ChannelMidiMsg.mapChannel`.
 
 `RpnSelector` and `RpnMessages` are the two halves of the Registered and Non-Registered Parameter vocabulary.
 `RpnSelector` is the parameter a channel holds selected — `None`, an `Rpn(msb, lsb)`, or an `Nrpn(msb, lsb)` — and is
-the type the two directions of MIDI 1.0's parameter procedure meet in: `ScMidiChannelStateTracker` derives it from an
+the type the two directions of MIDI 1.0's parameter procedure meet in: `MidiChannelStateTracker` derives it from an
 incoming stream, `RpnMessages` renders it back out. It carries only *complete* parameters: the tracker assembles each
 one from its two selector CCs, in whichever order they arrive, and a parameter with a half still pending selects
 nothing and so reads as `RpnSelector.None`. Only the Null *pair* deselects — a lone CC carrying 127 does not, 127 being
@@ -148,12 +155,13 @@ notably the `tuner` track lifecycle — react by subscribing through Businessync
 
 ## Message conversion model
 
-The `ScMidiMessage` ↔ `MidiMessage` conversion provided by
-[`JavaMidiConverters`](#midi-message-model-message-sub-package) runs in two directions. Inbound, a device's raw
-message becomes a typed, validated `ScMidiMessage` via `.asScala`, with anything unrecognised falling back to
-`UnsupportedScMidiMessage` so nothing is lost; outbound, an `ScMidiMessage` is rendered back to a Java `MidiMessage`
-via `.asJava`. Within `sc-midi`, message code prefers the typed model and validated constructors; the raw byte layer
-stays confined to the converters and the few places that talk to `javax.sound.midi` directly.
+The `MidiMsg` ↔ `MidiMessage` conversion provided by
+[`JavaMidiConverters`](#midi-message-model-message-sub-package), in the `javamidi` sub-package, runs in two
+directions. Inbound, a device's raw message becomes a typed, validated `MidiMsg` via `.asScala`, with anything
+unrecognised falling back to `UnsupportedMidiMsg` so nothing is lost; outbound, a `Midi1Msg` is rendered back to a Java
+`MidiMessage` via `.asJava` — `Midi2Msg` has no `asJava`, since Java Sound speaks MIDI 1.0 only. Within `sc-midi`,
+message code prefers the typed model and validated constructors; the raw byte layer stays confined to the converters
+and the few places that talk to `javax.sound.midi` directly.
 
 ## Dependencies
 
@@ -168,6 +176,8 @@ logging/test stack.
 
 - Coverage targets are currently below the project-wide 80% goal (TODO #177); device-handling code that needs real MIDI
   hardware is hard to cover with unit tests.
-- The `ScMidiMessage` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
-  exercise every one; treat the typed model as the supported surface and `UnsupportedScMidiMessage` as the lossless
+- The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
+  exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.
+- The `Sc` prefix is gone (#279); #280–#282 continue the isolation of the Java Sound implementation under
+  `javamidi` — see `issues/00278-isolate-java-midi/`.

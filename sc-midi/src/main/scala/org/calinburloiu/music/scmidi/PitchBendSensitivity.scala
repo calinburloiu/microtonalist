@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, MidiRequirements, ScMidiCc}
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRequirements}
 
 import javax.sound.midi.MidiMessage
 
@@ -74,8 +74,8 @@ object PitchBendSensitivityMessages {
   def create(channel: Int, pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
     val sequence = RpnMessages.select(channel, RpnMessages.PitchBendSensitivitySelector) ++
       Seq(
-        CcScMidiMessage(channel, ScMidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
-        CcScMidiMessage(channel, ScMidiCc.DataEntryLsb, pitchBendSensitivity.cents)) ++
+        CcMidiMsg(channel, MidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
+        CcMidiMsg(channel, MidiCc.DataEntryLsb, pitchBendSensitivity.cents)) ++
       // Leaving the channel with no parameter selected — the Null RPN on the wire — prevents a later stray Data
       // Entry from changing this parameter.
       RpnMessages.select(channel, RpnSelector.None)

@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{RpnMessages, RpnSelector, ScMidiChannelStateTracker}
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, RpnMessages, RpnSelector}
 
 /**
  * The part a MIDI channel plays in the Tuner's Zone structure, as seen by the message router.
@@ -120,24 +120,24 @@ private[tuner] object MpeMessageRouting {
    *                    tracker before dispatching it.
    */
   def route(role: MpeChannelRole,
-            message: ChannelScMidiMessage,
+            message: ChannelMidiMsg,
             rpnSelector: RpnSelector): MpeRoutingVerdict = message match {
-    case msg: CcScMidiMessage => routeCc(role, msg, rpnSelector)
-    case _: NoteScMidiMessage => role match {
+    case msg: CcMidiMsg => routeCc(role, msg, rpnSelector)
+    case _: NoteMidiMsg => role match {
       case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
     // The first two of the three per-note control dimensions; CC #74 is the third, in `routeCc`.
-    case _: PitchBendScMidiMessage | _: ChannelPressureScMidiMessage => routeControlDimension(role)
-    case _: PolyPressureScMidiMessage => role match {
+    case _: PitchBendMidiMsg | _: ChannelPressureMidiMsg => routeControlDimension(role)
+    case _: PolyPressureMidiMsg => role match {
       // Forbidden on a Member Channel by the MPE Specification; converted to Channel Pressure for a non-MPE input.
       case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
       case MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
-    case _: ProgramChangeScMidiMessage => routeZoneLevel(role)
+    case _: ProgramChangeMidiMsg => routeZoneLevel(role)
   }
 
   /** One of Pitch Bend, Channel Pressure and CC #74: the note's own Expression Value at Member level. */
@@ -161,21 +161,21 @@ private[tuner] object MpeMessageRouting {
   }
 
   private def routeCc(role: MpeChannelRole,
-                      msg: CcScMidiMessage,
+                      msg: CcMidiMsg,
                       rpnSelector: RpnSelector): MpeRoutingVerdict = msg.number match {
     // The MIDI Mode messages are discarded at every role in both input modes: the Tuner is fixed-mode on both
     // sides, and a Mono On reaching an output Member Channel would turn every shared allocation into a note drop.
-    case ScMidiCc.OmniModeOff | ScMidiCc.OmniModeOn | ScMidiCc.MonoModeOn | ScMidiCc.PolyModeOn =>
+    case MidiCc.OmniModeOff | MidiCc.OmniModeOn | MidiCc.MonoModeOn | MidiCc.PolyModeOn =>
       MpeRoutingVerdict.Discard
 
-    case ScMidiCc.MpeSlide => routeControlDimension(role)
+    case MidiCc.MpeSlide => routeControlDimension(role)
 
     // Every selector is consumed, never relayed: the Tuner decides for itself what each value message it re-emits
     // needs ahead of it, which is what keeps interleaved RPN/NRPN streams from different input channels from being
     // merged into one another on a shared output channel.
-    case ScMidiCc.RpnMsb | ScMidiCc.RpnLsb | ScMidiCc.NrpnMsb | ScMidiCc.NrpnLsb => MpeRoutingVerdict.Discard
+    case MidiCc.RpnMsb | MidiCc.RpnLsb | MidiCc.NrpnMsb | MidiCc.NrpnLsb => MpeRoutingVerdict.Discard
 
-    case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb | ScMidiCc.DataIncrement | ScMidiCc.DataDecrement =>
+    case MidiCc.DataEntryMsb | MidiCc.DataEntryLsb | MidiCc.DataIncrement | MidiCc.DataDecrement =>
       routeDataValue(role, msg, rpnSelector)
 
     case _ => routeZoneLevel(role)
@@ -191,19 +191,19 @@ private[tuner] object MpeMessageRouting {
    * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's
    * stored value from the receiver's, since the Tuner does not interpret the increment.
    *
-   * A value message is discarded when no parameter is selected, which [[ScMidiChannelStateTracker]] reports for a
+   * A value message is discarded when no parameter is selected, which [[MidiChannelStateTracker]] reports for a
    * parameter with a selector CC still to arrive as much as for one deselected by a Null: it records no value for
    * either, and relaying a value with no parameter to apply it to is precisely what the closing RPN Null exists to
    * prevent.
    */
   private def routeDataValue(role: MpeChannelRole,
-                             msg: CcScMidiMessage,
+                             msg: CcMidiMsg,
                              rpnSelector: RpnSelector): MpeRoutingVerdict = rpnSelector match {
     case selector if isMcm(selector) =>
-      if (msg.number == ScMidiCc.DataEntryMsb && isValidMcm(msg)) MpeRoutingVerdict.Interpret
+      if (msg.number == MidiCc.DataEntryMsb && isValidMcm(msg)) MpeRoutingVerdict.Interpret
       else MpeRoutingVerdict.Discard
     case selector if isPbs(selector) =>
-      val isDataEntry = msg.number == ScMidiCc.DataEntryMsb || msg.number == ScMidiCc.DataEntryLsb
+      val isDataEntry = msg.number == MidiCc.DataEntryMsb || msg.number == MidiCc.DataEntryLsb
       role match {
         case MpeChannelRole.Member(_) | MpeChannelRole.Master(_) | MpeChannelRole.NonMpeInput(_) =>
           if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
@@ -225,7 +225,7 @@ private[tuner] object MpeMessageRouting {
    * The count is checked here rather than left to [[MpeZone]]'s own `require`, which would throw out of the Tuner
    * and into the MIDI transmitter's thread for a value the input is free to send.
    */
-  private def isValidMcm(msg: CcScMidiMessage): Boolean =
+  private def isValidMcm(msg: CcMidiMsg): Boolean =
     (msg.channel == 0 || msg.channel == 15) && MpeZone.isValidMemberCount(msg.value)
 
   /** Whether `rpnSelector` currently selects the MPE Configuration Message RPN. */
@@ -246,7 +246,7 @@ private[tuner] object MpeMessageRouting {
    * channels without authoring every message that changes it, which is what this predicate exists to catch.
    *
    * This is a statement about the ''receiver'', not about the Tuner's own view of its input.
-   * [[ScMidiChannelStateTracker]] can model the same response, but only when constructed with
+   * [[MidiChannelStateTracker]] can model the same response, but only when constructed with
    * `shallRespondToResetMessages`, and [[MpeTuner]] deliberately leaves that off: the paper has the Tuner keep its
    * tracked state across a relayed Reset All Controllers rather than clear it. So the two sides part company here by
    * design — the output-channel record is dropped while the input channel keeps its selection — and the parting is
@@ -257,8 +257,8 @@ private[tuner] object MpeMessageRouting {
    * does deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than
    * this predicate.
    */
-  private[tuner] def deselectsOnRelay(msg: ChannelScMidiMessage): Boolean = msg match {
-    case cc: CcScMidiMessage => cc.number == ScMidiCc.ResetAllControllers
+  private[tuner] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
+    case cc: CcMidiMsg => cc.number == MidiCc.ResetAllControllers
     case _ => false
   }
 
@@ -283,7 +283,7 @@ private[tuner] object MpeMessageRouting {
    * what the output channel now holds selected cannot drift from what was actually emitted on it.
    *
    * @param selector        The parameter selected on the input channel, from
-   *                        [[ScMidiChannelStateTracker.rpnSelector]].
+   *                        [[MidiChannelStateTracker.rpnSelector]].
    * @param valueCc         The received value message: Data Entry MSB or LSB, Data Increment or Data Decrement. Its
    *                        channel is the input's and is remapped to `outputChannel`; only its number and value are
    *                        carried through.
@@ -298,9 +298,9 @@ private[tuner] object MpeMessageRouting {
    *         sequence can be formed.
    */
   def rpnSequence(selector: RpnSelector,
-                  valueCc: CcScMidiMessage,
+                  valueCc: CcMidiMsg,
                   outputChannel: Int,
-                  latchedSelector: RpnSelector): (Seq[CcScMidiMessage], RpnSelector) = {
+                  latchedSelector: RpnSelector): (Seq[CcMidiMsg], RpnSelector) = {
     val valueMessage = valueCc.mapChannel(_ => outputChannel)
     selector match {
       case RpnSelector.None => (Seq.empty, latchedSelector)

@@ -21,15 +21,38 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity}
 import scala.collection.immutable.ArraySeq
 
 /**
- * Scala-idiomatic base trait for MIDI messages, wrapping Java's [[javax.sound.midi.MidiMessage]] hierarchy.
+ * Scala-idiomatic base trait of the immutable MIDI message model.
  *
  * Unlike Java's [[javax.sound.midi.MidiMessage]] (and its subclasses like [[javax.sound.midi.ShortMessage]]),
- * which expose raw byte data and mutable state, `ScMidiMessage` subtypes are immutable case classes with named,
+ * which expose raw byte data and mutable state, `MidiMsg` subtypes are immutable case classes with named,
  * validated parameters and Scala pattern matching support.
  *
- * Use [[JavaMidiConverters]] to convert between `ScMidiMessage` and [[javax.sound.midi.MidiMessage]].
+ * The hierarchy is split by MIDI specification family: every MIDI 1.0 message (including the Standard MIDI File meta
+ * events) is a [[Midi1Msg]] and every MIDI 2.0 message is a [[Midi2Msg]]. Pipeline signatures take `MidiMsg` so that
+ * they accept both families.
+ *
+ * Use [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] to convert between [[Midi1Msg]] and
+ * [[javax.sound.midi.MidiMessage]].
  */
-sealed trait ScMidiMessage
+sealed trait MidiMsg
+
+/**
+ * Base trait of every message defined by the MIDI 1.0 specification family: Channel Voice and Channel Mode messages,
+ * System Common, System Real-Time and System Exclusive messages, and the Standard MIDI File meta events.
+ *
+ * Only `Midi1Msg` values can be converted to [[javax.sound.midi.MidiMessage]], because Java Sound speaks MIDI 1.0 only.
+ */
+sealed trait Midi1Msg extends MidiMsg
+
+/**
+ * Base trait of every message defined by the MIDI 2.0 specification family, the messages carried by Universal MIDI
+ * Packets (UMP).
+ *
+ * Unlike a [[Midi1Msg]], a `Midi2Msg` cannot be converted to [[javax.sound.midi.MidiMessage]], because Java Sound
+ * speaks MIDI 1.0 only.
+ */
+// TODO #292 Add the MIDI 2.0 message types under this trait
+sealed trait Midi2Msg extends MidiMsg
 
 /**
  * Base class for all MIDI channel messages (both Voice and Mode). Subtypes carry a validated
@@ -37,7 +60,7 @@ sealed trait ScMidiMessage
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  */
-sealed abstract class ChannelScMidiMessage(val channel: Int) extends ScMidiMessage {
+sealed abstract class ChannelMidiMsg(val channel: Int) extends Midi1Msg {
   MidiRequirements.requireChannel(channel)
 
   /**
@@ -47,17 +70,17 @@ sealed abstract class ChannelScMidiMessage(val channel: Int) extends ScMidiMessa
    *
    * @param map Function from the current channel (0-15) to the new channel (0-15).
    */
-  def mapChannel(map: Int => Int): ChannelScMidiMessage
+  def mapChannel(map: Int => Int): ChannelMidiMsg
 }
 
 /** Base trait for MIDI System Common messages. */
-sealed trait SysCommonScMidiMessage extends ScMidiMessage
+sealed trait SysCommonMidiMsg extends Midi1Msg
 
 /** Base trait for MIDI System Real-Time messages. */
-sealed trait SysRealTimeScMidiMessage extends ScMidiMessage
+sealed trait SysRealTimeMidiMsg extends Midi1Msg
 
 /** Base trait for Standard MIDI File (SMF) Meta messages. */
-sealed trait MetaScMidiMessage extends ScMidiMessage
+sealed trait MetaMidiMsg extends Midi1Msg
 
 // ============================================================================
 // Channel Voice Messages
@@ -72,10 +95,10 @@ sealed trait MetaScMidiMessage extends ScMidiMessage
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
-abstract class NoteScMidiMessage(channel: Int,
-                                 val midiNote: MidiNote,
-                                 val velocity: Int = NoteOnScMidiMessage.DefaultVelocity)
-  extends ChannelScMidiMessage(channel) {
+abstract class NoteMidiMsg(channel: Int,
+                           val midiNote: MidiNote,
+                           val velocity: Int = NoteOnMidiMsg.DefaultVelocity)
+  extends ChannelMidiMsg(channel) {
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
 }
@@ -87,18 +110,18 @@ abstract class NoteScMidiMessage(channel: Int,
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
-case class NoteOnScMidiMessage(override val channel: Int,
-                               override val midiNote: MidiNote,
-                               override val velocity: Int = NoteOnScMidiMessage.DefaultVelocity)
-  extends NoteScMidiMessage(channel, midiNote, velocity) {
+case class NoteOnMidiMsg(override val channel: Int,
+                         override val midiNote: MidiNote,
+                         override val velocity: Int = NoteOnMidiMsg.DefaultVelocity)
+  extends NoteMidiMsg(channel, midiNote, velocity) {
 
-  override def mapChannel(map: Int => Int): NoteOnScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): NoteOnMidiMsg = copy(channel = map(channel))
 }
 
 /**
- * Companion object for [[NoteOnScMidiMessage]].
+ * Companion object for [[NoteOnMidiMsg]].
  */
-object NoteOnScMidiMessage {
+object NoteOnMidiMsg {
   /** The velocity value representing a Note Off via Note On (0). */
   val NoteOffVelocity: Int = 0x00
   /** The default velocity for Note On messages (64). */
@@ -112,18 +135,18 @@ object NoteOnScMidiMessage {
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
-case class NoteOffScMidiMessage(override val channel: Int,
-                                override val midiNote: MidiNote,
-                                override val velocity: Int = NoteOffScMidiMessage.DefaultVelocity)
-  extends NoteScMidiMessage(channel, midiNote, velocity) {
+case class NoteOffMidiMsg(override val channel: Int,
+                          override val midiNote: MidiNote,
+                          override val velocity: Int = NoteOffMidiMsg.DefaultVelocity)
+  extends NoteMidiMsg(channel, midiNote, velocity) {
 
-  override def mapChannel(map: Int => Int): NoteOffScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): NoteOffMidiMsg = copy(channel = map(channel))
 }
 
 /**
- * Companion object for [[NoteOffScMidiMessage]] used for default values.
+ * Companion object for [[NoteOffMidiMsg]] used for default values.
  */
-object NoteOffScMidiMessage {
+object NoteOffMidiMsg {
   /** The default velocity for Note Off messages (64). */
   val DefaultVelocity: Int = 0x40
 }
@@ -136,29 +159,29 @@ object NoteOffScMidiMessage {
  * @param midiNote The MIDI note to which the pressure applies.
  * @param value    The pressure value (0-127).
  */
-case class PolyPressureScMidiMessage(override val channel: Int, midiNote: MidiNote, value: Int)
-  extends ChannelScMidiMessage(channel) {
+case class PolyPressureMidiMsg(override val channel: Int, midiNote: MidiNote, value: Int)
+  extends ChannelMidiMsg(channel) {
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override def mapChannel(map: Int => Int): PolyPressureScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): PolyPressureMidiMsg = copy(channel = map(channel))
 }
 
 /**
  * Represents a MIDI Control Change (CC) message with named, validated `number` and `value` parameters.
  *
- * CC number constants are available in the [[ScMidiCc]] object.
+ * CC number constants are available in the [[MidiCc]] object.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param number  The controller number (0-127).
  * @param value   The controller value (0-127).
  */
-case class CcScMidiMessage(override val channel: Int, number: Int, value: Int)
-  extends ChannelScMidiMessage(channel) {
+case class CcMidiMsg(override val channel: Int, number: Int, value: Int)
+  extends ChannelMidiMsg(channel) {
   MidiRequirements.requireUnsigned7BitValue("number", number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override def mapChannel(map: Int => Int): CcScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): CcMidiMsg = copy(channel = map(channel))
 }
 
 /**
@@ -170,11 +193,11 @@ case class CcScMidiMessage(override val channel: Int, number: Int, value: Int)
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param program The program number (0-127).
  */
-case class ProgramChangeScMidiMessage(override val channel: Int, program: Int)
-  extends ChannelScMidiMessage(channel) {
+case class ProgramChangeMidiMsg(override val channel: Int, program: Int)
+  extends ChannelMidiMsg(channel) {
   MidiRequirements.requireUnsigned7BitValue("program", program)
 
-  override def mapChannel(map: Int => Int): ProgramChangeScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): ProgramChangeMidiMsg = copy(channel = map(channel))
 }
 
 /**
@@ -183,11 +206,11 @@ case class ProgramChangeScMidiMessage(override val channel: Int, program: Int)
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param value   The pressure value (0-127).
  */
-case class ChannelPressureScMidiMessage(override val channel: Int, value: Int)
-  extends ChannelScMidiMessage(channel) {
+case class ChannelPressureMidiMsg(override val channel: Int, value: Int)
+  extends ChannelMidiMsg(channel) {
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
-  override def mapChannel(map: Int => Int): ChannelPressureScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): ChannelPressureMidiMsg = copy(channel = map(channel))
 }
 
 /**
@@ -200,10 +223,10 @@ case class ChannelPressureScMidiMessage(override val channel: Int, value: Int)
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param value   The signed 14-bit pitch bend value (-8192 to 8191).
  */
-case class PitchBendScMidiMessage(override val channel: Int, value: Int)
-  extends ChannelScMidiMessage(channel) {
+case class PitchBendMidiMsg(override val channel: Int, value: Int)
+  extends ChannelMidiMsg(channel) {
 
-  import PitchBendScMidiMessage.*
+  import PitchBendMidiMsg.*
 
   MidiRequirements.requireSigned14BitValue("value", value)
 
@@ -220,13 +243,13 @@ case class PitchBendScMidiMessage(override val channel: Int, value: Int)
    */
   def cents(implicit pitchBendSensitivity: PitchBendSensitivity): Double = centsFor(pitchBendSensitivity)
 
-  override def mapChannel(map: Int => Int): PitchBendScMidiMessage = copy(channel = map(channel))
+  override def mapChannel(map: Int => Int): PitchBendMidiMsg = copy(channel = map(channel))
 }
 
 /**
- * Companion object for [[PitchBendScMidiMessage]].
+ * Companion object for [[PitchBendMidiMsg]].
  */
-object PitchBendScMidiMessage {
+object PitchBendMidiMsg {
   /** The minimum signed 14-bit pitch bend value (-8192). */
   val MinValue: Int = MidiRequirements.MinSigned14BitValue
   /** The value representing no pitch bend (0). */
@@ -234,12 +257,12 @@ object PitchBendScMidiMessage {
   /** The maximum signed 14-bit pitch bend value (8191). */
   val MaxValue: Int = MidiRequirements.MaxSigned14BitValue
 
-  /** Creates a [[PitchBendScMidiMessage]] from a value in cents. */
+  /** Creates a [[PitchBendMidiMsg]] from a value in cents. */
   def fromCents(channel: Int,
                 cents: Int,
-                pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default): PitchBendScMidiMessage = {
+                pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default): PitchBendMidiMsg = {
     val value = convertCentsToValue(cents, pitchBendSensitivity)
-    PitchBendScMidiMessage(channel, value)
+    PitchBendMidiMsg(channel, value)
   }
 
   /** Converts MIDI data bytes (LSB, MSB) to a signed 14-bit pitch bend value. */
@@ -307,7 +330,7 @@ object PitchBendScMidiMessage {
  * @param messageType The message type nibble (0-7).
  * @param values      The values nibble (0-15).
  */
-case class MidiTimeCodeScMidiMessage(messageType: Int, values: Int) extends SysCommonScMidiMessage {
+case class MidiTimeCodeMidiMsg(messageType: Int, values: Int) extends SysCommonMidiMsg {
   MidiRequirements.requireUnsigned3BitValue("messageType", messageType)
   MidiRequirements.requireUnsigned4BitValue("values", values)
 }
@@ -318,7 +341,7 @@ case class MidiTimeCodeScMidiMessage(messageType: Int, values: Int) extends SysC
  *
  * @param position The song position in MIDI beats (0-16383).
  */
-case class SongPositionPointerScMidiMessage(position: Int) extends SysCommonScMidiMessage {
+case class SongPositionPointerMidiMsg(position: Int) extends SysCommonMidiMsg {
   MidiRequirements.requireUnsigned14BitValue("position", position)
 }
 
@@ -327,38 +350,38 @@ case class SongPositionPointerScMidiMessage(position: Int) extends SysCommonScMi
  *
  * @param song The song number (0-127).
  */
-case class SongSelectScMidiMessage(song: Int) extends SysCommonScMidiMessage {
+case class SongSelectMidiMsg(song: Int) extends SysCommonMidiMsg {
   MidiRequirements.requireUnsigned7BitValue("song", song)
 }
 
 /**
  * Represents a MIDI Tune Request message, requesting that analog synthesizers retune their oscillators.
  */
-case object TuneRequestScMidiMessage extends SysCommonScMidiMessage
+case object TuneRequestMidiMsg extends SysCommonMidiMsg
 
 // ============================================================================
 // System Real-Time Messages
 // ============================================================================
 
 /** Represents a MIDI Timing Clock message, transmitted at a rate of 24 per quarter note while playing. */
-case object TimingClockScMidiMessage extends SysRealTimeScMidiMessage
+case object TimingClockMidiMsg extends SysRealTimeMidiMsg
 
 /** Represents a MIDI Start message, instructing the receiver to start playback from the beginning. */
-case object StartScMidiMessage extends SysRealTimeScMidiMessage
+case object StartMidiMsg extends SysRealTimeMidiMsg
 
 /** Represents a MIDI Continue message, instructing the receiver to resume playback from the current position. */
-case object ContinueScMidiMessage extends SysRealTimeScMidiMessage
+case object ContinueMidiMsg extends SysRealTimeMidiMsg
 
 /** Represents a MIDI Stop message, instructing the receiver to stop playback. */
-case object StopScMidiMessage extends SysRealTimeScMidiMessage
+case object StopMidiMsg extends SysRealTimeMidiMsg
 
 /**
  * Represents a MIDI Active Sensing message, sent every 300ms or less to indicate that the connection is still active.
  */
-case object ActiveSensingScMidiMessage extends SysRealTimeScMidiMessage
+case object ActiveSensingMidiMsg extends SysRealTimeMidiMsg
 
 /** Represents a MIDI System Reset message, instructing the receiver to reset to its power-up state. */
-case object SystemResetScMidiMessage extends SysRealTimeScMidiMessage
+case object SystemResetMidiMsg extends SysRealTimeMidiMsg
 
 // ============================================================================
 // System Exclusive
@@ -373,14 +396,14 @@ case object SystemResetScMidiMessage extends SysRealTimeScMidiMessage
  *
  * @param data The full SysEx byte sequence.
  */
-case class SysExScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage
+case class SysExMidiMsg(data: ArraySeq[Byte]) extends Midi1Msg
 
 // ============================================================================
 // Meta Messages (Standard MIDI File)
 // ============================================================================
 
 /** The mode of a musical key signature. */
-enum ScMidiKeySignatureMode {
+enum MidiKeySignatureMode {
   case Major, Minor
 }
 
@@ -389,12 +412,12 @@ enum ScMidiKeySignatureMode {
  *
  * @param number The sequence number (0 to 65535, 2 bytes big-endian).
  */
-case class SequenceNumberMetaScMidiMessage(number: Int) extends MetaScMidiMessage {
+case class SequenceNumberMetaMidiMsg(number: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned16BitValue("number", number)
 }
 
-/** Companion object for [[SequenceNumberMetaScMidiMessage]]. */
-object SequenceNumberMetaScMidiMessage {
+/** Companion object for [[SequenceNumberMetaMidiMsg]]. */
+object SequenceNumberMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x00
 }
@@ -402,85 +425,85 @@ object SequenceNumberMetaScMidiMessage {
 /**
  * Base case for text-bearing SMF meta events.
  */
-sealed abstract class TextBearingMetaScMidiMessage extends MetaScMidiMessage
+sealed abstract class TextBearingMetaMidiMsg extends MetaMidiMsg
 
 /** Represents a Text SMF meta event (type `0x01`). */
-case class TextMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
+case class TextMetaMidiMsg(text: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[TextMetaScMidiMessage]]. */
-object TextMetaScMidiMessage {
+/** Companion object for [[TextMetaMidiMsg]]. */
+object TextMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x01
 }
 
 /** Represents a Copyright Notice SMF meta event (type `0x02`). */
-case class CopyrightNoticeMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
+case class CopyrightNoticeMetaMidiMsg(text: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[CopyrightNoticeMetaScMidiMessage]]. */
-object CopyrightNoticeMetaScMidiMessage {
+/** Companion object for [[CopyrightNoticeMetaMidiMsg]]. */
+object CopyrightNoticeMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x02
 }
 
 /** Represents a Track Name SMF meta event (type `0x03`). */
-case class TrackNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
+case class TrackNameMetaMidiMsg(name: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[TrackNameMetaScMidiMessage]]. */
-object TrackNameMetaScMidiMessage {
+/** Companion object for [[TrackNameMetaMidiMsg]]. */
+object TrackNameMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x03
 }
 
 /** Represents an Instrument Name SMF meta event (type `0x04`). */
-case class InstrumentNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
+case class InstrumentNameMetaMidiMsg(name: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[InstrumentNameMetaScMidiMessage]]. */
-object InstrumentNameMetaScMidiMessage {
+/** Companion object for [[InstrumentNameMetaMidiMsg]]. */
+object InstrumentNameMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x04
 }
 
 /** Represents a Lyric SMF meta event (type `0x05`). */
-case class LyricMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
+case class LyricMetaMidiMsg(text: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[LyricMetaScMidiMessage]]. */
-object LyricMetaScMidiMessage {
+/** Companion object for [[LyricMetaMidiMsg]]. */
+object LyricMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x05
 }
 
 /** Represents a Marker SMF meta event (type `0x06`). */
-case class MarkerMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
+case class MarkerMetaMidiMsg(text: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[MarkerMetaScMidiMessage]]. */
-object MarkerMetaScMidiMessage {
+/** Companion object for [[MarkerMetaMidiMsg]]. */
+object MarkerMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x06
 }
 
 /** Represents a Cue Point SMF meta event (type `0x07`). */
-case class CuePointMetaScMidiMessage(text: String) extends TextBearingMetaScMidiMessage
+case class CuePointMetaMidiMsg(text: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[CuePointMetaScMidiMessage]]. */
-object CuePointMetaScMidiMessage {
+/** Companion object for [[CuePointMetaMidiMsg]]. */
+object CuePointMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x07
 }
 
 /** Represents a Program Name SMF meta event (type `0x08`). */
-case class ProgramNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
+case class ProgramNameMetaMidiMsg(name: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[ProgramNameMetaScMidiMessage]]. */
-object ProgramNameMetaScMidiMessage {
+/** Companion object for [[ProgramNameMetaMidiMsg]]. */
+object ProgramNameMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x08
 }
 
 /** Represents a Device Name SMF meta event (type `0x09`). */
-case class DeviceNameMetaScMidiMessage(name: String) extends TextBearingMetaScMidiMessage
+case class DeviceNameMetaMidiMsg(name: String) extends TextBearingMetaMidiMsg
 
-/** Companion object for [[DeviceNameMetaScMidiMessage]]. */
-object DeviceNameMetaScMidiMessage {
+/** Companion object for [[DeviceNameMetaMidiMsg]]. */
+object DeviceNameMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x09
 }
@@ -490,12 +513,12 @@ object DeviceNameMetaScMidiMessage {
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  */
-case class MidiChannelPrefixMetaScMidiMessage(channel: Int) extends MetaScMidiMessage {
+case class MidiChannelPrefixMetaMidiMsg(channel: Int) extends MetaMidiMsg {
   MidiRequirements.requireChannel(channel)
 }
 
-/** Companion object for [[MidiChannelPrefixMetaScMidiMessage]]. */
-object MidiChannelPrefixMetaScMidiMessage {
+/** Companion object for [[MidiChannelPrefixMetaMidiMsg]]. */
+object MidiChannelPrefixMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x20
 }
@@ -505,18 +528,18 @@ object MidiChannelPrefixMetaScMidiMessage {
  *
  * @param port The MIDI port number (0-127).
  */
-case class MidiPortMetaScMidiMessage(port: Int) extends MetaScMidiMessage {
+case class MidiPortMetaMidiMsg(port: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned7BitValue("port", port)
 }
 
-/** Companion object for [[MidiPortMetaScMidiMessage]]. */
-object MidiPortMetaScMidiMessage {
+/** Companion object for [[MidiPortMetaMidiMsg]]. */
+object MidiPortMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x21
 }
 
 /** Represents the End Of Track SMF meta event (type `0x2F`). */
-case object EndOfTrackMetaScMidiMessage extends MetaScMidiMessage {
+case object EndOfTrackMetaMidiMsg extends MetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x2F
 }
@@ -526,12 +549,12 @@ case object EndOfTrackMetaScMidiMessage extends MetaScMidiMessage {
  *
  * @param microsecondsPerQuarterNote Tempo in microseconds per quarter note (0 to 16777215, 24-bit).
  */
-case class SetTempoMetaScMidiMessage(microsecondsPerQuarterNote: Int) extends MetaScMidiMessage {
+case class SetTempoMetaMidiMsg(microsecondsPerQuarterNote: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned24BitValue("microsecondsPerQuarterNote", microsecondsPerQuarterNote)
 }
 
-/** Companion object for [[SetTempoMetaScMidiMessage]]. */
-object SetTempoMetaScMidiMessage {
+/** Companion object for [[SetTempoMetaMidiMsg]]. */
+object SetTempoMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x51
 }
@@ -545,11 +568,11 @@ object SetTempoMetaScMidiMessage {
  * @param frame           Frame (0-255 as stored).
  * @param fractionalFrame Fractional frame, in hundredths (0-255 as stored; typically 0-99).
  */
-case class SmpteOffsetMetaScMidiMessage(hour: Int,
-                                        minute: Int,
-                                        second: Int,
-                                        frame: Int,
-                                        fractionalFrame: Int) extends MetaScMidiMessage {
+case class SmpteOffsetMetaMidiMsg(hour: Int,
+                                  minute: Int,
+                                  second: Int,
+                                  frame: Int,
+                                  fractionalFrame: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned8BitValue("hour", hour)
   MidiRequirements.requireUnsigned8BitValue("minute", minute)
   MidiRequirements.requireUnsigned8BitValue("second", second)
@@ -557,8 +580,8 @@ case class SmpteOffsetMetaScMidiMessage(hour: Int,
   MidiRequirements.requireUnsigned8BitValue("fractionalFrame", fractionalFrame)
 }
 
-/** Companion object for [[SmpteOffsetMetaScMidiMessage]]. */
-object SmpteOffsetMetaScMidiMessage {
+/** Companion object for [[SmpteOffsetMetaMidiMsg]]. */
+object SmpteOffsetMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x54
 }
@@ -571,18 +594,18 @@ object SmpteOffsetMetaScMidiMessage {
  * @param midiClocksPerMetronomeTick       MIDI clocks per metronome tick.
  * @param thirtySecondNotesPer24MidiClocks Number of 32nd notes per 24 MIDI clocks (usually 8).
  */
-case class TimeSignatureMetaScMidiMessage(numerator: Int,
-                                          denominatorPowerOf2: Int,
-                                          midiClocksPerMetronomeTick: Int,
-                                          thirtySecondNotesPer24MidiClocks: Int) extends MetaScMidiMessage {
+case class TimeSignatureMetaMidiMsg(numerator: Int,
+                                    denominatorPowerOf2: Int,
+                                    midiClocksPerMetronomeTick: Int,
+                                    thirtySecondNotesPer24MidiClocks: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned8BitValue("numerator", numerator)
   MidiRequirements.requireUnsigned8BitValue("denominatorPowerOf2", denominatorPowerOf2)
   MidiRequirements.requireUnsigned8BitValue("midiClocksPerMetronomeTick", midiClocksPerMetronomeTick)
   MidiRequirements.requireUnsigned8BitValue("thirtySecondNotesPer24MidiClocks", thirtySecondNotesPer24MidiClocks)
 }
 
-/** Companion object for [[TimeSignatureMetaScMidiMessage]]. */
-object TimeSignatureMetaScMidiMessage {
+/** Companion object for [[TimeSignatureMetaMidiMsg]]. */
+object TimeSignatureMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x58
 }
@@ -593,13 +616,13 @@ object TimeSignatureMetaScMidiMessage {
  * @param sharpsOrFlats Number of sharps (positive) or flats (negative); range -7 to 7.
  * @param mode          Whether the key is major or minor.
  */
-case class KeySignatureMetaScMidiMessage(sharpsOrFlats: Int, mode: ScMidiKeySignatureMode) extends MetaScMidiMessage {
+case class KeySignatureMetaMidiMsg(sharpsOrFlats: Int, mode: MidiKeySignatureMode) extends MetaMidiMsg {
   require(sharpsOrFlats >= -7 && sharpsOrFlats <= 7,
     s"sharpsOrFlats must be between -7 and 7; got $sharpsOrFlats")
 }
 
-/** Companion object for [[KeySignatureMetaScMidiMessage]]. */
-object KeySignatureMetaScMidiMessage {
+/** Companion object for [[KeySignatureMetaMidiMsg]]. */
+object KeySignatureMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x59
 }
@@ -609,10 +632,10 @@ object KeySignatureMetaScMidiMessage {
  *
  * @param data Opaque sequencer-specific payload.
  */
-case class SequencerSpecificMetaScMidiMessage(data: ArraySeq[Byte]) extends MetaScMidiMessage
+case class SequencerSpecificMetaMidiMsg(data: ArraySeq[Byte]) extends MetaMidiMsg
 
-/** Companion object for [[SequencerSpecificMetaScMidiMessage]]. */
-object SequencerSpecificMetaScMidiMessage {
+/** Companion object for [[SequencerSpecificMetaMidiMsg]]. */
+object SequencerSpecificMetaMidiMsg {
   /** The SMF meta event type byte. */
   val MetaType: Int = 0x7F
 }
@@ -624,9 +647,9 @@ object SequencerSpecificMetaScMidiMessage {
 /**
  * Wraps the raw bytes of a [[javax.sound.midi.MidiMessage]] that has no dedicated Scala-idiomatic counterpart.
  *
- * [[JavaMidiConverters]] can reconstruct the original Java message (a `ShortMessage`, `SysexMessage`, or
- * `MetaMessage`, detected from the status byte) via `asJava`.
+ * [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] can reconstruct the original Java message (a
+ * `ShortMessage`, `SysexMessage`, or `MetaMessage`, detected from the status byte) via `asJava`.
  *
  * @param data The full byte sequence of the original Java `MidiMessage` (as returned by `MidiMessage.getMessage`).
  */
-case class UnsupportedScMidiMessage(data: ArraySeq[Byte]) extends ScMidiMessage
+case class UnsupportedMidiMsg(data: ArraySeq[Byte]) extends Midi1Msg
