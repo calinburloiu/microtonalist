@@ -105,6 +105,7 @@ class ImmutableMidiTransmitterTest extends AnyFlatSpec with Matchers {
 
     // Then
     result.receivers shouldEqual Seq(receiver1, receiver2)
+    result shouldEqual transmitter
   }
 
   behavior of "withoutReceivers"

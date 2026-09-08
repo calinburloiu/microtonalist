@@ -32,6 +32,11 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
    * subclass overriding the setter (as `MidiProcessorTransmitter` will) relies on this being `true` for every change
    * that arrives through a modifier. Not `private`: a fixture exposes a value of this type. The two `lock…` accessors
    * let a test look at the `protected` lock without reaching into it from outside the class.
+   *
+   * This override does not wrap its body in `withWriteLock`, which is safe here only because it is exercised solely
+   * through modifiers, which already hold the lock by the time they reach it. A **production** subclass overriding
+   * `receivers_=` must wrap its own body in `withWriteLock`, because a direct assignment reaches the override before
+   * `ConcurrentMidiTransmitter` takes the lock.
    */
   class WriteLockProbingTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty)
     extends ConcurrentMidiTransmitter(initialReceivers) {
@@ -64,6 +69,7 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     val writerCount: Int = 8
     val receiversPerWriter: Int = 250
     val readerCount: Int = 4
+    val joinTimeoutMillis: Long = 30000L
 
     val transmitter: ConcurrentMidiTransmitter = ConcurrentMidiTransmitter()
     val receiversByWriter: Seq[Seq[MidiReceiver]] =
@@ -85,6 +91,7 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
         }
       }
       val thread = Thread(runnable)
+      thread.setDaemon(true)
       thread.start()
       thread
     }
@@ -108,9 +115,9 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
 
     def runAll(): Unit = {
       start.countDown()
-      writers.foreach(_.join(30000L))
+      writers.foreach(_.join(joinTimeoutMillis))
       readersRunning.set(false)
-      readers.foreach(_.join(30000L))
+      readers.foreach(_.join(joinTimeoutMillis))
     }
   }
 
@@ -140,6 +147,15 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     // Then
     probe.writeLockHeldOnSet.toSeq shouldEqual Seq(true, true, true, true)
     probe.receivers shouldBe empty
+  }
+
+  it should "reach a subclass receivers_= outside the write lock on a direct assignment" in new ProbeFixture {
+    // When
+    probe.receivers = Seq(receiver1)
+
+    // Then
+    probe.writeLockHeldOnSet.toSeq shouldEqual Seq(false)
+    probe.receivers shouldEqual Seq(receiver1)
   }
 
   it should "release the write lock after a modifier returns" in new ProbeFixture {

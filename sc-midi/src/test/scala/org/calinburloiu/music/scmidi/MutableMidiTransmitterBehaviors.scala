@@ -40,7 +40,7 @@ trait MutableMidiTransmitterBehaviors {
       val transmitter: MutableMidiTransmitter = newTransmitter(Seq.empty)
     }
 
-    it should "default to no receivers" in new Fixture {
+    it should "start with no receivers when given an empty sequence" in new Fixture {
       // Then
       transmitter.receivers shouldBe empty
     }
