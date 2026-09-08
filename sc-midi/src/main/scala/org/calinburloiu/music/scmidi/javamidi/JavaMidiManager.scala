@@ -20,10 +20,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
 
 import java.util.concurrent.ConcurrentHashMap
-import javax.sound.midi.{MidiDevice, MidiSystem, MidiUnavailableException}
+import javax.sound.midi.{MidiDevice, MidiUnavailableException}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
@@ -34,41 +33,42 @@ import scala.jdk.CollectionConverters.*
  * expose two [[MidiDevice]] ([[JavaMidiDeviceHandle]]) instances for the same physical device, one for input and the
  * other for output. Note that in this case, there is a single [[MidiDeviceId]].
  *
- * Each [[refresh]] resolves every device once, builds its [[MidiDeviceInfo]] and keeps the resolved device so that
- * it can be handed to the [[JavaMidiDeviceHandle]] when the device is opened.
+ * Each [[refresh]] resolves every device once through the [[JavaMidiEnvironment]], builds its [[MidiDeviceInfo]] and
+ * keeps the resolved device so that it can be handed to the [[JavaMidiDeviceHandle]] when the device is opened. The
+ * manager also refreshes whenever the environment reports a change, until it is closed.
  *
  * @param businessync Used for publishing [[MidiEvent]]s.
+ * @param environment The Java Sound environment to scan and subscribe to; the production default is
+ *                    [[CoreMidi4JEnvironment]], a fake is what a test passes.
  */
-class JavaMidiManager(businessync: Businessync) extends MidiManager with StrictLogging {
+class JavaMidiManager(businessync: Businessync,
+                      environment: JavaMidiEnvironment = CoreMidi4JEnvironment)
+  extends MidiManager with StrictLogging {
 
   import JavaMidiManager.*
 
   private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiEndpointType.Input, businessync)
   private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiEndpointType.Output, businessync)
 
-  private val onMidiNotification: CoreMidiNotification = () => {
+  private val environmentSubscription: AutoCloseable = init()
+
+  private def init(): AutoCloseable = {
+    refresh()
+
+    // Automatically refresh when the MIDI environment has changed
+    environment.onEnvironmentChanged(() => onEnvironmentChanged())
+  }
+
+  private def onEnvironmentChanged(): Unit = {
     logger.info("The MIDI environment has changed.")
     businessync.publish(MidiEnvironmentChangedEvent)
     refresh()
   }
 
-  init()
-
-  private def init(): Unit = {
-    refresh()
-
-    // Automatically refresh when the MIDI environment has changed
-    CoreMidiDeviceProvider.addNotificationListener(onMidiNotification)
-  }
-
   override def refresh(): Unit = {
-    // Alternative to `javax.sound.midi.MidiSystem.getMidiDeviceInfo()` to make Java MIDI work on Mac.
-    // This should also work on Windows.
-    val deviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
-
     val currentInputDevices: mutable.Buffer[ConnectedDevice] = mutable.Buffer()
     val currentOutputDevices: mutable.Buffer[ConnectedDevice] = mutable.Buffer()
-    for (javaInfo <- deviceInfoArray; device <- resolveDevice(javaInfo)) {
+    for (javaInfo <- environment.deviceInfos; device <- resolveDevice(javaInfo)) {
       val connectedDevice = ConnectedDevice(device.asMidiDeviceInfo, device)
 
       if (connectedDevice.info.isInputDevice) {
@@ -93,7 +93,7 @@ class JavaMidiManager(businessync: Businessync) extends MidiManager with StrictL
    */
   private def resolveDevice(javaInfo: MidiDevice.Info): Option[MidiDevice] = {
     try {
-      Some(MidiSystem.getMidiDevice(javaInfo))
+      Some(environment.deviceOf(javaInfo))
     } catch {
       case _: MidiUnavailableException => None
       case _: IllegalArgumentException => None
@@ -111,7 +111,7 @@ class JavaMidiManager(businessync: Businessync) extends MidiManager with StrictL
     outputEndpoint.close()
     logger.info(s"Finished closing MIDI connections.")
 
-    CoreMidiDeviceProvider.removeNotificationListener(onMidiNotification)
+    environmentSubscription.close()
   }
 
   override def isInputAvailable(deviceId: MidiDeviceId): Boolean = inputEndpoint.isDeviceAvailable(deviceId)
