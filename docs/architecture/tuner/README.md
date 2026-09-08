@@ -144,7 +144,11 @@ input device ──▶ TuningChangeProcessor ──▶ TunerProcessor ──▶ 
 - Input/output can be a MIDI device or another track (`FromTrackInputSpec` / `ToTrackOutputSpec`). The output device
   receiver is an initial receiver of the pipeline, so a tuner's `reset()` messages reach the device as soon as the
   track is built; `TrackManager` wires the inter-track connections afterwards with `transmitter.addReceiver`, which
-  reconnects the pipeline (the tuner re-sends its reset messages to every receiver, harmlessly).
+  reconnects the pipeline: `onDisconnect` fires first and tunes the output back to standard 12-EDO on the receivers
+  still in place (e.g. the device already connected), then `onConnect` sends the tuner's `reset()` messages to the
+  full new receiver set. So an upstream tuner's `reset()` output — pitch bend sensitivity RPN sequences and the
+  like — also reaches the newly added downstream track's pipeline, where that track's tuner processes it as if it
+  were performance MIDI.
 - A device spec's optional channel config means *filter incoming messages by channel* (input) or *remap outgoing
   messages to a channel* (output).
 

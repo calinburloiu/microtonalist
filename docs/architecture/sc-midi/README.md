@@ -103,8 +103,8 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   `ConcurrentMidiTransmitter`) that calls `onDisconnect()` before and `onConnect()` after every change of its receiver
   set — from or to a non-empty set respectively, and never for an unchanged set — inside its write lock, so that the
   reset/initialisation messages the hooks emit cannot interleave with a send that has not yet read the receivers (a
-  fan-out already in flight is not held off). **This is the abstraction `tuner`
-  extends** to tune the MIDI stream. A processor with no output receivers drops messages without processing them.
+  fan-out already in flight is not held off). **This is the abstraction `tuner` extends** to tune the
+  MIDI stream. A processor with no output receivers drops messages without processing them.
 - **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end
   to end, rewiring the chain automatically on every mutation (`receivers = Seq(next.receiver)` between neighbours,
   its own output receivers on the last one) and forwarding input straight to the output when empty. Its hooks take

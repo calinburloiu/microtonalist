@@ -87,7 +87,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     receiver.send.verify(processMessage2, timeStamp).once()
   }
 
-  "onDisconnect" should "reset tuning to 12-EDO and the internal state of the tuner" in new Fixture {
+  "close" should "reset tuning to 12-EDO and the internal state of the tuner" in new Fixture {
     // When
     processor.close()
     // Then
@@ -95,7 +95,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     receiver.send.verify(tuneMessage2, -1L).once()
   }
 
-  it should "reset tuning to 12-EDO on the receivers still in place when they are cleared" in new Fixture {
+  "onDisconnect" should "reset tuning to 12-EDO on the receivers still in place when they are cleared" in new Fixture {
     // When
     processor.transmitter.clearReceivers()
     // Then
