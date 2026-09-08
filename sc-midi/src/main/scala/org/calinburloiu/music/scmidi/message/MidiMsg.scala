@@ -394,6 +394,14 @@ case object SystemResetMidiMsg extends SysRealTimeMidiMsg
  */
 case class SysExMidiMsg(data: ArraySeq[Byte]) extends Midi1Msg
 
+object SysExMidiMsg {
+  /** The status byte that opens every System Exclusive message on the wire (`0xF0`). */
+  val StatusByte: Byte = 0xF0.toByte
+
+  /** The End of Exclusive byte that closes every System Exclusive message on the wire (`0xF7`). */
+  val EndOfExclusiveByte: Byte = 0xF7.toByte
+}
+
 // ============================================================================
 // Meta Messages (Standard MIDI File)
 // ============================================================================

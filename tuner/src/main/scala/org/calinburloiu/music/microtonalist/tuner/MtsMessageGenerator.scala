@@ -20,7 +20,6 @@ import org.calinburloiu.music.scmidi.PitchBendSensitivity
 import org.calinburloiu.music.scmidi.message.{PitchBendMidiMsg, SysExMidiMsg}
 
 import java.nio.ByteBuffer
-import javax.sound.midi.{ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
 
 /**
@@ -56,7 +55,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     if (isIn2ByteForm) put2ByteTuningValue else put1ByteTuningValue
 
   private val headerBytes: Array[Byte] = Array(
-    SysexMessage.SYSTEM_EXCLUSIVE.toByte,
+    SysExMidiMsg.StatusByte,
     realTimeByte,
     deviceId,
     HeaderByte_Mts,
@@ -76,7 +75,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     }
 
     // # Footer
-    buffer.put(ShortMessage.END_OF_EXCLUSIVE.toByte)
+    buffer.put(SysExMidiMsg.EndOfExclusiveByte)
 
     SysExMidiMsg(ArraySeq.unsafeWrapArray(buffer.array()))
   }
