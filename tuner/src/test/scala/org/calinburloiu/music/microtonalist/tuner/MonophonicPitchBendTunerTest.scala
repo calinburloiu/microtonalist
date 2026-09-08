@@ -470,16 +470,14 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     "exceeds the bounds" in new Fixture {
     tuner.tune(customTuning)
 
-    output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MaxValue - 1)
-      )
+    output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MaxValue - 1))
     output ++= sendNote(noteDFlat4)
     pitchBendOutput should have size 2
     pitchBendOutput(1).value should equal(PitchBendMidiMsg.MaxValue)
 
     output.clear()
 
-    output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MinValue + 1)
-      )
+    output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MinValue + 1))
     output ++= sendNote(noteA4)
     pitchBendOutput should have size 2
     pitchBendOutput(1).value should equal(PitchBendMidiMsg.MinValue)
@@ -590,10 +588,8 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     // Send RPN messages to change it to 2 semitones
     tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
     tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
-    tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, tonePitchBendSensitivity.semitones)
-      )
-    tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryLsb, tonePitchBendSensitivity.cents)
-      )
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, tonePitchBendSensitivity.semitones))
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryLsb, tonePitchBendSensitivity.cents))
 
     // Play noteE4 (offset is -16.67 cents in customTuning)
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
@@ -617,8 +613,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
     tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
     // MSB change
-    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, tonePitchBendSensitivity
-      .semitones))
+    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, tonePitchBendSensitivity.semitones))
 
     // It should have sent a new pitch bend message immediately after DataEntryMsb
     // value = -16.67 / 200 * 8192 = -683

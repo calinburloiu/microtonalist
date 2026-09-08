@@ -30,7 +30,13 @@ import javax.annotation.concurrent.ThreadSafe
  * `reset()` messages to the device — as soon as the track is built; receivers added later through [[transmitter]]
  * (other tracks) reconnect it.
  *
- * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
+ * @param spec             The declarative description this track is built from: its id, input, output, tuner and
+ *                         tuning changers.
+ * @param midiManager      Used to open the input and output MIDI devices named by the spec.
+ * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
+ *                         tuning change.
+ * @param initMidiMessages MIDI messages sent into the pipeline right after it is built, typically to initialize the
+ *                         output instrument.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,

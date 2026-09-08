@@ -33,9 +33,11 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  *   1. the sequence is replaced;
  *   1. if the new sequence is non-empty, [[onConnect]] is called.
  *
- * Setting the same sequence again does nothing. The hooks run inside the transmitter's write lock, so a message
- * arriving on another thread cannot interleave with the messages the hooks emit. A hook may send downstream through
- * `transmitter.receivers` (the lock is reentrant); it must not wait for another thread.
+ * Setting the same sequence again does nothing. The hooks run inside the transmitter's write lock, so the receiver
+ * sequence cannot change under them and a send that has not yet read the receivers is held off; a fan-out already in
+ * flight is not, since [[MidiProcessorReceiver.send]] holds the read lock only long enough to snapshot the receivers.
+ * A hook may send downstream through `transmitter.receivers` (the lock is reentrant); it must not wait for another
+ * thread.
  */
 trait MidiProcessor extends AutoCloseable {
 

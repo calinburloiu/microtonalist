@@ -2268,8 +2268,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   it should "forward Sustain Pedal (CC #64) on Master Channel" in new Fixture {
     // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127)
-      )
+    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
     // Then
     extractCc(output) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 127))
   }
@@ -2592,8 +2591,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
         MidiCc.RpnMsb, MidiCc.RpnLsb, MidiCc.NrpnMsb, MidiCc.NrpnLsb)
       forAll(selectorCcs) { ccNumber =>
         // When
-        val output = tuner.process(
-          CcMidiMsg(mpeInputChannel, ccNumber, uninterpretedParameterNumber))
+        val output = tuner.process(CcMidiMsg(mpeInputChannel, ccNumber, uninterpretedParameterNumber))
         // Then
         output shouldBe empty
       }
