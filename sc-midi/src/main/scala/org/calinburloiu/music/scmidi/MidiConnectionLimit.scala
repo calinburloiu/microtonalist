@@ -21,7 +21,7 @@ package org.calinburloiu.music.scmidi
  * the messages it sends or how many producers can send messages to it.
  *
  * Java Sound encodes "unlimited" as `-1`; the Java Sound implementation maps that to [[Unlimited]], so the API never
- * carries the sentinel. A [[Limited]] count is non-negative.
+ * carries the sentinel. A [[Limited]] count is expected to be non-negative, but the type does not enforce it.
  */
 enum MidiConnectionLimit {
   /** The device opens as many connections as requested. */

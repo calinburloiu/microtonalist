@@ -46,8 +46,9 @@ to date by the manager. A handle can exist for a device that is **not currently 
 `info: Option[MidiDeviceInfo]` is defined only once physically connected, and `isInputDevice` / `isOutputDevice` /
 `endpointType` derive from it — and its lifecycle is **reference-counted**: the device opens on the first `open()` and
 closes on the last `close()`. `open()` may be called before the device is connected — the handle moves to
-`WaitingToOpen` and opens automatically when the device appears (the `State` enum in the companion captures the
-Closed/Connected/WaitingToOpen/Open transitions, drawn in its ScalaDoc). Callers **send** to an output via
+`WaitingToOpen` and opens once the manager hands it a connected device, which the manager only does from
+`openInput` / `openOutput` and not when the device merely reappears (#288; the `State` enum in the companion captures
+the Closed/Connected/WaitingToOpen/Open transitions, drawn in its ScalaDoc). Callers **send** to an output via
 `handle.receiver: MidiReceiver` and **subscribe** to an input via `handle.transmitter: ConcurrentMidiTransmitter`; both
 survive disconnect/reconnect without re-wiring.
 
@@ -65,10 +66,10 @@ resolved device to the handle when it is opened. An endpoint **retains the `Midi
 saw an id** (the connected-device map is filled with `computeIfAbsent`), so a later `refresh()` resolves a fresh device
 for a still-present id and discards it; the retained instance is replaced only after the id leaves and re-enters the
 connected set, which is what an unplug/replug does. `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a
-`javax.sound.midi.MidiDevice` (exposed as `device: Option[MidiDevice]` on the concrete class only) and the **Java Sound
-boundary**: its receiver converts each `Midi1Msg` with `asJava` and sends it to the open device (a `Midi2Msg` is
-dropped with a warning, since Java Sound speaks MIDI 1.0 only), and the Java `Receiver` it hands to the device's
-transmitter converts with `asScala` into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
+`javax.sound.midi.MidiDevice` (reachable only through its `private[javamidi] device: Option[MidiDevice]`) and the
+**Java Sound boundary**: its receiver converts each `Midi1Msg` with `asJava` and sends it to the open device (a
+`Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only), and the Java `Receiver` it hands to the
+device's transmitter converts with `asScala` into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 `JavaMidiEnvironment` is the seam between the manager and the platform — `deviceInfos`, `deviceOf(info)` and
 `onEnvironmentChanged(listener)` — so that the bookkeeping can be unit-tested over a fake environment (follow-up work
 under #177); `CoreMidi4JEnvironment` is the production implementation and the only file that calls the CoreMIDI4J and
@@ -186,8 +187,10 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
 `JavaMidiManager`'s internal endpoints reconcile the scanned device set against known state on every `refresh()` and
 publish the [`MidiEvent`s](#device-handling) as side effects of that diff: a newly seen device is reported
 *connected*, a vanished one *disconnected* (preceded by `MidiEnvironmentChangedEvent`), opening and closing emit
-*opened*/*closed*, and any failed transition emits the matching `…Failed…Event` carrying the exception. Consumers —
-notably the `tuner` track lifecycle — react by subscribing through Businessync rather than polling.
+*opened*/*closed*, and any failed transition emits the matching `…Failed…Event` carrying the exception. Nothing
+subscribes to these events yet — no `@Subscribe` handler or `Businessync.subscribe` call in the repository takes a
+`MidiEvent`, and `Businessync.subscribe` is itself still a stub (#90). They are published so that consumers such as
+the `tuner` track lifecycle can react to device changes instead of polling once there is a bus to do it on.
 
 ## Message conversion model
 

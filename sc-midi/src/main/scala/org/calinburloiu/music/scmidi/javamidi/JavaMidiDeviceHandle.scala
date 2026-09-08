@@ -31,10 +31,11 @@ import javax.sound.midi.{MidiDevice, MidiMessage, Receiver}
 /**
  * [[MidiDeviceHandle]] over a Java Sound [[MidiDevice]].
  *
- * [[JavaMidiManager]] creates the instances and keeps them up to date: it calls [[onConnect]] with the device it
- * resolved when the device is connected or opened, and [[onDisconnect]] when the device goes away. Only while the
- * device is connected are the [[MidiDevice]], via the [[device]] accessor, and the [[MidiDeviceInfo]], via the
- * [[info]] accessor, defined on the instance.
+ * [[JavaMidiManager]] creates the instances and calls [[onConnect]] with the device it resolved — from its
+ * `openDevice`, and only for a device that is connected at that moment. It never calls [[onDisconnect]] itself; only
+ * [[onConnect]] does, to release the device it replaces. So the [[MidiDevice]], via the [[device]] accessor, and the
+ * [[MidiDeviceInfo]], via the [[info]] accessor, are empty until the manager first hands this handle a connected
+ * device, and they keep the last device handed over even after it is unplugged (#288).
  *
  * The handle is the only place where messages cross between the Scala model and Java Sound: [[receiver]] converts
  * each [[Midi1Msg]] with `asJava` and sends it to the open device (a [[Midi2Msg]] is dropped with a warning, since a
@@ -86,12 +87,12 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   override def info: Option[MidiDeviceInfo] = _info
 
   /**
-   * Retrieves the Java Sound device behind this handle. It is a member of the implementation only, not of the
-   * [[MidiDeviceHandle]] API.
+   * Retrieves the Java Sound device behind this handle. It is `private[javamidi]`, a member of the implementation
+   * only and never part of the [[MidiDeviceHandle]] API, so that no `javax.sound.midi` type escapes through it.
    *
-   * @return The MIDI device while it is connected; otherwise, None.
+   * @return The MIDI device once the manager handed one over; otherwise, None.
    */
-  def device: Option[MidiDevice] = _device
+  private[javamidi] def device: Option[MidiDevice] = _device
 
   override def state: State = withLock {
     _state

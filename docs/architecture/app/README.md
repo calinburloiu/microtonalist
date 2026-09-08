@@ -24,7 +24,11 @@ in the startup banner.
 `run` is the composition root. It builds the cross-cutting `Businessync` event/threading layer once and threads it
 through every module, then wires the modules in dependency order: load the HOCON config, load the user's `.mtlist`
 composition and resolve it into a `TuningList`, start the tuner runtime and open its tracks, and finally open the Swing
-GUI. A JVM shutdown hook closes the tuner runtime for clean teardown.
+GUI.
+
+`app` also **owns the MIDI manager's lifecycle** (#282): it picks the Java Sound implementation by constructing
+`JavaMidiManager(businessync)` and injects it into `TunerModule` as a `MidiManager`, so `tuner` uses a manager it
+neither builds nor closes. A JVM shutdown hook closes the tuner runtime and then the MIDI manager for clean teardown.
 
 Each lower module exposes its public surface through a small wiring seam that `app` instantiates rather than reaching
 into the module's internals; the details of each seam belong to that module's own architecture doc. Today these seams

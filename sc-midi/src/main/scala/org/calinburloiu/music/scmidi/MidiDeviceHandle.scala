@@ -19,13 +19,14 @@ package org.calinburloiu.music.scmidi
 /**
  * Handle to a single MIDI device, identified by a [[MidiDeviceId]].
  *
- * A [[MidiManager]] creates the handles and keeps them up to date behind the scenes. A handle can exist for a device
- * that is not connected to the system: [[info]] is defined only while the device is connected, and the manager
- * informs the handle when the physical device gets connected or disconnected.
+ * A [[MidiManager]] creates the handles and hands one its device when [[MidiManager.openInput]] or
+ * [[MidiManager.openOutput]] is called while that device is connected. A handle can therefore exist for a device that
+ * is not connected to the system: [[info]] stays empty until the manager first hands the handle a connected device.
+ * The manager does not notify the handle on its own when the device later appears or goes away (#288).
  *
  * A device can only be used after it is opened via [[open]]; when it is no longer needed, [[close]] must be called.
- * The operation is reference-counted, and a device may be requested to be opened before it is connected: once it
- * becomes connected, it is also opened.
+ * The operation is reference-counted. [[open]] may be called while the device is not connected, which only moves the
+ * handle to [[MidiDeviceHandle.State.WaitingToOpen]]; it opens when the manager next hands it a connected device.
  *
  * A handle exposes a [[MidiReceiver]] and a [[ConcurrentMidiTransmitter]] via [[receiver]] and [[transmitter]]. They
  * can be wired while the device is disconnected or closed, in which case they do nothing; once the device becomes
@@ -96,7 +97,7 @@ trait MidiDeviceHandle extends AutoCloseable {
    * Attempts to open the MIDI device associated with this handle.
    *
    *   - If the device is not yet connected, the handle transitions to [[MidiDeviceHandle.State.WaitingToOpen]] and
-   *     once it becomes connected it will then open.
+   *     opens when the manager next hands it a connected device; see the class documentation for when that happens.
    *   - If the device is already connected, the device will attempt to open immediately.
    *
    * This is a reference-counted operation; the device will only transition to an opened state if this is the first

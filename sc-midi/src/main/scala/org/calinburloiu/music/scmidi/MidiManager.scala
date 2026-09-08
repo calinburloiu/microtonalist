@@ -48,8 +48,11 @@ trait MidiManager extends AutoCloseable {
   def inputDevicesInfo: Seq[MidiDeviceInfo]
 
   /**
-   * Opens an input connection to a MIDI device based on its unique identifier. The device need not be connected: the
-   * handle opens it once it is.
+   * Opens an input connection to a MIDI device based on its unique identifier.
+   *
+   * A handle is returned whether or not the device is connected, but only a connected device is actually opened: for
+   * a disconnected one the handle comes back unopened, and it is not opened on its own once the device appears — a
+   * caller that wants to catch up with it has to call this method again (#288).
    *
    * @param deviceId Unique identifier of the device.
    * @return a handle object for the device.
@@ -90,8 +93,11 @@ trait MidiManager extends AutoCloseable {
   def outputDevicesInfo: Seq[MidiDeviceInfo]
 
   /**
-   * Opens an output connection to a MIDI device based on its unique identifier. The device need not be connected:
-   * the handle opens it once it is.
+   * Opens an output connection to a MIDI device based on its unique identifier.
+   *
+   * A handle is returned whether or not the device is connected, but only a connected device is actually opened: for
+   * a disconnected one the handle comes back unopened, and it is not opened on its own once the device appears — a
+   * caller that wants to catch up with it has to call this method again (#288).
    *
    * @param deviceId Unique identifier of the device.
    * @return a handle object for the device.
