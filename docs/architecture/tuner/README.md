@@ -63,7 +63,9 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       functions — `roleOf`, `route`, and `rpnSequence`: `roleOf` classifies a channel into an `MpeChannelRole`
       (`Master`/`Member`/`NonMpeInput`/`Outside`) from the input mode and Zone configuration, `route` maps a role,
       message and the channel's currently selected RPN to an `MpeRoutingVerdict`
-      (`Discard`/`ForwardOn`/`ForwardRpnSequenceOn`/`Interpret`), and `rpnSequence` renders an uninterpreted
+      (`Discard`/`ForwardOn`/`ForwardRpnSequenceOn`/`Interpret`). The Channel Mode messages are routed by type rather
+      than by controller number: the four MIDI Mode messages (Omni Mode Off/On, Mono Mode On, Poly Mode On) are
+      discarded at every role, the other four are ordinary Zone-level traffic. `rpnSequence` renders an uninterpreted
       parameter's value message for the `ForwardRpnSequenceOn` verdict, preceded by the selector — through
       `sc-midi`'s `RpnMessages`, like every other sequence the Tuner emits — whenever the parameter differs from the
       one its `latchedSelector` argument says the output channel already holds; it returns the new latched selector
@@ -81,11 +83,12 @@ messages it requires now, and `process(message)` rewrites each message flowing t
       module. Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `format` references them.
 
 **Tuning-change detection.** `TuningChanger` (`@NotThreadSafe` plugin) inspects messages and returns a `TuningChange`;
-`PedalTuningChanger` triggers on a pedal-like CC crossing a threshold, reading its trigger map from a
-`TuningChangeTriggers[T]` that binds trigger values (CC numbers here) to previous/next/index changes. `TuningChange`
-splits into `EffectiveTuningChange` (`PreviousTuningChange` / `NextTuningChange` / `IndexTuningChange`, which actually
-change the tuning) and `IneffectiveTuningChange` (no change, or "part of a trigger pattern but nothing yet" — e.g. a
-held pedal's CC stream).
+`PedalTuningChanger` triggers on a pedal-like CC crossing a threshold (controller numbers 0–119 only — 120–127 are
+Channel Mode messages, and `format` rejects them as triggers), reading its trigger map from a `TuningChangeTriggers[T]`
+that binds trigger values (CC numbers here) to previous/next/index changes. `TuningChange` splits into
+`EffectiveTuningChange` (`PreviousTuningChange` / `NextTuningChange` / `IndexTuningChange`, which actually change the
+tuning) and `IneffectiveTuningChange` (no change, or "part of a trigger pattern but nothing yet" — e.g. a held pedal's
+CC stream).
 
 **The processor pipeline.** Each `Tuner`/`TuningChanger` is wrapped in a `MidiProcessor` (from `sc-midi`) so it can be
 chained; both plugins and both processors are typed on `MidiMsg`, so no conversion to Java Sound happens in this
