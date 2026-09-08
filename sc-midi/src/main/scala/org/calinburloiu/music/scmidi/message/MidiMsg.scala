@@ -28,8 +28,8 @@ import scala.collection.immutable.ArraySeq
  * validated parameters and Scala pattern matching support.
  *
  * The hierarchy is split by MIDI specification family: every MIDI 1.0 message (including the Standard MIDI File meta
- * events) is a [[Midi1Msg]]; [[Midi2Msg]] is reserved for MIDI 2.0 messages and has no members yet. Pipeline
- * signatures take `MidiMsg` so that they stay valid once MIDI 2.0 messages exist.
+ * events) is a [[Midi1Msg]] and every MIDI 2.0 message is a [[Midi2Msg]]. Pipeline signatures take `MidiMsg` so that
+ * they accept both families.
  *
  * Use [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] to convert between [[Midi1Msg]] and
  * [[javax.sound.midi.MidiMessage]].
@@ -45,9 +45,13 @@ sealed trait MidiMsg
 sealed trait Midi1Msg extends MidiMsg
 
 /**
- * Base trait reserved for MIDI 2.0 messages. It has no members yet; a full MIDI 2.0 hierarchy is out of scope, see
- * [[https://github.com/calinburloiu/microtonalist/issues/283 #283]].
+ * Base trait of every message defined by the MIDI 2.0 specification family, the messages carried by Universal MIDI
+ * Packets (UMP).
+ *
+ * Unlike a [[Midi1Msg]], a `Midi2Msg` cannot be converted to [[javax.sound.midi.MidiMessage]], because Java Sound
+ * speaks MIDI 1.0 only.
  */
+// TODO #292 Add the MIDI 2.0 message types under this trait
 sealed trait Midi2Msg extends MidiMsg
 
 /**
