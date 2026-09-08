@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, RpnMessages}
-import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, clampValue, mapShortMessageChannel}
+import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, clampValue}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -89,10 +89,12 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   override def process(message: MidiMessage): Seq[MidiMessage] = {
-    val forwardMessage = () => mapShortMessageChannel(message, _ => outputChannel)
-
     val buffer = mutable.Buffer[MidiMessage]()
     val scMessage = message.asScala
+    val forwardMessage = () => scMessage match {
+      case channelMessage: ChannelMidiMsg => channelMessage.mapChannel(_ => outputChannel).asJava
+      case _ => message
+    }
 
     // `turnNoteOn` / `turnNoteOff` need to know which notes were held down *before* this message.
     // Capture the pre-message state once, then update the tracker so all other reads (CC values,

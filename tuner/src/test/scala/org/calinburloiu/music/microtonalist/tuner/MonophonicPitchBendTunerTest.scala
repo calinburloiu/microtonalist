@@ -502,6 +502,17 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     }
   }
 
+  it should "forward a System Real-Time message unchanged" in new Fixture {
+    // Given
+    tuner.tune(customTuning2)
+
+    // When
+    output ++= tuner.process(TimingClockMidiMsg.asJava)
+
+    // Then
+    output.map(_.asScala) shouldEqual Seq(TimingClockMidiMsg)
+  }
+
   behavior of "MonophonicPitchBendTuner when pedals are depressed"
 
   it should "interrupt sustain pedal in order to not violate monophony" in new Fixture {
