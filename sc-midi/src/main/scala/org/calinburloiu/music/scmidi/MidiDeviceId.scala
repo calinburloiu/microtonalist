@@ -41,6 +41,14 @@ case class MidiDeviceId(name: String,
   }
 
   /**
+   * Checks whether this identifier is the one derived from the given device information.
+   *
+   * @param midiDeviceInfo The MIDI device information to compare against.
+   * @return True if this identifier matches the given device information, false otherwise.
+   */
+  def correspondsToInfo(midiDeviceInfo: MidiDeviceInfo): Boolean = this == midiDeviceInfo.id
+
+  /**
    * The app does not use the Java MIDI implementation and instead uses CoreMidi4J, which causes all device names to
    * have a certain prefix. This method removes that prefix.
    *
