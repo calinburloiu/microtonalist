@@ -27,8 +27,7 @@ import scala.collection.immutable.ArraySeq
  * [[scala.jdk.CollectionConverters]].
  *
  * It also builds the device-level API values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and
- * [[connectionLimit]]; and, until #282 removes them, hosts the [[javax.sound.midi.MidiDevice]] capability extensions
- * `isInputDevice` / `isOutputDevice`.
+ * [[connectionLimit]].
  *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
  *
@@ -81,26 +80,6 @@ object JavaMidiConverters {
           FromMetaMap(metaMessage.getType)(metaMessage)
         case _ => toUnsupported(message)
       }
-    }
-  }
-
-  extension (device: MidiDevice) {
-    /**
-     * Tells whether this Java Sound device can be used as an input, that is, whether it can open at least one
-     * `Transmitter`. Java Sound encodes "unlimited" as `-1`.
-     */
-    def isInputDevice: Boolean = {
-      val maxTransmitters = device.getMaxTransmitters
-      maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0
-    }
-
-    /**
-     * Tells whether this Java Sound device can be used as an output, that is, whether it can open at least one
-     * `Receiver`. Java Sound encodes "unlimited" as `-1`.
-     */
-    def isOutputDevice: Boolean = {
-      val maxReceivers = device.getMaxReceivers
-      maxReceivers == -1 /* unlimited */ || maxReceivers > 0
     }
   }
 

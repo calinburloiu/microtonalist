@@ -24,7 +24,7 @@ import org.calinburloiu.music.scmidi.message.{Midi1Msg, Midi2Msg, MidiMsg}
 
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 import javax.annotation.concurrent.ThreadSafe
-import javax.sound.midi.*
+import javax.sound.midi.{MidiDevice, MidiMessage, Receiver}
 
 /**
  * Class used for objects that handle MIDI devices.
@@ -33,9 +33,9 @@ import javax.sound.midi.*
  *
  * A [[MidiDeviceHandle]] can be instantiated for a MIDI device based on its unique identifier, [[MidiDeviceId]].
  * The device is not required to be connected to the system when the object is instantiated. However, [[MidiManager]]
- * will automatically inform the object when the physical device gets connected or disconnected. Only when the device
- * is connected the [[MidiDevice]], via [[device]] accessor, and the [[MidiDevice.Info]], via [[info]] accessor,
- * become defined on the instance.
+ * will automatically inform the object when the physical device gets connected or disconnected. Only while the device
+ * is connected are the [[MidiDevice]], via the [[device]] accessor, and the [[MidiDeviceInfo]], via the [[info]]
+ * accessor, defined on the instance; [[MidiManager]] resolves the device and hands it to [[onConnect]].
  *
  * Similar to [[MidiDevice]], a device can only be used after it's opened via the [[open]] method. When it's no
  * longer needed, [[close]] must be called. The device can be requested to be opened even if it's not connected and
@@ -59,7 +59,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
 
   private implicit val lock: Lock = new ReentrantLock()
 
-  @volatile private var _info: Option[MidiDevice.Info] = None
+  @volatile private var _info: Option[MidiDeviceInfo] = None
   @volatile private var _device: Option[MidiDevice] = None
 
   private var _state: State = State.Closed
@@ -92,24 +92,11 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
   }
 
   /**
-   * Convenience constructor for creating an instance from an already connected device..
-   *
-   * @param info        Information about the MIDI device used to generate the MidiDeviceId and establish the device
-   *                    connection.
-   * @param businessync Used for publishing MIDI events about the device state.
-   */
-  private[scmidi] def this(info: MidiDevice.Info, businessync: Businessync) = {
-    this(MidiDeviceId(info), businessync)
-
-    onConnect(info)
-  }
-
-  /**
    * Retrieves the information about the MIDI device.
    *
-   * @return An optional containing the MIDI device information if available; otherwise, None.
+   * @return The MIDI device information while the device is connected; otherwise, None.
    */
-  def info: Option[MidiDevice.Info] = _info
+  def info: Option[MidiDeviceInfo] = _info
 
   /**
    * Retrieves the associated Java MIDI API device.
@@ -124,7 +111,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
    *
    * @return True if the MIDI device supports input, false otherwise.
    */
-  def isInputDevice: Boolean = _device.exists(_.isInputDevice)
+  def isInputDevice: Boolean = _info.exists(_.isInputDevice)
 
   /**
    * Determines if the associated MIDI device is an output device. If it is, then its [[receiver]] can be used to send
@@ -132,7 +119,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
    *
    * @return True if the MIDI device supports output, false otherwise.
    */
-  def isOutputDevice: Boolean = _device.exists(_.isOutputDevice)
+  def isOutputDevice: Boolean = _info.exists(_.isOutputDevice)
 
   /**
    * Tells whether a MIDI endpoint (like a device) support input and/or output.
@@ -151,38 +138,22 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
   /**
    * Informs the instance that the device got connected to the system.
    *
-   * @param info Information about the MIDI device to connect to.
-   * @return true if the connection was successful, or false otherwise.
+   * @param info   Information about the connected MIDI device.
+   * @param device The resolved Java Sound device, which [[MidiManager]] obtains once per environment scan.
    */
-  private[scmidi] def onConnect(info: MidiDevice.Info): Boolean = withLock {
-    require(id.correspondsToInfo(info), s"The given MidiDevice.Info $info does not correspond to the MidiDeviceHandle" +
-      s" $id!")
+  private[scmidi] def onConnect(info: MidiDeviceInfo, device: MidiDevice): Unit = withLock {
+    require(id.correspondsToInfo(info), s"The given MidiDeviceInfo $info does not correspond to the " +
+      s"MidiDeviceHandle $id!")
 
     onDisconnect()
 
-    _device = try {
-      Some(MidiSystem.getMidiDevice(info))
-    } catch {
-      case exception: MidiUnavailableException => None
-      case exception: IllegalArgumentException => None
-      case exception: Exception =>
-        logger.error(s"Failed to connect to $endpointType device $id!", exception)
-        businessync.publish(MidiDeviceFailedToConnectEvent(id, exception))
-        None
-    }
+    _device = Some(device)
+    _info = Some(info)
 
-    if (_device.isDefined) {
-      _info = Some(info)
-
-      if (_state == State.Closed) {
-        _state = State.Connected
-      } else if (_state == State.WaitingToOpen) {
-        doOpen()
-      }
-
-      true
-    } else {
-      false
+    if (_state == State.Closed) {
+      _state = State.Connected
+    } else if (_state == State.WaitingToOpen) {
+      doOpen()
     }
   }
 
@@ -290,7 +261,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
       _device.foreach { dev =>
         dev.open()
 
-        if (dev.isInputDevice) {
+        if (isInputDevice) {
           dev.getTransmitter.setReceiver(inboundReceiver)
         }
       }

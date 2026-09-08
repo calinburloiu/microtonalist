@@ -244,48 +244,6 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
   }
 
-  behavior of "JavaMidiConverters.isInputDevice"
-
-  it should "be true for devices with unlimited or positive maximum transmitters and false otherwise" in {
-    // Given
-    val cases = Table(
-      ("maxTransmitters", "expected"),
-      (-1, true),
-      (0, false),
-      (1, true),
-      (8, true)
-    )
-
-    forAll(cases) { (maxTransmitters, expected) =>
-      val device = stub[MidiDevice]
-      (() => device.getMaxTransmitters).when().returns(maxTransmitters)
-
-      // When / Then
-      device.isInputDevice shouldBe expected
-    }
-  }
-
-  behavior of "JavaMidiConverters.isOutputDevice"
-
-  it should "be true for devices with unlimited or positive maximum receivers and false otherwise" in {
-    // Given
-    val cases = Table(
-      ("maxReceivers", "expected"),
-      (-1, true),
-      (0, false),
-      (1, true),
-      (8, true)
-    )
-
-    forAll(cases) { (maxReceivers, expected) =>
-      val device = stub[MidiDevice]
-      (() => device.getMaxReceivers).when().returns(maxReceivers)
-
-      // When / Then
-      device.isOutputDevice shouldBe expected
-    }
-  }
-
   behavior of "JavaMidiConverters.asJava availability"
 
   it should "be defined for Midi1Msg but not for Midi2Msg" in {
