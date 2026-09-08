@@ -94,11 +94,11 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
       metaMsg(0x58, Array(4.toByte, 2.toByte, 24.toByte, 8.toByte))
     ),
     (
-      KeySignatureMetaMidiMsg(-3, ScMidiKeySignatureMode.Minor),
+      KeySignatureMetaMidiMsg(-3, MidiKeySignatureMode.Minor),
       metaMsg(0x59, Array((-3).toByte, 1.toByte))
     ),
     (
-      KeySignatureMetaMidiMsg(2, ScMidiKeySignatureMode.Major),
+      KeySignatureMetaMidiMsg(2, MidiKeySignatureMode.Major),
       metaMsg(0x59, Array(2.toByte, 0.toByte))
     ),
     (

@@ -22,7 +22,7 @@ import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.mutable
 
 /**
- * A [[ScMidiReceiver]] that tracks per-channel MIDI state derived from the messages it receives: active notes
+ * A [[MidiReceiver]] that tracks per-channel MIDI state derived from the messages it receives: active notes
  * (with their velocities, Polyphonic Key Pressure, and a count of the Note On messages no Note Off has yet
  * discharged), Control Change values, Registered and Non-Registered Parameter Number values together with the
  * parameter each channel currently has selected, Channel Pressure, Pitch Bend, and Program Change.
@@ -32,8 +32,8 @@ import scala.collection.mutable
  * See [[referenceCount]].
  *
  * Default values for Control Change, Registered Parameter Number, and Non-Registered Parameter Number lookups
- * may be supplied via the constructor; if not, the companion object's [[ScMidiChannelStateTracker.DefaultCcValues]],
- * [[ScMidiChannelStateTracker.DefaultRpnValues]], and [[ScMidiChannelStateTracker.DefaultNrpnValues]] are consulted.
+ * may be supplied via the constructor; if not, the companion object's [[MidiChannelStateTracker.DefaultCcValues]],
+ * [[MidiChannelStateTracker.DefaultRpnValues]], and [[MidiChannelStateTracker.DefaultNrpnValues]] are consulted.
  *
  * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads. It should usually
  * be used from a track thread.
@@ -49,12 +49,12 @@ import scala.collection.mutable
  *                                    everything.
  */
 @NotThreadSafe
-class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
+class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
                                 rpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
                                 nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
-                                shallRespondToResetMessages: Boolean = false) extends ScMidiReceiver {
+                                shallRespondToResetMessages: Boolean = false) extends MidiReceiver {
 
-  import ScMidiChannelStateTracker.*
+  import MidiChannelStateTracker.*
 
   private val channelStates: Array[ChannelState] = Array.fill(ChannelCount)(ChannelState())
   private var _closed: Boolean = false
@@ -212,7 +212,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * Retrieves the recorded value of the given CC on the given channel, or a default if not set.
    *
    * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `ccDefaults`,
-   * then the companion's [[ScMidiChannelStateTracker.DefaultCcValues]]. If no value is found through any
+   * then the companion's [[MidiChannelStateTracker.DefaultCcValues]]. If no value is found through any
    * of these, a [[NoSuchElementException]] is thrown.
    *
    * @return the recorded value of the given CC on the given channel, or a default if not set.
@@ -279,7 +279,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * Retrieves the `(valueMsb, valueLsb)` for the given RPN on the given channel, or a default if not recorded.
    *
    * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `rpnDefaults`,
-   * then the companion's [[ScMidiChannelStateTracker.DefaultRpnValues]]. If no value is found through any of these,
+   * then the companion's [[MidiChannelStateTracker.DefaultRpnValues]]. If no value is found through any of these,
    * a [[NoSuchElementException]] is thrown.
    *
    * @return the `(valueMsb, valueLsb)` for the given RPN, or a default if not recorded.
@@ -307,7 +307,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * Retrieves the `(valueMsb, valueLsb)` for the given NRPN on the given channel, or a default if not recorded.
    *
    * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `nrpnDefaults`,
-   * then the companion's [[ScMidiChannelStateTracker.DefaultNrpnValues]]. If no value is found through any of these,
+   * then the companion's [[MidiChannelStateTracker.DefaultNrpnValues]]. If no value is found through any of these,
    * a [[NoSuchElementException]] is thrown.
    *
    * @return the `(valueMsb, valueLsb)` for the given NRPN, or a default if not recorded.
@@ -454,7 +454,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 }
 
-object ScMidiChannelStateTracker {
+object MidiChannelStateTracker {
 
   /** The number of MIDI channels (1..16, 0-indexed as 0..15). */
   private val ChannelCount: Int = 16
@@ -490,7 +490,7 @@ object ScMidiChannelStateTracker {
   )
 
   /**
-   * Default values for known Control Change controllers, used by [[ScMidiChannelStateTracker.cc]] when a recorded
+   * Default values for known Control Change controllers, used by [[MidiChannelStateTracker.cc]] when a recorded
    * value, an override, or a constructor-supplied default is unavailable. These match common MIDI 1.0 defaults.
    */
   val DefaultCcValues: Map[Int, Int] = Map(
@@ -515,7 +515,7 @@ object ScMidiChannelStateTracker {
   )
 
   /**
-   * Default values for known Registered Parameter Numbers, used by [[ScMidiChannelStateTracker.rpn]] and by Data
+   * Default values for known Registered Parameter Numbers, used by [[MidiChannelStateTracker.rpn]] and by Data
    * Increment / Decrement when neither a recorded value nor a constructor-supplied default is available for the
    * currently selected RPN.
    *

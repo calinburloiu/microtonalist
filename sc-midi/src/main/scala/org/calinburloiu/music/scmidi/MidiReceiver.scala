@@ -25,7 +25,7 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * Implementations may be stateful (e.g. tracking the current MIDI state) or stateless (e.g. forwarding to another
  * sink). Once [[close]] is called, [[send]] should become a no-op.
  */
-trait ScMidiReceiver extends AutoCloseable {
+trait MidiReceiver extends AutoCloseable {
   /**
    * Sends a MIDI message to this receiver.
    *

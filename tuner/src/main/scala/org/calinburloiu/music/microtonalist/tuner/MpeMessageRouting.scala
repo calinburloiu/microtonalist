@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{RpnMessages, RpnSelector, ScMidiChannelStateTracker}
+import org.calinburloiu.music.scmidi.{RpnMessages, RpnSelector, MidiChannelStateTracker}
 import org.calinburloiu.music.scmidi.message.*
 
 /**
@@ -191,7 +191,7 @@ private[tuner] object MpeMessageRouting {
    * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's
    * stored value from the receiver's, since the Tuner does not interpret the increment.
    *
-   * A value message is discarded when no parameter is selected, which [[ScMidiChannelStateTracker]] reports for a
+   * A value message is discarded when no parameter is selected, which [[MidiChannelStateTracker]] reports for a
    * parameter with a selector CC still to arrive as much as for one deselected by a Null: it records no value for
    * either, and relaying a value with no parameter to apply it to is precisely what the closing RPN Null exists to
    * prevent.
@@ -246,7 +246,7 @@ private[tuner] object MpeMessageRouting {
    * channels without authoring every message that changes it, which is what this predicate exists to catch.
    *
    * This is a statement about the ''receiver'', not about the Tuner's own view of its input.
-   * [[ScMidiChannelStateTracker]] can model the same response, but only when constructed with
+   * [[MidiChannelStateTracker]] can model the same response, but only when constructed with
    * `shallRespondToResetMessages`, and [[MpeTuner]] deliberately leaves that off: the paper has the Tuner keep its
    * tracked state across a relayed Reset All Controllers rather than clear it. So the two sides part company here by
    * design — the output-channel record is dropped while the input channel keeps its selection — and the parting is
@@ -283,7 +283,7 @@ private[tuner] object MpeMessageRouting {
    * what the output channel now holds selected cannot drift from what was actually emitted on it.
    *
    * @param selector        The parameter selected on the input channel, from
-   *                        [[ScMidiChannelStateTracker.rpnSelector]].
+   *                        [[MidiChannelStateTracker.rpnSelector]].
    * @param valueCc         The received value message: Data Entry MSB or LSB, Data Increment or Data Decrement. Its
    *                        channel is the input's and is remapped to `outputChannel`; only its number and value are
    *                        carried through.

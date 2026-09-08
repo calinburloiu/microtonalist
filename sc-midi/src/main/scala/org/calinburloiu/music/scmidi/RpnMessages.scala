@@ -51,7 +51,7 @@ object RpnMessages {
    * [[RpnSelector.None]] renders as the Null Function (RPN 7F 7F), the encoding MIDI 1.0 gives to holding no
    * parameter selected: deselecting is a selector pair on the wire like any other, and it is what stops a later
    * stray Data Entry from reaching the parameter this sequence just set. Rendering it here rather than at each call
-   * site is what makes the two directions mirror each other — [[ScMidiChannelStateTracker]] reads that same pair
+   * site is what makes the two directions mirror each other — [[MidiChannelStateTracker]] reads that same pair
    * back as [[RpnSelector.None]], so every selector survives a round trip through the two.
    *
    * The Null is emitted as an RPN whatever the parameter it closes, an NRPN Null having no separate encoding here.

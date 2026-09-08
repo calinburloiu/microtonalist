@@ -181,7 +181,7 @@ object JavaMidiConverters {
     entry(classOf[KeySignatureMetaMidiMsg]) { m =>
       buildMeta(
         KeySignatureMetaMidiMsg.MetaType,
-        Array(m.sharpsOrFlats.toByte, (if (m.mode == ScMidiKeySignatureMode.Minor) 1 else 0).toByte)
+        Array(m.sharpsOrFlats.toByte, (if (m.mode == MidiKeySignatureMode.Minor) 1 else 0).toByte)
       )
     },
     entry(classOf[SequencerSpecificMetaMidiMsg]) { m =>
@@ -267,7 +267,7 @@ object JavaMidiConverters {
       val d = m.getData
       val sharps = d(0).toInt
       val mode =
-        if ((d(1) & 0xFF) == 1) ScMidiKeySignatureMode.Minor else ScMidiKeySignatureMode.Major
+        if ((d(1) & 0xFF) == 1) MidiKeySignatureMode.Minor else MidiKeySignatureMode.Major
       KeySignatureMetaMidiMsg(sharps, mode)
     },
     SequencerSpecificMetaMidiMsg.MetaType -> { m =>

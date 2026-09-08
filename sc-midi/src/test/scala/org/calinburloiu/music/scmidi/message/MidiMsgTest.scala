@@ -276,7 +276,7 @@ class MidiMsgTest extends AnyFlatSpec with Matchers {
   behavior of "KeySignatureMetaMidiMsg"
 
   it should "reject invalid sharpsOrFlats" in {
-    an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(8, ScMidiKeySignatureMode.Major)
-    an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(-8, ScMidiKeySignatureMode.Major)
+    an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(8, MidiKeySignatureMode.Major)
+    an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(-8, MidiKeySignatureMode.Major)
   }
 }

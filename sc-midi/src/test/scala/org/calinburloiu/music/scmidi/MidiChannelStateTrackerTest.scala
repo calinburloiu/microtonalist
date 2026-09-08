@@ -21,7 +21,7 @@ import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
+class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   private val Channel = 3
   private val OtherChannel = 7
@@ -30,15 +30,15 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   private val NrpnB = (10, 21)
 
   private trait TrackerFixture {
-    val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
+    val tracker: MidiChannelStateTracker = MidiChannelStateTracker()
   }
 
   /** A tracker that models a receiver known to act on All Sound Off, Reset All Controllers, and All Notes Off. */
   private trait ResettableTrackerFixture {
-    val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker(shallRespondToResetMessages = true)
+    val tracker: MidiChannelStateTracker = MidiChannelStateTracker(shallRespondToResetMessages = true)
   }
 
-  behavior of "ScMidiChannelStateTracker per note tracking"
+  behavior of "MidiChannelStateTracker per note tracking"
 
   it should "have no active notes on any channel when empty" in new TrackerFixture {
     // When / Then
@@ -269,7 +269,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.referenceCount(Channel, C4) should equal(2)
   }
 
-  behavior of "ScMidiChannelStateTracker Control Change tracking"
+  behavior of "MidiChannelStateTracker Control Change tracking"
 
   it should "return None for ccOption when the CC has not been set" in new TrackerFixture {
     // When / Then
@@ -333,7 +333,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "honor a constructor-supplied ccDefault for an unknown CC" in {
     // Given
     val unknownCc = 50
-    val tracker = ScMidiChannelStateTracker(ccDefaults = Map(unknownCc -> 21))
+    val tracker = MidiChannelStateTracker(ccDefaults = Map(unknownCc -> 21))
 
     // When / Then
     tracker.cc(Channel, unknownCc) should equal(21)
@@ -341,13 +341,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "let constructor-supplied ccDefaults override the companion's defaults" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(ccDefaults = Map(MidiCc.VolumeMsb -> 5))
+    val tracker = MidiChannelStateTracker(ccDefaults = Map(MidiCc.VolumeMsb -> 5))
 
     // When / Then
     tracker.cc(Channel, MidiCc.VolumeMsb) should equal(5)
   }
 
-  behavior of "ScMidiChannelStateTracker Channel Pressure / Pitch Bend / Program Change tracking"
+  behavior of "MidiChannelStateTracker Channel Pressure / Pitch Bend / Program Change tracking"
 
   it should "default Channel Pressure / Pitch Bend / Program Change to 0" in new TrackerFixture {
     // When / Then
@@ -396,7 +396,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.programChange(OtherChannel) should equal(0)
   }
 
-  behavior of "ScMidiChannelStateTracker bankSelect"
+  behavior of "MidiChannelStateTracker bankSelect"
 
   it should "default Bank Select to (0, 0) when nothing is recorded" in new TrackerFixture {
     // When / Then
@@ -414,7 +414,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "honour constructor-supplied Bank Select defaults" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(
+    val tracker = MidiChannelStateTracker(
       ccDefaults = Map(MidiCc.BankSelectMsb -> 1, MidiCc.BankSelectLsb -> 2)
     )
 
@@ -422,9 +422,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.bankSelect(Channel) should equal((1, 2))
   }
 
-  behavior of "ScMidiChannelStateTracker RPN tracking"
+  behavior of "MidiChannelStateTracker RPN tracking"
 
-  private def selectRpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
+  private def selectRpn(tracker: MidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
     tracker.send(CcMidiMsg(channel, MidiCc.RpnMsb, msb))
     tracker.send(CcMidiMsg(channel, MidiCc.RpnLsb, lsb))
   }
@@ -841,7 +841,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "prefer the constructor's rpnDefaults over the companion's" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(
+    val tracker = MidiChannelStateTracker(
       rpnDefaults = Map(
         (MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb) -> (12, 0)
       )
@@ -915,9 +915,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       equal(Some((5, 0)))
   }
 
-  behavior of "ScMidiChannelStateTracker NRPN tracking"
+  behavior of "MidiChannelStateTracker NRPN tracking"
 
-  private def selectNrpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
+  private def selectNrpn(tracker: MidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
     tracker.send(CcMidiMsg(channel, MidiCc.NrpnMsb, msb))
     tracker.send(CcMidiMsg(channel, MidiCc.NrpnLsb, lsb))
   }
@@ -1155,7 +1155,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "increment a recorded NRPN value with constructor-supplied default" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(
+    val tracker = MidiChannelStateTracker(
       nrpnDefaults = Map(NrpnA -> (10, 5))
     )
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
@@ -1169,7 +1169,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "decrement a recorded NRPN value with constructor-supplied default" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(
+    val tracker = MidiChannelStateTracker(
       nrpnDefaults = Map(NrpnA -> (10, 5))
     )
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
@@ -1183,7 +1183,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "apply multiple Increments and a Decrement to an NRPN value" in {
     // Given
-    val tracker = ScMidiChannelStateTracker(
+    val tracker = MidiChannelStateTracker(
       nrpnDefaults = Map(NrpnA -> (10, 5))
     )
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
@@ -1219,7 +1219,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) shouldBe None
   }
 
-  behavior of "ScMidiChannelStateTracker close"
+  behavior of "MidiChannelStateTracker close"
 
   it should "report isClosed as false initially" in new TrackerFixture {
     // When / Then
@@ -1272,7 +1272,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.isClosed shouldBe true
   }
 
-  behavior of "ScMidiChannelStateTracker channel validation"
+  behavior of "MidiChannelStateTracker channel validation"
 
   it should "throw on activeNotes with an invalid channel" in new TrackerFixture {
     // When / Then
@@ -1346,7 +1346,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy tracker.reset(16)
   }
 
-  behavior of "ScMidiChannelStateTracker Channel Mode messages"
+  behavior of "MidiChannelStateTracker Channel Mode messages"
 
   it should "cancel active notes on the channel when All Sound Off is received" in new ResettableTrackerFixture {
     // Given
@@ -1618,7 +1618,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       Some(MidiRpn.PitchBendSensitivityMsb), Some(MidiRpn.PitchBendSensitivityLsb))
   }
 
-  behavior of "ScMidiChannelStateTracker reset"
+  behavior of "MidiChannelStateTracker reset"
 
   it should "clear all per-channel state across all channels" in new TrackerFixture {
     // Given

@@ -67,7 +67,7 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
   it should "round-trip every selector through the tracker that reads it back" in {
     // Given
     val channel = 9
-    val tracker = ScMidiChannelStateTracker()
+    val tracker = MidiChannelStateTracker()
     val selectors = Seq(
       RpnSelector.Rpn(msb = 0x12, lsb = 0x34),
       RpnSelector.Nrpn(msb = 0x56, lsb = 0x78),

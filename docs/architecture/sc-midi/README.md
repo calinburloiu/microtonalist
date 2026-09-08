@@ -79,7 +79,7 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   `MidiDeviceHandle` to broadcast a device's stream.
 - **`MultiTransmitter`** — a thread-safe transmitter allowing **multiple** receivers, unlike Java's single-receiver
   `Transmitter`.
-- **`ScMidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
+- **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
   directly, so callers avoid wrapping/unwrapping Java messages.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
   Subclasses implement `process(message, timeStamp): Seq[MidiMessage]`; `onConnect`/`onDisconnect` callbacks let a
@@ -87,7 +87,7 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   MIDI stream.
 - **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end to
   end, rewiring the chain automatically on every mutation (and forwarding input straight to the output when empty).
-- **`ScMidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `ScMidiReceiver` (for a single track thread) that
+- **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that
   derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
   sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are
   **reference-counted**: a note struck twice without an intervening release needs two Note Offs to go inactive, which
@@ -108,7 +108,7 @@ object.
 
 `RpnSelector` and `RpnMessages` are the two halves of the Registered and Non-Registered Parameter vocabulary.
 `RpnSelector` is the parameter a channel holds selected — `None`, an `Rpn(msb, lsb)`, or an `Nrpn(msb, lsb)` — and is
-the type the two directions of MIDI 1.0's parameter procedure meet in: `ScMidiChannelStateTracker` derives it from an
+the type the two directions of MIDI 1.0's parameter procedure meet in: `MidiChannelStateTracker` derives it from an
 incoming stream, `RpnMessages` renders it back out. It carries only *complete* parameters: the tracker assembles each
 one from its two selector CCs, in whichever order they arrive, and a parameter with a half still pending selects
 nothing and so reads as `RpnSelector.None`. Only the Null *pair* deselects — a lone CC carrying 127 does not, 127 being

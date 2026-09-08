@@ -80,7 +80,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * timbre), and the RPN selector state machine. Used to seed the output Member Channel at Note On
    * (MPE input mode only) and to drive the RPN-based protocol for MCM and PBS.
    */
-  private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
+  private val tracker: MidiChannelStateTracker = MidiChannelStateTracker()
 
   /**
    * What the Tuner last left selected on each output channel, so that a relayed uninterpreted sequence spends its
@@ -530,7 +530,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * a sender updating only one half of PBS does not overwrite the other half.
    *
    * Why not read PBS from `tracker.rpn` instead? The tracker resolves missing RPN halves against
-   * the MIDI 1.0 default `(2, 0)` baked into [[ScMidiChannelStateTracker.DefaultRpnValues]], so
+   * the MIDI 1.0 default `(2, 0)` baked into [[MidiChannelStateTracker.DefaultRpnValues]], so
    * once a sender writes only LSB the tracker reports `(2, lsbValue)` — losing the previously
    * configured semitones (e.g. the 48-semitone default for MPE Member Channels). The tracker has
    * neither per-channel RPN defaults nor a record of which halves the sender has actually written,
@@ -632,7 +632,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Every note gets one Note Off per Note On forwarded for it, discharging the one-Note-Off-per-Note-On obligation
    * of the paper's "Note Identity and Reference Counting" section: Member Channel notes from the allocator's own
    * reference count, as [[emitDroppedNoteOffs]] does, and Master Channel notes — which bypass the allocator — from
-   * the reference count [[ScMidiChannelStateTracker]] keeps for them.
+   * the reference count [[MidiChannelStateTracker]] keeps for them.
    */
   private def stopNotesOn(buffer: mutable.Buffer[MidiMessage], channels: Set[Int]): Unit = {
     for {

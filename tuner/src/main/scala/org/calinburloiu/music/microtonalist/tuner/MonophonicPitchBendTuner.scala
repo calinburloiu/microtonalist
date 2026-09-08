@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, RpnMessages}
-import org.calinburloiu.music.scmidi.{ScMidiChannelStateTracker, clampValue, mapShortMessageChannel}
+import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, clampValue, mapShortMessageChannel}
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
@@ -49,7 +49,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private var _currTuning: Tuning = Tuning.Standard
   private var _pitchBendSensitivity: PitchBendSensitivity = defaultPitchBendSensitivity
 
-  private val tracker: ScMidiChannelStateTracker = ScMidiChannelStateTracker()
+  private val tracker: MidiChannelStateTracker = MidiChannelStateTracker()
   private var _lastSingleNote: MidiNote = 0
 
   /** Pitch bend applied by the performer to the current note before applying the extra tuning value */

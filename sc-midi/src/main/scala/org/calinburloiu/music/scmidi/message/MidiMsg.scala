@@ -380,7 +380,7 @@ case class SysExMidiMsg(data: ArraySeq[Byte]) extends MidiMsg
 // ============================================================================
 
 /** The mode of a musical key signature. */
-enum ScMidiKeySignatureMode {
+enum MidiKeySignatureMode {
   case Major, Minor
 }
 
@@ -593,7 +593,7 @@ object TimeSignatureMetaMidiMsg {
  * @param sharpsOrFlats Number of sharps (positive) or flats (negative); range -7 to 7.
  * @param mode          Whether the key is major or minor.
  */
-case class KeySignatureMetaMidiMsg(sharpsOrFlats: Int, mode: ScMidiKeySignatureMode) extends MetaMidiMsg {
+case class KeySignatureMetaMidiMsg(sharpsOrFlats: Int, mode: MidiKeySignatureMode) extends MetaMidiMsg {
   require(sharpsOrFlats >= -7 && sharpsOrFlats <= 7,
     s"sharpsOrFlats must be between -7 and 7; got $sharpsOrFlats")
 }

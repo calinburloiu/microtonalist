@@ -319,7 +319,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   }
 
   it should "discard a data value when no parameter is selected" in {
-    // Given — what `ScMidiChannelStateTracker` reports for a parameter with a selector CC still to arrive as much as
+    // Given — what `MidiChannelStateTracker` reports for a parameter with a selector CC still to arrive as much as
     // for one a Null deselected: either way the value has no parameter to apply to.
     val ccNumbers = Table("ccNumber",
       MidiCc.DataEntryMsb, MidiCc.DataEntryLsb, MidiCc.DataIncrement, MidiCc.DataDecrement)
