@@ -23,7 +23,7 @@ import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, Sys
 import scala.collection.immutable.ArraySeq
 
 /**
- * Bidirectional converters between [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
+ * Bidirectional converters between [[Midi1Msg]] / [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
  * [[scala.jdk.CollectionConverters]].
  *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
@@ -45,8 +45,8 @@ object JavaMidiConverters {
    */
   private val TextEncoding: String = "ISO-8859-1"
 
-  extension (message: MidiMsg) {
-    /** Converts this [[MidiMsg]] into the equivalent [[javax.sound.midi.MidiMessage]]. */
+  extension (message: Midi1Msg) {
+    /** Converts this [[Midi1Msg]] into the equivalent [[javax.sound.midi.MidiMessage]]. */
     def asJava: MidiMessage = {
       val builder = ToJavaMap.getOrElse(
         message.getClass,
@@ -104,10 +104,10 @@ object JavaMidiConverters {
   // MidiMsg -> MidiMessage dispatch
   // ============================================================================
 
-  private def entry[M <: MidiMsg](cls: Class[M])(build: M => MidiMessage): (Class[?], MidiMsg => MidiMessage) =
-    (cls, (m: MidiMsg) => build(m.asInstanceOf[M]))
+  private def entry[M <: Midi1Msg](cls: Class[M])(build: M => MidiMessage): (Class[?], Midi1Msg => MidiMessage) =
+    (cls, (m: Midi1Msg) => build(m.asInstanceOf[M]))
 
-  private val ToJavaMap: Map[Class[?], MidiMsg => MidiMessage] = Map[Class[?], MidiMsg => MidiMessage](
+  private val ToJavaMap: Map[Class[?], Midi1Msg => MidiMessage] = Map[Class[?], Midi1Msg => MidiMessage](
     entry(classOf[NoteOnMidiMsg]) { m =>
       new ShortMessage(ShortMessage.NOTE_ON, m.channel, m.midiNote.number, m.velocity)
     },

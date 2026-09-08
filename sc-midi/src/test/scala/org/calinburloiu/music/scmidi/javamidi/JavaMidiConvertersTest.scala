@@ -26,6 +26,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
+import scala.compiletime.testing.typeChecks
 
 class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers with MockFactory {
 
@@ -45,7 +46,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
 
   private val sysexBytes: Array[Byte] = Array(0xF0.toByte, 0x43.toByte, 0x12.toByte, 0x7F.toByte, 0xF7.toByte)
 
-  private val cases = Table[MidiMsg, MidiMessage](
+  private val cases = Table[Midi1Msg, MidiMessage](
     ("MidiMsg", "Java MidiMessage"),
     // Channel Voice
     (NoteOnMidiMsg(5, MidiNote(62), 102), shortMsgC(ShortMessage.NOTE_ON, 5, 62, 102)),
@@ -151,7 +152,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     msg.setMessage(0xF9)
 
     // When
-    val sc = msg.asScala
+    val sc: Midi1Msg = msg.asScala.asInstanceOf[Midi1Msg]
     val back = sc.asJava
 
     // Then
@@ -166,7 +167,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     msg.setMessage(0x60, payload, payload.length)
 
     // When
-    val sc = msg.asScala
+    val sc: Midi1Msg = msg.asScala.asInstanceOf[Midi1Msg]
     val back = sc.asJava
 
     // Then
@@ -226,5 +227,13 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
       // When / Then
       device.isOutputDevice shouldBe expected
     }
+  }
+
+  behavior of "JavaMidiConverters.asJava availability"
+
+  it should "be defined for Midi1Msg but not for Midi2Msg" in {
+    // When / Then
+    typeChecks("(??? : Midi1Msg).asJava") shouldBe true
+    typeChecks("(??? : Midi2Msg).asJava") shouldBe false
   }
 }

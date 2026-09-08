@@ -21,16 +21,34 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity}
 import scala.collection.immutable.ArraySeq
 
 /**
- * Scala-idiomatic base trait for MIDI messages, wrapping Java's [[javax.sound.midi.MidiMessage]] hierarchy.
+ * Scala-idiomatic base trait of the immutable MIDI message model.
  *
  * Unlike Java's [[javax.sound.midi.MidiMessage]] (and its subclasses like [[javax.sound.midi.ShortMessage]]),
  * which expose raw byte data and mutable state, `MidiMsg` subtypes are immutable case classes with named,
  * validated parameters and Scala pattern matching support.
  *
- * Use [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] to convert between `MidiMsg` and
+ * The hierarchy is split by MIDI specification family: every MIDI 1.0 message (including the Standard MIDI File meta
+ * events) is a [[Midi1Msg]]; [[Midi2Msg]] is reserved for MIDI 2.0 messages and has no members yet. Pipeline
+ * signatures take `MidiMsg` so that they stay valid once MIDI 2.0 messages exist.
+ *
+ * Use [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] to convert between [[Midi1Msg]] and
  * [[javax.sound.midi.MidiMessage]].
  */
 sealed trait MidiMsg
+
+/**
+ * Base trait of every message defined by the MIDI 1.0 specification family: Channel Voice and Channel Mode messages,
+ * System Common, System Real-Time and System Exclusive messages, and the Standard MIDI File meta events.
+ *
+ * Only `Midi1Msg` values can be converted to [[javax.sound.midi.MidiMessage]], because Java Sound speaks MIDI 1.0 only.
+ */
+sealed trait Midi1Msg extends MidiMsg
+
+/**
+ * Base trait reserved for MIDI 2.0 messages. It has no members yet; a full MIDI 2.0 hierarchy is out of scope, see
+ * [[https://github.com/calinburloiu/microtonalist/issues/283 #283]].
+ */
+sealed trait Midi2Msg extends MidiMsg
 
 /**
  * Base class for all MIDI channel messages (both Voice and Mode). Subtypes carry a validated
@@ -38,7 +56,7 @@ sealed trait MidiMsg
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  */
-sealed abstract class ChannelMidiMsg(val channel: Int) extends MidiMsg {
+sealed abstract class ChannelMidiMsg(val channel: Int) extends Midi1Msg {
   MidiRequirements.requireChannel(channel)
 
   /**
@@ -52,13 +70,13 @@ sealed abstract class ChannelMidiMsg(val channel: Int) extends MidiMsg {
 }
 
 /** Base trait for MIDI System Common messages. */
-sealed trait SysCommonMidiMsg extends MidiMsg
+sealed trait SysCommonMidiMsg extends Midi1Msg
 
 /** Base trait for MIDI System Real-Time messages. */
-sealed trait SysRealTimeMidiMsg extends MidiMsg
+sealed trait SysRealTimeMidiMsg extends Midi1Msg
 
 /** Base trait for Standard MIDI File (SMF) Meta messages. */
-sealed trait MetaMidiMsg extends MidiMsg
+sealed trait MetaMidiMsg extends Midi1Msg
 
 // ============================================================================
 // Channel Voice Messages
@@ -374,7 +392,7 @@ case object SystemResetMidiMsg extends SysRealTimeMidiMsg
  *
  * @param data The full SysEx byte sequence.
  */
-case class SysExMidiMsg(data: ArraySeq[Byte]) extends MidiMsg
+case class SysExMidiMsg(data: ArraySeq[Byte]) extends Midi1Msg
 
 // ============================================================================
 // Meta Messages (Standard MIDI File)
@@ -630,4 +648,4 @@ object SequencerSpecificMetaMidiMsg {
  *
  * @param data The full byte sequence of the original Java `MidiMessage` (as returned by `MidiMessage.getMessage`).
  */
-case class UnsupportedMidiMsg(data: ArraySeq[Byte]) extends MidiMsg
+case class UnsupportedMidiMsg(data: ArraySeq[Byte]) extends Midi1Msg

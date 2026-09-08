@@ -20,6 +20,9 @@ import org.calinburloiu.music.scmidi.MidiNote
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.immutable.ArraySeq
+import scala.compiletime.testing.typeChecks
+
 class MidiMsgTest extends AnyFlatSpec with Matchers {
 
   behavior of "NoteOnMidiMsg"
@@ -278,5 +281,23 @@ class MidiMsgTest extends AnyFlatSpec with Matchers {
   it should "reject invalid sharpsOrFlats" in {
     an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(8, MidiKeySignatureMode.Major)
     an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(-8, MidiKeySignatureMode.Major)
+  }
+
+  behavior of "MidiMsg hierarchy"
+
+  it should "place every MIDI 1.0 message family under Midi1Msg" in {
+    // When / Then
+    typeChecks("val m: Midi1Msg = NoteOnMidiMsg(0, MidiNote(60))") shouldBe true // Channel Voice
+    typeChecks("val m: Midi1Msg = TuneRequestMidiMsg") shouldBe true // System Common
+    typeChecks("val m: Midi1Msg = TimingClockMidiMsg") shouldBe true // System Real-Time
+    typeChecks("val m: Midi1Msg = SysExMidiMsg(ArraySeq.empty[Byte])") shouldBe true // System Exclusive
+    typeChecks("val m: Midi1Msg = EndOfTrackMetaMidiMsg") shouldBe true // SMF meta
+    typeChecks("val m: Midi1Msg = UnsupportedMidiMsg(ArraySeq.empty[Byte])") shouldBe true // fallback
+  }
+
+  it should "keep Midi1Msg and Midi2Msg as subtypes of MidiMsg" in {
+    // When / Then
+    typeChecks("summon[Midi1Msg <:< MidiMsg]") shouldBe true
+    typeChecks("summon[Midi2Msg <:< MidiMsg]") shouldBe true
   }
 }

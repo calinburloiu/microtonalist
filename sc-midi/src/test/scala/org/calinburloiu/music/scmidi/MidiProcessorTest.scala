@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{NoteOnMidiMsg, MidiMsg}
+import org.calinburloiu.music.scmidi.message.{Midi1Msg, NoteOnMidiMsg}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -55,7 +55,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val processor: TestMidiProcessor = TestMidiProcessor()
 
     // Create test MIDI message
-    val testScMessage: MidiMsg = NoteOnMidiMsg(1, 60, 100)
+    val testScMessage: Midi1Msg = NoteOnMidiMsg(1, 60, 100)
     val testMessage: MidiMessage = testScMessage.asJava
     val testTimestamp = 123L
 
