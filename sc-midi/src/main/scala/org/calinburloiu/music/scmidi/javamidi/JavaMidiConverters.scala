@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi.javamidi
 
-import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.{MidiConnectionLimit, MidiDeviceId, MidiDeviceInfo, MidiNote}
 import org.calinburloiu.music.scmidi.message.*
 
 import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, SysexMessage}
@@ -26,7 +26,9 @@ import scala.collection.immutable.ArraySeq
  * Bidirectional converters between [[Midi1Msg]] / [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
  * [[scala.jdk.CollectionConverters]].
  *
- * It also hosts the [[javax.sound.midi.MidiDevice]] capability extensions `isInputDevice` / `isOutputDevice`.
+ * It also builds the device-level API values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and
+ * [[connectionLimit]]; and, until #282 removes them, hosts the [[javax.sound.midi.MidiDevice]] capability extensions
+ * `isInputDevice` / `isOutputDevice`.
  *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
  *
@@ -99,6 +101,39 @@ object JavaMidiConverters {
     def isOutputDevice: Boolean = {
       val maxReceivers = device.getMaxReceivers
       maxReceivers == -1 /* unlimited */ || maxReceivers > 0
+    }
+  }
+
+  /**
+   * Converts a Java Sound connection count into a [[MidiConnectionLimit]]: `-1`, Java Sound's encoding of
+   * "unlimited", becomes [[MidiConnectionLimit.Unlimited]]; any other count becomes [[MidiConnectionLimit.Limited]].
+   *
+   * @param javaMaxConnections the value of `MidiDevice.getMaxTransmitters` or `MidiDevice.getMaxReceivers`.
+   */
+  def connectionLimit(javaMaxConnections: Int): MidiConnectionLimit = {
+    if (javaMaxConnections == -1) MidiConnectionLimit.Unlimited else MidiConnectionLimit.Limited(javaMaxConnections)
+  }
+
+  extension (info: MidiDevice.Info) {
+    /** The [[MidiDeviceId]] of the device this Java Sound info describes: its name and vendor. */
+    def asMidiDeviceId: MidiDeviceId = MidiDeviceId(info.getName, info.getVendor)
+  }
+
+  extension (device: MidiDevice) {
+    /**
+     * Builds the [[MidiDeviceInfo]] of this Java Sound device. It needs the device rather than its
+     * `MidiDevice.Info` alone, because the connection limits come from `getMaxTransmitters` / `getMaxReceivers`.
+     */
+    def asMidiDeviceInfo: MidiDeviceInfo = {
+      val info = device.getDeviceInfo
+      MidiDeviceInfo(
+        name = info.getName,
+        vendor = info.getVendor,
+        description = info.getDescription,
+        version = info.getVersion,
+        maxTransmitters = connectionLimit(device.getMaxTransmitters),
+        maxReceivers = connectionLimit(device.getMaxReceivers)
+      )
     }
   }
 
