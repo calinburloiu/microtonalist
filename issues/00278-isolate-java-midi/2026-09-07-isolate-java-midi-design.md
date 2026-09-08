@@ -1,13 +1,18 @@
 # Isolating the Java Sound Implementation from the `sc-midi` Scala API (Design)
 
 - **Date**: 2026-09-07
+- **Revised**: 2026-09-08 on `eb6c418`, the top of `refactoring/isolate-java-midi` — added decision D11 (the
+  `JavaMidiEnvironment` seam) and Section 8 (a defect in `purgeDisconnectedDevices` that #282 must file rather than
+  fix), and rewrote the last paragraph of Section 4 accordingly. Decisions D1–D10 and the sub-issue order are
+  unchanged, so the plans already written for #279, #280 and #281 are unaffected.
 - **Issue**: [#278](https://github.com/calinburloiu/microtonalist/issues/278) — "Isolate the Java Sound implementation
   from the sc-midi Scala API" (parent), with sub-issues
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
   [#280](https://github.com/calinburloiu/microtonalist/issues/280),
   [#281](https://github.com/calinburloiu/microtonalist/issues/281),
-  [#282](https://github.com/calinburloiu/microtonalist/issues/282), and
-  [#283](https://github.com/calinburloiu/microtonalist/issues/283)
+  [#282](https://github.com/calinburloiu/microtonalist/issues/282),
+  [#283](https://github.com/calinburloiu/microtonalist/issues/283), and
+  [#285](https://github.com/calinburloiu/microtonalist/issues/285)
 - **Base commit**: `fd8f6d6` — "Start v1.5.0-SNAPSHOT"
 - **Modules touched**: `sc-midi` (all of it), `tuner` (pipeline and tuner APIs), `cli`, `app` (composition root)
 - **Milestone**: `sc-midi`
@@ -259,6 +264,82 @@ case class PolyModeOnMidiMsg(channel: Int)                         extends Chann
       Tuner paper and the `tuner` architecture doc say "Channel Mode messages" where they say "CC 120–127".
 - `mapChannel` is implemented on every case class as today.
 
+### D11 — The Java Sound environment is a seam, so the device bookkeeping becomes testable
+
+D8 moves the device layer into `javamidi`, but on its own it moves the untestability with it. A fake `MidiManager`
+lets `tuner`, `app`, and `cli` be tested against the trait, yet `JavaMidiManager`'s endpoint bookkeeping — the
+connect/disconnect diffing, the `MidiEvent` publishing, `purgeDisconnectedDevices`, the reference-counted open/close,
+`openFirstAvailableDevice` — is the same untested code in a new package. That bookkeeping is pure state
+reconciliation and needs no MIDI hardware; what makes it unreachable is four static calls:
+
+| Call                                                | Today                        |
+|-----------------------------------------------------|------------------------------|
+| `CoreMidiDeviceProvider.getMidiDeviceInfo`          | `MidiManager.refresh()`      |
+| `CoreMidiDeviceProvider.addNotificationListener`    | `MidiManager.init()`         |
+| `CoreMidiDeviceProvider.removeNotificationListener` | `MidiManager.close()`        |
+| `MidiSystem.getMidiDevice(info)`                    | `MidiDeviceHandle.onConnect` |
+
+**The Java Sound SPI is not a way around them.** Registering a fake `javax.sound.midi.spi.MidiDeviceProvider` through
+`META-INF/services` in `sc-midi/src/test/resources` needs no production change, but two properties of CoreMIDI4J 1.6
+rule it out:
+
+1. `CoreMidiDeviceProvider.getMidiDeviceInfo()` calls `MidiSystem.getMidiDeviceInfo()` and then, *when the native
+   library is loaded*, keeps only devices that are a `Sequencer`, `Synthesizer`, `CoreMidiDestination`, or
+   `CoreMidiSource`. A fake device is filtered out on macOS and survives on the Linux CI runner, so the same test
+   would behave differently on a developer machine and in CI.
+2. `addNotificationListener` starts a daemon polling thread ("CoreMidi4J Environment Change Scanner") precisely when
+   the native library is *not* loadable — that is, on the CI runner. Constructing a real `JavaMidiManager` in a test
+   there spawns a thread that can call `refresh()` underneath the assertions, over whatever devices the runner
+   happens to expose.
+
+So #282 introduces a seam instead, inside `javamidi`:
+
+```scala
+trait JavaMidiEnvironment {
+  /** The MIDI devices currently present, already resolved from their `MidiDevice.Info`. */
+  def devices: Seq[MidiDevice]
+
+  /** Subscribes to MIDI environment changes; closing the returned subscription unsubscribes. */
+  def onEnvironmentChanged(listener: () => Unit): AutoCloseable
+}
+```
+
+- `CoreMidi4JEnvironment` is the production implementation and the default constructor argument of
+  `JavaMidiManager`, so no call site outside `javamidi` changes. It owns all four statics and nothing else, which
+  leaves it a delegation-only adapter.
+- `onEnvironmentChanged` returns an `AutoCloseable` rather than taking a matching `remove` method, because
+  `removeNotificationListener` matches on object identity and the implementation is what adapts a `() => Unit` into
+  the `CoreMidiNotification` SAM that CoreMIDI4J actually holds.
+- `devices` returns resolved `MidiDevice`s, not `MidiDevice.Info`s, because D8 already requires the device itself:
+  `MidiDeviceInfo`'s connection limits come from `getMaxTransmitters`/`getMaxReceivers`. `JavaMidiManager.refresh()`
+  therefore resolves each device once and hands it to the handle, and `JavaMidiDeviceHandle.onConnect` takes the
+  resolved device instead of calling `MidiSystem.getMidiDevice` itself. This costs nothing on macOS, where
+  `CoreMidiDeviceProvider.getMidiDeviceInfo()` already resolves every candidate internally to apply its filter.
+- After this, `javax.sound.midi` statics appear in exactly one production file.
+
+Behaviour must be preserved exactly, and the plan must pin these down:
+
+- A device that fails to resolve is skipped, not propagated: `MidiUnavailableException` and `IllegalArgumentException`
+  drop it silently as `MidiDeviceHandle.onConnect` does today, and any other exception is logged and published as
+  `MidiDeviceFailedToConnectEvent` before it is dropped. Moving the resolution from the handle to the environment
+  must not move where those events are published from, or the event stream changes.
+- The listener registered in `init()` still publishes `MidiEnvironmentChangedEvent` and then calls `refresh()`, and
+  `close()` still unsubscribes.
+
+**What this unlocks, and what stays out of scope.** With the seam in place, a fake `JavaMidiEnvironment` over
+stateful fake `MidiDevice`s puts the whole bookkeeping under unit test: refresh publishes
+`MidiDeviceConnectedEvent` for new devices and `MidiDeviceDisconnectedEvent` for vanished ones,
+`purgeDisconnectedDevices` closes what it should, `openFirstAvailableDevice` stops at the first device that opens,
+`open()`/`close()` reference counting, the `Closed`/`Connected`/`WaitingToOpen`/`Open` transitions, and firing the
+environment callback triggers a refresh. The only test scaffolding needed is a fake `MidiDevice` — a stateful one
+rather than a mock, since `open`/`close`/`isOpen` are the semantics under test — and a four-line `MidiDevice.Info`
+subclass, its constructor being `protected`.
+
+**Writing those tests is out of scope for #278.** #282 lands the seam and leaves the gate open; covering
+`JavaMidiManager` and `JavaMidiDeviceHandle` is follow-up work under
+[#177](https://github.com/calinburloiu/microtonalist/issues/177). #282 must not raise the `sc-midi` floors either
+(Section 4).
+
 ## 3. Sub-issues and merge order
 
 Each sub-issue gets its own branch, PR, and an implementation plan under `issues/00278-isolate-java-midi/`. This
@@ -270,7 +351,7 @@ decision this document does not settle.
 | 1 | [#279](https://github.com/calinburloiu/microtonalist/issues/279) | D2 renames, D3 hierarchy, move `JavaMidiConverters` and the `MidiDevice` helpers into `javamidi`. Mechanical; suite stays green.                          | —          |
 | 2 | [#280](https://github.com/calinburloiu/microtonalist/issues/280) | D4: the four transmitter types and their tests. `MultiTransmitter` untouched.                                                                              | —          |
 | 3 | [#281](https://github.com/calinburloiu/microtonalist/issues/281) | D5, D6, D7: Scala-typed pipeline, boundary conversion in `MidiDeviceHandle`, `MultiTransmitter` deleted, `tuner` adapted. `tuner` free of `javax.sound.midi`. | 1, 2       |
-| 4 | [#282](https://github.com/calinburloiu/microtonalist/issues/282) | D8, D9: `MidiDeviceInfo`, the two traits, `JavaMidiManager`/`JavaMidiDeviceHandle`, `TunerModule` injection, `cli`/`app`. Only `javamidi` imports Java Sound. | 3          |
+| 4 | [#282](https://github.com/calinburloiu/microtonalist/issues/282) | D8, D9, D11: `MidiDeviceInfo`, the two traits, `JavaMidiManager`/`JavaMidiDeviceHandle`, the `JavaMidiEnvironment` seam, `TunerModule` injection, `cli`/`app`. Only `javamidi` imports Java Sound. | 3          |
 | 5 | [#283](https://github.com/calinburloiu/microtonalist/issues/283) | The MIDI 2.0 outlook document (Section 6).                                                                                                                 | —          |
 | 6 | [#285](https://github.com/calinburloiu/microtonalist/issues/285) | D10: `ChannelModeMidiMsg` and its eight case classes, `CcMidiMsg` restricted to 0–119, converters, tracker and MPE routing adapted.                       | 1          |
 
@@ -299,9 +380,15 @@ Migrated tests: every `sc-midi` and `tuner` test that stubs a Java `Receiver` or
 to `MidiReceiver` and plain `MidiMsg` values. `JavaMidiConvertersTest` moves with the converters and remains the
 Java-boundary test.
 
-`JavaMidiManager` and `JavaMidiDeviceHandle` remain hardware-bound and uncovered, as the current classes are
-([#177](https://github.com/calinburloiu/microtonalist/issues/177)). Coverage policy: the `sc-midi` statement floor of
-67% and branch floor of 52% must not drop; new files target 80%. The `tuner` floors are 80%/80%.
+`JavaMidiManager` and `JavaMidiDeviceHandle` stay uncovered through this refactoring, as the current classes are
+([#177](https://github.com/calinburloiu/microtonalist/issues/177)), but they stop being *hardware-bound*: the
+`JavaMidiEnvironment` seam of D11 is what #282 delivers, and covering the bookkeeping behind it is deliberately
+deferred to follow-up work under #177. The seam itself needs no new test — it is delegation only — so #282's own
+suite grows by the `MidiDeviceInfo`/`MidiDeviceId` tests listed above and the migrations, and its plan should not
+budget for a `JavaMidiManager` suite.
+
+Coverage policy: the `sc-midi` statement floor of 67% and branch floor of 52% must not drop; new files target 80%.
+The `tuner` floors are 80%/80%.
 
 ## 5. Documentation
 
@@ -336,3 +423,39 @@ A concise planning document, `issues/00278-isolate-java-midi/<date>-midi2-outloo
   non-concurrent transmitters inside processors that they enable.
 - Lifting `JavaMidiManager`'s endpoint bookkeeping into a reusable base for other implementations.
 - Raising the `sc-midi` coverage floors ([#177](https://github.com/calinburloiu/microtonalist/issues/177)).
+- Covering `JavaMidiManager` and `JavaMidiDeviceHandle` with the tests that D11's seam makes possible.
+- Fixing the `purgeDisconnectedDevices` defect of Section 8.
+
+## 8. A defect found while designing D11 — to be filed, not fixed here
+
+Reading `MidiManager.MidiEndpoint.purgeDisconnectedDevices` for D11 turned up a defect that #282 must carry over
+unchanged. #278 is a refactoring; smuggling a behaviour fix into it would make the migration impossible to review
+against the old behaviour.
+
+```scala
+val device = openedDevicesMap.get(deviceId).device
+device.foreach(_.close())
+openedDevicesMap.remove(deviceId)
+```
+
+The `close()` is `javax.sound.midi.MidiDevice.close()`, not `MidiDeviceHandle.close()`, and `onDisconnect()` is never
+called on the handle. So when a device is unplugged while open:
+
+- The handle's `openRefCount` and `_state` are untouched. `state` keeps reporting `State.Open` while `isOpen` —
+  which reads through to the Java device — reports `false`, and `_device`/`_info` stay defined, so `isConnected`
+  also stays `true`. The three accessors contradict each other.
+- The handle is dropped from `openedDevicesMap`, so replugging the device makes `refresh()` build a *new* handle.
+  The orphaned one never reconnects, even though `WaitingToOpen` exists precisely so that a handle can survive a
+  disconnect.
+- `Track` (`Track.scala:36-46`) retains the handle it got from `openInput`/`openOutput` for its whole lifetime, so
+  the user-visible symptom is that unplugging and replugging a MIDI device mid-session silently kills that track
+  until the application is restarted.
+
+There is a smaller race alongside it: `openedDevicesMap.get(deviceId)` re-reads the map after the `diff` that
+produced `deviceId`, so a concurrent `closeDevice` makes it return `null` and the `.device` call throws.
+
+**Instruction for the #282 plan.** Before implementing, open a bug issue in the `sc-midi` milestone describing the
+above — the contradictory accessors, the orphaned handle, the replug symptom, and the race — and reference it from
+the plan. The plan then carries the current behaviour across the `JavaMidiManager` move verbatim and leaves a
+`// TODO #<issue>` at the ported call site. Do not fix it in #282, and do not write a test that pins the buggy
+behaviour: the tests D11 unlocks are follow-up work, and the fix belongs with them.
