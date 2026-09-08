@@ -19,11 +19,12 @@ package org.calinburloiu.music.scmidi.message
 import org.calinburloiu.music.scmidi.MidiNote
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.collection.immutable.ArraySeq
 import scala.compiletime.testing.typeChecks
 
-class MidiMsgTest extends AnyFlatSpec with Matchers {
+class MidiMsgTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "NoteOnMidiMsg"
 
@@ -211,6 +212,87 @@ class MidiMsgTest extends AnyFlatSpec with Matchers {
     mapped.channel shouldBe 1
   }
 
+  behavior of "ChannelModeMidiMsg"
+
+  private val channelModeMessages = Table(
+    ("number", "message"),
+    (AllSoundOffMidiMsg.Number, AllSoundOffMidiMsg(3)),
+    (ResetAllControllersMidiMsg.Number, ResetAllControllersMidiMsg(3)),
+    (LocalControlMidiMsg.Number, LocalControlMidiMsg(3, isOn = true)),
+    (AllNotesOffMidiMsg.Number, AllNotesOffMidiMsg(3)),
+    (OmniModeOffMidiMsg.Number, OmniModeOffMidiMsg(3)),
+    (OmniModeOnMidiMsg.Number, OmniModeOnMidiMsg(3)),
+    (MonoModeOnMidiMsg.Number, MonoModeOnMidiMsg(3, channelCount = 4)),
+    (PolyModeOnMidiMsg.Number, PolyModeOnMidiMsg(3))
+  )
+
+  it should "assign each subtype the number MIDI 1.0 reserves for it" in {
+    // When / Then
+    AllSoundOffMidiMsg.Number shouldEqual 120
+    ResetAllControllersMidiMsg.Number shouldEqual 121
+    LocalControlMidiMsg.Number shouldEqual 122
+    AllNotesOffMidiMsg.Number shouldEqual 123
+    OmniModeOffMidiMsg.Number shouldEqual 124
+    OmniModeOnMidiMsg.Number shouldEqual 125
+    MonoModeOnMidiMsg.Number shouldEqual 126
+    PolyModeOnMidiMsg.Number shouldEqual 127
+  }
+
+  it should "cover the Channel Mode number range exactly once, starting above the last controller number" in {
+    // Given
+    val numbers = channelModeMessages.map { case (number, _) => number }.toSeq
+
+    // Then
+    MidiRequirements.MaxControllerNumber shouldEqual 119
+    ChannelModeMidiMsg.NumberRange shouldEqual (120 to 127)
+    numbers should contain theSameElementsAs ChannelModeMidiMsg.NumberRange
+  }
+
+  it should "rewrite the channel via mapChannel, preserving the concrete subtype" in {
+    forAll(channelModeMessages) { (_, message) =>
+      // When
+      val mapped = message.mapChannel(_ + 5)
+
+      // Then
+      mapped.channel shouldBe 8
+      mapped.getClass shouldBe message.getClass
+    }
+  }
+
+  it should "reject an invalid channel" in {
+    // When / Then
+    an[IllegalArgumentException] should be thrownBy AllSoundOffMidiMsg(16)
+    an[IllegalArgumentException] should be thrownBy PolyModeOnMidiMsg(-1)
+    an[IllegalArgumentException] should be thrownBy LocalControlMidiMsg(16, isOn = true)
+    an[IllegalArgumentException] should be thrownBy MonoModeOnMidiMsg(16, channelCount = 0)
+  }
+
+  it should "carry the Local Control switch and its wire values" in {
+    // When / Then
+    LocalControlMidiMsg(0, isOn = true).isOn shouldBe true
+    LocalControlMidiMsg(0, isOn = false).isOn shouldBe false
+    LocalControlMidiMsg.OffValue shouldEqual 0
+    LocalControlMidiMsg.OnValue shouldEqual 127
+    LocalControlMidiMsg.OnThreshold shouldEqual 64
+  }
+
+  it should "accept every Mono Mode On channel count MIDI 1.0 allows" in {
+    // Given
+    val channelCounts = Table("channelCount", MonoModeOnMidiMsg.ChannelCountRange.toSeq*)
+
+    forAll(channelCounts) { channelCount =>
+      // When / Then
+      MonoModeOnMidiMsg(0, channelCount).channelCount shouldEqual channelCount
+    }
+  }
+
+  it should "reject a Mono Mode On channel count outside 0 to 16" in {
+    // When / Then
+    MonoModeOnMidiMsg.ChannelCountRange shouldEqual (0 to 16)
+    an[IllegalArgumentException] should be thrownBy MonoModeOnMidiMsg(0, channelCount = -1)
+    an[IllegalArgumentException] should be thrownBy MonoModeOnMidiMsg(0, channelCount = 17)
+  }
+
   behavior of "MidiTimeCodeMidiMsg"
 
   it should "reject invalid messageType and values" in {
@@ -311,5 +393,13 @@ class MidiMsgTest extends AnyFlatSpec with Matchers {
     // When / Then
     typeChecks("summon[Midi1Msg <:< MidiMsg]") shouldBe true
     typeChecks("summon[Midi2Msg <:< MidiMsg]") shouldBe true
+  }
+
+  it should "place every Channel Mode message under ChannelModeMidiMsg, apart from the Control Changes" in {
+    // When / Then
+    typeChecks("val m: ChannelModeMidiMsg = AllSoundOffMidiMsg(0)") shouldBe true
+    typeChecks("val m: ChannelMidiMsg = ResetAllControllersMidiMsg(0)") shouldBe true
+    typeChecks("val m: Midi1Msg = MonoModeOnMidiMsg(0, 4)") shouldBe true
+    typeChecks("val m: CcMidiMsg = LocalControlMidiMsg(0, true)") shouldBe false
   }
 }

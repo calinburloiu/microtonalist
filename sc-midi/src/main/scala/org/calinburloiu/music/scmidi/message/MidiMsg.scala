@@ -314,6 +314,192 @@ object PitchBendMidiMsg {
 }
 
 // ============================================================================
+// Channel Mode Messages
+// ============================================================================
+
+/**
+ * Base class of the eight MIDI 1.0 Channel Mode messages.
+ *
+ * MIDI 1.0 puts them on the wire with the Control Change status byte (`0xBn`) and controller numbers 120-127, but
+ * defines them as a category of their own: they are not controllers, and a receiver must not treat them as such.
+ * They are therefore modelled as their own types rather than as [[CcMidiMsg]] values, and `CcMidiMsg` refuses their
+ * numbers; see [[MidiRequirements.requireControllerNumber]].
+ *
+ * Only Local Control and Mono Mode On give their data byte a meaning, so only those two carry a field. The other six
+ * send `0` and ignore whatever arrived: this is the one place where the byte-level round trip is deliberately not
+ * preserved, the message's meaning being what the model keeps.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+sealed abstract class ChannelModeMidiMsg(channel: Int) extends ChannelMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): ChannelModeMidiMsg
+}
+
+/** Companion object for [[ChannelModeMidiMsg]]. */
+object ChannelModeMidiMsg {
+  /**
+   * The controller numbers MIDI 1.0 reserves for the Channel Mode messages: 120 to 127, the range immediately above
+   * [[MidiRequirements.MaxControllerNumber]], where the Control Change controller numbers stop.
+   */
+  val NumberRange: Range = (MidiRequirements.MaxControllerNumber + 1) to 127
+}
+
+/**
+ * Represents an All Sound Off Channel Mode message (number 120), which silences the channel's voices immediately,
+ * ignoring their release phase.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+case class AllSoundOffMidiMsg(override val channel: Int) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): AllSoundOffMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[AllSoundOffMidiMsg]]. */
+object AllSoundOffMidiMsg {
+  /** The Channel Mode message number of All Sound Off (120). */
+  val Number: Int = 120
+}
+
+/**
+ * Represents a Reset All Controllers Channel Mode message (number 121), which returns the channel's controllers to
+ * their default values.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+case class ResetAllControllersMidiMsg(override val channel: Int) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): ResetAllControllersMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[ResetAllControllersMidiMsg]]. */
+object ResetAllControllersMidiMsg {
+  /** The Channel Mode message number of Reset All Controllers (121). */
+  val Number: Int = 121
+}
+
+/**
+ * Represents a Local Control Channel Mode message (number 122), which connects or disconnects a receiver's own
+ * keyboard from its sound generator.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ * @param isOn    Whether local control is switched on.
+ */
+case class LocalControlMidiMsg(override val channel: Int, isOn: Boolean) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): LocalControlMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[LocalControlMidiMsg]]. */
+object LocalControlMidiMsg {
+  /** The Channel Mode message number of Local Control (122). */
+  val Number: Int = 122
+
+  /** The data byte that switches local control off (`0`). */
+  val OffValue: Int = 0
+
+  /** The data byte that switches local control on (`127`). */
+  val OnValue: Int = 127
+
+  /**
+   * The lowest data byte that reads as on (`64`). MIDI 1.0 defines only [[OffValue]] and [[OnValue]] for this
+   * message, so any other value follows the specification's general switch-controller convention: 0-63 off,
+   * 64-127 on.
+   */
+  val OnThreshold: Int = 64
+}
+
+/**
+ * Represents an All Notes Off Channel Mode message (number 123), which releases the channel's notes as if each had
+ * received its own Note Off.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+case class AllNotesOffMidiMsg(override val channel: Int) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): AllNotesOffMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[AllNotesOffMidiMsg]]. */
+object AllNotesOffMidiMsg {
+  /** The Channel Mode message number of All Notes Off (123). */
+  val Number: Int = 123
+}
+
+/**
+ * Represents an Omni Mode Off Channel Mode message (number 124), which restricts the receiver to the channels it is
+ * assigned to.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+case class OmniModeOffMidiMsg(override val channel: Int) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): OmniModeOffMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[OmniModeOffMidiMsg]]. */
+object OmniModeOffMidiMsg {
+  /** The Channel Mode message number of Omni Mode Off (124). */
+  val Number: Int = 124
+}
+
+/**
+ * Represents an Omni Mode On Channel Mode message (number 125), which makes the receiver recognise Channel Voice
+ * messages on every channel.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+case class OmniModeOnMidiMsg(override val channel: Int) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): OmniModeOnMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[OmniModeOnMidiMsg]]. */
+object OmniModeOnMidiMsg {
+  /** The Channel Mode message number of Omni Mode On (125). */
+  val Number: Int = 125
+}
+
+/**
+ * Represents a Mono Mode On Channel Mode message (number 126), which makes the receiver monophonic, one voice per
+ * channel.
+ *
+ * @param channel      The 0-indexed MIDI channel (0-15).
+ * @param channelCount The number of channels the receiver is asked to use, `0` meaning as many as it has voices.
+ */
+case class MonoModeOnMidiMsg(override val channel: Int, channelCount: Int) extends ChannelModeMidiMsg(channel) {
+
+  import MonoModeOnMidiMsg.ChannelCountRange
+
+  require(ChannelCountRange.contains(channelCount),
+    s"channelCount must be between ${ChannelCountRange.start} and ${ChannelCountRange.end}; got $channelCount")
+
+  override def mapChannel(map: Int => Int): MonoModeOnMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[MonoModeOnMidiMsg]]. */
+object MonoModeOnMidiMsg {
+  /** The Channel Mode message number of Mono Mode On (126). */
+  val Number: Int = 126
+
+  /**
+   * The channel counts the message may carry: 0 to 16. `0` asks the receiver to use as many channels as it has
+   * voices; any other value is the exact number of channels.
+   */
+  val ChannelCountRange: Range = 0 to 16
+}
+
+/**
+ * Represents a Poly Mode On Channel Mode message (number 127), which returns the receiver to full polyphony on a
+ * single channel.
+ *
+ * @param channel The 0-indexed MIDI channel (0-15).
+ */
+case class PolyModeOnMidiMsg(override val channel: Int) extends ChannelModeMidiMsg(channel) {
+  override def mapChannel(map: Int => Int): PolyModeOnMidiMsg = copy(channel = map(channel))
+}
+
+/** Companion object for [[PolyModeOnMidiMsg]]. */
+object PolyModeOnMidiMsg {
+  /** The Channel Mode message number of Poly Mode On (127). */
+  val Number: Int = 127
+}
+
+// ============================================================================
 // System Common Messages
 // ============================================================================
 

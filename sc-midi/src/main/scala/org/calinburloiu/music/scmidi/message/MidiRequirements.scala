@@ -24,6 +24,11 @@ object MidiRequirements {
   val MinSigned14BitValue: Int = -(1 << 13)
   /** The maximum signed 14-bit value (8191). */
   val MaxSigned14BitValue: Int = (1 << 13) - 1
+  /**
+   * The highest MIDI 1.0 Control Change controller number (119). Numbers 120-127 are the Channel Mode messages,
+   * modelled by [[ChannelModeMidiMsg]] and its subtypes.
+   */
+  val MaxControllerNumber: Int = 119
 
   /** Requires that the given channel is between 0 and 15. */
   def requireChannel(channel: Int): Unit =
