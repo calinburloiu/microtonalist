@@ -65,14 +65,14 @@ class TrackManager(private val midiManager: MidiManager,
       currTrack.spec.input match {
         case Some(FromTrackInputSpec(trackId, _)) =>
           val fromTrack = tracksById(trackId)
-          fromTrack.multiTransmitter.addReceiver(currTrack.receiver)
+          fromTrack.transmitter.addReceiver(currTrack.receiver)
         case _ => // Nothing to do here
       }
 
       currTrack.spec.output match {
         case Some(ToTrackOutputSpec(trackId, _)) =>
           val toTrack = tracksById(trackId)
-          currTrack.multiTransmitter.addReceiver(toTrack.receiver)
+          currTrack.transmitter.addReceiver(toTrack.receiver)
         case _ => // Nothing to do here
       }
     }

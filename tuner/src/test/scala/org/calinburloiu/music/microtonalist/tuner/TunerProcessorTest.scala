@@ -16,14 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, Midi1Msg, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import javax.sound.midi.{MidiMessage, Receiver}
 
 class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -32,7 +29,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
   val tuneMessage1: MidiMsg = PitchBendMidiMsg(0, 100)
   val tuneMessage2: MidiMsg = PitchBendMidiMsg(0, 0)
 
-  val processMessage1: Midi1Msg = NoteOnMidiMsg(0, MidiNote(60), 64)
+  val processMessage1: MidiMsg = NoteOnMidiMsg(0, MidiNote(60), 64)
   val processMessage2: MidiMsg = PitchBendMidiMsg(0, 101)
 
   abstract class Fixture(shouldConnect: Boolean = true) {
@@ -42,27 +39,33 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     tuner.tune.when(Tuning.Standard).returns(Seq(tuneMessage2))
     tuner.process.when(processMessage1).returns(Seq(processMessage1, processMessage2))
 
-    val receiver: Receiver = stub[Receiver]
+    val receiver: MidiReceiver = stub[MidiReceiver]
     val processor: TunerProcessor = TunerProcessor(tuner)
 
     if (shouldConnect) {
-      processor.transmitter.receiver = Some(receiver)
+      processor.transmitter.addReceiver(receiver)
     }
-
-    /** Matches a Java message forwarded by the bridge against the typed message it was built from. */
-    def sent(expected: MidiMsg, expectedTimeStamp: Long): (MidiMessage, Long) => Boolean =
-      (message, timeStamp) => message.asScala == expected && timeStamp == expectedTimeStamp
   }
 
   "onConnect" should "send init message after connecting" in new Fixture(shouldConnect = false) {
     // When
-    processor.transmitter.receiver = Some(receiver)
+    processor.transmitter.addReceiver(receiver)
     // Then
-    receiver.send.verify(where(sent(initMessage, -1))).once()
+    receiver.send.verify(initMessage, -1L).once()
   }
 
   it should "not send init message before connecting" in new Fixture(shouldConnect = false) {
     receiver.send.verify(*, *).never()
+  }
+
+  it should "send init message to every receiver" in new Fixture(shouldConnect = false) {
+    // Given
+    val anotherReceiver: MidiReceiver = stub[MidiReceiver]
+    // When
+    processor.transmitter.receivers = Seq(receiver, anotherReceiver)
+    // Then
+    receiver.send.verify(initMessage, -1L).once()
+    anotherReceiver.send.verify(initMessage, -1L).once()
   }
 
   "tune" should "send the tune messages returned by the tuner" in new Fixture {
@@ -70,18 +73,18 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     processor.tune(TestTunings.justCMaj)
     // Then
     tuner.tune.verify(TestTunings.justCMaj).once()
-    receiver.send.verify(where(sent(tuneMessage1, -1))).once()
+    receiver.send.verify(tuneMessage1, -1L).once()
   }
 
   "send" should "send the message processed by the tuner" in new Fixture {
     // Given
     val timeStamp: Long = 3L
     // When
-    processor.receiver.send(processMessage1.asJava, timeStamp)
+    processor.receiver.send(processMessage1, timeStamp)
     // Then
     tuner.process.verify(processMessage1).once()
-    receiver.send.verify(where(sent(processMessage1, timeStamp))).once()
-    receiver.send.verify(where(sent(processMessage2, timeStamp))).once()
+    receiver.send.verify(processMessage1, timeStamp).once()
+    receiver.send.verify(processMessage2, timeStamp).once()
   }
 
   "onDisconnect" should "reset tuning to 12-EDO and the internal state of the tuner" in new Fixture {
@@ -89,6 +92,6 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     processor.close()
     // Then
     tuner.tune.verify(Tuning.Standard).once()
-    receiver.send.verify(where(sent(tuneMessage2, -1))).once()
+    receiver.send.verify(tuneMessage2, -1L).once()
   }
 }

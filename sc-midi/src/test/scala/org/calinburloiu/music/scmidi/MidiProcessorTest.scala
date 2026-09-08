@@ -16,261 +16,246 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{Midi1Msg, NoteOnMidiMsg}
-import org.scalamock.scalatest.MockFactory
+import org.calinburloiu.music.scmidi.message.{MidiMsg, NoteOffMidiMsg, NoteOnMidiMsg}
+import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import javax.sound.midi.{MidiMessage, Receiver, ShortMessage}
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
-class MidiProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
+class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
-  class TestMidiProcessor extends MidiProcessor {
-    val processedMessages: mutable.ListBuffer[(MidiMessage, Long)] = mutable.ListBuffer()
-    val connectCalled: mutable.ListBuffer[Unit] = mutable.ListBuffer()
-    val disconnectCalled: mutable.ListBuffer[Unit] = mutable.ListBuffer()
+  /** Records what it processes and the order of its hook calls; forwards every message unchanged. */
+  class RecordingMidiProcessor extends MidiProcessor {
+    val processedMessages: mutable.ListBuffer[(MidiMsg, Long)] = mutable.ListBuffer()
+    val hookCalls: mutable.ListBuffer[String] = mutable.ListBuffer()
 
-    // Simple implementation that returns the same message
-    override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+    override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = {
       processedMessages += ((message, timeStamp))
       Seq(message)
     }
 
     override protected def onConnect(): Unit = {
-      connectCalled += (())
+      hookCalls += "connect"
     }
 
     override protected def onDisconnect(): Unit = {
-      disconnectCalled += (())
+      hookCalls += "disconnect"
     }
 
     override def close(): Unit = {}
   }
 
-  // Fixtures
-  trait TestFixture {
-    // A simple implementation of MidiProcessor for testing
-    val processor: TestMidiProcessor = TestMidiProcessor()
+  /** Snapshots the transmitter's receivers as seen from inside each hook. */
+  class SnapshottingMidiProcessor extends MidiProcessor {
+    var receiversOnDisconnect: Seq[MidiReceiver] = Seq.empty
+    var receiversOnConnect: Seq[MidiReceiver] = Seq.empty
 
-    // Create test MIDI message
-    val testScMessage: Midi1Msg = NoteOnMidiMsg(1, 60, 100)
-    val testMessage: MidiMessage = testScMessage.asJava
-    val testTimestamp = 123L
+    override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message)
 
-    // Create a stub receiver
-    val receiverStub: Receiver = stub[Receiver]
-  }
-
-  "receiver" should "forward messages to the transmitter's receiver after processing" in new TestFixture {
-    // Set up our mock receiver to expect the message
-    receiverStub.send.when(testMessage, testTimestamp).returns(())
-
-    // Set the mock receiver as the transmitter's receiver
-    processor.transmitter.setReceiver(receiverStub)
-
-    // Send a message through the processor
-    processor.receiver.send(testMessage, testTimestamp)
-
-    // Verify that `process` was called with the correct message
-    processor.processedMessages should contain((testMessage, testTimestamp))
-
-    // Verify that the message was forwarded to the mock receiver
-    receiverStub.send.verify(testMessage, testTimestamp)
-  }
-
-  it should "be able to send MidiMsg objects" in new TestFixture {
-    // Set up our mock receiver
-    receiverStub.send.when(*, *).returns(())
-
-    processor.transmitter.setReceiver(receiverStub)
-
-    // Send using the MidiMsg overload
-    processor.receiver.send(testScMessage, testTimestamp)
-
-    def matchMessage(msg: MidiMessage): Boolean = {
-      msg match {
-        case sm: ShortMessage => sm.getCommand == ShortMessage.NOTE_ON && sm.getData1 == 60 && sm.getData2 == 100
-        case _ => false
-      }
+    override protected def onConnect(): Unit = {
+      receiversOnConnect = transmitter.receivers
     }
 
-    // Verify that process was called
-    processor.processedMessages should have size 1
-    matchMessage(processor.processedMessages.head._1) shouldBe true
+    override protected def onDisconnect(): Unit = {
+      receiversOnDisconnect = transmitter.receivers
+    }
 
-    // Verify the message was forwarded
-    receiverStub.send.verify(where { (msg: MidiMessage, _: Long) =>
-      matchMessage(msg)
-    })
+    override def close(): Unit = {}
   }
 
-  it should "not forward messages when closed" in new TestFixture {
-    processor.transmitter.setReceiver(receiverStub)
+  /**
+   * From inside each hook, tries to read the transmitter's receivers on another thread and records whether that
+   * read completed while the hook was still running. It completes at once unless the hook holds the write lock.
+   */
+  class LockProbingMidiProcessor extends MidiProcessor {
+    val readerTimeoutMillis: Long = 200L
+    val readCompletedDuringHook: mutable.ListBuffer[Boolean] = mutable.ListBuffer()
 
-    // Close the receiver
-    processor.receiver.close()
-    processor.receiver.isClosed shouldBe true
+    override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message)
 
-    // Send a message
-    processor.receiver.send(testMessage, testTimestamp)
+    override protected def onConnect(): Unit = probe()
 
-    // Process should not have been called
+    override protected def onDisconnect(): Unit = probe()
+
+    override def close(): Unit = {}
+
+    private def probe(): Unit = {
+      val completed = AtomicBoolean(false)
+      val reader = Thread(() => {
+        transmitter.receivers
+        completed.set(true)
+      })
+      reader.setDaemon(true)
+      reader.start()
+      reader.join(readerTimeoutMillis)
+      readCompletedDuringHook += completed.get
+    }
+  }
+
+  trait Fixture {
+    val processor: RecordingMidiProcessor = RecordingMidiProcessor()
+
+    val message: MidiMsg = NoteOnMidiMsg(1, 60, 100)
+    val timeStamp: Long = 123L
+
+    val receiver1: Stub[MidiReceiver] = stub[MidiReceiver]
+    val receiver2: Stub[MidiReceiver] = stub[MidiReceiver]
+    Seq(receiver1, receiver2).foreach(_.send.returns(_ => ()))
+  }
+
+  behavior of "receiver"
+
+  it should "process a message once and forward the result to every receiver of the transmitter" in new Fixture {
+    // Given
+    processor.transmitter.receivers = Seq(receiver1, receiver2)
+
+    // When
+    processor.receiver.send(message, timeStamp)
+
+    // Then
+    processor.processedMessages.toSeq shouldEqual Seq((message, timeStamp))
+    receiver1.send.calls shouldEqual Seq((message, timeStamp))
+    receiver2.send.calls shouldEqual Seq((message, timeStamp))
+  }
+
+  it should "forward every message a processor returns, in order, with the input time-stamp" in new Fixture {
+    // Given
+    val noteOff: MidiMsg = NoteOffMidiMsg(1, 60, 0)
+    val echoingProcessor: MidiProcessor = new MidiProcessor {
+      override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message, noteOff)
+
+      override def close(): Unit = {}
+    }
+    echoingProcessor.transmitter.addReceiver(receiver1)
+
+    // When
+    echoingProcessor.receiver.send(message, timeStamp)
+
+    // Then
+    receiver1.send.calls shouldEqual Seq((message, timeStamp), (noteOff, timeStamp))
+  }
+
+  it should "not process a message while the transmitter has no receivers" in new Fixture {
+    // When
+    processor.receiver.send(message, timeStamp)
+
+    // Then
     processor.processedMessages shouldBe empty
-
-    // Verify the message was not forwarded
-    receiverStub.send.verify(*, *).never()
   }
 
-  "transmitter" should "call onConnect when a receiver is set" in new TestFixture {
-    processor.transmitter.setReceiver(receiverStub)
+  it should "not process or forward messages once closed" in new Fixture {
+    // Given
+    processor.transmitter.addReceiver(receiver1)
+    processor.receiver.close()
 
-    processor.connectCalled.size shouldBe 1
-    processor.disconnectCalled shouldBe empty
+    // When
+    processor.receiver.send(message, timeStamp)
+
+    // Then
+    processor.receiver.isClosed shouldBe true
+    processor.processedMessages shouldBe empty
+    receiver1.send.times shouldEqual 0
   }
 
-  it should "call onDisconnect when receiver is replaced" in new TestFixture {
-    // Set initial receiver
-    processor.transmitter.setReceiver(receiverStub)
-    processor.connectCalled.size shouldBe 1
-    processor.disconnectCalled shouldBe empty
+  behavior of "transmitter"
 
-    // Create another mock receiver
-    val anotherReceiver: Receiver = stub[Receiver]
+  it should "call onConnect when the first receiver is added" in new Fixture {
+    // When
+    processor.transmitter.addReceiver(receiver1)
 
-    // Replace the receiver
-    processor.transmitter.setReceiver(anotherReceiver)
-
-    // Verify onDisconnect and onConnect were called
-    processor.disconnectCalled.size shouldBe 1
-    processor.connectCalled.size shouldBe 2
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq("connect")
   }
 
-  it should "not trigger callbacks when setting same receiver" in new TestFixture {
-    // Set initial receiver
-    processor.transmitter.setReceiver(receiverStub)
-    processor.connectCalled.size shouldBe 1
-    processor.disconnectCalled shouldBe empty
+  it should "call onDisconnect, then onConnect, when the receivers are replaced" in new Fixture {
+    // Given
+    processor.transmitter.receivers = Seq(receiver1)
 
-    // Set the same receiver again
-    processor.transmitter.setReceiver(receiverStub)
+    // When
+    processor.transmitter.receivers = Seq(receiver2)
 
-    // Verify no additional callbacks were triggered
-    processor.connectCalled.size shouldBe 1
-    processor.disconnectCalled shouldBe empty
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq("connect", "disconnect", "connect")
   }
 
-  it should "support idiomatic Scala getter and setter" in new TestFixture {
-    // Test getter
-    processor.transmitter.receiver shouldBe empty
+  it should "call onDisconnect, then onConnect, when a receiver is added to a connected processor" in new Fixture {
+    // Given
+    processor.transmitter.addReceiver(receiver1)
 
-    // Test setter with Some
-    processor.transmitter.receiver = Some(receiverStub)
-    processor.transmitter.receiver shouldBe Some(receiverStub)
+    // When
+    processor.transmitter.addReceiver(receiver2)
 
-    // Test setter with None
-    processor.transmitter.receiver = None
-    processor.transmitter.receiver shouldBe empty
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq("connect", "disconnect", "connect")
+    processor.transmitter.receivers shouldEqual Seq(receiver1, receiver2)
   }
 
-  it should "return null for getReceiver when no receiver is set" in new TestFixture {
-    processor.transmitter.getReceiver shouldBe null
+  it should "call only onDisconnect when the last receiver is removed" in new Fixture {
+    // Given
+    processor.transmitter.addReceiver(receiver1)
+
+    // When
+    processor.transmitter.removeReceiver(receiver1)
+
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq("connect", "disconnect")
   }
 
-  it should "not forward messages after being closed" in new TestFixture {
-    processor.transmitter.setReceiver(receiverStub)
+  it should "call only onDisconnect when the receivers are cleared" in new Fixture {
+    // Given
+    processor.transmitter.receivers = Seq(receiver1, receiver2)
 
-    // Close the transmitter
-    processor.transmitter.close()
-    processor.transmitter.isClosed shouldBe true
+    // When
+    processor.transmitter.clearReceivers()
 
-    // The close status shouldn't affect message forwarding directly
-    // It's more about resource cleanup
-    processor.receiver.send(testMessage, testTimestamp)
-
-    // The message should still be processed and forwarded
-    processor.processedMessages should contain((testMessage, testTimestamp))
-    receiverStub.send.verify(testMessage, testTimestamp)
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq("connect", "disconnect")
   }
 
-  "process" should "allow modification of MIDI messages" in {
-    // Create a processor that transforms messages
-    val transformingProcessor = new MidiProcessor {
-      override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
-        // For testing, transform NOTE_ON to NOTE_OFF
-        message match
-          case sm: ShortMessage if sm.getCommand == ShortMessage.NOTE_ON =>
-            val newMessage = new ShortMessage(ShortMessage.NOTE_OFF, sm.getChannel, sm.getData1, 0)
-            Seq(newMessage)
-          case _ =>
-            Seq(message)
-      }
+  it should "call no hook when the same receivers are set again" in new Fixture {
+    // Given
+    processor.transmitter.receivers = Seq(receiver1)
 
-      override protected def onConnect(): Unit = {}
+    // When
+    processor.transmitter.receivers = Seq(receiver1)
 
-      override protected def onDisconnect(): Unit = {}
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq("connect")
+  }
 
-      override def close(): Unit = {}
+  it should "call no hook when an empty transmitter is cleared" in new Fixture {
+    // When
+    processor.transmitter.clearReceivers()
+
+    // Then
+    processor.hookCalls shouldBe empty
+  }
+
+  it should "still expose the old receivers during onDisconnect and the new ones during onConnect" in new Fixture {
+    // Given
+    val snapshotting: SnapshottingMidiProcessor = SnapshottingMidiProcessor()
+    snapshotting.transmitter.receivers = Seq(receiver1)
+
+    // When
+    snapshotting.transmitter.receivers = Seq(receiver2)
+
+    // Then
+    snapshotting.receiversOnDisconnect shouldEqual Seq(receiver1)
+    snapshotting.receiversOnConnect shouldEqual Seq(receiver2)
+  }
+
+  it should "run the hooks while holding the write lock, through a modifier and through a direct assignment" in
+    new Fixture {
+      // Given
+      val probing: LockProbingMidiProcessor = LockProbingMidiProcessor()
+
+      // When
+      probing.transmitter.addReceiver(receiver1)
+      probing.transmitter.receivers = Seq(receiver2)
+
+      // Then: connect; disconnect, connect
+      probing.readCompletedDuringHook.toSeq shouldEqual Seq(false, false, false)
     }
-
-    val mockReceiver = stub[Receiver]
-    transformingProcessor.transmitter.setReceiver(mockReceiver)
-
-    // Create test message
-    val noteOnMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
-
-    // When we send a NOTE_ON, we expect a NOTE_OFF to be forwarded
-    transformingProcessor.receiver.send(noteOnMessage, 0L)
-
-    // Verify that the receiver got a NOTE_OFF message
-    mockReceiver.send.verify(where {
-      (msg: MidiMessage, _: Long) =>
-        msg.isInstanceOf[ShortMessage] &&
-          msg.asInstanceOf[ShortMessage].getCommand == ShortMessage.NOTE_OFF
-    })
-  }
-
-  it should "support returning multiple messages for a single input" in {
-    // Create a processor that generates multiple messages
-    val multiMessageProcessor = new MidiProcessor {
-      override protected def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
-        message match
-          case sm: ShortMessage if sm.getCommand == ShortMessage.NOTE_ON =>
-            val echoMessage = new ShortMessage(
-              ShortMessage.NOTE_ON,
-              sm.getChannel,
-              sm.getData1,
-              sm.getData2 / 2
-            )
-            Seq(message, echoMessage)
-          case _ =>
-            Seq(message)
-      }
-
-      override protected def onConnect(): Unit = {}
-
-      override protected def onDisconnect(): Unit = {}
-
-      override def close(): Unit = {}
-    }
-
-    val mockReceiver = stub[Receiver]
-    multiMessageProcessor.transmitter.setReceiver(mockReceiver)
-
-    // Create test message
-    val noteOnMessage = new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 100)
-
-    // When we send a NOTE_ON, we expect both original and echo to be forwarded
-    multiMessageProcessor.receiver.send(noteOnMessage, 0L)
-
-    // Verify both messages were received
-    mockReceiver.send.verify(noteOnMessage, 0L)
-    mockReceiver.send.verify(where {
-      (msg: MidiMessage, _: Long) =>
-        msg.isInstanceOf[ShortMessage] &&
-          msg.asInstanceOf[ShortMessage].getCommand == ShortMessage.NOTE_ON &&
-          msg.asInstanceOf[ShortMessage].getData2 == 50
-    })
-  }
 }

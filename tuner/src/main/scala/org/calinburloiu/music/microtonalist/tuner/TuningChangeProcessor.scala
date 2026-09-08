@@ -17,11 +17,9 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiProcessor
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
-import javax.sound.midi.MidiMessage
 import scala.annotation.tailrec
 
 /**
@@ -48,10 +46,9 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
     this(Seq(tuningChanger), tuningService)
   }
 
-  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
-    // Bridge to the Java-typed MidiProcessor, removed when MidiProcessor carries MidiMsg (#281).
+  override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = {
     val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
-      message.asScala, tuningChangers.toList)
+      message, tuningChangers.toList)
 
     // Change the tuning if the tuning change decision is effective
     tuningChange match {

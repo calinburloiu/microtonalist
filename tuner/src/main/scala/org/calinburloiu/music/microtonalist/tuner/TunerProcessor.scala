@@ -18,11 +18,9 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiProcessor
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{Midi1Msg, MidiMsg}
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
-import javax.sound.midi.MidiMessage
 
 /**
  * A MIDI processor that integrates with a Tuner to manage MIDI messages and tuning operations.
@@ -33,11 +31,11 @@ import javax.sound.midi.MidiMessage
  * handling through the lifecycle events of the processor.
  *
  * The primary responsibilities of this class include:
- * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receiver.
+ * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receivers.
  * - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
  * - Properly resetting the tuner and sending initialization messages when connected.
  * - Restoring the default tuning and ensuring a clean state upon disconnection.
- * - Safeguarding message transmission to the MIDI receiver and handling any transmission errors.
+ * - Safeguarding message transmission to the MIDI receivers and handling any transmission errors.
  *
  * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures
  * external synchronization.
@@ -50,24 +48,23 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   /**
    * Tunes the output instrument using the specified tuning.
    * The method generates the corresponding MIDI messages, if any, for the given tuning
-   * and sends them to the configured receiver.
+   * and sends them to every receiver of the transmitter.
    *
    * @param tuning The instance that contains the tuning information,
    *               including the offset in cents for each of the 12 pitch classes.
    */
   def tune(tuning: Tuning): Unit = {
     val tuningMessages = tuner.tune(tuning)
-    sendToReceiver(toJava(tuningMessages), -1)
+    sendToReceivers(tuningMessages, -1)
   }
 
-  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] =
-    toJava(tuner.process(message.asScala))
+  override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = tuner.process(message)
 
   override protected def onConnect(): Unit = {
     super.onConnect()
 
     val initMessages = tuner.reset()
-    sendToReceiver(toJava(initMessages), -1)
+    sendToReceivers(initMessages, -1)
 
     logger.info(s"Connected the processor for tuner $tuner.")
   }
@@ -85,18 +82,14 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     tuneToStandard()
   }
 
-  // Bridge to the Java-typed MidiProcessor, removed when MidiProcessor carries MidiMsg (#281).
-  private def toJava(messages: Seq[MidiMsg]): Seq[MidiMessage] =
-    messages.collect { case message: Midi1Msg => message.asJava }
-
-  private def sendToReceiver(messages: Seq[MidiMessage], timeStamp: Long): Unit = {
+  private def sendToReceivers(messages: Seq[MidiMsg], timeStamp: Long): Unit = {
     // TODO #97 Handle the try differently
     try {
-      for (message <- messages; destReceiver <- transmitter.receiver) {
-        destReceiver.send(message, timeStamp)
+      for (message <- messages; outputReceiver <- transmitter.receivers) {
+        outputReceiver.send(message, timeStamp)
       }
     } catch {
-      case e: IllegalStateException => throw new TunerException(e)
+      case e: IllegalStateException => throw TunerException(e)
     }
   }
 
