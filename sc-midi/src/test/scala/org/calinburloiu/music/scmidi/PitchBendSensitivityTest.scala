@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, ScMidiCc, ScMidiRpn}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -48,12 +48,12 @@ class PitchBendSensitivityTest extends AnyFlatSpec with Matchers {
 
     // Then
     messages shouldEqual Seq(
-      CcScMidiMessage(5, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      CcScMidiMessage(5, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      CcScMidiMessage(5, ScMidiCc.DataEntryMsb, 3),
-      CcScMidiMessage(5, ScMidiCc.DataEntryLsb, 37),
-      CcScMidiMessage(5, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcScMidiMessage(5, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+      CcMidiMsg(5, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
+      CcMidiMsg(5, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
+      CcMidiMsg(5, ScMidiCc.DataEntryMsb, 3),
+      CcMidiMsg(5, ScMidiCc.DataEntryLsb, 37),
+      CcMidiMsg(5, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+      CcMidiMsg(5, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
     )
   }
 }

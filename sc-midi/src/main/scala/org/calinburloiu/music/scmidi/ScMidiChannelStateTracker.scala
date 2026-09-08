@@ -59,10 +59,10 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   private val channelStates: Array[ChannelState] = Array.fill(ChannelCount)(ChannelState())
   private var _closed: Boolean = false
 
-  override def send(message: ScMidiMessage, timeStamp: Long = -1L): Unit = if (!_closed) message match {
-    case NoteOnScMidiMessage(channel, midiNote, NoteOnScMidiMessage.NoteOffVelocity) =>
+  override def send(message: MidiMsg, timeStamp: Long = -1L): Unit = if (!_closed) message match {
+    case NoteOnMidiMsg(channel, midiNote, NoteOnMidiMsg.NoteOffVelocity) =>
       releaseNote(channel, midiNote)
-    case NoteOnScMidiMessage(channel, midiNote, velocity) =>
+    case NoteOnMidiMsg(channel, midiNote, velocity) =>
       val activeNotes = channelStates(channel).activeNotes
       activeNotes.remove(midiNote) match {
         case Some(activeNote) =>
@@ -74,20 +74,20 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
         case None =>
           activeNotes(midiNote) = ActiveNote(velocity)
       }
-    case NoteOffScMidiMessage(channel, midiNote, _) =>
+    case NoteOffMidiMsg(channel, midiNote, _) =>
       releaseNote(channel, midiNote)
-    case PolyPressureScMidiMessage(channel, midiNote, value) =>
+    case PolyPressureMidiMsg(channel, midiNote, value) =>
       channelStates(channel).activeNotes.get(midiNote).foreach(_.polyPressure = value)
-    case CcScMidiMessage(channel, ccNumber, ccValue) =>
+    case CcMidiMsg(channel, ccNumber, ccValue) =>
       val state = channelStates(channel)
       state.ccValues(ccNumber) = ccValue
       handleParameterCc(state, ccNumber, ccValue)
       handleChannelModeCc(state, ccNumber)
-    case ChannelPressureScMidiMessage(channel, value) =>
+    case ChannelPressureMidiMsg(channel, value) =>
       channelStates(channel).channelPressure = Some(value)
-    case PitchBendScMidiMessage(channel, value) =>
+    case PitchBendMidiMsg(channel, value) =>
       channelStates(channel).pitchBend = Some(value)
-    case ProgramChangeScMidiMessage(channel, program) =>
+    case ProgramChangeMidiMsg(channel, program) =>
       channelStates(channel).programChange = Some(program)
     case _ =>
   }

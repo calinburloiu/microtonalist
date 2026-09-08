@@ -49,7 +49,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "record a Note On as an active note with its velocity" in new TrackerFixture {
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
     // Then
     tracker.activeNotes(Channel) should contain only C4
@@ -60,10 +60,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "remove a note from the active set on Note Off" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
     // When
-    tracker.send(NoteOffScMidiMessage(Channel, C4))
+    tracker.send(NoteOffMidiMsg(Channel, C4))
 
     // Then
     tracker.activeNotes(Channel) shouldBe empty
@@ -74,10 +74,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "treat a Note On with velocity 0 as a Note Off" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = NoteOnScMidiMessage.NoteOffVelocity))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = NoteOnMidiMsg.NoteOffVelocity))
 
     // Then
     tracker.activeNotes(Channel) shouldBe empty
@@ -86,9 +86,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "order active notes by their Note On" in new TrackerFixture {
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, G4, velocity = 80))
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 90))
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 70))
+    tracker.send(NoteOnMidiMsg(Channel, G4, velocity = 80))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 90))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 70))
 
     // Then
     tracker.orderedActiveNotes(Channel) should contain theSameElementsInOrderAs Seq(G4, C4, E4)
@@ -96,8 +96,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "track active notes independently per channel" in new TrackerFixture {
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 110))
 
     // Then
     tracker.activeNotes(Channel) should contain only C4
@@ -108,7 +108,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "default Polyphonic Key Pressure to 0 for an active note that has not received one" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
     // When / Then
     tracker.polyPressureOption(Channel, C4) should equal(Some(0))
@@ -117,10 +117,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "update Polyphonic Key Pressure for an active note" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
     // When
-    tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 90))
+    tracker.send(PolyPressureMidiMsg(Channel, C4, value = 90))
 
     // Then
     tracker.polyPressureOption(Channel, C4) should equal(Some(90))
@@ -129,7 +129,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore Polyphonic Key Pressure for an inactive note" in new TrackerFixture {
     // When
-    tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 90))
+    tracker.send(PolyPressureMidiMsg(Channel, C4, value = 90))
 
     // Then
     tracker.polyPressureOption(Channel, C4) shouldBe None
@@ -139,11 +139,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "preserve Polyphonic Key Pressure when a note is re-triggered with Note On" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 90))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(PolyPressureMidiMsg(Channel, C4, value = 90))
 
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
     // Then — two voices sound for one key, so pressure addressed to that key belongs to both of them
     tracker.polyPressureOption(Channel, C4) should equal(Some(90))
@@ -152,10 +152,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "overwrite the velocity of an active note when a Note On is re-sent" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 50))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 50))
 
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 120))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 120))
 
     // Then
     tracker.velocityOption(Channel, C4) should equal(Some(120))
@@ -164,7 +164,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "count a single Note On as one reference" in new TrackerFixture {
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
     // Then
     tracker.referenceCount(Channel, C4) should equal(1)
@@ -173,10 +173,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "increment the reference count when an already-active note receives another Note On" in
     new TrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
 
       // When
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(2)
@@ -186,11 +186,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "decrement the reference count on Note Off while a reference remains, keeping the note active" in
     new TrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // When
-      tracker.send(NoteOffScMidiMessage(Channel, C4))
+      tracker.send(NoteOffMidiMsg(Channel, C4))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(1)
@@ -200,12 +200,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "remove the note when the last Note On is discharged" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
-    tracker.send(NoteOffScMidiMessage(Channel, C4))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
+    tracker.send(NoteOffMidiMsg(Channel, C4))
 
     // When
-    tracker.send(NoteOffScMidiMessage(Channel, C4))
+    tracker.send(NoteOffMidiMsg(Channel, C4))
 
     // Then
     tracker.referenceCount(Channel, C4) should equal(0)
@@ -216,11 +216,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "decrement the reference count on a Note On with velocity 0 exactly as on a Note Off" in
     new TrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // When
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = NoteOnScMidiMessage.NoteOffVelocity))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = NoteOnMidiMsg.NoteOffVelocity))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(1)
@@ -229,7 +229,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "leave the reference count at 0 when a Note Off arrives for an inactive note" in new TrackerFixture {
     // When
-    tracker.send(NoteOffScMidiMessage(Channel, C4))
+    tracker.send(NoteOffMidiMsg(Channel, C4))
 
     // Then
     tracker.referenceCount(Channel, C4) should equal(0)
@@ -243,10 +243,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "track reference counts independently per channel and per note" in new TrackerFixture {
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(OtherChannel, C4, velocity = 100))
 
     // Then
     tracker.referenceCount(Channel, C4) should equal(2)
@@ -257,12 +257,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "move a note to the end of the ordered active notes on a duplicate Note On" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 90))
-    tracker.send(NoteOnScMidiMessage(Channel, G4, velocity = 80))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 90))
+    tracker.send(NoteOnMidiMsg(Channel, G4, velocity = 80))
 
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
     // Then — active notes are ordered by their most recent Note On, not by first insertion
     tracker.orderedActiveNotes(Channel) should contain theSameElementsInOrderAs Seq(E4, G4, C4)
@@ -278,7 +278,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "record the value of a Control Change message" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, number = ScMidiCc.ModulationMsb, value = 42))
+    tracker.send(CcMidiMsg(Channel, number = ScMidiCc.ModulationMsb, value = 42))
 
     // Then
     tracker.ccOption(Channel, ScMidiCc.ModulationMsb) should equal(Some(42))
@@ -287,8 +287,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "track CC values independently per channel" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, number = ScMidiCc.VolumeMsb, value = 80))
-    tracker.send(CcScMidiMessage(OtherChannel, number = ScMidiCc.VolumeMsb, value = 50))
+    tracker.send(CcMidiMsg(Channel, number = ScMidiCc.VolumeMsb, value = 80))
+    tracker.send(CcMidiMsg(OtherChannel, number = ScMidiCc.VolumeMsb, value = 50))
 
     // Then
     tracker.cc(Channel, ScMidiCc.VolumeMsb) should equal(80)
@@ -324,7 +324,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "prefer the recorded value over override and defaults" in new TrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 12))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.VolumeMsb, value = 12))
 
     // When / Then
     tracker.cc(Channel, ScMidiCc.VolumeMsb, overrideDefaultValue = Some(99)) should equal(12)
@@ -358,8 +358,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "record the latest Channel Pressure value" in new TrackerFixture {
     // When
-    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
-    tracker.send(ChannelPressureScMidiMessage(Channel, value = 95))
+    tracker.send(ChannelPressureMidiMsg(Channel, value = 80))
+    tracker.send(ChannelPressureMidiMsg(Channel, value = 95))
 
     // Then
     tracker.channelPressure(Channel) should equal(95)
@@ -367,7 +367,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "record the latest Pitch Bend value (signed)" in new TrackerFixture {
     // When
-    tracker.send(PitchBendScMidiMessage(Channel, value = -2048))
+    tracker.send(PitchBendMidiMsg(Channel, value = -2048))
 
     // Then
     tracker.pitchBend(Channel) should equal(-2048)
@@ -375,7 +375,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "record the latest Program Change value" in new TrackerFixture {
     // When
-    tracker.send(ProgramChangeScMidiMessage(Channel, program = 42))
+    tracker.send(ProgramChangeMidiMsg(Channel, program = 42))
 
     // Then
     tracker.programChange(Channel) should equal(42)
@@ -383,9 +383,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "track Channel Pressure / Pitch Bend / Program Change independently per channel" in new TrackerFixture {
     // When
-    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
-    tracker.send(PitchBendScMidiMessage(OtherChannel, value = 1024))
-    tracker.send(ProgramChangeScMidiMessage(Channel, program = 5))
+    tracker.send(ChannelPressureMidiMsg(Channel, value = 80))
+    tracker.send(PitchBendMidiMsg(OtherChannel, value = 1024))
+    tracker.send(ProgramChangeMidiMsg(Channel, program = 5))
 
     // Then
     tracker.channelPressure(Channel) should equal(80)
@@ -405,8 +405,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "reflect Bank Select MSB and LSB recorded via CC messages" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.BankSelectMsb, value = 3))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.BankSelectLsb, value = 7))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.BankSelectMsb, value = 3))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.BankSelectLsb, value = 7))
 
     // Then
     tracker.bankSelect(Channel) should equal((3, 7))
@@ -425,8 +425,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   behavior of "ScMidiChannelStateTracker RPN tracking"
 
   private def selectRpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
-    tracker.send(CcScMidiMessage(channel, ScMidiCc.RpnMsb, msb))
-    tracker.send(CcScMidiMessage(channel, ScMidiCc.RpnLsb, lsb))
+    tracker.send(CcMidiMsg(channel, ScMidiCc.RpnMsb, msb))
+    tracker.send(CcMidiMsg(channel, ScMidiCc.RpnLsb, lsb))
   }
 
   it should "return None for an RPN that has not been written" in new TrackerFixture {
@@ -451,7 +451,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpn(Channel, 5, 9, overrideDefaultValue = Some((10, 0))) should equal((10, 0))
     // recorded value wins over override
     selectRpn(tracker, Channel, 5, 9)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 3))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 3))
     tracker.rpn(Channel, 5, 9, overrideDefaultValue = Some((10, 0))) should equal((3, 0))
   }
 
@@ -474,8 +474,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "select a RPN when LSB is sent before MSB (reversed order)" in new TrackerFixture {
     // When — LSB first, then MSB
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
 
     // Then
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
@@ -486,8 +486,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
 
     // Then
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
@@ -498,8 +498,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
 
     // When — the order MIDI 1.0 allows just as much as the other, and a third-party sender may well emit
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
 
     // Then
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
@@ -507,13 +507,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "keep a lone RPN MSB of 127 pending rather than reading it as a Null" in new TrackerFixture {
     // When — only the pair 127/127 is the Null Function; a lone Null MSB deselects nothing on its own
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
 
     // Then nothing is selected yet, the LSB not having arrived
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
 
     // When the LSB arrives, completing RPN 7F/00
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, 0))
 
     // Then — had the lone Null MSB been read as a Null, it would have cleared the pending half and left this
     // selecting nothing
@@ -527,14 +527,14 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "report an RPN whose LSB has not arrived as a half still pending" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
 
     // Then — the LSB is pending, which rpnSelector cannot express and reports as None
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None)
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
 
     // When the LSB completes the pair
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual
@@ -543,7 +543,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "report an RPN whose MSB has not arrived as a half still pending" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb))
@@ -552,13 +552,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "tell a lone RPN half carrying 127 apart from a Null that deselects" in new TrackerFixture {
     // When — a lone Null MSB, which is a pending half of a parameter, not a deselection
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(Some(ScMidiRpn.NullMsb), None)
 
     // When the Null LSB completes the Null pair
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb))
 
     // Then nothing is left half-assembled either
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
@@ -566,10 +566,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "start a fresh partial RPN rather than inherit a pending NRPN half" in new TrackerFixture {
     // Given — an NRPN with its LSB still pending
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
 
     // When a selector CC of the other kind arrives
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
 
     // Then the pending NRPN MSB is dropped rather than becoming the new parameter's MSB
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb))
@@ -577,7 +577,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "track the partially assembled RPN independently per channel" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(Some(ScMidiRpn.FineTuningMsb), None)
@@ -589,7 +589,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 24))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 24))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -599,10 +599,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "update the LSB component of an RPN value via Data Entry LSB" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 50))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 50))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 50)))
@@ -614,7 +614,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 50))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 50))
 
       // Then
       tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 50)))
@@ -625,7 +625,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, msb = 0, lsb = ScMidiRpn.NullLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 24))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 24))
 
     // Then
     tracker.rpnOption(Channel, 0, ScMidiRpn.NullLsb) should equal(Some((24, 0)))
@@ -634,11 +634,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "keep recorded RPN values when a different RPN is selected" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 12))
 
     // When
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -648,13 +648,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore data changes when an initial RPN has only MSB selection" in new TrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
@@ -666,13 +666,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore data changes when an initial RPN has only LSB selection" in new TrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe empty
@@ -684,9 +684,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore data changes when no RPN/NRPN is selected" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 99))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, 0, 0) shouldBe None
@@ -695,11 +695,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "ignore Data Entry after Null RPN is selected" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 8))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 8))
     selectRpn(tracker, Channel, ScMidiRpn.NullMsb, ScMidiRpn.NullLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 99))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -710,9 +710,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "track RPN values independently per channel" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 12))
     selectRpn(tracker, OtherChannel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.DataEntryMsb, value = 24))
+    tracker.send(CcMidiMsg(OtherChannel, ScMidiCc.DataEntryMsb, value = 24))
 
     // When / Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -724,11 +724,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "increment the recorded RPN value by 1 (combined 14-bit)" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 50))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 50))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 51)))
@@ -737,11 +737,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "decrement the recorded RPN value by 1 (combined 14-bit)" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 50))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 50))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 49)))
@@ -750,11 +750,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "carry across LSB and MSB when incrementing past 127 LSB" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 127))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((1, 0)))
@@ -763,11 +763,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "carry across MSB and LSB when decrementing past 0 LSB" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 1))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 1))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 0))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((0, 127)))
@@ -776,11 +776,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clamp at 0 when decrementing below 0" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 0))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((0, 0)))
@@ -789,11 +789,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clamp at 16383 when incrementing past the 14-bit maximum" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 127))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 127))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((127, 127)))
@@ -802,12 +802,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "ignore the data byte of Data Increment / Decrement (always ±1)" in new TrackerFixture {
     // Given
     selectRpn(tracker, Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 50))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 50))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 100))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 5))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 100))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 5))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) should equal(Some((64, 52)))
@@ -819,7 +819,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
       // Then — default is (2, 0); +1 → (2, 1)
       tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -832,7 +832,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
       // Then — default is (2, 0); -1 → (1, 127)
       tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -849,7 +849,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -858,7 +858,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore Data Increment when no RPN/NRPN is selected" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, 0, 0) shouldBe None
@@ -872,7 +872,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, unknownRpnMsb, unknownRpnLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, unknownRpnMsb, unknownRpnLsb) shouldBe None
@@ -885,7 +885,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectRpn(tracker, Channel, unknownRpnMsb, unknownRpnLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.rpnOption(Channel, unknownRpnMsb, unknownRpnLsb) shouldBe None
@@ -893,8 +893,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "still record Data Increment / Decrement values even when their effect is ignored" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 1))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 1))
 
     // Then
     tracker.ccOption(Channel, ScMidiCc.DataIncrement) should equal(Some(0))
@@ -907,7 +907,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // When
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 5))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 5))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) shouldBe None
@@ -918,8 +918,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   behavior of "ScMidiChannelStateTracker NRPN tracking"
 
   private def selectNrpn(tracker: ScMidiChannelStateTracker, channel: Int, msb: Int, lsb: Int): Unit = {
-    tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
-    tracker.send(CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb))
+    tracker.send(CcMidiMsg(channel, ScMidiCc.NrpnMsb, msb))
+    tracker.send(CcMidiMsg(channel, ScMidiCc.NrpnLsb, lsb))
   }
 
   it should "return None for an NRPN that has not been written" in new TrackerFixture {
@@ -950,8 +950,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "select a NRPN when LSB is sent before MSB (reversed order)" in new TrackerFixture {
     // When — LSB first, then MSB
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
 
     // Then
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.Nrpn(NrpnA._1, NrpnA._2)
@@ -962,8 +962,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb))
 
     // Then
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
@@ -974,8 +974,8 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When — the order MIDI 1.0 allows just as much as the other, and a third-party sender may well emit
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, ScMidiNrpn.NullLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
 
     // Then
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
@@ -983,13 +983,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "keep a lone NRPN MSB of 127 pending rather than reading it as a Null" in new TrackerFixture {
     // When — only the pair 127/127 is the Null Function; a lone Null MSB deselects nothing on its own
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, ScMidiNrpn.NullMsb))
 
     // Then nothing is selected yet, the LSB not having arrived
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
 
     // When the LSB arrives, completing NRPN 7F/22
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, 34))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, 34))
 
     // Then — had the lone Null MSB been read as a Null, it would have cleared the pending half and left this
     // selecting nothing
@@ -998,14 +998,14 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "report an NRPN whose LSB has not arrived as a half still pending" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, NrpnA._1))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(Some(NrpnA._1), None)
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
 
     // When the LSB completes the pair
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(Some(NrpnA._1), Some(NrpnA._2))
@@ -1013,7 +1013,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "report an NRPN whose MSB has not arrived as a half still pending" in new TrackerFixture {
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
 
     // Then
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(None, Some(NrpnA._2))
@@ -1022,10 +1022,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "start a fresh partial NRPN rather than inherit a pending RPN half" in new TrackerFixture {
     // Given — an RPN with its LSB still pending
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
 
     // When an NRPN selector CC of the other kind arrives
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, NrpnA._2))
 
     // Then the pending RPN MSB is dropped rather than becoming the new parameter's MSB
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Nrpn(None, Some(NrpnA._2))
@@ -1036,7 +1036,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 17))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((17, 0)))
@@ -1047,7 +1047,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, msb = ScMidiNrpn.NullMsb, lsb = 34)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 17))
 
     // Then
     tracker.nrpnOption(Channel, ScMidiNrpn.NullMsb, 34) should equal(Some((17, 0)))
@@ -1058,7 +1058,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, msb = 0, lsb = ScMidiNrpn.NullLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 17))
 
     // Then
     tracker.nrpnOption(Channel, 0, ScMidiNrpn.NullLsb) should equal(Some((17, 0)))
@@ -1070,7 +1070,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // When
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 5))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 5))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) shouldBe None
@@ -1080,11 +1080,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "keep recorded NRPN values when a different NRPN is selected" in new TrackerFixture {
     // Given
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 1))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 1))
 
     // When
     selectNrpn(tracker, Channel, NrpnB._1, NrpnB._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 2))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 2))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((1, 0)))
@@ -1094,11 +1094,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "ignore Data Entry after Null NRPN is selected" in new TrackerFixture {
     // Given
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 8))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 8))
     selectNrpn(tracker, Channel, ScMidiNrpn.NullMsb, ScMidiNrpn.NullLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 99))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((8, 0)))
@@ -1107,13 +1107,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore data changes when an initial NRPN has only MSB selection" in new TrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnMsb, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnMsb, 0))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, 0))
 
     // Then
     tracker.nrpnOption(Channel, 0, 0) shouldBe empty
@@ -1125,13 +1125,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "ignore data changes when an initial NRPN has only LSB selection" in new TrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.NrpnLsb, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.NrpnLsb, 0))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 6))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 6))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, 0))
 
     // Then
     tracker.nrpnOption(Channel, 0, 0) shouldBe empty
@@ -1144,10 +1144,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "increment a recorded NRPN value for a parameter whose LSB is 127" in new TrackerFixture {
     // Given
     selectNrpn(tracker, Channel, msb = 0, lsb = ScMidiNrpn.NullLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 17))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 17))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.nrpnOption(Channel, 0, ScMidiNrpn.NullLsb) should equal(Some((17, 1)))
@@ -1161,7 +1161,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((10, 6)))
@@ -1175,7 +1175,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((10, 4)))
@@ -1189,9 +1189,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then — (10, 5) + 1 + 1 - 1 = (10, 6)
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) should equal(Some((10, 6)))
@@ -1202,7 +1202,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) shouldBe None
@@ -1213,7 +1213,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     selectNrpn(tracker, Channel, NrpnA._1, NrpnA._2)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
     // Then
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) shouldBe None
@@ -1236,12 +1236,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "make send a no-op after close" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
     tracker.close()
 
     // When
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 80))
-    tracker.send(NoteOffScMidiMessage(Channel, C4))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 80))
+    tracker.send(NoteOffMidiMsg(Channel, C4))
 
     // Then
     tracker.activeNotes(Channel) should contain only C4
@@ -1250,9 +1250,9 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "preserve queried state after close" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
-    tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.VolumeMsb, value = 90))
+    tracker.send(PitchBendMidiMsg(Channel, value = 1234))
 
     // When
     tracker.close()
@@ -1350,12 +1350,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "cancel active notes on the channel when All Sound Off is received" in new ResettableTrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, G4, velocity = 90))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(OtherChannel, G4, velocity = 90))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.AllSoundOff, value = 0))
 
     // Then
     tracker.activeNotes(Channel) shouldBe empty
@@ -1364,11 +1364,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "cancel active notes on the channel when All Notes Off is received" in new ResettableTrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, G4, velocity = 90))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(OtherChannel, G4, velocity = 90))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.AllNotesOff, value = 0))
 
     // Then
     tracker.activeNotes(Channel) shouldBe empty
@@ -1378,11 +1378,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clear the reference counts of the channel's notes when All Sound Off is received" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.AllSoundOff, value = 0))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(0)
@@ -1392,11 +1392,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clear the reference counts of the channel's notes when All Notes Off is received" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.AllNotesOff, value = 0))
 
       // Then
       tracker.referenceCount(Channel, C4) should equal(0)
@@ -1405,17 +1405,17 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "clear resettable CCs when Reset All Controllers is received" in new ResettableTrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ExpressionMsb, value = 50))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SustainPedal, value = 127))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.PortamentoPedal, value = 127))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SostenutoPedal, value = 127))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SoftPedal, value = 127))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.LegatoFootswitch, value = 127))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.Hold2Pedal, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ModulationMsb, value = 64))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ExpressionMsb, value = 50))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.SustainPedal, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.PortamentoPedal, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.SostenutoPedal, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.SoftPedal, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.LegatoFootswitch, value = 127))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.Hold2Pedal, value = 127))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
     // Then
     tracker.ccOption(Channel, ScMidiCc.ModulationMsb) shouldBe None
@@ -1431,13 +1431,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clear Data Entry, Data Increment, and Data Decrement CCs when Reset All Controllers is received" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryLsb, value = 34))
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataIncrement, value = 0))
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataDecrement, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 12))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryLsb, value = 34))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataIncrement, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataDecrement, value = 0))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
       // Then
       tracker.ccOption(Channel, ScMidiCc.DataEntryMsb) shouldBe None
@@ -1449,12 +1449,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clear Channel Pressure, Pitch Bend, and the RPN/NRPN selector when Reset All Controllers is received" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
-      tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
+      tracker.send(ChannelPressureMidiMsg(Channel, value = 80))
+      tracker.send(PitchBendMidiMsg(Channel, value = 1234))
       selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
       // Then
       tracker.channelPressure(Channel) should equal(0)
@@ -1468,12 +1468,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "leave reference counts intact while zeroing Polyphonic Key Pressure on Reset All Controllers" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
-      tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 90))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
+      tracker.send(PolyPressureMidiMsg(Channel, C4, value = 90))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
       // Then — Reset All Controllers is not a note-off, so nothing is discharged
       tracker.referenceCount(Channel, C4) should equal(2)
@@ -1483,15 +1483,15 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "clear a half-assembled RPN when Reset All Controllers is received" in new ResettableTrackerFixture {
     // Given — only the MSB has arrived, so nothing is selected yet but a half is pending
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
     // Then the pending half is gone, so the LSB that follows starts a parameter of its own rather than completing
     // the one begun before the reset
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.None
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb))
     tracker.partialRpnSelector(Channel) shouldEqual PartialRpnSelector.Rpn(None, Some(ScMidiRpn.FineTuningLsb))
     tracker.rpnSelector(Channel) shouldEqual RpnSelector.None
   }
@@ -1500,11 +1500,11 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     new ResettableTrackerFixture {
       // Given
       selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 12))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 99))
 
       // Then — the selector was cleared, so the new Data Entry must not affect the previous RPN
       tracker.rpnOption(Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) should
@@ -1514,15 +1514,15 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "preserve Bank Select, Volume, Pan, Program Change, and RPN/NRPN values on Reset All Controllers" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.BankSelectMsb, value = 3))
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.PanMsb, value = 32))
-      tracker.send(ProgramChangeScMidiMessage(Channel, program = 7))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.BankSelectMsb, value = 3))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.VolumeMsb, value = 90))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.PanMsb, value = 32))
+      tracker.send(ProgramChangeMidiMsg(Channel, program = 7))
       selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 12))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
       // Then
       tracker.ccOption(Channel, ScMidiCc.BankSelectMsb) should equal(Some(3))
@@ -1536,15 +1536,15 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "reset Polyphonic Key Pressure on every active note when Reset All Controllers is received" in
     new ResettableTrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
-      tracker.send(NoteOnScMidiMessage(OtherChannel, G4, velocity = 90))
-      tracker.send(PolyPressureScMidiMessage(Channel, C4, value = 70))
-      tracker.send(PolyPressureScMidiMessage(Channel, E4, value = 80))
-      tracker.send(PolyPressureScMidiMessage(OtherChannel, G4, value = 90))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(OtherChannel, G4, velocity = 90))
+      tracker.send(PolyPressureMidiMsg(Channel, C4, value = 70))
+      tracker.send(PolyPressureMidiMsg(Channel, E4, value = 80))
+      tracker.send(PolyPressureMidiMsg(OtherChannel, G4, value = 90))
 
       // When
-      tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+      tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
       // Then — the notes stay active, only their pressure is reset, and only on the addressed channel
       tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
@@ -1555,12 +1555,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "scope Reset All Controllers to the channel it was received on" in new ResettableTrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
-    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.ModulationMsb, value = 90))
-    tracker.send(ChannelPressureScMidiMessage(OtherChannel, value = 70))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ModulationMsb, value = 64))
+    tracker.send(CcMidiMsg(OtherChannel, ScMidiCc.ModulationMsb, value = 90))
+    tracker.send(ChannelPressureMidiMsg(OtherChannel, value = 70))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
     // Then
     tracker.ccOption(Channel, ScMidiCc.ModulationMsb) shouldBe None
@@ -1570,12 +1570,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "not cancel active notes on All Sound Off by default" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 105))
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 105))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 110))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllSoundOff, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.AllSoundOff, value = 0))
 
     // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
     tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
@@ -1585,12 +1585,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "not cancel active notes on All Notes Off by default" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 105))
-    tracker.send(NoteOnScMidiMessage(Channel, E4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 105))
+    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 110))
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.AllNotesOff, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.AllNotesOff, value = 0))
 
     // Then — a Note Off is still owed for each Note On, so the record of them must survive with its counts intact
     tracker.activeNotes(Channel) should contain theSameElementsAs Seq(C4, E4)
@@ -1600,13 +1600,13 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "not clear controller state on Reset All Controllers by default" in new TrackerFixture {
     // Given
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ModulationMsb, value = 64))
-    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
-    tracker.send(PitchBendScMidiMessage(Channel, value = 1234))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ModulationMsb, value = 64))
+    tracker.send(ChannelPressureMidiMsg(Channel, value = 80))
+    tracker.send(PitchBendMidiMsg(Channel, value = 1234))
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
 
     // When
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.ResetAllControllers, value = 0))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.ResetAllControllers, value = 0))
 
     // Then
     tracker.ccOption(Channel, ScMidiCc.ModulationMsb) should equal(Some(64))
@@ -1622,17 +1622,17 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "clear all per-channel state across all channels" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 110))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.VolumeMsb, value = 90))
-    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.BankSelectMsb, value = 3))
-    tracker.send(ChannelPressureScMidiMessage(Channel, value = 80))
-    tracker.send(PitchBendScMidiMessage(OtherChannel, value = 1234))
-    tracker.send(ProgramChangeScMidiMessage(Channel, program = 7))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 110))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.VolumeMsb, value = 90))
+    tracker.send(CcMidiMsg(OtherChannel, ScMidiCc.BankSelectMsb, value = 3))
+    tracker.send(ChannelPressureMidiMsg(Channel, value = 80))
+    tracker.send(PitchBendMidiMsg(OtherChannel, value = 1234))
+    tracker.send(ProgramChangeMidiMsg(Channel, program = 7))
     selectRpn(tracker, Channel, ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 12))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 12))
     selectNrpn(tracker, OtherChannel, NrpnA._1, NrpnA._2)
-    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.DataEntryMsb, value = 5))
+    tracker.send(CcMidiMsg(OtherChannel, ScMidiCc.DataEntryMsb, value = 5))
 
     // When
     tracker.reset()
@@ -1654,10 +1654,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "clear reference counts across all channels" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 90))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 95))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
+    tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 90))
+    tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 95))
 
     // When
     tracker.reset()
@@ -1673,7 +1673,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
     // When
     tracker.reset()
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.DataEntryMsb, value = 99))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.DataEntryMsb, value = 99))
 
     // Then
     tracker.rpnOption(Channel, ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) shouldBe None
@@ -1689,7 +1689,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "be a no-op after close() has been called" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
     tracker.close()
 
     // When
@@ -1702,12 +1702,12 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "clear the state of a single channel, leaving the other fifteen untouched" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-    tracker.send(CcScMidiMessage(Channel, ScMidiCc.SustainPedal, 127))
-    tracker.send(PitchBendScMidiMessage(Channel, 1000))
-    tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 90))
-    tracker.send(CcScMidiMessage(OtherChannel, ScMidiCc.SustainPedal, 127))
-    tracker.send(PitchBendScMidiMessage(OtherChannel, 2000))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+    tracker.send(CcMidiMsg(Channel, ScMidiCc.SustainPedal, 127))
+    tracker.send(PitchBendMidiMsg(Channel, 1000))
+    tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 90))
+    tracker.send(CcMidiMsg(OtherChannel, ScMidiCc.SustainPedal, 127))
+    tracker.send(PitchBendMidiMsg(OtherChannel, 2000))
 
     // When
     tracker.reset(Channel)
@@ -1724,10 +1724,10 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
   it should "clear the reference counts of a single channel, leaving the other fifteen untouched" in
     new TrackerFixture {
       // Given
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
-      tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 110))
-      tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 90))
-      tracker.send(NoteOnScMidiMessage(OtherChannel, E4, velocity = 95))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
+      tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 110))
+      tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 90))
+      tracker.send(NoteOnMidiMsg(OtherChannel, E4, velocity = 95))
 
       // When
       tracker.reset(Channel)
@@ -1739,7 +1739,7 @@ class ScMidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
 
   it should "be a no-op on a channel after close() has been called" in new TrackerFixture {
     // Given
-    tracker.send(NoteOnScMidiMessage(Channel, C4, velocity = 100))
+    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
     tracker.close()
 
     // When

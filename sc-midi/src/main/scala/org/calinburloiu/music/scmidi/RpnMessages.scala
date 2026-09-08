@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcScMidiMessage, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, ScMidiCc, ScMidiRpn}
 
 /**
  * The home of MIDI 1.0's Registered and Non-Registered Parameter message vocabulary: the parameters Microtonalist
@@ -62,15 +62,15 @@ object RpnMessages {
    * @param selector The parameter to select, or [[RpnSelector.None]] to deselect.
    * @return the two selector messages.
    */
-  def select(channel: Int, selector: RpnSelector): Seq[CcScMidiMessage] = selector match {
+  def select(channel: Int, selector: RpnSelector): Seq[CcMidiMsg] = selector match {
     case RpnSelector.Rpn(msb, lsb) => Seq(
-      CcScMidiMessage(channel, ScMidiCc.RpnLsb, lsb),
-      CcScMidiMessage(channel, ScMidiCc.RpnMsb, msb))
+      CcMidiMsg(channel, ScMidiCc.RpnLsb, lsb),
+      CcMidiMsg(channel, ScMidiCc.RpnMsb, msb))
     case RpnSelector.Nrpn(msb, lsb) => Seq(
-      CcScMidiMessage(channel, ScMidiCc.NrpnLsb, lsb),
-      CcScMidiMessage(channel, ScMidiCc.NrpnMsb, msb))
+      CcMidiMsg(channel, ScMidiCc.NrpnLsb, lsb),
+      CcMidiMsg(channel, ScMidiCc.NrpnMsb, msb))
     case RpnSelector.None => Seq(
-      CcScMidiMessage(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcScMidiMessage(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+      CcMidiMsg(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
+      CcMidiMsg(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
   }
 }

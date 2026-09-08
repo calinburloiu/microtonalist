@@ -120,24 +120,24 @@ private[tuner] object MpeMessageRouting {
    *                    tracker before dispatching it.
    */
   def route(role: MpeChannelRole,
-            message: ChannelScMidiMessage,
+            message: ChannelMidiMsg,
             rpnSelector: RpnSelector): MpeRoutingVerdict = message match {
-    case msg: CcScMidiMessage => routeCc(role, msg, rpnSelector)
-    case _: NoteScMidiMessage => role match {
+    case msg: CcMidiMsg => routeCc(role, msg, rpnSelector)
+    case _: NoteMidiMsg => role match {
       case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
     // The first two of the three per-note control dimensions; CC #74 is the third, in `routeCc`.
-    case _: PitchBendScMidiMessage | _: ChannelPressureScMidiMessage => routeControlDimension(role)
-    case _: PolyPressureScMidiMessage => role match {
+    case _: PitchBendMidiMsg | _: ChannelPressureMidiMsg => routeControlDimension(role)
+    case _: PolyPressureMidiMsg => role match {
       // Forbidden on a Member Channel by the MPE Specification; converted to Channel Pressure for a non-MPE input.
       case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
       case MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
       case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
     }
-    case _: ProgramChangeScMidiMessage => routeZoneLevel(role)
+    case _: ProgramChangeMidiMsg => routeZoneLevel(role)
   }
 
   /** One of Pitch Bend, Channel Pressure and CC #74: the note's own Expression Value at Member level. */
@@ -161,7 +161,7 @@ private[tuner] object MpeMessageRouting {
   }
 
   private def routeCc(role: MpeChannelRole,
-                      msg: CcScMidiMessage,
+                      msg: CcMidiMsg,
                       rpnSelector: RpnSelector): MpeRoutingVerdict = msg.number match {
     // The MIDI Mode messages are discarded at every role in both input modes: the Tuner is fixed-mode on both
     // sides, and a Mono On reaching an output Member Channel would turn every shared allocation into a note drop.
@@ -197,7 +197,7 @@ private[tuner] object MpeMessageRouting {
    * prevent.
    */
   private def routeDataValue(role: MpeChannelRole,
-                             msg: CcScMidiMessage,
+                             msg: CcMidiMsg,
                              rpnSelector: RpnSelector): MpeRoutingVerdict = rpnSelector match {
     case selector if isMcm(selector) =>
       if (msg.number == ScMidiCc.DataEntryMsb && isValidMcm(msg)) MpeRoutingVerdict.Interpret
@@ -225,7 +225,7 @@ private[tuner] object MpeMessageRouting {
    * The count is checked here rather than left to [[MpeZone]]'s own `require`, which would throw out of the Tuner
    * and into the MIDI transmitter's thread for a value the input is free to send.
    */
-  private def isValidMcm(msg: CcScMidiMessage): Boolean =
+  private def isValidMcm(msg: CcMidiMsg): Boolean =
     (msg.channel == 0 || msg.channel == 15) && MpeZone.isValidMemberCount(msg.value)
 
   /** Whether `rpnSelector` currently selects the MPE Configuration Message RPN. */
@@ -257,8 +257,8 @@ private[tuner] object MpeMessageRouting {
    * does deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than
    * this predicate.
    */
-  private[tuner] def deselectsOnRelay(msg: ChannelScMidiMessage): Boolean = msg match {
-    case cc: CcScMidiMessage => cc.number == ScMidiCc.ResetAllControllers
+  private[tuner] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
+    case cc: CcMidiMsg => cc.number == ScMidiCc.ResetAllControllers
     case _ => false
   }
 
@@ -298,9 +298,9 @@ private[tuner] object MpeMessageRouting {
    *         sequence can be formed.
    */
   def rpnSequence(selector: RpnSelector,
-                  valueCc: CcScMidiMessage,
+                  valueCc: CcMidiMsg,
                   outputChannel: Int,
-                  latchedSelector: RpnSelector): (Seq[CcScMidiMessage], RpnSelector) = {
+                  latchedSelector: RpnSelector): (Seq[CcMidiMsg], RpnSelector) = {
     val valueMessage = valueCc.mapChannel(_ => outputChannel)
     selector match {
       case RpnSelector.None => (Seq.empty, latchedSelector)

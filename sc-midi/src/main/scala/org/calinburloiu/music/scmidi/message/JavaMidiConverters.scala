@@ -22,7 +22,7 @@ import javax.sound.midi.{MetaMessage, MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
 
 /**
- * Bidirectional converters between [[ScMidiMessage]] and [[javax.sound.midi.MidiMessage]] modelled after
+ * Bidirectional converters between [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
  * [[scala.jdk.CollectionConverters]].
  *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
@@ -30,8 +30,8 @@ import scala.collection.immutable.ArraySeq
  * {{{
  *   import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
  *
- *   val java: MidiMessage = NoteOnScMidiMessage(0, 60, 100).asJava
- *   val scala: ScMidiMessage = java.asScala
+ *   val java: MidiMessage = NoteOnMidiMsg(0, 60, 100).asJava
+ *   val scala: MidiMsg = java.asScala
  * }}}
  *
  * Both directions dispatch through lookup tables: `asJava` by concrete subtype [[Class]] (cheaper than pattern
@@ -44,8 +44,8 @@ object JavaMidiConverters {
    */
   private val TextEncoding: String = "ISO-8859-1"
 
-  extension (message: ScMidiMessage) {
-    /** Converts this [[ScMidiMessage]] into the equivalent [[javax.sound.midi.MidiMessage]]. */
+  extension (message: MidiMsg) {
+    /** Converts this [[MidiMsg]] into the equivalent [[javax.sound.midi.MidiMessage]]. */
     def asJava: MidiMessage = {
       val builder = ToJavaMap.getOrElse(
         message.getClass,
@@ -57,12 +57,12 @@ object JavaMidiConverters {
 
   extension (message: MidiMessage) {
     /**
-     * Converts this [[javax.sound.midi.MidiMessage]] into the corresponding [[ScMidiMessage]] subtype.
+     * Converts this [[javax.sound.midi.MidiMessage]] into the corresponding [[MidiMsg]] subtype.
      *
      * Supported message types are mapped to their Scala-idiomatic counterparts. Unrecognised messages are wrapped in
-     * [[UnsupportedScMidiMessage]] holding the raw bytes.
+     * [[UnsupportedMidiMsg]] holding the raw bytes.
      */
-    def asScala: ScMidiMessage = {
+    def asScala: MidiMsg = {
       require(message != null, "message must not be null")
 
       message match {
@@ -71,7 +71,7 @@ object JavaMidiConverters {
           val key = if (status >= 0xF0) status else shortMessage.getCommand
           FromShortMap(key)(shortMessage)
         case sysexMessage: SysexMessage =>
-          SysExScMidiMessage(ArraySeq.unsafeWrapArray(sysexMessage.getMessage))
+          SysExMidiMsg(ArraySeq.unsafeWrapArray(sysexMessage.getMessage))
         case metaMessage: MetaMessage =>
           FromMetaMap(metaMessage.getType)(metaMessage)
         case _ => toUnsupported(message)
@@ -80,96 +80,96 @@ object JavaMidiConverters {
   }
 
   // ============================================================================
-  // ScMidiMessage -> MidiMessage dispatch
+  // MidiMsg -> MidiMessage dispatch
   // ============================================================================
 
-  private def entry[M <: ScMidiMessage](cls: Class[M])(build: M => MidiMessage): (Class[?], ScMidiMessage => MidiMessage) =
-    (cls, (m: ScMidiMessage) => build(m.asInstanceOf[M]))
+  private def entry[M <: MidiMsg](cls: Class[M])(build: M => MidiMessage): (Class[?], MidiMsg => MidiMessage) =
+    (cls, (m: MidiMsg) => build(m.asInstanceOf[M]))
 
-  private val ToJavaMap: Map[Class[?], ScMidiMessage => MidiMessage] = Map[Class[?], ScMidiMessage => MidiMessage](
-    entry(classOf[NoteOnScMidiMessage]) { m =>
+  private val ToJavaMap: Map[Class[?], MidiMsg => MidiMessage] = Map[Class[?], MidiMsg => MidiMessage](
+    entry(classOf[NoteOnMidiMsg]) { m =>
       new ShortMessage(ShortMessage.NOTE_ON, m.channel, m.midiNote.number, m.velocity)
     },
-    entry(classOf[NoteOffScMidiMessage]) { m =>
+    entry(classOf[NoteOffMidiMsg]) { m =>
       new ShortMessage(ShortMessage.NOTE_OFF, m.channel, m.midiNote.number, m.velocity)
     },
-    entry(classOf[PolyPressureScMidiMessage]) { m =>
+    entry(classOf[PolyPressureMidiMsg]) { m =>
       new ShortMessage(ShortMessage.POLY_PRESSURE, m.channel, m.midiNote.number, m.value)
     },
-    entry(classOf[CcScMidiMessage]) { m =>
+    entry(classOf[CcMidiMsg]) { m =>
       new ShortMessage(ShortMessage.CONTROL_CHANGE, m.channel, m.number, m.value)
     },
-    entry(classOf[ProgramChangeScMidiMessage]) { m =>
+    entry(classOf[ProgramChangeMidiMsg]) { m =>
       new ShortMessage(ShortMessage.PROGRAM_CHANGE, m.channel, m.program, 0)
     },
-    entry(classOf[ChannelPressureScMidiMessage]) { m =>
+    entry(classOf[ChannelPressureMidiMsg]) { m =>
       new ShortMessage(ShortMessage.CHANNEL_PRESSURE, m.channel, m.value, 0)
     },
-    entry(classOf[PitchBendScMidiMessage]) { m =>
-      val (data1, data2) = PitchBendScMidiMessage.convertValueToDataBytes(m.value)
+    entry(classOf[PitchBendMidiMsg]) { m =>
+      val (data1, data2) = PitchBendMidiMsg.convertValueToDataBytes(m.value)
       new ShortMessage(ShortMessage.PITCH_BEND, m.channel, data1, data2)
     },
-    entry(classOf[MidiTimeCodeScMidiMessage]) { m =>
+    entry(classOf[MidiTimeCodeMidiMsg]) { m =>
       new ShortMessage(ShortMessage.MIDI_TIME_CODE, (m.messageType << 4) | m.values, 0)
     },
-    entry(classOf[SongPositionPointerScMidiMessage]) { m =>
+    entry(classOf[SongPositionPointerMidiMsg]) { m =>
       val lsb = m.position & 0x7F
       val msb = (m.position >> 7) & 0x7F
       new ShortMessage(ShortMessage.SONG_POSITION_POINTER, lsb, msb)
     },
-    entry(classOf[SongSelectScMidiMessage]) { m =>
+    entry(classOf[SongSelectMidiMsg]) { m =>
       new ShortMessage(ShortMessage.SONG_SELECT, m.song, 0)
     },
-    entry(TuneRequestScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.TUNE_REQUEST) },
-    entry(TimingClockScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.TIMING_CLOCK) },
-    entry(StartScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.START) },
-    entry(ContinueScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.CONTINUE) },
-    entry(StopScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.STOP) },
-    entry(ActiveSensingScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.ACTIVE_SENSING) },
-    entry(SystemResetScMidiMessage.getClass) { _ => new ShortMessage(ShortMessage.SYSTEM_RESET) },
-    entry(classOf[SysExScMidiMessage]) { m =>
+    entry(TuneRequestMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.TUNE_REQUEST) },
+    entry(TimingClockMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.TIMING_CLOCK) },
+    entry(StartMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.START) },
+    entry(ContinueMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.CONTINUE) },
+    entry(StopMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.STOP) },
+    entry(ActiveSensingMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.ACTIVE_SENSING) },
+    entry(SystemResetMidiMsg.getClass) { _ => new ShortMessage(ShortMessage.SYSTEM_RESET) },
+    entry(classOf[SysExMidiMsg]) { m =>
       val bytes = m.data.toArray
       new SysexMessage(bytes, bytes.length)
     },
-    entry(classOf[SequenceNumberMetaScMidiMessage]) { m =>
-      buildMeta(SequenceNumberMetaScMidiMessage.MetaType, bigEndian(m.number, 2))
+    entry(classOf[SequenceNumberMetaMidiMsg]) { m =>
+      buildMeta(SequenceNumberMetaMidiMsg.MetaType, bigEndian(m.number, 2))
     },
-    entry(classOf[TextMetaScMidiMessage]) { m => buildTextMeta(TextMetaScMidiMessage.MetaType, m.text) },
-    entry(classOf[CopyrightNoticeMetaScMidiMessage]) { m =>
-      buildTextMeta(CopyrightNoticeMetaScMidiMessage.MetaType, m.text)
+    entry(classOf[TextMetaMidiMsg]) { m => buildTextMeta(TextMetaMidiMsg.MetaType, m.text) },
+    entry(classOf[CopyrightNoticeMetaMidiMsg]) { m =>
+      buildTextMeta(CopyrightNoticeMetaMidiMsg.MetaType, m.text)
     },
-    entry(classOf[TrackNameMetaScMidiMessage]) { m => buildTextMeta(TrackNameMetaScMidiMessage.MetaType, m.name) },
-    entry(classOf[InstrumentNameMetaScMidiMessage]) { m =>
-      buildTextMeta(InstrumentNameMetaScMidiMessage.MetaType, m.name)
+    entry(classOf[TrackNameMetaMidiMsg]) { m => buildTextMeta(TrackNameMetaMidiMsg.MetaType, m.name) },
+    entry(classOf[InstrumentNameMetaMidiMsg]) { m =>
+      buildTextMeta(InstrumentNameMetaMidiMsg.MetaType, m.name)
     },
-    entry(classOf[LyricMetaScMidiMessage]) { m => buildTextMeta(LyricMetaScMidiMessage.MetaType, m.text) },
-    entry(classOf[MarkerMetaScMidiMessage]) { m => buildTextMeta(MarkerMetaScMidiMessage.MetaType, m.text) },
-    entry(classOf[CuePointMetaScMidiMessage]) { m => buildTextMeta(CuePointMetaScMidiMessage.MetaType, m.text) },
-    entry(classOf[ProgramNameMetaScMidiMessage]) { m =>
-      buildTextMeta(ProgramNameMetaScMidiMessage.MetaType, m.name)
+    entry(classOf[LyricMetaMidiMsg]) { m => buildTextMeta(LyricMetaMidiMsg.MetaType, m.text) },
+    entry(classOf[MarkerMetaMidiMsg]) { m => buildTextMeta(MarkerMetaMidiMsg.MetaType, m.text) },
+    entry(classOf[CuePointMetaMidiMsg]) { m => buildTextMeta(CuePointMetaMidiMsg.MetaType, m.text) },
+    entry(classOf[ProgramNameMetaMidiMsg]) { m =>
+      buildTextMeta(ProgramNameMetaMidiMsg.MetaType, m.name)
     },
-    entry(classOf[DeviceNameMetaScMidiMessage]) { m => buildTextMeta(DeviceNameMetaScMidiMessage.MetaType, m.name) },
-    entry(classOf[MidiChannelPrefixMetaScMidiMessage]) { m =>
-      buildMeta(MidiChannelPrefixMetaScMidiMessage.MetaType, Array(m.channel.toByte))
+    entry(classOf[DeviceNameMetaMidiMsg]) { m => buildTextMeta(DeviceNameMetaMidiMsg.MetaType, m.name) },
+    entry(classOf[MidiChannelPrefixMetaMidiMsg]) { m =>
+      buildMeta(MidiChannelPrefixMetaMidiMsg.MetaType, Array(m.channel.toByte))
     },
-    entry(classOf[MidiPortMetaScMidiMessage]) { m =>
-      buildMeta(MidiPortMetaScMidiMessage.MetaType, Array(m.port.toByte))
+    entry(classOf[MidiPortMetaMidiMsg]) { m =>
+      buildMeta(MidiPortMetaMidiMsg.MetaType, Array(m.port.toByte))
     },
-    entry(EndOfTrackMetaScMidiMessage.getClass) { _ =>
-      buildMeta(EndOfTrackMetaScMidiMessage.MetaType, Array.emptyByteArray)
+    entry(EndOfTrackMetaMidiMsg.getClass) { _ =>
+      buildMeta(EndOfTrackMetaMidiMsg.MetaType, Array.emptyByteArray)
     },
-    entry(classOf[SetTempoMetaScMidiMessage]) { m =>
-      buildMeta(SetTempoMetaScMidiMessage.MetaType, bigEndian(m.microsecondsPerQuarterNote, 3))
+    entry(classOf[SetTempoMetaMidiMsg]) { m =>
+      buildMeta(SetTempoMetaMidiMsg.MetaType, bigEndian(m.microsecondsPerQuarterNote, 3))
     },
-    entry(classOf[SmpteOffsetMetaScMidiMessage]) { m =>
+    entry(classOf[SmpteOffsetMetaMidiMsg]) { m =>
       buildMeta(
-        SmpteOffsetMetaScMidiMessage.MetaType,
+        SmpteOffsetMetaMidiMsg.MetaType,
         Array(m.hour.toByte, m.minute.toByte, m.second.toByte, m.frame.toByte, m.fractionalFrame.toByte)
       )
     },
-    entry(classOf[TimeSignatureMetaScMidiMessage]) { m =>
+    entry(classOf[TimeSignatureMetaMidiMsg]) { m =>
       buildMeta(
-        TimeSignatureMetaScMidiMessage.MetaType,
+        TimeSignatureMetaMidiMsg.MetaType,
         Array(
           m.numerator.toByte,
           m.denominatorPowerOf2.toByte,
@@ -178,105 +178,105 @@ object JavaMidiConverters {
         )
       )
     },
-    entry(classOf[KeySignatureMetaScMidiMessage]) { m =>
+    entry(classOf[KeySignatureMetaMidiMsg]) { m =>
       buildMeta(
-        KeySignatureMetaScMidiMessage.MetaType,
+        KeySignatureMetaMidiMsg.MetaType,
         Array(m.sharpsOrFlats.toByte, (if (m.mode == ScMidiKeySignatureMode.Minor) 1 else 0).toByte)
       )
     },
-    entry(classOf[SequencerSpecificMetaScMidiMessage]) { m =>
-      buildMeta(SequencerSpecificMetaScMidiMessage.MetaType, m.data.toArray)
+    entry(classOf[SequencerSpecificMetaMidiMsg]) { m =>
+      buildMeta(SequencerSpecificMetaMidiMsg.MetaType, m.data.toArray)
     },
-    entry(classOf[UnsupportedScMidiMessage]) { m => reconstructUnsupported(m.data) }
+    entry(classOf[UnsupportedMidiMsg]) { m => reconstructUnsupported(m.data) }
   )
 
   // ============================================================================
-  // MidiMessage -> ScMidiMessage dispatch
+  // MidiMessage -> MidiMsg dispatch
   // ============================================================================
 
-  private val FromShortMap: Map[Int, ShortMessage => ScMidiMessage] = Map[Int, ShortMessage => ScMidiMessage](
+  private val FromShortMap: Map[Int, ShortMessage => MidiMsg] = Map[Int, ShortMessage => MidiMsg](
     ShortMessage.NOTE_ON -> { s =>
-      NoteOnScMidiMessage(s.getChannel, MidiNote(s.getData1), s.getData2)
+      NoteOnMidiMsg(s.getChannel, MidiNote(s.getData1), s.getData2)
     },
     ShortMessage.NOTE_OFF -> { s =>
-      NoteOffScMidiMessage(s.getChannel, MidiNote(s.getData1), s.getData2)
+      NoteOffMidiMsg(s.getChannel, MidiNote(s.getData1), s.getData2)
     },
     ShortMessage.POLY_PRESSURE -> { s =>
-      PolyPressureScMidiMessage(s.getChannel, MidiNote(s.getData1), s.getData2)
+      PolyPressureMidiMsg(s.getChannel, MidiNote(s.getData1), s.getData2)
     },
     ShortMessage.CONTROL_CHANGE -> { s =>
-      CcScMidiMessage(s.getChannel, s.getData1, s.getData2)
+      CcMidiMsg(s.getChannel, s.getData1, s.getData2)
     },
     ShortMessage.PROGRAM_CHANGE -> { s =>
-      ProgramChangeScMidiMessage(s.getChannel, s.getData1)
+      ProgramChangeMidiMsg(s.getChannel, s.getData1)
     },
     ShortMessage.CHANNEL_PRESSURE -> { s =>
-      ChannelPressureScMidiMessage(s.getChannel, s.getData1)
+      ChannelPressureMidiMsg(s.getChannel, s.getData1)
     },
     ShortMessage.PITCH_BEND -> { s =>
-      PitchBendScMidiMessage(
+      PitchBendMidiMsg(
         s.getChannel,
-        PitchBendScMidiMessage.convertDataBytesToValue(s.getData1, s.getData2)
+        PitchBendMidiMsg.convertDataBytesToValue(s.getData1, s.getData2)
       )
     },
     ShortMessage.MIDI_TIME_CODE -> { s =>
       val d = s.getData1
-      MidiTimeCodeScMidiMessage((d >> 4) & 0x07, d & 0x0F)
+      MidiTimeCodeMidiMsg((d >> 4) & 0x07, d & 0x0F)
     },
     ShortMessage.SONG_POSITION_POINTER -> { s =>
-      SongPositionPointerScMidiMessage((s.getData2 << 7) | s.getData1)
+      SongPositionPointerMidiMsg((s.getData2 << 7) | s.getData1)
     },
-    ShortMessage.SONG_SELECT -> { s => SongSelectScMidiMessage(s.getData1) },
-    ShortMessage.TUNE_REQUEST -> { _ => TuneRequestScMidiMessage },
-    ShortMessage.TIMING_CLOCK -> { _ => TimingClockScMidiMessage },
-    ShortMessage.START -> { _ => StartScMidiMessage },
-    ShortMessage.CONTINUE -> { _ => ContinueScMidiMessage },
-    ShortMessage.STOP -> { _ => StopScMidiMessage },
-    ShortMessage.ACTIVE_SENSING -> { _ => ActiveSensingScMidiMessage },
-    ShortMessage.SYSTEM_RESET -> { _ => SystemResetScMidiMessage }
+    ShortMessage.SONG_SELECT -> { s => SongSelectMidiMsg(s.getData1) },
+    ShortMessage.TUNE_REQUEST -> { _ => TuneRequestMidiMsg },
+    ShortMessage.TIMING_CLOCK -> { _ => TimingClockMidiMsg },
+    ShortMessage.START -> { _ => StartMidiMsg },
+    ShortMessage.CONTINUE -> { _ => ContinueMidiMsg },
+    ShortMessage.STOP -> { _ => StopMidiMsg },
+    ShortMessage.ACTIVE_SENSING -> { _ => ActiveSensingMidiMsg },
+    ShortMessage.SYSTEM_RESET -> { _ => SystemResetMidiMsg }
   ).withDefaultValue(toUnsupported)
 
-  private val FromMetaMap: Map[Int, MetaMessage => ScMidiMessage] = Map[Int, MetaMessage => ScMidiMessage](
-    SequenceNumberMetaScMidiMessage.MetaType -> { m =>
-      SequenceNumberMetaScMidiMessage(fromBigEndian(m.getData))
+  private val FromMetaMap: Map[Int, MetaMessage => MidiMsg] = Map[Int, MetaMessage => MidiMsg](
+    SequenceNumberMetaMidiMsg.MetaType -> { m =>
+      SequenceNumberMetaMidiMsg(fromBigEndian(m.getData))
     },
-    TextMetaScMidiMessage.MetaType -> { m => TextMetaScMidiMessage(decodeText(m.getData)) },
-    CopyrightNoticeMetaScMidiMessage.MetaType -> { m => CopyrightNoticeMetaScMidiMessage(decodeText(m.getData)) },
-    TrackNameMetaScMidiMessage.MetaType -> { m => TrackNameMetaScMidiMessage(decodeText(m.getData)) },
-    InstrumentNameMetaScMidiMessage.MetaType -> { m => InstrumentNameMetaScMidiMessage(decodeText(m.getData)) },
-    LyricMetaScMidiMessage.MetaType -> { m => LyricMetaScMidiMessage(decodeText(m.getData)) },
-    MarkerMetaScMidiMessage.MetaType -> { m => MarkerMetaScMidiMessage(decodeText(m.getData)) },
-    CuePointMetaScMidiMessage.MetaType -> { m => CuePointMetaScMidiMessage(decodeText(m.getData)) },
-    ProgramNameMetaScMidiMessage.MetaType -> { m => ProgramNameMetaScMidiMessage(decodeText(m.getData)) },
-    DeviceNameMetaScMidiMessage.MetaType -> { m => DeviceNameMetaScMidiMessage(decodeText(m.getData)) },
-    MidiChannelPrefixMetaScMidiMessage.MetaType -> { m =>
-      MidiChannelPrefixMetaScMidiMessage(m.getData()(0) & 0xFF)
+    TextMetaMidiMsg.MetaType -> { m => TextMetaMidiMsg(decodeText(m.getData)) },
+    CopyrightNoticeMetaMidiMsg.MetaType -> { m => CopyrightNoticeMetaMidiMsg(decodeText(m.getData)) },
+    TrackNameMetaMidiMsg.MetaType -> { m => TrackNameMetaMidiMsg(decodeText(m.getData)) },
+    InstrumentNameMetaMidiMsg.MetaType -> { m => InstrumentNameMetaMidiMsg(decodeText(m.getData)) },
+    LyricMetaMidiMsg.MetaType -> { m => LyricMetaMidiMsg(decodeText(m.getData)) },
+    MarkerMetaMidiMsg.MetaType -> { m => MarkerMetaMidiMsg(decodeText(m.getData)) },
+    CuePointMetaMidiMsg.MetaType -> { m => CuePointMetaMidiMsg(decodeText(m.getData)) },
+    ProgramNameMetaMidiMsg.MetaType -> { m => ProgramNameMetaMidiMsg(decodeText(m.getData)) },
+    DeviceNameMetaMidiMsg.MetaType -> { m => DeviceNameMetaMidiMsg(decodeText(m.getData)) },
+    MidiChannelPrefixMetaMidiMsg.MetaType -> { m =>
+      MidiChannelPrefixMetaMidiMsg(m.getData()(0) & 0xFF)
     },
-    MidiPortMetaScMidiMessage.MetaType -> { m => MidiPortMetaScMidiMessage(m.getData()(0) & 0xFF) },
-    EndOfTrackMetaScMidiMessage.MetaType -> { _ => EndOfTrackMetaScMidiMessage },
-    SetTempoMetaScMidiMessage.MetaType -> { m => SetTempoMetaScMidiMessage(fromBigEndian(m.getData)) },
-    SmpteOffsetMetaScMidiMessage.MetaType -> { m =>
+    MidiPortMetaMidiMsg.MetaType -> { m => MidiPortMetaMidiMsg(m.getData()(0) & 0xFF) },
+    EndOfTrackMetaMidiMsg.MetaType -> { _ => EndOfTrackMetaMidiMsg },
+    SetTempoMetaMidiMsg.MetaType -> { m => SetTempoMetaMidiMsg(fromBigEndian(m.getData)) },
+    SmpteOffsetMetaMidiMsg.MetaType -> { m =>
       val d = m.getData
-      SmpteOffsetMetaScMidiMessage(d(0) & 0xFF, d(1) & 0xFF, d(2) & 0xFF, d(3) & 0xFF, d(4) & 0xFF)
+      SmpteOffsetMetaMidiMsg(d(0) & 0xFF, d(1) & 0xFF, d(2) & 0xFF, d(3) & 0xFF, d(4) & 0xFF)
     },
-    TimeSignatureMetaScMidiMessage.MetaType -> { m =>
+    TimeSignatureMetaMidiMsg.MetaType -> { m =>
       val d = m.getData
-      TimeSignatureMetaScMidiMessage(d(0) & 0xFF, d(1) & 0xFF, d(2) & 0xFF, d(3) & 0xFF)
+      TimeSignatureMetaMidiMsg(d(0) & 0xFF, d(1) & 0xFF, d(2) & 0xFF, d(3) & 0xFF)
     },
-    KeySignatureMetaScMidiMessage.MetaType -> { m =>
+    KeySignatureMetaMidiMsg.MetaType -> { m =>
       val d = m.getData
       val sharps = d(0).toInt
       val mode =
         if ((d(1) & 0xFF) == 1) ScMidiKeySignatureMode.Minor else ScMidiKeySignatureMode.Major
-      KeySignatureMetaScMidiMessage(sharps, mode)
+      KeySignatureMetaMidiMsg(sharps, mode)
     },
-    SequencerSpecificMetaScMidiMessage.MetaType -> { m =>
-      SequencerSpecificMetaScMidiMessage(ArraySeq.unsafeWrapArray(m.getData))
+    SequencerSpecificMetaMidiMsg.MetaType -> { m =>
+      SequencerSpecificMetaMidiMsg(ArraySeq.unsafeWrapArray(m.getData))
     }
   ).withDefaultValue(toUnsupported)
 
-  private def toUnsupported(message: MidiMessage): UnsupportedScMidiMessage =
-    UnsupportedScMidiMessage(ArraySeq.unsafeWrapArray(message.getMessage))
+  private def toUnsupported(message: MidiMessage): UnsupportedMidiMsg =
+    UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(message.getMessage))
 
   // ============================================================================
   // Helpers
@@ -314,14 +314,14 @@ object JavaMidiConverters {
   }
 
   /**
-   * Reconstructs the original Java [[MidiMessage]] from the raw bytes stored in an [[UnsupportedScMidiMessage]].
+   * Reconstructs the original Java [[MidiMessage]] from the raw bytes stored in an [[UnsupportedMidiMsg]].
    *
    * The kind of message (`ShortMessage` / `SysexMessage` / `MetaMessage`) is detected from the status byte.
    * `MetaMessage` payloads use the SMF format with a variable-length quantity (VLQ) encoded length.
    */
   private def reconstructUnsupported(data: ArraySeq[Byte]): MidiMessage = {
     val bytes = data.toArray
-    require(bytes.nonEmpty, "UnsupportedScMidiMessage data must not be empty")
+    require(bytes.nonEmpty, "UnsupportedMidiMsg data must not be empty")
     val status = bytes(0) & 0xFF
     status match {
       case 0xF0 | 0xF7 =>

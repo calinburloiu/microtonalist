@@ -43,73 +43,73 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
 
   private val sysexBytes: Array[Byte] = Array(0xF0.toByte, 0x43.toByte, 0x12.toByte, 0x7F.toByte, 0xF7.toByte)
 
-  private val cases = Table[ScMidiMessage, MidiMessage](
-    ("ScMidiMessage", "Java MidiMessage"),
+  private val cases = Table[MidiMsg, MidiMessage](
+    ("MidiMsg", "Java MidiMessage"),
     // Channel Voice
-    (NoteOnScMidiMessage(5, MidiNote(62), 102), shortMsgC(ShortMessage.NOTE_ON, 5, 62, 102)),
-    (NoteOffScMidiMessage(5, MidiNote(62), 102), shortMsgC(ShortMessage.NOTE_OFF, 5, 62, 102)),
-    (PolyPressureScMidiMessage(2, MidiNote(60), 80), shortMsgC(ShortMessage.POLY_PRESSURE, 2, 60, 80)),
-    (CcScMidiMessage(15, 67, 64), shortMsgC(ShortMessage.CONTROL_CHANGE, 15, 67, 64)),
-    (ProgramChangeScMidiMessage(1, 42), shortMsgC(ShortMessage.PROGRAM_CHANGE, 1, 42, 0)),
-    (ChannelPressureScMidiMessage(3, 100), shortMsgC(ShortMessage.CHANNEL_PRESSURE, 3, 100, 0)),
-    (PitchBendScMidiMessage(3, 0), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x00, 0x40)),
-    (PitchBendScMidiMessage(3, -8192), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x00, 0x00)),
-    (PitchBendScMidiMessage(3, 8191), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x7F, 0x7F)),
-    (PitchBendScMidiMessage(3, 1050), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x1A, 0x48)),
+    (NoteOnMidiMsg(5, MidiNote(62), 102), shortMsgC(ShortMessage.NOTE_ON, 5, 62, 102)),
+    (NoteOffMidiMsg(5, MidiNote(62), 102), shortMsgC(ShortMessage.NOTE_OFF, 5, 62, 102)),
+    (PolyPressureMidiMsg(2, MidiNote(60), 80), shortMsgC(ShortMessage.POLY_PRESSURE, 2, 60, 80)),
+    (CcMidiMsg(15, 67, 64), shortMsgC(ShortMessage.CONTROL_CHANGE, 15, 67, 64)),
+    (ProgramChangeMidiMsg(1, 42), shortMsgC(ShortMessage.PROGRAM_CHANGE, 1, 42, 0)),
+    (ChannelPressureMidiMsg(3, 100), shortMsgC(ShortMessage.CHANNEL_PRESSURE, 3, 100, 0)),
+    (PitchBendMidiMsg(3, 0), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x00, 0x40)),
+    (PitchBendMidiMsg(3, -8192), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x00, 0x00)),
+    (PitchBendMidiMsg(3, 8191), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x7F, 0x7F)),
+    (PitchBendMidiMsg(3, 1050), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x1A, 0x48)),
     // System Common
-    (MidiTimeCodeScMidiMessage(3, 5), shortMsg(ShortMessage.MIDI_TIME_CODE, (3 << 4) | 5, 0)),
-    (SongPositionPointerScMidiMessage(1000), shortMsg(ShortMessage.SONG_POSITION_POINTER, 1000 & 0x7F, (1000 >> 7) & 0x7F)),
-    (SongSelectScMidiMessage(7), shortMsg(ShortMessage.SONG_SELECT, 7, 0)),
-    (TuneRequestScMidiMessage, new ShortMessage(ShortMessage.TUNE_REQUEST)),
+    (MidiTimeCodeMidiMsg(3, 5), shortMsg(ShortMessage.MIDI_TIME_CODE, (3 << 4) | 5, 0)),
+    (SongPositionPointerMidiMsg(1000), shortMsg(ShortMessage.SONG_POSITION_POINTER, 1000 & 0x7F, (1000 >> 7) & 0x7F)),
+    (SongSelectMidiMsg(7), shortMsg(ShortMessage.SONG_SELECT, 7, 0)),
+    (TuneRequestMidiMsg, new ShortMessage(ShortMessage.TUNE_REQUEST)),
     // System Real-Time
-    (TimingClockScMidiMessage, new ShortMessage(ShortMessage.TIMING_CLOCK)),
-    (StartScMidiMessage, new ShortMessage(ShortMessage.START)),
-    (ContinueScMidiMessage, new ShortMessage(ShortMessage.CONTINUE)),
-    (StopScMidiMessage, new ShortMessage(ShortMessage.STOP)),
-    (ActiveSensingScMidiMessage, new ShortMessage(ShortMessage.ACTIVE_SENSING)),
-    (SystemResetScMidiMessage, new ShortMessage(ShortMessage.SYSTEM_RESET)),
+    (TimingClockMidiMsg, new ShortMessage(ShortMessage.TIMING_CLOCK)),
+    (StartMidiMsg, new ShortMessage(ShortMessage.START)),
+    (ContinueMidiMsg, new ShortMessage(ShortMessage.CONTINUE)),
+    (StopMidiMsg, new ShortMessage(ShortMessage.STOP)),
+    (ActiveSensingMidiMsg, new ShortMessage(ShortMessage.ACTIVE_SENSING)),
+    (SystemResetMidiMsg, new ShortMessage(ShortMessage.SYSTEM_RESET)),
     // Sysex
-    (SysExScMidiMessage(ArraySeq.unsafeWrapArray(sysexBytes)), new SysexMessage(sysexBytes, sysexBytes.length)),
+    (SysExMidiMsg(ArraySeq.unsafeWrapArray(sysexBytes)), new SysexMessage(sysexBytes, sysexBytes.length)),
     // Meta
-    (SequenceNumberMetaScMidiMessage(0x1234), metaMsg(0x00, Array(0x12.toByte, 0x34.toByte))),
-    (TextMetaScMidiMessage("hello"), metaMsg(0x01, textBytes("hello"))),
-    (CopyrightNoticeMetaScMidiMessage("(c) 2026"), metaMsg(0x02, textBytes("(c) 2026"))),
-    (TrackNameMetaScMidiMessage("Track 1"), metaMsg(0x03, textBytes("Track 1"))),
-    (InstrumentNameMetaScMidiMessage("Piano"), metaMsg(0x04, textBytes("Piano"))),
-    (LyricMetaScMidiMessage("la"), metaMsg(0x05, textBytes("la"))),
-    (MarkerMetaScMidiMessage("A"), metaMsg(0x06, textBytes("A"))),
-    (CuePointMetaScMidiMessage("cue"), metaMsg(0x07, textBytes("cue"))),
-    (ProgramNameMetaScMidiMessage("Prog"), metaMsg(0x08, textBytes("Prog"))),
-    (DeviceNameMetaScMidiMessage("Dev"), metaMsg(0x09, textBytes("Dev"))),
-    (MidiChannelPrefixMetaScMidiMessage(9), metaMsg(0x20, Array(9.toByte))),
-    (MidiPortMetaScMidiMessage(3), metaMsg(0x21, Array(3.toByte))),
-    (EndOfTrackMetaScMidiMessage, metaMsg(0x2F, Array.emptyByteArray)),
-    (SetTempoMetaScMidiMessage(500000), metaMsg(0x51, Array(0x07.toByte, 0xA1.toByte, 0x20.toByte))),
+    (SequenceNumberMetaMidiMsg(0x1234), metaMsg(0x00, Array(0x12.toByte, 0x34.toByte))),
+    (TextMetaMidiMsg("hello"), metaMsg(0x01, textBytes("hello"))),
+    (CopyrightNoticeMetaMidiMsg("(c) 2026"), metaMsg(0x02, textBytes("(c) 2026"))),
+    (TrackNameMetaMidiMsg("Track 1"), metaMsg(0x03, textBytes("Track 1"))),
+    (InstrumentNameMetaMidiMsg("Piano"), metaMsg(0x04, textBytes("Piano"))),
+    (LyricMetaMidiMsg("la"), metaMsg(0x05, textBytes("la"))),
+    (MarkerMetaMidiMsg("A"), metaMsg(0x06, textBytes("A"))),
+    (CuePointMetaMidiMsg("cue"), metaMsg(0x07, textBytes("cue"))),
+    (ProgramNameMetaMidiMsg("Prog"), metaMsg(0x08, textBytes("Prog"))),
+    (DeviceNameMetaMidiMsg("Dev"), metaMsg(0x09, textBytes("Dev"))),
+    (MidiChannelPrefixMetaMidiMsg(9), metaMsg(0x20, Array(9.toByte))),
+    (MidiPortMetaMidiMsg(3), metaMsg(0x21, Array(3.toByte))),
+    (EndOfTrackMetaMidiMsg, metaMsg(0x2F, Array.emptyByteArray)),
+    (SetTempoMetaMidiMsg(500000), metaMsg(0x51, Array(0x07.toByte, 0xA1.toByte, 0x20.toByte))),
     (
-      SmpteOffsetMetaScMidiMessage(1, 2, 3, 4, 5),
+      SmpteOffsetMetaMidiMsg(1, 2, 3, 4, 5),
       metaMsg(0x54, Array(1.toByte, 2.toByte, 3.toByte, 4.toByte, 5.toByte))
     ),
     (
-      TimeSignatureMetaScMidiMessage(4, 2, 24, 8),
+      TimeSignatureMetaMidiMsg(4, 2, 24, 8),
       metaMsg(0x58, Array(4.toByte, 2.toByte, 24.toByte, 8.toByte))
     ),
     (
-      KeySignatureMetaScMidiMessage(-3, ScMidiKeySignatureMode.Minor),
+      KeySignatureMetaMidiMsg(-3, ScMidiKeySignatureMode.Minor),
       metaMsg(0x59, Array((-3).toByte, 1.toByte))
     ),
     (
-      KeySignatureMetaScMidiMessage(2, ScMidiKeySignatureMode.Major),
+      KeySignatureMetaMidiMsg(2, ScMidiKeySignatureMode.Major),
       metaMsg(0x59, Array(2.toByte, 0.toByte))
     ),
     (
-      SequencerSpecificMetaScMidiMessage(ArraySeq(0x00.toByte, 0x12.toByte, 0x34.toByte)),
+      SequencerSpecificMetaMidiMsg(ArraySeq(0x00.toByte, 0x12.toByte, 0x34.toByte)),
       metaMsg(0x7F, Array(0x00.toByte, 0x12.toByte, 0x34.toByte))
     )
   )
 
   behavior of "JavaMidiConverters.asJava"
 
-  it should "produce Java bytes equal to the expected Java MidiMessage for every ScMidiMessage subtype" in {
+  it should "produce Java bytes equal to the expected Java MidiMessage for every MidiMsg subtype" in {
     forAll(cases) { (scMsg, javaMsg) =>
       // When
       val actual = scMsg.asJava
@@ -121,7 +121,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
 
   behavior of "JavaMidiConverters.asScala"
 
-  it should "produce the expected ScMidiMessage for every Java MidiMessage" in {
+  it should "produce the expected MidiMsg for every Java MidiMessage" in {
     forAll(cases) { (scMsg, javaMsg) =>
       // When
       val actual = javaMsg.asScala
@@ -139,7 +139,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     an[IllegalArgumentException] should be thrownBy nullMessage.asScala
   }
 
-  behavior of "UnsupportedScMidiMessage round-trip"
+  behavior of "UnsupportedMidiMsg round-trip"
 
   it should "round-trip a ShortMessage with an unknown command" in {
     // Given: channel voice command that's not in FromShortMap — there is none; use a system common not recognized.
@@ -153,7 +153,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     val back = sc.asJava
 
     // Then
-    sc shouldBe a[UnsupportedScMidiMessage]
+    sc shouldBe a[UnsupportedMidiMsg]
     back.getMessage should equal(msg.getMessage)
   }
 
@@ -168,13 +168,13 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     val back = sc.asJava
 
     // Then
-    sc shouldBe a[UnsupportedScMidiMessage]
+    sc shouldBe a[UnsupportedMidiMsg]
     back.getMessage should equal(msg.getMessage)
   }
 
-  it should "round-trip a SysexMessage via UnsupportedScMidiMessage constructed from raw bytes" in {
+  it should "round-trip a SysexMessage via UnsupportedMidiMsg constructed from raw bytes" in {
     // Given
-    val unsupported = UnsupportedScMidiMessage(ArraySeq.unsafeWrapArray(sysexBytes))
+    val unsupported = UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(sysexBytes))
 
     // When
     val javaMsg = unsupported.asJava
