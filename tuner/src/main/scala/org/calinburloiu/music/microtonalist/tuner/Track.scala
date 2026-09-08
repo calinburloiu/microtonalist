@@ -18,12 +18,10 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{Midi1Msg, Midi2Msg, MidiMsg}
+import org.calinburloiu.music.scmidi.message.MidiMsg
 import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiDeviceHandle, MidiManager, MidiReceiver}
 
 import javax.annotation.concurrent.ThreadSafe
-import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
  * MIDI route for tuning an output device.
@@ -53,28 +51,10 @@ class Track(val spec: TrackSpec,
     case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.openOutput(midiDeviceId)
   }
 
-  // Adapter to the still Java-typed device handle; removed by #281 once MidiDeviceHandle exposes a MidiReceiver.
-  private val outputDeviceReceiver: Option[MidiReceiver] = outputDeviceHandle.map { handle =>
-    new MidiReceiver {
-      override def send(message: MidiMsg, timeStamp: Long): Unit = message match {
-        case midi1Message: Midi1Msg => handle.receiver.send(midi1Message.asJava, timeStamp)
-        case _: Midi2Msg =>
-      }
-
-      override def close(): Unit = {}
-    }
-  }
-
   private val pipeline: MidiSerialProcessor = MidiSerialProcessor(
-    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputDeviceReceiver.toSeq)
+    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputDeviceHandle.map(_.receiver).toSeq)
 
-  // Adapter from the still Java-typed device handle; removed by #281 once MidiDeviceHandle exposes a transmitter.
-  private val inputDeviceReceiver: Receiver = new Receiver {
-    override def send(message: MidiMessage, timeStamp: Long): Unit = receiver.send(message.asScala, timeStamp)
-
-    override def close(): Unit = {}
-  }
-  inputDeviceHandle.foreach(_.multiTransmitter.addReceiver(inputDeviceReceiver))
+  inputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))
 
   sendInitMidiMessages()
 

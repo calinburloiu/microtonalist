@@ -16,31 +16,31 @@
 
 package org.calinburloiu.music.scmidi
 
-import javax.sound.midi.{MidiMessage, Receiver}
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 /**
- * `MidiSplitter` is a MIDI [[Receiver]] that forwards all MIDI messages to a configurable set of [[Receiver]]s.
+ * A [[MidiReceiver]] that forwards every message it gets to every receiver of a [[MidiTransmitter]].
  *
- * @param initialReceivers Sequence of initial [[Receiver]] instances to which MIDI messages will be sent. The
- *                         sequence may be mutated if necessary after the class instantiation.
+ * The caller chooses the transmitter and, with it, whether and how the receivers can change: an
+ * [[ImmutableMidiTransmitter]] for a fixed fan-out, a [[MutableMidiTransmitter]] on a single thread, a
+ * [[ConcurrentMidiTransmitter]] when receivers are added from other threads. The splitter does not own the
+ * transmitter and never closes it.
+ *
+ * @param transmitter the transmitter whose receivers get every message.
  */
-class MidiSplitter(initialReceivers: Seq[Receiver] = Seq.empty) extends AutoCloseable {
+class MidiSplitter(val transmitter: MidiTransmitter) extends MidiReceiver {
 
-  val receiver: Receiver = new Receiver {
-    override def send(message: MidiMessage, timeStamp: Long): Unit = {
-      multiTransmitter.receivers.foreach(_.send(message, timeStamp))
-    }
+  @volatile private var _isClosed: Boolean = false
 
-    override def close(): Unit = {}
+  override def send(message: MidiMsg, timeStamp: Long): Unit = if (!_isClosed) {
+    transmitter.receivers.foreach(_.send(message, timeStamp))
   }
 
-  val multiTransmitter: MultiTransmitter = new MultiTransmitter {
-    override def close(): Unit = {}
-  }
-  multiTransmitter.receivers = initialReceivers
-
+  /** Stops forwarding. The transmitter is left untouched, since the splitter does not own it. */
   override def close(): Unit = {
-    receiver.close()
-    multiTransmitter.close()
+    _isClosed = true
   }
+
+  /** @return whether [[close]] was called; a closed splitter drops every message. */
+  def isClosed: Boolean = _isClosed
 }
