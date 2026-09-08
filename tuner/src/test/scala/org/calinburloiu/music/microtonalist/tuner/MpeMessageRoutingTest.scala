@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.MpeRoutingVerdict.*
-import org.calinburloiu.music.scmidi.{MidiNote, RpnMessages, RpnSelector}
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.{MidiNote, RpnMessages, RpnSelector}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks

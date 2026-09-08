@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, RpnMessages, RpnSelector}
 import org.calinburloiu.music.scmidi.message.*
+import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, RpnMessages, RpnSelector}
 
 /**
  * The part a MIDI channel plays in the Tuner's Zone structure, as seen by the message router.
