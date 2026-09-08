@@ -26,8 +26,9 @@
   their branches; they are being reviewed and merged to `main` bottom-up in parallel.
 - **The bug issue of Section 8**: it could not be created in the session that wrote this plan (the action was
   blocked), so Task 0 creates it — with the body given there verbatim — before any code is written. Its number is
-  referred to as **`#<N>`** below: in the `// TODO` of Task 3 and in the documentation of Task 6. Write the number
-  into this bullet once Task 0 has run.
+  referred to as **`#<N>`** below: in the `// TODO` of Task 3 and in the documentation of Task 6. Task 0 filed it as
+  [#288](https://github.com/calinburloiu/microtonalist/issues/288), "MidiManager orphans an open MidiDeviceHandle when
+  its device is unplugged", so **`#<N>` is `#288`**.
 - **Verification while writing this plan**: the code below was written against the sources at the base commit but was
   **not compiled**; expect to fix small compile slips (an import, a name) rather than design deviations. Verified by
   running or reading: (1) ScalaMock 7.5.5 already stubs `javax.sound.midi.MidiDevice` in `JavaMidiConvertersTest`
