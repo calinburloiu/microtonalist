@@ -86,7 +86,15 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 - **`MidiSplitter`** — a `Receiver` that fans every incoming message out to a configurable set of receivers; used inside
   `MidiDeviceHandle` to broadcast a device's stream.
 - **`MultiTransmitter`** — a thread-safe transmitter allowing **multiple** receivers, unlike Java's single-receiver
-  `Transmitter`.
+  `Transmitter`. Superseded by the `MidiTransmitter` family below; #281 rewires its users and deletes it.
+- **`MidiTransmitter`** — the read-only, `AutoCloseable` transmitter of the Scala API: a single
+  `receivers: Seq[MidiReceiver]` member, no locks. Three implementations, all with a no-op `close()`:
+  `ImmutableMidiTransmitter` (a case class whose `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers`
+  return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
+  a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
+  mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`, so a subclass override
+  of `receivers_=` is reached inside the write lock for every change made through a modifier). Nothing uses them yet:
+  #281 puts `MidiSplitter`, `MidiProcessor` and `MidiDeviceHandle` on top of them.
 - **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
   directly, so callers avoid wrapping/unwrapping Java messages.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
@@ -180,4 +188,5 @@ logging/test stack.
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.
 - The `Sc` prefix is gone (#279); #280–#282 continue the isolation of the Java Sound implementation under
-  `javamidi` — see `issues/00278-isolate-java-midi/`.
+  `javamidi` — see `issues/00278-isolate-java-midi/`. Until #281 lands, `MultiTransmitter` (Java-typed) and the
+  `MidiTransmitter` family (Scala-typed) coexist.
