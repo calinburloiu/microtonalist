@@ -54,6 +54,15 @@ object MidiRequirements {
   def requireUnsigned7BitValue(name: String, value: Int): Unit =
     require((value & 0xFFFFFF80) == 0, s"$name must be between 0 and 127; got $value")
 
+  /**
+   * Requires that the given Control Change controller number is between 0 and [[MaxControllerNumber]]. Numbers
+   * 120-127 are Channel Mode messages, which have their own types under
+   * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] and are not controllers.
+   */
+  def requireControllerNumber(number: Int): Unit =
+    require(number >= 0 && number <= MaxControllerNumber,
+      s"number must be between 0 and $MaxControllerNumber; got $number")
+
   /** Requires that the given value is an unsigned 8-bit integer (0 to 255). */
   def requireUnsigned8BitValue(name: String, value: Int): Unit =
     require((value & 0xFFFFFF00) == 0, s"$name must be between 0 and 255; got $value")

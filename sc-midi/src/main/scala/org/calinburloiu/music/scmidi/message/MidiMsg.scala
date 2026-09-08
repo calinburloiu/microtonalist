@@ -168,13 +168,16 @@ case class PolyPressureMidiMsg(override val channel: Int, midiNote: MidiNote, va
  *
  * CC number constants are available in the [[MidiCc]] object.
  *
+ * The controller number stops at [[MidiRequirements.MaxControllerNumber]]: MIDI 1.0 reserves 120-127 for the Channel
+ * Mode messages, which are [[ChannelModeMidiMsg]] subtypes rather than Control Changes.
+ *
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param number  The controller number (0-127).
  * @param value   The controller value (0-127).
  */
 case class CcMidiMsg(override val channel: Int, number: Int, value: Int)
   extends ChannelMidiMsg(channel) {
-  MidiRequirements.requireUnsigned7BitValue("number", number)
+  MidiRequirements.requireControllerNumber(number)
   MidiRequirements.requireUnsigned7BitValue("value", value)
 
   override def mapChannel(map: Int => Int): CcMidiMsg = copy(channel = map(channel))

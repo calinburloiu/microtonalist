@@ -128,6 +128,28 @@ class MidiMsgTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChec
     mapped.channel shouldBe 1
   }
 
+  it should "accept every controller number MIDI 1.0 defines" in {
+    // Given
+    val numbers = Table("number", 0, 1, 64, MidiRequirements.MaxControllerNumber)
+
+    forAll(numbers) { number =>
+      // When / Then
+      CcMidiMsg(0, number, 0).number shouldEqual number
+    }
+  }
+
+  it should "reject the Channel Mode numbers and anything outside 0 to 119" in {
+    // Given
+    val numbers = Table("number", ChannelModeMidiMsg.NumberRange.toSeq*)
+
+    forAll(numbers) { number =>
+      // When / Then
+      an[IllegalArgumentException] should be thrownBy CcMidiMsg(0, number, 0)
+    }
+    an[IllegalArgumentException] should be thrownBy CcMidiMsg(0, -1, 0)
+    an[IllegalArgumentException] should be thrownBy CcMidiMsg(0, 128, 0)
+  }
+
   behavior of "ProgramChangeMidiMsg"
 
   it should "reject invalid channel and program" in {

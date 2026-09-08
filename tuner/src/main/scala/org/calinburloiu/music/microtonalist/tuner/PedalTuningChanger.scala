@@ -34,6 +34,12 @@ import scala.collection.mutable
  * state). After the CC value drops to the threshold value or below (released state), a new increase over the threshold
  * (pressed state) will trigger the change again.
  *
+ * Only Control Change numbers 0-119 can trigger a change. MIDI 1.0 reserves 120-127 for the Channel Mode messages,
+ * which arrive as [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] values rather than
+ * [[org.calinburloiu.music.scmidi.message.CcMidiMsg]] ones, so a trigger configured on one of those numbers would
+ * never fire. The JSON format rejects them when a composition is read, so only a programmatically constructed
+ * instance can hold one.
+ *
  * @param triggers     The configuration of MIDI CC triggers that determine tuning changes.
  *                     These can include triggers for previous, next tuning changes,
  *                     or specific index-based tuning changes.

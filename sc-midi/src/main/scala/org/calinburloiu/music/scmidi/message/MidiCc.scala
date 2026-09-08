@@ -18,6 +18,9 @@ package org.calinburloiu.music.scmidi.message
 
 /**
  * Constants for MIDI Control Change (CC) controller numbers.
+ *
+ * The numbers stop at [[MidiRequirements.MaxControllerNumber]]: MIDI 1.0 reserves 120-127 for the Channel Mode
+ * messages, whose numbers live in the companions of the [[ChannelModeMidiMsg]] subtypes.
  */
 object MidiCc {
   /** Registered Parameter Number (RPN) MSB controller number (#101). */
@@ -36,22 +39,6 @@ object MidiCc {
   val DataIncrement: Int = 96
   /** Data Decrement controller number (#97). */
   val DataDecrement: Int = 97
-  /** All Sound Off controller number (#120). */
-  val AllSoundOff: Int = 120
-  /** Reset All Controllers controller number (#121). */
-  val ResetAllControllers: Int = 121
-  /** All Notes Off controller number (#123). */
-  val AllNotesOff: Int = 123
-  /** Local Control controller number (#122). */
-  val LocalControl: Int = 122
-  /** Omni Mode Off controller number (#124). */
-  val OmniModeOff: Int = 124
-  /** Omni Mode On controller number (#125). */
-  val OmniModeOn: Int = 125
-  /** Mono Mode On controller number (#126). */
-  val MonoModeOn: Int = 126
-  /** Poly Mode On controller number (#127). */
-  val PolyModeOn: Int = 127
 
   /** Bank Select MSB controller number (#0). */
   val BankSelectMsb: Int = 0
