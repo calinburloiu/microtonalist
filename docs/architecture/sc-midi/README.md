@@ -16,10 +16,10 @@ module wraps it to give the rest of Microtonalist:
   state tracker.
 
 It is low-level infrastructure: it knows nothing about scales, tunings, compositions, or the GUI, and depends only on
-`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is not the only Microtonalist module
-that touches `javax.sound.midi` directly — `tuner` and `cli` also import it in a handful of files; the `tuner` module
-builds most of its tuning logic on top of `MidiProcessor`/`MidiManager` and the `cli` utility uses it to enumerate
-devices.
+`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is almost the only Microtonalist
+module that touches `javax.sound.midi` directly: `tuner` no longer imports it at all (#281), and `cli` still reads
+`MidiDevice.Info` to enumerate devices until #282. Inside `sc-midi`, messages cross to and from Java Sound in exactly
+one place, `MidiDeviceHandle`; everything upstream of it carries `MidiMsg`.
 
 Package: `org.calinburloiu.music.scmidi`, with a `message` sub-package holding the message model and its constants. A
 `javamidi` sub-package is where the code that touches Java Sound directly is being gathered; today it holds
@@ -46,8 +46,11 @@ date by `MidiManager`. A handle can exist for a device that is **not currently c
 first `open()` and closes on the last `close()`. `open()` may be called before the device is connected — the handle
 moves to `WaitingToOpen` and opens automatically when the device appears (a small `State` enum captures the
 Closed/Connected/WaitingToOpen/Open transitions, drawn in the companion's ScalaDoc). Callers **send** to an output via
-`handle.receiver` and **subscribe** to an input via `handle.multiTransmitter`; both are wired through an internal
-`MidiSplitter`, so they survive disconnect/reconnect without re-wiring.
+`handle.receiver: MidiReceiver` and **subscribe** to an input via `handle.transmitter: ConcurrentMidiTransmitter`; both
+survive disconnect/reconnect without re-wiring. The handle is the **Java Sound boundary**: its receiver converts each
+`Midi1Msg` with `asJava` and sends it to the open device (a `Midi2Msg` is dropped with a warning, since Java Sound
+speaks MIDI 1.0 only), and the Java `Receiver` it hands to the device's transmitter converts with `asScala` into an
+internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 
 Supporting value types: `MidiDeviceId` (`case class(name, vendor)` derived from Java device info) and `MidiEndpointType`
 (an `enum` of `None`/`Input`/`Output`/`InputOutput`).
@@ -83,26 +86,30 @@ live in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE Configuration Messa
 
 These are the composable pieces `tuner` builds its tuning pipeline from:
 
-- **`MidiSplitter`** — a `Receiver` that fans every incoming message out to a configurable set of receivers; used inside
-  `MidiDeviceHandle` to broadcast a device's stream.
-- **`MultiTransmitter`** — a thread-safe transmitter allowing **multiple** receivers, unlike Java's single-receiver
-  `Transmitter`. Superseded by the `MidiTransmitter` family below; #281 rewires its users and deletes it.
+- **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
+  directly; every stage of the pipeline is one.
 - **`MidiTransmitter`** — the read-only, `AutoCloseable` transmitter of the Scala API: a single
   `receivers: Seq[MidiReceiver]` member, no locks. Three implementations, all with a no-op `close()`:
   `ImmutableMidiTransmitter` (a case class whose `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers`
   return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
   a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
-  mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`, so a subclass override
-  of `receivers_=` is reached inside the write lock for every change made through a modifier). Nothing uses them yet:
-  #281 puts `MidiSplitter`, `MidiProcessor` and `MidiDeviceHandle` on top of them.
-- **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
-  directly, so callers avoid wrapping/unwrapping Java messages.
+  mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`).
+- **`MidiSplitter(transmitter: MidiTransmitter)`** — a `MidiReceiver` that fans every message out to the receivers
+  of the transmitter it is given; the caller picks the transmitter implementation, and the splitter never closes it.
+  `MidiDeviceHandle` uses one over a `ConcurrentMidiTransmitter` to broadcast a device's stream.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
-  Subclasses implement `process(message, timeStamp): Seq[MidiMessage]`; `onConnect`/`onDisconnect` callbacks let a
-  processor leave the downstream device consistent when rewired. **This is the abstraction `tuner` extends** to tune the
-  MIDI stream.
-- **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end to
-  end, rewiring the chain automatically on every mutation (and forwarding input straight to the output when empty).
+  Subclasses implement `process(message: MidiMsg, timeStamp): Seq[MidiMsg]`; its `receiver` processes each message
+  once and forwards the results to every receiver of its `transmitter`, a `MidiProcessorTransmitter` (a
+  `ConcurrentMidiTransmitter`) that calls `onDisconnect()` before and `onConnect()` after every change of its receiver
+  set — from or to a non-empty set respectively, and never for an unchanged set — inside its write lock, so that the
+  reset/initialisation messages the hooks emit cannot interleave with a send that has not yet read the receivers (a
+  fan-out already in flight is not held off). **This is the abstraction `tuner`
+  extends** to tune the MIDI stream. A processor with no output receivers drops messages without processing them.
+- **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end
+  to end, rewiring the chain automatically on every mutation (`receivers = Seq(next.receiver)` between neighbours,
+  its own output receivers on the last one) and forwarding input straight to the output when empty. Its hooks take
+  its own lock inside the transmitter's, so a chain mutation and an output-receiver change of the same instance must
+  not race from two threads (they do not today; #121 removes the concern).
 - **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that
   derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
   sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are
@@ -148,8 +155,8 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
    UI-friendly name.
 3. Open a device with `openInput`/`openOutput`, or try a prioritised list with `openFirstAvailable*`; each returns a
    `MidiDeviceHandle`.
-4. Use the handle: send via `handle.receiver` (outputs), subscribe via `handle.multiTransmitter` (inputs). Because the
-   wiring goes through an internal `MidiSplitter`, it survives disconnect/reconnect cycles.
+4. Use the handle: send `MidiMsg` values via `handle.receiver` (outputs), subscribe `MidiReceiver`s via
+   `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles.
 5. `closeInput`/`closeOutput` (reference-counted) release a device; `MidiManager.close()` closes everything and removes
    the listener.
 
@@ -167,9 +174,10 @@ The `MidiMsg` ↔ `MidiMessage` conversion provided by
 [`JavaMidiConverters`](#midi-message-model-message-sub-package), in the `javamidi` sub-package, runs in two
 directions. Inbound, a device's raw message becomes a typed, validated `MidiMsg` via `.asScala`, with anything
 unrecognised falling back to `UnsupportedMidiMsg` so nothing is lost; outbound, a `Midi1Msg` is rendered back to a Java
-`MidiMessage` via `.asJava` — `Midi2Msg` has no `asJava`, since Java Sound speaks MIDI 1.0 only. Within `sc-midi`,
-message code prefers the typed model and validated constructors; the raw byte layer stays confined to the converters
-and the few places that talk to `javax.sound.midi` directly.
+`MidiMessage` via `.asJava` — `Midi2Msg` has no `asJava`, since Java Sound speaks MIDI 1.0 only. Conversion happens
+exactly once per message, in `MidiDeviceHandle`: outbound in its receiver, inbound in the Java receiver it registers on
+the device. Everything upstream — the splitter, the processors, the `tuner` pipeline — carries `MidiMsg`, so no
+processor converts on entry or exit.
 
 ## Dependencies
 
@@ -187,6 +195,6 @@ logging/test stack.
 - The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.
-- The `Sc` prefix is gone (#279); #280–#282 continue the isolation of the Java Sound implementation under
-  `javamidi` — see `issues/00278-isolate-java-midi/`. Until #281 lands, `MultiTransmitter` (Java-typed) and the
-  `MidiTransmitter` family (Scala-typed) coexist.
+- The `Sc` prefix is gone (#279), the `MidiTransmitter` family replaced `MultiTransmitter` (#280, #281) and the
+  pipeline carries `MidiMsg` end to end (#281); #282 turns `MidiManager` / `MidiDeviceHandle` into traits with a
+  `JavaMidiManager` / `JavaMidiDeviceHandle` implementation under `javamidi` — see `issues/00278-isolate-java-midi/`.
