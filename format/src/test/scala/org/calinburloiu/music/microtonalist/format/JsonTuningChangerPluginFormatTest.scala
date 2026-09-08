@@ -55,7 +55,12 @@ class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
   private val pedalTuningChangerFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("path", "check", "expected JsonValidationError"),
 
-    (__ \ "triggers" \ "index" \ "2", DisallowedValues(JsNumber(-1), JsNumber(128)), "error.expected.uint7"),
+    (__ \ "triggers" \ "previous", DisallowedValues(JsNumber(-1), JsNumber(120), JsNumber(128)),
+      "error.expected.ccNumber"),
+    (__ \ "triggers" \ "next", DisallowedValues(JsNumber(-1), JsNumber(127), JsNumber(128)),
+      "error.expected.ccNumber"),
+    (__ \ "triggers" \ "index" \ "2", DisallowedValues(JsNumber(-1), JsNumber(120), JsNumber(128)),
+      "error.expected.ccNumber"),
 
     (__ \ "threshold", AllowedTypes(JsonNumberType), "error.expected.jsnumber"),
     (__ \ "threshold", DisallowedValues(JsNumber(-1)), "error.min"),

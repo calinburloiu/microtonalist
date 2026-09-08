@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist
 
+import org.calinburloiu.music.scmidi.message.MidiRequirements
 import play.api.libs.functional.syntax.toApplicativeOps
 import play.api.libs.json.Reads.{max, min}
 import play.api.libs.json.{Format, Reads, Writes, __}
@@ -27,6 +28,7 @@ package object format {
 
   val JsonError_Uint7: String = "error.expected.uint7"
   val JsonError_Uint7Positive: String = "error.expected.uint7.positive"
+  val JsonError_CcNumber: String = "error.expected.ccNumber"
 
   /**
    * Converts the given [[URI]] to a [[Path]].
@@ -85,6 +87,18 @@ package object format {
 
   lazy val uint7PositiveFormat: Format[Int] = {
     val reads = __.read[Int](min(1) keepAnd max(128)) orElse Reads.failed(JsonError_Uint7Positive)
+    Format(reads, Writes.IntWrites)
+  }
+
+  /**
+   * Format for a MIDI Control Change controller number, between 0 and
+   * [[org.calinburloiu.music.scmidi.message.MidiRequirements.MaxControllerNumber]] (119). MIDI 1.0 reserves 120-127
+   * for the Channel Mode messages, which are not controllers, so they are rejected. Do not use it for other 7-bit
+   * MIDI values — [[uint7Format]] covers the full 0-127 range.
+   */
+  lazy val ccNumberFormat: Format[Int] = {
+    val reads = __.read[Int](min(0) keepAnd max(MidiRequirements.MaxControllerNumber)) orElse
+      Reads.failed(JsonError_CcNumber)
     Format(reads, Writes.IntWrites)
   }
 }
