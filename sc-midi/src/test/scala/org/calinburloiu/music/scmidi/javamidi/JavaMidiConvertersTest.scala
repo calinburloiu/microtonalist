@@ -19,14 +19,15 @@ package org.calinburloiu.music.scmidi.javamidi
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.*
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-import javax.sound.midi.{MetaMessage, MidiMessage, ShortMessage, SysexMessage}
+import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
 
-class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
+class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers with MockFactory {
 
   private def shortMsg(status: Int, data1: Int, data2: Int): ShortMessage =
     new ShortMessage(status, data1, data2)
@@ -183,5 +184,47 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     // Then
     javaMsg shouldBe a[SysexMessage]
     javaMsg.getMessage should equal(sysexBytes)
+  }
+
+  behavior of "JavaMidiConverters.isInputDevice"
+
+  it should "be true for devices with unlimited or positive maximum transmitters and false otherwise" in {
+    // Given
+    val cases = Table(
+      ("maxTransmitters", "expected"),
+      (-1, true),
+      (0, false),
+      (1, true),
+      (8, true)
+    )
+
+    forAll(cases) { (maxTransmitters, expected) =>
+      val device = stub[MidiDevice]
+      (() => device.getMaxTransmitters).when().returns(maxTransmitters)
+
+      // When / Then
+      device.isInputDevice shouldBe expected
+    }
+  }
+
+  behavior of "JavaMidiConverters.isOutputDevice"
+
+  it should "be true for devices with unlimited or positive maximum receivers and false otherwise" in {
+    // Given
+    val cases = Table(
+      ("maxReceivers", "expected"),
+      (-1, true),
+      (0, false),
+      (1, true),
+      (8, true)
+    )
+
+    forAll(cases) { (maxReceivers, expected) =>
+      val device = stub[MidiDevice]
+      (() => device.getMaxReceivers).when().returns(maxReceivers)
+
+      // When / Then
+      device.isOutputDevice shouldBe expected
+    }
   }
 }

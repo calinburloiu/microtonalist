@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
-import org.calinburloiu.music.scmidi
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 import javax.annotation.concurrent.ThreadSafe
@@ -110,7 +110,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
    *
    * @return True if the MIDI device supports input, false otherwise.
    */
-  def isInputDevice: Boolean = _device.exists(scmidi.isInputDevice)
+  def isInputDevice: Boolean = _device.exists(_.isInputDevice)
 
   /**
    * Determines if the associated MIDI device is an output device. If it is, then its [[transmitter]] can be used,
@@ -118,7 +118,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
    *
    * @return True if the MIDI device supports output, false otherwise.
    */
-  def isOutputDevice: Boolean = _device.exists(scmidi.isOutputDevice)
+  def isOutputDevice: Boolean = _device.exists(_.isOutputDevice)
 
   /**
    * Tells whether a MIDI endpoint (like a device) support input and/or output.
@@ -275,7 +275,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
       _device.foreach { dev =>
         dev.open()
 
-        if (scmidi.isInputDevice(dev)) {
+        if (dev.isInputDevice) {
           dev.getTransmitter.setReceiver(splitter.receiver)
         }
       }

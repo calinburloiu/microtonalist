@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi.javamidi
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.*
 
-import javax.sound.midi.{MetaMessage, MidiMessage, ShortMessage, SysexMessage}
+import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
 
 /**
@@ -77,6 +77,26 @@ object JavaMidiConverters {
           FromMetaMap(metaMessage.getType)(metaMessage)
         case _ => toUnsupported(message)
       }
+    }
+  }
+
+  extension (device: MidiDevice) {
+    /**
+     * Tells whether this Java Sound device can be used as an input, that is, whether it can open at least one
+     * `Transmitter`. Java Sound encodes "unlimited" as `-1`.
+     */
+    def isInputDevice: Boolean = {
+      val maxTransmitters = device.getMaxTransmitters
+      maxTransmitters == -1 /* unlimited */ || maxTransmitters > 0
+    }
+
+    /**
+     * Tells whether this Java Sound device can be used as an output, that is, whether it can open at least one
+     * `Receiver`. Java Sound encodes "unlimited" as `-1`.
+     */
+    def isOutputDevice: Boolean = {
+      val maxReceivers = device.getMaxReceivers
+      maxReceivers == -1 /* unlimited */ || maxReceivers > 0
     }
   }
 
