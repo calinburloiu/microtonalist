@@ -18,13 +18,17 @@ package org.calinburloiu.music.microtonalist.cli
 
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiManager
 import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiManager}
 
 object MicrotonalistToolApp {
 
   def main(args: Array[String]): Unit = {
     args match {
-      case Array("midi-devices") => printMidiDevices()
+      case Array("midi-devices") =>
+        val midiManager = JavaMidiManager(Businessync(EventBus()))
+        printMidiDevices(midiManager)
+        midiManager.close()
       case _ => println(
         """Usage:
           |midi-devices    prints all available MIDI devices
@@ -33,10 +37,11 @@ object MicrotonalistToolApp {
     }
   }
 
-  private def printMidiDevices(): Unit = {
-    val businessync = Businessync(EventBus())
-    val midiManager = MidiManager(businessync)
-
+  /**
+   * Prints every input and output device of `midiManager`: its name, vendor, version and description, and how many
+   * transmitters (inputs) or receivers (outputs) it can open.
+   */
+  private[cli] def printMidiDevices(midiManager: MidiManager): Unit = {
     // Endpoint is a term for input or output
     def printMidiDevicesByEndpoint(devicesInfo: Seq[MidiDeviceInfo], printLimit: MidiDeviceInfo => Unit): Unit = {
       devicesInfo.foreach { info =>
@@ -58,7 +63,5 @@ object MicrotonalistToolApp {
     println("\n=== Output Devices ===\n")
     printMidiDevicesByEndpoint(midiManager.outputDevicesInfo,
       info => println(s"Max. Receivers: ${info.maxReceivers}"))
-
-    midiManager.close()
   }
 }
