@@ -40,6 +40,8 @@ import scala.collection.immutable.ArraySeq
  *
  * Both directions dispatch through lookup tables: `asJava` by concrete subtype [[Class]] (cheaper than pattern
  * matching on a closed sealed hierarchy of 30+ cases), `asScala` by MIDI command / status / meta-type byte.
+ * A Control Change is the one status byte both tables split further: its controller number decides between a
+ * [[CcMidiMsg]] and a [[ChannelModeMidiMsg]] subtype.
  */
 object JavaMidiConverters {
   /**
@@ -136,6 +138,21 @@ object JavaMidiConverters {
     entry(classOf[CcMidiMsg]) { m =>
       new ShortMessage(ShortMessage.CONTROL_CHANGE, m.channel, m.number, m.value)
     },
+    entry(classOf[AllSoundOffMidiMsg]) { m => channelModeMessage(m.channel, AllSoundOffMidiMsg.Number) },
+    entry(classOf[ResetAllControllersMidiMsg]) { m =>
+      channelModeMessage(m.channel, ResetAllControllersMidiMsg.Number)
+    },
+    entry(classOf[LocalControlMidiMsg]) { m =>
+      val dataByte = if (m.isOn) LocalControlMidiMsg.OnValue else LocalControlMidiMsg.OffValue
+      channelModeMessage(m.channel, LocalControlMidiMsg.Number, dataByte)
+    },
+    entry(classOf[AllNotesOffMidiMsg]) { m => channelModeMessage(m.channel, AllNotesOffMidiMsg.Number) },
+    entry(classOf[OmniModeOffMidiMsg]) { m => channelModeMessage(m.channel, OmniModeOffMidiMsg.Number) },
+    entry(classOf[OmniModeOnMidiMsg]) { m => channelModeMessage(m.channel, OmniModeOnMidiMsg.Number) },
+    entry(classOf[MonoModeOnMidiMsg]) { m =>
+      channelModeMessage(m.channel, MonoModeOnMidiMsg.Number, m.channelCount)
+    },
+    entry(classOf[PolyModeOnMidiMsg]) { m => channelModeMessage(m.channel, PolyModeOnMidiMsg.Number) },
     entry(classOf[ProgramChangeMidiMsg]) { m =>
       new ShortMessage(ShortMessage.PROGRAM_CHANGE, m.channel, m.program, 0)
     },
@@ -241,9 +258,7 @@ object JavaMidiConverters {
     ShortMessage.POLY_PRESSURE -> { s =>
       PolyPressureMidiMsg(s.getChannel, MidiNote(s.getData1), s.getData2)
     },
-    ShortMessage.CONTROL_CHANGE -> { s =>
-      CcMidiMsg(s.getChannel, s.getData1, s.getData2)
-    },
+    ShortMessage.CONTROL_CHANGE -> { s => fromControlChange(s) },
     ShortMessage.PROGRAM_CHANGE -> { s =>
       ProgramChangeMidiMsg(s.getChannel, s.getData1)
     },
@@ -314,6 +329,38 @@ object JavaMidiConverters {
 
   private def toUnsupported(message: MidiMessage): UnsupportedMidiMsg =
     UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(message.getMessage))
+
+  /**
+   * The message a Control Change status byte carries: an ordinary [[CcMidiMsg]] below
+   * [[ChannelModeMidiMsg.NumberRange]], and the matching [[ChannelModeMidiMsg]] subtype inside it.
+   *
+   * A Mono Mode On asking for more channels than MIDI 1.0 allows is malformed; it is wrapped in an
+   * [[UnsupportedMidiMsg]] rather than rejected, because `asScala` runs on the device's own thread, where a thrown
+   * exception would take the inbound stream down with it.
+   */
+  private def fromControlChange(shortMessage: ShortMessage): MidiMsg = {
+    val channel = shortMessage.getChannel
+    val number = shortMessage.getData1
+    val dataByte = shortMessage.getData2
+
+    number match {
+      case AllSoundOffMidiMsg.Number => AllSoundOffMidiMsg(channel)
+      case ResetAllControllersMidiMsg.Number => ResetAllControllersMidiMsg(channel)
+      case LocalControlMidiMsg.Number => LocalControlMidiMsg(channel, dataByte >= LocalControlMidiMsg.OnThreshold)
+      case AllNotesOffMidiMsg.Number => AllNotesOffMidiMsg(channel)
+      case OmniModeOffMidiMsg.Number => OmniModeOffMidiMsg(channel)
+      case OmniModeOnMidiMsg.Number => OmniModeOnMidiMsg(channel)
+      case MonoModeOnMidiMsg.Number if MonoModeOnMidiMsg.ChannelCountRange.contains(dataByte) =>
+        MonoModeOnMidiMsg(channel, dataByte)
+      case MonoModeOnMidiMsg.Number => toUnsupported(shortMessage)
+      case PolyModeOnMidiMsg.Number => PolyModeOnMidiMsg(channel)
+      case _ => CcMidiMsg(channel, number, dataByte)
+    }
+  }
+
+  /** Renders a Channel Mode message: the Control Change status byte, the message's number, and its data byte. */
+  private def channelModeMessage(channel: Int, number: Int, dataByte: Int = 0): ShortMessage =
+    new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, number, dataByte)
 
   // ============================================================================
   // Helpers

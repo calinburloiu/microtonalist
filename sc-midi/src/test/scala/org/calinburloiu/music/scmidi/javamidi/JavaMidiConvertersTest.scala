@@ -65,6 +65,17 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     (PitchBendMidiMsg(3, -8192), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x00, 0x00)),
     (PitchBendMidiMsg(3, 8191), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x7F, 0x7F)),
     (PitchBendMidiMsg(3, 1050), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x1A, 0x48)),
+    // Channel Mode
+    (AllSoundOffMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 120, 0)),
+    (ResetAllControllersMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 121, 0)),
+    (LocalControlMidiMsg(4, isOn = false), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 122, 0)),
+    (LocalControlMidiMsg(4, isOn = true), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 122, 127)),
+    (AllNotesOffMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 123, 0)),
+    (OmniModeOffMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 124, 0)),
+    (OmniModeOnMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 125, 0)),
+    (MonoModeOnMidiMsg(4, channelCount = 4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 126, 4)),
+    (MonoModeOnMidiMsg(4, channelCount = 0), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 126, 0)),
+    (PolyModeOnMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 127, 0)),
     // System Common
     (MidiTimeCodeMidiMsg(3, 5), shortMessage(ShortMessage.MIDI_TIME_CODE, (3 << 4) | 5, 0)),
     (
@@ -149,6 +160,55 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
 
     // When / Then
     an[IllegalArgumentException] should be thrownBy nullMessage.asScala
+  }
+
+  behavior of "JavaMidiConverters Channel Mode messages"
+
+  it should "decode a valueless Channel Mode message whatever data byte it carries" in {
+    // Given
+    val dataBytes = Table("dataByte", 0, 1, 64, 127)
+
+    forAll(dataBytes) { dataByte =>
+      // When / Then
+      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, AllSoundOffMidiMsg.Number, dataByte).asScala shouldEqual
+        AllSoundOffMidiMsg(2)
+      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, PolyModeOnMidiMsg.Number, dataByte).asScala shouldEqual
+        PolyModeOnMidiMsg(2)
+    }
+  }
+
+  it should "decode Local Control by the switch convention: 0-63 off, 64-127 on" in {
+    // Given
+    val dataBytes = Table(
+      ("dataByte", "isOn"),
+      (0, false),
+      (63, false),
+      (64, true),
+      (127, true)
+    )
+
+    forAll(dataBytes) { (dataByte, isOn) =>
+      // When / Then
+      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, LocalControlMidiMsg.Number, dataByte).asScala shouldEqual
+        LocalControlMidiMsg(2, isOn)
+    }
+  }
+
+  it should "keep a Control Change below the Channel Mode range a CcMidiMsg" in {
+    // When / Then
+    shortMsgC(ShortMessage.CONTROL_CHANGE, 2, MidiRequirements.MaxControllerNumber, 100).asScala shouldEqual
+      CcMidiMsg(2, MidiRequirements.MaxControllerNumber, 100)
+  }
+
+  it should "wrap a Mono Mode On carrying more channels than MIDI 1.0 allows in an UnsupportedMidiMsg" in {
+    // Given
+    val javaMessage = shortMsgC(ShortMessage.CONTROL_CHANGE, 2, MonoModeOnMidiMsg.Number, 17)
+
+    // When
+    val actual = javaMessage.asScala
+
+    // Then — asScala runs on the device's own thread, so a malformed message must not throw out of it
+    actual shouldEqual UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(javaMessage.getMessage))
   }
 
   behavior of "UnsupportedMidiMsg round-trip"
