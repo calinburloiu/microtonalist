@@ -49,6 +49,14 @@ class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableM
 
   it should behave like mutableMidiTransmitter(initialReceivers => MutableMidiTransmitter(initialReceivers))
 
+  it should "default to no receivers when constructed with no arguments" in {
+    // When
+    val transmitter = MutableMidiTransmitter()
+
+    // Then
+    transmitter.receivers shouldBe empty
+  }
+
   it should "not call receivers_= from its constructor" in {
     // Given
     val receiver = NoOpMidiReceiver()
