@@ -5,6 +5,10 @@
   `JavaMidiEnvironment` seam) and Section 8 (a defect in `purgeDisconnectedDevices` that #282 must file rather than
   fix), and rewrote the last paragraph of Section 4 accordingly. Decisions D1–D10 and the sub-issue order are
   unchanged, so the plans already written for #279, #280 and #281 are unaffected.
+- **Revised again**: 2026-09-08 on `f772023`, together with the #282 plan — D11's seam lists device infos and
+  resolves each device through a separate `deviceOf` call instead of returning an already resolved `devices` list,
+  so that a device which fails to resolve keeps being reported by the manager (see the plan's design notes). D8 and
+  D9 are unchanged.
 - **Issue**: [#278](https://github.com/calinburloiu/microtonalist/issues/278) — "Isolate the Java Sound implementation
   from the sc-midi Scala API" (parent), with sub-issues
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
@@ -296,8 +300,11 @@ So #282 introduces a seam instead, inside `javamidi`:
 
 ```scala
 trait JavaMidiEnvironment {
-  /** The MIDI devices currently present, already resolved from their `MidiDevice.Info`. */
-  def devices: Seq[MidiDevice]
+  /** The `MidiDevice.Info` of every MIDI device currently present. */
+  def deviceInfos: Seq[MidiDevice.Info]
+
+  /** Resolves the device described by `info`; throws as `MidiSystem.getMidiDevice` does. */
+  def deviceOf(info: MidiDevice.Info): MidiDevice
 
   /** Subscribes to MIDI environment changes; closing the returned subscription unsubscribes. */
   def onEnvironmentChanged(listener: () => Unit): AutoCloseable
@@ -310,10 +317,13 @@ trait JavaMidiEnvironment {
 - `onEnvironmentChanged` returns an `AutoCloseable` rather than taking a matching `remove` method, because
   `removeNotificationListener` matches on object identity and the implementation is what adapts a `() => Unit` into
   the `CoreMidiNotification` SAM that CoreMIDI4J actually holds.
-- `devices` returns resolved `MidiDevice`s, not `MidiDevice.Info`s, because D8 already requires the device itself:
-  `MidiDeviceInfo`'s connection limits come from `getMaxTransmitters`/`getMaxReceivers`. `JavaMidiManager.refresh()`
-  therefore resolves each device once and hands it to the handle, and `JavaMidiDeviceHandle.onConnect` takes the
-  resolved device instead of calling `MidiSystem.getMidiDevice` itself. This costs nothing on macOS, where
+- Resolution is a separate `deviceOf` call rather than a `devices: Seq[MidiDevice]` that resolves internally (the
+  first draft of this decision), because a device that fails to resolve must still be reported by the *manager*: the
+  environment has no bus, so it could only drop such a device silently, and the event stream would change.
+  `JavaMidiManager.refresh()` therefore lists `deviceInfos`, resolves each device once with `deviceOf` — D8 needs the
+  device itself, since `MidiDeviceInfo`'s connection limits come from `getMaxTransmitters`/`getMaxReceivers` — and
+  hands it to the handle; `JavaMidiDeviceHandle.onConnect` takes the resolved device instead of calling
+  `MidiSystem.getMidiDevice` itself. Resolving in the manager costs nothing on macOS, where
   `CoreMidiDeviceProvider.getMidiDeviceInfo()` already resolves every candidate internally to apply its filter.
 - After this, `javax.sound.midi` statics appear in exactly one production file.
 
@@ -321,8 +331,9 @@ Behaviour must be preserved exactly, and the plan must pin these down:
 
 - A device that fails to resolve is skipped, not propagated: `MidiUnavailableException` and `IllegalArgumentException`
   drop it silently as `MidiDeviceHandle.onConnect` does today, and any other exception is logged and published as
-  `MidiDeviceFailedToConnectEvent` before it is dropped. Moving the resolution from the handle to the environment
-  must not move where those events are published from, or the event stream changes.
+  `MidiDeviceFailedToConnectEvent` before it is dropped. Moving the resolution from the handle to the manager must
+  not change the events: the same `MidiDeviceFailedToConnectEvent`, with the id derived from the `MidiDevice.Info`,
+  on the same bus.
 - The listener registered in `init()` still publishes `MidiEnvironmentChangedEvent` and then calls `refresh()`, and
   `close()` still unsubscribes.
 
