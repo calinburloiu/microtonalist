@@ -20,6 +20,7 @@ import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.Inside
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -28,7 +29,8 @@ import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, Sys
 import scala.collection.immutable.ArraySeq
 import scala.compiletime.testing.typeChecks
 
-class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers with MockFactory {
+class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers with MockFactory
+  with Inside {
 
   private def shortMsg(status: Int, data1: Int, data2: Int): ShortMessage =
     new ShortMessage(status, data1, data2)
@@ -151,13 +153,11 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     val msg = new ShortMessage()
     msg.setMessage(0xF9)
 
-    // When
-    val sc: Midi1Msg = msg.asScala.asInstanceOf[Midi1Msg]
-    val back = sc.asJava
-
-    // Then
-    sc shouldBe a[UnsupportedMidiMsg]
-    back.getMessage should equal(msg.getMessage)
+    // When / Then
+    inside(msg.asScala) {
+      case sc: UnsupportedMidiMsg =>
+        sc.asJava.getMessage should equal(msg.getMessage)
+    }
   }
 
   it should "round-trip a MetaMessage with an unknown meta type" in {
@@ -166,13 +166,11 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     val msg = new MetaMessage()
     msg.setMessage(0x60, payload, payload.length)
 
-    // When
-    val sc: Midi1Msg = msg.asScala.asInstanceOf[Midi1Msg]
-    val back = sc.asJava
-
-    // Then
-    sc shouldBe a[UnsupportedMidiMsg]
-    back.getMessage should equal(msg.getMessage)
+    // When / Then
+    inside(msg.asScala) {
+      case sc: UnsupportedMidiMsg =>
+        sc.asJava.getMessage should equal(msg.getMessage)
+    }
   }
 
   it should "round-trip a SysexMessage via UnsupportedMidiMsg constructed from raw bytes" in {

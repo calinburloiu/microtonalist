@@ -107,8 +107,8 @@ abstract class NoteMidiMsg(channel: Int,
  * @param velocity The velocity (0-127).
  */
 case class NoteOnMidiMsg(override val channel: Int,
-                               override val midiNote: MidiNote,
-                               override val velocity: Int = NoteOnMidiMsg.DefaultVelocity)
+                         override val midiNote: MidiNote,
+                         override val velocity: Int = NoteOnMidiMsg.DefaultVelocity)
   extends NoteMidiMsg(channel, midiNote, velocity) {
 
   override def mapChannel(map: Int => Int): NoteOnMidiMsg = copy(channel = map(channel))
@@ -132,8 +132,8 @@ object NoteOnMidiMsg {
  * @param velocity The velocity (0-127).
  */
 case class NoteOffMidiMsg(override val channel: Int,
-                                override val midiNote: MidiNote,
-                                override val velocity: Int = NoteOffMidiMsg.DefaultVelocity)
+                          override val midiNote: MidiNote,
+                          override val velocity: Int = NoteOffMidiMsg.DefaultVelocity)
   extends NoteMidiMsg(channel, midiNote, velocity) {
 
   override def mapChannel(map: Int => Int): NoteOffMidiMsg = copy(channel = map(channel))
@@ -565,10 +565,10 @@ object SetTempoMetaMidiMsg {
  * @param fractionalFrame Fractional frame, in hundredths (0-255 as stored; typically 0-99).
  */
 case class SmpteOffsetMetaMidiMsg(hour: Int,
-                                        minute: Int,
-                                        second: Int,
-                                        frame: Int,
-                                        fractionalFrame: Int) extends MetaMidiMsg {
+                                  minute: Int,
+                                  second: Int,
+                                  frame: Int,
+                                  fractionalFrame: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned8BitValue("hour", hour)
   MidiRequirements.requireUnsigned8BitValue("minute", minute)
   MidiRequirements.requireUnsigned8BitValue("second", second)
@@ -591,9 +591,9 @@ object SmpteOffsetMetaMidiMsg {
  * @param thirtySecondNotesPer24MidiClocks Number of 32nd notes per 24 MIDI clocks (usually 8).
  */
 case class TimeSignatureMetaMidiMsg(numerator: Int,
-                                          denominatorPowerOf2: Int,
-                                          midiClocksPerMetronomeTick: Int,
-                                          thirtySecondNotesPer24MidiClocks: Int) extends MetaMidiMsg {
+                                    denominatorPowerOf2: Int,
+                                    midiClocksPerMetronomeTick: Int,
+                                    thirtySecondNotesPer24MidiClocks: Int) extends MetaMidiMsg {
   MidiRequirements.requireUnsigned8BitValue("numerator", numerator)
   MidiRequirements.requireUnsigned8BitValue("denominatorPowerOf2", denominatorPowerOf2)
   MidiRequirements.requireUnsigned8BitValue("midiClocksPerMetronomeTick", midiClocksPerMetronomeTick)

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{RpnMessages, RpnSelector, MidiChannelStateTracker}
+import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, RpnMessages, RpnSelector}
 import org.calinburloiu.music.scmidi.message.*
 
 /**

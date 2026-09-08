@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiRequirements, MidiCc}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRequirements}
 
 import javax.sound.midi.MidiMessage
 

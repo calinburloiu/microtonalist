@@ -50,9 +50,9 @@ import scala.collection.mutable
  */
 @NotThreadSafe
 class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
-                                rpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
-                                nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
-                                shallRespondToResetMessages: Boolean = false) extends MidiReceiver {
+                              rpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
+                              nrpnDefaults: Map[(Int, Int), (Int, Int)] = Map.empty,
+                              shallRespondToResetMessages: Boolean = false) extends MidiReceiver {
 
   import MidiChannelStateTracker.*
 

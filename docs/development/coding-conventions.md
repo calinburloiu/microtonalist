@@ -181,7 +181,7 @@ class C {
 The types of the `sc-midi` message model end in `Msg`: `MidiMsg` at the top, `Midi1Msg` / `Midi2Msg` beneath it, and
 one `<Name>MidiMsg` per message (`NoteOnMidiMsg`, `CcMidiMsg`, `SysExMidiMsg`, `TextMetaMidiMsg`,
 `UnsupportedMidiMsg`). The short suffix keeps them distinct from Java Sound's `MidiMessage` without import aliases
-inside the Java implementation package.
+inside the `javamidi` package (`org.calinburloiu.music.scmidi.javamidi`).
 
 Everything that is not a message type keeps the full word *message*: helper objects, methods, parameters, and prose
 (`RpnMessages`, `PitchBendSensitivityMessages`, `MtsMessageGenerator`, `MidiRequirements`, `extractMidiMessages`).

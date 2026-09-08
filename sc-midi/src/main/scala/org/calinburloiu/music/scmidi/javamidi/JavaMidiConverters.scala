@@ -101,7 +101,7 @@ object JavaMidiConverters {
   }
 
   // ============================================================================
-  // MidiMsg -> MidiMessage dispatch
+  // Midi1Msg -> MidiMessage dispatch
   // ============================================================================
 
   private def entry[M <: Midi1Msg](cls: Class[M])(build: M => MidiMessage): (Class[?], Midi1Msg => MidiMessage) =

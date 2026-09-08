@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.*
-import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.*
 
 import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
