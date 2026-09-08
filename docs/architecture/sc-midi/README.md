@@ -65,12 +65,12 @@ distinct, separately-evented states.
 
 **`MidiMsg`** is the sealed base of the immutable message model — the Scala-idiomatic counterpart to Java's mutable,
 byte-oriented `MidiMessage`/`ShortMessage`. Directly under it sit **`Midi1Msg`**, the base of every MIDI 1.0 message,
-and **`Midi2Msg`**, reserved for MIDI 2.0 and empty for now (#283). Pipeline signatures take `MidiMsg`. Its
-sub-hierarchies cover channel voice/mode messages (`ChannelMidiMsg`, with a `mapChannel` that rewrites the channel),
-system-common and system-real-time messages, the full set of Standard MIDI File meta events, and System Exclusive
-(`SysExMidiMsg`). Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape hatch that
-round-trips back to the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw LSB/MSB bytes into
-a single signed 14-bit value and offers cents conversion against a `PitchBendSensitivity`.
+and **`Midi2Msg`**, the base of every MIDI 2.0 message, with no case classes yet (#292). Pipeline signatures take
+`MidiMsg`. Its sub-hierarchies cover channel voice/mode messages (`ChannelMidiMsg`, with a `mapChannel` that rewrites
+the channel), system-common and system-real-time messages, the full set of Standard MIDI File meta events, and System
+Exclusive (`SysExMidiMsg`). Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape
+hatch that round-trips back to the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw
+LSB/MSB bytes into a single signed 14-bit value and offers cents conversion against a `PitchBendSensitivity`.
 
 **`JavaMidiConverters`**, in the `javamidi` sub-package
 (`import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*`), is the boundary with Java Sound MIDI, modelled
