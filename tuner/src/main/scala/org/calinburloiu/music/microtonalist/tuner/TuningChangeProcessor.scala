@@ -17,6 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiProcessor
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
 import javax.sound.midi.MidiMessage
@@ -47,8 +49,9 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
   }
 
   override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+    // Bridge to the Java-typed MidiProcessor, removed when MidiProcessor carries MidiMsg (#281).
     val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
-      message, tuningChangers.toList)
+      message.asScala, tuningChangers.toList)
 
     // Change the tuning if the tuning change decision is effective
     tuningChange match {
@@ -81,7 +84,7 @@ object TuningChangeProcessor {
    *         any.
    */
   @tailrec
-  private def computeTuningChange(message: MidiMessage,
+  private def computeTuningChange(message: MidiMsg,
                                   tuningChangers: List[TuningChanger]): (TuningChange, Option[TuningChanger]) = {
     if (tuningChangers.isEmpty) {
       (NoTuningChange, None)

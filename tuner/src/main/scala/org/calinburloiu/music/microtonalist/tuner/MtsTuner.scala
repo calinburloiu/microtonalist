@@ -18,9 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiDeviceId
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-
-import javax.sound.midi.MidiMessage
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 /**
  * Base class for all MIDI Tuning Standard (MTS) `Tuner` implementations.
@@ -33,9 +31,9 @@ import javax.sound.midi.MidiMessage
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
                         val thru: Boolean = MtsTuner.DefaultThru) extends Tuner with StrictLogging {
 
-  override def tune(tuning: Tuning): Seq[MidiMessage] = Seq(mtsMessageGenerator.generate(tuning).asJava)
+  override def tune(tuning: Tuning): Seq[MidiMsg] = Seq(mtsMessageGenerator.generate(tuning))
 
-  override def process(message: MidiMessage): Seq[MidiMessage] = if (thru) Seq(message) else Seq.empty
+  override def process(message: MidiMsg): Seq[MidiMsg] = if (thru) Seq(message) else Seq.empty
 }
 
 object MtsTuner {

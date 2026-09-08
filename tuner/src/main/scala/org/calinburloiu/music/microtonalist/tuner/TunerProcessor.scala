@@ -18,6 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiProcessor
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.{Midi1Msg, MidiMsg}
 
 import javax.annotation.concurrent.NotThreadSafe
 import javax.sound.midi.MidiMessage
@@ -55,16 +57,17 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
    */
   def tune(tuning: Tuning): Unit = {
     val tuningMessages = tuner.tune(tuning)
-    sendToReceiver(tuningMessages, -1)
+    sendToReceiver(toJava(tuningMessages), -1)
   }
 
-  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = tuner.process(message)
+  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] =
+    toJava(tuner.process(message.asScala))
 
   override protected def onConnect(): Unit = {
     super.onConnect()
 
     val initMessages = tuner.reset()
-    sendToReceiver(initMessages, -1)
+    sendToReceiver(toJava(initMessages), -1)
 
     logger.info(s"Connected the processor for tuner $tuner.")
   }
@@ -81,6 +84,10 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     logger.info(s"Closing the processor for tuner $tuner...")
     tuneToStandard()
   }
+
+  // Bridge to the Java-typed MidiProcessor, removed when MidiProcessor carries MidiMsg (#281).
+  private def toJava(messages: Seq[MidiMsg]): Seq[MidiMessage] =
+    messages.collect { case message: Midi1Msg => message.asJava }
 
   private def sendToReceiver(messages: Seq[MidiMessage], timeStamp: Long): Unit = {
     // TODO #97 Handle the try differently

@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, NoteOnMidiMsg}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, Midi1Msg, MidiCc, NoteOnMidiMsg}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -27,23 +27,28 @@ import javax.sound.midi.{MidiMessage, Receiver}
 
 class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
-  val noteTriggerMidiMessage: MidiMessage = NoteOnMidiMsg(1, MidiNote.C4, 64).asJava
-  val ccTriggerMidiMessage: MidiMessage = CcMidiMsg(1, MidiCc.SostenutoPedal, 32).asJava
-  val nonTriggerMidiMessage1: MidiMessage = CcMidiMsg(1, MidiCc.ModulationMsb, 96).asJava
-  val nonTriggerMidiMessage2: MidiMessage = NoteOnMidiMsg(1, MidiNote.B4, 16).asJava
+  val noteTriggerMessage: Midi1Msg = NoteOnMidiMsg(1, MidiNote.C4, 64)
+  val ccTriggerMessage: Midi1Msg = CcMidiMsg(1, MidiCc.SostenutoPedal, 32)
+  val nonTriggerMessage1: Midi1Msg = CcMidiMsg(1, MidiCc.ModulationMsb, 96)
+  val nonTriggerMessage2: Midi1Msg = NoteOnMidiMsg(1, MidiNote.B4, 16)
+
+  val noteTriggerMidiMessage: MidiMessage = noteTriggerMessage.asJava
+  val ccTriggerMidiMessage: MidiMessage = ccTriggerMessage.asJava
+  val nonTriggerMidiMessage1: MidiMessage = nonTriggerMessage1.asJava
+  val nonTriggerMidiMessage2: MidiMessage = nonTriggerMessage2.asJava
 
   abstract class Fixture(triggersThru: Boolean = false) {
     val tuningServiceStub: TuningService = stub[TuningService]("tuningService")
 
     val noteTuningChangerStub: TuningChanger = stub[TuningChanger]("noteTuningChanger")
-    noteTuningChangerStub.decide.when(noteTriggerMidiMessage).returns(IndexTuningChange(2))
-    noteTuningChangerStub.decide.when(noteTriggerMidiMessage).returns(MayTriggerTuningChange)
+    noteTuningChangerStub.decide.when(noteTriggerMessage).returns(IndexTuningChange(2))
+    noteTuningChangerStub.decide.when(noteTriggerMessage).returns(MayTriggerTuningChange)
     noteTuningChangerStub.decide.when(*).returns(NoTuningChange).anyNumberOfTimes()
     (() => noteTuningChangerStub.triggersThru).when().returns(triggersThru)
 
     val ccTuningChangerStub: TuningChanger = stub[TuningChanger]("ccTuningChanger")
-    ccTuningChangerStub.decide.when(ccTriggerMidiMessage).returns(NextTuningChange)
-    ccTuningChangerStub.decide.when(ccTriggerMidiMessage).returns(MayTriggerTuningChange)
+    ccTuningChangerStub.decide.when(ccTriggerMessage).returns(NextTuningChange)
+    ccTuningChangerStub.decide.when(ccTriggerMessage).returns(MayTriggerTuningChange)
     ccTuningChangerStub.decide.when(*).returns(NoTuningChange).anyNumberOfTimes()
     (() => ccTuningChangerStub.triggersThru).when().returns(triggersThru)
 
