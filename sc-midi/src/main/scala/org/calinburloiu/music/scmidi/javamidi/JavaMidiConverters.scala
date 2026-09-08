@@ -14,9 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.scmidi.message
+package org.calinburloiu.music.scmidi.javamidi
 
 import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.message.*
 
 import javax.sound.midi.{MetaMessage, MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq
@@ -28,7 +29,7 @@ import scala.collection.immutable.ArraySeq
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
  *
  * {{{
- *   import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
+ *   import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
  *
  *   val java: MidiMessage = NoteOnMidiMsg(0, 60, 100).asJava
  *   val scala: MidiMsg = java.asScala
@@ -293,7 +294,7 @@ object JavaMidiConverters {
 
   private def decodeText(data: Array[Byte]): String = new String(data, TextEncoding)
 
-  private[message] def bigEndian(value: Int, numBytes: Int): Array[Byte] = {
+  private[javamidi] def bigEndian(value: Int, numBytes: Int): Array[Byte] = {
     val bytes = new Array[Byte](numBytes)
     var i = 0
     while (i < numBytes) {
@@ -303,7 +304,7 @@ object JavaMidiConverters {
     bytes
   }
 
-  private[message] def fromBigEndian(bytes: Array[Byte]): Int = {
+  private[javamidi] def fromBigEndian(bytes: Array[Byte]): Int = {
     var value = 0
     var i = 0
     while (i < bytes.length) {

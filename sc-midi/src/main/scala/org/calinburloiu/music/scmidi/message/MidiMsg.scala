@@ -27,7 +27,8 @@ import scala.collection.immutable.ArraySeq
  * which expose raw byte data and mutable state, `MidiMsg` subtypes are immutable case classes with named,
  * validated parameters and Scala pattern matching support.
  *
- * Use [[JavaMidiConverters]] to convert between `MidiMsg` and [[javax.sound.midi.MidiMessage]].
+ * Use [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] to convert between `MidiMsg` and
+ * [[javax.sound.midi.MidiMessage]].
  */
 sealed trait MidiMsg
 
@@ -624,8 +625,8 @@ object SequencerSpecificMetaMidiMsg {
 /**
  * Wraps the raw bytes of a [[javax.sound.midi.MidiMessage]] that has no dedicated Scala-idiomatic counterpart.
  *
- * [[JavaMidiConverters]] can reconstruct the original Java message (a `ShortMessage`, `SysexMessage`, or
- * `MetaMessage`, detected from the status byte) via `asJava`.
+ * [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] can reconstruct the original Java message (a
+ * `ShortMessage`, `SysexMessage`, or `MetaMessage`, detected from the status byte) via `asJava`.
  *
  * @param data The full byte sequence of the original Java `MidiMessage` (as returned by `MidiMessage.getMessage`).
  */

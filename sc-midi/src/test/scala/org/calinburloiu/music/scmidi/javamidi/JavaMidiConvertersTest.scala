@@ -14,10 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.scmidi.message
+package org.calinburloiu.music.scmidi.javamidi
 
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks

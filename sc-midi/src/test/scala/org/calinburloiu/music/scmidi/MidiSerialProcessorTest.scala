@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.NoteOnMidiMsg
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.BeforeAndAfter
