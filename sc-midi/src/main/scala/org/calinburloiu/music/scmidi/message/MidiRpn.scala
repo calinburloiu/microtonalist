@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi.message
 /**
  * MIDI Registered Parameter Numbers (RPN) utilities and constants.
  */
-object ScMidiRpn {
+object MidiRpn {
   /** Null RPN MSB (#127). */
   val NullMsb: Int = 0x7F
   /** Null RPN LSB (#127). */

@@ -311,7 +311,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def inputExpressionOf(inputChannel: Int): MpeExpression = ImmutableMpeExpression(
     pitchBend = tracker.pitchBend(inputChannel),
     pressure = tracker.channelPressure(inputChannel),
-    slide = tracker.cc(inputChannel, ScMidiCc.MpeSlide))
+    slide = tracker.cc(inputChannel, MidiCc.MpeSlide))
 
   private def processNoteOff(buffer: mutable.Buffer[MidiMessage], msg: NoteOffMidiMsg,
                              role: MpeChannelRole): Unit = {
@@ -366,13 +366,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   private def processCc(buffer: mutable.Buffer[MidiMessage], msg: CcMidiMsg,
                         role: MpeChannelRole, rpnSelector: RpnSelector): Unit = msg.number match {
-    case ScMidiCc.MpeSlide =>
+    case MidiCc.MpeSlide =>
       allocatorFor(role).foreach { alloc =>
         emitExpressionUpdateResult(buffer, alloc.updateSlide(msg.channel, msg.value), alloc, DropReason.NotExpected)
       }
-    case ScMidiCc.DataEntryMsb if MpeMessageRouting.isMcm(rpnSelector) =>
+    case MidiCc.DataEntryMsb if MpeMessageRouting.isMcm(rpnSelector) =>
       processMcm(buffer, msg.channel, msg.value)
-    case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb if MpeMessageRouting.isPbs(rpnSelector) =>
+    case MidiCc.DataEntryMsb | MidiCc.DataEntryLsb if MpeMessageRouting.isPbs(rpnSelector) =>
       processPbs(buffer, msg.channel, msg.number, msg.value, role)
     case _ =>
       // The arms above are the three CC shapes `MpeMessageRouting.route` returns `Interpret` for; matching them
@@ -538,7 +538,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * in the protocol default". Patching against the zone's stored PBS sidesteps that entirely.
    */
   private def patchPbs(current: PitchBendSensitivity, ccNumber: Int, ccValue: Int): PitchBendSensitivity = {
-    if (ccNumber == ScMidiCc.DataEntryMsb) current.copy(semitones = ccValue)
+    if (ccNumber == MidiCc.DataEntryMsb) current.copy(semitones = ccValue)
     else current.copy(cents = ccValue)
   }
 
@@ -574,7 +574,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     if (logger.underlying.isInfoEnabled) {
       val channelRole = if (isMaster) "master" else "member"
-      val pbsField = if (ccNumber == ScMidiCc.DataEntryMsb) "semitones" else "cents"
+      val pbsField = if (ccNumber == MidiCc.DataEntryMsb) "semitones" else "cents"
       logger.info(s"PBS updated on $channelRole channel $channel of ${updatedZone.zoneType} zone: $pbsField = $ccValue")
     }
 
@@ -713,7 +713,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Emits a CC #74 (Slide) message on `channel` if `update` carries a new value.
    */
   private def emitSlide(buffer: mutable.Buffer[MidiMessage], channel: Int, update: MpeExpressionUpdate): Unit =
-    update.slide.foreach { value => buffer += CcMidiMsg(channel, ScMidiCc.MpeSlide, value).asJava }
+    update.slide.foreach { value => buffer += CcMidiMsg(channel, MidiCc.MpeSlide, value).asJava }
 
   /**
    * Emits a Channel Pressure message on `channel` if `update` carries a new value.
@@ -833,7 +833,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null. The selector and
     // the Null are rendered by `RpnMessages.select`, which decides their transmission order.
     val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
-      CcMidiMsg(zone.masterChannel, ScMidiCc.DataEntryMsb, zone.memberCount)
+      CcMidiMsg(zone.masterChannel, MidiCc.DataEntryMsb, zone.memberCount)
     buffer ++= (sequence ++ RpnMessages.select(zone.masterChannel, RpnSelector.None)).map(_.asJava)
 
     outputRpnSelectors(zone.masterChannel) = RpnSelector.None

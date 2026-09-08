@@ -165,17 +165,17 @@ private[tuner] object MpeMessageRouting {
                       rpnSelector: RpnSelector): MpeRoutingVerdict = msg.number match {
     // The MIDI Mode messages are discarded at every role in both input modes: the Tuner is fixed-mode on both
     // sides, and a Mono On reaching an output Member Channel would turn every shared allocation into a note drop.
-    case ScMidiCc.OmniModeOff | ScMidiCc.OmniModeOn | ScMidiCc.MonoModeOn | ScMidiCc.PolyModeOn =>
+    case MidiCc.OmniModeOff | MidiCc.OmniModeOn | MidiCc.MonoModeOn | MidiCc.PolyModeOn =>
       MpeRoutingVerdict.Discard
 
-    case ScMidiCc.MpeSlide => routeControlDimension(role)
+    case MidiCc.MpeSlide => routeControlDimension(role)
 
     // Every selector is consumed, never relayed: the Tuner decides for itself what each value message it re-emits
     // needs ahead of it, which is what keeps interleaved RPN/NRPN streams from different input channels from being
     // merged into one another on a shared output channel.
-    case ScMidiCc.RpnMsb | ScMidiCc.RpnLsb | ScMidiCc.NrpnMsb | ScMidiCc.NrpnLsb => MpeRoutingVerdict.Discard
+    case MidiCc.RpnMsb | MidiCc.RpnLsb | MidiCc.NrpnMsb | MidiCc.NrpnLsb => MpeRoutingVerdict.Discard
 
-    case ScMidiCc.DataEntryMsb | ScMidiCc.DataEntryLsb | ScMidiCc.DataIncrement | ScMidiCc.DataDecrement =>
+    case MidiCc.DataEntryMsb | MidiCc.DataEntryLsb | MidiCc.DataIncrement | MidiCc.DataDecrement =>
       routeDataValue(role, msg, rpnSelector)
 
     case _ => routeZoneLevel(role)
@@ -200,10 +200,10 @@ private[tuner] object MpeMessageRouting {
                              msg: CcMidiMsg,
                              rpnSelector: RpnSelector): MpeRoutingVerdict = rpnSelector match {
     case selector if isMcm(selector) =>
-      if (msg.number == ScMidiCc.DataEntryMsb && isValidMcm(msg)) MpeRoutingVerdict.Interpret
+      if (msg.number == MidiCc.DataEntryMsb && isValidMcm(msg)) MpeRoutingVerdict.Interpret
       else MpeRoutingVerdict.Discard
     case selector if isPbs(selector) =>
-      val isDataEntry = msg.number == ScMidiCc.DataEntryMsb || msg.number == ScMidiCc.DataEntryLsb
+      val isDataEntry = msg.number == MidiCc.DataEntryMsb || msg.number == MidiCc.DataEntryLsb
       role match {
         case MpeChannelRole.Member(_) | MpeChannelRole.Master(_) | MpeChannelRole.NonMpeInput(_) =>
           if (isDataEntry) MpeRoutingVerdict.Interpret else MpeRoutingVerdict.Discard
@@ -258,7 +258,7 @@ private[tuner] object MpeMessageRouting {
    * this predicate.
    */
   private[tuner] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
-    case cc: CcMidiMsg => cc.number == ScMidiCc.ResetAllControllers
+    case cc: CcMidiMsg => cc.number == MidiCc.ResetAllControllers
     case _ => false
   }
 

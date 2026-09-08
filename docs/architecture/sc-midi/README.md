@@ -68,7 +68,7 @@ offers cents conversion against a `PitchBendSensitivity`.
 importing its members enables `scMessage.asJava` / `javaMessage.asScala`. Both directions dispatch through lookup tables
 (by concrete subtype `Class` outbound, by status/meta-type byte inbound) rather than large pattern matches. Value
 validation for message constructors is centralized in `MidiRequirements` (channel and bit-width `require…` checks), and
-the controller/parameter numbers live in `ScMidiCc` / `ScMidiRpn` / `ScMidiNrpn` (including the MPE Configuration
+the controller/parameter numbers live in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE Configuration
 Message and the MPE Slide CC).
 
 ### MIDI plumbing (receivers, transmitters, processors)

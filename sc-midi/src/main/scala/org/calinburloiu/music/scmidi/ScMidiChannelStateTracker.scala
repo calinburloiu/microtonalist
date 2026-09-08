@@ -236,7 +236,7 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * @return `(msb, lsb)` for Bank Select on the given channel.
    */
   def bankSelect(channel: Int): (Int, Int) =
-    (cc(channel, message.ScMidiCc.BankSelectMsb), cc(channel, message.ScMidiCc.BankSelectLsb))
+    (cc(channel, message.MidiCc.BankSelectMsb), cc(channel, message.MidiCc.BankSelectLsb))
 
   /** @return the most recent Program Change recorded on the given channel, or `0` if none has been received. */
   def programChange(channel: Int): Int = {
@@ -338,22 +338,22 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     ccDefaults.get(ccNumber).orElse(DefaultCcValues.get(ccNumber))
 
   private def handleParameterCc(state: ChannelState, ccNumber: Int, value: Int): Unit = ccNumber match {
-    case ScMidiCc.RpnMsb =>
+    case MidiCc.RpnMsb =>
       val (_, lsb) = rpnHalves(state.partialRpnSelector)
       state.partialRpnSelector = assembledRpn(msb = Some(value), lsb = lsb)
-    case ScMidiCc.RpnLsb =>
+    case MidiCc.RpnLsb =>
       val (msb, _) = rpnHalves(state.partialRpnSelector)
       state.partialRpnSelector = assembledRpn(msb = msb, lsb = Some(value))
-    case ScMidiCc.NrpnMsb =>
+    case MidiCc.NrpnMsb =>
       val (_, lsb) = nrpnHalves(state.partialRpnSelector)
       state.partialRpnSelector = assembledNrpn(msb = Some(value), lsb = lsb)
-    case ScMidiCc.NrpnLsb =>
+    case MidiCc.NrpnLsb =>
       val (msb, _) = nrpnHalves(state.partialRpnSelector)
       state.partialRpnSelector = assembledNrpn(msb = msb, lsb = Some(value))
-    case ScMidiCc.DataEntryMsb => writeDataEntry(state, isMsb = true, value)
-    case ScMidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)
-    case ScMidiCc.DataIncrement => applyDataDelta(state, delta = 1)
-    case ScMidiCc.DataDecrement => applyDataDelta(state, delta = -1)
+    case MidiCc.DataEntryMsb => writeDataEntry(state, isMsb = true, value)
+    case MidiCc.DataEntryLsb => writeDataEntry(state, isMsb = false, value)
+    case MidiCc.DataIncrement => applyDataDelta(state, delta = 1)
+    case MidiCc.DataDecrement => applyDataDelta(state, delta = -1)
     case _ => // not part of the RPN/NRPN protocol
   }
 
@@ -381,12 +381,12 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * half-assembled rather than deselecting: 127 is a parameter number like any other.
    */
   private def assembledRpn(msb: Option[Int], lsb: Option[Int]): PartialRpnSelector =
-    if (msb.contains(ScMidiRpn.NullMsb) && lsb.contains(ScMidiRpn.NullLsb)) PartialRpnSelector.None
+    if (msb.contains(MidiRpn.NullMsb) && lsb.contains(MidiRpn.NullLsb)) PartialRpnSelector.None
     else PartialRpnSelector.Rpn(msb, lsb)
 
   /** The Non-Registered counterpart of [[assembledRpn]], its Null Function being NRPN 7F 7F. */
   private def assembledNrpn(msb: Option[Int], lsb: Option[Int]): PartialRpnSelector =
-    if (msb.contains(ScMidiNrpn.NullMsb) && lsb.contains(ScMidiNrpn.NullLsb)) PartialRpnSelector.None
+    if (msb.contains(MidiNrpn.NullMsb) && lsb.contains(MidiNrpn.NullLsb)) PartialRpnSelector.None
     else PartialRpnSelector.Nrpn(msb, lsb)
 
   /**
@@ -402,9 +402,9 @@ class ScMidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   private def handleChannelModeCc(state: ChannelState, ccNumber: Int): Unit =
     if (shallRespondToResetMessages) ccNumber match {
-      case ScMidiCc.AllSoundOff | ScMidiCc.AllNotesOff =>
+      case MidiCc.AllSoundOff | MidiCc.AllNotesOff =>
         state.activeNotes.clear()
-      case ScMidiCc.ResetAllControllers =>
+      case MidiCc.ResetAllControllers =>
         ResetAllControllersCcNumbers.foreach(state.ccValues.remove)
         state.activeNotes.valuesIterator.foreach(_.polyPressure = 0)
         state.channelPressure = None
@@ -469,24 +469,24 @@ object ScMidiChannelStateTracker {
    * selector to their default states, following the response the MMA recommends for the message.
    */
   private val ResetAllControllersCcNumbers: Set[Int] = Set(
-    ScMidiCc.DataEntryMsb,
-    ScMidiCc.DataEntryLsb,
-    ScMidiCc.DataIncrement,
-    ScMidiCc.DataDecrement,
-    ScMidiCc.ModulationMsb,
-    ScMidiCc.ModulationLsb,
-    ScMidiCc.ExpressionMsb,
-    ScMidiCc.ExpressionLsb,
-    ScMidiCc.SustainPedal,
-    ScMidiCc.PortamentoPedal,
-    ScMidiCc.SostenutoPedal,
-    ScMidiCc.SoftPedal,
-    ScMidiCc.LegatoFootswitch,
-    ScMidiCc.Hold2Pedal,
-    ScMidiCc.RpnMsb,
-    ScMidiCc.RpnLsb,
-    ScMidiCc.NrpnMsb,
-    ScMidiCc.NrpnLsb,
+    MidiCc.DataEntryMsb,
+    MidiCc.DataEntryLsb,
+    MidiCc.DataIncrement,
+    MidiCc.DataDecrement,
+    MidiCc.ModulationMsb,
+    MidiCc.ModulationLsb,
+    MidiCc.ExpressionMsb,
+    MidiCc.ExpressionLsb,
+    MidiCc.SustainPedal,
+    MidiCc.PortamentoPedal,
+    MidiCc.SostenutoPedal,
+    MidiCc.SoftPedal,
+    MidiCc.LegatoFootswitch,
+    MidiCc.Hold2Pedal,
+    MidiCc.RpnMsb,
+    MidiCc.RpnLsb,
+    MidiCc.NrpnMsb,
+    MidiCc.NrpnLsb,
   )
 
   /**
@@ -494,24 +494,24 @@ object ScMidiChannelStateTracker {
    * value, an override, or a constructor-supplied default is unavailable. These match common MIDI 1.0 defaults.
    */
   val DefaultCcValues: Map[Int, Int] = Map(
-    ScMidiCc.BankSelectMsb -> 0,
-    ScMidiCc.BankSelectLsb -> 0,
-    ScMidiCc.ModulationMsb -> 0,
-    ScMidiCc.ModulationLsb -> 0,
-    ScMidiCc.VolumeMsb -> 100,
-    ScMidiCc.VolumeLsb -> 0,
-    ScMidiCc.PanMsb -> 64,
-    ScMidiCc.PanLsb -> 0,
-    ScMidiCc.ExpressionMsb -> 127,
-    ScMidiCc.ExpressionLsb -> 0,
-    ScMidiCc.SustainPedal -> 0,
-    ScMidiCc.SostenutoPedal -> 0,
-    ScMidiCc.SoftPedal -> 0,
-    ScMidiCc.MpeSlide -> 64,
-    ScMidiCc.RpnMsb -> ScMidiRpn.NullMsb,
-    ScMidiCc.RpnLsb -> ScMidiRpn.NullLsb,
-    ScMidiCc.NrpnMsb -> ScMidiNrpn.NullMsb,
-    ScMidiCc.NrpnLsb -> ScMidiNrpn.NullLsb,
+    MidiCc.BankSelectMsb -> 0,
+    MidiCc.BankSelectLsb -> 0,
+    MidiCc.ModulationMsb -> 0,
+    MidiCc.ModulationLsb -> 0,
+    MidiCc.VolumeMsb -> 100,
+    MidiCc.VolumeLsb -> 0,
+    MidiCc.PanMsb -> 64,
+    MidiCc.PanLsb -> 0,
+    MidiCc.ExpressionMsb -> 127,
+    MidiCc.ExpressionLsb -> 0,
+    MidiCc.SustainPedal -> 0,
+    MidiCc.SostenutoPedal -> 0,
+    MidiCc.SoftPedal -> 0,
+    MidiCc.MpeSlide -> 64,
+    MidiCc.RpnMsb -> MidiRpn.NullMsb,
+    MidiCc.RpnLsb -> MidiRpn.NullLsb,
+    MidiCc.NrpnMsb -> MidiNrpn.NullMsb,
+    MidiCc.NrpnLsb -> MidiNrpn.NullLsb,
   )
 
   /**
@@ -524,15 +524,15 @@ object ScMidiChannelStateTracker {
    */
   val DefaultRpnValues: Map[(Int, Int), (Int, Int)] = Map(
     // Pitch Bend Sensitivity (0,0): ±2 semitones, 0 cents.
-    (ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb) -> (2, 0),
+    (MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb) -> (2, 0),
     // Channel Fine Tuning (0,1): centred at 8192 → (64, 0).
-    (ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb) -> (64, 0),
+    (MidiRpn.FineTuningMsb, MidiRpn.FineTuningLsb) -> (64, 0),
     // Channel Coarse Tuning (0,2): centred at 64 semitones; LSB unused.
-    (ScMidiRpn.CoarseTuningMsb, ScMidiRpn.CoarseTuningLsb) -> (64, 0),
+    (MidiRpn.CoarseTuningMsb, MidiRpn.CoarseTuningLsb) -> (64, 0),
     // Tuning Program Select (0,3): 0.
-    (ScMidiRpn.TuningProgramSelectMsb, ScMidiRpn.TuningProgramSelectLsb) -> (0, 0),
+    (MidiRpn.TuningProgramSelectMsb, MidiRpn.TuningProgramSelectLsb) -> (0, 0),
     // Tuning Bank Select (0,4): 0.
-    (ScMidiRpn.TuningBankSelectMsb, ScMidiRpn.TuningBankSelectLsb) -> (0, 0)
+    (MidiRpn.TuningBankSelectMsb, MidiRpn.TuningBankSelectLsb) -> (0, 0)
   )
 
   /**

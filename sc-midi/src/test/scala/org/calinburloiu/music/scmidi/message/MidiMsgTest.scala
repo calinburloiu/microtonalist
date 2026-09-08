@@ -104,18 +104,18 @@ class MidiMsgTest extends AnyFlatSpec with Matchers {
 
   it should "rewrite the channel via mapChannel" in {
     // Given
-    val original = CcMidiMsg(0, ScMidiCc.SustainPedal, 64)
+    val original = CcMidiMsg(0, MidiCc.SustainPedal, 64)
 
     // When
     val mapped = original.mapChannel(_ => 9)
 
     // Then
-    mapped shouldBe CcMidiMsg(9, ScMidiCc.SustainPedal, 64)
+    mapped shouldBe CcMidiMsg(9, MidiCc.SustainPedal, 64)
   }
 
   it should "preserve the concrete subtype when mapping the channel" in {
     // Given
-    val cc = CcMidiMsg(0, ScMidiCc.ModulationMsb, 32)
+    val cc = CcMidiMsg(0, MidiCc.ModulationMsb, 32)
 
     // When
     val mapped: CcMidiMsg = cc.mapChannel(_ => 1)

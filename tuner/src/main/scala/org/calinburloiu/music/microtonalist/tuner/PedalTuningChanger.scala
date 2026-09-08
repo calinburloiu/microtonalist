@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.scmidi.message.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, ScMidiCc}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc}
 
 import javax.sound.midi.MidiMessage
 import scala.collection.mutable
@@ -124,8 +124,8 @@ object PedalTuningChanger {
   val TypeName: String = "pedal"
 
   val DefaultTriggers: TuningChangeTriggers[CcNumber] = TuningChangeTriggers(
-    previous = Some(ScMidiCc.SoftPedal),
-    next = Some(ScMidiCc.SostenutoPedal)
+    previous = Some(MidiCc.SoftPedal),
+    next = Some(MidiCc.SostenutoPedal)
   )
   val DefaultThreshold: Int = 0
   val DefaultTriggersThru: Boolean = false
@@ -144,8 +144,8 @@ object PedalTuningChanger {
    *                                if they should be filtered out.
    * @return An instance of `PedalTuningChanger` configured with the specified parameters.
    */
-  def apply(previousTuningCcTrigger: Int = ScMidiCc.SoftPedal,
-            nextTuningCcTrigger: Int = ScMidiCc.SostenutoPedal,
+  def apply(previousTuningCcTrigger: Int = MidiCc.SoftPedal,
+            nextTuningCcTrigger: Int = MidiCc.SostenutoPedal,
             threshold: Int = DefaultThreshold,
             triggersThru: Boolean = DefaultTriggersThru): PedalTuningChanger = {
     PedalTuningChanger(

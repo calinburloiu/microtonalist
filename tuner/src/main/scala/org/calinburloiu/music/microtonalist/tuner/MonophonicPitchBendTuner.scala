@@ -115,10 +115,10 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       case PitchBendMidiMsg(_, newExpressionPitchBend) =>
         currExpressionPitchBend = newExpressionPitchBend
         applyPitchBend(buffer)
-      case CcMidiMsg(_, ScMidiCc.DataEntryMsb, value) =>
+      case CcMidiMsg(_, MidiCc.DataEntryMsb, value) =>
         buffer += forwardMessage()
         applyPitchBendSensitivityMsb(buffer, value)
-      case CcMidiMsg(_, ScMidiCc.DataEntryLsb, value) =>
+      case CcMidiMsg(_, MidiCc.DataEntryLsb, value) =>
         buffer += forwardMessage()
         applyPitchBendSensitivityLsb(buffer, value)
       case _ =>
@@ -250,19 +250,19 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    * by stopping the sustained notes.
    */
   private def interruptPedals(buffer: mutable.Buffer[MidiMessage]): Unit = {
-    val sustain = tracker.cc(trackedChannel, ScMidiCc.SustainPedal, Some(0))
+    val sustain = tracker.cc(trackedChannel, MidiCc.SustainPedal, Some(0))
     if (sustain > 0) {
-      buffer += CcMidiMsg(outputChannel, ScMidiCc.SustainPedal, 0).asJava
-      buffer += CcMidiMsg(outputChannel, ScMidiCc.SustainPedal, sustain).asJava
+      buffer += CcMidiMsg(outputChannel, MidiCc.SustainPedal, 0).asJava
+      buffer += CcMidiMsg(outputChannel, MidiCc.SustainPedal, sustain).asJava
     }
 
-    val sostenuto = tracker.cc(trackedChannel, ScMidiCc.SostenutoPedal, Some(0))
+    val sostenuto = tracker.cc(trackedChannel, MidiCc.SostenutoPedal, Some(0))
     if (sostenuto > 0) {
       // Sostenuto pedal only has effect if depressed after playing a note, so there is no sense in depressing it again.
       // Replay a SostenutoPedal=0 to the tracker to reflect the interrupted state internally.
-      tracker.send(CcMidiMsg(trackedChannel, ScMidiCc.SostenutoPedal, 0))
+      tracker.send(CcMidiMsg(trackedChannel, MidiCc.SostenutoPedal, 0))
 
-      buffer += CcMidiMsg(outputChannel, ScMidiCc.SostenutoPedal, 0).asJava
+      buffer += CcMidiMsg(outputChannel, MidiCc.SostenutoPedal, 0).asJava
     }
   }
 

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRpn}
 
 /**
  * The home of MIDI 1.0's Registered and Non-Registered Parameter message vocabulary: the parameters Microtonalist
@@ -32,11 +32,11 @@ object RpnMessages {
 
   /** Pitch Bend Sensitivity (RPN 00 00), the pitch bend range of a channel in semitones and cents. */
   val PitchBendSensitivitySelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    RpnSelector.Rpn(MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb)
 
   /** The MPE Configuration Message (RPN 00 06), which configures an MPE Zone. */
   val MpeConfigurationMessageSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+    RpnSelector.Rpn(MidiRpn.MpeConfigurationMessageMsb, MidiRpn.MpeConfigurationMessageLsb)
 
   /**
    * Renders the pair of Control Change messages that select `selector` on `channel`, ahead of the Data Entry, Data
@@ -64,13 +64,13 @@ object RpnMessages {
    */
   def select(channel: Int, selector: RpnSelector): Seq[CcMidiMsg] = selector match {
     case RpnSelector.Rpn(msb, lsb) => Seq(
-      CcMidiMsg(channel, ScMidiCc.RpnLsb, lsb),
-      CcMidiMsg(channel, ScMidiCc.RpnMsb, msb))
+      CcMidiMsg(channel, MidiCc.RpnLsb, lsb),
+      CcMidiMsg(channel, MidiCc.RpnMsb, msb))
     case RpnSelector.Nrpn(msb, lsb) => Seq(
-      CcMidiMsg(channel, ScMidiCc.NrpnLsb, lsb),
-      CcMidiMsg(channel, ScMidiCc.NrpnMsb, msb))
+      CcMidiMsg(channel, MidiCc.NrpnLsb, lsb),
+      CcMidiMsg(channel, MidiCc.NrpnMsb, msb))
     case RpnSelector.None => Seq(
-      CcMidiMsg(channel, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcMidiMsg(channel, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb))
+      CcMidiMsg(channel, MidiCc.RpnLsb, MidiRpn.NullLsb),
+      CcMidiMsg(channel, MidiCc.RpnMsb, MidiRpn.NullMsb))
   }
 }

@@ -115,12 +115,12 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
     ccMessages should contain inOrderOnly(
-      (ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb),
-      (ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb),
-      (ScMidiCc.DataEntryMsb, customPitchBendSensitivity.semitones),
-      (ScMidiCc.DataEntryLsb, customPitchBendSensitivity.cents),
-      (ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      (ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+      (MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+      (MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+      (MidiCc.DataEntryMsb, customPitchBendSensitivity.semitones),
+      (MidiCc.DataEntryLsb, customPitchBendSensitivity.cents),
+      (MidiCc.RpnLsb, MidiRpn.NullLsb),
+      (MidiCc.RpnMsb, MidiRpn.NullMsb)
     )
   }
 
@@ -492,13 +492,13 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "forward modulation CC message on the correct channel" in new Fixture {
     tuner.tune(customTuning2)
 
-    output ++= tuner.process(CcMidiMsg(inputChannel, ScMidiCc.ModulationMsb, 34).asJava)
+    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.ModulationMsb, 34).asJava)
 
     output should have size 1
     inside(output.head.asScala) {
       case CcMidiMsg(channel, number, 34) =>
         channel shouldEqual outputChannel
-        number shouldEqual ScMidiCc.ModulationMsb
+        number shouldEqual MidiCc.ModulationMsb
     }
   }
 
@@ -507,23 +507,23 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
   it should "interrupt sustain pedal in order to not violate monophony" in new Fixture {
     tuner.tune(customTuning)
 
-    output ++= tuner.process(CcMidiMsg(inputChannel, ScMidiCc.SustainPedal, 64).asJava)
+    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 64).asJava)
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteC4).asJava)
     output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4).asJava)
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4).asJava)
 
     shortMessageOutput should have size 9
     // Depress pedal
-    inside(scMidiOutput.head) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 64) => }
+    inside(scMidiOutput.head) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     // C on
-    inside(scMidiOutput(1)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 0) => }
-    inside(scMidiOutput(2)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 64) => }
+    inside(scMidiOutput(1)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
+    inside(scMidiOutput(2)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     inside(scMidiOutput(3)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // C off
     inside(scMidiOutput(4)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(scMidiOutput(5)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 0) => }
-    inside(scMidiOutput(6)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 64) => }
+    inside(scMidiOutput(5)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
+    inside(scMidiOutput(6)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     inside(scMidiOutput(7)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
     inside(scMidiOutput(8)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
   }
@@ -533,7 +533,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteC4).asJava)
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4).asJava)
-    output ++= tuner.process(CcMidiMsg(inputChannel, ScMidiCc.SustainPedal, 64).asJava)
+    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 64).asJava)
     output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteE4).asJava)
 
     shortMessageOutput should have size 10
@@ -544,11 +544,11 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     inside(scMidiOutput(2)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
     inside(scMidiOutput(3)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
     // Depress pedal
-    inside(scMidiOutput(4)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 64) => }
+    inside(scMidiOutput(4)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     // Play C
     inside(scMidiOutput(5)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
-    inside(scMidiOutput(6)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 0) => }
-    inside(scMidiOutput(7)) { case CcMidiMsg(_, ScMidiCc.SustainPedal, 64) => }
+    inside(scMidiOutput(6)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
+    inside(scMidiOutput(7)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     inside(scMidiOutput(8)) { case PitchBendMidiMsg(_, value) => value shouldEqual 0 }
     inside(scMidiOutput(9)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
   }
@@ -557,7 +557,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.tune(customTuning)
 
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteC4).asJava)
-    output ++= tuner.process(CcMidiMsg(inputChannel, ScMidiCc.SostenutoPedal, 64).asJava)
+    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.SostenutoPedal, 64).asJava)
     output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4).asJava)
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4).asJava)
 
@@ -565,11 +565,11 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     // C on
     inside(scMidiOutput.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Depress pedal
-    inside(scMidiOutput(1)) { case CcMidiMsg(_, ScMidiCc.SostenutoPedal, 64) => }
+    inside(scMidiOutput(1)) { case CcMidiMsg(_, MidiCc.SostenutoPedal, 64) => }
     // C off
     inside(scMidiOutput(2)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(scMidiOutput(3)) { case CcMidiMsg(_, ScMidiCc.SostenutoPedal, 0) => }
+    inside(scMidiOutput(3)) { case CcMidiMsg(_, MidiCc.SostenutoPedal, 0) => }
     inside(scMidiOutput(4)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
     inside(scMidiOutput(5)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
   }
@@ -579,11 +579,11 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     // Current pbs is 1 semitone (semitonePitchBendSensitivity)
     // Send RPN messages to change it to 2 semitones
-    tuner.process(CcMidiMsg(inputChannel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava)
-    tuner.process(CcMidiMsg(inputChannel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava)
-    tuner.process(CcMidiMsg(inputChannel, ScMidiCc.DataEntryMsb, tonePitchBendSensitivity.semitones)
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb).asJava)
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb).asJava)
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, tonePitchBendSensitivity.semitones)
       .asJava)
-    tuner.process(CcMidiMsg(inputChannel, ScMidiCc.DataEntryLsb, tonePitchBendSensitivity.cents)
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryLsb, tonePitchBendSensitivity.cents)
       .asJava)
 
     // Play noteE4 (offset is -16.67 cents in customTuning)
@@ -605,10 +605,10 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     tuner.process(NoteOnMidiMsg(inputChannel, noteE4).asJava)
 
     // Send RPN messages to change it to 2 semitones
-    tuner.process(CcMidiMsg(inputChannel, ScMidiCc.RpnLsb, ScMidiRpn.PitchBendSensitivityLsb).asJava)
-    tuner.process(CcMidiMsg(inputChannel, ScMidiCc.RpnMsb, ScMidiRpn.PitchBendSensitivityMsb).asJava)
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb).asJava)
+    tuner.process(CcMidiMsg(inputChannel, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb).asJava)
     // MSB change
-    output ++= tuner.process(CcMidiMsg(inputChannel, ScMidiCc.DataEntryMsb, tonePitchBendSensitivity
+    output ++= tuner.process(CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, tonePitchBendSensitivity
       .semitones).asJava)
 
     // It should have sent a new pitch bend message immediately after DataEntryMsb

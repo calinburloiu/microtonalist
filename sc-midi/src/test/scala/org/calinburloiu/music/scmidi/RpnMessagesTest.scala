@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, ScMidiCc, ScMidiRpn}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRpn}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,8 +33,8 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
 
     // Then
     messages shouldEqual Seq(
-      CcMidiMsg(5, ScMidiCc.RpnLsb, 0x34),
-      CcMidiMsg(5, ScMidiCc.RpnMsb, 0x12)
+      CcMidiMsg(5, MidiCc.RpnLsb, 0x34),
+      CcMidiMsg(5, MidiCc.RpnMsb, 0x12)
     )
   }
 
@@ -47,8 +47,8 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
 
     // Then
     messages shouldEqual Seq(
-      CcMidiMsg(5, ScMidiCc.NrpnLsb, 0x34),
-      CcMidiMsg(5, ScMidiCc.NrpnMsb, 0x12)
+      CcMidiMsg(5, MidiCc.NrpnLsb, 0x34),
+      CcMidiMsg(5, MidiCc.NrpnMsb, 0x12)
     )
   }
 
@@ -59,8 +59,8 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
     // Then — holding no parameter selected is not the absence of a selector on the wire; it is the Null Function,
     // RPN 7F 7F, which is what deselects at the receiver
     messages shouldEqual Seq(
-      CcMidiMsg(3, ScMidiCc.RpnLsb, ScMidiRpn.NullLsb),
-      CcMidiMsg(3, ScMidiCc.RpnMsb, ScMidiRpn.NullMsb)
+      CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.NullLsb),
+      CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.NullMsb)
     )
   }
 
@@ -72,7 +72,7 @@ class RpnMessagesTest extends AnyFlatSpec with Matchers {
       RpnSelector.Rpn(msb = 0x12, lsb = 0x34),
       RpnSelector.Nrpn(msb = 0x56, lsb = 0x78),
       // A parameter whose halves are the Null value without being the Null pair, the case #267 turned on.
-      RpnSelector.Rpn(msb = ScMidiRpn.NullMsb, lsb = 0x00),
+      RpnSelector.Rpn(msb = MidiRpn.NullMsb, lsb = 0x00),
       RpnSelector.None)
 
     // When / Then — what `select` renders is exactly what the tracker reads back as selected

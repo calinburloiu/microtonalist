@@ -46,9 +46,9 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   private val noZones: MpeZones = MpeZones(disabledLower, disabledUpper)
 
   private val mcmSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb)
+    RpnSelector.Rpn(MidiRpn.MpeConfigurationMessageMsb, MidiRpn.MpeConfigurationMessageLsb)
   private val pbsSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb)
+    RpnSelector.Rpn(MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb)
 
   behavior of "MpeMessageRouting.roleOf"
 
@@ -150,7 +150,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
         ChannelPressureMidiMsg(inputChannel, 90),
         Interpret, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("CC #74",
-        CcMidiMsg(inputChannel, ScMidiCc.MpeSlide, 100),
+        CcMidiMsg(inputChannel, MidiCc.MpeSlide, 100),
         Interpret, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("Polyphonic Key Pressure",
         PolyPressureMidiMsg(inputChannel, MidiNote.C4, 80),
@@ -159,34 +159,34 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
         ProgramChangeMidiMsg(inputChannel, 5),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("Bank Select MSB",
-        CcMidiMsg(inputChannel, ScMidiCc.BankSelectMsb, 1),
+        CcMidiMsg(inputChannel, MidiCc.BankSelectMsb, 1),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("Damper Pedal",
-        CcMidiMsg(inputChannel, ScMidiCc.SustainPedal, 127),
+        CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("All Sound Off (CC #120)",
-        CcMidiMsg(inputChannel, ScMidiCc.AllSoundOff, 0),
+        CcMidiMsg(inputChannel, MidiCc.AllSoundOff, 0),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("Reset All Controllers (CC #121)",
-        CcMidiMsg(inputChannel, ScMidiCc.ResetAllControllers, 0),
+        CcMidiMsg(inputChannel, MidiCc.ResetAllControllers, 0),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("Local Control (CC #122)",
-        CcMidiMsg(inputChannel, ScMidiCc.LocalControl, 0),
+        CcMidiMsg(inputChannel, MidiCc.LocalControl, 0),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("All Notes Off (CC #123)",
-        CcMidiMsg(inputChannel, ScMidiCc.AllNotesOff, 0),
+        CcMidiMsg(inputChannel, MidiCc.AllNotesOff, 0),
         Discard, ForwardOn(zoneMasterChannel), ForwardOn(zoneMasterChannel), Discard),
       ("Omni Mode Off (CC #124)",
-        CcMidiMsg(inputChannel, ScMidiCc.OmniModeOff, 0),
+        CcMidiMsg(inputChannel, MidiCc.OmniModeOff, 0),
         Discard, Discard, Discard, Discard),
       ("Omni Mode On (CC #125)",
-        CcMidiMsg(inputChannel, ScMidiCc.OmniModeOn, 0),
+        CcMidiMsg(inputChannel, MidiCc.OmniModeOn, 0),
         Discard, Discard, Discard, Discard),
       ("Mono Mode On (CC #126)",
-        CcMidiMsg(inputChannel, ScMidiCc.MonoModeOn, 1),
+        CcMidiMsg(inputChannel, MidiCc.MonoModeOn, 1),
         Discard, Discard, Discard, Discard),
       ("Poly Mode On (CC #127)",
-        CcMidiMsg(inputChannel, ScMidiCc.PolyModeOn, 0),
+        CcMidiMsg(inputChannel, MidiCc.PolyModeOn, 0),
         Discard, Discard, Discard, Discard)
     )
     forAll(verdicts) { (_, message, member, master, nonMpe, outside) =>
@@ -200,21 +200,21 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   it should "forward a Master Channel message on the Zone's Master Channel" in {
     // Given
-    val message = CcMidiMsg(zoneMasterChannel, ScMidiCc.SustainPedal, 127)
+    val message = CcMidiMsg(zoneMasterChannel, MidiCc.SustainPedal, 127)
     // When / Then
     MpeMessageRouting.route(masterRole, message, noSelector) shouldEqual ForwardOn(zoneMasterChannel)
   }
 
   it should "forward an Upper Zone Master Channel message on the Upper Zone Master Channel" in {
     // Given
-    val message = CcMidiMsg(upper7.masterChannel, ScMidiCc.SustainPedal, 127)
+    val message = CcMidiMsg(upper7.masterChannel, MidiCc.SustainPedal, 127)
     // When / Then
     MpeMessageRouting.route(MpeChannelRole.Master(upper7), message, noSelector) shouldEqual ForwardOn(15)
   }
 
   it should "redirect a Non-MPE input message to the Upper Zone Master Channel only when it is enabled" in {
     // Given
-    val message = CcMidiMsg(inputChannel, ScMidiCc.SustainPedal, 127)
+    val message = CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127)
     // When / Then
     MpeMessageRouting.route(MpeChannelRole.NonMpeInput(upper7), message, noSelector) shouldEqual ForwardOn(15)
   }
@@ -229,7 +229,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val memberCounts = Table("memberCount", 0, 7, 15)
     forAll(channels) { channel =>
       forAll(memberCounts) { memberCount =>
-        val message = CcMidiMsg(channel, ScMidiCc.DataEntryMsb, memberCount)
+        val message = CcMidiMsg(channel, MidiCc.DataEntryMsb, memberCount)
         forAll(roles) { role =>
           // When / Then
           MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Interpret
@@ -245,7 +245,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val memberCounts = Table("memberCount", 16, 100, 127)
     forAll(channels) { channel =>
       forAll(memberCounts) { memberCount =>
-        val message = CcMidiMsg(channel, ScMidiCc.DataEntryMsb, memberCount)
+        val message = CcMidiMsg(channel, MidiCc.DataEntryMsb, memberCount)
         forAll(roles) { role =>
           // When / Then
           MpeMessageRouting.route(role, message, mcmSelector) shouldEqual Discard
@@ -256,7 +256,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   it should "interpret a PBS Data Entry at every role but Outside" in {
     // Given
-    val ccNumbers = Table("ccNumber", ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb)
+    val ccNumbers = Table("ccNumber", MidiCc.DataEntryMsb, MidiCc.DataEntryLsb)
     forAll(ccNumbers) { ccNumber =>
       val message = CcMidiMsg(inputChannel, ccNumber, 24)
       // When / Then
@@ -270,7 +270,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "consume the selector CCs of an interpreted parameter as well" in {
     // Given
     val selectors = Table("selector", mcmSelector, pbsSelector)
-    val ccNumbers = Table("ccNumber", ScMidiCc.RpnMsb, ScMidiCc.RpnLsb)
+    val ccNumbers = Table("ccNumber", MidiCc.RpnMsb, MidiCc.RpnLsb)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(selectors) { selector =>
       forAll(ccNumbers) { ccNumber =>
@@ -285,12 +285,12 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   // ---- Uninterpreted Registered and Non-Registered Parameters ----
 
   private val fineTuningSelector: RpnSelector =
-    RpnSelector.Rpn(ScMidiRpn.FineTuningMsb, ScMidiRpn.FineTuningLsb)
+    RpnSelector.Rpn(MidiRpn.FineTuningMsb, MidiRpn.FineTuningLsb)
   private val nrpnSelector: RpnSelector = RpnSelector.Nrpn(12, 34)
 
   it should "consume every RPN and NRPN selector CC" in {
     // Given
-    val ccNumbers = Table("ccNumber", ScMidiCc.RpnMsb, ScMidiCc.RpnLsb, ScMidiCc.NrpnMsb, ScMidiCc.NrpnLsb)
+    val ccNumbers = Table("ccNumber", MidiCc.RpnMsb, MidiCc.RpnLsb, MidiCc.NrpnMsb, MidiCc.NrpnLsb)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(ccNumbers) { ccNumber =>
       forAll(roles) { role =>
@@ -305,7 +305,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Given
     val selectors = Table("selector", fineTuningSelector, nrpnSelector)
     val ccNumbers = Table("ccNumber",
-      ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+      MidiCc.DataEntryMsb, MidiCc.DataEntryLsb, MidiCc.DataIncrement, MidiCc.DataDecrement)
     forAll(selectors) { selector =>
       forAll(ccNumbers) { ccNumber =>
         val message = CcMidiMsg(inputChannel, ccNumber, 64)
@@ -322,7 +322,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Given — what `ScMidiChannelStateTracker` reports for a parameter with a selector CC still to arrive as much as
     // for one a Null deselected: either way the value has no parameter to apply to.
     val ccNumbers = Table("ccNumber",
-      ScMidiCc.DataEntryMsb, ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+      MidiCc.DataEntryMsb, MidiCc.DataEntryLsb, MidiCc.DataIncrement, MidiCc.DataDecrement)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(ccNumbers) { ccNumber =>
       forAll(roles) { role =>
@@ -338,7 +338,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     val selectors = Table("selector",
       RpnSelector.Nrpn(msb = 127, lsb = 34),
       RpnSelector.Nrpn(msb = 12, lsb = 127))
-    val message = CcMidiMsg(inputChannel, ScMidiCc.DataEntryMsb, 64)
+    val message = CcMidiMsg(inputChannel, MidiCc.DataEntryMsb, 64)
     forAll(selectors) { selector =>
       // When / Then
       MpeMessageRouting.route(masterRole, message, selector) shouldEqual ForwardRpnSequenceOn(zoneMasterChannel)
@@ -348,14 +348,14 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "route an NRPN that shares the numbers of an interpreted RPN as uninterpreted" in {
     // Given
     val selectors = Table("selector",
-      RpnSelector.Nrpn(ScMidiRpn.PitchBendSensitivityMsb, ScMidiRpn.PitchBendSensitivityLsb),
-      RpnSelector.Nrpn(ScMidiRpn.MpeConfigurationMessageMsb, ScMidiRpn.MpeConfigurationMessageLsb))
+      RpnSelector.Nrpn(MidiRpn.PitchBendSensitivityMsb, MidiRpn.PitchBendSensitivityLsb),
+      RpnSelector.Nrpn(MidiRpn.MpeConfigurationMessageMsb, MidiRpn.MpeConfigurationMessageLsb))
     forAll(selectors) { selector =>
       // When / Then: an MCM is valid on MIDI Channel 1 (1-based), so the NRPN of the same numbers is the case that
       // could be mistaken for one.
-      MpeMessageRouting.route(masterRole, CcMidiMsg(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual
+      MpeMessageRouting.route(masterRole, CcMidiMsg(0, MidiCc.DataEntryMsb, 7), selector) shouldEqual
         ForwardRpnSequenceOn(zoneMasterChannel)
-      MpeMessageRouting.route(memberRole, CcMidiMsg(0, ScMidiCc.DataEntryMsb, 7), selector) shouldEqual Discard
+      MpeMessageRouting.route(memberRole, CcMidiMsg(0, MidiCc.DataEntryMsb, 7), selector) shouldEqual Discard
     }
   }
 
@@ -366,7 +366,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     forAll(channels) { channel =>
       forAll(roles) { role =>
         // When / Then
-        MpeMessageRouting.route(role, CcMidiMsg(channel, ScMidiCc.DataEntryMsb, 7), mcmSelector) shouldEqual
+        MpeMessageRouting.route(role, CcMidiMsg(channel, MidiCc.DataEntryMsb, 7), mcmSelector) shouldEqual
           Discard
       }
     }
@@ -374,7 +374,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   it should "discard a Data Entry LSB and a Data Increment or Decrement of the MCM" in {
     // Given
-    val ccNumbers = Table("ccNumber", ScMidiCc.DataEntryLsb, ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    val ccNumbers = Table("ccNumber", MidiCc.DataEntryLsb, MidiCc.DataIncrement, MidiCc.DataDecrement)
     forAll(ccNumbers) { ccNumber =>
       // When / Then
       MpeMessageRouting.route(masterRole, CcMidiMsg(0, ccNumber, 7), mcmSelector) shouldEqual Discard
@@ -383,7 +383,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
 
   it should "discard a Data Increment or Decrement of Pitch Bend Sensitivity at every role" in {
     // Given
-    val ccNumbers = Table("ccNumber", ScMidiCc.DataIncrement, ScMidiCc.DataDecrement)
+    val ccNumbers = Table("ccNumber", MidiCc.DataIncrement, MidiCc.DataDecrement)
     val roles = Table("role", memberRole, masterRole, nonMpeRole, outsideRole)
     forAll(ccNumbers) { ccNumber =>
       forAll(roles) { role =>
@@ -404,12 +404,12 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "render an RPN selector ahead of its value message" in {
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
-      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = RpnSelector.None)
+      receivedValueCc(MidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = RpnSelector.None)
     // Then the value message is re-addressed from its input channel to the output one
     messages shouldEqual Seq(
-      CcMidiMsg(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
-      CcMidiMsg(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
-      CcMidiMsg(0, ScMidiCc.DataEntryMsb, 64)
+      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
+      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
+      CcMidiMsg(0, MidiCc.DataEntryMsb, 64)
     )
     latchedSelector shouldEqual fineTuningSelector
   }
@@ -417,12 +417,12 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "render an NRPN selector ahead of its value message" in {
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(nrpnSelector,
-      receivedValueCc(ScMidiCc.DataIncrement, 1), outputChannel = 15, latchedSelector = RpnSelector.None)
+      receivedValueCc(MidiCc.DataIncrement, 1), outputChannel = 15, latchedSelector = RpnSelector.None)
     // Then
     messages shouldEqual Seq(
-      CcMidiMsg(15, ScMidiCc.NrpnLsb, 34),
-      CcMidiMsg(15, ScMidiCc.NrpnMsb, 12),
-      CcMidiMsg(15, ScMidiCc.DataIncrement, 1)
+      CcMidiMsg(15, MidiCc.NrpnLsb, 34),
+      CcMidiMsg(15, MidiCc.NrpnMsb, 12),
+      CcMidiMsg(15, MidiCc.DataIncrement, 1)
     )
     latchedSelector shouldEqual nrpnSelector
   }
@@ -430,7 +430,7 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "render nothing when no parameter is selected" in {
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(RpnSelector.None,
-      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
+      receivedValueCc(MidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
     // Then the output channel keeps the parameter it already held: nothing was emitted to change it
     messages shouldBe empty
     latchedSelector shouldEqual nrpnSelector
@@ -442,9 +442,9 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     forAll(selectors) { selector =>
       // When
       val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(selector,
-        receivedValueCc(ScMidiCc.DataEntryLsb, 5), outputChannel = 0, latchedSelector = selector)
+        receivedValueCc(MidiCc.DataEntryLsb, 5), outputChannel = 0, latchedSelector = selector)
       // Then
-      messages shouldEqual Seq(CcMidiMsg(0, ScMidiCc.DataEntryLsb, 5))
+      messages shouldEqual Seq(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
       latchedSelector shouldEqual selector
     }
   }
@@ -452,12 +452,12 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
   it should "render the selector when the output channel holds a different parameter selected" in {
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
-      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
+      receivedValueCc(MidiCc.DataEntryMsb, 64), outputChannel = 0, latchedSelector = nrpnSelector)
     // Then
     messages shouldEqual Seq(
-      CcMidiMsg(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
-      CcMidiMsg(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
-      CcMidiMsg(0, ScMidiCc.DataEntryMsb, 64)
+      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
+      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
+      CcMidiMsg(0, MidiCc.DataEntryMsb, 64)
     )
     latchedSelector shouldEqual fineTuningSelector
   }
@@ -466,13 +466,13 @@ class MpeMessageRoutingTest extends AnyFlatSpec with Matchers with TableDrivenPr
     // Given the state the Tuner's own MCM and Pitch Bend Sensitivity sequences leave behind, both closing with one
     // When
     val (messages, latchedSelector) = MpeMessageRouting.rpnSequence(fineTuningSelector,
-      receivedValueCc(ScMidiCc.DataEntryMsb, 64), outputChannel = 0,
+      receivedValueCc(MidiCc.DataEntryMsb, 64), outputChannel = 0,
       latchedSelector = RpnSelector.None)
     // Then
     messages shouldEqual Seq(
-      CcMidiMsg(0, ScMidiCc.RpnLsb, ScMidiRpn.FineTuningLsb),
-      CcMidiMsg(0, ScMidiCc.RpnMsb, ScMidiRpn.FineTuningMsb),
-      CcMidiMsg(0, ScMidiCc.DataEntryMsb, 64)
+      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
+      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
+      CcMidiMsg(0, MidiCc.DataEntryMsb, 64)
     )
     latchedSelector shouldEqual fineTuningSelector
   }
