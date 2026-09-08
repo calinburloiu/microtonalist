@@ -24,9 +24,9 @@
 > superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Model MIDI 1.0's eight Channel Mode messages as their own `ChannelModeMidiMsg` subtypes instead of
-`CcMidiMsg` values with controller numbers 120–127, restrict `CcMidiMsg.number` to 0–119, and switch every consumer
+`CcMidiMsg` values with controller numbers 120–127, restrict `CcMidiMsg.number` to 0–119, switch every consumer
 — the Java Sound converters, `MidiChannelStateTracker` and the MPE message routing — from matching on numbers to
-matching on types.
+matching on types, and tighten the pedal-trigger JSON format and JSON Schemas to the same 0–119 range.
 
 **Architecture:** A new `sealed abstract class ChannelModeMidiMsg(channel) extends ChannelMidiMsg(channel)` sits
 beside the Channel Voice messages in `MidiMsg.scala` (it must live in that file: `ChannelMidiMsg` is `sealed`), with
@@ -37,8 +37,9 @@ number, and `ChannelModeMidiMsg.NumberRange` is the range those numbers span, de
 a `CONTROL_CHANGE` on its controller number, inbound and outbound. Consumers match on the new types.
 
 The work is sequenced so the suite is green at every commit: the new types and the converters land first (nothing
-constructs a Channel Mode `CcMidiMsg` any more once each consumer has migrated), and the `CcMidiMsg` restriction and
-the deletion of the `MidiCc` Channel Mode constants land **last**, as the enforcement step.
+constructs a Channel Mode `CcMidiMsg` any more once each consumer has migrated), then the `CcMidiMsg` restriction and
+the deletion of the `MidiCc` Channel Mode constants as the enforcement step, then the `format` module and the JSON
+Schemas, which turn a now-dead pedal-trigger configuration into a load-time error.
 
 **Tech Stack:** Scala 3, sbt 1 (via `sbtn` on the BSP server), ScalaTest 3 (`AnyFlatSpec` + `Matchers`,
 `TableDrivenPropertyChecks`), `javax.sound.midi` (inside `scmidi.javamidi` only), Metals MCP for compilation,
@@ -67,12 +68,13 @@ Every task's requirements implicitly include this section.
 - **Testing**: always through `sbtn`, always with the reporter flags. A single class:
   `sbtn "sc-midi/testOnly org.calinburloiu.music.scmidi.message.MidiMsgTest -- -oNCXEHLOPQRMWS"`. A module:
   `sbtn "tuner/testOnly * -- -oNCXEHLOPQRMWS"`. Everything: `sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"`.
-- **Coverage floors** (`build.sbt`): `sc-midi` 67% statement / 52% branch, `tuner` 80% / 80%. New files target 80%.
+- **Coverage floors** (`build.sbt`): `sc-midi` 67% statement / 52% branch, `tuner` 80% / 80%, `format` 66% / 59%.
+  New files target 80%.
   Floors must never drop. **`sc-midi` branch coverage is a pre-existing 51.22% against the floor of 52 on this branch
   stack, so `coverageCheck` already fails for reasons unrelated to this work** — compare against that baseline rather
   than expecting green, and do not lower the floor.
 - **Exactly one message type per controller number.** Numbers 120–127 belong to `ChannelModeMidiMsg` subtypes;
-  0–119 to `CcMidiMsg`. After Task 5 no `CcMidiMsg` can carry 120–127 at all.
+  0–119 to `CcMidiMsg`. After Task 5 no `CcMidiMsg` can carry 120–127 at all, and after Task 6 no composition can ask for one.
 - **Commit per task**, message prefixed `[#278/#285]`, ending with the two attribution lines the session's
   instructions specify. Do not push and do not open a PR in the implementation session unless the user asks.
 
@@ -89,11 +91,11 @@ amendment.
    (`JavaMidiDeviceHandle.scala:68` calls it with no `try`/`catch`), where a thrown `IllegalArgumentException` would
    take down the inbound stream. A Mono Mode On with a count above 16 therefore decodes to `UnsupportedMidiMsg`,
    which is exactly the lossless escape hatch the model documents, rather than throwing.
-3. **Pedal triggers on 120–127.** `PedalTuningChanger` matches `CcMidiMsg` and its JSON format accepts any 0–127
-   controller number, so a composition that configured a pedal trigger on 120–127 silently stops triggering once
-   those numbers can no longer be a `CcMidiMsg`. That is the correct outcome — a Channel Mode message is not a pedal
-   — and it is recorded in the class ScalaDoc (Task 5). Tightening the JSON format to reject 120–127 is **out of
-   scope**; it belongs with the `format` module's own validation work.
+3. **Pedal triggers on 120–127.** `PedalTuningChanger` matches `CcMidiMsg`, so once 120–127 can no longer be a
+   `CcMidiMsg` a trigger configured on one of those numbers would load fine and then never fire. Rather than leave
+   that silent, Task 6 tightens the JSON format and the JSON Schemas to reject those numbers at load time, and the
+   class ScalaDoc records the constraint (Task 5). `uint7Format` and `uint7.schema.json` stay 0–127: the Pitch Bend
+   Sensitivity fields of the Tuner plugin share them and are right to.
 
 ## File Structure
 
@@ -109,6 +111,10 @@ Production files, all modifications (no new files):
 | `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tuner/MpeMessageRouting.scala` | Gains `routeChannelMode`; `routeCc` loses its MIDI Mode arm; `deselectsOnRelay` matches a type. |
 | `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tuner/MpeTuner.scala` | Comment only — its dispatch is unchanged, because Channel Mode messages reach it through the generic `ChannelMidiMsg` path. |
 | `tuner/src/main/scala/org/calinburloiu/music/microtonalist/tuner/PedalTuningChanger.scala` | ScalaDoc only — records that 120–127 can no longer trigger a pedal. |
+| `format/src/main/scala/org/calinburloiu/music/microtonalist/format/package.scala` | Gains `JsonError_CcNumber` and `ccNumberFormat` (0–119) beside the untouched `uint7Format` (0–127). |
+| `format/src/main/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormat.scala` | Its three pedal-trigger fields read `ccNumberFormat` instead of `uint7Format`. |
+| `json-schemas/v1/track/ccNumber.schema.json` | **New.** The 0–119 counterpart of `uint7.schema.json`. |
+| `json-schemas/v1/track/tuningChanger.schema.json` | Its three pedal-trigger `$ref`s point at `ccNumber.schema.json`. |
 
 Test files, all modifications:
 
@@ -119,8 +125,11 @@ Test files, all modifications:
 | `sc-midi/src/test/scala/org/calinburloiu/music/scmidi/MidiChannelStateTrackerTest.scala` | Its Channel Mode section moves to the new types; two new cases. |
 | `tuner/src/test/scala/org/calinburloiu/music/microtonalist/tuner/MpeMessageRoutingTest.scala` | The paper's table rows move to the new types; a `deselectsOnRelay` behaviour section. |
 | `tuner/src/test/scala/org/calinburloiu/music/microtonalist/tuner/MpeTunerTest.scala` | Every Channel Mode case moves to the new types; an `extractChannelModes` helper. |
+| `format/src/test/scala/org/calinburloiu/music/microtonalist/format/FormatPackageObjectTest.scala` | A `ccNumberFormat` behaviour section. |
+| `format/src/test/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormatTest.scala` | All three trigger paths reject 120–127. |
 
-Documentation: `docs/architecture/sc-midi/README.md`, `docs/architecture/tuner/README.md` (Task 6).
+Documentation: `docs/architecture/sc-midi/README.md`, `docs/architecture/tuner/README.md`,
+`docs/architecture/format/README.md` (Task 7).
 
 ---
 
@@ -136,7 +145,7 @@ Documentation: `docs/architecture/sc-midi/README.md`, `docs/architecture/tuner/R
 **Interfaces:**
 - Consumes: `ChannelMidiMsg` (sealed, `val channel: Int`, abstract `mapChannel(map: Int => Int): ChannelMidiMsg`),
   `MidiRequirements.requireChannel`.
-- Produces, for Tasks 2–6:
+- Produces, for Tasks 2–7:
   * `sealed abstract class ChannelModeMidiMsg(channel: Int) extends ChannelMidiMsg(channel)` with
     `override def mapChannel(map: Int => Int): ChannelModeMidiMsg`
   * `object ChannelModeMidiMsg { val NumberRange: Range }` (`120 to 127`)
@@ -1299,8 +1308,9 @@ change again."):
 ```
  * Only Control Change numbers 0-119 can trigger a change. MIDI 1.0 reserves 120-127 for the Channel Mode messages,
  * which arrive as [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] values rather than
- * [[org.calinburloiu.music.scmidi.message.CcMidiMsg]] ones, so a trigger configured on one of those numbers never
- * fires.
+ * [[org.calinburloiu.music.scmidi.message.CcMidiMsg]] ones, so a trigger configured on one of those numbers would
+ * never fire. The JSON format rejects them when a composition is read, so only a programmatically constructed
+ * instance can hold one.
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**
@@ -1332,14 +1342,221 @@ git commit -m "[#278/#285] Restrict CcMidiMsg to controller numbers 0-119"
 
 ---
 
-## Task 6: Documentation and final checks
+## Task 6: Reject the Channel Mode numbers as pedal triggers in the JSON format and schemas
+
+A composition may configure a `PedalTuningChanger` trigger on any controller number 0–127. After Task 5 the numbers
+120–127 can no longer reach `PedalTuningChanger.decide` as a `CcMidiMsg` at all, so such a trigger would load
+successfully and then silently never fire. The format rejects it at load time instead, with an error naming the
+constraint, and the hand-maintained JSON Schemas say the same thing to an editor.
+
+`uint7Format` and `uint7.schema.json` are shared with the Pitch Bend Sensitivity fields of the Tuner plugin
+(`JsonCommonMidiFormat.scala:33-34`, `json-schemas/v1/track/tuner.schema.json:18,28`), where 0–127 is correct.
+**Neither may be narrowed.** A controller-number counterpart is added beside each.
+
+**Files:**
+- Modify: `format/src/main/scala/org/calinburloiu/music/microtonalist/format/package.scala` (the error constants at
+  lines 28–29; `uint7Format` at line 81)
+- Modify: `format/src/main/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormat.scala`
+  (the three `uint7Format` uses at lines 40, 48 and 49)
+- Create: `json-schemas/v1/track/ccNumber.schema.json`
+- Modify: `json-schemas/v1/track/tuningChanger.schema.json` (the three `{ "$ref": "uint7.schema.json" }` references
+  under `pedalSettings`)
+- Test: `format/src/test/scala/org/calinburloiu/music/microtonalist/format/FormatPackageObjectTest.scala`
+- Test: `format/src/test/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormatTest.scala`
+
+**Interfaces:**
+- Consumes: `MidiRequirements.MaxControllerNumber` (Task 1). The `format` module has `sc-midi` on its compile
+  classpath transitively through `tuner`, and `JsonTuningChangerPluginFormat` already imports from
+  `org.calinburloiu.music.scmidi.message`.
+- Produces: `format.JsonError_CcNumber: String = "error.expected.ccNumber"` and `format.ccNumberFormat: Format[Int]`
+  in the package object; a `ccNumber.schema.json` sibling of `uint7.schema.json`.
+
+**No license header** on `ccNumber.schema.json`: `addlicense` does not cover `.json`, and the existing schemas under
+`json-schemas/` carry none. Do not add one by hand.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `FormatPackageObjectTest.scala`, add a section after the `uint7Format` write case (it ends just before
+`"resolveLibraryUrl" should …`):
+
+```scala
+  "ccNumberFormat" should "read a Control Change controller number (between 0 and 119)" in {
+    ccNumberFormat.reads(JsNumber(0)) shouldEqual JsSuccess(0)
+    ccNumberFormat.reads(JsNumber(64)) shouldEqual JsSuccess(64)
+    ccNumberFormat.reads(JsNumber(119)) shouldEqual JsSuccess(119)
+    // 120-127 are Channel Mode messages, not controllers
+    ccNumberFormat.reads(JsNumber(120)) shouldEqual JsError("error.expected.ccNumber")
+    ccNumberFormat.reads(JsNumber(127)) shouldEqual JsError("error.expected.ccNumber")
+    ccNumberFormat.reads(JsNumber(128)) shouldEqual JsError("error.expected.ccNumber")
+    ccNumberFormat.reads(JsNumber(-1)) shouldEqual JsError("error.expected.ccNumber")
+  }
+
+  it should "write an integer" in {
+    ccNumberFormat.writes(0) shouldEqual JsNumber(0)
+    ccNumberFormat.writes(119) shouldEqual JsNumber(119)
+    // No validation on write
+  }
+```
+
+In `JsonTuningChangerPluginFormatTest.scala`, replace the single `index` row of
+`pedalTuningChangerFailureTable` (line ~57) with three rows covering all three trigger paths:
+
+```scala
+    (__ \ "triggers" \ "previous", DisallowedValues(JsNumber(-1), JsNumber(120), JsNumber(128)),
+      "error.expected.ccNumber"),
+    (__ \ "triggers" \ "next", DisallowedValues(JsNumber(-1), JsNumber(127), JsNumber(128)),
+      "error.expected.ccNumber"),
+    (__ \ "triggers" \ "index" \ "2", DisallowedValues(JsNumber(-1), JsNumber(120), JsNumber(128)),
+      "error.expected.ccNumber"),
+```
+
+The baseline `pedalTuningChangerJson` uses 100, 101, 10 and 20, all valid controller numbers, so it still
+deserializes and the table's precondition still holds.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run:
+
+```bash
+sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.FormatPackageObjectTest org.calinburloiu.music.microtonalist.format.JsonTuningChangerPluginFormatTest -- -oNCXEHLOPQRMWS"
+```
+
+Expected: `FormatPackageObjectTest` FAILS to compile (`Not found: ccNumberFormat`). Add the stub below to get past
+that, then re-run and expect assertion failures: `JsSuccess(120,) was not equal to JsError(error.expected.ccNumber)`
+and, in `JsonTuningChangerPluginFormatTest`, the failure table reporting that `120` was accepted at
+`triggers/previous`.
+
+Stub for the package object, so the tests compile:
+
+```scala
+  lazy val ccNumberFormat: Format[Int] = uint7Format
+```
+
+- [ ] **Step 3: Write the implementation**
+
+In `format/package.scala`, add the import:
+
+```scala
+import org.calinburloiu.music.scmidi.message.MidiRequirements
+```
+
+Add the error constant beside the existing two (lines 28–29):
+
+```scala
+  val JsonError_CcNumber: String = "error.expected.ccNumber"
+```
+
+Replace the stub with the real format, next to `uint7Format` (line 81):
+
+```scala
+  /**
+   * Format for a MIDI Control Change controller number, between 0 and
+   * [[org.calinburloiu.music.scmidi.message.MidiRequirements.MaxControllerNumber]] (119). MIDI 1.0 reserves 120-127
+   * for the Channel Mode messages, which are not controllers, so they are rejected. Do not use it for other 7-bit
+   * MIDI values — [[uint7Format]] covers the full 0-127 range.
+   */
+  lazy val ccNumberFormat: Format[Int] = {
+    val reads = __.read[Int](min(0) keepAnd max(MidiRequirements.MaxControllerNumber)) orElse
+      Reads.failed(JsonError_CcNumber)
+    Format(reads, Writes.IntWrites)
+  }
+```
+
+In `JsonTuningChangerPluginFormat.scala`, switch the three trigger fields from `uint7Format` to `ccNumberFormat`:
+
+```scala
+  private val indexTriggersReads: Reads[Map[Int, Int]] =
+    Reads.mapReads[Int, CcNumber](tuningIndexKeyReads)(ccNumberFormat)
+```
+
+```scala
+    (__ \ "previous").formatNullable[CcNumber](ccNumberFormat) and
+    (__ \ "next").formatNullable[CcNumber](ccNumberFormat) and
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run:
+
+```bash
+sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.FormatPackageObjectTest org.calinburloiu.music.microtonalist.format.JsonTuningChangerPluginFormatTest -- -oNCXEHLOPQRMWS"
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Add the JSON Schema**
+
+Create `json-schemas/v1/track/ccNumber.schema.json`, mirroring `uint7.schema.json`'s shape (4-space indent, a
+`$comment` rather than a title):
+
+```json
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "A MIDI Control Change controller number, between 0 and 119, inclusive. MIDI 1.0 reserves the numbers 120 to 127 for the Channel Mode messages, which are not controllers.",
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 119
+}
+```
+
+In `json-schemas/v1/track/tuningChanger.schema.json`, under `$defs/pedalSettings`, change all three
+`{ "$ref": "uint7.schema.json" }` references — the ones inside `triggers/properties/previous`,
+`triggers/properties/next`, and `triggers/properties/index/patternProperties/^[0-9]+$` — to:
+
+```json
+                                { "$ref": "ccNumber.schema.json" }
+```
+
+(keep each one's existing indentation). Leave `uint7.schema.json` itself untouched: `tuner.schema.json` still uses it
+for `semitoneCount` and `centCount`, where 0–127 is correct.
+
+Extend the three trigger descriptions in the same file so an editor sees the reason, appending to each:
+
+- `previous`: `"Configures the MIDI CC that triggers a tuning change to the previous tuning. Only controller numbers 0-119 may be used; 120-127 are MIDI Channel Mode messages, not controllers."`
+- `next`: `"Configures the MIDI CC that triggers a tuning change to the next tuning. Only controller numbers 0-119 may be used; 120-127 are MIDI Channel Mode messages, not controllers."`
+- the `index` pattern property: `"The value configures the MIDI CC that triggers a tuning change to the tuning index from the key. Only controller numbers 0-119 may be used; 120-127 are MIDI Channel Mode messages, not controllers."`
+
+- [ ] **Step 6: Verify the schemas are still well-formed JSON**
+
+Run:
+
+```bash
+python3 -c "import json,sys; [json.load(open(f)) for f in sys.argv[1:]]; print('valid JSON')" \
+  json-schemas/v1/track/ccNumber.schema.json json-schemas/v1/track/tuningChanger.schema.json
+grep -c 'uint7.schema.json' json-schemas/v1/track/tuningChanger.schema.json
+```
+
+Expected: `valid JSON`, and the `grep -c` reports `0` — every `uint7` reference under `pedalSettings` has moved.
+
+- [ ] **Step 7: Run the whole `format` module**
+
+Run: `sbtn "format/testOnly * -- -oNCXEHLOPQRMWS"`
+Expected: PASS. `JsonCompositionFormatTest` and `JsonTrackFormatTest` load fixture JSON; if one of them configures a
+pedal trigger on 120–127 it will now fail — fix the fixture, not the format.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add format/src/main/scala/org/calinburloiu/music/microtonalist/format/package.scala \
+        format/src/main/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormat.scala \
+        format/src/test/scala/org/calinburloiu/music/microtonalist/format/FormatPackageObjectTest.scala \
+        format/src/test/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormatTest.scala \
+        json-schemas/v1/track/ccNumber.schema.json \
+        json-schemas/v1/track/tuningChanger.schema.json
+git commit -m "[#278/#285] Reject Channel Mode numbers as pedal triggers in the JSON format"
+```
+
+---
+
+## Task 7: Documentation and final checks
 
 **Files:**
 - Modify: `docs/architecture/sc-midi/README.md`
 - Modify: `docs/architecture/tuner/README.md`
+- Modify: `docs/architecture/format/README.md`
 
 **Interfaces:**
-- Consumes: everything Tasks 1–5 produced.
+- Consumes: everything Tasks 1–6 produced.
 - Produces: nothing in code.
 
 - [ ] **Step 1: Update the `sc-midi` architecture document**
@@ -1402,9 +1619,23 @@ Off/On, Mono Mode On, Poly Mode On) are discarded at every role, the other four 
 ```
 
 In the "Tuning-change detection" paragraph (lines 83–89), after "`PedalTuningChanger` triggers on a pedal-like CC
-crossing a threshold", add "(controller numbers 0–119; 120–127 are Channel Mode messages and never trigger)".
+crossing a threshold", add "(controller numbers 0–119 only — 120–127 are Channel Mode messages, and `format` rejects
+them as triggers)".
 
-- [ ] **Step 3: Verify the MPE Tuner paper needs no edit**
+- [ ] **Step 3: Update the `format` architecture document**
+
+At the end of the "Plugin (de)serialization" section of `docs/architecture/format/README.md` (it closes at line 93
+with "…keeping serialization concerns out of the domain modules."), add a paragraph:
+
+```
+The shared value formats in the `format` package object encode which MIDI range a field may take: `uint7Format` for a
+full 7-bit value (0–127, e.g. Pitch Bend Sensitivity's semitone and cent counts) and `ccNumberFormat` for a Control
+Change controller number (0–119, the `PedalTuningChanger` triggers), MIDI 1.0 reserving 120–127 for the Channel Mode
+messages. The hand-maintained JSON Schemas under `json-schemas/v1/` mirror the pair as `uint7.schema.json` and
+`ccNumber.schema.json`; they are not validated by any test, so they must be updated alongside the Play formats.
+```
+
+- [ ] **Step 4: Verify the MPE Tuner paper needs no edit**
 
 Run: `grep -n "CC #12\|CC 120\|CC 121\|CC 122\|CC 123" docs/architecture/tuner/mpe-tuner-paper.md`
 Expected: no matches. The paper already uses the specification's vocabulary throughout — "Channel Mode message 121",
@@ -1412,39 +1643,46 @@ Expected: no matches. The paper already uses the specification's vocabulary thro
 Notes Off (123)" — so its routing table needs no change. If the grep does match, reword those cells to name the
 message rather than the CC number.
 
-- [ ] **Step 4: Check coverage**
+- [ ] **Step 5: Check coverage**
 
 Invoke the `scoverage-inspector` skill and follow its policy. Inspect `MidiMsg.scala`, `MidiRequirements.scala`,
 `JavaMidiConverters.scala`, `MidiChannelStateTracker.scala` and `MpeMessageRouting.scala`, and the `sc-midi` and
 `tuner` module totals.
 
-Expected: `tuner` stays at or above 80%/80%. `sc-midi` statement coverage stays at or above 67%; its branch total is
-a **pre-existing** 51.22% against a floor of 52 on this stack — it must not go below that baseline, and the new code
-should push it up rather than down. If a new branch is uncovered, add the test rather than lowering the floor.
+Also inspect `format/package.scala` and `JsonTuningChangerPluginFormat.scala` and the `format` module total.
 
-- [ ] **Step 5: Run the full suite**
+Expected: `tuner` stays at or above 80%/80% and `format` at or above 66%/59%. `sc-midi` statement coverage stays at
+or above 67%; its branch total is a **pre-existing** 51.22% against a floor of 52 on this stack — it must not go
+below that baseline, and the new code should push it up rather than down. If a new branch is uncovered, add the test
+rather than lowering the floor.
+
+- [ ] **Step 6: Run the full suite**
 
 Run: `sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"`
 Expected: PASS.
 
-- [ ] **Step 6: Verify nothing still refers to the deleted constants**
+- [ ] **Step 7: Verify nothing still refers to the deleted constants**
 
 Run:
 
 ```bash
 grep -rn "MidiCc.AllSoundOff\|MidiCc.ResetAllControllers\|MidiCc.AllNotesOff\|MidiCc.LocalControl\|MidiCc.OmniMode\|MidiCc.MonoModeOn\|MidiCc.PolyModeOn" --include='*.scala' .
+grep -n "uint7Format" format/src/main/scala/org/calinburloiu/music/microtonalist/format/JsonTuningChangerPluginFormat.scala
+grep -rn "uint7.schema.json" json-schemas/v1/track/tuningChanger.schema.json
 ```
 
-Expected: no matches.
+Expected: no matches from any of the three. (`uint7Format` and `uint7.schema.json` still exist and are still used by
+`JsonCommonMidiFormat` and `tuner.schema.json` — only the pedal triggers moved off them.)
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add docs/architecture/sc-midi/README.md docs/architecture/tuner/README.md
+git add docs/architecture/sc-midi/README.md docs/architecture/tuner/README.md \
+        docs/architecture/format/README.md
 git commit -m "[#278/#285] Document the Channel Mode message types in the architecture docs"
 ```
 
-- [ ] **Step 8: Report and ask about the PR**
+- [ ] **Step 9: Report and ask about the PR**
 
 Report the final state: commits made, suite result, coverage numbers against the floors. Then ask the user whether to
 open the PR (use the `contributing` skill; base it on `refactoring/282-midi-manager-traits`, draft, title prefix
