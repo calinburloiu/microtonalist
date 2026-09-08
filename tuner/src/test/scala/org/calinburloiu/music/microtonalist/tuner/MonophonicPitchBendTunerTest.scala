@@ -510,7 +510,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.process(TimingClockMidiMsg.asJava)
 
     // Then
-    output.map(_.asScala) shouldEqual Seq(TimingClockMidiMsg)
+    scMidiOutput shouldEqual Seq(TimingClockMidiMsg)
   }
 
   behavior of "MonophonicPitchBendTuner when pedals are depressed"

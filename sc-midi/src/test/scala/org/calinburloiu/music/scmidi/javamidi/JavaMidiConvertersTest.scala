@@ -32,13 +32,13 @@ import scala.compiletime.testing.typeChecks
 class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers with MockFactory
   with Inside {
 
-  private def shortMsg(status: Int, data1: Int, data2: Int): ShortMessage =
+  private def shortMessage(status: Int, data1: Int, data2: Int): ShortMessage =
     new ShortMessage(status, data1, data2)
 
   private def shortMsgC(command: Int, channel: Int, data1: Int, data2: Int): ShortMessage =
     new ShortMessage(command, channel, data1, data2)
 
-  private def metaMsg(metaType: Int, data: Array[Byte]): MetaMessage = {
+  private def metaMessage(metaType: Int, data: Array[Byte]): MetaMessage = {
     val m = new MetaMessage()
     m.setMessage(metaType, data, data.length)
     m
@@ -62,9 +62,12 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     (PitchBendMidiMsg(3, 8191), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x7F, 0x7F)),
     (PitchBendMidiMsg(3, 1050), shortMsgC(ShortMessage.PITCH_BEND, 3, 0x1A, 0x48)),
     // System Common
-    (MidiTimeCodeMidiMsg(3, 5), shortMsg(ShortMessage.MIDI_TIME_CODE, (3 << 4) | 5, 0)),
-    (SongPositionPointerMidiMsg(1000), shortMsg(ShortMessage.SONG_POSITION_POINTER, 1000 & 0x7F, (1000 >> 7) & 0x7F)),
-    (SongSelectMidiMsg(7), shortMsg(ShortMessage.SONG_SELECT, 7, 0)),
+    (MidiTimeCodeMidiMsg(3, 5), shortMessage(ShortMessage.MIDI_TIME_CODE, (3 << 4) | 5, 0)),
+    (
+      SongPositionPointerMidiMsg(1000),
+      shortMessage(ShortMessage.SONG_POSITION_POINTER, 1000 & 0x7F, (1000 >> 7) & 0x7F)
+    ),
+    (SongSelectMidiMsg(7), shortMessage(ShortMessage.SONG_SELECT, 7, 0)),
     (TuneRequestMidiMsg, new ShortMessage(ShortMessage.TUNE_REQUEST)),
     // System Real-Time
     (TimingClockMidiMsg, new ShortMessage(ShortMessage.TIMING_CLOCK)),
@@ -76,63 +79,63 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     // Sysex
     (SysExMidiMsg(ArraySeq.unsafeWrapArray(sysexBytes)), new SysexMessage(sysexBytes, sysexBytes.length)),
     // Meta
-    (SequenceNumberMetaMidiMsg(0x1234), metaMsg(0x00, Array(0x12.toByte, 0x34.toByte))),
-    (TextMetaMidiMsg("hello"), metaMsg(0x01, textBytes("hello"))),
-    (CopyrightNoticeMetaMidiMsg("(c) 2026"), metaMsg(0x02, textBytes("(c) 2026"))),
-    (TrackNameMetaMidiMsg("Track 1"), metaMsg(0x03, textBytes("Track 1"))),
-    (InstrumentNameMetaMidiMsg("Piano"), metaMsg(0x04, textBytes("Piano"))),
-    (LyricMetaMidiMsg("la"), metaMsg(0x05, textBytes("la"))),
-    (MarkerMetaMidiMsg("A"), metaMsg(0x06, textBytes("A"))),
-    (CuePointMetaMidiMsg("cue"), metaMsg(0x07, textBytes("cue"))),
-    (ProgramNameMetaMidiMsg("Prog"), metaMsg(0x08, textBytes("Prog"))),
-    (DeviceNameMetaMidiMsg("Dev"), metaMsg(0x09, textBytes("Dev"))),
-    (MidiChannelPrefixMetaMidiMsg(9), metaMsg(0x20, Array(9.toByte))),
-    (MidiPortMetaMidiMsg(3), metaMsg(0x21, Array(3.toByte))),
-    (EndOfTrackMetaMidiMsg, metaMsg(0x2F, Array.emptyByteArray)),
-    (SetTempoMetaMidiMsg(500000), metaMsg(0x51, Array(0x07.toByte, 0xA1.toByte, 0x20.toByte))),
+    (SequenceNumberMetaMidiMsg(0x1234), metaMessage(0x00, Array(0x12.toByte, 0x34.toByte))),
+    (TextMetaMidiMsg("hello"), metaMessage(0x01, textBytes("hello"))),
+    (CopyrightNoticeMetaMidiMsg("(c) 2026"), metaMessage(0x02, textBytes("(c) 2026"))),
+    (TrackNameMetaMidiMsg("Track 1"), metaMessage(0x03, textBytes("Track 1"))),
+    (InstrumentNameMetaMidiMsg("Piano"), metaMessage(0x04, textBytes("Piano"))),
+    (LyricMetaMidiMsg("la"), metaMessage(0x05, textBytes("la"))),
+    (MarkerMetaMidiMsg("A"), metaMessage(0x06, textBytes("A"))),
+    (CuePointMetaMidiMsg("cue"), metaMessage(0x07, textBytes("cue"))),
+    (ProgramNameMetaMidiMsg("Prog"), metaMessage(0x08, textBytes("Prog"))),
+    (DeviceNameMetaMidiMsg("Dev"), metaMessage(0x09, textBytes("Dev"))),
+    (MidiChannelPrefixMetaMidiMsg(9), metaMessage(0x20, Array(9.toByte))),
+    (MidiPortMetaMidiMsg(3), metaMessage(0x21, Array(3.toByte))),
+    (EndOfTrackMetaMidiMsg, metaMessage(0x2F, Array.emptyByteArray)),
+    (SetTempoMetaMidiMsg(500000), metaMessage(0x51, Array(0x07.toByte, 0xA1.toByte, 0x20.toByte))),
     (
       SmpteOffsetMetaMidiMsg(1, 2, 3, 4, 5),
-      metaMsg(0x54, Array(1.toByte, 2.toByte, 3.toByte, 4.toByte, 5.toByte))
+      metaMessage(0x54, Array(1.toByte, 2.toByte, 3.toByte, 4.toByte, 5.toByte))
     ),
     (
       TimeSignatureMetaMidiMsg(4, 2, 24, 8),
-      metaMsg(0x58, Array(4.toByte, 2.toByte, 24.toByte, 8.toByte))
+      metaMessage(0x58, Array(4.toByte, 2.toByte, 24.toByte, 8.toByte))
     ),
     (
       KeySignatureMetaMidiMsg(-3, MidiKeySignatureMode.Minor),
-      metaMsg(0x59, Array((-3).toByte, 1.toByte))
+      metaMessage(0x59, Array((-3).toByte, 1.toByte))
     ),
     (
       KeySignatureMetaMidiMsg(2, MidiKeySignatureMode.Major),
-      metaMsg(0x59, Array(2.toByte, 0.toByte))
+      metaMessage(0x59, Array(2.toByte, 0.toByte))
     ),
     (
       SequencerSpecificMetaMidiMsg(ArraySeq(0x00.toByte, 0x12.toByte, 0x34.toByte)),
-      metaMsg(0x7F, Array(0x00.toByte, 0x12.toByte, 0x34.toByte))
+      metaMessage(0x7F, Array(0x00.toByte, 0x12.toByte, 0x34.toByte))
     )
   )
 
   behavior of "JavaMidiConverters.asJava"
 
   it should "produce Java bytes equal to the expected Java MidiMessage for every MidiMsg subtype" in {
-    forAll(cases) { (scMsg, javaMsg) =>
+    forAll(cases) { (scalaMessage, javaMessage) =>
       // When
-      val actual = scMsg.asJava
+      val actual = scalaMessage.asJava
 
       // Then
-      actual.getMessage should equal(javaMsg.getMessage)
+      actual.getMessage should equal(javaMessage.getMessage)
     }
   }
 
   behavior of "JavaMidiConverters.asScala"
 
   it should "produce the expected MidiMsg for every Java MidiMessage" in {
-    forAll(cases) { (scMsg, javaMsg) =>
+    forAll(cases) { (scalaMessage, javaMessage) =>
       // When
-      val actual = javaMsg.asScala
+      val actual = javaMessage.asScala
 
       // Then
-      actual should equal(scMsg)
+      actual should equal(scalaMessage)
     }
   }
 
@@ -178,11 +181,11 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     val unsupported = UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(sysexBytes))
 
     // When
-    val javaMsg = unsupported.asJava
+    val javaMessage = unsupported.asJava
 
     // Then
-    javaMsg shouldBe a[SysexMessage]
-    javaMsg.getMessage should equal(sysexBytes)
+    javaMessage shouldBe a[SysexMessage]
+    javaMessage.getMessage should equal(sysexBytes)
   }
 
   behavior of "JavaMidiConverters.isInputDevice"
@@ -233,5 +236,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     // When / Then
     typeChecks("(??? : Midi1Msg).asJava") shouldBe true
     typeChecks("(??? : Midi2Msg).asJava") shouldBe false
+    // Proves Midi2Msg resolves in this file, so the assertion above fails for the right reason.
+    typeChecks("val m: Midi2Msg = ???") shouldBe true
   }
 }

@@ -16,15 +16,16 @@ module wraps it to give the rest of Microtonalist:
   state tracker.
 
 It is low-level infrastructure: it knows nothing about scales, tunings, compositions, or the GUI, and depends only on
-`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is the only Microtonalist module that
-touches `javax.sound.midi` directly; the `tuner` module builds tuning logic on top of `MidiProcessor`/`MidiManager` and
-the `cli` utility uses it to enumerate devices.
+`businessync` (the device-event bus) and `common` (the `Locking` helper). `sc-midi` is not the only Microtonalist module
+that touches `javax.sound.midi` directly — `tuner` and `cli` also import it in a handful of files; the `tuner` module
+builds most of its tuning logic on top of `MidiProcessor`/`MidiManager` and the `cli` utility uses it to enumerate
+devices.
 
 Package: `org.calinburloiu.music.scmidi`, with a `message` sub-package holding the message model and its constants. A
-`javamidi` sub-package holds the code that touches Java Sound directly — today `JavaMidiConverters` and its
-`MidiDevice` capability extensions; the rest of the module is on its way to becoming a pure Scala API (see the
-`Architecture` milestone and #278). macOS support comes from **CoreMIDI4J**, which replaces the default Java Sound MIDI
-device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
+`javamidi` sub-package is where the code that touches Java Sound directly is being gathered; today it holds
+`JavaMidiConverters` and its `MidiDevice` capability extensions; the rest of the module is on its way to becoming a pure
+Scala API (see the `Architecture` milestone and #278). macOS support comes from **CoreMIDI4J**, which replaces the
+default Java Sound MIDI device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
 `MidiDeviceId.sanitizedName`).
 
 ## Key types

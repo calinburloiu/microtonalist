@@ -26,6 +26,8 @@ import scala.collection.immutable.ArraySeq
  * Bidirectional converters between [[Midi1Msg]] / [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
  * [[scala.jdk.CollectionConverters]].
  *
+ * It also hosts the [[javax.sound.midi.MidiDevice]] capability extensions `isInputDevice` / `isOutputDevice`.
+ *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
  *
  * {{{

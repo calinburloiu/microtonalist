@@ -1501,10 +1501,10 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       // When
       private val output = pitchBend(1, eExprCents)
       // Then
-      private val pitchBendMsg = extractPitchBends(output).filter(_.channel == noteChannel).head
+      private val pitchBendMessage = extractPitchBends(output).filter(_.channel == noteChannel).head
 
       // Output pitch bend should combine tuning offset for E (-14.0) + expression bend
-      pitchBendMsg.cents shouldEqual (-14.0 + eExprCents)
+      pitchBendMessage.cents shouldEqual (-14.0 + eExprCents)
     }
 
   // ---- Fan-out across split notes (PB / CC #74 / CP) ----
