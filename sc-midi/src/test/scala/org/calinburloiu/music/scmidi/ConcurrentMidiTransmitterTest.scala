@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, TimeUnit}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
@@ -51,6 +51,25 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     def lockIsWriteLocked: Boolean = lock.isWriteLocked
 
     def lockReadLockCount: Int = lock.getReadLockCount
+
+    def lockHasQueuedThreads: Boolean = lock.hasQueuedThreads
+
+    /** Runs `body` on the calling thread while holding the write lock, so that a test can block a reader out. */
+    def holdingWriteLock[R](body: => R): R = withWriteLock {
+      body
+    }
+  }
+
+  /**
+   * Polls `condition` until it holds or `timeoutMillis` expires, and returns whether it held. Used instead of a fixed
+   * sleep, so that the assertion is decided by the state under test rather than by how fast the machine is.
+   */
+  private def awaitCondition(condition: => Boolean, timeoutMillis: Long = 30000L): Boolean = {
+    val deadlineNanos = System.nanoTime() + timeoutMillis * 1000000L
+    while (!condition && System.nanoTime() < deadlineNanos) {
+      Thread.sleep(1)
+    }
+    condition
   }
 
   trait ProbeFixture {
@@ -138,7 +157,8 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
 
     def runAll(): Unit = {
       start.countDown()
-      // Awaited before joining the writers, so that the readers' first snapshots fall inside the writers' run.
+      // Awaited before the readers are stopped, so that a reader starved past the end of the run fails the test
+      // instead of silently reducing it to a writers-only one.
       allReadersRead.set(firstReads.await(joinTimeoutMillis, TimeUnit.MILLISECONDS))
       writers.foreach(_.join(joinTimeoutMillis))
       readersRunning.set(false)
@@ -189,7 +209,42 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
 
     // Then
     probe.lockIsWriteLocked shouldBe false
+  }
+
+  it should "release the read lock after a read returns" in new ProbeFixture {
+    // Given
+    probe.addReceiver(receiver1)
+
+    // When
+    probe.receivers shouldEqual Seq(receiver1)
+
+    // Then
     probe.lockReadLockCount shouldEqual 0
+  }
+
+  it should "block a read while another thread holds the write lock" in new ProbeFixture {
+    // Given
+    probe.addReceiver(receiver1)
+    val readDone: CountDownLatch = CountDownLatch(1)
+    val readReceivers: AtomicReference[Seq[MidiReceiver]] = AtomicReference(Seq.empty)
+    val reader: Thread = Thread(() => {
+      readReceivers.set(probe.receivers)
+      readDone.countDown()
+    })
+    reader.setDaemon(true)
+
+    // When
+    // The reader parks in the lock's queue rather than returning, which is what pins that `receivers` takes the read
+    // lock: without it the read would complete straight away and never queue.
+    val blockedOnTheLock: Boolean = probe.holdingWriteLock {
+      reader.start()
+      awaitCondition(probe.lockHasQueuedThreads) && readDone.getCount == 1
+    }
+
+    // Then
+    blockedOnTheLock shouldBe true
+    readDone.await(30000L, TimeUnit.MILLISECONDS) shouldBe true
+    readReceivers.get() shouldEqual Seq(receiver1)
   }
 
   it should "not lose updates when several threads add and remove receivers while others read" in

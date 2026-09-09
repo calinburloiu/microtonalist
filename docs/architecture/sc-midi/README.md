@@ -97,8 +97,9 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
   a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
   mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`, so a subclass override
-  of `receivers_=` is reached inside the write lock for every change made through a modifier). Nothing uses them yet:
-  #281 puts `MidiSplitter`, `MidiProcessor` and `MidiDeviceHandle` on top of them.
+  of `receivers_=` is reached inside the write lock for every change made through a modifier; an override that reads
+  the current receivers must take the write lock *before* reading, as the lock cannot upgrade read to write). Nothing
+  uses them yet: #281 puts `MidiSplitter`, `MidiProcessor` and `MidiDeviceHandle` on top of them.
 - **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
   directly, so callers avoid wrapping/unwrapping Java messages.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
