@@ -9,6 +9,17 @@
   resolves each device through a separate `deviceOf` call instead of returning an already resolved `devices` list,
   so that a device which fails to resolve keeps being reported by the manager (see the plan's design notes). D8 and
   D9 are unchanged.
+- **Revised a third time**: 2026-09-09 on `384bfa4`, the top of `refactoring/280-midi-transmitter-family` — the
+  review of [#287](https://github.com/calinburloiu/microtonalist/pull/287) found D4's extension mechanism, the public
+  virtual setter `receivers_=`, to be a footgun: a change made through a modifier reached a subclass's override
+  *inside* the write lock, while a direct `transmitter.receivers = …` assignment reached it *before* the lock was
+  taken, so the override had to take the lock itself — and D6's `MidiProcessorTransmitter`, which must read the
+  current receivers to compare them with the incoming ones, would then self-deadlock, a `ReentrantReadWriteLock`
+  being unable to upgrade a read lock to a write lock. D4 now makes every modifier and the setter `final` and offers
+  a subclass two `protected` hooks instead, `withChangeGuard` and `setReceivers`; D6 overrides `setReceivers` and
+  carries no locking code of its own. The `MidiTransmitter` trait and `ImmutableMidiTransmitter` are untouched, as
+  are D1–D3, D5, D7–D11 and the sub-issue order, so the plans for #282, #283 and #285 are unaffected and only the
+  #281 plan needed rewriting.
 - **Issue**: [#278](https://github.com/calinburloiu/microtonalist/issues/278) — "Isolate the Java Sound implementation
   from the sc-midi Scala API" (parent), with sub-issues
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
@@ -106,12 +117,34 @@ it. The name drops `Multi`; multiple receivers are implicit. Implementations:
 | Type                                        | Annotation       | Modifiers                                                                                   |
 |---------------------------------------------|------------------|---------------------------------------------------------------------------------------------|
 | `ImmutableMidiTransmitter(receivers)`       | case class       | `withReceiver`, `withReceivers`, `withoutReceiver`, `withoutReceivers` — return new instances |
-| `MutableMidiTransmitter`                    | `@NotThreadSafe` | `receivers_=`, `addReceiver`, `addReceivers`, `removeReceiver`, `clearReceivers`; every modifier funnels through `receivers_=` |
-| `ConcurrentMidiTransmitter`                 | `@ThreadSafe`    | extends `MutableMidiTransmitter`; overrides every method under a `ReentrantReadWriteLock` via `Locking` |
+| `MutableMidiTransmitter`                    | `@NotThreadSafe` | `receivers_=`, `addReceiver`, `addReceivers`, `removeReceiver`, `clearReceivers`, all `final`; each one runs inside `withChangeGuard` and changes through `setReceivers` |
+| `ConcurrentMidiTransmitter`                 | `@ThreadSafe`    | extends `MutableMidiTransmitter`; overrides only `receivers` (read lock) and `withChangeGuard` (write lock) of a `ReentrantReadWriteLock` via `Locking` |
 
 `ConcurrentMidiTransmitter` extends `MutableMidiTransmitter` so that a caller which only needs "something it can add
-a receiver to" (e.g. `Track`, `TrackManager`) has one static type. The mutable class must not call other overridable
-public methods from inside a modifier, so that the concurrent override does not re-enter the lock through `super`.
+a receiver to" (e.g. `Track`, `TrackManager`) has one static type.
+
+A subclass extends the mutable class through two `protected` hooks rather than by overriding a public method:
+
+```scala
+/** How a change is made atomic. Wraps the change together with the read that computes it. Default: run directly. */
+protected def withChangeGuard[R](body: => R): R = body
+
+/** What happens on a change. The single point every modifier and `receivers_=` funnel through. */
+protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = { _receivers = newReceivers }
+```
+
+Every modifier and the setter are `final` and have the same shape — `withChangeGuard { setReceivers(…) }` — so the
+funnel is enforced by the compiler rather than by convention. Because the guard is the outer of the two and both are
+chosen by the class rather than by the caller, an override of `setReceivers` runs inside that guard for *every* entry
+point, a direct `transmitter.receivers = …` assignment included; there is no asymmetry between the setter and the
+other modifiers, and an override never has to lock anything itself. The guard wraps the whole read-modify-write, not
+the assignment alone, so `addReceiver` and its siblings stay atomic.
+
+An override must call `super.setReceivers(newReceivers)` for the change to take effect, and may read `receivers` to
+compare the incoming sequence with the current one. Under `ConcurrentMidiTransmitter` that read takes the read lock
+while the write lock is held, which is a *downgrade* and is permitted by `ReentrantReadWriteLock`; it is the reverse
+order — read then write — that deadlocks, and no path can produce it. The constructor stores `initialReceivers`
+directly, through neither hook, so an override never runs on a partially constructed object.
 
 ### D5 — `MidiSplitter` is a receiver over any transmitter
 
@@ -126,20 +159,21 @@ receiver.
 ### D6 — `MidiProcessor` output is a multi-receiver transmitter with connect/disconnect hooks
 
 `MidiProcessor` keeps its `receiver: MidiReceiver` (closed flag; processes, then forwards to every output receiver).
-Its output is `transmitter: MidiProcessorTransmitter`, which extends `ConcurrentMidiTransmitter` and overrides
-`receivers_=` with the current connect/disconnect protocol, generalised to a set:
+Its output is `transmitter: MidiProcessorTransmitter`, which extends `ConcurrentMidiTransmitter` and overrides D4's
+`setReceivers` hook with the current connect/disconnect protocol, generalised to a set:
 
 1. If the new sequence equals the current one, do nothing.
 2. If the current set is non-empty, call `onDisconnect()`.
-3. Swap the sequence.
+3. Swap the sequence, through `super.setReceivers`.
 4. If the new set is non-empty, call `onConnect()`.
 
-The override runs inside the write lock that `ConcurrentMidiTransmitter`'s modifiers already hold (every modifier of
-the mutable base funnels through `receivers_=`, so `addReceiver`/`removeReceiver`/`clearReceivers` reach this override
-by virtual dispatch). This differs from today's `MidiProcessorTransmitter`, which calls the hooks outside its lock; it
-is deliberate: a message arriving on another thread cannot interleave with the reset/initialisation messages the hooks
-emit, and the hooks only send downstream (read-locking this transmitter re-entrantly), so no lock-ordering issue
-arises.
+It reads the current sequence with `receivers` and needs no locking code of its own — indeed no knowledge that a lock
+exists. D4's change guard has already taken the write lock by the time the hook runs, whichever entry point was used
+(`receivers_=`, `addReceiver`, `addReceivers`, `removeReceiver` or `clearReceivers`), and the read of `receivers` is a
+re-entrant downgrade the lock permits. This differs from today's `MidiProcessorTransmitter`, which calls the hooks
+outside its lock; it is deliberate: a message arriving on another thread cannot interleave with the
+reset/initialisation messages the hooks emit, and the hooks only send downstream (read-locking this transmitter
+re-entrantly), so no lock-ordering issue arises.
 
 `process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]`.
 
@@ -376,10 +410,12 @@ Strict TDD per sub-issue (red/green/refactor).
 New unit tests:
 
 - `ImmutableMidiTransmitter`, `MutableMidiTransmitter`, `ConcurrentMidiTransmitter` (the last with a concurrency test
-  that mutates and reads from several threads).
+  that mutates and reads from several threads, and with a test pinning that a `setReceivers` override may read
+  `receivers` re-entrantly — the lock downgrade of D4 — without deadlocking).
 - `MidiSplitter` over each transmitter implementation.
 - `MidiProcessorTransmitter`: `onDisconnect`/`onConnect` on every kind of set change (empty → non-empty, non-empty →
-  different non-empty, non-empty → empty, same set → no callbacks).
+  different non-empty, non-empty → empty, same set → no callbacks), reached both through a direct `receivers = …`
+  assignment and through the other modifiers.
 - A `Track`-level test pinning that a tuner's `reset()` messages reach a receiver added after construction (D6).
 - `MidiDeviceInfo` and the updated `MidiDeviceId`.
 - The eight `ChannelModeMidiMsg` case classes: construction and validation (`channelCount` 0–16), `mapChannel`, the

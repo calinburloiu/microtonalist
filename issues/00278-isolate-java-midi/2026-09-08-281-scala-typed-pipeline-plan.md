@@ -1,6 +1,19 @@
 # Scala-Typed MIDI Pipeline — Implementation Plan (#281)
 
 - **Date**: 2026-09-08
+- **Revised**: 2026-09-09 on `384bfa4`, the top of `refactoring/280-midi-transmitter-family` — the review of PR
+  [#287](https://github.com/calinburloiu/microtonalist/pull/287) changed D4's extension mechanism, and this plan
+  follows. `MutableMidiTransmitter` now makes every modifier **and** the `receivers` setter `final` and offers a
+  subclass two `protected` hooks instead: `withChangeGuard`, how a change is made atomic, and `setReceivers`, what
+  happens on a change and the single point every modifier and `receivers_=` funnel through. `ConcurrentMidiTransmitter`
+  overrides only `receivers` (read lock) and `withChangeGuard` (write lock). So `MidiProcessorTransmitter` overrides
+  **`setReceivers`**, not `receivers_=`, and carries **no locking code of its own**: the change guard has already
+  taken the write lock whatever the entry point — a direct `receivers = …` assignment included — and the hook may
+  read `receivers` re-entrantly to compare sequences, a lock downgrade that a `ReentrantReadWriteLock` permits. The
+  old caveat that a setter override had to take the lock itself is gone. Task 3 is the only task whose code changes;
+  Tasks 4 and 5 change only where they quote the mechanism. See the third revision entry of the design document. Note
+  that the base commit named below predates this change: branch off the current top of
+  `refactoring/280-midi-transmitter-family` and read the transmitter family there before starting Task 3.
 - **Issue**: [#281](https://github.com/calinburloiu/microtonalist/issues/281) — "Carry MidiMsg through the MIDI
   pipeline and strip javax.sound.midi from tuner", sub-issue 3 of parent
   [#278](https://github.com/calinburloiu/microtonalist/issues/278)
@@ -38,7 +51,8 @@ and tuning changers, `Track` — carry `MidiMsg` and `MidiReceiver`, convert to 
 **Architecture:** `MidiSplitter(transmitter: MidiTransmitter)` is a `MidiReceiver` that fans out to the transmitter's
 receivers (D5). `MidiProcessor` keeps a closed-flag `receiver: MidiReceiver` that processes once and forwards to every
 output receiver, and its output is `transmitter: MidiProcessorTransmitter`, a `ConcurrentMidiTransmitter` whose
-`receivers_=` override runs the connect/disconnect protocol under the write lock (D6); `MidiSerialProcessor` wires
+`setReceivers` override runs the connect/disconnect protocol, which D4's change guard already runs under the write
+lock (D6); `MidiSerialProcessor` wires
 neighbours with `receivers = Seq(next.receiver)` and `clearReceivers()`. `MidiDeviceHandle` converts outbound with
 `asJava` in its receiver (a `Midi2Msg` is dropped with a warning) and inbound with `asScala` into a
 `MidiSplitter(ConcurrentMidiTransmitter())` (D7). `Tuner`, `TuningChanger` and their processors are typed on `MidiMsg`;
@@ -115,7 +129,7 @@ Every task's requirements implicitly include this section.
 |---|---|---|
 | `sc-midi/.../scmidi/message/MidiMsg.scala` | Modify (Task 1) | `SysExMidiMsg` gains a companion with `StatusByte` (`0xF0`) and `EndOfExclusiveByte` (`0xF7`). |
 | `sc-midi/.../scmidi/PitchBendSensitivity.scala` | Modify (Task 2) | `PitchBendSensitivityMessages.create` returns `Seq[MidiMsg]`; no Java import. |
-| `sc-midi/.../scmidi/MidiProcessor.scala` | Rewrite (Task 3) | `receiver: MidiProcessorReceiver` (a `MidiReceiver` with a closed flag; processes once, fans out); `transmitter: MidiProcessorTransmitter extends ConcurrentMidiTransmitter` running the D6 protocol in `receivers_=`; `process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]`. |
+| `sc-midi/.../scmidi/MidiProcessor.scala` | Rewrite (Task 3) | `receiver: MidiProcessorReceiver` (a `MidiReceiver` with a closed flag; processes once, fans out); `transmitter: MidiProcessorTransmitter extends ConcurrentMidiTransmitter` running the D6 protocol in its `setReceivers` override; `process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]`. |
 | `sc-midi/.../scmidi/MidiSerialProcessor.scala` | Rewrite (Task 3) | Constructor takes `initialOutputReceivers: Seq[MidiReceiver]`; wires neighbours with `receivers = Seq(next.receiver)`, unwires with `clearReceivers()`; `onDisconnect` unwires the last processor, `onConnect` wires it. |
 | `sc-midi/.../scmidi/MidiSplitter.scala` | Rewrite (Task 4) | `class MidiSplitter(val transmitter: MidiTransmitter) extends MidiReceiver`: `send` fans out to `transmitter.receivers`; `close()` stops forwarding and leaves the transmitter alone. |
 | `sc-midi/.../scmidi/MidiDeviceHandle.scala` | Modify (Task 4) | The only place messages cross to Java Sound: `receiver: MidiReceiver` converts with `asJava` (drops a `Midi2Msg` with a warning); inbound Java `Receiver` converts with `asScala` into a `MidiSplitter(ConcurrentMidiTransmitter())`; `transmitter: ConcurrentMidiTransmitter` replaces `multiTransmitter`. |
@@ -837,9 +851,11 @@ git commit -m "[#278/#281] Type Tuner, TuningChanger and their implementations o
 - Test: `tuner/src/test/scala/org/calinburloiu/music/microtonalist/tuner/TrackTest.scala` (create)
 
 **Interfaces:**
-- Consumes: `ConcurrentMidiTransmitter` (its `protected implicit val lock`, `withWriteLock`, `receivers`,
-  `receivers_=`, the modifiers), `MidiReceiver`, `MidiMsg`, the Task 2 plugin signatures, the still-Java-typed
-  `MidiDeviceHandle.receiver: Receiver` and `MidiDeviceHandle.multiTransmitter` (adapted in `Track` until Task 4).
+- Consumes: `ConcurrentMidiTransmitter` (the `protected def setReceivers` hook it inherits from
+  `MutableMidiTransmitter`, plus `receivers`, `receivers_=` and the modifiers — but neither its lock nor
+  `withWriteLock`, since the inherited change guard takes the write lock for it), `MidiReceiver`, `MidiMsg`, the
+  Task 2 plugin signatures, the still-Java-typed `MidiDeviceHandle.receiver: Receiver` and
+  `MidiDeviceHandle.multiTransmitter` (adapted in `Track` until Task 4).
 - Produces, for Task 4 and for `tuner`:
   - `trait MidiProcessor extends AutoCloseable { def receiver: MidiProcessorReceiver; def transmitter:
     MidiProcessorTransmitter; protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg];
@@ -1105,7 +1121,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
 - [ ] **Step 2: Rewrite `MidiProcessor` with a `???` protocol and migrate its consumers so the suite compiles**
 
-`MidiProcessor.scala`, whole file (the `receivers_=` body is the stub; everything else is final):
+`MidiProcessor.scala`, whole file (the `setReceivers` body is the stub; everything else is final):
 
 ```scala
 package org.calinburloiu.music.scmidi
@@ -1163,12 +1179,14 @@ trait MidiProcessor extends AutoCloseable {
   }
 
   /**
-   * The [[ConcurrentMidiTransmitter]] of a [[MidiProcessor]]: runs the connect / disconnect protocol described on
-   * [[MidiProcessor]] around every change of its receivers, whether made through a modifier or by assignment.
+   * The [[ConcurrentMidiTransmitter]] of a [[MidiProcessor]]: overrides the `setReceivers` hook so that the connect /
+   * disconnect protocol described on [[MidiProcessor]] runs around every change of its receivers, whether made
+   * through a modifier or by assignment. The hook is always called inside the transmitter's write lock, so it needs
+   * no locking of its own.
    */
   class MidiProcessorTransmitter private[scmidi] extends ConcurrentMidiTransmitter() {
 
-    override def receivers_=(newReceivers: Seq[MidiReceiver]): Unit = ???
+    override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = ???
   }
 
   /**
@@ -1801,15 +1819,16 @@ Expected: everything compiles; every `MidiProcessorTest` case that touches the t
 Replace the `???` in `MidiProcessorTransmitter`:
 
 ```scala
-    // Taken explicitly: a direct `receivers = …` assignment reaches this override before the superclass takes the
-    // lock, whereas a modifier reaches it with the lock already held. The lock is reentrant, so both paths are fine.
-    override def receivers_=(newReceivers: Seq[MidiReceiver]): Unit = withWriteLock {
+    // No locking here: MutableMidiTransmitter routes every modifier, and a direct `receivers = …` assignment, through
+    // withChangeGuard, which ConcurrentMidiTransmitter implements as the write lock. Reading `receivers` takes the
+    // read lock while the write lock is held — a downgrade, which a ReentrantReadWriteLock permits.
+    override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
       val currentReceivers = receivers
       if (currentReceivers != newReceivers) {
         if (currentReceivers.nonEmpty) {
           onDisconnect()
         }
-        super.receivers_=(newReceivers)
+        super.setReceivers(newReceivers)
         if (newReceivers.nonEmpty) {
           onConnect()
         }
@@ -1948,7 +1967,7 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
 
 Run `sbtn "tuner/testOnly org.calinburloiu.music.microtonalist.tuner.TrackTest -- -oNCXEHLOPQRMWS"`. Expected:
 green already — the `Track` above was written for it. To confirm the test detects the D6 defect it pins, temporarily
-make `MidiProcessorTransmitter.receivers_=` skip `onConnect()` and watch the first case fail, then restore it and run
+make `MidiProcessorTransmitter.setReceivers` skip `onConnect()` and watch the first case fail, then restore it and run
 again: green. (Before D6, the same wiring sent the reset messages to an empty splitter; the test would have failed.)
 
 - [ ] **Step 8: Run both suites, then commit**
@@ -2368,11 +2387,17 @@ device's transmitter converts with `asScala` into an internal `MidiSplitter(Conc
 - **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
   directly; every stage of the pipeline is one.
 - **`MidiTransmitter`** — the read-only, `AutoCloseable` transmitter of the Scala API: a single
-  `receivers: Seq[MidiReceiver]` member, no locks. Three implementations, all with a no-op `close()`:
+  `receivers: Seq[MidiReceiver]` member. The trait *itself* declares no state, no locking and no implementation, but
+  locking is each implementation's business, so a reference typed as `MidiTransmitter` may well hold a
+  `ConcurrentMidiTransmitter` that takes a lock on every read. Three implementations, all with a no-op `close()`:
   `ImmutableMidiTransmitter` (a case class whose `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers`
-  return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
-  a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
-  mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`).
+  return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier and the `receivers` setter are
+  `final` and offer a subclass two `protected` hooks instead — `setReceivers`, which every change funnels through,
+  and `withChangeGuard`, which wraps each change together with the read of the current receivers that computes it)
+  and `ConcurrentMidiTransmitter` (`@ThreadSafe`; overrides only those two points — `receivers` under the read lock,
+  `withChangeGuard` under the write lock of a `ReentrantReadWriteLock` via `Locking` — so a subclass overriding
+  `setReceivers` runs inside the write lock whatever the entry point, a direct `receivers = …` assignment included,
+  and may read `receivers` re-entrantly, a downgrade the lock permits).
 - **`MidiSplitter(transmitter: MidiTransmitter)`** — a `MidiReceiver` that fans every message out to the receivers
   of the transmitter it is given; the caller picks the transmitter implementation, and the splitter never closes it.
   `MidiDeviceHandle` uses one over a `ConcurrentMidiTransmitter` to broadcast a device's stream.
@@ -2497,8 +2522,9 @@ Report the PR URL. Do not merge, rebase or retarget any PR of the stack.
   `transmitter.receivers`, the caller picks the implementation, the splitter does not close it, the separate
   `receiver` field is gone: Task 4 (tested over all three implementations).
 - **D6 — `MidiProcessor`**: `receiver: MidiReceiver` with a closed flag that processes then forwards to every output
-  receiver; `transmitter: MidiProcessorTransmitter extends ConcurrentMidiTransmitter` whose `receivers_=` runs the
-  four-step protocol inside the write lock, reached from every modifier and from a direct assignment;
+  receiver; `transmitter: MidiProcessorTransmitter extends ConcurrentMidiTransmitter` whose `setReceivers` override
+  runs the four-step protocol, reached from every modifier and from a direct assignment inside the write lock that
+  D4's change guard takes;
   `process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]`: Task 3. Its consequences: `MidiSerialProcessor` wires
   with `receivers = Seq(next.receiver)` / `clearReceivers()` and takes `initialOutputReceivers: Seq[MidiReceiver]`
   (Task 3); `Track` has no output splitter and `Track.transmitter` is the pipeline's (Tasks 3–4); adding a receiver to
@@ -2522,7 +2548,8 @@ Report the PR URL. Do not merge, rebase or retarget any PR of the stack.
   dependencies (Task 5); `module-overview.md` / `data-flow.md` checked — nothing to narrow.
 - **Placeholder scan**: every code step carries its code or an exhaustive substitution list; the two red steps that
   cannot fail naturally (Task 3, Step 6 and Step 7) say how to see the test red.
-- **Type consistency**: `receivers_=(newReceivers)`, `addReceiver(receiver)`, `clearReceivers()`,
+- **Type consistency**: `receivers_=(newReceivers)`, `setReceivers(newReceivers)`, `addReceiver(receiver)`,
+  `clearReceivers()`,
   `MidiSerialProcessor(initialProcessors, initialOutputReceivers)`, `MidiSplitter(transmitter)`,
   `MidiDeviceHandle.receiver` / `.transmitter`, `Track.receiver` / `.transmitter`, `TunerProcessor.sendToReceivers`,
   `SysExMidiMsg.StatusByte` / `EndOfExclusiveByte`, `PitchBendSensitivityMessages.create(channel,
