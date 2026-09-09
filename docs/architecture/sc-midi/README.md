@@ -92,14 +92,17 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   consumer that only forwards messages does not depend on how, or whether, the sequence can change. That is a
   statement about the trait, not about the values behind it: locking is each implementation's business, and a
   reference typed as `MidiTransmitter` may well hold a `ConcurrentMidiTransmitter` that takes a lock on every read.
-  Three implementations, all with a no-op `close()`:
-  `ImmutableMidiTransmitter` (a case class whose `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers`
-  return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
-  a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
-  mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`, so a subclass override
-  of `receivers_=` is reached inside the write lock for every change made through a modifier; an override that reads
-  the current receivers must take the write lock *before* reading, as the lock cannot upgrade read to write). Nothing
-  uses them yet: #281 puts `MidiSplitter`, `MidiProcessor` and `MidiDeviceHandle` on top of them.
+  Three implementations, all with a no-op `close()`: `ImmutableMidiTransmitter` (a case class whose
+  `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers` return new instances),
+  `MutableMidiTransmitter` (`@NotThreadSafe`) and `ConcurrentMidiTransmitter` (`@ThreadSafe`).
+  The mutable class makes every modifier and the `receivers` setter `final` and offers a subclass two `protected`
+  hooks instead: `setReceivers`, which every change funnels through, and `withChangeGuard`, which wraps each change
+  together with the read of the current receivers that computes it. `ConcurrentMidiTransmitter` overrides only those
+  two points — `receivers` under the read lock, `withChangeGuard` under the write lock of a `ReentrantReadWriteLock`
+  via `Locking`. A subclass overriding `setReceivers` therefore runs inside the write lock whatever the entry point,
+  including a direct `receivers = …` assignment, and may read `receivers` re-entrantly (a downgrade, which the lock
+  permits) to compare the incoming sequence with the current one. Nothing uses them yet: #281 puts `MidiSplitter`,
+  `MidiProcessor` and `MidiDeviceHandle` on top of them.
 - **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
   directly, so callers avoid wrapping/unwrapping Java messages.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.

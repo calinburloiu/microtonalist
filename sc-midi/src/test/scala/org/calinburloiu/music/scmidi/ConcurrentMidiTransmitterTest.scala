@@ -28,24 +28,22 @@ import scala.util.control.NonFatal
 class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableMidiTransmitterBehaviors {
 
   /**
-   * Records, for every call of `receivers_=`, whether the calling thread held the write lock at that moment. A
-   * subclass overriding the setter (as `MidiProcessorTransmitter` will) relies on this being `true` for every change
-   * that arrives through a modifier. Not `private`: a fixture exposes a value of this type. The two `lock…` accessors
-   * let a test look at the `protected` lock without reaching into it from outside the class.
+   * Records, for every call of `setReceivers`, whether the calling thread held the write lock at that moment. A
+   * subclass overriding that hook (as `MidiProcessorTransmitter` will) relies on this being `true` for every change,
+   * whatever the entry point. Not `private`: a fixture exposes a value of this type. The `lock…` accessors let a test
+   * look at the `protected` lock without reaching into it from outside the class.
    *
-   * This override does not wrap its body in `withWriteLock`, which is safe here only because it is exercised solely
-   * through modifiers, which already hold the lock by the time they reach it. A **production** subclass overriding
-   * `receivers_=` must wrap its own body in `withWriteLock`, because a direct assignment reaches the override before
-   * `ConcurrentMidiTransmitter` takes the lock.
+   * This override deliberately does no locking of its own. That is the contract under test: the change guard is taken
+   * by `ConcurrentMidiTransmitter` before the hook runs, so a subclass never has to know a lock exists.
    */
   class WriteLockProbingTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty)
     extends ConcurrentMidiTransmitter(initialReceivers) {
 
     val writeLockHeldOnSet: mutable.ListBuffer[Boolean] = mutable.ListBuffer()
 
-    override def receivers_=(newReceivers: Seq[MidiReceiver]): Unit = {
+    override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
       writeLockHeldOnSet += lock.isWriteLockedByCurrentThread
-      super.receivers_=(newReceivers)
+      super.setReceivers(newReceivers)
     }
 
     def lockIsWriteLocked: Boolean = lock.isWriteLocked
@@ -57,6 +55,23 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     /** Runs `body` on the calling thread while holding the write lock, so that a test can block a reader out. */
     def holdingWriteLock[R](body: => R): R = withWriteLock {
       body
+    }
+  }
+
+  /**
+   * Overrides `setReceivers` the way #281's `MidiProcessorTransmitter` will: it reads the current receivers to compare
+   * them with the incoming ones before letting the change through. That read takes the read lock while the change
+   * guard already holds the write lock — a downgrade, which a [[java.util.concurrent.locks.ReentrantReadWriteLock]]
+   * permits and which the opposite order would deadlock on. Not `private`, for the same reason as above.
+   */
+  class ComparingTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty)
+    extends ConcurrentMidiTransmitter(initialReceivers) {
+
+    val changes: mutable.ListBuffer[(Seq[MidiReceiver], Seq[MidiReceiver])] = mutable.ListBuffer()
+
+    override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
+      changes += ((receivers, newReceivers))
+      super.setReceivers(newReceivers)
     }
   }
 
@@ -170,7 +185,7 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
 
   it should behave like mutableMidiTransmitter(initialReceivers => ConcurrentMidiTransmitter(initialReceivers))
 
-  it should "not call receivers_= from its constructor" in {
+  it should "not call setReceivers from its constructor" in {
     // Given
     val receiver = NoOpMidiReceiver()
 
@@ -182,7 +197,7 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     probe.receivers shouldEqual Seq(receiver)
   }
 
-  it should "reach receivers_= from every modifier while holding the write lock" in new ProbeFixture {
+  it should "reach setReceivers from every modifier while holding the write lock" in new ProbeFixture {
     // When
     probe.addReceiver(receiver1)
     probe.addReceivers(Seq(receiver2))
@@ -194,12 +209,12 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     probe.receivers shouldBe empty
   }
 
-  it should "reach a subclass receivers_= outside the write lock on a direct assignment" in new ProbeFixture {
+  it should "reach setReceivers while holding the write lock on a direct assignment too" in new ProbeFixture {
     // When
     probe.receivers = Seq(receiver1)
 
     // Then
-    probe.writeLockHeldOnSet.toSeq shouldEqual Seq(false)
+    probe.writeLockHeldOnSet.toSeq shouldEqual Seq(true)
     probe.receivers shouldEqual Seq(receiver1)
   }
 
@@ -245,6 +260,23 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     blockedOnTheLock shouldBe true
     readDone.await(30000L, TimeUnit.MILLISECONDS) shouldBe true
     readReceivers.get() shouldEqual Seq(receiver1)
+  }
+
+  it should "let a setReceivers override read the current receivers from inside the change guard" in {
+    // Given
+    val receiver1 = NoOpMidiReceiver()
+    val receiver2 = NoOpMidiReceiver()
+    val transmitter = ComparingTransmitter(Seq(receiver1))
+
+    // When
+    transmitter.addReceiver(receiver2)
+    transmitter.receivers = Seq(receiver2)
+
+    // Then
+    transmitter.changes.toSeq shouldEqual Seq(
+      (Seq(receiver1), Seq(receiver1, receiver2)),
+      (Seq(receiver1, receiver2), Seq(receiver2)),
+    )
   }
 
   it should "not lose updates when several threads add and remove receivers while others read" in
