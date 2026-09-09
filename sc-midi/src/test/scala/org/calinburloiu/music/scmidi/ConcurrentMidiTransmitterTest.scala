@@ -20,7 +20,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch}
+import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, TimeUnit}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
@@ -64,6 +64,13 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
    * Fixture for the multi-thread test: `writerCount` writer threads each own `receiversPerWriter` distinct receivers,
    * add them all, then remove the first half; `readerCount` reader threads read snapshots in a loop meanwhile. All
    * threads start on one latch so that they overlap, and any exception thrown on a thread is collected and asserted on.
+   *
+   * Reading is a checked precondition, not a hope. `readersRunning` is only cleared once every reader has completed a
+   * first snapshot, and `runAll` records in `allReadersRead` whether that happened within `joinTimeoutMillis`, for the
+   * test to assert on. Without that barrier a reader starved until after the writers finished would find the flag
+   * already `false`, never enter its loop, and silently reduce this to a writers-only test that still passes green.
+   * The barrier pins that every reader read during the run; it does not, and cannot without distorting the timings
+   * under test, pin that any individual read interleaved with an individual write.
    */
   trait ConcurrencyFixture {
     val writerCount: Int = 8
@@ -78,6 +85,10 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
 
     val start: CountDownLatch = CountDownLatch(1)
     val readersRunning: AtomicBoolean = AtomicBoolean(true)
+    /** Counted down by each reader once it has completed its first snapshot, successfully or not. */
+    val firstReads: CountDownLatch = CountDownLatch(readerCount)
+    /** Whether every reader reached its first snapshot before `runAll` stopped the readers. */
+    val allReadersRead: AtomicBoolean = AtomicBoolean(false)
     val failures: ConcurrentLinkedQueue[Throwable] = ConcurrentLinkedQueue()
 
     def startThread(body: => Unit): Thread = {
@@ -103,18 +114,32 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
       }
     }
 
+    def readSnapshot(): Unit = {
+      val snapshot = transmitter.receivers
+      snapshot.size should be <= writerCount * receiversPerWriter
+      snapshot.distinct.size shouldEqual snapshot.size
+    }
+
     val readers: Seq[Thread] = Seq.fill(readerCount) {
       startThread {
+        // Counting down in a `finally` keeps a reader whose first snapshot fails from stalling `runAll` for the whole
+        // timeout: the failure it threw is collected in `failures` and asserted on there instead.
+        try {
+          readSnapshot()
+        } finally {
+          firstReads.countDown()
+        }
+
         while (readersRunning.get()) {
-          val snapshot = transmitter.receivers
-          snapshot.size should be <= writerCount * receiversPerWriter
-          snapshot.distinct.size shouldEqual snapshot.size
+          readSnapshot()
         }
       }
     }
 
     def runAll(): Unit = {
       start.countDown()
+      // Awaited before joining the writers, so that the readers' first snapshots fall inside the writers' run.
+      allReadersRead.set(firstReads.await(joinTimeoutMillis, TimeUnit.MILLISECONDS))
       writers.foreach(_.join(joinTimeoutMillis))
       readersRunning.set(false)
       readers.foreach(_.join(joinTimeoutMillis))
@@ -173,9 +198,10 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
       runAll()
 
       // Then
+      failures.asScala shouldBe empty
+      allReadersRead.get() shouldBe true
       writers.map(_.isAlive) should contain only false
       readers.map(_.isAlive) should contain only false
-      failures.asScala shouldBe empty
       // The size check comes first so that a lost update fails with a readable count, not a dump of 1000 receivers.
       transmitter.receivers should have size expectedFinalReceivers.size
       transmitter.receivers should contain theSameElementsAs expectedFinalReceivers
