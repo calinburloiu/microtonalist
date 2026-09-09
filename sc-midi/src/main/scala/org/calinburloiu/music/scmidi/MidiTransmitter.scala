@@ -29,7 +29,8 @@ package org.calinburloiu.music.scmidi
  *
  * It is `AutoCloseable` so that an implementation that holds a resource (a native endpoint, a thread) has a release
  * hook; the three implementations above hold none and implement [[close]] as a no-op. A consumer that is merely
- * handed a transmitter does not own it and must not close it.
+ * handed a transmitter does not own it and must not close it. Symmetrically, a transmitter does not own the receivers
+ * it forwards to and never closes them: whoever created a receiver closes it.
  *
  * @see [[javax.sound.midi.Transmitter]], which allows a single receiver only.
  */

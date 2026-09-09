@@ -24,17 +24,18 @@ import scala.collection.mutable
 class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableMidiTransmitterBehaviors {
 
   /**
-   * Records every sequence passed to `receivers_=`, to prove each modifier funnels through the setter. Not `private`:
-   * a fixture exposes a value of this type, and Scala rejects a non-private member whose type is a private class.
+   * Records every sequence passed to `setReceivers`, to prove each modifier funnels through that one hook. Not
+   * `private`: a fixture exposes a value of this type, and Scala rejects a non-private member whose type is a private
+   * class.
    */
   class SetterProbingTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty)
     extends MutableMidiTransmitter(initialReceivers) {
 
     val assignedSequences: mutable.ListBuffer[Seq[MidiReceiver]] = mutable.ListBuffer()
 
-    override def receivers_=(newReceivers: Seq[MidiReceiver]): Unit = {
+    override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
       assignedSequences += newReceivers
-      super.receivers_=(newReceivers)
+      super.setReceivers(newReceivers)
     }
   }
 
@@ -57,7 +58,7 @@ class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableM
     transmitter.receivers shouldBe empty
   }
 
-  it should "not call receivers_= from its constructor" in {
+  it should "not call setReceivers from its constructor" in {
     // Given
     val receiver = NoOpMidiReceiver()
 
@@ -69,12 +70,13 @@ class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableM
     probe.receivers shouldEqual Seq(receiver)
   }
 
-  it should "funnel every modifier through receivers_= with the resulting sequence" in new ProbeFixture {
+  it should "funnel every modifier and a direct assignment through setReceivers" in new ProbeFixture {
     // When
     probe.addReceiver(receiver1)
     probe.addReceivers(Seq(receiver2, receiver1))
     probe.removeReceiver(receiver1)
     probe.clearReceivers()
+    probe.receivers = Seq(receiver2)
 
     // Then
     probe.assignedSequences.toSeq shouldEqual Seq(
@@ -82,6 +84,7 @@ class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableM
       Seq(receiver1, receiver2, receiver1),
       Seq(receiver2),
       Seq.empty,
+      Seq(receiver2),
     )
   }
 }

@@ -76,15 +76,13 @@ trait MidiProcessor extends AutoCloseable {
    */
   class MidiProcessorTransmitter private[scmidi] extends ConcurrentMidiTransmitter() {
 
-    // Taken explicitly: a direct `receivers = …` assignment reaches this override before the superclass takes the
-    // lock, whereas a modifier reaches it with the lock already held. The lock is reentrant, so both paths are fine.
-    override def receivers_=(newReceivers: Seq[MidiReceiver]): Unit = withWriteLock {
+    override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
       val currentReceivers = receivers
       if (currentReceivers != newReceivers) {
         if (currentReceivers.nonEmpty) {
           onDisconnect()
         }
-        super.receivers_=(newReceivers)
+        super.setReceivers(newReceivers)
         if (newReceivers.nonEmpty) {
           onConnect()
         }
