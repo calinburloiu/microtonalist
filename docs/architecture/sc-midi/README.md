@@ -88,7 +88,11 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 - **`MultiTransmitter`** — a thread-safe transmitter allowing **multiple** receivers, unlike Java's single-receiver
   `Transmitter`. Superseded by the `MidiTransmitter` family below; #281 rewires its users and deletes it.
 - **`MidiTransmitter`** — the read-only, `AutoCloseable` transmitter of the Scala API: a single
-  `receivers: Seq[MidiReceiver]` member, no locks. Three implementations, all with a no-op `close()`:
+  `receivers: Seq[MidiReceiver]` member. The trait *itself* declares no state, no locking and no implementation, so a
+  consumer that only forwards messages does not depend on how, or whether, the sequence can change. That is a
+  statement about the trait, not about the values behind it: locking is each implementation's business, and a
+  reference typed as `MidiTransmitter` may well hold a `ConcurrentMidiTransmitter` that takes a lock on every read.
+  Three implementations, all with a no-op `close()`:
   `ImmutableMidiTransmitter` (a case class whose `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers`
   return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
   a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
