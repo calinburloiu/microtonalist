@@ -16,10 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRequirements}
-
-import javax.sound.midi.MidiMessage
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, MidiRequirements}
 
 
 /**
@@ -69,17 +66,15 @@ object PitchBendSensitivityMessages {
    *
    * @param channel              The MIDI channel for which the pitch bend sensitivity is configured.
    * @param pitchBendSensitivity The pitch bend sensitivity settings, including semitones and cents.
-   * @return A sequence of MIDI messages representing the pitch bend sensitivity configuration.
+   * @return the MIDI messages that configure the pitch bend sensitivity.
    */
-  def create(channel: Int, pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMessage] = {
-    val sequence = RpnMessages.select(channel, RpnMessages.PitchBendSensitivitySelector) ++
+  def create(channel: Int, pitchBendSensitivity: PitchBendSensitivity): Seq[MidiMsg] = {
+    RpnMessages.select(channel, RpnMessages.PitchBendSensitivitySelector) ++
       Seq(
         CcMidiMsg(channel, MidiCc.DataEntryMsb, pitchBendSensitivity.semitones),
         CcMidiMsg(channel, MidiCc.DataEntryLsb, pitchBendSensitivity.cents)) ++
       // Leaving the channel with no parameter selected — the Null RPN on the wire — prevents a later stray Data
       // Entry from changing this parameter.
       RpnMessages.select(channel, RpnSelector.None)
-
-    sequence.map(_.asJava)
   }
 }

@@ -59,9 +59,8 @@ case object NoTuningChange extends IneffectiveTuningChange
 
 /**
  * Describes an operation that does not trigger a tuning change, but the MIDI message that caused the production of
- * this operation via
- * [[org.calinburloiu.music.microtonalist.tuner.TuningChanger#decide(javax.sound.midi.MidiMessage)]] it part of a
- * series/pattern that may eventually trigger an effective tuning change.
+ * this operation via [[TuningChanger.decide]] it part of a series/pattern that may eventually trigger an effective
+ * tuning change.
  *
  * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous
  * stream of CC messages, but only for one of them a tuning change is triggered, for the rest this operation is emitted.

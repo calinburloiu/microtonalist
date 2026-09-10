@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.MidiProcessor
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
-import javax.sound.midi.MidiMessage
 import scala.annotation.tailrec
 
 /**
@@ -46,7 +46,7 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
     this(Seq(tuningChanger), tuningService)
   }
 
-  override def process(message: MidiMessage, timeStamp: Long): Seq[MidiMessage] = {
+  override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = {
     val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
       message, tuningChangers.toList)
 
@@ -65,10 +65,6 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
       Seq.empty
     }
   }
-
-  override def close(): Unit = {
-    // Nothing to do here
-  }
 }
 
 object TuningChangeProcessor {
@@ -81,7 +77,7 @@ object TuningChangeProcessor {
    *         any.
    */
   @tailrec
-  private def computeTuningChange(message: MidiMessage,
+  private def computeTuningChange(message: MidiMsg,
                                   tuningChangers: List[TuningChanger]): (TuningChange, Option[TuningChanger]) = {
     if (tuningChangers.isEmpty) {
       (NoTuningChange, None)

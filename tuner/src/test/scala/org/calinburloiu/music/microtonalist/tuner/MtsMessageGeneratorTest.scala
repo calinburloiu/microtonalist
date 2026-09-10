@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.sun.media.sound.SoftTuning
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.SysExMidiMsg
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -46,7 +46,9 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
 
   def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double]): Unit = {
     val sysExMessage = messageGenerator.generate(tuning)
-    val data = sysExMessage.asJava.getMessage
+    val data = sysExMessage.data.toArray
+    data.head shouldEqual SysExMidiMsg.StatusByte
+    data.last shouldEqual SysExMidiMsg.EndOfExclusiveByte
     val softTuning = new SoftTuning(data)
     val tuningValues = softTuning.getTuning
 

@@ -18,10 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.*
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.*
 
-import javax.sound.midi.{MidiMessage, ShortMessage}
 import scala.collection.mutable
 
 /**
@@ -92,7 +90,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Pitch Bend Sensitivity sequences included, which is why they go through `emitMcmSequence` and `emitPbsSequence`.
    * And every relayed message that deselects at the receiver must remove the entry: the Tuner authors the parameter
    * selected on its output channels, but not every message that changes it — see
-   * [[MpeMessageRouting.deselectsOnRelay]] and the System Reset case in `processShortMessage`.
+   * [[MpeMessageRouting.deselectsOnRelay]] and the System Reset case in `process`.
    *
    * An absent entry means "not known", and re-emits.
    */
@@ -115,8 +113,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   def tuning: Tuning = _tuning
 
-  override def reset(): Seq[MidiMessage] = {
-    val buffer = mutable.Buffer[MidiMessage]()
+  override def reset(): Seq[MidiMsg] = {
+    val buffer = mutable.Buffer[MidiMsg]()
     // Emit Note Off for every active note before switching input mode / zone layout,
     // so downstream receivers are never left with hanging notes (MPE spec Section 2.1.4).
     stopNotesOn(buffer, AllChannels)
@@ -131,9 +129,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     buffer.toSeq
   }
 
-  override def tune(tuning: Tuning): Seq[MidiMessage] = {
+  override def tune(tuning: Tuning): Seq[MidiMsg] = {
     _tuning = tuning
-    val buffer = mutable.Buffer[MidiMessage]()
+    val buffer = mutable.Buffer[MidiMsg]()
 
     // Update pitch bend on all occupied member channels
     lowerAllocator.foreach(updateTuningOnZone(buffer, _))
@@ -142,11 +140,52 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     buffer.toSeq
   }
 
-  override def process(message: MidiMessage): Seq[MidiMessage] = {
-    message match {
-      case msg: ShortMessage => processShortMessage(msg)
-      case _ => Seq(message)
+  override def process(message: MidiMsg): Seq[MidiMsg] = {
+    val buffer = mutable.Buffer[MidiMsg]()
+    // A Note On with velocity 0 is a Note Off per the MIDI Specification. Normalizing it here, ahead of both the
+    // tracker and the router, keeps every downstream decision — routing included — reading a single note-off shape.
+    val normalizedMessage = message match {
+      case msg: NoteOnMidiMsg if msg.velocity == NoteOnMidiMsg.NoteOffVelocity =>
+        NoteOffMidiMsg(msg.channel, msg.midiNote)
+      case other => other
     }
+    tracker.send(normalizedMessage)
+
+    normalizedMessage match {
+      case msg: ChannelMidiMsg =>
+        val role = MpeMessageRouting.roleOf(_inputMode, _zones, msg.channel)
+        val rpnSelector = tracker.rpnSelector(msg.channel)
+        MpeMessageRouting.route(role, msg, rpnSelector) match {
+          case MpeRoutingVerdict.Discard =>
+            // Out-of-zone and wrong-level traffic is normal in a mixed rig, so this stays at trace level.
+            logger.trace(s"Discarding $msg received on a channel with role $role")
+          case MpeRoutingVerdict.ForwardOn(channel) =>
+            buffer += msg.mapChannel(_ => channel)
+            // A relayed Reset All Controllers deselects the parameter at the receiver, so what the Tuner recorded
+            // for that channel has stopped being a fact about it.
+            if (MpeMessageRouting.deselectsOnRelay(msg)) outputRpnSelectors.remove(channel)
+          case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
+            case cc: CcMidiMsg =>
+              val (messages, latchedSelector) =
+                MpeMessageRouting.rpnSequence(rpnSelector, cc, channel, latchedSelectorOn(channel))
+              buffer ++= messages
+              outputRpnSelectors(channel) = latchedSelector
+            case _ =>
+              // `route` returns this verdict only for a Data Entry, Data Increment or Data Decrement CC.
+              logger.error(s"Unexpected RPN sequence verdict for $msg")
+          }
+          case MpeRoutingVerdict.Interpret =>
+            interpret(buffer, msg, role, rpnSelector)
+        }
+      case _ =>
+        // System Exclusive, System Common, System Real-Time and meta messages affect the whole system and pass
+        // through.
+        buffer += normalizedMessage
+        // A System Reset returns every receiving channel to its power-up state, parameter selection included.
+        if (normalizedMessage == SystemResetMidiMsg) outputRpnSelectors.clear()
+    }
+
+    buffer.toSeq
   }
 
   private def lowerZone: MpeZone = _zones.lower
@@ -186,58 +225,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Emits the MCM and Pitch Bend Sensitivity sequences of both Zones. Only an enabled Zone contributes Pitch Bend
    * Sensitivity sequences; see [[emitZonePbsSequences]].
    */
-  private def emitConfiguration(buffer: mutable.Buffer[MidiMessage]): Unit = {
+  private def emitConfiguration(buffer: mutable.Buffer[MidiMsg]): Unit = {
     emitMcmSequence(buffer, lowerZone)
     emitZonePbsSequences(buffer, lowerZone)
     emitMcmSequence(buffer, upperZone)
     emitZonePbsSequences(buffer, upperZone)
-  }
-
-  private def processShortMessage(message: ShortMessage): Seq[MidiMessage] = {
-    val buffer = mutable.Buffer[MidiMessage]()
-    // A Note On with velocity 0 is a Note Off per the MIDI Specification. Normalizing it here, ahead of both the
-    // tracker and the router, keeps every downstream decision — routing included — reading a single note-off shape.
-    val scMessage = message.asScala match {
-      case msg: NoteOnMidiMsg if msg.velocity == NoteOnMidiMsg.NoteOffVelocity =>
-        NoteOffMidiMsg(msg.channel, msg.midiNote)
-      case other => other
-    }
-    tracker.send(scMessage)
-
-    scMessage match {
-      case msg: ChannelMidiMsg =>
-        val role = MpeMessageRouting.roleOf(_inputMode, _zones, msg.channel)
-        val rpnSelector = tracker.rpnSelector(msg.channel)
-        MpeMessageRouting.route(role, msg, rpnSelector) match {
-          case MpeRoutingVerdict.Discard =>
-            // Out-of-zone and wrong-level traffic is normal in a mixed rig, so this stays at trace level.
-            logger.trace(s"Discarding $msg received on a channel with role $role")
-          case MpeRoutingVerdict.ForwardOn(channel) =>
-            buffer += msg.mapChannel(_ => channel).asJava
-            // A relayed Reset All Controllers deselects the parameter at the receiver, so what the Tuner recorded
-            // for that channel has stopped being a fact about it.
-            if (MpeMessageRouting.deselectsOnRelay(msg)) outputRpnSelectors.remove(channel)
-          case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
-            case cc: CcMidiMsg =>
-              val (messages, latchedSelector) =
-                MpeMessageRouting.rpnSequence(rpnSelector, cc, channel, latchedSelectorOn(channel))
-              buffer ++= messages.map(_.asJava)
-              outputRpnSelectors(channel) = latchedSelector
-            case _ =>
-              // `route` returns this verdict only for a Data Entry, Data Increment or Data Decrement CC.
-              logger.error(s"Unexpected RPN sequence verdict for $msg")
-          }
-          case MpeRoutingVerdict.Interpret =>
-            interpret(buffer, msg, role, rpnSelector)
-        }
-      case _ =>
-        // System Exclusive, System Common and System Real-Time messages affect the whole system and pass through.
-        buffer += message
-        // A System Reset returns every receiving channel to its power-up state, parameter selection included.
-        if (scMessage == SystemResetMidiMsg) outputRpnSelectors.clear()
-    }
-
-    buffer.toSeq
   }
 
   /**
@@ -245,7 +237,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Expression Value dimensions at note level, the Non-MPE Polyphonic Key Pressure conversion, the MCM, and Pitch
    * Bend Sensitivity. Every handler receives the role rather than re-deriving it.
    */
-  private def interpret(buffer: mutable.Buffer[MidiMessage], msg: ChannelMidiMsg,
+  private def interpret(buffer: mutable.Buffer[MidiMsg], msg: ChannelMidiMsg,
                         role: MpeChannelRole, rpnSelector: RpnSelector): Unit = msg match {
     case m: NoteOnMidiMsg => processNoteOn(buffer, m, role)
     case m: NoteOffMidiMsg => processNoteOff(buffer, m, role)
@@ -259,7 +251,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       logger.error(s"Unexpected request to interpret $m")
   }
 
-  private def processNoteOn(buffer: mutable.Buffer[MidiMessage], msg: NoteOnMidiMsg,
+  private def processNoteOn(buffer: mutable.Buffer[MidiMsg], msg: NoteOnMidiMsg,
                             role: MpeChannelRole): Unit = {
     val inputChannel = msg.channel
     val midiNote = msg.midiNote
@@ -295,7 +287,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       emitSlide(buffer, outChannel, result.update)
       emitPressure(buffer, outChannel, result.update)
 
-      buffer += NoteOnMidiMsg(outChannel, midiNote, velocity).asJava
+      buffer += NoteOnMidiMsg(outChannel, midiNote, velocity)
     }
   }
 
@@ -313,7 +305,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     pressure = tracker.channelPressure(inputChannel),
     slide = tracker.cc(inputChannel, MidiCc.MpeSlide))
 
-  private def processNoteOff(buffer: mutable.Buffer[MidiMessage], msg: NoteOffMidiMsg,
+  private def processNoteOff(buffer: mutable.Buffer[MidiMsg], msg: NoteOffMidiMsg,
                              role: MpeChannelRole): Unit = {
     val inputChannel = msg.channel
     val midiNote = msg.midiNote
@@ -336,7 +328,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
           // value follows it, so that the released note's control state is final at the moment of release.
           if (result.pressureWasReset) emitPressure(buffer, outChannel, result.update)
 
-          buffer += NoteOffMidiMsg(outChannel, midiNote, velocity).asJava
+          buffer += NoteOffMidiMsg(outChannel, midiNote, velocity)
 
           if (result.update.pitchBend.isDefined) emitPitchBend(buffer, outChannel, alloc)
           emitSlide(buffer, outChannel, result.update)
@@ -354,7 +346,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processPitchBend(buffer: mutable.Buffer[MidiMessage], msg: PitchBendMidiMsg,
+  private def processPitchBend(buffer: mutable.Buffer[MidiMsg], msg: PitchBendMidiMsg,
                                role: MpeChannelRole): Unit = {
     // Per-note Pitch Bend on an input Member Channel: the note's Expression Pitch Bend, stored as received. The
     // allocator fans the update out by itself to every output channel holding a note of this input channel.
@@ -364,7 +356,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processCc(buffer: mutable.Buffer[MidiMessage], msg: CcMidiMsg,
+  private def processCc(buffer: mutable.Buffer[MidiMsg], msg: CcMidiMsg,
                         role: MpeChannelRole, rpnSelector: RpnSelector): Unit = msg.number match {
     case MidiCc.MpeSlide =>
       allocatorFor(role).foreach { alloc =>
@@ -395,7 +387,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Only the channels entering or leaving MPE control have their notes stopped and their tracked state reset; a
    * Zone untouched by the reconfiguration keeps its notes and state. See the paper's "Zones" section.
    */
-  private def processMcm(buffer: mutable.Buffer[MidiMessage], channel: Int, memberCount: Int): Unit = {
+  private def processMcm(buffer: mutable.Buffer[MidiMsg], channel: Int, memberCount: Int): Unit = {
     assert(channel == 0 || channel == 15, "MCM messages are only sent to channel 0 or 15!")
     assert(MpeZone.isValidMemberCount(memberCount),
       s"An invalid MCM member count of $memberCount reached the MpeTuner!")
@@ -506,7 +498,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * non-MPE input has no Master Channel of its own, so its Pitch Bend Sensitivity configures the routing Zone's
    * Master Channel — the channel its Pitch Bend is redirected to.
    */
-  private def processPbs(buffer: mutable.Buffer[MidiMessage], channel: Int, ccNumber: Int, ccValue: Int,
+  private def processPbs(buffer: mutable.Buffer[MidiMsg], channel: Int, ccNumber: Int, ccValue: Int,
                          role: MpeChannelRole): Unit = role match {
     case MpeChannelRole.NonMpeInput(zone) =>
       val updatedZone = zone.copy(
@@ -567,7 +559,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * sender's own selector CCs are consumed upstream in [[MpeMessageRouting.route]], so re-emitting the selector
    * here cannot duplicate them.
    */
-  private def applyPbsUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
+  private def applyPbsUpdate(buffer: mutable.Buffer[MidiMsg], channel: Int,
                              ccNumber: Int, ccValue: Int,
                              updatedZone: MpeZone, isMaster: Boolean): Unit = {
     _zones = _zones.update(updatedZone)
@@ -634,14 +626,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * reference count, as [[emitDroppedNoteOffs]] does, and Master Channel notes — which bypass the allocator — from
    * the reference count [[MidiChannelStateTracker]] keeps for them.
    */
-  private def stopNotesOn(buffer: mutable.Buffer[MidiMessage], channels: Set[Int]): Unit = {
+  private def stopNotesOn(buffer: mutable.Buffer[MidiMsg], channels: Set[Int]): Unit = {
     for {
       alloc <- Seq(lowerAllocator, upperAllocator).flatten
       (noteIdentity, outChannel) <- alloc.activeAllocations
       if channels.contains(outChannel) || channels.contains(noteIdentity.inputChannel)
       _ <- 1 to alloc.referenceCountOf(noteIdentity)
     } {
-      buffer += NoteOffMidiMsg(outChannel, noteIdentity.midiNote).asJava
+      buffer += NoteOffMidiMsg(outChannel, noteIdentity.midiNote)
     }
 
     if (_inputMode == MpeInputMode.Mpe) {
@@ -650,12 +642,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
         midiNote <- tracker.activeNotes(zone.masterChannel)
         _ <- 1 to tracker.referenceCount(zone.masterChannel, midiNote)
       } {
-        buffer += NoteOffMidiMsg(zone.masterChannel, midiNote).asJava
+        buffer += NoteOffMidiMsg(zone.masterChannel, midiNote)
       }
     }
   }
 
-  private def processChannelPressure(buffer: mutable.Buffer[MidiMessage], msg: ChannelPressureMidiMsg,
+  private def processChannelPressure(buffer: mutable.Buffer[MidiMsg], msg: ChannelPressureMidiMsg,
                                      role: MpeChannelRole): Unit = {
     // Per-note pressure on an input Member Channel: it belongs to every note active on that channel, wherever the
     // pitch-class invariant placed them.
@@ -664,7 +656,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  private def processPolyPressure(buffer: mutable.Buffer[MidiMessage], msg: PolyPressureMidiMsg,
+  private def processPolyPressure(buffer: mutable.Buffer[MidiMsg], msg: PolyPressureMidiMsg,
                                   role: MpeChannelRole): Unit = {
     // Non-MPE input only: converted to Channel Pressure on the allocated Member Channel, since MPE forbids
     // Polyphonic Key Pressure there. The value is the addressed note's own Expression Value and is averaged with
@@ -697,7 +689,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Emits Note Off messages for dropped notes: one per Note On forwarded for each note, at the neutral
    * release velocity 64 that a note ended by the Tuner's own decision receives.
    */
-  private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMessage], droppedNotes: MpeDroppedNotes,
+  private def emitDroppedNoteOffs(buffer: mutable.Buffer[MidiMsg], droppedNotes: MpeDroppedNotes,
                                   reason: DropReason): Unit = {
     logger.trace(s"Dropping notes ${droppedNotes.notes.map(_.noteIdentity.midiNote)} " +
       s"on channel ${droppedNotes.channel} (${reason.message})")
@@ -705,27 +697,27 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       droppedNote <- droppedNotes.notes
       _ <- 1 to droppedNote.referenceCount
     } {
-      buffer += NoteOffMidiMsg(droppedNotes.channel, droppedNote.noteIdentity.midiNote).asJava
+      buffer += NoteOffMidiMsg(droppedNotes.channel, droppedNote.noteIdentity.midiNote)
     }
   }
 
   /**
    * Emits a CC #74 (Slide) message on `channel` if `update` carries a new value.
    */
-  private def emitSlide(buffer: mutable.Buffer[MidiMessage], channel: Int, update: MpeExpressionUpdate): Unit =
-    update.slide.foreach { value => buffer += CcMidiMsg(channel, MidiCc.MpeSlide, value).asJava }
+  private def emitSlide(buffer: mutable.Buffer[MidiMsg], channel: Int, update: MpeExpressionUpdate): Unit =
+    update.slide.foreach { value => buffer += CcMidiMsg(channel, MidiCc.MpeSlide, value) }
 
   /**
    * Emits a Channel Pressure message on `channel` if `update` carries a new value.
    */
-  private def emitPressure(buffer: mutable.Buffer[MidiMessage], channel: Int, update: MpeExpressionUpdate): Unit =
-    update.pressure.foreach { value => buffer += ChannelPressureMidiMsg(channel, value).asJava }
+  private def emitPressure(buffer: mutable.Buffer[MidiMsg], channel: Int, update: MpeExpressionUpdate): Unit =
+    update.pressure.foreach { value => buffer += ChannelPressureMidiMsg(channel, value) }
 
   /**
    * Emits the control dimension messages for the Expression Values that changed on an output Member
    * Channel, in the relative order Pitch Bend, CC #74, Channel Pressure.
    */
-  private def emitExpressionUpdate(buffer: mutable.Buffer[MidiMessage], channel: Int,
+  private def emitExpressionUpdate(buffer: mutable.Buffer[MidiMsg], channel: Int,
                                    update: MpeExpressionUpdate, alloc: MpeChannelAllocator): Unit = {
     if (update.pitchBend.isDefined) emitPitchBend(buffer, channel, alloc)
     emitSlide(buffer, channel, update)
@@ -740,7 +732,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *                   actually produce drops, so it is the sole path that passes a meaningful reason;
    *                   callers on the slide and pressure paths pass [[DropReason.NotExpected]] instead.
    */
-  private def emitExpressionUpdateResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
+  private def emitExpressionUpdateResult(buffer: mutable.Buffer[MidiMsg], result: MpeExpressionUpdateResult,
                                          alloc: MpeChannelAllocator, dropReason: DropReason): Unit = {
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, dropReason))
     result.channelUpdates.foreach { channelUpdate =>
@@ -759,7 +751,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * are measured against the aggregate the receiver holds. Either way the result is rendered by
    * [[emitZoneConfigurationResult]].
    */
-  private def applyExpressionPitchBendThreshold(buffer: mutable.Buffer[MidiMessage],
+  private def applyExpressionPitchBendThreshold(buffer: mutable.Buffer[MidiMsg],
                                                 alloc: MpeChannelAllocator): Unit = {
     val threshold = expressionPitchBendThresholdOf(currentZone(alloc).memberPitchBendSensitivity)
     emitZoneConfigurationResult(buffer, alloc.setExpressionPitchBendThreshold(threshold), alloc)
@@ -784,7 +776,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * dropped for their input channel leaving MPE control were already sounded off by [[stopNotesOn]], before the
    * allocators were rebuilt.
    */
-  private def emitZoneConfigurationResult(buffer: mutable.Buffer[MidiMessage], result: MpeExpressionUpdateResult,
+  private def emitZoneConfigurationResult(buffer: mutable.Buffer[MidiMsg], result: MpeExpressionUpdateResult,
                                           alloc: MpeChannelAllocator): Unit = {
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, DropReason.OnMemberPbsChange))
     updateTuningOnZone(buffer, alloc)
@@ -798,17 +790,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Emits a Pitch Bend message for a channel based on the current tuning offset, if the channel has active notes.
    * The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone type.
    */
-  private def emitPitchBend(buffer: mutable.Buffer[MidiMessage], channel: Int,
+  private def emitPitchBend(buffer: mutable.Buffer[MidiMsg], channel: Int,
                             alloc: MpeChannelAllocator): Unit = {
     val zone = currentZone(alloc)
     alloc.channelPitchClass(channel).foreach { pc =>
       val tuningOffset = _tuning(pc)
       val totalPitchBend = computeOutputPitchBend(channel, alloc, zone, tuningOffset)
-      buffer += PitchBendMidiMsg(channel, totalPitchBend).asJava
+      buffer += PitchBendMidiMsg(channel, totalPitchBend)
     }
   }
 
-  private def updateTuningOnZone(buffer: mutable.Buffer[MidiMessage],
+  private def updateTuningOnZone(buffer: mutable.Buffer[MidiMsg],
                                  alloc: MpeChannelAllocator): Unit = {
     val zone = currentZone(alloc)
     // Only occupied channels have a pitch class assigned
@@ -829,12 +821,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Every MCM sequence the Tuner emits goes through here, and every Pitch Bend Sensitivity one through
    * [[emitPbsSequence]], so that [[outputRpnSelectors]] can never claim a parameter one of their Nulls has cleared.
    */
-  private def emitMcmSequence(buffer: mutable.Buffer[MidiMessage], zone: MpeZone): Unit = {
+  private def emitMcmSequence(buffer: mutable.Buffer[MidiMsg], zone: MpeZone): Unit = {
     // MCM: RPN 00 06 on the Master Channel with Data Entry MSB = memberCount, closed by an RPN Null. The selector and
     // the Null are rendered by `RpnMessages.select`, which decides their transmission order.
     val sequence = RpnMessages.select(zone.masterChannel, RpnMessages.MpeConfigurationMessageSelector) :+
       CcMidiMsg(zone.masterChannel, MidiCc.DataEntryMsb, zone.memberCount)
-    buffer ++= (sequence ++ RpnMessages.select(zone.masterChannel, RpnSelector.None)).map(_.asJava)
+    buffer ++= (sequence ++ RpnMessages.select(zone.masterChannel, RpnSelector.None))
 
     outputRpnSelectors(zone.masterChannel) = RpnSelector.None
   }
@@ -846,7 +838,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Every Pitch Bend Sensitivity sequence the Tuner emits goes through here, and every MCM one through
    * [[emitMcmSequence]], so that [[outputRpnSelectors]] can never claim a parameter one of their Nulls has cleared.
    */
-  private def emitPbsSequence(buffer: mutable.Buffer[MidiMessage], channel: Int,
+  private def emitPbsSequence(buffer: mutable.Buffer[MidiMsg], channel: Int,
                               sensitivity: PitchBendSensitivity): Unit = {
     outputRpnSelectors(channel) = RpnSelector.None
     buffer ++= PitchBendSensitivityMessages.create(channel, sensitivity)
@@ -860,7 +852,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * Emits the Pitch Bend Sensitivity sequences of an enabled Zone: one for its Master Channel and one for each of
    * its Member Channels. A disabled Zone emits nothing.
    */
-  private def emitZonePbsSequences(buffer: mutable.Buffer[MidiMessage], zone: MpeZone): Unit = {
+  private def emitZonePbsSequences(buffer: mutable.Buffer[MidiMsg], zone: MpeZone): Unit = {
     if (zone.isEnabled) {
       // Master channel PBS
       emitPbsSequence(buffer, zone.masterChannel, zone.masterPitchBendSensitivity)

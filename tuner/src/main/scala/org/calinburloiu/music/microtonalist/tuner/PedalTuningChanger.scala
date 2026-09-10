@@ -18,10 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg}
 
-import javax.sound.midi.MidiMessage
 import scala.collection.mutable
 
 /**
@@ -73,7 +71,7 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[CcNumber],
     )
     .result()
 
-  override def decide(message: MidiMessage): TuningChange = message.asScala match {
+  override def decide(message: MidiMsg): TuningChange = message match {
     case CcMidiMsg(_, cc, ccValue) if ccDepressed.contains(cc) =>
       // Capture Control Change messages used for triggering a tuning change
       val isCcPressed = isPressed(cc)

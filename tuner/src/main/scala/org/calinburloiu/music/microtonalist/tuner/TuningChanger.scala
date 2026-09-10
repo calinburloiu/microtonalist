@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.common.Plugin
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
-import javax.sound.midi.MidiMessage
 
 /**
  * `TuningChanger` is an abstract class representing a pluggable component for determining a [[TuningChange]]
@@ -42,7 +42,7 @@ abstract class TuningChanger extends Plugin {
    * @param message The MIDI message to be processed for deciding the tuning change.
    * @return a [[TuningChange]] operation representing the operation to be performed
    */
-  def decide(message: MidiMessage): TuningChange
+  def decide(message: MidiMsg): TuningChange
 
   /**
    * Resets the internal state of the `TuningChanger` to its default/initial configuration.

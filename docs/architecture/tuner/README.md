@@ -88,9 +88,11 @@ change the tuning) and `IneffectiveTuningChange` (no change, or "part of a trigg
 held pedal's CC stream).
 
 **The processor pipeline.** Each `Tuner`/`TuningChanger` is wrapped in a `MidiProcessor` (from `sc-midi`) so it can be
-chained. `TuningChangeProcessor` asks its `TuningChanger`s in order (first effective decision wins) and, on an effective
+chained; both plugins and both processors are typed on `MidiMsg`, so no conversion to Java Sound happens in this
+module. `TuningChangeProcessor` asks its `TuningChanger`s in order (first effective decision wins) and, on an effective
 change, calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`, forwarding `tune`/`process`, sending
-`reset()` on connect, and restoring 12-EDO on disconnect.
+`reset()` to each receiver newly connected to its transmitter, and restoring 12-EDO on each receiver being
+disconnected.
 
 **Track and lifecycle.** `Track` (`@ThreadSafe`) is one instrument pipeline built from a `TrackSpec`: it opens the
 input/output MIDI devices via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
@@ -134,14 +136,19 @@ The MPE design has dedicated references (do not duplicate them here):
 A `Track` is a `MidiSerialProcessor` chain built from its `TrackSpec`:
 
 ```
-input device ──▶ TuningChangeProcessor ──▶ TunerProcessor ──▶ MidiSplitter ──▶ output device
-  (MidiManager)   (TuningChanger plugins)   (Tuner plugin)     (multiTransmitter)   (MidiManager)
+input device ──▶ TuningChangeProcessor ──▶ TunerProcessor ──▶ pipeline transmitter ──▶ output device
+  (MidiManager)   (TuningChanger plugins)   (Tuner plugin)     (Track.transmitter)      (MidiManager)
 ```
 
 - Either processor stage is optional: a `TrackSpec` with no `tuningChangers` omits that stage, and likewise for the
   `tuner`.
-- Input/output can be a MIDI device or another track (`FromTrackInputSpec` / `ToTrackOutputSpec`); `TrackManager` wires
-  these inter-track connections after constructing the tracks, using each track's `multiTransmitter`.
+- Input/output can be a MIDI device or another track (`FromTrackInputSpec` / `ToTrackOutputSpec`). The output device
+  receiver is an initial receiver of the pipeline, so a tuner's `reset()` messages reach the device as soon as the
+  track is built; `TrackManager` wires the inter-track connections afterwards with `transmitter.addReceiver`, which
+  fires `onConnect` with exactly the newly added downstream track receiver — the device receiver, already present, is
+  untouched — sending the tuner's `reset()` messages to that new receiver alone. So an upstream tuner's `reset()`
+  output — pitch bend sensitivity RPN sequences and the like — also reaches the newly added downstream track's
+  pipeline, where that track's tuner processes it as if it were performance MIDI.
 - A device spec's optional channel config means *filter incoming messages by channel* (input) or *remap outgoing
   messages to a channel* (output).
 
@@ -180,8 +187,9 @@ project [Threading Model](https://github.com/calinburloiu/microtonalist/wiki/Thr
 ## Dependencies
 
 The module **depends on** `sc-midi` (the Scala-idiomatic MIDI API: `MidiManager`, `MidiProcessor`/`MidiSerialProcessor`,
-`MidiSplitter`, message types, `MidiNote`, `PitchClass`, …), `businessync` (the event bus and `BusinessyncEvent`), and
-`common` (the `Plugin` trait and `OpenableSession`).
+`MidiReceiver`/`ConcurrentMidiTransmitter`, the `MidiMsg` message model, `MidiNote`, `PitchClass`, …), `businessync`
+(the event bus and `BusinessyncEvent`), and `common` (the `Plugin` trait and `OpenableSession`). The module imports
+nothing from `javax.sound.midi` (#281).
 
 It is **depended on by** `app`, `ui`, `composition`, and `format`, so `tuner` sits below the domain/format/UI layers but
 above `sc-midi`/`businessync`/`common`. In particular `composition` produces the `Seq[Tuning]` consumed here, and

@@ -18,12 +18,9 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import javax.sound.midi.ShortMessage
 
 class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
 
@@ -58,8 +55,7 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     (IndexTuningChange(2), customIndex2TuningCcTrigger)
   )
   for ((tuningChange, cc) <- testCases) {
-    def createCcMessage(value: Int): ShortMessage =
-      CcMidiMsg(1, cc, value).asJava.asInstanceOf[ShortMessage]
+    def createCcMessage(value: Int): CcMidiMsg = CcMidiMsg(1, cc, value)
 
     "decide" should s"not trigger a $tuningChange if CC value is below or equal to the threshold" in {
       tuningChanger.decide(createCcMessage(0)) shouldEqual MayTriggerTuningChange
@@ -98,17 +94,16 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
   }
 
   "decide" should "return NoTuningChange for a Note On MIDI message" in {
-    val noteOnMessage = NoteOnMidiMsg(1, MidiNote.C4, 64).asJava
+    val noteOnMessage = NoteOnMidiMsg(1, MidiNote.C4, 64)
     tuningChanger.decide(noteOnMessage) shouldEqual NoTuningChange
   }
 
   it should "return NoTuningChange for a SysEx MIDI message" in {
     val sysExMessage = MtsMessageGenerator.Octave1ByteNonRealTime.generate(Tuning.Standard)
-    tuningChanger.decide(sysExMessage.asJava) shouldEqual NoTuningChange
+    tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
   }
 
-  def createCcMessageForNext(value: Int): ShortMessage =
-    CcMidiMsg(1, customNextTuningCcTrigger, value).asJava.asInstanceOf[ShortMessage]
+  def createCcMessageForNext(value: Int): CcMidiMsg = CcMidiMsg(1, customNextTuningCcTrigger, value)
 
   "isPressed" should "tell if the pedal for a CC trigger is pressed" in {
     tuningChanger.decide(createCcMessageForNext(customThreshold - 1))

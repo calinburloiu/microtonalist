@@ -20,6 +20,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.{Midi1Msg, Midi2Msg, MidiMsg}
 
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 import javax.annotation.concurrent.ThreadSafe
@@ -40,9 +41,10 @@ import javax.sound.midi.*
  * longer needed, [[close]] must be called. The device can be requested to be opened even if it's not connected and
  * once it will become connected it will also be opened.
  *
- * An instance exposes a [[Receiver]] and a [[MultiTransmitter]] via [[receiver]] and [[multiTransmitter]] accessors,
- * respectively. If the device is not connected, those instances will do nothing. But you can wire them, and when the
- * device becomes connected they can be used without doing something.
+ * An instance exposes a [[MidiReceiver]] and a [[ConcurrentMidiTransmitter]] via [[receiver]] and [[transmitter]];
+ * they are the only place where messages are converted to and from Java Sound. If the device is not connected, those
+ * instances will do nothing. But you can wire them, and when the device becomes connected they can be used without
+ * doing something.
  *
  * The class also exposes a [[state]] accessor with the current state of the instance and its associated device.
  *
@@ -64,17 +66,27 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
 
   private var openRefCount: Int = 0
 
-  private lazy val _receiver: HandleReceiver = new HandleReceiver
-  private lazy val splitter: MidiSplitter = new MidiSplitter
+  private lazy val _receiver: HandleReceiver = HandleReceiver()
+  private lazy val _transmitter: ConcurrentMidiTransmitter = ConcurrentMidiTransmitter()
+  private lazy val splitter: MidiSplitter = MidiSplitter(_transmitter)
 
-  private class HandleReceiver extends Receiver {
-    override def send(message: MidiMessage, timeStamp: Long): Unit = {
-      for (midiDevice <- _device if midiDevice.isOpen; deviceReceiver <- Option(midiDevice.getReceiver)) {
-        deviceReceiver.send(message, timeStamp)
-      }
-    }
+  /** Inbound boundary: the Java receiver handed to the device's transmitter converts and fans out. */
+  private lazy val inboundReceiver: Receiver = new Receiver {
+    override def send(message: MidiMessage, timeStamp: Long): Unit = splitter.send(message.asScala, timeStamp)
 
     override def close(): Unit = {}
+  }
+
+  /** Outbound boundary: converts to Java Sound and sends to the open device. */
+  private class HandleReceiver extends MidiReceiver {
+    override def send(message: MidiMsg, timeStamp: Long): Unit = message match {
+      case midi1Message: Midi1Msg =>
+        for (midiDevice <- _device if midiDevice.isOpen; deviceReceiver <- Option(midiDevice.getReceiver)) {
+          deviceReceiver.send(midi1Message.asJava, timeStamp)
+        }
+      case midi2Message: Midi2Msg =>
+        logger.warn(s"Dropping $midi2Message sent to device $id: Java Sound devices speak MIDI 1.0 only.")
+    }
   }
 
   /**
@@ -105,16 +117,16 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
   def device: Option[MidiDevice] = _device
 
   /**
-   * Determines if the associated MIDI device is an input device. If it is, then its [[receiver]] can be used,
-   * otherwise that will do nothing.
+   * Determines if the associated MIDI device is an input device. If it is, this handle's [[transmitter]] can be used
+   * to subscribe to the messages the device sends; otherwise it never emits anything.
    *
    * @return True if the MIDI device supports input, false otherwise.
    */
   def isInputDevice: Boolean = _device.exists(_.isInputDevice)
 
   /**
-   * Determines if the associated MIDI device is an output device. If it is, then its [[transmitter]] can be used,
-   * otherwise that will do nothing.
+   * Determines if the associated MIDI device is an output device. If it is, this handle's [[receiver]] can be used to
+   * send messages to the device.
    *
    * @return True if the MIDI device supports output, false otherwise.
    */
@@ -254,19 +266,20 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
   def isOpen: Boolean = _device.exists(_.isOpen)
 
   /**
-   * Retrieves the MIDI receiver associated with the device which can be used to send MIDI messages to the device.
+   * Retrieves the receiver of the device, which can be used to send MIDI messages to it. A message sent while the
+   * device is not open is dropped; a [[Midi2Msg]] is always dropped, with a warning.
    *
    * @return The MIDI receiver instance.
    */
-  def receiver: Receiver = _receiver
+  def receiver: MidiReceiver = _receiver
 
   /**
-   * Retrieves the [[MultiTransmitter]] instance associated with the MIDI device, which can be used to subscribe to
-   * MIDI messages sent from the device.
+   * Retrieves the transmitter of the device, which can be used to subscribe to the MIDI messages it sends. Receivers
+   * may be added before the device is connected or open; they start getting messages when it is.
    *
-   * @return The `MultiTransmitter` instance.
+   * @return The transmitter instance.
    */
-  def multiTransmitter: MultiTransmitter = splitter.multiTransmitter
+  def transmitter: ConcurrentMidiTransmitter = _transmitter
 
   private def doOpen(): Unit = withLock {
     _state = State.Open
@@ -276,7 +289,7 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
         dev.open()
 
         if (dev.isInputDevice) {
-          dev.getTransmitter.setReceiver(splitter.receiver)
+          dev.getTransmitter.setReceiver(inboundReceiver)
         }
       }
     } catch {

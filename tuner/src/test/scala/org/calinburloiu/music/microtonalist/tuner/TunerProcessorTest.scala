@@ -16,24 +16,21 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import javax.sound.midi.{MidiMessage, Receiver}
-
 class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
 
-  val initMessage: MidiMessage = CcMidiMsg(0, 67, 0).asJava
+  val initMessage: MidiMsg = CcMidiMsg(0, 67, 0)
 
-  val tuneMessage1: MidiMessage = PitchBendMidiMsg(0, 100).asJava
-  val tuneMessage2: MidiMessage = PitchBendMidiMsg(0, 0).asJava
+  val tuneMessage1: MidiMsg = PitchBendMidiMsg(0, 100)
+  val tuneMessage2: MidiMsg = PitchBendMidiMsg(0, 0)
 
-  val processMessage1: MidiMessage = NoteOnMidiMsg(0, MidiNote(60), 64).asJava
-  val processMessage2: MidiMessage = PitchBendMidiMsg(0, 101).asJava
+  val processMessage1: MidiMsg = NoteOnMidiMsg(0, MidiNote(60), 64)
+  val processMessage2: MidiMsg = PitchBendMidiMsg(0, 101)
 
   abstract class Fixture(shouldConnect: Boolean = true) {
     val tuner: Tuner = stub[Tuner]
@@ -42,23 +39,43 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     tuner.tune.when(Tuning.Standard).returns(Seq(tuneMessage2))
     tuner.process.when(processMessage1).returns(Seq(processMessage1, processMessage2))
 
-    val receiver: Receiver = stub[Receiver]
-    val processor: TunerProcessor = new TunerProcessor(tuner)
+    val receiver: MidiReceiver = stub[MidiReceiver]
+    val processor: TunerProcessor = TunerProcessor(tuner)
 
     if (shouldConnect) {
-      processor.transmitter.receiver = Some(receiver)
+      processor.transmitter.addReceiver(receiver)
     }
   }
 
   "onConnect" should "send init message after connecting" in new Fixture(shouldConnect = false) {
     // When
-    processor.transmitter.receiver = Some(receiver)
+    processor.transmitter.addReceiver(receiver)
     // Then
-    receiver.send.verify(initMessage, -1).once()
+    receiver.send.verify(initMessage, -1L).once()
   }
 
   it should "not send init message before connecting" in new Fixture(shouldConnect = false) {
     receiver.send.verify(*, *).never()
+  }
+
+  it should "send init message to every receiver newly connected in one change" in new Fixture(shouldConnect = false) {
+    // Given
+    val anotherReceiver: MidiReceiver = stub[MidiReceiver]
+    // When
+    processor.transmitter.receivers = Seq(receiver, anotherReceiver)
+    // Then
+    receiver.send.verify(initMessage, -1L).once()
+    anotherReceiver.send.verify(initMessage, -1L).once()
+  }
+
+  it should "send init message only to the receiver newly added, not again to one already connected" in new Fixture {
+    // Given
+    val anotherReceiver: MidiReceiver = stub[MidiReceiver]
+    // When
+    processor.transmitter.addReceiver(anotherReceiver)
+    // Then
+    anotherReceiver.send.verify(initMessage, -1L).once()
+    receiver.send.verify(initMessage, -1L).once()
   }
 
   "tune" should "send the tune messages returned by the tuner" in new Fixture {
@@ -66,7 +83,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     processor.tune(TestTunings.justCMaj)
     // Then
     tuner.tune.verify(TestTunings.justCMaj).once()
-    receiver.send.verify(tuneMessage1, -1).once()
+    receiver.send.verify(tuneMessage1, -1L).once()
   }
 
   "send" should "send the message processed by the tuner" in new Fixture {
@@ -80,11 +97,26 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     receiver.send.verify(processMessage2, timeStamp).once()
   }
 
-  "onDisconnect" should "reset tuning to 12-EDO and the internal state of the tuner" in new Fixture {
+  "onDisconnect" should "reset tuning to 12-EDO on the receivers still in place when they are cleared" in new Fixture {
     // When
-    processor.close()
+    processor.transmitter.clearReceivers()
     // Then
     tuner.tune.verify(Tuning.Standard).once()
-    receiver.send.verify(tuneMessage2, -1).once()
+    receiver.send.verify(tuneMessage2, -1L).once()
   }
+
+  it should "reset tuning to 12-EDO only on the receiver being removed, leaving the one that remains untouched" in
+    new Fixture {
+      // Given
+      val anotherReceiver: MidiReceiver = stub[MidiReceiver]
+      processor.transmitter.addReceiver(anotherReceiver)
+
+      // When
+      processor.transmitter.removeReceiver(receiver)
+
+      // Then
+      tuner.tune.verify(Tuning.Standard).once()
+      receiver.send.verify(tuneMessage2, -1L).once()
+      anotherReceiver.send.verify(tuneMessage2, -1L).never()
+    }
 }

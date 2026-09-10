@@ -17,45 +17,54 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.{MidiDeviceHandle, MidiManager, MidiSerialProcessor, MidiSplitter, MultiTransmitter}
+import org.calinburloiu.music.scmidi.MidiSerialProcessor
+import org.calinburloiu.music.scmidi.message.MidiMsg
+import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiDeviceHandle, MidiManager, MidiReceiver}
 
 import javax.annotation.concurrent.ThreadSafe
-import javax.sound.midi.{MidiMessage, Receiver}
 
 /**
  * MIDI route for tuning an output device.
  *
- * @param tuningChangeProcessor Interceptor used for detecting MIDI messages that change the tuning.
+ * When the track has a device output, the output device receiver is an initial receiver of the pipeline, so the
+ * pipeline connects — and a tuner sends its `reset()` messages to the device — as soon as the track is built. A
+ * receiver added later through [[transmitter]] (another track) is connected on its own: the device receiver, already
+ * there, is left alone rather than being disconnected and reconnected.
+ *
+ * @param spec             The declarative description this track is built from: its id, input, output, tuner and
+ *                         tuning changers.
+ * @param midiManager      Used to open the input and output MIDI devices named by the spec.
+ * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
+ *                         tuning change.
+ * @param initMidiMessages MIDI messages sent into the pipeline right after it is built, typically to initialize the
+ *                         output instrument.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,
             midiManager: MidiManager,
             tuningService: TuningService,
-            initMidiMessages: Seq[MidiMessage] = Seq.empty) extends Runnable, AutoCloseable, StrictLogging {
+            initMidiMessages: Seq[MidiMsg] = Seq.empty) extends Runnable, AutoCloseable, StrictLogging {
 
   private val inputDeviceHandle: Option[MidiDeviceHandle] = spec.input.collect {
     case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.openInput(midiDeviceId)
   }
   private val tuningChangeProcessor: Option[TuningChangeProcessor] = if (spec.tuningChangers.nonEmpty) {
-    Some(new TuningChangeProcessor(spec.tuningChangers, tuningService))
+    Some(TuningChangeProcessor(spec.tuningChangers, tuningService))
   } else {
     None
   }
-  private val tunerProcessor: Option[TunerProcessor] = spec.tuner.map { tuner => new TunerProcessor(tuner) }
+  private val tunerProcessor: Option[TunerProcessor] = spec.tuner.map { tuner => TunerProcessor(tuner) }
   private val outputDeviceHandle: Option[MidiDeviceHandle] = spec.output.collect {
     case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.openOutput(midiDeviceId)
   }
 
-  private val outputSplitter: MidiSplitter = new MidiSplitter
-  private val pipeline: MidiSerialProcessor = new MidiSerialProcessor(
-    Seq(tuningChangeProcessor, tunerProcessor).flatten, Some(outputSplitter.receiver))
+  private val pipeline: MidiSerialProcessor = MidiSerialProcessor(
+    Seq(tuningChangeProcessor, tunerProcessor).flatten, outputDeviceHandle.map(_.receiver).toSeq)
 
-  inputDeviceHandle.foreach(_.multiTransmitter.addReceiver(receiver))
-
-  private val outputReceiver: Option[Receiver] = outputDeviceHandle.map(_.receiver)
-  outputReceiver.foreach { receiver =>
-    outputSplitter.multiTransmitter.addReceiver(receiver)
-  }
+  // TODO #298 A track whose output is another track has no output receivers until TrackManager wires the link, and
+  //  a processor with none drops messages without processing them. Everything arriving between this subscription
+  //  and that wiring is therefore lost to the tuner and the channel state tracker.
+  inputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))
 
   sendInitMidiMessages()
 
@@ -66,15 +75,16 @@ class Track(val spec: TrackSpec,
     logger.warn("Track#run is not yet implemented!")
   }
 
-  def receiver: Receiver = new Receiver {
-    override def send(message: MidiMessage, timeStamp: Long): Unit = {
-      pipeline.receiver.send(message, timeStamp)
-    }
+  /**
+   * @return the receiver every MIDI message of this track enters through.
+   */
+  def receiver: MidiReceiver = pipeline.receiver
 
-    override def close(): Unit = {}
-  }
-
-  def multiTransmitter: MultiTransmitter = outputSplitter.multiTransmitter
+  /**
+   * @return the transmitter this track's output goes out through: the output device receiver and the receivers of
+   *         the tracks fed by this one.
+   */
+  def transmitter: ConcurrentMidiTransmitter = pipeline.transmitter
 
   override def close(): Unit = {
     logger.info(s"Closing track $id...")
@@ -95,6 +105,9 @@ class Track(val spec: TrackSpec,
     tunerProcessor.foreach(_.tune(tuning))
   }
 
+  // TODO #297 These reach the tuner only when the pipeline already has output receivers, which a track that feeds
+  //  another track does not have yet at this point; otherwise they are dropped without being processed. Unreachable
+  //  today, initMidiMessages having no caller that passes it.
   private def sendInitMidiMessages(): Unit = {
     for (message <- initMidiMessages) {
       pipeline.receiver.send(message, -1)

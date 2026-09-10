@@ -23,9 +23,10 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * without first having to wrap or unwrap [[javax.sound.midi.MidiMessage]] objects.
  *
  * Implementations may be stateful (e.g. tracking the current MIDI state) or stateless (e.g. forwarding to another
- * sink). Once [[close]] is called, [[send]] should become a no-op.
+ * sink). Unlike its Java counterpart, this trait carries no `close()`: nothing in this module calls one generically
+ * across a `MidiReceiver`, so an implementation that ever needs a release hook can mix in `AutoCloseable` itself.
  */
-trait MidiReceiver extends AutoCloseable {
+trait MidiReceiver {
   /**
    * Sends a MIDI message to this receiver.
    *
@@ -34,9 +35,4 @@ trait MidiReceiver extends AutoCloseable {
    *                  supported by this receiver.
    */
   def send(message: MidiMsg, timeStamp: Long = -1L): Unit
-
-  /**
-   * Releases any resources held by this receiver. Subsequent calls to [[send]] become a no-op.
-   */
-  override def close(): Unit
 }

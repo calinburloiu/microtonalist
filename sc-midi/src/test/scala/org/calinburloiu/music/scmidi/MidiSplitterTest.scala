@@ -16,99 +16,92 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
-import org.calinburloiu.music.scmidi.message.{NoteOffMidiMsg, NoteOnMidiMsg}
+import org.calinburloiu.music.scmidi.message.{MidiMsg, NoteOffMidiMsg, NoteOnMidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.matchers.should.Matchers.shouldEqual
-
-import javax.sound.midi.{MidiMessage, Receiver}
 
 class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
-  trait Fixture {
-    val splitter: MidiSplitter = new MidiSplitter()
 
-    val receiverStub1: Stub[Receiver] = stub[Receiver]
-    val receiverStub2: Stub[Receiver] = stub[Receiver]
-    val receiverStub3: Stub[Receiver] = stub[Receiver]
-    val receiverStubs: Seq[Stub[Receiver]] = Seq(receiverStub1, receiverStub2, receiverStub3)
+  trait Fixture {
+    val noteOn: MidiMsg = NoteOnMidiMsg(0, MidiNote.C4, 69)
+    val noteOff: MidiMsg = NoteOffMidiMsg(0, MidiNote.C4, 63)
+
+    val receiverStub1: Stub[MidiReceiver] = stub[MidiReceiver]
+    val receiverStub2: Stub[MidiReceiver] = stub[MidiReceiver]
+    val receiverStub3: Stub[MidiReceiver] = stub[MidiReceiver]
+    val receiverStubs: Seq[Stub[MidiReceiver]] = Seq(receiverStub1, receiverStub2, receiverStub3)
     receiverStubs.foreach { receiverStub =>
       receiverStub.send.returns(_ => ())
     }
   }
 
-  "constructor" should "populate the populate the receivers with an initial sequence" in new Fixture {
+  behavior of "constructor"
+
+  it should "expose the transmitter it was given" in new Fixture {
+    // Given
+    val transmitter: MidiTransmitter = ImmutableMidiTransmitter(receiverStubs)
+
     // When
-    val customSplitter = new MidiSplitter(Seq(receiverStub1, receiverStub2, receiverStub3))
+    val splitter: MidiSplitter = MidiSplitter(transmitter)
+
     // Then
-    customSplitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub2,
-      receiverStub3)
-    splitter.multiTransmitter.receivers shouldBe empty
+    splitter.transmitter should be theSameInstanceAs transmitter
   }
 
-  "receivers" should "be modifiable" in new Fixture {
-    // Given
-    splitter.multiTransmitter.receivers shouldBe empty
+  behavior of "send"
 
-    // When
-    splitter.multiTransmitter.addReceiver(receiverStub3)
-    // Then
-    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub3)
+  it should "forward every message, with its time-stamp, to every receiver of an immutable transmitter" in
+    new Fixture {
+      // Given
+      val splitter: MidiSplitter = MidiSplitter(ImmutableMidiTransmitter(receiverStubs))
 
-    // When
-    splitter.multiTransmitter.addReceivers(Seq(receiverStub1, receiverStub2))
-    // Then
-    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub2,
-      receiverStub3)
+      // When
+      splitter.send(noteOn, 100L)
+      splitter.send(noteOff, 120L)
 
-    // When
-    splitter.multiTransmitter.removeReceiver(receiverStub2)
-    // Then
-    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub1, receiverStub3)
-
-    // When
-    splitter.multiTransmitter.receivers = Seq(receiverStub2, receiverStub3)
-    // Then
-    splitter.multiTransmitter.receivers should contain theSameElementsAs Seq(receiverStub2, receiverStub3)
-
-    // When
-    splitter.multiTransmitter.clearReceivers()
-    // Then
-    splitter.multiTransmitter.receivers shouldBe empty
-  }
-
-  "send" should "forward MIDI messages to the receivers" in new Fixture {
-    // Given
-    splitter.multiTransmitter.receivers = receiverStubs
-
-    // When
-    splitter.receiver.send(NoteOnMidiMsg(0, MidiNote.C4, 69).asJava, 100L)
-    splitter.receiver.send(NoteOffMidiMsg(0, MidiNote.C4, 63).asJava, 120L)
-
-    // Then
-    for (receiverStub <- receiverStubs) {
-      receiverStub.send.times shouldEqual 2
-
-      val Seq(callForNoteOn, callForNoteOff) = receiverStub.send.calls
-
-      callForNoteOn._1.asScala match {
-        case NoteOnMidiMsg(channel, note, velocity) =>
-          channel shouldEqual 0
-          note.number shouldEqual MidiNote.C4.number
-          velocity shouldEqual 69
-        case _ => fail("Expected a Note On MIDI message!")
+      // Then
+      for (receiverStub <- receiverStubs) {
+        receiverStub.send.calls shouldEqual Seq((noteOn, 100L), (noteOff, 120L))
       }
-      callForNoteOn._2 shouldEqual 100L
-
-      callForNoteOff._1.asScala match {
-        case NoteOffMidiMsg(channel, note, velocity) =>
-          channel shouldEqual 0
-          note.number shouldEqual MidiNote.C4.number
-          velocity shouldEqual 63
-        case _ => fail("Expected a Note Off MIDI message!")
-      }
-      callForNoteOff._2 shouldEqual 120L
     }
+
+  it should "forward to receivers added to a mutable transmitter after construction" in new Fixture {
+    // Given
+    val transmitter: MutableMidiTransmitter = MutableMidiTransmitter()
+    val splitter: MidiSplitter = MidiSplitter(transmitter)
+    splitter.send(noteOn, 100L)
+
+    // When
+    transmitter.addReceivers(Seq(receiverStub1, receiverStub2))
+    splitter.send(noteOff, 120L)
+
+    // Then
+    receiverStub1.send.calls shouldEqual Seq((noteOff, 120L))
+    receiverStub2.send.calls shouldEqual Seq((noteOff, 120L))
+    receiverStub3.send.times shouldEqual 0
+  }
+
+  it should "forward to receivers added to a concurrent transmitter after construction" in new Fixture {
+    // Given
+    val transmitter: ConcurrentMidiTransmitter = ConcurrentMidiTransmitter(Seq(receiverStub1))
+    val splitter: MidiSplitter = MidiSplitter(transmitter)
+
+    // When
+    transmitter.addReceiver(receiverStub2)
+    transmitter.removeReceiver(receiverStub1)
+    splitter.send(noteOn, 100L)
+
+    // Then
+    receiverStub1.send.times shouldEqual 0
+    receiverStub2.send.calls shouldEqual Seq((noteOn, 100L))
+  }
+
+  it should "do nothing when the transmitter has no receivers" in new Fixture {
+    // Given
+    val splitter: MidiSplitter = MidiSplitter(MutableMidiTransmitter())
+
+    // When / Then
+    noException should be thrownBy splitter.send(noteOn, 100L)
   }
 }

@@ -130,16 +130,5 @@ trait MutableMidiTransmitterBehaviors {
       // Then
       transmitter.receivers shouldBe empty
     }
-
-    it should "keep its receivers when closed, close being a no-op" in new Fixture {
-      // Given
-      transmitter.receivers = Seq(receiver1)
-
-      // When
-      transmitter.close()
-
-      // Then
-      transmitter.receivers shouldEqual Seq(receiver1)
-    }
   }
 }

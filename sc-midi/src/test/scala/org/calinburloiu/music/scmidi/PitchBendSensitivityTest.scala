@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRpn}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -44,7 +43,7 @@ class PitchBendSensitivityTest extends AnyFlatSpec with Matchers {
     val pbs = PitchBendSensitivity(3, 37)
 
     // When
-    val messages = PitchBendSensitivityMessages.create(channel = 5, pbs).map(_.asScala)
+    val messages = PitchBendSensitivityMessages.create(channel = 5, pbs)
 
     // Then
     messages shouldEqual Seq(

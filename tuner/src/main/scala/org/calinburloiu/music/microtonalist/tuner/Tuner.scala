@@ -19,9 +19,9 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.microtonalist.tuner.Tuner.FamilyName
 import org.calinburloiu.music.scmidi.MidiDeviceId
+import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
-import javax.sound.midi.MidiMessage
 
 /**
  * [[Track]] plugin responsible for tuning an output instrument based on a specific protocol.
@@ -71,7 +71,7 @@ trait Tuner extends Plugin {
    *
    * @return the MIDI messages that should configure / initialize the output device.
    */
-  def reset(): Seq[MidiMessage] = Seq.empty
+  def reset(): Seq[MidiMsg] = Seq.empty
 
   /**
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object and
@@ -81,7 +81,7 @@ trait Tuner extends Plugin {
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
    */
-  def tune(tuning: Tuning): Seq[MidiMessage]
+  def tune(tuning: Tuning): Seq[MidiMsg]
 
   /**
    * Method called with every MIDI message of a [[Track]] that uses this tuner. Its purpose is to do any processing
@@ -97,7 +97,7 @@ trait Tuner extends Plugin {
    * @return A sequence of MIDI messages to be sent to the output device, possibly modified
    *         or generated depending on the tuner's functionality and configuration.
    */
-  def process(message: MidiMessage): Seq[MidiMessage]
+  def process(message: MidiMsg): Seq[MidiMsg]
 }
 
 object Tuner {
