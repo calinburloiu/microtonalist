@@ -91,7 +91,8 @@ held pedal's CC stream).
 chained; both plugins and both processors are typed on `MidiMsg`, so no conversion to Java Sound happens in this
 module. `TuningChangeProcessor` asks its `TuningChanger`s in order (first effective decision wins) and, on an effective
 change, calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`, forwarding `tune`/`process`, sending
-`reset()` to every receiver of its transmitter on connect, and restoring 12-EDO on disconnect.
+`reset()` to each receiver newly connected to its transmitter, and restoring 12-EDO on each receiver being
+disconnected.
 
 **Track and lifecycle.** `Track` (`@ThreadSafe`) is one instrument pipeline built from a `TrackSpec`: it opens the
 input/output MIDI devices via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
@@ -144,11 +145,10 @@ input device ──▶ TuningChangeProcessor ──▶ TunerProcessor ──▶ 
 - Input/output can be a MIDI device or another track (`FromTrackInputSpec` / `ToTrackOutputSpec`). The output device
   receiver is an initial receiver of the pipeline, so a tuner's `reset()` messages reach the device as soon as the
   track is built; `TrackManager` wires the inter-track connections afterwards with `transmitter.addReceiver`, which
-  reconnects the pipeline: `onDisconnect` fires first and tunes the output back to standard 12-EDO on the receivers
-  still in place (e.g. the device already connected), then `onConnect` sends the tuner's `reset()` messages to the
-  full new receiver set. So an upstream tuner's `reset()` output — pitch bend sensitivity RPN sequences and the
-  like — also reaches the newly added downstream track's pipeline, where that track's tuner processes it as if it
-  were performance MIDI.
+  fires `onConnect` with exactly the newly added downstream track receiver — the device receiver, already present, is
+  untouched — sending the tuner's `reset()` messages to that new receiver alone. So an upstream tuner's `reset()`
+  output — pitch bend sensitivity RPN sequences and the like — also reaches the newly added downstream track's
+  pipeline, where that track's tuner processes it as if it were performance MIDI.
 - A device spec's optional channel config means *filter incoming messages by channel* (input) or *remap outgoing
   messages to a channel* (output).
 

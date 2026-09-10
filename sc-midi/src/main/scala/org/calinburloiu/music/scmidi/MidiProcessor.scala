@@ -26,20 +26,24 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * forwarded to every receiver of the transmitter, in order. A processor whose transmitter has no receivers is not
  * processing: such a message is dropped without reaching [[process]].
  *
- * The processor is ''connected'' while its transmitter has at least one receiver. Whenever the receiver sequence
- * changes:
+ * Whenever the receiver sequence changes, the two hooks fire for exactly the receivers the change affects, not for
+ * the whole sequence:
  *
- *   1. if the current sequence is non-empty, [[onDisconnect]] is called, with the old receivers still in place;
+ *   1. the receivers being dropped — present in the current sequence but absent from the incoming one — are passed
+ *      to [[onDisconnect]], with the old sequence still in place;
  *   1. the sequence is replaced;
- *   1. if the new sequence is non-empty, [[onConnect]] is called.
+ *   1. the receivers being added — absent from the old sequence but present in the incoming one — are passed to
+ *      [[onConnect]].
  *
- * Setting the same sequence again does nothing. The hooks run inside the transmitter's write lock, so the receiver
- * sequence cannot change under them and a send that has not yet read the receivers is held off; a fan-out already in
- * flight is not, since [[MidiProcessorReceiver.send]] holds the read lock only long enough to snapshot the receivers.
- * A hook may send downstream through `transmitter.receivers` (the lock is reentrant); it must not wait for another
- * thread.
+ * A receiver present on both sides of the change (e.g. adding one more receiver to an already-connected processor)
+ * triggers neither hook: it was already initialized and stays that way. Setting the same sequence again, or calling
+ * either hook with an empty sequence, does nothing. The hooks run inside the transmitter's write lock, so the
+ * receiver sequence cannot change under them and a send that has not yet read the receivers is held off; a fan-out
+ * already in flight is not, since [[MidiProcessorReceiver.send]] holds the read lock only long enough to snapshot
+ * the receivers. A hook may send downstream through `transmitter.receivers` (the lock is reentrant); it must not wait
+ * for another thread.
  */
-trait MidiProcessor extends AutoCloseable {
+trait MidiProcessor {
 
   private val _receiver: MidiProcessorReceiver = MidiProcessorReceiver()
 
@@ -47,13 +51,11 @@ trait MidiProcessor extends AutoCloseable {
 
   /**
    * The [[MidiReceiver]] of a [[MidiProcessor]]: processes every incoming message and forwards the results to every
-   * receiver of the [[transmitter]]. Once closed, it ignores everything.
+   * receiver of the [[transmitter]].
    */
   class MidiProcessorReceiver private[scmidi] extends MidiReceiver {
 
-    @volatile private var _isClosed: Boolean = false
-
-    override def send(message: MidiMsg, timeStamp: Long): Unit = if (!_isClosed) {
+    override def send(message: MidiMsg, timeStamp: Long): Unit = {
       val outputReceivers = transmitter.receivers
       if (outputReceivers.nonEmpty) {
         for (outputMessage <- process(message, timeStamp); outputReceiver <- outputReceivers) {
@@ -61,13 +63,6 @@ trait MidiProcessor extends AutoCloseable {
         }
       }
     }
-
-    override def close(): Unit = {
-      _isClosed = true
-    }
-
-    /** @return whether [[close]] was called; a closed receiver drops every message. */
-    def isClosed: Boolean = _isClosed
   }
 
   /**
@@ -79,12 +74,14 @@ trait MidiProcessor extends AutoCloseable {
     override protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
       val currentReceivers = receivers
       if (currentReceivers != newReceivers) {
-        if (currentReceivers.nonEmpty) {
-          onDisconnect()
+        val removedReceivers = currentReceivers.filterNot(newReceivers.contains)
+        val addedReceivers = newReceivers.filterNot(currentReceivers.contains)
+        if (removedReceivers.nonEmpty) {
+          onDisconnect(removedReceivers)
         }
         super.setReceivers(newReceivers)
-        if (newReceivers.nonEmpty) {
-          onConnect()
+        if (addedReceivers.nonEmpty) {
+          onConnect(addedReceivers)
         }
       }
     }
@@ -112,18 +109,24 @@ trait MidiProcessor extends AutoCloseable {
   protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]
 
   /**
-   * Callback called after the transmitter's receivers changed to a non-empty sequence, to let the processor configure
-   * the output it is now connected to.
+   * Callback called after receivers are added to the transmitter, to let the processor configure the output it is
+   * now connected to.
+   *
+   * @param receivers the receivers newly added; never empty, and disjoint from the receivers already connected
+   *                  before the change, which this callback is not invoked for.
    */
-  protected def onConnect(): Unit = {}
+  protected def onConnect(receivers: Seq[MidiReceiver]): Unit = {}
 
   /**
-   * Callback called before the transmitter's receivers change away from a non-empty sequence, to let the processor
-   * leave the output it was connected to in a consistent state.
+   * Callback called before receivers are removed from the transmitter, to let the processor leave the output it was
+   * connected to in a consistent state.
    *
    * The processor can't know what was the exact state of the output device before connecting the processor to it.
    * Leaving it in a consistent state means setting the parameters (CCs, RPNs, NRPNs etc.) that were altered by the
    * processor to some convenient/default values.
+   *
+   * @param receivers the receivers being removed; never empty, and disjoint from the receivers that remain connected
+   *                  after the change, which this callback is not invoked for.
    */
-  protected def onDisconnect(): Unit = {}
+  protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {}
 }

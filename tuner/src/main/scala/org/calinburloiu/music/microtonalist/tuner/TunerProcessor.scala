@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.scmidi.MidiProcessor
+import org.calinburloiu.music.scmidi.{MidiProcessor, MidiReceiver}
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
 import javax.annotation.concurrent.NotThreadSafe
@@ -60,43 +60,43 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
 
   override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = tuner.process(message)
 
-  override protected def onConnect(): Unit = {
-    super.onConnect()
+  override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = {
+    super.onConnect(receivers)
 
+    // TODO #121 tuner.reset() mutates state shared by every receiver of this processor, not just the ones newly
+    //  connected here. Harmless today because a multi-receiver TunerProcessor is only ever torn down and rebuilt as
+    //  a whole (TrackManager.replaceAllTracks); revisit once a track can be rewired incrementally while running.
     val initMessages = tuner.reset()
-    sendToReceivers(initMessages, -1)
+    sendTo(receivers, initMessages, -1)
 
-    logger.info(s"Connected the processor for tuner $tuner.")
+    logger.info(s"Connected the processor for tuner $tuner to ${receivers.size} new receiver(s).")
   }
 
-  override protected def onDisconnect(): Unit = {
-    super.onDisconnect()
+  override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {
+    super.onDisconnect(receivers)
 
-    tuneToStandard()
+    // TODO #121 tuner.tune(Tuning.Standard) mutates state shared by every receiver of this processor, so it would
+    //  also flip the tuning applied to the receivers that remain connected if this processor ever has more than one
+    //  receiver left after a partial disconnect. See the onConnect TODO above for the same caveat on the other side.
+    val standardTuningMessages = tuner.tune(Tuning.Standard)
+    sendTo(receivers, standardTuningMessages, -1)
 
-    logger.info(s"Disconnected the processor for tuner $tuner.")
+    logger.info(s"Disconnected the processor for tuner $tuner from ${receivers.size} receiver(s).")
   }
 
-  override def close(): Unit = {
-    logger.info(s"Closing the processor for tuner $tuner...")
-    tuneToStandard()
-  }
+  private def sendToReceivers(messages: Seq[MidiMsg], timeStamp: Long): Unit = sendTo(transmitter.receivers,
+    messages, timeStamp)
 
-  private def sendToReceivers(messages: Seq[MidiMsg], timeStamp: Long): Unit = {
+  private def sendTo(receivers: Seq[MidiReceiver], messages: Seq[MidiMsg], timeStamp: Long): Unit = {
     // TODO #97 Handle the try differently
     try {
-      for (message <- messages; outputReceiver <- transmitter.receivers) {
+      for (message <- messages; outputReceiver <- receivers) {
         outputReceiver.send(message, timeStamp)
       }
     } catch {
       case e: IllegalStateException => throw TunerException(e)
     }
   }
-
-  /**
-   * Reset the output instrument to the standard tuning.
-   */
-  private def tuneToStandard(): Unit = tune(Tuning.Standard)
 }
 
 class TunerException(cause: Throwable) extends RuntimeException(

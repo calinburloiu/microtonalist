@@ -47,8 +47,6 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
         Seq(NoteOnMidiMsg(channel, midiNote, newVelocity))
       case _ => Seq(message)
     }
-
-    override def close(): Unit = {}
   }
 
   abstract class Fixture(shouldSetOutputReceiverOnSend: Boolean = false) {
@@ -139,19 +137,6 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
     midiSerialProcessor.receiver.send(NoteOnMidiMsg(0, MidiNote.C4, 1), 123L)
     // Then
     outputVelocities should contain theSameElementsAs Seq(15)
-  }
-
-  it should "not send messages after the receiver was closed" in new Fixture {
-    // Given
-    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(Seq(processor2x), Seq(outputReceiver))
-    midiSerialProcessor.receiver.close()
-
-    // When
-    send(1)
-
-    // Then
-    processedVelocities shouldBe empty
-    outputVelocities shouldBe empty
   }
 
   behavior of "transmitter"
@@ -666,20 +651,5 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
     // Then
     midiSerialProcessor.size shouldBe 2
-  }
-
-  behavior of "close"
-
-  it should "clear the receiver of transmitters of all processors" in new Fixture {
-    // Given
-    val processors: Seq[TestMidiProcessor] = Seq(processor2x, processor5x)
-    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(processors, Seq(outputReceiver))
-    processors.foreach(_.transmitter.receivers should not be empty)
-
-    // When
-    midiSerialProcessor.close()
-
-    // Then
-    processors.foreach(_.transmitter.receivers should be(empty))
   }
 }

@@ -86,14 +86,16 @@ live in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE Configuration Messa
 
 These are the composable pieces `tuner` builds its tuning pipeline from:
 
-- **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
-  directly; every stage of the pipeline is one.
-- **`MidiTransmitter`** — the read-only, `AutoCloseable` transmitter of the Scala API: a single
-  `receivers: Seq[MidiReceiver]` member. The trait *itself* declares no state, no locking and no implementation, so a
-  consumer that only forwards messages does not depend on how, or whether, the sequence can change. That is a
-  statement about the trait, not about the values behind it: locking is each implementation's business, and a
-  reference typed as `MidiTransmitter` may well hold a `ConcurrentMidiTransmitter` that takes a lock on every read.
-  Three implementations, all with a no-op `close()`: `ImmutableMidiTransmitter` (a case class whose
+- **`MidiReceiver`** — the Scala-idiomatic counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
+  directly; every stage of the pipeline is one. Unlike its Java counterpart, it carries no `close()`: nothing in the
+  module calls one generically across a `MidiReceiver`, so an implementation that ever needs a release hook mixes in
+  `AutoCloseable` itself instead of the trait mandating one everywhere.
+- **`MidiTransmitter`** — the read-only transmitter of the Scala API: a single `receivers: Seq[MidiReceiver]` member,
+  and, likewise, no `close()`. The trait *itself* declares no state, no locking and no implementation, so a consumer
+  that only forwards messages does not depend on how, or whether, the sequence can change. That is a statement about
+  the trait, not about the values behind it: locking is each implementation's business, and a reference typed as
+  `MidiTransmitter` may well hold a `ConcurrentMidiTransmitter` that takes a lock on every read. Three
+  implementations, none holding a resource of its own: `ImmutableMidiTransmitter` (a case class whose
   `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers` return new instances),
   `MutableMidiTransmitter` (`@NotThreadSafe`) and `ConcurrentMidiTransmitter` (`@ThreadSafe`).
   The mutable class makes every modifier and the `receivers` setter `final` and offers a subclass two `protected`
@@ -111,11 +113,12 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
   Subclasses implement `process(message: MidiMsg, timeStamp): Seq[MidiMsg]`; its `receiver` processes each message
   once and forwards the results to every receiver of its `transmitter`, a `MidiProcessorTransmitter` (a
-  `ConcurrentMidiTransmitter`) that calls `onDisconnect()` before and `onConnect()` after every change of its receiver
-  set — from or to a non-empty set respectively, and never for an unchanged set — inside its write lock, so that the
-  reset/initialisation messages the hooks emit cannot interleave with a send that has not yet read the receivers (a
-  fan-out already in flight is not held off). **This is the abstraction `tuner` extends** to tune the
-  MIDI stream. A processor with no output receivers drops messages without processing them.
+  `ConcurrentMidiTransmitter`) that calls `onDisconnect(removed)` before and `onConnect(added)` after every change of
+  its receiver set — with exactly the receivers the change drops/adds, never for a receiver present on both sides of
+  the change, and never with an empty sequence — inside its write lock, so that the reset/initialisation messages the
+  hooks emit cannot interleave with a send that has not yet read the receivers (a fan-out already in flight is not
+  held off). **This is the abstraction `tuner` extends** to tune the MIDI stream. A processor with no output
+  receivers drops messages without processing them.
 - **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end
   to end, rewiring the chain automatically on every mutation (`receivers = Seq(next.receiver)` between neighbours,
   its own output receivers on the last one) and forwarding input straight to the output when empty. Its hooks take

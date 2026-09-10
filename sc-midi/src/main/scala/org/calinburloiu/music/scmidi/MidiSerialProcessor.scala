@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.scmidi
 
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
@@ -43,7 +42,7 @@ import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
  */
 class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
                           initialOutputReceivers: Seq[MidiReceiver] = Seq.empty)
-  extends MidiProcessor, Locking, StrictLogging {
+  extends MidiProcessor, Locking {
   private implicit val lock: ReadWriteLock = ReentrantReadWriteLock()
 
   private var _processors: Seq[MidiProcessor] = initialProcessors
@@ -156,11 +155,6 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    */
   def size: Int = processors.size
 
-  override def close(): Unit = {
-    logger.info(s"Closing ${this.getClass.getCanonicalName}...")
-    _processors.foreach(_.transmitter.clearReceivers())
-  }
-
   protected override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = {
     // If there is at least one processor, then messages will flow through processors towards the output receivers due
     // to the way they are wired, so there is no need to return anything. But if processors is empty, we return the
@@ -176,10 +170,10 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
   }
 
   /** Wires the new output receivers to the last processor of the chain. */
-  override protected def onConnect(): Unit = wireOutput()
+  override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = wireOutput()
 
   /** Unwires the old output receivers from the last processor of the chain, while they are still in place. */
-  override protected def onDisconnect(): Unit = unwireOutput()
+  override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = unwireOutput()
 
   /**
    * Wires a processor at the specified index to neighboring processors or the MIDI output as needed.

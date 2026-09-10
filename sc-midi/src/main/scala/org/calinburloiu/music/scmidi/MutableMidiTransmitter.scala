@@ -111,7 +111,4 @@ class MutableMidiTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty) ex
   protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = {
     _receivers = newReceivers
   }
-
-  /** No-op: this transmitter holds no resources. */
-  override def close(): Unit = {}
 }
