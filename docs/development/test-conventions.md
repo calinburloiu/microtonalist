@@ -67,10 +67,10 @@ Correct:
 Simplify test setup (typically the `Given` section) with `trait` or `abstract class` fixtures holding code that repeats
 across many cases — but don't sacrifice readability.
 
-## No `if`s in tests
+## No `if`s around assertions
 
-Do not use `if` statements in test code. Tests should always assert the condition rather than conditionally executing
-assertions. An `if` silently skips assertions when the condition is false, hiding potential failures.
+Do not use `if` statements around assertions. Tests should always assert the condition rather than conditionally
+executing assertions. An `if` silently skips assertions when the condition is false, hiding potential failures.
 
 Wrong:
 
@@ -87,6 +87,20 @@ Correct:
 val output = tuner.tune(tuning)
 output should not be empty
 output.head.value shouldBe expected
+```
+
+**Fixtures are exempt.** The rule is about assertions, and a fixture asserts nothing: an `if` there selects a *setup*
+variant, typically from a flag the fixture takes as a parameter, so nothing can be silently skipped. Prefer it to
+duplicating a fixture for the sake of one wiring step:
+
+```scala
+abstract class Fixture(shouldConnect: Boolean = true) {
+  val processor: TunerProcessor = TunerProcessor(tuner)
+
+  if (shouldConnect) {
+    processor.transmitter.addReceiver(receiver)
+  }
+}
 ```
 
 ## Shared test utilities

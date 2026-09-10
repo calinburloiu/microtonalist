@@ -48,10 +48,12 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
   extends MidiProcessor, Locking {
   private implicit val lock: ReadWriteLock = ReentrantReadWriteLock()
 
-  private var _processors: Seq[MidiProcessor] = initialProcessors
+  private var _processors: Seq[MidiProcessor] = Seq.empty
 
+  // The output receivers go in while the chain is still empty, so that the change hook they fire finds nothing to
+  // wire; assigning the processors below is then the one and only wiring pass of the construction.
   transmitter.receivers = initialOutputReceivers
-  wireAll()
+  processors = initialProcessors
 
   /**
    * Retrieves the sequence of MIDI processors that are chained.
