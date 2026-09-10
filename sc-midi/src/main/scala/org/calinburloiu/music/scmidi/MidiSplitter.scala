@@ -24,23 +24,13 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * The caller chooses the transmitter and, with it, whether and how the receivers can change: an
  * [[ImmutableMidiTransmitter]] for a fixed fan-out, a [[MutableMidiTransmitter]] on a single thread, a
  * [[ConcurrentMidiTransmitter]] when receivers are added from other threads. The splitter does not own the
- * transmitter and never closes it.
+ * transmitter: it only reads its receivers, and its lifetime is the caller's business.
  *
  * @param transmitter the transmitter whose receivers get every message.
  */
 class MidiSplitter(val transmitter: MidiTransmitter) extends MidiReceiver {
 
-  @volatile private var _isClosed: Boolean = false
-
-  override def send(message: MidiMsg, timeStamp: Long): Unit = if (!_isClosed) {
+  override def send(message: MidiMsg, timeStamp: Long): Unit = {
     transmitter.receivers.foreach(_.send(message, timeStamp))
   }
-
-  /** Stops forwarding. The transmitter is left untouched, since the splitter does not own it. */
-  override def close(): Unit = {
-    _isClosed = true
-  }
-
-  /** @return whether [[close]] was called; a closed splitter drops every message. */
-  def isClosed: Boolean = _isClosed
 }

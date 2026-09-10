@@ -80,8 +80,6 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       case midi2Message: Midi2Msg =>
         logger.warn(s"Dropping $midi2Message sent to device $id: Java Sound devices speak MIDI 1.0 only.")
     }
-
-    override def close(): Unit = {}
   }
 
   override def info: Option[MidiDeviceInfo] = _info

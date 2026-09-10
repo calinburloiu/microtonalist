@@ -122,16 +122,6 @@ class ImmutableMidiTransmitterTest extends AnyFlatSpec with Matchers {
     transmitterWithThree.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
   }
 
-  behavior of "close"
-
-  it should "be a no-op that keeps the receivers" in new Fixture {
-    // When
-    transmitter.close()
-
-    // Then
-    transmitter.receivers shouldEqual Seq(receiver1, receiver2)
-  }
-
   behavior of "equality"
 
   it should "hold between two transmitters with the same receivers" in new Fixture {

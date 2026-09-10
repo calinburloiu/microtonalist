@@ -65,10 +65,6 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
       Seq.empty
     }
   }
-
-  override def close(): Unit = {
-    // Nothing to do here
-  }
 }
 
 object TuningChangeProcessor {

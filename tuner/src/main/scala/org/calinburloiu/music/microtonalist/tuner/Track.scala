@@ -27,8 +27,9 @@ import javax.annotation.concurrent.ThreadSafe
  * MIDI route for tuning an output device.
  *
  * When the track has a device output, the output device receiver is an initial receiver of the pipeline, so the
- * pipeline connects — and a tuner sends its `reset()` messages to the device — as soon as the track is built;
- * receivers added later through [[transmitter]] (other tracks) reconnect it.
+ * pipeline connects — and a tuner sends its `reset()` messages to the device — as soon as the track is built. A
+ * receiver added later through [[transmitter]] (another track) is connected on its own: the device receiver, already
+ * there, is left alone rather than being disconnected and reconnected.
  *
  * @param spec             The declarative description this track is built from: its id, input, output, tuner and
  *                         tuning changers.
@@ -60,6 +61,9 @@ class Track(val spec: TrackSpec,
   private val pipeline: MidiSerialProcessor = MidiSerialProcessor(
     Seq(tuningChangeProcessor, tunerProcessor).flatten, outputDeviceHandle.map(_.receiver).toSeq)
 
+  // TODO #298 A track whose output is another track has no output receivers until TrackManager wires the link, and
+  //  a processor with none drops messages without processing them. Everything arriving between this subscription
+  //  and that wiring is therefore lost to the tuner and the channel state tracker.
   inputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))
 
   sendInitMidiMessages()
@@ -101,6 +105,9 @@ class Track(val spec: TrackSpec,
     tunerProcessor.foreach(_.tune(tuning))
   }
 
+  // TODO #297 These reach the tuner only when the pipeline already has output receivers, which a track that feeds
+  //  another track does not have yet at this point; otherwise they are dropped without being processed. Unreachable
+  //  today, initMidiMessages having no caller that passes it.
   private def sendInitMidiMessages(): Unit = {
     for (message <- initMidiMessages) {
       pipeline.receiver.send(message, -1)

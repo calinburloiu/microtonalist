@@ -68,9 +68,9 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       case channelMessage: ChannelMidiMsg => channelMessage
     }
 
-    def scMidiOutput: Seq[MidiMsg] = output.toSeq
+    def midiOutput: Seq[MidiMsg] = output.toSeq
 
-    def pitchBendOutput: Seq[PitchBendMidiMsg] = scMidiOutput.collect {
+    def pitchBendOutput: Seq[PitchBendMidiMsg] = midiOutput.collect {
       case m: PitchBendMidiMsg => m
     }
 
@@ -255,7 +255,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4, 64))
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4, 96))
 
-    val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+    val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
     outputNotes should have size 5
     inside(outputNotes.head) { case NoteOnMidiMsg(_, note, 48) => note.number shouldEqual noteC4 }
     inside(outputNotes(1)) { case NoteOffMidiMsg(_, note, `lastNoteOffVelocity`) =>
@@ -281,7 +281,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteG4, 45))
     output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4, 25))
 
-    val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+    val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
     outputNotes should have size 5
     // Using the last note-on velocity sent, 80, for the auto-generated note-on messages
     inside(outputNotes.head) { case NoteOffMidiMsg(_, note, 85) => note.number shouldEqual noteBb4 }
@@ -332,7 +332,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
       // Then
       // Only now does C4 stop, handing the sound back to the still-held E4 with E's tuning.
-      val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+      val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
       outputNotes should have size 2
       inside(outputNotes.head) { case NoteOffMidiMsg(_, note, 25) => note.number shouldEqual noteC4 }
       inside(outputNotes(1)) { case NoteOnMidiMsg(_, note, 60) => note.number shouldEqual noteE4 }
@@ -364,7 +364,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
       // Then
       // Only now does C4 stop, handing the sound back to the still-held E4 with E's tuning.
-      val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+      val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
       outputNotes should have size 2
       inside(outputNotes.head) { case NoteOnMidiMsg(_, note, 0) => note.number shouldEqual noteC4 }
       inside(outputNotes(1)) { case NoteOnMidiMsg(_, note, 60) => note.number shouldEqual noteE4 }
@@ -396,7 +396,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     // Then
     // E4 simply stops; C4 is not revived, both of its presses having been discharged.
-    val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+    val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
     outputNotes should have size 1
     inside(outputNotes.head) { case NoteOffMidiMsg(_, note, 45) => note.number shouldEqual noteE4 }
   }
@@ -506,7 +506,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.process(TimingClockMidiMsg)
 
     // Then
-    scMidiOutput shouldEqual Seq(TimingClockMidiMsg)
+    midiOutput shouldEqual Seq(TimingClockMidiMsg)
   }
 
   behavior of "MonophonicPitchBendTuner when pedals are depressed"
@@ -521,18 +521,18 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     channelMessageOutput should have size 9
     // Depress pedal
-    inside(scMidiOutput.head) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
+    inside(midiOutput.head) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     // C on
-    inside(scMidiOutput(1)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
-    inside(scMidiOutput(2)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
-    inside(scMidiOutput(3)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput(1)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
+    inside(midiOutput(2)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
+    inside(midiOutput(3)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // C off
-    inside(scMidiOutput(4)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput(4)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(scMidiOutput(5)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
-    inside(scMidiOutput(6)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
-    inside(scMidiOutput(7)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
-    inside(scMidiOutput(8)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
+    inside(midiOutput(5)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
+    inside(midiOutput(6)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
+    inside(midiOutput(7)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
+    inside(midiOutput(8)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
   }
 
   it should "interrupt sustain pedal when holding notes in order to not violate monophony" in new Fixture {
@@ -545,19 +545,19 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     channelMessageOutput should have size 10
     // Play C
-    inside(scMidiOutput.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(scMidiOutput(1)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
-    inside(scMidiOutput(2)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
-    inside(scMidiOutput(3)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
+    inside(midiOutput(1)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput(2)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
+    inside(midiOutput(3)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
     // Depress pedal
-    inside(scMidiOutput(4)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
+    inside(midiOutput(4)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
     // Play C
-    inside(scMidiOutput(5)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
-    inside(scMidiOutput(6)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
-    inside(scMidiOutput(7)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
-    inside(scMidiOutput(8)) { case PitchBendMidiMsg(_, value) => value shouldEqual 0 }
-    inside(scMidiOutput(9)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput(5)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
+    inside(midiOutput(6)) { case CcMidiMsg(_, MidiCc.SustainPedal, 0) => }
+    inside(midiOutput(7)) { case CcMidiMsg(_, MidiCc.SustainPedal, 64) => }
+    inside(midiOutput(8)) { case PitchBendMidiMsg(_, value) => value shouldEqual 0 }
+    inside(midiOutput(9)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
   }
 
   it should "stop sostenuto pedal in order to not violate monophony" in new Fixture {
@@ -570,15 +570,15 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
 
     channelMessageOutput should have size 6
     // C on
-    inside(scMidiOutput.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Depress pedal
-    inside(scMidiOutput(1)) { case CcMidiMsg(_, MidiCc.SostenutoPedal, 64) => }
+    inside(midiOutput(1)) { case CcMidiMsg(_, MidiCc.SostenutoPedal, 64) => }
     // C off
-    inside(scMidiOutput(2)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    inside(midiOutput(2)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
     // Play E
-    inside(scMidiOutput(3)) { case CcMidiMsg(_, MidiCc.SostenutoPedal, 0) => }
-    inside(scMidiOutput(4)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
-    inside(scMidiOutput(5)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
+    inside(midiOutput(3)) { case CcMidiMsg(_, MidiCc.SostenutoPedal, 0) => }
+    inside(midiOutput(4)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
+    inside(midiOutput(5)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
   }
 
   it should "change pitch bend sensitivity via MIDI RPN messages" in new Fixture {
@@ -662,7 +662,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
     output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteBb4))
     output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteBb4))
 
-    val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+    val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
     outputNotes should have size 5
     inside(outputNotes.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteBb4 }
     inside(outputNotes(1)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteBb4 }
@@ -686,7 +686,7 @@ class MonophonicPitchBendTunerTest extends AnyFlatSpec with Matchers with Inside
       output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4))
 
       // Then the last release should turn off C and revert to the still-held E
-      val outputNotes: Seq[MidiMsg] = filterNotes(scMidiOutput)
+      val outputNotes: Seq[MidiMsg] = filterNotes(midiOutput)
       outputNotes should have size 7
       inside(outputNotes.head) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
       inside(outputNotes(1)) { case NoteOffMidiMsg(_, note, _) => note.number shouldEqual noteC4 }

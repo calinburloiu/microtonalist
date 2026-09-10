@@ -47,8 +47,6 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
         Seq(NoteOnMidiMsg(channel, midiNote, newVelocity))
       case _ => Seq(message)
     }
-
-    override def close(): Unit = {}
   }
 
   abstract class Fixture(shouldSetOutputReceiverOnSend: Boolean = false) {
@@ -141,19 +139,6 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
     outputVelocities should contain theSameElementsAs Seq(15)
   }
 
-  it should "not send messages after the receiver was closed" in new Fixture {
-    // Given
-    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(Seq(processor2x), Seq(outputReceiver))
-    midiSerialProcessor.receiver.close()
-
-    // When
-    send(1)
-
-    // Then
-    processedVelocities shouldBe empty
-    outputVelocities shouldBe empty
-  }
-
   behavior of "transmitter"
 
   it should "unwire the last processor when its receivers are cleared" in new Fixture {
@@ -182,6 +167,39 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
     // Then
     processor3x.transmitter.receivers shouldEqual Seq(anotherReceiver)
+  }
+
+  it should "keep the other receivers wired when one of them is removed" in new Fixture {
+    // Given
+    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(
+      Seq(processor2x, processor3x), Seq(outputReceiver))
+    val anotherReceiver: Stub[MidiReceiver] = stub[MidiReceiver]
+    anotherReceiver.send.returns(_ => ())
+    midiSerialProcessor.transmitter.addReceiver(anotherReceiver)
+
+    // When
+    midiSerialProcessor.transmitter.removeReceiver(anotherReceiver)
+    send(1)
+
+    // Then
+    processor3x.transmitter.receivers shouldEqual Seq(outputReceiver)
+    outputVelocities should contain theSameElementsAs Seq(6)
+    anotherReceiver.send.calls shouldBe empty
+  }
+
+  it should "mirror the order of its receivers onto the last processor" in new Fixture {
+    // Given
+    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(
+      Seq(processor2x, processor3x), Seq(outputReceiver))
+    val anotherReceiver: Stub[MidiReceiver] = stub[MidiReceiver]
+    anotherReceiver.send.returns(_ => ())
+    midiSerialProcessor.transmitter.addReceiver(anotherReceiver)
+
+    // When
+    midiSerialProcessor.transmitter.receivers = Seq(anotherReceiver, outputReceiver)
+
+    // Then
+    processor3x.transmitter.receivers shouldEqual Seq(anotherReceiver, outputReceiver)
   }
 
   it should "fan the output out to every receiver" in new Fixture {
@@ -666,20 +684,5 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
 
     // Then
     midiSerialProcessor.size shouldBe 2
-  }
-
-  behavior of "close"
-
-  it should "clear the receiver of transmitters of all processors" in new Fixture {
-    // Given
-    val processors: Seq[TestMidiProcessor] = Seq(processor2x, processor5x)
-    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(processors, Seq(outputReceiver))
-    processors.foreach(_.transmitter.receivers should not be empty)
-
-    // When
-    midiSerialProcessor.close()
-
-    // Then
-    processors.foreach(_.transmitter.receivers should be(empty))
   }
 }

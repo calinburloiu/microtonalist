@@ -23,15 +23,6 @@ import org.scalatest.matchers.should.Matchers
 
 class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
 
-  /** A transmitter that records whether it was closed, to check that the splitter never closes what it is given. */
-  class CloseRecordingTransmitter extends MutableMidiTransmitter {
-    var isClosed: Boolean = false
-
-    override def close(): Unit = {
-      isClosed = true
-    }
-  }
-
   trait Fixture {
     val noteOn: MidiMsg = NoteOnMidiMsg(0, MidiNote.C4, 69)
     val noteOff: MidiMsg = NoteOffMidiMsg(0, MidiNote.C4, 63)
@@ -112,32 +103,5 @@ class MidiSplitterTest extends AnyFlatSpec, Matchers, Stubs {
 
     // When / Then
     noException should be thrownBy splitter.send(noteOn, 100L)
-  }
-
-  it should "forward nothing once closed" in new Fixture {
-    // Given
-    val splitter: MidiSplitter = MidiSplitter(ImmutableMidiTransmitter(Seq(receiverStub1)))
-    splitter.close()
-
-    // When
-    splitter.send(noteOn, 100L)
-
-    // Then
-    splitter.isClosed shouldBe true
-    receiverStub1.send.times shouldEqual 0
-  }
-
-  behavior of "close"
-
-  it should "not close the transmitter it was given" in new Fixture {
-    // Given
-    val transmitter: CloseRecordingTransmitter = CloseRecordingTransmitter()
-    val splitter: MidiSplitter = MidiSplitter(transmitter)
-
-    // When
-    splitter.close()
-
-    // Then
-    transmitter.isClosed shouldBe false
   }
 }
