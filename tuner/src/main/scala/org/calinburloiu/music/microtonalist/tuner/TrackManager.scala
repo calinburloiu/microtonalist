@@ -61,6 +61,9 @@ class TrackManager(private val midiManager: MidiManager,
       }.map { spec => Track(spec, midiManager, tuningService) }
 
     // Wire inter-track connections
+    // TODO #296 The two branches below wire each direction independently, so a spec pair declaring the same link
+    //  from both ends — A.output = ToTrack(B) and B.input = FromTrack(A) — adds B.receiver to A's transmitter twice
+    //  and B then processes every message twice. The duplicate add fires no onConnect, so it is silent.
     for (currTrack <- tracks) {
       currTrack.spec.input match {
         case Some(FromTrackInputSpec(trackId, _)) =>

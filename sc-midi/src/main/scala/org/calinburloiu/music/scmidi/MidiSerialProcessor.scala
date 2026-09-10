@@ -136,6 +136,9 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
 
       _processors = _processors.patch(index, Seq.empty, 1)
 
+      // TODO #295 This throws for index 0, the chain head having no predecessor to wire, and it does so after
+      //  _processors was already reassigned, leaving the instance half-updated. Removing the first processor is
+      //  therefore impossible; only indices 1 and up work.
       wireProcessorToPrevious(index)
       // Note that after the remove the size is smaller with 1, that's why we check against size, not size - 1
       if (index == size) wireOutput()
