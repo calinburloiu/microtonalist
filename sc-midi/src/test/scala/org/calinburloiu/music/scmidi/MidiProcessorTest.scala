@@ -26,10 +26,16 @@ import scala.collection.mutable
 
 class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
-  /** Records what it processes and the receivers passed to each hook call, in order; forwards every message as is. */
+  /**
+   * Records what it processes and the receivers passed to each hook call, in order; forwards every message as is.
+   *
+   * The two membership hooks and the sequence hook are recorded separately, so that a test of one is not disturbed by
+   * the other; [[OrderingMidiProcessor]] is the one that records all three in a single log.
+   */
   class RecordingMidiProcessor extends MidiProcessor {
     val processedMessages: mutable.ListBuffer[(MidiMsg, Long)] = mutable.ListBuffer()
     val hookCalls: mutable.ListBuffer[(String, Seq[MidiReceiver])] = mutable.ListBuffer()
+    val receiversChangedCalls: mutable.ListBuffer[Seq[MidiReceiver]] = mutable.ListBuffer()
 
     override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = {
       processedMessages += ((message, timeStamp))
@@ -43,6 +49,23 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
     override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {
       hookCalls += (("disconnect", receivers))
     }
+
+    override protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = {
+      receiversChangedCalls += receivers
+    }
+  }
+
+  /** Records the name of every hook called, in one log, so that their relative order can be asserted. */
+  class OrderingMidiProcessor extends MidiProcessor {
+    val hookNames: mutable.ListBuffer[String] = mutable.ListBuffer()
+
+    override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message)
+
+    override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = hookNames += "connect"
+
+    override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = hookNames += "disconnect"
+
+    override protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = hookNames += "changed"
   }
 
   /** Snapshots the transmitter's receivers as seen from inside each hook. */
@@ -231,6 +254,47 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
     // Then
     processor.hookCalls shouldBe empty
+    processor.receiversChangedCalls shouldBe empty
+  }
+
+  it should "call onReceiversChanged with the whole new sequence on every change" in new Fixture {
+    // When
+    processor.transmitter.addReceiver(receiver1)
+    processor.transmitter.addReceiver(receiver2)
+    processor.transmitter.removeReceiver(receiver1)
+    processor.transmitter.clearReceivers()
+
+    // Then
+    processor.receiversChangedCalls.toSeq shouldEqual Seq(
+      Seq(receiver1),
+      Seq(receiver1, receiver2),
+      Seq(receiver2),
+      Seq.empty
+    )
+  }
+
+  it should "call only onReceiversChanged when the receivers are reordered" in new Fixture {
+    // Given
+    processor.transmitter.receivers = Seq(receiver1, receiver2)
+
+    // When
+    processor.transmitter.receivers = Seq(receiver2, receiver1)
+
+    // Then
+    processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1, receiver2)))
+    processor.receiversChangedCalls.toSeq shouldEqual Seq(Seq(receiver1, receiver2), Seq(receiver2, receiver1))
+  }
+
+  it should "call onReceiversChanged after onDisconnect and onConnect" in new Fixture {
+    // Given
+    val ordering: OrderingMidiProcessor = OrderingMidiProcessor()
+    ordering.transmitter.receivers = Seq(receiver1)
+
+    // When
+    ordering.transmitter.receivers = Seq(receiver2)
+
+    // Then
+    ordering.hookNames.toSeq shouldEqual Seq("connect", "changed", "disconnect", "connect", "changed")
   }
 
   it should "still expose the old receivers during onDisconnect and the new ones during onConnect" in new Fixture {

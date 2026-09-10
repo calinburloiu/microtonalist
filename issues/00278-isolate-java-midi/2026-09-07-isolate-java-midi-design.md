@@ -20,6 +20,15 @@
   carries no locking code of its own. The `MidiTransmitter` trait and `ImmutableMidiTransmitter` are untouched, as
   are D1–D3, D5, D7–D11 and the sub-issue order, so the plans for #282, #283 and #285 are unaffected and only the
   #281 plan needed rewriting.
+- **Revised a fourth time**: 2026-09-11 on `ce4fc57`, the top of `refactoring/281-scala-typed-pipeline` — the review
+  of [#289](https://github.com/calinburloiu/microtonalist/pull/289) amended three decisions to match what #281
+  actually landed. **D6**'s connect/disconnect protocol is now *per receiver* rather than per set — the hooks take
+  the receivers a change adds or drops, and a receiver present on both sides triggers neither — and a third hook,
+  `onReceiversChanged`, reports the whole new sequence after them; `MidiSerialProcessor` mirrors its output onto the
+  last processor through that third hook, because the membership hooks cannot express a partial removal or a
+  reordering. **D4** no longer makes `MidiTransmitter` (or `MidiReceiver`) `AutoCloseable`. **D2**'s instruction to
+  record the `Msg` naming rule in `docs/development/coding-conventions.md` is withdrawn. D1, D3, D5, D7–D11 and the
+  sub-issue order are unchanged, so the plans for #282, #283 and #285 stand.
 - **Issue**: [#278](https://github.com/calinburloiu/microtonalist/issues/278) — "Isolate the Java Sound implementation
   from the sc-midi Scala API" (parent), with sub-issues
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
@@ -78,9 +87,11 @@ the Java implementation, so the message types use the suffix **`MidiMsg`** inste
 uniform substitution of `ScMidiMessage` by `MidiMsg` across `sc-midi`, `tuner`, `format`, and their tests. Inside
 `javamidi`, `MidiMsg` (ours) and `MidiMessage` (Java's) then read as two distinct names without import aliases.
 
-Naming rule, to be recorded in `docs/development/coding-conventions.md` by #279: **`Msg` is the suffix of the message
-*types* only**; helpers and prose keep the full word (`RpnMessages`, `PitchBendSensitivityMessages`,
-`MtsMessageGenerator`, `MidiRequirements`).
+Naming rule: **`Msg` is the suffix of the message *types* only**; helpers and prose keep the full word
+(`RpnMessages`, `PitchBendSensitivityMessages`, `MtsMessageGenerator`, `MidiRequirements`). #279 recorded it in
+`docs/development/coding-conventions.md` and #281 removed it again (fourth revision): the rule describes one
+module's message model rather than a convention for writing Scala, and the `sc-midi` architecture document already
+states that the model uses the suffix. It stays here as the rationale for the rename.
 
 `mapShortMessageChannel` in the package object is deleted; `ChannelMidiMsg.mapChannel` already covers it.
 
@@ -104,15 +115,17 @@ top-level `MidiMsg` for forward compatibility. A full MIDI 2.0 hierarchy is out 
 ### D4 — `MidiTransmitter`: a read-only interface with three implementations
 
 ```scala
-trait MidiTransmitter extends AutoCloseable {
+trait MidiTransmitter {
   def receivers: Seq[MidiReceiver]
 }
 ```
 
-No locks and no implementation in the trait. It stays `AutoCloseable`, as `MultiTransmitter` is today, so that an
-implementation holding a resource (a native endpoint, a thread) has a release hook; the three implementations below
-implement `close()` as a no-op, and `MidiSplitter` does not close the transmitter it is given, since it does not own
-it. The name drops `Multi`; multiple receivers are implicit. Implementations:
+No locks and no implementation in the trait. It is **not** `AutoCloseable`, unlike `MultiTransmitter` — nor is
+`MidiReceiver` (fourth revision). The first draft kept the release hook so that an implementation holding a resource
+(a native endpoint, a thread) had one, but nothing in the codebase ever calls `close()` generically through either
+trait, so every implementation was left writing an empty `close()` to satisfy a contract no caller used. An
+implementation that does own a resource mixes in `AutoCloseable` itself. The name drops `Multi`; multiple receivers
+are implicit. Implementations:
 
 | Type                                        | Annotation       | Modifiers                                                                                   |
 |---------------------------------------------|------------------|---------------------------------------------------------------------------------------------|
@@ -160,12 +173,20 @@ receiver.
 
 `MidiProcessor` keeps its `receiver: MidiReceiver` (closed flag; processes, then forwards to every output receiver).
 Its output is `transmitter: MidiProcessorTransmitter`, which extends `ConcurrentMidiTransmitter` and overrides D4's
-`setReceivers` hook with the current connect/disconnect protocol, generalised to a set:
+`setReceivers` hook with the current connect/disconnect protocol, generalised **per receiver** (fourth revision):
 
 1. If the new sequence equals the current one, do nothing.
-2. If the current set is non-empty, call `onDisconnect()`.
+2. If any receiver is being dropped — present in the current sequence, absent from the incoming one — call
+   `onDisconnect(dropped)` with exactly those, the old sequence still in place.
 3. Swap the sequence, through `super.setReceivers`.
-4. If the new set is non-empty, call `onConnect()`.
+4. If any receiver is being added — absent from the old sequence, present in the incoming one — call
+   `onConnect(added)` with exactly those.
+5. Call `onReceiversChanged(newReceivers)` with the whole new sequence.
+
+A receiver present on both sides of the change triggers neither of the first two hooks: it was already initialised
+and stays that way. Neither is ever called with an empty sequence. Step 5 exists because steps 2 and 4 report
+*membership* and some consumers need the *sequence*: a change that only reorders the receivers, or that repeats one
+already connected, is reported there and nowhere else.
 
 It reads the current sequence with `receivers` and needs no locking code of its own — indeed no knowledge that a lock
 exists. D4's change guard has already taken the write lock by the time the hook runs, whichever entry point was used
@@ -178,7 +199,7 @@ lock and then forwards with no lock held. A hook may itself send downstream, sin
 not wait for another thread.
 
 **Lock-ordering caveat (#281).** The hooks of `TunerProcessor` only send downstream, so they raise no lock-ordering
-question. Those of `MidiSerialProcessor` do: they take **its own** write lock (`wireOutput` / `unwireOutput`) while
+question. That of `MidiSerialProcessor` does: it takes **its own** write lock (`wireOutput`) while
 the transmitter's write lock is held, whereas its chain modifiers (`append`, `insert`, `processors_=`, …) take the
 two in the opposite order. Two threads mutating the same pipeline — one through `pipeline.transmitter.addReceiver`,
 the other through `pipeline.append` — could therefore deadlock. Nothing does that today: the only callers of either
@@ -192,19 +213,22 @@ can take a non-concurrent transmitter.
 
 Consequences:
 
-- `MidiSerialProcessor` wires neighbours with `receivers = Seq(next.receiver)` and unwires with `clearReceivers()`.
-  Its constructor takes `initialOutputReceivers: Seq[MidiReceiver]` instead of an `Option`. Its `onDisconnect()`
-  unwires the last processor while the old output receivers are still in place, and its `onConnect()` wires the new
-  ones. Today's code instead relies on `setReceiver` calling `onConnect()` even when the new receiver is `null`, a
-  quirk D6 removes, so both hooks are needed to propagate "no output" to the last processor (#281).
+- `MidiSerialProcessor` wires neighbours with `receivers = Seq(next.receiver)`. Its constructor takes
+  `initialOutputReceivers: Seq[MidiReceiver]` instead of an `Option`. It overrides **`onReceiversChanged` alone**
+  (fourth revision), mirroring the whole sequence onto the last processor with
+  `processors.last.transmitter.receivers = transmitter.receivers`; the last processor's own transmitter then runs
+  steps 1–5 over the mirrored sequence, so each output receiver is still initialised and cleaned up exactly once.
+  The membership hooks cannot do this job: they report a delta, whereas an output change has to be mirrored whole —
+  overriding `onDisconnect` to clear the last processor and `onConnect` to rewire it loses the whole output on a
+  *partial* removal, since removing one of two receivers adds none and so never rewires (#281).
 - `Track` no longer needs its output `MidiSplitter`: the pipeline's own transmitter fans out to the device receiver and
   to other tracks. `Track.transmitter` is the pipeline's transmitter.
-- Adding a second output receiver to a connected processor re-fires `onDisconnect()`/`onConnect()`, so
-  `TunerProcessor` first tunes the receivers already connected back to standard 12-EDO and then re-sends its reset
-  messages to the whole new set. This matches the meaning of "the output configuration changed", but it is not
-  silent (#281): at inter-track wiring time an output device sees a reset, a 12-EDO retuning and another reset, and
-  an upstream tuner's `reset()` output also reaches the downstream track's pipeline, where that track's own tuner
-  processes it as if it were performance MIDI.
+- Adding a second output receiver to a connected processor fires `onConnect()` with **only that receiver**
+  (fourth revision), so `TunerProcessor` sends its reset messages to the new receiver alone and leaves the already
+  connected ones untouched. The noisy sequence the first draft accepted — an output device seeing a reset, a 12-EDO
+  retuning and another reset at inter-track wiring time — therefore does not happen. What remains is that an
+  upstream tuner's `reset()` output reaches the newly added downstream track's pipeline, where that track's own tuner
+  processes it as if it were performance MIDI (#281).
 - Observation from reading `Track.scala` at the base commit: the pipeline is built with the splitter as its output
   *before* the device receiver is added to the splitter, so `TunerProcessor.onConnect()` sends the tuner's `reset()`
   messages (e.g. Pitch Bend Sensitivity) to an empty splitter. With D6, `onConnect()` fires when the device receiver
@@ -432,8 +456,11 @@ New unit tests:
   `receivers` re-entrantly — the lock downgrade of D4 — without deadlocking).
 - `MidiSplitter` over each transmitter implementation.
 - `MidiProcessorTransmitter`: `onDisconnect`/`onConnect` on every kind of set change (empty → non-empty, non-empty →
-  different non-empty, non-empty → empty, same set → no callbacks), reached both through a direct `receivers = …`
-  assignment and through the other modifiers.
+  different non-empty, partial removal, partial addition, non-empty → empty, same set → no callbacks), reached both
+  through a direct `receivers = …` assignment and through the other modifiers; plus `onReceiversChanged` firing on
+  every change, including a reordering that fires neither of the other two, and firing after them (fourth revision).
+- `MidiSerialProcessor`: removing one of several output receivers keeps the rest wired to the last processor, and a
+  reordering is mirrored onto it (fourth revision).
 - A `Track`-level test pinning that a tuner's `reset()` messages reach a receiver added after construction (D6).
 - `MidiDeviceInfo` and the updated `MidiDeviceId`.
 - The eight `ChannelModeMidiMsg` case classes: construction and validation (`channelCount` 0–16), `mapChannel`, the

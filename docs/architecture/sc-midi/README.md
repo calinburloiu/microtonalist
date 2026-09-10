@@ -108,22 +108,29 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   `MidiDeviceHandle` are built on top of them; `MultiTransmitter`, the Java-typed transmitter the family superseded,
   is gone.
 - **`MidiSplitter(transmitter: MidiTransmitter)`** — a `MidiReceiver` that fans every message out to the receivers
-  of the transmitter it is given; the caller picks the transmitter implementation, and the splitter never closes it.
-  `MidiDeviceHandle` uses one over a `ConcurrentMidiTransmitter` to broadcast a device's stream.
+  of the transmitter it is given; the caller picks the transmitter implementation, and the splitter only reads it,
+  never owning its lifetime. `MidiDeviceHandle` uses one over a `ConcurrentMidiTransmitter` to broadcast a device's
+  stream.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
   Subclasses implement `process(message: MidiMsg, timeStamp): Seq[MidiMsg]`; its `receiver` processes each message
   once and forwards the results to every receiver of its `transmitter`, a `MidiProcessorTransmitter` (a
   `ConcurrentMidiTransmitter`) that calls `onDisconnect(removed)` before and `onConnect(added)` after every change of
   its receiver set — with exactly the receivers the change drops/adds, never for a receiver present on both sides of
-  the change, and never with an empty sequence — inside its write lock, so that the reset/initialisation messages the
-  hooks emit cannot interleave with a send that has not yet read the receivers (a fan-out already in flight is not
-  held off). **This is the abstraction `tuner` extends** to tune the MIDI stream. A processor with no output
-  receivers drops messages without processing them.
+  the change, and never with an empty sequence — and then `onReceiversChanged(newReceivers)` with the whole sequence.
+  The membership hooks are what a processor overrides to initialise or clean up an individual receiver; the sequence
+  hook is what it overrides to keep something else in step with the sequence as a whole, and it is the only one that
+  reports a change which merely reorders the receivers or repeats one already connected. All three run inside the
+  write lock, so that the reset/initialisation messages the hooks emit cannot interleave with a send that has not yet
+  read the receivers (a fan-out already in flight is not held off). **This is the abstraction `tuner` extends** to
+  tune the MIDI stream. A processor with no output receivers drops messages without processing them.
 - **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end
   to end, rewiring the chain automatically on every mutation (`receivers = Seq(next.receiver)` between neighbours,
-  its own output receivers on the last one) and forwarding input straight to the output when empty. Its hooks take
-  its own lock inside the transmitter's, so a chain mutation and an output-receiver change of the same instance must
-  not race from two threads (they do not today; #121 removes the concern).
+  its own output receivers on the last one) and forwarding input straight to the output when empty. It mirrors its own
+  output receivers onto the last processor through `onReceiversChanged` — the whole sequence, not the delta, so that a
+  partial removal or a reordering cannot leave the chain's tail out of step — and the last processor's transmitter
+  then runs the membership protocol over the mirrored sequence. That hook takes the serial processor's own lock inside
+  the transmitter's, so a chain mutation and an output-receiver change of the same instance must not race from two
+  threads (they do not today; #121 removes the concern).
 - **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that
   derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
   sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are

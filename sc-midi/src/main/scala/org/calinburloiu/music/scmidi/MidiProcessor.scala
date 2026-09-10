@@ -26,18 +26,21 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * forwarded to every receiver of the transmitter, in order. A processor whose transmitter has no receivers is not
  * processing: such a message is dropped without reaching [[process]].
  *
- * Whenever the receiver sequence changes, the two hooks fire for exactly the receivers the change affects, not for
- * the whole sequence:
+ * Whenever the receiver sequence changes, [[onDisconnect]] and [[onConnect]] fire for exactly the receivers the
+ * change affects, not for the whole sequence, and [[onReceiversChanged]] fires last for the sequence as a whole:
  *
  *   1. the receivers being dropped — present in the current sequence but absent from the incoming one — are passed
  *      to [[onDisconnect]], with the old sequence still in place;
  *   1. the sequence is replaced;
  *   1. the receivers being added — absent from the old sequence but present in the incoming one — are passed to
- *      [[onConnect]].
+ *      [[onConnect]];
+ *   1. the new sequence is passed to [[onReceiversChanged]].
  *
  * A receiver present on both sides of the change (e.g. adding one more receiver to an already-connected processor)
- * triggers neither hook: it was already initialized and stays that way. Setting the same sequence again, or calling
- * either hook with an empty sequence, does nothing. The hooks run inside the transmitter's write lock, so the
+ * triggers neither of the first two hooks: it was already initialized and stays that way. Neither is ever called with
+ * an empty sequence, whereas [[onReceiversChanged]] is called on every change — a reordering included, which the
+ * other two cannot report. Setting the same sequence again calls none of the three. The hooks run inside the
+ * transmitter's write lock, so the
  * receiver sequence cannot change under them and a send that has not yet read the receivers is held off; a fan-out
  * already in flight is not, since [[MidiProcessorReceiver.send]] holds the read lock only long enough to snapshot
  * the receivers. A hook may send downstream through `transmitter.receivers` (the lock is reentrant); it must not wait
@@ -83,6 +86,7 @@ trait MidiProcessor {
         if (addedReceivers.nonEmpty) {
           onConnect(addedReceivers)
         }
+        onReceiversChanged(newReceivers)
       }
     }
   }
@@ -129,4 +133,18 @@ trait MidiProcessor {
    *                  after the change, which this callback is not invoked for.
    */
   protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {}
+
+  /**
+   * Callback called last on every change of the transmitter's receivers, once the new sequence is in place, whether
+   * or not [[onConnect]] and [[onDisconnect]] were called for it.
+   *
+   * This is the callback to override to keep something else in step with the whole sequence, as
+   * [[MidiSerialProcessor]] does for the last processor of its chain; a change that only reorders the receivers, or
+   * that repeats one already connected, is reported here and nowhere else. To initialize or clean up an individual
+   * receiver, override [[onConnect]] / [[onDisconnect]] instead: they say which receivers the change affects, and
+   * this one does not.
+   *
+   * @param receivers the receivers messages are forwarded to from now on, in order; may be empty.
+   */
+  protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = {}
 }

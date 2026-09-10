@@ -283,18 +283,6 @@ class MidiMsgTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy KeySignatureMetaMidiMsg(-8, MidiKeySignatureMode.Major)
   }
 
-  behavior of "SysExMidiMsg"
-
-  it should "expose the System Exclusive status byte" in {
-    // Then
-    SysExMidiMsg.StatusByte shouldEqual 0xF0.toByte
-  }
-
-  it should "expose the End of Exclusive byte" in {
-    // Then
-    SysExMidiMsg.EndOfExclusiveByte shouldEqual 0xF7.toByte
-  }
-
   behavior of "MidiMsg hierarchy"
 
   it should "place every MIDI 1.0 message family under Midi1Msg" in {

@@ -169,6 +169,39 @@ class MidiSerialProcessorTest extends AnyFlatSpec, Matchers, BeforeAndAfter, Stu
     processor3x.transmitter.receivers shouldEqual Seq(anotherReceiver)
   }
 
+  it should "keep the other receivers wired when one of them is removed" in new Fixture {
+    // Given
+    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(
+      Seq(processor2x, processor3x), Seq(outputReceiver))
+    val anotherReceiver: Stub[MidiReceiver] = stub[MidiReceiver]
+    anotherReceiver.send.returns(_ => ())
+    midiSerialProcessor.transmitter.addReceiver(anotherReceiver)
+
+    // When
+    midiSerialProcessor.transmitter.removeReceiver(anotherReceiver)
+    send(1)
+
+    // Then
+    processor3x.transmitter.receivers shouldEqual Seq(outputReceiver)
+    outputVelocities should contain theSameElementsAs Seq(6)
+    anotherReceiver.send.calls shouldBe empty
+  }
+
+  it should "mirror the order of its receivers onto the last processor" in new Fixture {
+    // Given
+    override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(
+      Seq(processor2x, processor3x), Seq(outputReceiver))
+    val anotherReceiver: Stub[MidiReceiver] = stub[MidiReceiver]
+    anotherReceiver.send.returns(_ => ())
+    midiSerialProcessor.transmitter.addReceiver(anotherReceiver)
+
+    // When
+    midiSerialProcessor.transmitter.receivers = Seq(anotherReceiver, outputReceiver)
+
+    // Then
+    processor3x.transmitter.receivers shouldEqual Seq(anotherReceiver, outputReceiver)
+  }
+
   it should "fan the output out to every receiver" in new Fixture {
     // Given
     override val midiSerialProcessor: MidiSerialProcessor = MidiSerialProcessor(

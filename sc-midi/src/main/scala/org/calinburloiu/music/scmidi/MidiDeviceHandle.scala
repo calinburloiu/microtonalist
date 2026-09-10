@@ -117,16 +117,16 @@ class MidiDeviceHandle private[scmidi](val id: MidiDeviceId,
   def device: Option[MidiDevice] = _device
 
   /**
-   * Determines if the associated MIDI device is an input device. If it is, then its [[transmitter]] can be used to
-   * subscribe to the messages the device sends, otherwise that will do nothing.
+   * Determines if the associated MIDI device is an input device. If it is, this handle's [[transmitter]] can be used
+   * to subscribe to the messages the device sends; otherwise it never emits anything.
    *
    * @return True if the MIDI device supports input, false otherwise.
    */
   def isInputDevice: Boolean = _device.exists(_.isInputDevice)
 
   /**
-   * Determines if the associated MIDI device is an output device. If it is, then its [[receiver]] can be used to send
-   * messages to the device, otherwise that will do nothing.
+   * Determines if the associated MIDI device is an output device. If it is, this handle's [[receiver]] can be used to
+   * send messages to the device.
    *
    * @return True if the MIDI device supports output, false otherwise.
    */

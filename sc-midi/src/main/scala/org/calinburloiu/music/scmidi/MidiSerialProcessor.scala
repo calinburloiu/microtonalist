@@ -30,9 +30,12 @@ import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
  * }}}
  *
  * Every mutation of the chain rewires the neighbours; the last processor's transmitter always carries this
- * processor's output receivers, so a change of those (see [[onConnect]] / [[onDisconnect]]) propagates to it.
+ * processor's output receivers, so a change of those propagates to it through [[onReceiversChanged]]. It is that
+ * hook, rather than [[onConnect]] / [[onDisconnect]], because the whole sequence has to be mirrored and not only the
+ * receivers a change adds or drops; the last processor's own transmitter then runs the connect / disconnect protocol
+ * over the mirrored sequence, so each of those receivers is still initialized and cleaned up exactly once.
  *
- * Lock ordering: the two hooks take this processor's lock while the transmitter's write lock is held, whereas the
+ * Lock ordering: the hook takes this processor's lock while the transmitter's write lock is held, whereas the
  * chain modifiers take this processor's lock first and read the transmitter inside it. Mutating the chain and the
  * output receivers of the same instance from two threads at once could therefore deadlock; today both happen on the
  * business thread only. #121 gives each track one thread and removes the concern.
@@ -169,11 +172,11 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
     }
   }
 
-  /** Wires the new output receivers to the last processor of the chain. */
-  override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = wireOutput()
-
-  /** Unwires the old output receivers from the last processor of the chain, while they are still in place. */
-  override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = unwireOutput()
+  /**
+   * Mirrors this processor's output receivers onto the last processor of the chain, which then runs its own
+   * connect / disconnect protocol over them.
+   */
+  override protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = wireOutput()
 
   /**
    * Wires a processor at the specified index to neighboring processors or the MIDI output as needed.
@@ -228,15 +231,6 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
   private def wireOutput(): Unit = withWriteLock {
     if (size > 0) {
       processors.last.transmitter.receivers = transmitter.receivers
-    }
-  }
-
-  /**
-   * Disconnects the last MIDI processor in the chain from the output receivers.
-   */
-  private def unwireOutput(): Unit = withWriteLock {
-    if (size > 0) {
-      processors.last.transmitter.clearReceivers()
     }
   }
 }
