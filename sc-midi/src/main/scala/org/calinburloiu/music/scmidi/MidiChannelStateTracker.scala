@@ -29,6 +29,20 @@ import scala.collection.mutable
  * Channel Mode messages are not Control Changes and are never recorded as such: no
  * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] number appears in the tracked CC values.
  *
+ * The Channel Mode messages that set a state are tracked per channel instead: the receive mode, through
+ * [[isOmniModeOn]] and [[isPolyModeOn]] / [[isMonoModeOn]], with the channel count a Mono Mode On asks for through
+ * [[monoModeChannelCount]], and Local Control, through [[isLocalControlOn]]. Every channel starts in the power-up
+ * state MIDI 1.0 recommends — Omni On/Poly (Mode 1), with Local Control on — and holds
+ * whatever it was last asked for. A receiver honours a Mode message only on its Basic Channel, which the tracker does
+ * not know, so it records the request on whichever channel it arrives. These states are tracked whatever
+ * `shallRespondToResetMessages` says, and no reset Channel Mode message changes them: RP-015 lists the other Channel
+ * Mode messages among what Reset All Controllers leaves unchanged.
+ *
+ * With `shallRespondToResetMessages` set, the MIDI Mode messages 124–127 also cancel the channel's active notes, MIDI
+ * 1.0 making them act as All Notes Off too. MIDI 1.0 further directs a receiver in Omni mode to ignore All Notes Off
+ * and Reset All Controllers; the tracker does not apply that rule, since it cannot tell whether the channel a message
+ * arrives on is the receiver's Basic Channel, so the Omni state it records never filters a message.
+ *
  * Notes are reference-counted: a note struck twice without an intervening release stays active until it has received
  * two Note Off messages, which is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation.
  * See [[referenceCount]].
@@ -44,10 +58,11 @@ import scala.collection.mutable
  * @param rpnDefaults                 per-RPN default values that override the companion's defaults.
  * @param nrpnDefaults                per-NRPN default values that override the companion's defaults.
  * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off, Reset All Controllers
- *                                    and All Notes Off — mutate the tracked state. Defaults to `false`, which
- *                                    leaves the state untouched. Set to `true` when the tracker models a receiver
- *                                    that is known to act on these messages. Independent of this flag, [[reset]]
- *                                    always clears everything.
+ *                                    and All Notes Off — and the All Notes Off that the MIDI Mode messages 124–127
+ *                                    imply mutate the tracked state. Defaults to `false`, which leaves the state
+ *                                    untouched. Set to `true` when the tracker models a receiver that is known to act
+ *                                    on these messages. The receive mode and Local Control are tracked whatever this
+ *                                    flag says. Independent of this flag, [[reset]] always clears everything.
  */
 @NotThreadSafe
 class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
@@ -247,6 +262,48 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
+   * @return whether the given channel was last put in Omni On mode, by an Omni Mode On, rather than in Omni Off mode,
+   *         by an Omni Mode Off. `true` until either is received, Omni On/Poly (Mode 1) being the power-up mode MIDI
+   *         1.0 recommends.
+   */
+  def isOmniModeOn(channel: Int): Boolean = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).isOmniModeOn
+  }
+
+  /**
+   * @return whether the given channel was last put in Poly mode, by a Poly Mode On, rather than in Mono mode, by a
+   *         Mono Mode On. `true` until either is received, Omni On/Poly (Mode 1) being the power-up mode MIDI 1.0
+   *         recommends. The inverse of [[isMonoModeOn]].
+   */
+  def isPolyModeOn(channel: Int): Boolean = monoModeChannelCount(channel).isEmpty
+
+  /**
+   * @return whether the given channel was last put in Mono mode, by a Mono Mode On, rather than in Poly mode, by a
+   *         Poly Mode On. The inverse of [[isPolyModeOn]], so `false` until either is received.
+   */
+  def isMonoModeOn(channel: Int): Boolean = !isPolyModeOn(channel)
+
+  /**
+   * @return the number of channels the last Mono Mode On asked the receiver to use on the given channel — `0` meaning
+   *         as many as it has voices — or `None` while the channel is in Poly mode: until a Mono Mode On is received,
+   *         and again after a Poly Mode On.
+   */
+  def monoModeChannelCount(channel: Int): Option[Int] = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).monoModeChannelCount
+  }
+
+  /**
+   * @return whether Local Control was last switched on for the given channel. `true` until a Local Control message
+   *         is received, MIDI 1.0 asking instruments to power up with Local Control on.
+   */
+  def isLocalControlOn(channel: Int): Boolean = {
+    MidiRequirements.requireChannel(channel)
+    channelStates(channel).isLocalControlOn
+  }
+
+  /**
    * @return the current RPN/NRPN selector state on the given channel. [[RpnSelector.None]] is returned when no
    *         parameter is selected — before any RPN/NRPN CC messages have been received, after a Reset All Controllers
    *         or a Null RPN/NRPN (in either order of its two CCs), and while only one of a parameter's two selector CCs
@@ -402,18 +459,38 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case _ => RpnSelector.None
   }
 
-  private def handleChannelMode(state: ChannelState, message: ChannelModeMidiMsg): Unit =
-    if (shallRespondToResetMessages) message match {
-      case _: AllSoundOffMidiMsg | _: AllNotesOffMidiMsg =>
-        state.activeNotes.clear()
-      case _: ResetAllControllersMidiMsg =>
+  private def handleChannelMode(state: ChannelState, message: ChannelModeMidiMsg): Unit = message match {
+    case _: OmniModeOffMidiMsg =>
+      state.isOmniModeOn = false
+      cancelActiveNotes(state)
+    case _: OmniModeOnMidiMsg =>
+      state.isOmniModeOn = true
+      cancelActiveNotes(state)
+    case MonoModeOnMidiMsg(_, channelCount) =>
+      state.monoModeChannelCount = Some(channelCount)
+      cancelActiveNotes(state)
+    case _: PolyModeOnMidiMsg =>
+      state.monoModeChannelCount = None
+      cancelActiveNotes(state)
+    case LocalControlMidiMsg(_, isOn) => state.isLocalControlOn = isOn
+    case _: AllSoundOffMidiMsg | _: AllNotesOffMidiMsg => cancelActiveNotes(state)
+    case _: ResetAllControllersMidiMsg =>
+      if (shallRespondToResetMessages) {
         ResetAllControllersCcNumbers.foreach(state.ccValues.remove)
         state.activeNotes.valuesIterator.foreach(_.polyPressure = 0)
         state.channelPressure = None
         state.pitchBend = None
         state.partialRpnSelector = PartialRpnSelector.None
-      case _ =>
-    }
+      }
+  }
+
+  /**
+   * Cancels the channel's active notes when the tracker models a receiver that honours the messages doing so: All
+   * Sound Off, All Notes Off, and the MIDI Mode messages 124–127, which MIDI 1.0 makes act as All Notes Off too.
+   */
+  private def cancelActiveNotes(state: ChannelState): Unit = {
+    if (shallRespondToResetMessages) state.activeNotes.clear()
+  }
 
   private def writeDataEntry(state: ChannelState, isMsb: Boolean, value: Int): Unit = selectorOf(state) match {
     case RpnSelector.Rpn(rmsb, rlsb) =>
@@ -555,5 +632,8 @@ object MidiChannelStateTracker {
     var channelPressure: Option[Int] = None
     var pitchBend: Option[Int] = None
     var programChange: Option[Int] = None
+    var isOmniModeOn: Boolean = true
+    var monoModeChannelCount: Option[Int] = None
+    var isLocalControlOn: Boolean = true
   }
 }

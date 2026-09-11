@@ -142,8 +142,15 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   not race from two threads (they do not today; #121 removes the concern).
 - **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that derives
   **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages sent to
-  it, implementing the RPN/NRPN Data Entry protocol and, in a branch of its own over `ChannelModeMidiMsg`, the reset
-  Channel Mode messages (their numbers are never recorded as CC values). Notes are **reference-counted**: a note struck
+  it, implementing the RPN/NRPN Data Entry protocol and, in a branch of its own over `ChannelModeMidiMsg`, the Channel
+  Mode messages (their numbers are never recorded as CC values). The MIDI Mode messages 124–127 set the receive mode
+  (`isOmniModeOn`, `isPolyModeOn` / `isMonoModeOn`, and the channel count of Mono mode, `monoModeChannelCount`) and
+  Local Control sets `isLocalControlOn`; both start in MIDI 1.0's recommended power-up state — Omni On/Poly, Local
+  Control on — and no reset message changes them. When the tracker is
+  told its receiver honours them, All Sound Off, All Notes Off and Reset All Controllers act on the tracked state, and
+  so do the MIDI Mode messages, which MIDI 1.0 makes act as All Notes Off too; the tracker does not model MIDI 1.0's
+  rule that a receiver in Omni mode ignores All Notes Off and Reset All Controllers, since it cannot tell which channel
+  is the receiver's Basic Channel. Notes are **reference-counted**: a note struck
   twice without an intervening release needs two Note Offs to go inactive, which is what lets a consumer discharge MIDI
   1.0's one-Note-Off-per-Note-On obligation. Active notes are ordered by their most recent Note On, so a duplicate Note
   On moves a note to the end of `orderedActiveNotes` instead of listing it twice — each active note appears there
