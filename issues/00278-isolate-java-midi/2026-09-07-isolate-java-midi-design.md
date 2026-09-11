@@ -1,6 +1,13 @@
 # Isolating the Java Sound Implementation from the `sc-midi` Scala API (Design)
 
 - **Date**: 2026-09-07
+- **Revised a sixth time**: 2026-09-11 on `8e57476`, the top of `refactoring/285-channel-mode-messages` — the review
+  of [#291](https://github.com/calinburloiu/microtonalist/pull/291) amended **D10** to match what #285 lands: the
+  converters decode a Channel Mode message through a map keyed by controller number; `MidiChannelStateTracker`, no
+  longer able to read the mode back as CC values, exposes it through `isOmniModeOn`, `isPolyModeOn` / `isMonoModeOn`,
+  `monoModeChannelCount` and `isLocalControlOn`, lets the MIDI Mode messages act as All Notes Off when it models a
+  resetting receiver, and rejects numbers outside 0–119 in its CC lookups and defaults; and `PedalTuningChanger`
+  rejects a Channel Mode trigger at construction. D1–D9, D11 and the sub-issue order are unchanged.
 - **Issue**: [#278](https://github.com/calinburloiu/microtonalist/issues/278) — "Isolate the Java Sound implementation
   from the sc-midi Scala API" (parent), with sub-issues
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
@@ -259,16 +266,26 @@ case class PolyModeOnMidiMsg(channel: Int)                         extends Chann
   Mono Mode On's `channelCount` (0–16, `0` meaning "as many as the receiver has voices"). The others carry no value:
   their data byte is `0` on the wire, so `asJava` emits `0` and `asScala` ignores whatever arrived. This is the one
   deliberate loss of the byte-level round trip; the messages' meaning is preserved, and `UnsupportedMidiMsg` is not
-  involved because the message *is* supported.
+  involved because the message *is* supported. On decode, Local Control follows the switch convention (`0`–`63` off,
+  `64`–`127` on), and a Mono Mode On asking for more than 16 channels becomes an `UnsupportedMidiMsg` rather than
+  throwing on the device's thread.
 - The controller numbers move out of `MidiCc` into each case class's companion (`AllSoundOffMidiMsg.Number = 120`, and
-  so on), with `ChannelModeMidiMsg.NumberRange = 120 to 127` for the converters.
+  so on), with `ChannelModeMidiMsg.NumberRange = 120 to 127` spanning them.
 - **`CcMidiMsg.number` is restricted to 0–119.** A new `MidiRequirements.requireControllerNumber` enforces it, so a
-  `CcMidiMsg(ch, 123, 0)` throws at construction and a Channel Mode message can only exist as its own type.
-- `JavaMidiConverters`: inbound, a `CONTROL_CHANGE` with `data1` in 120–127 dispatches to the Channel Mode case
-  class; outbound, each case class gets its own `ToJavaMap` entry rendering `0xBn`, its number, and its data byte.
+  `CcMidiMsg(ch, 123, 0)` throws at construction — its message naming the Channel Mode types — and a Channel Mode
+  message can only exist as its own type. `PedalTuningChanger` applies the same check to its triggers, and the JSON
+  format rejects 120–127 as pedal triggers when a composition is read.
+- `JavaMidiConverters`: inbound, a `CONTROL_CHANGE` looks its `data1` up in a map from controller number to decoder,
+  which yields the Channel Mode case class for 120–127 and a `CcMidiMsg` for any other number; outbound, each case
+  class gets its own `ToJavaMap` entry rendering `0xBn`, its number, and its data byte.
 - Consumers switch from matching on numbers to matching on types:
     * `MidiChannelStateTracker` handles `ChannelModeMidiMsg` in its own branch and no longer records 120–127 in
-      `ccValues`, so `tracker.cc(channel, 123)` is `None` afterwards.
+      `ccValues`; `ccOption`, `cc` and the `ccDefaults` constructor parameter reject any number outside 0–119, so
+      `tracker.ccOption(channel, 123)` throws. As the mode can no longer be read back as a CC value, the tracker
+      exposes it per channel instead — `isOmniModeOn`, `isPolyModeOn` / `isMonoModeOn`, `monoModeChannelCount` and
+      `isLocalControlOn` — starting in the MIDI 1.0 power-up state (Omni On/Poly, Local Control on) and left
+      unchanged by the reset messages. With `shallRespondToResetMessages` set, the four Mode messages also cancel the
+      channel's active notes, MIDI 1.0 making them act as All Notes Off too (MIDI 1.0 Detailed Specification, p. 20).
     * `MpeMessageRouting.route` gains a `routeChannelMode` branch that discards the four Mode messages (Omni Off/On,
       Mono On, Poly On) and relays All Sound Off, Reset All Controllers, Local Control and All Notes Off per role,
       exactly as `routeCc` does today for those numbers; `deselectsOnRelay` matches `ResetAllControllersMidiMsg`.
@@ -312,7 +329,9 @@ New unit tests:
 - The eight `ChannelModeMidiMsg` case classes: construction and validation (`channelCount` 0–16), `mapChannel`, the
   Java round trip through `JavaMidiConvertersTest` (including a non-zero data byte on a valueless message decoding
   to the same case class), and `CcMidiMsg` rejecting numbers 120–127. The tracker and MPE routing tests that today
-  send `CcScMidiMessage(_, 120..127, _)` move to the new types and keep their assertions.
+  send `CcScMidiMessage(_, 120..127, _)` move to the new types and keep their assertions. The tracker's mode accessors
+  (power-up defaults, transitions, immunity to the reset messages), the Mode messages' implied All Notes Off, and
+  `PedalTuningChanger`'s rejection of a Channel Mode trigger get tests of their own.
 
 Migrated tests: every `sc-midi` and `tuner` test that stubs a Java `Receiver` or builds messages with `asJava` moves
 to `MidiReceiver` and plain `MidiMsg` values. `JavaMidiConvertersTest` moves with the converters and remains the
