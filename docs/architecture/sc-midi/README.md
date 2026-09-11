@@ -256,8 +256,8 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
   its device only from `openInput` / `openOutput`, neither when the device gets connected nor when it gets
   disconnected; `purgeDisconnectedDevices` orphans the handle of an unplugged open device; and opening an already
   open device again (two tracks sharing it) closes the Java device behind the handle (#288). `JavaMidiManagerTest`
-  exercises those paths over its `FakeJavaMidiEnvironment` and `FakeMidiDevice` test doubles without asserting the
-  outcomes #288 is going to change.
+  and `JavaMidiDeviceHandleTest` pin the expected behaviour in tests that stay ignored, each under a `TODO #288`, until
+  the fix lands; the tests that run exercise those paths without asserting the outcomes #288 is going to change.
 - The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.

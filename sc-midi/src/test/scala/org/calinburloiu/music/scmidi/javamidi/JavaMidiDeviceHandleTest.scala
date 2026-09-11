@@ -145,6 +145,39 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
         handle.isConnected shouldBe false
         handle.device shouldBe empty
       }
+
+    // TODO #288 onDisconnect leaves the state untouched, so it contradicts isConnected and isOpen.
+    "move a connected handle back to Closed" ignore new Fixture {
+      // Given
+      connect()
+
+      // When
+      handle.onDisconnect()
+
+      // Then
+      handle.state shouldEqual State.Closed
+    }
+
+    // TODO #288 onDisconnect leaves an open handle Open, so it does not open the device it gets when it reconnects.
+    "make an open handle wait to open, so that it opens the device it gets when it reconnects" ignore new Fixture {
+      // Given
+      val repluggedDevice: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor)
+      connect()
+      handle.open()
+
+      // When
+      handle.onDisconnect()
+
+      // Then
+      handle.state shouldEqual State.WaitingToOpen
+
+      // When
+      connect(repluggedDevice)
+
+      // Then
+      handle.state shouldEqual State.Open
+      repluggedDevice.isOpen shouldBe true
+    }
   }
 
   "open" should {
