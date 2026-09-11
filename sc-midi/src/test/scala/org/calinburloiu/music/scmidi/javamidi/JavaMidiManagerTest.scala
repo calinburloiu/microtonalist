@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music.scmidi.javamidi
 
+import ch.qos.logback.classic.Level
 import org.calinburloiu.music.scmidi.*
+import org.calinburloiu.music.scmidi.LogCapture.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.scalatest.matchers.should.Matchers
@@ -453,6 +455,97 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       manager.inputOpenedDevices shouldBe empty
       manager.outputOpenedDevices shouldBe empty
       environment.subscriberCount shouldEqual 0
+    }
+  }
+
+  "Logging" should {
+    val loggerName = classOf[JavaMidiManager].getName
+
+    "report each connected device at debug level, with the connection limit of its direction" in new Fixture {
+      // Given
+      environment.plug(FakeMidiDevice("CoreMIDI4J - Seaboard", "ROLI", maxTransmitters = 2, maxReceivers = 0))
+      environment.plug(FakeMidiDevice(deviceName, maxTransmitters = 0, maxReceivers = -1))
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        newManager()
+      }
+
+      // Then
+      events.messagesAt(Level.DEBUG) shouldEqual Seq(
+        """Input device "CoreMIDI4J - Seaboard" (ROLI) with 2 transmitters was connected.""",
+        """Output device "CoreMIDI4J - FP-90" (Roland) with unlimited receivers was connected."""
+      )
+    }
+
+    "report a device that fails to resolve at error level, with the failure" in new Fixture {
+      // Given
+      environment.plugUnresolvable(TestDeviceInfo(deviceName, "Roland", "Digital piano", "1.0"),
+        IllegalStateException("CoreMIDI failure"))
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        newManager()
+      }
+
+      // Then
+      events.failuresAt(Level.ERROR) shouldEqual
+        Seq(("""Failed to connect to device "CoreMIDI4J - FP-90" (Roland)!""", Some("CoreMIDI failure")))
+    }
+
+    "warn that a device to open is not connected" in new Fixture {
+      // Given
+      val manager: JavaMidiManager = newManager()
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        manager.openOutput(MidiDeviceId(deviceName, "Roland"))
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldEqual
+        Seq("""Output device "CoreMIDI4J - FP-90" (Roland) is not connected.""")
+    }
+
+    "report the opening and the closing of devices at info level" in new Fixture {
+      // Given
+      val device: FakeMidiDevice = Input.newDevice(deviceName)
+      environment.plug(device)
+      val manager: JavaMidiManager = newManager()
+      val expectedFragments: Seq[String] = Seq("opened input device", "Closing MIDI connections",
+        "Closing input device", "closed device", "Finished closing MIDI connections")
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        manager.openInput(device.id)
+        manager.close()
+      }
+
+      // Then
+      val messages = events.messagesAt(Level.INFO)
+      messages should have size expectedFragments.size
+      messages.zip(expectedFragments).foreach { case (message, fragment) => message should include(fragment) }
+    }
+
+    "report an environment change and the disconnection of an open device at info level" in new Fixture {
+      // Given
+      val device: FakeMidiDevice = Input.newDevice(deviceName)
+      environment.plug(device)
+      val manager: JavaMidiManager = newManager()
+      manager.openInput(device.id)
+      environment.unplug(device.getDeviceInfo)
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        environment.notifyChanged()
+      }
+
+      // Then
+      events.messagesAt(Level.INFO) shouldEqual Seq(
+        "The MIDI environment has changed.",
+        s"Input device ${device.id} was disconnected.",
+        s"Input device ${device.id} was closed."
+      )
     }
   }
 }

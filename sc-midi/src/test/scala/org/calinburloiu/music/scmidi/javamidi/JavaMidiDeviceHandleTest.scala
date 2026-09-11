@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music.scmidi.javamidi
 
+import ch.qos.logback.classic.Level
 import org.calinburloiu.music.scmidi.*
+import org.calinburloiu.music.scmidi.LogCapture.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg}
@@ -361,5 +363,56 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
       // Then
       receiver.messages shouldEqual Seq((CcMidiMsg(3, 64, 0), 8L))
     }
+  }
+
+  "Logging" should {
+    val loggerName = classOf[JavaMidiDeviceHandle].getName
+
+    "report a failure to open the device at error level, with its cause" in new Fixture(openFailure = Some(failure)) {
+      // Given
+      connect()
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        handle.open()
+      }
+
+      // Then
+      events.failuresAt(Level.ERROR) shouldEqual
+        Seq(("""Failed to open input/output device "CoreMIDI4J - FP-90" (Roland).""", Some("The device is busy")))
+    }
+
+    "report a failure to close the device at error level, with its cause" in
+      new Fixture(closeFailure = Some(failure)) {
+        // Given
+        connect()
+        handle.open()
+
+        // When
+        val (_, events) = LogCapture.capturing(loggerName) {
+          handle.close()
+        }
+
+        // Then
+        events.failuresAt(Level.ERROR) shouldEqual
+          Seq(("""Failed to close input/output device "CoreMIDI4J - FP-90" (Roland)!""", Some("The device is busy")))
+      }
+
+    "report a failure to disconnect from the device at error level, with its cause" in
+      new Fixture(closeFailure = Some(failure)) {
+        // Given
+        connect()
+
+        // When
+        val (_, events) = LogCapture.capturing(loggerName) {
+          handle.onDisconnect()
+        }
+
+        // Then
+        events.failuresAt(Level.ERROR) shouldEqual Seq((
+          """Failed to disconnect from input/output device "CoreMIDI4J - FP-90" (Roland)!""",
+          Some("The device is busy")
+        ))
+      }
   }
 }
