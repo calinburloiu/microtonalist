@@ -1,6 +1,15 @@
 # `MidiTransmitter` Family — Implementation Plan (#280)
 
 - **Date**: 2026-09-08
+- **Superseded in part**: 2026-09-09 on `384bfa4`, the top of `refactoring/280-midi-transmitter-family` — **this
+  document is a record of the steps that were executed; its body is deliberately left as it was written.** The D4
+  shape it implements has since been superseded: the review of PR
+  [#287](https://github.com/calinburloiu/microtonalist/pull/287) replaced the public virtual setter `receivers_=` as
+  the extension point with two `protected` hooks, `withChangeGuard` and `setReceivers`, and made every modifier and
+  the setter `final`. Do not copy the verbatim `MutableMidiTransmitter` / `ConcurrentMidiTransmitter` code below into
+  new work; read the third revision entry and D4 of
+  [`2026-09-07-isolate-java-midi-design.md`](2026-09-07-isolate-java-midi-design.md), and the code on the branch,
+  instead.
 - **Issue**: [#280](https://github.com/calinburloiu/microtonalist/issues/280) — "Add the MidiTransmitter family:
   immutable, mutable and concurrent implementations", sub-issue 2 of parent
   [#278](https://github.com/calinburloiu/microtonalist/issues/278)

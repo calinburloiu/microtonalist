@@ -1234,59 +1234,6 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.nrpnOption(Channel, NrpnA._1, NrpnA._2) shouldBe None
   }
 
-  behavior of "MidiChannelStateTracker close"
-
-  it should "report isClosed as false initially" in new TrackerFixture {
-    // When / Then
-    tracker.isClosed shouldBe false
-  }
-
-  it should "report isClosed as true after close" in new TrackerFixture {
-    // When
-    tracker.close()
-
-    // Then
-    tracker.isClosed shouldBe true
-  }
-
-  it should "make send a no-op after close" in new TrackerFixture {
-    // Given
-    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
-    tracker.close()
-
-    // When
-    tracker.send(NoteOnMidiMsg(Channel, E4, velocity = 80))
-    tracker.send(NoteOffMidiMsg(Channel, C4))
-
-    // Then
-    tracker.activeNotes(Channel) should contain only C4
-    tracker.velocityOption(Channel, C4) should equal(Some(100))
-  }
-
-  it should "preserve queried state after close" in new TrackerFixture {
-    // Given
-    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
-    tracker.send(CcMidiMsg(Channel, MidiCc.VolumeMsb, value = 90))
-    tracker.send(PitchBendMidiMsg(Channel, value = 1234))
-
-    // When
-    tracker.close()
-
-    // Then
-    tracker.velocityOption(Channel, C4) should equal(Some(100))
-    tracker.ccOption(Channel, MidiCc.VolumeMsb) should equal(Some(90))
-    tracker.pitchBend(Channel) should equal(1234)
-  }
-
-  it should "be idempotent for repeated close calls" in new TrackerFixture {
-    // When
-    tracker.close()
-    tracker.close()
-
-    // Then
-    tracker.isClosed shouldBe true
-  }
-
   behavior of "MidiChannelStateTracker channel validation"
 
   it should "throw on activeNotes with an invalid channel" in new TrackerFixture {
@@ -1904,27 +1851,6 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     tracker.rpnOption(Channel, MidiRpn.FineTuningMsb, MidiRpn.FineTuningLsb) shouldBe None
   }
 
-  it should "leave isClosed unchanged when called on an open tracker" in new TrackerFixture {
-    // When
-    tracker.reset()
-
-    // Then
-    tracker.isClosed shouldBe false
-  }
-
-  it should "be a no-op after close() has been called" in new TrackerFixture {
-    // Given
-    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
-    tracker.close()
-
-    // When
-    tracker.reset()
-
-    // Then
-    tracker.activeNotes(Channel) should contain only C4
-    tracker.isClosed shouldBe true
-  }
-
   it should "clear the state of a single channel, leaving the other fifteen untouched" in new TrackerFixture {
     // Given
     tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
@@ -1984,17 +1910,4 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       tracker.monoModeChannelCount(OtherChannel) shouldBe Some(1)
       tracker.isLocalControlOn(OtherChannel) shouldBe false
     }
-
-  it should "be a no-op on a channel after close() has been called" in new TrackerFixture {
-    // Given
-    tracker.send(NoteOnMidiMsg(Channel, C4, velocity = 100))
-    tracker.close()
-
-    // When
-    tracker.reset(Channel)
-
-    // Then
-    tracker.activeNotes(Channel) should contain only C4
-    tracker.isClosed shouldBe true
-  }
 }

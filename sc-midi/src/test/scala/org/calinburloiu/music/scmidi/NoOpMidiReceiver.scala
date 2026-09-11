@@ -24,6 +24,4 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  */
 class NoOpMidiReceiver extends MidiReceiver {
   override def send(message: MidiMsg, timeStamp: Long): Unit = {}
-
-  override def close(): Unit = {}
 }

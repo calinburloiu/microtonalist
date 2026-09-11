@@ -24,13 +24,15 @@ import javax.annotation.concurrent.ThreadSafe
 /**
  * A [[MutableMidiTransmitter]] that may be read and changed from any thread.
  *
- * Every accessor and modifier of the mutable class is overridden to run under a [[ReentrantReadWriteLock]]: reads
- * take the read lock, changes take the write lock for the whole read-modify-write, so concurrent `addReceiver`s never
- * lose an update. Because the mutable base funnels every modifier through `receivers_=`, and each modifier override
- * here already holds the write lock when it calls `super`, a subclass that overrides `receivers_=` is reached
- * **inside** the write lock for every change made through a modifier. A subclass override reached by a direct
- * `receivers = …` assignment runs before this class's own `receivers_=` takes the lock, so such an override must take
- * the write lock itself (the lock is reentrant and `protected` for that purpose).
+ * It supplies the two hooks of the mutable class with a [[ReentrantReadWriteLock]]: reads take the read lock, and the
+ * change guard takes the write lock for the whole read-modify-write, so concurrent `addReceiver`s never lose an
+ * update. The modifiers themselves are inherited unchanged — the mutable class already routes every one of them, and
+ * a direct `receivers = …` assignment, through the guard.
+ *
+ * A subclass therefore overrides `setReceivers` without knowing that a lock exists: the write lock is always held by
+ * the time the hook runs, whatever the entry point, and the hook may read [[receivers]] re-entrantly to compare the
+ * incoming sequence with the current one. Holding the write lock while taking the read lock is a downgrade, which is
+ * permitted; it is the reverse order that a `ReentrantReadWriteLock` cannot do, and no path here produces it.
  *
  * Extends the mutable class so that a caller which only needs "something it can add a receiver to" has one static
  * type, whatever the threading policy.
@@ -41,30 +43,14 @@ import javax.annotation.concurrent.ThreadSafe
 class ConcurrentMidiTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty)
   extends MutableMidiTransmitter(initialReceivers), Locking {
 
-  /** Guards the receivers. Reentrant, so an override of `receivers_=` may take it again. */
+  /** Guards the receivers. Reentrant, so a `setReceivers` override may read [[receivers]] while the guard holds it. */
   protected implicit val lock: ReentrantReadWriteLock = ReentrantReadWriteLock()
 
   override def receivers: Seq[MidiReceiver] = withReadLock {
     super.receivers
   }
 
-  override def receivers_=(newReceivers: Seq[MidiReceiver]): Unit = withWriteLock {
-    super.receivers_=(newReceivers)
-  }
-
-  override def addReceiver(receiver: MidiReceiver): Unit = withWriteLock {
-    super.addReceiver(receiver)
-  }
-
-  override def addReceivers(newReceivers: Seq[MidiReceiver]): Unit = withWriteLock {
-    super.addReceivers(newReceivers)
-  }
-
-  override def removeReceiver(receiver: MidiReceiver): Unit = withWriteLock {
-    super.removeReceiver(receiver)
-  }
-
-  override def clearReceivers(): Unit = withWriteLock {
-    super.clearReceivers()
+  override protected def withChangeGuard[R](body: => R): R = withWriteLock {
+    body
   }
 }

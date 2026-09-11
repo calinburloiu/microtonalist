@@ -19,14 +19,13 @@ package org.calinburloiu.music.scmidi
 /**
  * Handle to a single MIDI device, identified by a [[MidiDeviceId]].
  *
- * A [[MidiManager]] creates the handles and hands one its device when [[MidiManager.openInput]] or
- * [[MidiManager.openOutput]] is called while that device is connected. A handle can therefore exist for a device that
- * is not connected to the system: [[info]] stays empty until the manager first hands the handle a connected device.
- * The manager does not notify the handle on its own when the device later appears or goes away (#288).
+ * A [[MidiManager]] creates the handles and keeps them up to date behind the scenes. The device is not required to be
+ * connected to the system when its handle is created: the manager informs the handle when the device gets connected or
+ * disconnected, and [[info]] is defined only while the device is connected.
  *
  * A device can only be used after it is opened via [[open]]; when it is no longer needed, [[close]] must be called.
- * The operation is reference-counted. [[open]] may be called while the device is not connected, which only moves the
- * handle to [[MidiDeviceHandle.State.WaitingToOpen]]; it opens when the manager next hands it a connected device.
+ * The operation is reference-counted. [[open]] may be called while the device is not connected, in which case the
+ * handle moves to [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the device gets connected.
  *
  * A handle exposes a [[MidiReceiver]] and a [[ConcurrentMidiTransmitter]] via [[receiver]] and [[transmitter]]. They
  * can be wired while the device is disconnected or closed, in which case they do nothing; once the device becomes
@@ -48,8 +47,8 @@ trait MidiDeviceHandle extends AutoCloseable {
   def info: Option[MidiDeviceInfo]
 
   /**
-   * Determines if the associated MIDI device is an input device. If it is, then its [[transmitter]] can be used to
-   * subscribe to the messages the device sends, otherwise that will do nothing.
+   * Determines if the associated MIDI device is an input device. If it is, this handle's [[transmitter]] can be used
+   * to subscribe to the messages the device sends; otherwise it never emits anything.
    *
    * @return True if the MIDI device supports input, false otherwise — including while it is disconnected, when its
    *         capabilities are not known.
@@ -57,8 +56,8 @@ trait MidiDeviceHandle extends AutoCloseable {
   def isInputDevice: Boolean = info.exists(_.isInputDevice)
 
   /**
-   * Determines if the associated MIDI device is an output device. If it is, then its [[receiver]] can be used to send
-   * messages to the device, otherwise that will do nothing.
+   * Determines if the associated MIDI device is an output device. If it is, this handle's [[receiver]] can be used to
+   * send messages to the device.
    *
    * @return True if the MIDI device supports output, false otherwise — including while it is disconnected, when its
    *         capabilities are not known.
@@ -97,7 +96,7 @@ trait MidiDeviceHandle extends AutoCloseable {
    * Attempts to open the MIDI device associated with this handle.
    *
    *   - If the device is not yet connected, the handle transitions to [[MidiDeviceHandle.State.WaitingToOpen]] and
-   *     opens when the manager next hands it a connected device; see the class documentation for when that happens.
+   *     opens once the device gets connected.
    *   - If the device is already connected, the device will attempt to open immediately.
    *
    * This is a reference-counted operation; the device will only transition to an opened state if this is the first
@@ -136,7 +135,7 @@ object MidiDeviceHandle {
    * Represents the state of a MIDI device's connection and openness.
    *
    * {{{
-   *    ┌─────────────┐     onConnect    ┌────┐
+   *    ┌─────────────┐     connected    ┌────┐
    *    │             ├──────────────────►    │
    *    │WaitingToOpen│                  │Open│
    *    │             │            ┌─────►    │
@@ -147,7 +146,7 @@ object MidiDeviceHandle {
    *     │   │            │Connected◄───────┘
    *     │   │close       └─▲────┬──┘
    * open│   │              │    │
-   *     │   │     onConnect│    │onDisconnect
+   *     │   │     connected│    │disconnected
    *     │   │              │    │
    *     │   │             ┌┴────▼┐
    *     │   └─────────────►      │

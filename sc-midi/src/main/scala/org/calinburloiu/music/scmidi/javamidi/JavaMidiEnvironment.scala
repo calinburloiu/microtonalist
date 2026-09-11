@@ -37,10 +37,11 @@ trait JavaMidiEnvironment {
    * Resolves the device described by `info`.
    *
    * A device's id is derived from `info` on the failure path (`info.asMidiDeviceId`, used when this method throws)
-   * and from the resolved device's own info (`device.asMidiDeviceInfo`) on the success path. The two agree for every
-   * real Java Sound provider, because `MidiSystem.getMidiDevice(info).getDeviceInfo` is that same `info`. A fake
-   * implementation of this trait must keep the two consistent too, or a device's id will diverge between the
-   * failure event and the connected set.
+   * and from the resolved device's own info (`device.asMidiDeviceInfo`) on the success path. The two agree as long
+   * as the device keeps its name and vendor between the listing and the resolution: `MidiSystem.getMidiDevice(info)`
+   * returns the device `info` describes, but that device reports its current info, which CoreMIDI4J replaces when
+   * the device is renamed. A fake implementation of this trait must keep the two consistent, or a device's id will
+   * diverge between the failure event and the connected set.
    *
    * @throws javax.sound.midi.MidiUnavailableException if the device cannot be resolved because of a resource
    *                                                    restriction.
@@ -51,10 +52,10 @@ trait JavaMidiEnvironment {
   /**
    * Subscribes to changes of the MIDI environment, such as a device being plugged in or unplugged.
    *
-   * @param listener called on every change.
-   * @return a subscription; closing it unsubscribes the listener.
+   * @param handler called on every change.
+   * @return a subscription; closing it unsubscribes the handler.
    */
-  def onEnvironmentChanged(listener: () => Unit): AutoCloseable
+  def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable
 }
 
 /**
@@ -68,9 +69,9 @@ object CoreMidi4JEnvironment extends JavaMidiEnvironment {
 
   override def deviceOf(info: MidiDevice.Info): MidiDevice = MidiSystem.getMidiDevice(info)
 
-  override def onEnvironmentChanged(listener: () => Unit): AutoCloseable = {
+  override def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable = {
     // CoreMIDI4J matches listeners by identity on removal, so the same adapter instance must be used for both calls.
-    val notification: CoreMidiNotification = () => listener()
+    val notification: CoreMidiNotification = () => handler()
     CoreMidiDeviceProvider.addNotificationListener(notification)
     () => CoreMidiDeviceProvider.removeNotificationListener(notification)
   }

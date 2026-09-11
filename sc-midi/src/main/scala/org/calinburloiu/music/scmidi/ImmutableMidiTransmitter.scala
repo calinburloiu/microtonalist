@@ -60,7 +60,4 @@ case class ImmutableMidiTransmitter(receivers: Seq[MidiReceiver] = Seq.empty) ex
    */
   def withoutReceivers(receiversToRemove: Seq[MidiReceiver]): ImmutableMidiTransmitter =
     copy(receivers = receivers.filterNot(receiversToRemove.contains))
-
-  /** No-op: an immutable transmitter holds no resources. */
-  override def close(): Unit = {}
 }

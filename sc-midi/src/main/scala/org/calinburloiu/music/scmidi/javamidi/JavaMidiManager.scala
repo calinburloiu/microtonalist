@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ class JavaMidiManager(businessync: Businessync,
     refresh()
 
     // Automatically refresh when the MIDI environment has changed
-    environment.onEnvironmentChanged(() => onEnvironmentChanged())
+    environment.subscribeToEnvironmentChanged(() => onEnvironmentChanged())
   }
 
   private def onEnvironmentChanged(): Unit = {
@@ -124,9 +124,6 @@ class JavaMidiManager(businessync: Businessync,
 
   override def openInput(deviceId: MidiDeviceId): MidiDeviceHandle = inputEndpoint.openDevice(deviceId)
 
-  override def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] =
-    inputEndpoint.openFirstAvailableDevice(deviceIds)
-
   override def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] =
     inputEndpoint.deviceHandleOf(deviceId)
 
@@ -145,9 +142,6 @@ class JavaMidiManager(businessync: Businessync,
   override def outputDevicesInfo: Seq[MidiDeviceInfo] = outputEndpoint.devicesInfo
 
   override def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle = outputEndpoint.openDevice(deviceId)
-
-  override def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] =
-    outputEndpoint.openFirstAvailableDevice(deviceIds)
 
   override def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] =
     outputEndpoint.deviceHandleOf(deviceId)
@@ -190,6 +184,8 @@ object JavaMidiManager {
         if (wasConnected) {
           logDebugConnectedDevice(connectedDevice.info)
           businessync.publish(MidiDeviceConnectedEvent(id))
+          // TODO #288 A handle already requested to be opened for this device is not informed that the device got
+          //   connected (onConnect), so it stays unconnected until openDevice is called again.
         }
       }
 
@@ -235,23 +231,20 @@ object JavaMidiManager {
 
       Option(connectedDevices.get(deviceId)) match {
         case Some(connectedDevice) =>
+          // TODO #288 onConnect is called even on a handle that is already open, e.g. a second track sharing the
+          //   device: it closes the Java device while the handle keeps reporting State.Open, and the following open()
+          //   only bumps the reference count, so the handle silently drops every message from then on.
           deviceHandle.onConnect(connectedDevice.info, connectedDevice.device)
           deviceHandle.open()
           logger.info(s"Successfully opened $endpointType device $deviceId.")
           businessync.publish(MidiDeviceOpenedEvent(deviceId))
-        case None => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not connected.")
+        case None =>
+          // TODO #288 The handle is not opened, so it does not wait to open and would not open once the device gets
+          //   connected, contrary to MidiManager.openInput / openOutput.
+          logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not connected.")
       }
 
       deviceHandle
-    }
-
-    def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId]): Option[JavaMidiDeviceHandle] = {
-      deviceIds.to(LazyList)
-        .map { deviceId =>
-          logger.info(s"Attempting to open $endpointType device $deviceId...")
-          openDevice(deviceId)
-        }
-        .find(_.isOpen)
     }
 
     def deviceHandleOf(deviceId: MidiDeviceId): Option[JavaMidiDeviceHandle] = Option(openedDevicesMap.get(deviceId))
@@ -259,6 +252,9 @@ object JavaMidiManager {
     def openedDevices: Seq[JavaMidiDeviceHandle] = openedDevicesMap.values.asScala.toSeq
 
     def closeDevice(deviceId: MidiDeviceId): Unit = {
+      // TODO #288 This releases a single open of the handle and then drops it whatever its reference count, so a
+      //   device another track still holds stays open but unmanaged, and close() never closes it; a handle that is not
+      //   open, such as one requested while its device was disconnected, is neither released nor removed.
       deviceHandleOf(deviceId) match {
         case Some(openedDevice) if openedDevice.isOpen =>
           logger.info(s"Closing $endpointType device $deviceId...")
@@ -279,9 +275,9 @@ object JavaMidiManager {
     private def logDebugConnectedDevice(info: MidiDeviceInfo): Unit = {
       logger.whenDebugEnabled {
         val (handlerType, maxHandlers) = if (endpointType == MidiEndpointType.Input) {
-          ("transmitters", info.maxTransmitters)
+          ("transmitters", info.transmittersLimit)
         } else {
-          ("receivers", info.maxReceivers)
+          ("receivers", info.receiversLimit)
         }
 
         logger.debug(s"${endpointType.toString.capitalize} device ${info.id} with $maxHandlers $handlerType was " +

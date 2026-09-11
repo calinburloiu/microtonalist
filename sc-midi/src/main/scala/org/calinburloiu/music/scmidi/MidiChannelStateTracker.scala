@@ -76,9 +76,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   ccDefaults.keys.foreach(MidiRequirements.requireControllerNumber)
 
   private val channelStates: Array[ChannelState] = Array.fill(ChannelCount)(ChannelState())
-  private var _closed: Boolean = false
 
-  override def send(message: MidiMsg, timeStamp: Long = -1L): Unit = if (!_closed) message match {
+  override def send(message: MidiMsg, timeStamp: Long = -1L): Unit = message match {
     case NoteOnMidiMsg(channel, midiNote, NoteOnMidiMsg.NoteOffVelocity) =>
       releaseNote(channel, midiNote)
     case NoteOnMidiMsg(channel, midiNote, velocity) =>
@@ -112,13 +111,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     case _ =>
   }
 
-  override def close(): Unit = {
-    _closed = true
-  }
-
   /**
    * Clears all per-channel state on every channel, returning the tracker to the same state as a freshly constructed
-   * instance. Constructor-supplied defaults are preserved. No-op once [[close]] has been called.
+   * instance. Constructor-supplied defaults are preserved.
    *
    * Unlike the Reset All Controllers Channel Mode message — which the MIDI 1.0 spec scopes to a single channel and
    * leaves Bank Select, Volume, Pan, Program Change, and recorded RPN/NRPN values intact — this method wipes
@@ -126,7 +121,7 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    *
    * @see [[reset(channel:Int):Unit reset(channel: Int)]] for per-channel reset.
    */
-  def reset(): Unit = if (!_closed) {
+  def reset(): Unit = {
     for (channel <- 0 until ChannelCount) {
       channelStates(channel) = ChannelState()
     }
@@ -134,20 +129,14 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * Clears the per-channel state of a single channel, returning it to the same state as on a freshly constructed
-   * tracker and leaving every other channel untouched. Constructor-supplied defaults are preserved. No-op once
-   * [[close]] has been called.
+   * tracker and leaving every other channel untouched. Constructor-supplied defaults are preserved.
    *
    * @param channel The 0-indexed MIDI channel (0-15) to clear.
    */
   def reset(channel: Int): Unit = {
     MidiRequirements.requireChannel(channel)
-    if (!_closed) {
-      channelStates(channel) = ChannelState()
-    }
+    channelStates(channel) = ChannelState()
   }
-
-  /** @return whether [[close]] has been called on this tracker. */
-  def isClosed: Boolean = _closed
 
   /** @return the set of currently active notes on the given channel — those holding at least one undischarged
    *          Note On. */

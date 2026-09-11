@@ -50,9 +50,8 @@ trait MidiManager extends AutoCloseable {
   /**
    * Opens an input connection to a MIDI device based on its unique identifier.
    *
-   * A handle is returned whether or not the device is connected, but only a connected device is actually opened: for
-   * a disconnected one the handle comes back unopened, and it is not opened on its own once the device appears — a
-   * caller that wants to catch up with it has to call this method again (#288).
+   * The device is not required to be connected: a handle is returned either way, and a device that is not connected
+   * yet is opened once it gets connected.
    *
    * @param deviceId Unique identifier of the device.
    * @return a handle object for the device.
@@ -60,23 +59,17 @@ trait MidiManager extends AutoCloseable {
   def openInput(deviceId: MidiDeviceId): MidiDeviceHandle
 
   /**
-   * Tries to sequentially open a connection with the first input device available from the provided sequence (in
-   * that order).
-   *
-   * @param deviceIds A sequence of unique identifiers of the devices.
-   * @return a handle object for the device that succeeded.
+   * @return the handle of the input device with the given identifier, if it was requested to be opened through this
+   *         manager.
    */
-  def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle]
-
-  /** @return the handle of the input device with the given identifier, if it was opened through this manager. */
   def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  /** @return the handles of the input devices opened through this manager. */
+  /** @return the handles of the input devices requested to be opened through this manager. */
   def inputOpenedDevices: Seq[MidiDeviceHandle]
 
   /**
-   * Closes the input device with the given identifier, if it was opened through this manager. The operation is
-   * reference-counted at the handle level.
+   * Closes the input device with the given identifier, if it was requested to be opened through this manager. The
+   * operation is reference-counted at the handle level.
    */
   def closeInput(deviceId: MidiDeviceId): Unit
 
@@ -95,9 +88,8 @@ trait MidiManager extends AutoCloseable {
   /**
    * Opens an output connection to a MIDI device based on its unique identifier.
    *
-   * A handle is returned whether or not the device is connected, but only a connected device is actually opened: for
-   * a disconnected one the handle comes back unopened, and it is not opened on its own once the device appears — a
-   * caller that wants to catch up with it has to call this method again (#288).
+   * The device is not required to be connected: a handle is returned either way, and a device that is not connected
+   * yet is opened once it gets connected.
    *
    * @param deviceId Unique identifier of the device.
    * @return a handle object for the device.
@@ -105,23 +97,17 @@ trait MidiManager extends AutoCloseable {
   def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle
 
   /**
-   * Tries to sequentially open a connection with the first output device available from the provided sequence (in
-   * that order).
-   *
-   * @param deviceIds A sequence of unique identifiers of the devices.
-   * @return a handle object for the device that succeeded.
+   * @return the handle of the output device with the given identifier, if an open was requested through this
+   *         manager.
    */
-  def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle]
-
-  /** @return the handle of the output device with the given identifier, if it was opened through this manager. */
   def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  /** @return the handles of the output devices opened through this manager. */
+  /** @return the handles of the output devices requested to be opened through this manager. */
   def outputOpenedDevices: Seq[MidiDeviceHandle]
 
   /**
-   * Closes the output device with the given identifier, if it was opened through this manager. The operation is
-   * reference-counted at the handle level.
+   * Closes the output device with the given identifier, if it was requested to be opened through this manager. The
+   * operation is reference-counted at the handle level.
    */
   def closeOutput(deviceId: MidiDeviceId): Unit
 

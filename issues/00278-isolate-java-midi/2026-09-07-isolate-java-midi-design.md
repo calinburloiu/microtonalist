@@ -1,6 +1,43 @@
 # Isolating the Java Sound Implementation from the `sc-midi` Scala API (Design)
 
 - **Date**: 2026-09-07
+- **Revised**: 2026-09-08 on `eb6c418`, the top of `refactoring/isolate-java-midi` — added decision D11 (the
+  `JavaMidiEnvironment` seam) and Section 8 (a defect in `purgeDisconnectedDevices` that #282 must file rather than
+  fix), and rewrote the last paragraph of Section 4 accordingly. Decisions D1–D10 and the sub-issue order are
+  unchanged, so the plans already written for #279, #280 and #281 are unaffected.
+- **Revised again**: 2026-09-08 on `f772023`, together with the #282 plan — D11's seam lists device infos and
+  resolves each device through a separate `deviceOf` call instead of returning an already resolved `devices` list,
+  so that a device which fails to resolve keeps being reported by the manager (see the plan's design notes). D8 and
+  D9 are unchanged.
+- **Revised a third time**: 2026-09-09 on `384bfa4`, the top of `refactoring/280-midi-transmitter-family` — the
+  review of [#287](https://github.com/calinburloiu/microtonalist/pull/287) found D4's extension mechanism, the public
+  virtual setter `receivers_=`, to be a footgun: a change made through a modifier reached a subclass's override
+  *inside* the write lock, while a direct `transmitter.receivers = …` assignment reached it *before* the lock was
+  taken, so the override had to take the lock itself — and D6's `MidiProcessorTransmitter`, which must read the
+  current receivers to compare them with the incoming ones, would then self-deadlock, a `ReentrantReadWriteLock`
+  being unable to upgrade a read lock to a write lock. D4 now makes every modifier and the setter `final` and offers
+  a subclass two `protected` hooks instead, `withChangeGuard` and `setReceivers`; D6 overrides `setReceivers` and
+  carries no locking code of its own. The `MidiTransmitter` trait and `ImmutableMidiTransmitter` are untouched, as
+  are D1–D3, D5, D7–D11 and the sub-issue order, so the plans for #282, #283 and #285 are unaffected and only the
+  #281 plan needed rewriting.
+- **Revised a fourth time**: 2026-09-11 on `ce4fc57`, the top of `refactoring/281-scala-typed-pipeline` — the review
+  of [#289](https://github.com/calinburloiu/microtonalist/pull/289) amended three decisions to match what #281
+  actually landed. **D6**'s connect/disconnect protocol is now *per receiver* rather than per set — the hooks take
+  the receivers a change adds or drops, and a receiver present on both sides triggers neither — and a third hook,
+  `onReceiversChanged`, reports the whole new sequence after them; `MidiSerialProcessor` mirrors its output onto the
+  last processor through that third hook, because the membership hooks cannot express a partial removal or a
+  reordering. **D4** no longer makes `MidiTransmitter` (or `MidiReceiver`) `AutoCloseable`. **D2**'s instruction to
+  record the `Msg` naming rule in `docs/development/coding-conventions.md` is withdrawn. D1, D3, D5, D7–D11 and the
+  sub-issue order are unchanged, so the plans for #282, #283 and #285 stand.
+- **Revised a fifth time**: 2026-09-11 on `1a96970`, the top of `refactoring/282-midi-manager-traits` — the review
+  of [#290](https://github.com/calinburloiu/microtonalist/pull/290) amended D8, D9 and D11 to match what #282
+  actually lands. **D8**: `MidiManager` drops `openFirstAvailableInput` / `openFirstAvailableOutput`, which nothing
+  calls; `MidiDeviceInfo`'s connection limits are named `transmittersLimit` / `receiversLimit`; and
+  `JavaMidiDeviceHandle.device` is `private[javamidi]` rather than public, so no Java type escapes through it.
+  **D9**: `cli` injects the `MidiManager` into a `MidiDevicesCommand` instead of printing from `main`. **D11**:
+  `onEnvironmentChanged(listener)` is renamed `subscribeToEnvironmentChanged(handler)`. The ScalaDocs state the
+  device layer's intended contract, and every place where the ported bookkeeping diverges from it carries a
+  `// TODO #288`, #288 having grown to cover all of them. D1–D7, D10 and the sub-issue order are unchanged.
 - **Revised a sixth time**: 2026-09-11 on `8e57476`, the top of `refactoring/285-channel-mode-messages` — the review
   of [#291](https://github.com/calinburloiu/microtonalist/pull/291) amended **D10** to match what #285 lands: the
   converters decode a Channel Mode message through a map keyed by controller number; `MidiChannelStateTracker`, no
@@ -13,8 +50,9 @@
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
   [#280](https://github.com/calinburloiu/microtonalist/issues/280),
   [#281](https://github.com/calinburloiu/microtonalist/issues/281),
-  [#282](https://github.com/calinburloiu/microtonalist/issues/282), and
-  [#283](https://github.com/calinburloiu/microtonalist/issues/283)
+  [#282](https://github.com/calinburloiu/microtonalist/issues/282),
+  [#283](https://github.com/calinburloiu/microtonalist/issues/283), and
+  [#285](https://github.com/calinburloiu/microtonalist/issues/285)
 - **Base commit**: `fd8f6d6` — "Start v1.5.0-SNAPSHOT"
 - **Modules touched**: `sc-midi` (all of it), `tuner` (pipeline and tuner APIs), `cli`, `app` (composition root)
 - **Milestone**: `sc-midi`
@@ -65,9 +103,11 @@ the Java implementation, so the message types use the suffix **`MidiMsg`** inste
 uniform substitution of `ScMidiMessage` by `MidiMsg` across `sc-midi`, `tuner`, `format`, and their tests. Inside
 `javamidi`, `MidiMsg` (ours) and `MidiMessage` (Java's) then read as two distinct names without import aliases.
 
-Naming rule, to be recorded in `docs/development/coding-conventions.md` by #279: **`Msg` is the suffix of the message
-*types* only**; helpers and prose keep the full word (`RpnMessages`, `PitchBendSensitivityMessages`,
-`MtsMessageGenerator`, `MidiRequirements`).
+Naming rule: **`Msg` is the suffix of the message *types* only**; helpers and prose keep the full word
+(`RpnMessages`, `PitchBendSensitivityMessages`, `MtsMessageGenerator`, `MidiRequirements`). #279 recorded it in
+`docs/development/coding-conventions.md` and #281 removed it again (fourth revision): the rule describes one
+module's message model rather than a convention for writing Scala, and the `sc-midi` architecture document already
+states that the model uses the suffix. It stays here as the rationale for the rename.
 
 `mapShortMessageChannel` in the package object is deleted; `ChannelMidiMsg.mapChannel` already covers it.
 
@@ -91,25 +131,49 @@ top-level `MidiMsg` for forward compatibility. A full MIDI 2.0 hierarchy is out 
 ### D4 — `MidiTransmitter`: a read-only interface with three implementations
 
 ```scala
-trait MidiTransmitter extends AutoCloseable {
+trait MidiTransmitter {
   def receivers: Seq[MidiReceiver]
 }
 ```
 
-No locks and no implementation in the trait. It stays `AutoCloseable`, as `MultiTransmitter` is today, so that an
-implementation holding a resource (a native endpoint, a thread) has a release hook; the three implementations below
-implement `close()` as a no-op, and `MidiSplitter` does not close the transmitter it is given, since it does not own
-it. The name drops `Multi`; multiple receivers are implicit. Implementations:
+No locks and no implementation in the trait. It is **not** `AutoCloseable`, unlike `MultiTransmitter` — nor is
+`MidiReceiver` (fourth revision). The first draft kept the release hook so that an implementation holding a resource
+(a native endpoint, a thread) had one, but nothing in the codebase ever calls `close()` generically through either
+trait, so every implementation was left writing an empty `close()` to satisfy a contract no caller used. An
+implementation that does own a resource mixes in `AutoCloseable` itself. The name drops `Multi`; multiple receivers
+are implicit. Implementations:
 
 | Type                                        | Annotation       | Modifiers                                                                                   |
 |---------------------------------------------|------------------|---------------------------------------------------------------------------------------------|
 | `ImmutableMidiTransmitter(receivers)`       | case class       | `withReceiver`, `withReceivers`, `withoutReceiver`, `withoutReceivers` — return new instances |
-| `MutableMidiTransmitter`                    | `@NotThreadSafe` | `receivers_=`, `addReceiver`, `addReceivers`, `removeReceiver`, `clearReceivers`; every modifier funnels through `receivers_=` |
-| `ConcurrentMidiTransmitter`                 | `@ThreadSafe`    | extends `MutableMidiTransmitter`; overrides every method under a `ReentrantReadWriteLock` via `Locking` |
+| `MutableMidiTransmitter`                    | `@NotThreadSafe` | `receivers_=`, `addReceiver`, `addReceivers`, `removeReceiver`, `clearReceivers`, all `final`; each one runs inside `withChangeGuard` and changes through `setReceivers` |
+| `ConcurrentMidiTransmitter`                 | `@ThreadSafe`    | extends `MutableMidiTransmitter`; overrides only `receivers` (read lock) and `withChangeGuard` (write lock) of a `ReentrantReadWriteLock` via `Locking` |
 
 `ConcurrentMidiTransmitter` extends `MutableMidiTransmitter` so that a caller which only needs "something it can add
-a receiver to" (e.g. `Track`, `TrackManager`) has one static type. The mutable class must not call other overridable
-public methods from inside a modifier, so that the concurrent override does not re-enter the lock through `super`.
+a receiver to" (e.g. `Track`, `TrackManager`) has one static type.
+
+A subclass extends the mutable class through two `protected` hooks rather than by overriding a public method:
+
+```scala
+/** How a change is made atomic. Wraps the change together with the read that computes it. Default: run directly. */
+protected def withChangeGuard[R](body: => R): R = body
+
+/** What happens on a change. The single point every modifier and `receivers_=` funnel through. */
+protected def setReceivers(newReceivers: Seq[MidiReceiver]): Unit = { _receivers = newReceivers }
+```
+
+Every modifier and the setter are `final` and have the same shape — `withChangeGuard { setReceivers(…) }` — so the
+funnel is enforced by the compiler rather than by convention. Because the guard is the outer of the two and both are
+chosen by the class rather than by the caller, an override of `setReceivers` runs inside that guard for *every* entry
+point, a direct `transmitter.receivers = …` assignment included; there is no asymmetry between the setter and the
+other modifiers, and an override never has to lock anything itself. The guard wraps the whole read-modify-write, not
+the assignment alone, so `addReceiver` and its siblings stay atomic.
+
+An override must call `super.setReceivers(newReceivers)` for the change to take effect, and may read `receivers` to
+compare the incoming sequence with the current one. Under `ConcurrentMidiTransmitter` that read takes the read lock
+while the write lock is held, which is a *downgrade* and is permitted by `ReentrantReadWriteLock`; it is the reverse
+order — read then write — that deadlocks, and no path can produce it. The constructor stores `initialReceivers`
+directly, through neither hook, so an override never runs on a partially constructed object.
 
 ### D5 — `MidiSplitter` is a receiver over any transmitter
 
@@ -124,26 +188,34 @@ receiver.
 ### D6 — `MidiProcessor` output is a multi-receiver transmitter with connect/disconnect hooks
 
 `MidiProcessor` keeps its `receiver: MidiReceiver` (closed flag; processes, then forwards to every output receiver).
-Its output is `transmitter: MidiProcessorTransmitter`, which extends `ConcurrentMidiTransmitter` and overrides
-`receivers_=` with the current connect/disconnect protocol, generalised to a set:
+Its output is `transmitter: MidiProcessorTransmitter`, which extends `ConcurrentMidiTransmitter` and overrides D4's
+`setReceivers` hook with the current connect/disconnect protocol, generalised **per receiver** (fourth revision):
 
 1. If the new sequence equals the current one, do nothing.
-2. If the current set is non-empty, call `onDisconnect()`.
-3. Swap the sequence.
-4. If the new set is non-empty, call `onConnect()`.
+2. If any receiver is being dropped — present in the current sequence, absent from the incoming one — call
+   `onDisconnect(dropped)` with exactly those, the old sequence still in place.
+3. Swap the sequence, through `super.setReceivers`.
+4. If any receiver is being added — absent from the old sequence, present in the incoming one — call
+   `onConnect(added)` with exactly those.
+5. Call `onReceiversChanged(newReceivers)` with the whole new sequence.
 
-The override runs inside the write lock that `ConcurrentMidiTransmitter`'s modifiers already hold (every modifier of
-the mutable base funnels through `receivers_=`, so `addReceiver`/`removeReceiver`/`clearReceivers` reach this override
-by virtual dispatch); an override reached by a direct `receivers = …` assignment runs *before* the base class takes
-the lock, so it takes the write lock itself, re-entrantly. This differs from today's `MidiProcessorTransmitter`, which
-calls the hooks outside its lock; it is deliberate: the receiver set cannot change under a hook, and a message that
-has not yet read the receivers is held off, so it cannot interleave with the reset/initialisation messages the hooks
-emit. A fan-out already in flight is **not** held off: `MidiProcessorReceiver.send` snapshots `transmitter.receivers`
-under the read lock and then forwards with no lock held. A hook may itself send downstream, since the lock is
-re-entrant; it must not wait for another thread.
+A receiver present on both sides of the change triggers neither of the first two hooks: it was already initialised
+and stays that way. Neither is ever called with an empty sequence. Step 5 exists because steps 2 and 4 report
+*membership* and some consumers need the *sequence*: a change that only reorders the receivers, or that repeats one
+already connected, is reported there and nowhere else.
+
+It reads the current sequence with `receivers` and needs no locking code of its own — indeed no knowledge that a lock
+exists. D4's change guard has already taken the write lock by the time the hook runs, whichever entry point was used
+(`receivers_=`, `addReceiver`, `addReceivers`, `removeReceiver` or `clearReceivers`), and the read of `receivers` is a
+re-entrant downgrade the lock permits. This differs from today's `MidiProcessorTransmitter`, which calls the hooks
+outside its lock; it is deliberate: the receiver set cannot change under a hook, and a message that has not yet read
+the receivers is held off, so it cannot interleave with the reset/initialisation messages the hooks emit. A fan-out
+already in flight is **not** held off: `MidiProcessorReceiver.send` snapshots `transmitter.receivers` under the read
+lock and then forwards with no lock held. A hook may itself send downstream, since the lock is re-entrant; it must
+not wait for another thread.
 
 **Lock-ordering caveat (#281).** The hooks of `TunerProcessor` only send downstream, so they raise no lock-ordering
-question. Those of `MidiSerialProcessor` do: they take **its own** write lock (`wireOutput` / `unwireOutput`) while
+question. That of `MidiSerialProcessor` does: it takes **its own** write lock (`wireOutput`) while
 the transmitter's write lock is held, whereas its chain modifiers (`append`, `insert`, `processors_=`, …) take the
 two in the opposite order. Two threads mutating the same pipeline — one through `pipeline.transmitter.addReceiver`,
 the other through `pipeline.append` — could therefore deadlock. Nothing does that today: the only callers of either
@@ -157,19 +229,22 @@ can take a non-concurrent transmitter.
 
 Consequences:
 
-- `MidiSerialProcessor` wires neighbours with `receivers = Seq(next.receiver)` and unwires with `clearReceivers()`.
-  Its constructor takes `initialOutputReceivers: Seq[MidiReceiver]` instead of an `Option`. Its `onDisconnect()`
-  unwires the last processor while the old output receivers are still in place, and its `onConnect()` wires the new
-  ones. Today's code instead relies on `setReceiver` calling `onConnect()` even when the new receiver is `null`, a
-  quirk D6 removes, so both hooks are needed to propagate "no output" to the last processor (#281).
+- `MidiSerialProcessor` wires neighbours with `receivers = Seq(next.receiver)`. Its constructor takes
+  `initialOutputReceivers: Seq[MidiReceiver]` instead of an `Option`. It overrides **`onReceiversChanged` alone**
+  (fourth revision), mirroring the whole sequence onto the last processor with
+  `processors.last.transmitter.receivers = transmitter.receivers`; the last processor's own transmitter then runs
+  steps 1–5 over the mirrored sequence, so each output receiver is still initialised and cleaned up exactly once.
+  The membership hooks cannot do this job: they report a delta, whereas an output change has to be mirrored whole —
+  overriding `onDisconnect` to clear the last processor and `onConnect` to rewire it loses the whole output on a
+  *partial* removal, since removing one of two receivers adds none and so never rewires (#281).
 - `Track` no longer needs its output `MidiSplitter`: the pipeline's own transmitter fans out to the device receiver and
   to other tracks. `Track.transmitter` is the pipeline's transmitter.
-- Adding a second output receiver to a connected processor re-fires `onDisconnect()`/`onConnect()`, so
-  `TunerProcessor` first tunes the receivers already connected back to standard 12-EDO and then re-sends its reset
-  messages to the whole new set. This matches the meaning of "the output configuration changed", but it is not
-  silent (#281): at inter-track wiring time an output device sees a reset, a 12-EDO retuning and another reset, and
-  an upstream tuner's `reset()` output also reaches the downstream track's pipeline, where that track's own tuner
-  processes it as if it were performance MIDI.
+- Adding a second output receiver to a connected processor fires `onConnect()` with **only that receiver**
+  (fourth revision), so `TunerProcessor` sends its reset messages to the new receiver alone and leaves the already
+  connected ones untouched. The noisy sequence the first draft accepted — an output device seeing a reset, a 12-EDO
+  retuning and another reset at inter-track wiring time — therefore does not happen. What remains is that an
+  upstream tuner's `reset()` output reaches the newly added downstream track's pipeline, where that track's own tuner
+  processes it as if it were performance MIDI (#281).
 - Observation from reading `Track.scala` at the base commit: the pipeline is built with the splitter as its output
   *before* the device receiver is added to the splitter, so `TunerProcessor.onConnect()` sends the tuner's `reset()`
   messages (e.g. Pitch Bend Sensitivity) to an empty splitter. With D6, `onConnect()` fires when the device receiver
@@ -199,17 +274,18 @@ ones.
 API types in `scmidi`:
 
 - `case class MidiDeviceInfo(name: String, vendor: String, description: String, version: String,
-  maxTransmitters: MidiConnectionLimit, maxReceivers: MidiConnectionLimit)` with a derived `id: MidiDeviceId` and a
-  derived `endpointType: MidiEndpointType` (input if `maxTransmitters` is not `Limited(0)`, output likewise for
-  `maxReceivers`). It replaces `MidiDevice.Info` in every public signature. `MidiDeviceId.correspondsToInfo` takes
+  transmittersLimit: MidiConnectionLimit, receiversLimit: MidiConnectionLimit)` with a derived `id: MidiDeviceId`
+  and a derived `endpointType: MidiEndpointType` (input if `transmittersLimit` is not `Limited(0)`, output likewise
+  for `receiversLimit`). It replaces `MidiDevice.Info` in every public signature. `MidiDeviceId.correspondsToInfo` takes
   it; the factory from `MidiDevice.Info` moves to the Java side.
 - `enum MidiConnectionLimit { case Unlimited; case Limited(count: Int) }`: how many transmitters or receivers a
   device can open at once. Java Sound encodes "unlimited" as `-1`; the enum makes that explicit and prints as
   `unlimited` or the count. It is what the `cli` prints and what `MidiDeviceHandle.isInputDevice`/`isOutputDevice`
   derive from, so the `MidiDevice`-based helpers in the package object disappear once this lands.
-- `trait MidiManager extends AutoCloseable` with the current per-direction surface, unchanged in shape: `refresh()`,
-  and for each of input/output: `is…Available`, `…DeviceInfoOf`, `…DeviceIds`, `…DevicesInfo`, `open…`,
-  `openFirstAvailable…`, `…DeviceHandleOf`, `…OpenedDevices`, `close…`.
+- `trait MidiManager extends AutoCloseable` with the current per-direction surface: `refresh()`, and for each of
+  input/output: `is…Available`, `…DeviceInfoOf`, `…DeviceIds`, `…DevicesInfo`, `open…`, `…DeviceHandleOf`,
+  `…OpenedDevices`, `close…`. The shape is unchanged except that `openFirstAvailable…`, which nothing calls, is
+  dropped (fifth revision).
 - `trait MidiDeviceHandle extends AutoCloseable`: `id`, `info: Option[MidiDeviceInfo]`, `isInputDevice`,
   `isOutputDevice`, `endpointType`, `state`, `isConnected`, `isOpen`, `open()`, `close()`, `receiver: MidiReceiver`,
   `transmitter: ConcurrentMidiTransmitter`. The `State` enum and its transition diagram stay in the companion.
@@ -221,8 +297,8 @@ Java implementation in `scmidi.javamidi`:
   diffing, reference counting, `MidiEvent` publishing) and the CoreMIDI4J notification listener. It builds
   `MidiDeviceInfo` from `MidiDevice.Info`. The endpoint bookkeeping is not lifted into a reusable base class yet; a
   second implementation is the moment to do that.
-- `JavaMidiDeviceHandle`: today's handle, with `device: Option[MidiDevice]` as a public member of the concrete class
-  only, and the boundary conversion of D7.
+- `JavaMidiDeviceHandle`: today's handle, with `device: Option[MidiDevice]` as a `private[javamidi]` member of the
+  concrete class only (fifth revision; the first draft made it public), and the boundary conversion of D7.
 - `JavaMidiConverters`: moved unchanged, plus a `MidiDeviceInfo` builder that takes a `MidiDevice` (not only its
   `Info`, since the connection limits come from `getMaxTransmitters`/`getMaxReceivers`) and maps `-1` to
   `MidiConnectionLimit.Unlimited`. The two `MidiDevice` capability helpers moved by #279 are deleted here, replaced
@@ -232,9 +308,9 @@ Java implementation in `scmidi.javamidi`:
 
 - `TunerModule` receives a `MidiManager` through its constructor. `MicrotonalistApp` instantiates `JavaMidiManager`.
   `tuner` therefore imports nothing from `javamidi`.
-- `cli` instantiates `JavaMidiManager` and prints the `MidiDeviceInfo` fields, including the max transmitter count
-  for inputs and the max receiver count for outputs, as it does today, now read from `MidiConnectionLimit` instead
-  of `MidiSystem`.
+- `cli` instantiates `JavaMidiManager` and injects it into a `MidiDevicesCommand` (fifth revision), which prints the
+  `MidiDeviceInfo` fields, including the max transmitter count for inputs and the max receiver count for outputs, as
+  it does today, now read from `MidiConnectionLimit` instead of `MidiSystem`.
 - `Tuner.reset()`, `tune()`, `process()` and `TuningChanger.decide()` are typed on `MidiMsg`; `TunerProcessor`
   and `TuningChangeProcessor` follow. `Track` exposes `receiver: MidiReceiver` and `transmitter`; `TrackManager` calls
   `transmitter.addReceiver`.
@@ -295,6 +371,88 @@ case class PolyModeOnMidiMsg(channel: Int)                         extends Chann
       Tuner paper and the `tuner` architecture doc say "Channel Mode messages" where they say "CC 120–127".
 - `mapChannel` is implemented on every case class as today.
 
+### D11 — The Java Sound environment is a seam, so the device bookkeeping becomes testable
+
+D8 moves the device layer into `javamidi`, but on its own it moves the untestability with it. A fake `MidiManager`
+lets `tuner`, `app`, and `cli` be tested against the trait, yet `JavaMidiManager`'s endpoint bookkeeping — the
+connect/disconnect diffing, the `MidiEvent` publishing, `purgeDisconnectedDevices`, the reference-counted open/close —
+is the same untested code in a new package. That bookkeeping is pure state
+reconciliation and needs no MIDI hardware; what makes it unreachable is four static calls:
+
+| Call                                                | Today                        |
+|-----------------------------------------------------|------------------------------|
+| `CoreMidiDeviceProvider.getMidiDeviceInfo`          | `MidiManager.refresh()`      |
+| `CoreMidiDeviceProvider.addNotificationListener`    | `MidiManager.init()`         |
+| `CoreMidiDeviceProvider.removeNotificationListener` | `MidiManager.close()`        |
+| `MidiSystem.getMidiDevice(info)`                    | `MidiDeviceHandle.onConnect` |
+
+**The Java Sound SPI is not a way around them.** Registering a fake `javax.sound.midi.spi.MidiDeviceProvider` through
+`META-INF/services` in `sc-midi/src/test/resources` needs no production change, but two properties of CoreMIDI4J 1.6
+rule it out:
+
+1. `CoreMidiDeviceProvider.getMidiDeviceInfo()` calls `MidiSystem.getMidiDeviceInfo()` and then, *when the native
+   library is loaded*, keeps only devices that are a `Sequencer`, `Synthesizer`, `CoreMidiDestination`, or
+   `CoreMidiSource`. A fake device is filtered out on macOS and survives on the Linux CI runner, so the same test
+   would behave differently on a developer machine and in CI.
+2. `addNotificationListener` starts a daemon polling thread ("CoreMidi4J Environment Change Scanner") precisely when
+   the native library is *not* loadable — that is, on the CI runner. Constructing a real `JavaMidiManager` in a test
+   there spawns a thread that can call `refresh()` underneath the assertions, over whatever devices the runner
+   happens to expose.
+
+So #282 introduces a seam instead, inside `javamidi`:
+
+```scala
+trait JavaMidiEnvironment {
+  /** The `MidiDevice.Info` of every MIDI device currently present. */
+  def deviceInfos: Seq[MidiDevice.Info]
+
+  /** Resolves the device described by `info`; throws as `MidiSystem.getMidiDevice` does. */
+  def deviceOf(info: MidiDevice.Info): MidiDevice
+
+  /** Subscribes to MIDI environment changes; closing the returned subscription unsubscribes. */
+  def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable
+}
+```
+
+- `CoreMidi4JEnvironment` is the production implementation and the default constructor argument of
+  `JavaMidiManager`, so no call site outside `javamidi` changes. It owns all four statics and nothing else, which
+  leaves it a delegation-only adapter.
+- `subscribeToEnvironmentChanged` returns an `AutoCloseable` rather than taking a matching `remove` method, because
+  `removeNotificationListener` matches on object identity and the implementation is what adapts a `() => Unit` into
+  the `CoreMidiNotification` SAM that CoreMIDI4J actually holds.
+- Resolution is a separate `deviceOf` call rather than a `devices: Seq[MidiDevice]` that resolves internally (the
+  first draft of this decision), because a device that fails to resolve must still be reported by the *manager*: the
+  environment has no bus, so it could only drop such a device silently, and the event stream would change.
+  `JavaMidiManager.refresh()` therefore lists `deviceInfos`, resolves each device once with `deviceOf` — D8 needs the
+  device itself, since `MidiDeviceInfo`'s connection limits come from `getMaxTransmitters`/`getMaxReceivers` — and
+  hands it to the handle; `JavaMidiDeviceHandle.onConnect` takes the resolved device instead of calling
+  `MidiSystem.getMidiDevice` itself. Resolving in the manager costs nothing on macOS, where
+  `CoreMidiDeviceProvider.getMidiDeviceInfo()` already resolves every candidate internally to apply its filter.
+- After this, `javax.sound.midi` statics appear in exactly one production file.
+
+Behaviour must be preserved exactly, and the plan must pin these down:
+
+- A device that fails to resolve is skipped, not propagated: `MidiUnavailableException` and `IllegalArgumentException`
+  drop it silently as `MidiDeviceHandle.onConnect` does today, and any other exception is logged and published as
+  `MidiDeviceFailedToConnectEvent` before it is dropped. Moving the resolution from the handle to the manager must
+  not change the events: the same `MidiDeviceFailedToConnectEvent`, with the id derived from the `MidiDevice.Info`,
+  on the same bus.
+- The listener registered in `init()` still publishes `MidiEnvironmentChangedEvent` and then calls `refresh()`, and
+  `close()` still unsubscribes.
+
+**What this unlocks, and what stays out of scope.** With the seam in place, a fake `JavaMidiEnvironment` over
+stateful fake `MidiDevice`s puts the whole bookkeeping under unit test: refresh publishes
+`MidiDeviceConnectedEvent` for new devices and `MidiDeviceDisconnectedEvent` for vanished ones,
+`purgeDisconnectedDevices` closes what it should, `open()`/`close()` reference counting, the `Closed`/`Connected`/`WaitingToOpen`/`Open` transitions, and firing the
+environment callback triggers a refresh. The only test scaffolding needed is a fake `MidiDevice` — a stateful one
+rather than a mock, since `open`/`close`/`isOpen` are the semantics under test — and a four-line `MidiDevice.Info`
+subclass, its constructor being `protected`.
+
+**Writing those tests is out of scope for #278.** #282 lands the seam and leaves the gate open; covering
+`JavaMidiManager` and `JavaMidiDeviceHandle` is follow-up work under
+[#177](https://github.com/calinburloiu/microtonalist/issues/177). #282 must not raise the `sc-midi` floors either
+(Section 4).
+
 ## 3. Sub-issues and merge order
 
 Each sub-issue gets its own branch, PR, and an implementation plan under `issues/00278-isolate-java-midi/`. This
@@ -306,7 +464,7 @@ decision this document does not settle.
 | 1 | [#279](https://github.com/calinburloiu/microtonalist/issues/279) | D2 renames, D3 hierarchy, move `JavaMidiConverters` and the `MidiDevice` helpers into `javamidi`. Mechanical; suite stays green.                          | —          |
 | 2 | [#280](https://github.com/calinburloiu/microtonalist/issues/280) | D4: the four transmitter types and their tests. `MultiTransmitter` untouched.                                                                              | —          |
 | 3 | [#281](https://github.com/calinburloiu/microtonalist/issues/281) | D5, D6, D7: Scala-typed pipeline, boundary conversion in `MidiDeviceHandle`, `MultiTransmitter` deleted, `tuner` adapted. `tuner` free of `javax.sound.midi`. | 1, 2       |
-| 4 | [#282](https://github.com/calinburloiu/microtonalist/issues/282) | D8, D9: `MidiDeviceInfo`, the two traits, `JavaMidiManager`/`JavaMidiDeviceHandle`, `TunerModule` injection, `cli`/`app`. Only `javamidi` imports Java Sound. | 3          |
+| 4 | [#282](https://github.com/calinburloiu/microtonalist/issues/282) | D8, D9, D11: `MidiDeviceInfo`, the two traits, `JavaMidiManager`/`JavaMidiDeviceHandle`, the `JavaMidiEnvironment` seam, `TunerModule` injection, `cli`/`app`. Only `javamidi` imports Java Sound. | 3          |
 | 5 | [#283](https://github.com/calinburloiu/microtonalist/issues/283) | The MIDI 2.0 outlook document (Section 6).                                                                                                                 | —          |
 | 6 | [#285](https://github.com/calinburloiu/microtonalist/issues/285) | D10: `ChannelModeMidiMsg` and its eight case classes, `CcMidiMsg` restricted to 0–119, converters, tracker and MPE routing adapted.                       | 1          |
 
@@ -320,10 +478,15 @@ Strict TDD per sub-issue (red/green/refactor).
 New unit tests:
 
 - `ImmutableMidiTransmitter`, `MutableMidiTransmitter`, `ConcurrentMidiTransmitter` (the last with a concurrency test
-  that mutates and reads from several threads).
+  that mutates and reads from several threads, and with a test pinning that a `setReceivers` override may read
+  `receivers` re-entrantly — the lock downgrade of D4 — without deadlocking).
 - `MidiSplitter` over each transmitter implementation.
 - `MidiProcessorTransmitter`: `onDisconnect`/`onConnect` on every kind of set change (empty → non-empty, non-empty →
-  different non-empty, non-empty → empty, same set → no callbacks).
+  different non-empty, partial removal, partial addition, non-empty → empty, same set → no callbacks), reached both
+  through a direct `receivers = …` assignment and through the other modifiers; plus `onReceiversChanged` firing on
+  every change, including a reordering that fires neither of the other two, and firing after them (fourth revision).
+- `MidiSerialProcessor`: removing one of several output receivers keeps the rest wired to the last processor, and a
+  reordering is mirrored onto it (fourth revision).
 - A `Track`-level test pinning that a tuner's `reset()` messages reach a receiver added after construction (D6).
 - `MidiDeviceInfo` and the updated `MidiDeviceId`.
 - The eight `ChannelModeMidiMsg` case classes: construction and validation (`channelCount` 0–16), `mapChannel`, the
@@ -337,9 +500,15 @@ Migrated tests: every `sc-midi` and `tuner` test that stubs a Java `Receiver` or
 to `MidiReceiver` and plain `MidiMsg` values. `JavaMidiConvertersTest` moves with the converters and remains the
 Java-boundary test.
 
-`JavaMidiManager` and `JavaMidiDeviceHandle` remain hardware-bound and uncovered, as the current classes are
-([#177](https://github.com/calinburloiu/microtonalist/issues/177)). Coverage policy: the `sc-midi` statement floor of
-67% and branch floor of 52% must not drop; new files target 80%. The `tuner` floors are 80%/80%.
+`JavaMidiManager` and `JavaMidiDeviceHandle` stay uncovered through this refactoring, as the current classes are
+([#177](https://github.com/calinburloiu/microtonalist/issues/177)), but they stop being *hardware-bound*: the
+`JavaMidiEnvironment` seam of D11 is what #282 delivers, and covering the bookkeeping behind it is deliberately
+deferred to follow-up work under #177. The seam itself needs no new test — it is delegation only — so #282's own
+suite grows by the `MidiDeviceInfo`/`MidiDeviceId` tests listed above and the migrations, and its plan should not
+budget for a `JavaMidiManager` suite.
+
+Coverage policy: the `sc-midi` statement floor of 67% and branch floor of 52% must not drop; new files target 80%.
+The `tuner` floors are 80%/80%.
 
 ## 5. Documentation
 
@@ -374,3 +543,39 @@ A concise planning document, `issues/00278-isolate-java-midi/<date>-midi2-outloo
   non-concurrent transmitters inside processors that they enable.
 - Lifting `JavaMidiManager`'s endpoint bookkeeping into a reusable base for other implementations.
 - Raising the `sc-midi` coverage floors ([#177](https://github.com/calinburloiu/microtonalist/issues/177)).
+- Covering `JavaMidiManager` and `JavaMidiDeviceHandle` with the tests that D11's seam makes possible.
+- Fixing the `purgeDisconnectedDevices` defect of Section 8.
+
+## 8. A defect found while designing D11 — to be filed, not fixed here
+
+Reading `MidiManager.MidiEndpoint.purgeDisconnectedDevices` for D11 turned up a defect that #282 must carry over
+unchanged. #278 is a refactoring; smuggling a behaviour fix into it would make the migration impossible to review
+against the old behaviour.
+
+```scala
+val device = openedDevicesMap.get(deviceId).device
+device.foreach(_.close())
+openedDevicesMap.remove(deviceId)
+```
+
+The `close()` is `javax.sound.midi.MidiDevice.close()`, not `MidiDeviceHandle.close()`, and `onDisconnect()` is never
+called on the handle. So when a device is unplugged while open:
+
+- The handle's `openRefCount` and `_state` are untouched. `state` keeps reporting `State.Open` while `isOpen` —
+  which reads through to the Java device — reports `false`, and `_device`/`_info` stay defined, so `isConnected`
+  also stays `true`. The three accessors contradict each other.
+- The handle is dropped from `openedDevicesMap`, so replugging the device makes `refresh()` build a *new* handle.
+  The orphaned one never reconnects, even though `WaitingToOpen` exists precisely so that a handle can survive a
+  disconnect.
+- `Track` (`Track.scala:36-46`) retains the handle it got from `openInput`/`openOutput` for its whole lifetime, so
+  the user-visible symptom is that unplugging and replugging a MIDI device mid-session silently kills that track
+  until the application is restarted.
+
+There is a smaller race alongside it: `openedDevicesMap.get(deviceId)` re-reads the map after the `diff` that
+produced `deviceId`, so a concurrent `closeDevice` makes it return `null` and the `.device` call throws.
+
+**Instruction for the #282 plan.** Before implementing, open a bug issue in the `sc-midi` milestone describing the
+above — the contradictory accessors, the orphaned handle, the replug symptom, and the race — and reference it from
+the plan. The plan then carries the current behaviour across the `JavaMidiManager` move verbatim and leaves a
+`// TODO #<issue>` at the ported call site. Do not fix it in #282, and do not write a test that pins the buggy
+behaviour: the tests D11 unlocks are follow-up work, and the fix belongs with them.

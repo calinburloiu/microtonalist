@@ -25,8 +25,7 @@ names); the `Plugin` trait itself carries only the two `val`s and no serializati
 
 **`Locking`** is a mix-in trait providing `@inline` helpers (`withLock` / `withReadLock` / `withWriteLock`) that run a
 block while holding an implicitly-passed lock and always release it in a `finally`, so call sites read like
-`withReadLock { _x }`. Used for thread-safe getters/setters in `config`, `format` (`DeferrableRead`), and `sc-midi`
-(`JavaMidiDeviceHandle`, `MidiProcessor`).
+`withReadLock { _x }`.
 
 **`OpenableSession`** is a small lifecycle trait (extending `java.io.Closeable`) for a resource opened asynchronously
 against a `URI`: `open(uri): Future[Unit]`, `close()`, `isOpened`, `uri`. Implemented by `TrackSession` in `tuner`.

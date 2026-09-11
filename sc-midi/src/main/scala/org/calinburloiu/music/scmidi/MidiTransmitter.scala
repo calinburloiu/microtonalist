@@ -27,22 +27,16 @@ package org.calinburloiu.music.scmidi
  *   - [[MutableMidiTransmitter]] — in-place changes, for a single thread.
  *   - [[ConcurrentMidiTransmitter]] — in-place changes from any thread.
  *
- * It is `AutoCloseable` so that an implementation that holds a resource (a native endpoint, a thread) has a release
- * hook; the three implementations above hold none and implement [[close]] as a no-op. A consumer that is merely
- * handed a transmitter does not own it and must not close it.
+ * Unlike its Java counterpart, this trait carries no `close()`: none of the three implementations above holds
+ * a resource of its own. An implementation that ever does can mix in `AutoCloseable` itself.
  *
  * @see [[javax.sound.midi.Transmitter]], which allows a single receiver only.
  */
-trait MidiTransmitter extends AutoCloseable {
+trait MidiTransmitter {
   /**
    * The receivers messages are currently forwarded to.
    *
    * @return an immutable snapshot; later changes to the transmitter do not affect a sequence already returned.
    */
   def receivers: Seq[MidiReceiver]
-
-  /**
-   * Releases any resources held by this transmitter. Implementations that hold none make this a no-op.
-   */
-  override def close(): Unit
 }

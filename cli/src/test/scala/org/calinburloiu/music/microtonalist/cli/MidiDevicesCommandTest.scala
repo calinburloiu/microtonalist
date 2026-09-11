@@ -23,9 +23,32 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.ByteArrayOutputStream
 
-class MicrotonalistToolAppTest extends AnyFlatSpec with Matchers with MockFactory {
+class MidiDevicesCommandTest extends AnyFlatSpec with Matchers with MockFactory {
 
-  behavior of "printMidiDevices"
+  behavior of "run"
+
+  it should "print only the section headers when there are no devices" in {
+    // Given
+    val midiManager = stub[MidiManager]
+    (() => midiManager.inputDevicesInfo).when().returns(Seq.empty)
+    (() => midiManager.outputDevicesInfo).when().returns(Seq.empty)
+    val command = MidiDevicesCommand(midiManager)
+    val out = ByteArrayOutputStream()
+
+    // When
+    Console.withOut(out) {
+      command.run()
+    }
+
+    // Then
+    out.toString shouldEqual
+      """=== Input Devices ===
+        |
+        |
+        |=== Output Devices ===
+        |
+        |""".stripMargin
+  }
 
   it should "print the fields and the connection limit of every input and output device" in {
     // Given
@@ -34,25 +57,26 @@ class MicrotonalistToolAppTest extends AnyFlatSpec with Matchers with MockFactor
       vendor = "ROLI Ltd.",
       description = "MPE controller",
       version = "1.0",
-      maxTransmitters = MidiConnectionLimit.Unlimited,
-      maxReceivers = MidiConnectionLimit.Limited(0)
+      transmittersLimit = MidiConnectionLimit.Unlimited,
+      receiversLimit = MidiConnectionLimit.Limited(0)
     )
     val output = MidiDeviceInfo(
       name = "CoreMIDI4J - FP-90",
       vendor = "Roland",
       description = "Digital piano",
       version = "2.1",
-      maxTransmitters = MidiConnectionLimit.Limited(0),
-      maxReceivers = MidiConnectionLimit.Limited(1)
+      transmittersLimit = MidiConnectionLimit.Limited(0),
+      receiversLimit = MidiConnectionLimit.Limited(1)
     )
     val midiManager = stub[MidiManager]
     (() => midiManager.inputDevicesInfo).when().returns(Seq(input))
     (() => midiManager.outputDevicesInfo).when().returns(Seq(output))
+    val command = MidiDevicesCommand(midiManager)
     val out = ByteArrayOutputStream()
 
     // When
     Console.withOut(out) {
-      MicrotonalistToolApp.printMidiDevices(midiManager)
+      command.run()
     }
 
     // Then
