@@ -18,7 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.scmidi.MidiNote
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg}
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, AllSoundOffMidiMsg, CcMidiMsg, NoteOnMidiMsg,
+  PolyModeOnMidiMsg}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,6 +34,23 @@ class PedalTuningChangerTest extends AnyFlatSpec with Matchers {
     defaultPedalTuningChanger.triggersThru shouldBe false
     defaultPedalTuningChanger.familyName shouldEqual TuningChanger.FamilyName
     defaultPedalTuningChanger.typeName shouldEqual "pedal"
+  }
+
+  it should "reject a trigger on a Channel Mode number (120-127)" in {
+    // Given
+    val triggersOnChannelModeNumbers = Seq(
+      TuningChangeTriggers[CcNumber](previous = Some(AllSoundOffMidiMsg.Number)),
+      TuningChangeTriggers[CcNumber](next = Some(AllNotesOffMidiMsg.Number)),
+      TuningChangeTriggers[CcNumber](index = Map(1 -> PolyModeOnMidiMsg.Number))
+    )
+
+    for (triggers <- triggersOnChannelModeNumbers) {
+      // When / Then — MIDI 1.0 sends Channel Mode messages, never Control Changes, on these numbers
+      withClue(triggers) {
+        an[IllegalArgumentException] should be thrownBy PedalTuningChanger(triggers, threshold = 0,
+          triggersThru = false)
+      }
+    }
   }
 
   val customPreviousTuningCcTrigger: CcNumber = 60

@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg}
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, MidiRequirements}
 
 import scala.collection.mutable
 
@@ -37,8 +37,8 @@ import scala.collection.mutable
  * Only Control Change numbers 0-119 can trigger a change. MIDI 1.0 reserves 120-127 for the Channel Mode messages,
  * which arrive as [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] values rather than
  * [[org.calinburloiu.music.scmidi.message.CcMidiMsg]] ones, so a trigger configured on one of those numbers would
- * never fire. The JSON format rejects them when a composition is read, so only a programmatically constructed
- * instance can hold one.
+ * never fire. Construction therefore throws an `IllegalArgumentException` for any trigger outside 0-119, and the JSON
+ * format rejects such a trigger when a composition is read.
  *
  * @param triggers     The configuration of MIDI CC triggers that determine tuning changes.
  *                     These can include triggers for previous, next tuning changes,
@@ -54,6 +54,9 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[CcNumber],
                               threshold: Int,
                               override val triggersThru: Boolean) extends TuningChanger with LazyLogging {
   override val typeName: String = PedalTuningChanger.TypeName
+
+  private val triggerCcs: Seq[CcNumber] = Seq(triggers.previous, triggers.next, triggers.index.values).flatten
+  triggerCcs.foreach(MidiRequirements.requireControllerNumber)
 
   /**
    * @return the CC trigger, if available, that effects a change to the next tuning.
@@ -71,10 +74,7 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[CcNumber],
    */
   private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map
     .newBuilder[Int, Boolean]
-    .addAll(
-      Seq(triggers.previous, triggers.next, triggers.index.values)
-        .flatten.map(cc => cc -> false)
-    )
+    .addAll(triggerCcs.map(cc => cc -> false))
     .result()
 
   override def decide(message: MidiMsg): TuningChange = message match {

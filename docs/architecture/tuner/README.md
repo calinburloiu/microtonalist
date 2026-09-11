@@ -84,11 +84,11 @@ messages it requires now, and `process(message)` rewrites each message flowing t
 
 **Tuning-change detection.** `TuningChanger` (`@NotThreadSafe` plugin) inspects messages and returns a `TuningChange`;
 `PedalTuningChanger` triggers on a pedal-like CC crossing a threshold (controller numbers 0–119 only — 120–127 are
-Channel Mode messages, and `format` rejects them as triggers), reading its trigger map from a `TuningChangeTriggers[T]`
-that binds trigger values (CC numbers here) to previous/next/index changes. `TuningChange` splits into
-`EffectiveTuningChange` (`PreviousTuningChange` / `NextTuningChange` / `IndexTuningChange`, which actually change the
-tuning) and `IneffectiveTuningChange` (no change, or "part of a trigger pattern but nothing yet" — e.g. a held pedal's
-CC stream).
+Channel Mode messages, which both its constructor and `format` reject as triggers), reading its trigger map from a
+`TuningChangeTriggers[T]` that binds trigger values (CC numbers here) to previous/next/index changes. `TuningChange`
+splits into `EffectiveTuningChange` (`PreviousTuningChange` / `NextTuningChange` / `IndexTuningChange`, which actually
+change the tuning) and `IneffectiveTuningChange` (no change, or "part of a trigger pattern but nothing yet" — e.g. a
+held pedal's CC stream).
 
 **The processor pipeline.** Each `Tuner`/`TuningChanger` is wrapped in a `MidiProcessor` (from `sc-midi`) so it can be
 chained; both plugins and both processors are typed on `MidiMsg`, so no conversion to Java Sound happens in this
