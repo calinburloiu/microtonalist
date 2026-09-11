@@ -246,8 +246,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     case m: PolyPressureMidiMsg => processPolyPressure(buffer, m, role)
     case m: CcMidiMsg => processCc(buffer, m, role, rpnSelector)
     case m =>
-      // `route` never asks for a Program Change — the only other concrete channel message class — to be
-      // interpreted; it is forwarded or discarded.
+      // `route` never asks for a Program Change or a Channel Mode message — the only other concrete channel
+      // message classes — to be interpreted; they are forwarded or discarded.
       logger.error(s"Unexpected request to interpret $m")
   }
 

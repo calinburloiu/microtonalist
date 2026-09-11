@@ -79,6 +79,23 @@ class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
     // No validation on write
   }
 
+  "ccNumberFormat" should "read a Control Change controller number (between 0 and 119)" in {
+    ccNumberFormat.reads(JsNumber(0)) shouldEqual JsSuccess(0)
+    ccNumberFormat.reads(JsNumber(64)) shouldEqual JsSuccess(64)
+    ccNumberFormat.reads(JsNumber(119)) shouldEqual JsSuccess(119)
+    // 120-127 are Channel Mode messages, not controllers
+    ccNumberFormat.reads(JsNumber(120)) shouldEqual JsError("error.expected.ccNumber")
+    ccNumberFormat.reads(JsNumber(127)) shouldEqual JsError("error.expected.ccNumber")
+    ccNumberFormat.reads(JsNumber(128)) shouldEqual JsError("error.expected.ccNumber")
+    ccNumberFormat.reads(JsNumber(-1)) shouldEqual JsError("error.expected.ccNumber")
+  }
+
+  it should "write an integer" in {
+    ccNumberFormat.writes(0) shouldEqual JsNumber(0)
+    ccNumberFormat.writes(119) shouldEqual JsNumber(119)
+    // No validation on write
+  }
+
   "resolveLibraryUrl" should "resolve an URL with microtonalist scheme" in {
     val uri = URI("microtonalist:///scales/dorian.scl")
 

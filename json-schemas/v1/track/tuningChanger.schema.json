@@ -20,18 +20,18 @@
                             "allOf": [
                                 {
                                     "title": "Previous Tuning Trigger",
-                                    "description": "Configures the MIDI CC that triggers a tuning change to the previous tuning."
+                                    "description": "Configures the MIDI CC that triggers a tuning change to the previous tuning. Only controller numbers 0-119 may be used; 120-127 are MIDI Channel Mode messages, not controllers."
                                 },
-                                { "$ref": "uint7.schema.json" }
+                                { "$ref": "ccNumber.schema.json" }
                             ]
                         },
                         "next": {
                             "allOf": [
                                 {
                                     "title": "Next Tuning Trigger",
-                                    "description": "Configures the MIDI CC that triggers a tuning change to the next tuning."
+                                    "description": "Configures the MIDI CC that triggers a tuning change to the next tuning. Only controller numbers 0-119 may be used; 120-127 are MIDI Channel Mode messages, not controllers."
                                 },
-                                { "$ref": "uint7.schema.json" }
+                                { "$ref": "ccNumber.schema.json" }
                             ]
                         },
                         "index": {
@@ -43,9 +43,9 @@
                                     "allOf": [
                                         {
                                             "title": "Change Tuning to Index Trigger",
-                                            "description": "The value configures the MIDI CC that triggers a tuning change to the tuning index from the key."
+                                            "description": "The value configures the MIDI CC that triggers a tuning change to the tuning index from the key. Only controller numbers 0-119 may be used; 120-127 are MIDI Channel Mode messages, not controllers."
                                         },
-                                        { "$ref": "uint7.schema.json" }
+                                        { "$ref": "ccNumber.schema.json" }
                                     ]
                                 }
                             },

@@ -123,6 +123,7 @@ private[tuner] object MpeMessageRouting {
             message: ChannelMidiMsg,
             rpnSelector: RpnSelector): MpeRoutingVerdict = message match {
     case msg: CcMidiMsg => routeCc(role, msg, rpnSelector)
+    case msg: ChannelModeMidiMsg => routeChannelMode(role, msg)
     case _: NoteMidiMsg => role match {
       case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
       case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
@@ -163,11 +164,6 @@ private[tuner] object MpeMessageRouting {
   private def routeCc(role: MpeChannelRole,
                       msg: CcMidiMsg,
                       rpnSelector: RpnSelector): MpeRoutingVerdict = msg.number match {
-    // The MIDI Mode messages are discarded at every role in both input modes: the Tuner is fixed-mode on both
-    // sides, and a Mono On reaching an output Member Channel would turn every shared allocation into a note drop.
-    case MidiCc.OmniModeOff | MidiCc.OmniModeOn | MidiCc.MonoModeOn | MidiCc.PolyModeOn =>
-      MpeRoutingVerdict.Discard
-
     case MidiCc.MpeSlide => routeControlDimension(role)
 
     // Every selector is consumed, never relayed: the Tuner decides for itself what each value message it re-emits
@@ -178,6 +174,20 @@ private[tuner] object MpeMessageRouting {
     case MidiCc.DataEntryMsb | MidiCc.DataEntryLsb | MidiCc.DataIncrement | MidiCc.DataDecrement =>
       routeDataValue(role, msg, rpnSelector)
 
+    case _ => routeZoneLevel(role)
+  }
+
+  /**
+   * Routes a Channel Mode message.
+   *
+   * The four MIDI Mode messages — Omni Mode Off and On, Mono Mode On and Poly Mode On — are discarded at every role
+   * in both input modes: the Tuner is fixed-mode on both sides, and a Mono Mode On reaching an output Member Channel
+   * would turn every shared allocation into a note drop. The other four — All Sound Off, Reset All Controllers,
+   * Local Control and All Notes Off — are ordinary Zone-level traffic.
+   */
+  private def routeChannelMode(role: MpeChannelRole, msg: ChannelModeMidiMsg): MpeRoutingVerdict = msg match {
+    case _: OmniModeOffMidiMsg | _: OmniModeOnMidiMsg | _: MonoModeOnMidiMsg | _: PolyModeOnMidiMsg =>
+      MpeRoutingVerdict.Discard
     case _ => routeZoneLevel(role)
   }
 
@@ -258,7 +268,7 @@ private[tuner] object MpeMessageRouting {
    * this predicate.
    */
   private[tuner] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
-    case cc: CcMidiMsg => cc.number == MidiCc.ResetAllControllers
+    case _: ResetAllControllersMidiMsg => true
     case _ => false
   }
 

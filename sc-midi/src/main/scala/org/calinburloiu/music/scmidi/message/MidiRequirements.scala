@@ -24,6 +24,11 @@ object MidiRequirements {
   val MinSigned14BitValue: Int = -(1 << 13)
   /** The maximum signed 14-bit value (8191). */
   val MaxSigned14BitValue: Int = (1 << 13) - 1
+  /**
+   * The highest MIDI 1.0 Control Change controller number (119). Numbers 120-127 are the Channel Mode messages,
+   * modelled by [[ChannelModeMidiMsg]] and its subtypes.
+   */
+  val MaxControllerNumber: Int = 119
 
   /** Requires that the given channel is between 0 and 15. */
   def requireChannel(channel: Int): Unit =
@@ -48,6 +53,19 @@ object MidiRequirements {
   /** Requires that the given value is an unsigned 7-bit integer (0 to 127). */
   def requireUnsigned7BitValue(name: String, value: Int): Unit =
     require((value & 0xFFFFFF80) == 0, s"$name must be between 0 and 127; got $value")
+
+  /**
+   * Requires that the given Control Change controller number is between 0 and [[MaxControllerNumber]]. Numbers
+   * 120-127 are Channel Mode messages, which have their own types under
+   * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] and are not controllers, so the error for one of them
+   * names those types.
+   */
+  def requireControllerNumber(number: Int): Unit = {
+    require(!ChannelModeMidiMsg.NumberRange.contains(number),
+      s"number $number is a Channel Mode message, not a controller; use its ChannelModeMidiMsg subtype instead")
+    require(number >= 0 && number <= MaxControllerNumber,
+      s"number must be between 0 and $MaxControllerNumber; got $number")
+  }
 
   /** Requires that the given value is an unsigned 8-bit integer (0 to 255). */
   def requireUnsigned8BitValue(name: String, value: Int): Unit =

@@ -92,6 +92,12 @@ handled by the same machinery, its `JsonPluginFormat` supplying the `familyName`
 This is why each plugin lives in its domain module but its wire format lives here: `format` owns the JSON contract and
 the settings-merging policy, keeping serialization concerns out of the domain modules.
 
+The shared value formats in the `format` package object encode which MIDI range a field may take: `uint7Format` for a
+full 7-bit value (0–127, e.g. Pitch Bend Sensitivity's semitone and cent counts) and `ccNumberFormat` for a Control
+Change controller number (0–119, the `PedalTuningChanger` triggers), MIDI 1.0 reserving 120–127 for the Channel Mode
+messages. The hand-maintained JSON Schemas under `json-schemas/v1/` mirror the pair as `uint7.schema.json` and
+`ccNumber.schema.json`; they are not validated by any test, so they must be updated alongside the Play formats.
+
 ## Deferred reads
 
 Scales referenced from a composition are not necessarily loaded eagerly. `DeferrableRead[V, P]` models a value that is

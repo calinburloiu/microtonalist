@@ -37,7 +37,8 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
       case _ => JsError("error.expected.integer.positive")
     }
   }
-  private val indexTriggersReads: Reads[Map[Int, Int]] = Reads.mapReads[Int, CcNumber](tuningIndexKeyReads)(uint7Format)
+  private val indexTriggersReads: Reads[Map[Int, Int]] =
+    Reads.mapReads[Int, CcNumber](tuningIndexKeyReads)(ccNumberFormat)
   private val indexTriggersWrites: Writes[Map[Int, Int]] = Writes { map =>
     val convertedMap = map.map { case (k, v) => k.toString -> v }
     Json.toJson(convertedMap)
@@ -45,8 +46,8 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
 
   //@formatter:off
   val ccTriggersFormat: Format[TuningChangeTriggers[CcNumber]] = (
-    (__ \ "previous").formatNullable[CcNumber](uint7Format) and
-    (__ \ "next").formatNullable[CcNumber](uint7Format) and
+    (__ \ "previous").formatNullable[CcNumber](ccNumberFormat) and
+    (__ \ "next").formatNullable[CcNumber](ccNumberFormat) and
     (__ \ "index").formatWithDefault[Map[Int, CcNumber]](Map.empty)(Format(indexTriggersReads, indexTriggersWrites))
   )(TuningChangeTriggers.apply, Tuple.fromProductTyped)
 

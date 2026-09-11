@@ -85,22 +85,31 @@ distinct, separately-evented states.
 **`MidiMsg`** is the sealed base of the immutable message model — the Scala-idiomatic counterpart to Java's mutable,
 byte-oriented `MidiMessage`/`ShortMessage`. Directly under it sit **`Midi1Msg`**, the base of every MIDI 1.0 message,
 and **`Midi2Msg`**, the base of every MIDI 2.0 message, with no case classes yet (#292). Pipeline signatures take
-`MidiMsg`. Its sub-hierarchies cover channel voice/mode messages (`ChannelMidiMsg`, with a `mapChannel` that rewrites
-the channel), system-common and system-real-time messages, the full set of Standard MIDI File meta events, and System
-Exclusive (`SysExMidiMsg`). Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape
-hatch that round-trips back to the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw
-LSB/MSB bytes into a single signed 14-bit value and offers cents conversion against a `PitchBendSensitivity`.
+`MidiMsg`. Its sub-hierarchies cover Channel Voice messages and, under `ChannelModeMidiMsg`, the eight Channel Mode
+messages (both are `ChannelMidiMsg`s, with a `mapChannel` that rewrites the channel), system-common and
+system-real-time messages, the full set of Standard MIDI File meta events, and System Exclusive (`SysExMidiMsg`).
+Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape hatch that round-trips back to
+the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw LSB/MSB bytes into a single signed
+14-bit value and offers cents conversion against a `PitchBendSensitivity`. MIDI 1.0 puts the Channel Mode messages on
+the wire as Control Changes with numbers 120–127, but defines them as a category of their own, so the model does too:
+`AllSoundOffMidiMsg`, `ResetAllControllersMidiMsg`, `LocalControlMidiMsg`, `AllNotesOffMidiMsg`, `OmniModeOffMidiMsg`,
+`OmniModeOnMidiMsg`, `MonoModeOnMidiMsg` and `PolyModeOnMidiMsg` each own their number in their companion,
+`ChannelModeMidiMsg.NumberRange` spans them, and `CcMidiMsg.number` is restricted to 0–119 by
+`MidiRequirements.requireControllerNumber`. Only Local Control and Mono Mode On carry a field; the other six emit data
+byte `0` and ignore whatever arrived — the one place the model deliberately drops the byte-level round trip.
 
 **`JavaMidiConverters`**, in the `javamidi` sub-package
 (`import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*`), is the boundary with Java Sound MIDI, modelled
 after `scala.jdk.CollectionConverters`: importing its members enables `message.asJava` / `javaMessage.asScala`.
 `asJava` is defined on `Midi1Msg` only, so converting a future `Midi2Msg` value is a compile-time error; `asScala`
 returns `MidiMsg`. Both directions dispatch through lookup tables (by concrete subtype `Class` outbound, by
-status/meta-type byte inbound) rather than large pattern matches. The same object also builds the device-level API
-values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and `connectionLimit(javaMaxConnections)`.
-Value validation for message constructors is centralized in `MidiRequirements` (channel and bit-width `require…`
-checks), and the controller/parameter numbers live in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE
-Configuration Message and the MPE Slide CC).
+status/meta-type byte inbound) rather than large pattern matches. A Control Change is the one status byte both tables
+split further, by controller number, into a `CcMidiMsg` and a Channel Mode message; a Mono Mode On asking for more
+channels than MIDI 1.0 allows decodes to `UnsupportedMidiMsg` rather than throwing on the device's own thread. The same
+object also builds the device-level API values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and
+`connectionLimit(javaMaxConnections)`. Value validation for message constructors is centralized in `MidiRequirements`
+(channel and bit-width `require…` checks), and the controller/parameter numbers live in `MidiCc` / `MidiRpn` /
+`MidiNrpn` (including the MPE Configuration Message and the MPE Slide CC).
 
 ### MIDI plumbing (receivers, transmitters, processors)
 
@@ -151,16 +160,25 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   then runs the membership protocol over the mirrored sequence. That hook takes the serial processor's own lock inside
   the transmitter's, so a chain mutation and an output-receiver change of the same instance must not race from two
   threads (they do not today; #121 removes the concern).
-- **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that
-  derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
-  sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are
-  **reference-counted**: a note struck twice without an intervening release needs two Note Offs to go inactive, which
-  is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation. Active notes are ordered by their
-  most recent Note On, so a duplicate Note On moves a note to the end of `orderedActiveNotes` instead of listing it
-  twice — each active note appears there exactly once, whatever its reference count.
-  `MonophonicPitchBendTuner` uses it to track held-note state; `MpeTuner` uses it for Master Channel notes, which
-  bypass its allocator, and also reads it per input channel — the RPN selector for routing, and the Pitch Bend,
-  Channel Pressure, and CC #74 (MPE Slide) state it seeds a newly allocated note's Expression Values from.
+- **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that derives
+  **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages sent to
+  it, implementing the RPN/NRPN Data Entry protocol and, in a branch of its own over `ChannelModeMidiMsg`, the Channel
+  Mode messages (their numbers are never recorded as CC values, and `ccOption` / `cc` reject them). The MIDI Mode
+  messages 124–127 set the receive mode
+  (`isOmniModeOn`, `isPolyModeOn` / `isMonoModeOn`, and the channel count of Mono mode, `monoModeChannelCount`) and
+  Local Control sets `isLocalControlOn`; both start in MIDI 1.0's recommended power-up state — Omni On/Poly, Local
+  Control on — and no reset message changes them. When the tracker is
+  told its receiver honours them, All Sound Off, All Notes Off and Reset All Controllers act on the tracked state, and
+  so do the MIDI Mode messages, which MIDI 1.0 makes act as All Notes Off too; the tracker does not model MIDI 1.0's
+  rule that a receiver in Omni mode ignores All Notes Off and Reset All Controllers, since it cannot tell which channel
+  is the receiver's Basic Channel. Notes are **reference-counted**: a note struck
+  twice without an intervening release needs two Note Offs to go inactive, which is what lets a consumer discharge MIDI
+  1.0's one-Note-Off-per-Note-On obligation. Active notes are ordered by their most recent Note On, so a duplicate Note
+  On moves a note to the end of `orderedActiveNotes` instead of listing it twice — each active note appears there
+  exactly once, whatever its reference count. `MonophonicPitchBendTuner` uses it to track held-note state; `MpeTuner`
+  uses it for Master Channel notes, which bypass its allocator, and also reads it per input channel — the RPN selector
+  for routing, and the Pitch Bend, Channel Pressure, and CC #74 (MPE Slide) state it seeds a newly allocated note's
+  Expression Values from.
 
 ### MIDI domain helpers
 
@@ -248,7 +266,7 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
   escape hatch.
 - The `Sc` prefix is gone (#279), the `MidiTransmitter` family replaced `MultiTransmitter` (#280, #281), the
   pipeline carries `MidiMsg` end to end (#281), the device layer is a pair of traits with a Java Sound
-  implementation under `javamidi` (#282), and the MIDI 2.0 outlook that the empty `Midi2Msg` stands in for has been
-  written (#283, `issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`). The one piece of #278 with no code
-  yet is **#285**, Channel Mode messages as their own types. Every #278 sub-issue nonetheless remains open until the
-  branch stack that implements them merges — see `issues/00278-isolate-java-midi/`.
+  implementation under `javamidi` (#282), the MIDI 2.0 outlook that the empty `Midi2Msg` stands in for has been
+  written (#283, `issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`), and the Channel Mode messages are
+  their own types (#285). Every #278 sub-issue nonetheless remains open until the branch stack that implements them
+  merges — see `issues/00278-isolate-java-midi/`.
