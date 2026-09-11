@@ -27,8 +27,8 @@ class MidiDeviceInfoTest extends AnyFlatSpec with Matchers with TableDrivenPrope
     vendor = "Roland",
     description = "Digital piano",
     version = "1.0",
-    maxTransmitters = MidiConnectionLimit.Unlimited,
-    maxReceivers = MidiConnectionLimit.Limited(1)
+    transmittersLimit = MidiConnectionLimit.Unlimited,
+    receiversLimit = MidiConnectionLimit.Limited(1)
   )
 
   behavior of "id"
@@ -43,16 +43,16 @@ class MidiDeviceInfoTest extends AnyFlatSpec with Matchers with TableDrivenPrope
   it should "derive the directions from the connection limits" in {
     // Given
     val cases = Table[MidiConnectionLimit, MidiConnectionLimit, MidiEndpointType, Boolean, Boolean](
-      ("maxTransmitters", "maxReceivers", "endpointType", "isInputDevice", "isOutputDevice"),
+      ("transmittersLimit", "receiversLimit", "endpointType", "isInputDevice", "isOutputDevice"),
       (MidiConnectionLimit.Unlimited, MidiConnectionLimit.Limited(0), MidiEndpointType.Input, true, false),
       (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(1), MidiEndpointType.Output, false, true),
       (MidiConnectionLimit.Limited(2), MidiConnectionLimit.Unlimited, MidiEndpointType.InputOutput, true, true),
       (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(0), MidiEndpointType.None, false, false)
     )
 
-    forAll(cases) { (maxTransmitters, maxReceivers, endpointType, isInputDevice, isOutputDevice) =>
+    forAll(cases) { (transmittersLimit, receiversLimit, endpointType, isInputDevice, isOutputDevice) =>
       // When
-      val deviceInfo = info.copy(maxTransmitters = maxTransmitters, maxReceivers = maxReceivers)
+      val deviceInfo = info.copy(transmittersLimit = transmittersLimit, receiversLimit = receiversLimit)
 
       // Then
       deviceInfo.endpointType shouldEqual endpointType

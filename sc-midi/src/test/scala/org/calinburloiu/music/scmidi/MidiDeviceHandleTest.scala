@@ -42,8 +42,8 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
     override def transmitter: ConcurrentMidiTransmitter = ConcurrentMidiTransmitter()
   }
 
-  private def info(maxTransmitters: MidiConnectionLimit, maxReceivers: MidiConnectionLimit): MidiDeviceInfo =
-    MidiDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0", maxTransmitters, maxReceivers)
+  private def info(transmittersLimit: MidiConnectionLimit, receiversLimit: MidiConnectionLimit): MidiDeviceInfo =
+    MidiDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0", transmittersLimit, receiversLimit)
 
   behavior of "endpointType"
 

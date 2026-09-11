@@ -26,8 +26,8 @@ class MidiDeviceIdTest extends AnyFlatSpec with Matchers {
     vendor = "Roland",
     description = "Digital piano",
     version = "1.0",
-    maxTransmitters = MidiConnectionLimit.Limited(0),
-    maxReceivers = MidiConnectionLimit.Limited(1)
+    transmittersLimit = MidiConnectionLimit.Limited(0),
+    receiversLimit = MidiConnectionLimit.Limited(1)
   )
 
   behavior of "correspondsToInfo"

@@ -36,24 +36,23 @@ provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display 
 
 **`MidiManager`** is the trait through which devices are discovered and opened. It is `AutoCloseable` and offers a
 per-direction API mirrored for input and output (availability, id/info enumeration as `MidiDeviceInfo`,
-`open*`/`close*`, `openFirstAvailable*`, handle lookup), because a platform may expose a physical bidirectional device
-as two endpoints that nonetheless share one `MidiDeviceId`. `refresh()` rescans the environment; an implementation also
-refreshes when the platform reports a change, emitting the device events described in
+`open*`/`close*`, handle lookup), because a platform may expose a physical bidirectional device as two endpoints that
+nonetheless share one `MidiDeviceId`. `refresh()` rescans the environment; an implementation also refreshes when the
+platform reports a change, emitting the device events described in
 [Device lifecycle and events](#device-lifecycle-and-events) as it reconciles state.
 
 **`MidiDeviceHandle`** is the trait for a handle to a single device identified by a `MidiDeviceId`, created and kept up
 to date by the manager. A handle can exist for a device that is **not currently connected** —
-`info: Option[MidiDeviceInfo]` is defined only once physically connected, and `isInputDevice` / `isOutputDevice` /
+`info: Option[MidiDeviceInfo]` is defined only while it is connected, and `isInputDevice` / `isOutputDevice` /
 `endpointType` derive from it — and its lifecycle is **reference-counted**: the device opens on the first `open()` and
 closes on the last `close()`. `open()` may be called before the device is connected — the handle moves to
-`WaitingToOpen` and opens once the manager hands it a connected device, which the manager only does from
-`openInput` / `openOutput` and not when the device merely reappears (#288; the `State` enum in the companion captures
-the Closed/Connected/WaitingToOpen/Open transitions, drawn in its ScalaDoc). Callers **send** to an output via
+`WaitingToOpen` and opens once the device gets connected (the `State` enum in the companion captures the
+Closed/Connected/WaitingToOpen/Open transitions, drawn in its ScalaDoc). Callers **send** to an output via
 `handle.receiver: MidiReceiver` and **subscribe** to an input via `handle.transmitter: ConcurrentMidiTransmitter`; both
 survive disconnect/reconnect without re-wiring.
 
-Supporting value types: `MidiDeviceInfo` (`case class(name, vendor, description, version, maxTransmitters,
-maxReceivers)` with a derived `id: MidiDeviceId` and `endpointType`), `MidiConnectionLimit` (an `enum` of
+Supporting value types: `MidiDeviceInfo` (`case class(name, vendor, description, version, transmittersLimit,
+receiversLimit)` with a derived `id: MidiDeviceId` and `endpointType`), `MidiConnectionLimit` (an `enum` of
 `Unlimited` / `Limited(count)` — how many transmitters or receivers a device can open; it prints as `unlimited` or the
 count, and its `allowsConnections` is what a device's direction derives from), `MidiDeviceId` (`case class(name,
 vendor)`) and `MidiEndpointType` (an `enum` of `None`/`Input`/`Output`/`InputOutput`).
@@ -71,9 +70,9 @@ connected set, which is what an unplug/replug does. `JavaMidiDeviceHandle` is th
 `Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only), and the Java `Receiver` it hands to the
 device's transmitter converts with `asScala` into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 `JavaMidiEnvironment` is the seam between the manager and the platform — `deviceInfos`, `deviceOf(info)` and
-`onEnvironmentChanged(listener)` — so that the bookkeeping can be unit-tested over a fake environment (follow-up work
-under #177); `CoreMidi4JEnvironment` is the production implementation and the only file that calls the CoreMIDI4J and
-`MidiSystem` statics.
+`subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment
+(follow-up work under #177); `CoreMidi4JEnvironment` is the production implementation and the only file that calls the
+CoreMIDI4J and `MidiSystem` statics.
 
 **`MidiEvent`** is a sealed `BusinessyncEvent` hierarchy — everything a `MidiManager` implementation publishes on the
 bus. `MidiEnvironmentChangedEvent` signals a change to the environment; the rest come as success/failure pairs for each
@@ -196,10 +195,9 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
    subscribes to environment changes so the device list stays current.
 2. Enumerate with `inputDeviceIds` / `outputDeviceIds` (or the `…DevicesInfo` variants); `sanitizedName` gives a
    UI-friendly name.
-3. Open a device with `openInput`/`openOutput`, or try a prioritised list with `openFirstAvailable*`; each returns a
-   `MidiDeviceHandle`.
+3. Open a device with `openInput`/`openOutput`; each returns a `MidiDeviceHandle`.
 4. Use the handle: send `MidiMsg` values via `handle.receiver` (outputs), subscribe `MidiReceiver`s via
-   `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles.
+   `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles once #288 is fixed.
 5. `closeInput`/`closeOutput` (reference-counted) release a device; `MidiManager.close()` closes every device opened
    through the manager and stops watching the environment.
 
@@ -240,8 +238,11 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
   `JavaMidiDeviceHandle` are uncovered, but neither is hardware-bound any more, and for different reasons: the
   `JavaMidiEnvironment` seam lets the manager's bookkeeping be driven over a fake environment, while the handle no
   longer resolves a device itself — it is handed one through `onConnect(info, device)`, so a test can pass it a
-  `MidiDevice` double without an environment at all. Writing those tests is the follow-up work under #177. A known
-  defect of `purgeDisconnectedDevices` (an unplugged open device orphans its handle) is tracked by #288.
+  `MidiDevice` double without an environment at all. Writing those tests is the follow-up work under #177.
+  `JavaMidiManager` does not yet keep its handles up to date as `MidiDeviceHandle` documents: it informs a handle of
+  its device only from `openInput` / `openOutput`, neither when the device gets connected nor when it gets
+  disconnected; `purgeDisconnectedDevices` orphans the handle of an unplugged open device; and opening an already
+  open device again (two tracks sharing it) closes the Java device behind the handle (#288).
 - The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.

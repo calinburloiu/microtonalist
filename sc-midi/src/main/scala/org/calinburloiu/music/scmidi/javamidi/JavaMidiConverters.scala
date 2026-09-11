@@ -110,8 +110,8 @@ object JavaMidiConverters {
         vendor = info.getVendor,
         description = info.getDescription,
         version = info.getVersion,
-        maxTransmitters = connectionLimit(device.getMaxTransmitters),
-        maxReceivers = connectionLimit(device.getMaxReceivers)
+        transmittersLimit = connectionLimit(device.getMaxTransmitters),
+        receiversLimit = connectionLimit(device.getMaxReceivers)
       )
     }
   }

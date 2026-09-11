@@ -238,8 +238,8 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
       vendor = "Roland",
       description = "Digital piano",
       version = "1.0",
-      maxTransmitters = MidiConnectionLimit.Unlimited,
-      maxReceivers = MidiConnectionLimit.Limited(1)
+      transmittersLimit = MidiConnectionLimit.Unlimited,
+      receiversLimit = MidiConnectionLimit.Limited(1)
     )
     info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
   }

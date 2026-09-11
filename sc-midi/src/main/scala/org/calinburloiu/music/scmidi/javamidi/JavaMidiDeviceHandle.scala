@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -31,11 +31,10 @@ import javax.sound.midi.{MidiDevice, MidiMessage, Receiver}
 /**
  * [[MidiDeviceHandle]] over a Java Sound [[MidiDevice]].
  *
- * [[JavaMidiManager]] creates the instances and calls [[onConnect]] with the device it resolved — from its
- * `openDevice`, and only for a device that is connected at that moment. It never calls [[onDisconnect]] itself; only
- * [[onConnect]] does, to release the device it replaces. So the [[MidiDevice]], via the [[device]] accessor, and the
- * [[MidiDeviceInfo]], via the [[info]] accessor, are empty until the manager first hands this handle a connected
- * device, and they keep the last device handed over even after it is unplugged (#288).
+ * [[JavaMidiManager]] creates the instances and keeps them up to date behind the scenes: it informs a handle via
+ * [[onConnect]], with the device it resolved, when the physical device gets connected, and via [[onDisconnect]] when it
+ * gets disconnected. Only while the device is connected are the [[MidiDevice]], via the [[device]] accessor, and the
+ * [[MidiDeviceInfo]], via the [[info]] accessor, defined on the instance.
  *
  * The handle is the only place where messages cross between the Scala model and Java Sound: [[receiver]] converts
  * each [[Midi1Msg]] with `asJava` and sends it to the open device (a [[Midi2Msg]] is dropped with a warning, since a
@@ -88,7 +87,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    * Retrieves the Java Sound device behind this handle. It is `private[javamidi]`, a member of the implementation
    * only and never part of the [[MidiDeviceHandle]] API, so that no `javax.sound.midi` type escapes through it.
    *
-   * @return The MIDI device once the manager handed one over; otherwise, None.
+   * @return The MIDI device while it is connected; otherwise, None.
    */
   private[javamidi] def device: Option[MidiDevice] = _device
 
@@ -96,6 +95,10 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     _state
   }
 
+  // TODO #288 JavaMidiManager does not keep the handle up to date as the class documentation states: it calls
+  //   onConnect only from openDevice, never when the device gets connected on its own, and never calls onDisconnect,
+  //   which only onConnect calls to release the device it replaces. So device and info keep the last device handed
+  //   over after an unplug.
   /**
    * Informs the instance that the device got connected to the system.
    *
