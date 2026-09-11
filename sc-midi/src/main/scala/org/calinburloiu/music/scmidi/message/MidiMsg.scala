@@ -95,9 +95,9 @@ sealed trait MetaMidiMsg extends Midi1Msg
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
-abstract class NoteMidiMsg(channel: Int,
-                           val midiNote: MidiNote,
-                           val velocity: Int = NoteOnMidiMsg.DefaultVelocity)
+sealed abstract class NoteMidiMsg(channel: Int,
+                                  val midiNote: MidiNote,
+                                  val velocity: Int = NoteOnMidiMsg.DefaultVelocity)
   extends ChannelMidiMsg(channel) {
   midiNote.assertValid()
   MidiRequirements.requireUnsigned7BitValue("velocity", velocity)
