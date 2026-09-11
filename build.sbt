@@ -249,6 +249,9 @@ lazy val scMidiModule = (project in file("sc-midi"))
     libraryDependencies ++= Seq(
       coreMidi4j,
     ),
+    // * CoreMidi4JEnvironment only delegates to the CoreMIDI4J and MidiSystem statics, which need MIDI hardware; the
+    //   JavaMidiEnvironment seam it implements lets JavaMidiManager be tested over a fake instead
+    coverageExcludedFiles := ".*/org/calinburloiu/music/scmidi/javamidi/CoreMidi4JEnvironment",
     // TODO #177 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 67, branch = 52),
   )
