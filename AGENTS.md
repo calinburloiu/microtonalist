@@ -139,15 +139,15 @@ The architecture docs are organized as follows:
 
 - **Shared overview documents (`docs/architecture/`)** — the single source of truth for the cross-cutting basics,
   imported here and linked from the human-facing index:
-    * @../architecture/module-overview.md
-    * @../architecture/domain-concepts.md
-    * @../architecture/data-flow.md
+    * @docs/architecture/module-overview.md
+    * @docs/architecture/domain-concepts.md
+    * @docs/architecture/data-flow.md
 - **Per-module deep dives (`docs/architecture/$MODULE/README.md`)** — one document per module (an architecture document
   covering responsibility, key types, dependencies, and module-specific concerns). Each module's `$MODULE/CLAUDE.md`
   `@import`s its document, so when you work inside a module that detail loads automatically. To read another module's
   architecture without editing in it, open its `docs/architecture/$MODULE/README.md` directly.
 - **Per-topic documents** — some directories carry focused topic docs alongside the module README, e.g.
-  [`docs/architecture/tuner/mpe-spec.md`](../architecture/tuner/mpe-spec.md) for MPE tuning.
+  [`docs/architecture/tuner/mpe-spec.md`](docs/architecture/tuner/mpe-spec.md) for MPE tuning.
 - **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, with a table
   mapping each module to its directory and document.
 
