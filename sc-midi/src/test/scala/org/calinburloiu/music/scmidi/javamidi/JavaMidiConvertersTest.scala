@@ -75,6 +75,7 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     (OmniModeOnMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 125, 0)),
     (MonoModeOnMidiMsg(4, channelCount = 4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 126, 4)),
     (MonoModeOnMidiMsg(4, channelCount = 0), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 126, 0)),
+    (MonoModeOnMidiMsg(4, channelCount = 16), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 126, 16)),
     (PolyModeOnMidiMsg(4), shortMsgC(ShortMessage.CONTROL_CHANGE, 4, 127, 0)),
     // System Common
     (MidiTimeCodeMidiMsg(3, 5), shortMessage(ShortMessage.MIDI_TIME_CODE, (3 << 4) | 5, 0)),
@@ -166,14 +167,24 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
 
   it should "decode a valueless Channel Mode message whatever data byte it carries" in {
     // Given
-    val dataBytes = Table("dataByte", 0, 1, 64, 127)
+    val valuelessMessages = Table[Int, ChannelModeMidiMsg](
+      ("number", "message"),
+      (AllSoundOffMidiMsg.Number, AllSoundOffMidiMsg(2)),
+      (ResetAllControllersMidiMsg.Number, ResetAllControllersMidiMsg(2)),
+      (AllNotesOffMidiMsg.Number, AllNotesOffMidiMsg(2)),
+      (OmniModeOffMidiMsg.Number, OmniModeOffMidiMsg(2)),
+      (OmniModeOnMidiMsg.Number, OmniModeOnMidiMsg(2)),
+      (PolyModeOnMidiMsg.Number, PolyModeOnMidiMsg(2))
+    )
+    val dataBytes = Seq(0, 1, 64, 127)
 
-    forAll(dataBytes) { dataByte =>
-      // When / Then
-      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, AllSoundOffMidiMsg.Number, dataByte).asScala shouldEqual
-        AllSoundOffMidiMsg(2)
-      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, PolyModeOnMidiMsg.Number, dataByte).asScala shouldEqual
-        PolyModeOnMidiMsg(2)
+    forAll(valuelessMessages) { (number, message) =>
+      for (dataByte <- dataBytes) {
+        // When / Then
+        withClue(s"data byte $dataByte:") {
+          shortMsgC(ShortMessage.CONTROL_CHANGE, 2, number, dataByte).asScala shouldEqual message
+        }
+      }
     }
   }
 
