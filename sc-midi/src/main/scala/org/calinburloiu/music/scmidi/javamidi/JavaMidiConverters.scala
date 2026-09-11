@@ -258,7 +258,7 @@ object JavaMidiConverters {
     ShortMessage.POLY_PRESSURE -> { s =>
       PolyPressureMidiMsg(s.getChannel, MidiNote(s.getData1), s.getData2)
     },
-    ShortMessage.CONTROL_CHANGE -> { s => fromControlChange(s) },
+    ShortMessage.CONTROL_CHANGE -> { s => FromControlChangeMap(s.getData1)(s) },
     ShortMessage.PROGRAM_CHANGE -> { s =>
       ProgramChangeMidiMsg(s.getChannel, s.getData1)
     },
@@ -331,32 +331,33 @@ object JavaMidiConverters {
     UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(message.getMessage))
 
   /**
-   * The message a Control Change status byte carries: an ordinary [[CcMidiMsg]] below
-   * [[ChannelModeMidiMsg.NumberRange]], and the matching [[ChannelModeMidiMsg]] subtype inside it.
+   * The message a Control Change status byte carries, keyed by its controller number: the matching
+   * [[ChannelModeMidiMsg]] subtype for a number in [[ChannelModeMidiMsg.NumberRange]], and an ordinary [[CcMidiMsg]]
+   * for any other.
    *
    * A Mono Mode On asking for more channels than MIDI 1.0 allows is malformed; it is wrapped in an
    * [[UnsupportedMidiMsg]] rather than rejected, because `asScala` runs on the device's own thread, where a thrown
    * exception would take the inbound stream down with it.
    */
-  private def fromControlChange(shortMessage: ShortMessage): MidiMsg = {
-    val channel = shortMessage.getChannel
-    val number = shortMessage.getData1
-    val dataByte = shortMessage.getData2
+  private val FromControlChangeMap: Map[Int, ShortMessage => MidiMsg] = Map[Int, ShortMessage => MidiMsg](
+    AllSoundOffMidiMsg.Number -> { s => AllSoundOffMidiMsg(s.getChannel) },
+    ResetAllControllersMidiMsg.Number -> { s => ResetAllControllersMidiMsg(s.getChannel) },
+    LocalControlMidiMsg.Number -> { s =>
+      LocalControlMidiMsg(s.getChannel, s.getData2 >= LocalControlMidiMsg.OnThreshold)
+    },
+    AllNotesOffMidiMsg.Number -> { s => AllNotesOffMidiMsg(s.getChannel) },
+    OmniModeOffMidiMsg.Number -> { s => OmniModeOffMidiMsg(s.getChannel) },
+    OmniModeOnMidiMsg.Number -> { s => OmniModeOnMidiMsg(s.getChannel) },
+    MonoModeOnMidiMsg.Number -> { s =>
+      val channelCount = s.getData2
+      if (MonoModeOnMidiMsg.ChannelCountRange.contains(channelCount)) MonoModeOnMidiMsg(s.getChannel, channelCount)
+      else toUnsupported(s)
+    },
+    PolyModeOnMidiMsg.Number -> { s => PolyModeOnMidiMsg(s.getChannel) }
+  ).withDefaultValue(toCc)
 
-    number match {
-      case AllSoundOffMidiMsg.Number => AllSoundOffMidiMsg(channel)
-      case ResetAllControllersMidiMsg.Number => ResetAllControllersMidiMsg(channel)
-      case LocalControlMidiMsg.Number => LocalControlMidiMsg(channel, dataByte >= LocalControlMidiMsg.OnThreshold)
-      case AllNotesOffMidiMsg.Number => AllNotesOffMidiMsg(channel)
-      case OmniModeOffMidiMsg.Number => OmniModeOffMidiMsg(channel)
-      case OmniModeOnMidiMsg.Number => OmniModeOnMidiMsg(channel)
-      case MonoModeOnMidiMsg.Number if MonoModeOnMidiMsg.ChannelCountRange.contains(dataByte) =>
-        MonoModeOnMidiMsg(channel, dataByte)
-      case MonoModeOnMidiMsg.Number => toUnsupported(shortMessage)
-      case PolyModeOnMidiMsg.Number => PolyModeOnMidiMsg(channel)
-      case _ => CcMidiMsg(channel, number, dataByte)
-    }
-  }
+  private def toCc(shortMessage: ShortMessage): CcMidiMsg =
+    CcMidiMsg(shortMessage.getChannel, shortMessage.getData1, shortMessage.getData2)
 
   /** Renders a Channel Mode message: the Control Change status byte, the message's number, and its data byte. */
   private def channelModeMessage(channel: Int, number: Int, dataByte: Int = 0): ShortMessage =
