@@ -85,12 +85,12 @@ distinct, separately-evented states.
 
 **`MidiMsg`** is the sealed base of the immutable message model — the Scala-idiomatic counterpart to Java's mutable,
 byte-oriented `MidiMessage`/`ShortMessage`. Directly under it sit **`Midi1Msg`**, the base of every MIDI 1.0 message,
-and **`Midi2Msg`**, reserved for MIDI 2.0 and empty for now (#283). Pipeline signatures take `MidiMsg`. Its
-sub-hierarchies cover channel voice/mode messages (`ChannelMidiMsg`, with a `mapChannel` that rewrites the channel),
-system-common and system-real-time messages, the full set of Standard MIDI File meta events, and System Exclusive
-(`SysExMidiMsg`). Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape hatch that
-round-trips back to the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw LSB/MSB bytes into
-a single signed 14-bit value and offers cents conversion against a `PitchBendSensitivity`.
+and **`Midi2Msg`**, the base of every MIDI 2.0 message, with no case classes yet (#292). Pipeline signatures take
+`MidiMsg`. Its sub-hierarchies cover channel voice/mode messages (`ChannelMidiMsg`, with a `mapChannel` that rewrites
+the channel), system-common and system-real-time messages, the full set of Standard MIDI File meta events, and System
+Exclusive (`SysExMidiMsg`). Anything with no dedicated counterpart becomes `UnsupportedMidiMsg`, a lossless escape
+hatch that round-trips back to the right Java type. `PitchBendMidiMsg` is notable: it normalises Java's two raw
+LSB/MSB bytes into a single signed 14-bit value and offers cents conversion against a `PitchBendSensitivity`.
 
 **`JavaMidiConverters`**, in the `javamidi` sub-package
 (`import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*`), is the boundary with Java Sound MIDI, modelled
@@ -107,30 +107,51 @@ Configuration Message and the MPE Slide CC).
 
 These are the composable pieces `tuner` builds its tuning pipeline from:
 
-- **`MidiReceiver`** — an `AutoCloseable` counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
-  directly; every stage of the pipeline is one.
-- **`MidiTransmitter`** — the read-only, `AutoCloseable` transmitter of the Scala API: a single
-  `receivers: Seq[MidiReceiver]` member, no locks. Three implementations, all with a no-op `close()`:
-  `ImmutableMidiTransmitter` (a case class whose `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers`
-  return new instances), `MutableMidiTransmitter` (`@NotThreadSafe`; every modifier funnels through `receivers_=`, so
-  a subclass overriding the setter intercepts every change) and `ConcurrentMidiTransmitter` (`@ThreadSafe`; the
-  mutable one with every accessor and modifier under a `ReentrantReadWriteLock` via `Locking`).
+- **`MidiReceiver`** — the Scala-idiomatic counterpart of `javax.sound.midi.Receiver` that consumes `MidiMsg`
+  directly; every stage of the pipeline is one. Unlike its Java counterpart, it carries no `close()`: nothing in the
+  module calls one generically across a `MidiReceiver`, so an implementation that ever needs a release hook mixes in
+  `AutoCloseable` itself instead of the trait mandating one everywhere.
+- **`MidiTransmitter`** — the read-only transmitter of the Scala API: a single `receivers: Seq[MidiReceiver]` member,
+  and, likewise, no `close()`. The trait *itself* declares no state, no locking and no implementation, so a consumer
+  that only forwards messages does not depend on how, or whether, the sequence can change. That is a statement about
+  the trait, not about the values behind it: locking is each implementation's business, and a reference typed as
+  `MidiTransmitter` may well hold a `ConcurrentMidiTransmitter` that takes a lock on every read. Three
+  implementations, none holding a resource of its own: `ImmutableMidiTransmitter` (a case class whose
+  `withReceiver`/`withReceivers`/`withoutReceiver`/`withoutReceivers` return new instances),
+  `MutableMidiTransmitter` (`@NotThreadSafe`) and `ConcurrentMidiTransmitter` (`@ThreadSafe`).
+  The mutable class makes every modifier and the `receivers` setter `final` and offers a subclass two `protected`
+  hooks instead: `setReceivers`, which every change funnels through, and `withChangeGuard`, which wraps each change
+  together with the read of the current receivers that computes it. `ConcurrentMidiTransmitter` overrides only those
+  two points — `receivers` under the read lock, `withChangeGuard` under the write lock of a `ReentrantReadWriteLock`
+  via `Locking`. A subclass overriding `setReceivers` therefore runs inside the write lock whatever the entry point,
+  including a direct `receivers = …` assignment, and may read `receivers` re-entrantly (a downgrade, which the lock
+  permits) to compare the incoming sequence with the current one. `MidiSplitter`, `MidiProcessor` and
+  `MidiDeviceHandle` are built on top of them; `MultiTransmitter`, the Java-typed transmitter the family superseded,
+  is gone.
 - **`MidiSplitter(transmitter: MidiTransmitter)`** — a `MidiReceiver` that fans every message out to the receivers
-  of the transmitter it is given; the caller picks the transmitter implementation, and the splitter never closes it.
-  `JavaMidiDeviceHandle` uses one over a `ConcurrentMidiTransmitter` to broadcast a device's stream.
+  of the transmitter it is given; the caller picks the transmitter implementation, and the splitter only reads it,
+  never owning its lifetime. `JavaMidiDeviceHandle` uses one over a `ConcurrentMidiTransmitter` to broadcast a
+  device's stream.
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
   Subclasses implement `process(message: MidiMsg, timeStamp): Seq[MidiMsg]`; its `receiver` processes each message
   once and forwards the results to every receiver of its `transmitter`, a `MidiProcessorTransmitter` (a
-  `ConcurrentMidiTransmitter`) that calls `onDisconnect()` before and `onConnect()` after every change of its receiver
-  set — from or to a non-empty set respectively, and never for an unchanged set — inside its write lock, so that the
-  reset/initialisation messages the hooks emit cannot interleave with a send that has not yet read the receivers (a
-  fan-out already in flight is not held off). **This is the abstraction `tuner` extends** to tune the
-  MIDI stream. A processor with no output receivers drops messages without processing them.
+  `ConcurrentMidiTransmitter`) that calls `onDisconnect(removed)` before and `onConnect(added)` after every change of
+  its receiver set — with exactly the receivers the change drops/adds, never for a receiver present on both sides of
+  the change, and never with an empty sequence — and then `onReceiversChanged(newReceivers)` with the whole sequence.
+  The membership hooks are what a processor overrides to initialise or clean up an individual receiver; the sequence
+  hook is what it overrides to keep something else in step with the sequence as a whole, and it is the only one that
+  reports a change which merely reorders the receivers or repeats one already connected. All three run inside the
+  write lock, so that the reset/initialisation messages the hooks emit cannot interleave with a send that has not yet
+  read the receivers (a fan-out already in flight is not held off). **This is the abstraction `tuner` extends** to
+  tune the MIDI stream. A processor with no output receivers drops messages without processing them.
 - **`MidiSerialProcessor`** — a `MidiProcessor` that chains a mutable, thread-safe sequence of `MidiProcessor`s end
   to end, rewiring the chain automatically on every mutation (`receivers = Seq(next.receiver)` between neighbours,
-  its own output receivers on the last one) and forwarding input straight to the output when empty. Its hooks take
-  its own lock inside the transmitter's, so a chain mutation and an output-receiver change of the same instance must
-  not race from two threads (they do not today; #121 removes the concern).
+  its own output receivers on the last one) and forwarding input straight to the output when empty. It mirrors its own
+  output receivers onto the last processor through `onReceiversChanged` — the whole sequence, not the delta, so that a
+  partial removal or a reordering cannot leave the chain's tail out of step — and the last processor's transmitter
+  then runs the membership protocol over the mirrored sequence. That hook takes the serial processor's own lock inside
+  the transmitter's, so a chain mutation and an output-receiver change of the same instance must not race from two
+  threads (they do not today; #121 removes the concern).
 - **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that
   derives **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages
   sent to it, implementing the RPN/NRPN Data Entry protocol and the relevant Channel Mode messages. Notes are
