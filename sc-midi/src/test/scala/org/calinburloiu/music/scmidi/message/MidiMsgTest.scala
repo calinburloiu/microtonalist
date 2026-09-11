@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi.message
 
-import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
@@ -48,6 +48,36 @@ class MidiMsgTest extends AnyWordSpec with Matchers with TableDrivenPropertyChec
       // Then
       mapped.channel shouldBe 1
     }
+
+    "default the velocity to 64" in {
+      // When
+      val noteOn = NoteOnMidiMsg(0, MidiNote.C4)
+
+      // Then
+      NoteOnMidiMsg.DefaultVelocity shouldEqual 64
+      noteOn.velocity shouldEqual NoteOnMidiMsg.DefaultVelocity
+    }
+
+    "accept the boundary channels, notes and velocities, including the Note Off velocity" in {
+      // When
+      val lowest = NoteOnMidiMsg(0, MidiNote(0), NoteOnMidiMsg.NoteOffVelocity)
+      val highest = NoteOnMidiMsg(15, MidiNote(127), 127)
+
+      // Then
+      NoteOnMidiMsg.NoteOffVelocity shouldEqual 0
+      (lowest.channel, lowest.midiNote.number, lowest.velocity) shouldEqual (0, 0, 0)
+      (highest.channel, highest.midiNote.number, highest.velocity) shouldEqual (15, 127, 127)
+    }
+
+    "reject an invalid channel, note or velocity" in {
+      // When / Then
+      an[IllegalArgumentException] should be thrownBy NoteOnMidiMsg(16, MidiNote.C4, 100)
+      an[IllegalArgumentException] should be thrownBy NoteOnMidiMsg(-1, MidiNote.C4, 100)
+      an[IllegalArgumentException] should be thrownBy NoteOnMidiMsg(0, MidiNote(128), 100)
+      an[IllegalArgumentException] should be thrownBy NoteOnMidiMsg(0, MidiNote(-1), 100)
+      an[IllegalArgumentException] should be thrownBy NoteOnMidiMsg(0, MidiNote.C4, 128)
+      an[IllegalArgumentException] should be thrownBy NoteOnMidiMsg(0, MidiNote.C4, -1)
+    }
   }
 
   "NoteOffMidiMsg" should {
@@ -71,6 +101,23 @@ class MidiMsgTest extends AnyWordSpec with Matchers with TableDrivenPropertyChec
 
       // Then
       mapped.channel shouldBe 1
+    }
+
+    "default the velocity to 64" in {
+      // When
+      val noteOff = NoteOffMidiMsg(0, MidiNote.C4)
+
+      // Then
+      NoteOffMidiMsg.DefaultVelocity shouldEqual 64
+      noteOff.velocity shouldEqual NoteOffMidiMsg.DefaultVelocity
+    }
+
+    "reject an invalid channel, note or velocity" in {
+      // When / Then
+      an[IllegalArgumentException] should be thrownBy NoteOffMidiMsg(16, MidiNote.C4, 64)
+      an[IllegalArgumentException] should be thrownBy NoteOffMidiMsg(0, MidiNote(128), 64)
+      an[IllegalArgumentException] should be thrownBy NoteOffMidiMsg(0, MidiNote.C4, 128)
+      an[IllegalArgumentException] should be thrownBy NoteOffMidiMsg(0, MidiNote.C4, -1)
     }
   }
 
@@ -240,6 +287,139 @@ class MidiMsgTest extends AnyWordSpec with Matchers with TableDrivenPropertyChec
 
       // Then
       mapped.channel shouldBe 1
+    }
+
+    "accept the signed 14-bit range and reject a value outside it or an invalid channel" in {
+      // When / Then
+      PitchBendMidiMsg.MinValue shouldEqual -8192
+      PitchBendMidiMsg.NoPitchBendValue shouldEqual 0
+      PitchBendMidiMsg.MaxValue shouldEqual 8191
+      PitchBendMidiMsg(0, PitchBendMidiMsg.MinValue).value shouldEqual -8192
+      PitchBendMidiMsg(15, PitchBendMidiMsg.MaxValue).value shouldEqual 8191
+      an[IllegalArgumentException] should be thrownBy PitchBendMidiMsg(0, 8192)
+      an[IllegalArgumentException] should be thrownBy PitchBendMidiMsg(0, -8193)
+      an[IllegalArgumentException] should be thrownBy PitchBendMidiMsg(16, 0)
+    }
+
+    "convert its value to cents against a given pitch bend sensitivity" in {
+      // Given
+      val cases = Table(
+        ("value", "pitchBendSensitivity", "cents"),
+        (0, PitchBendSensitivity.Default, 0.0),
+        (8191, PitchBendSensitivity.Default, 200.0),
+        (-8192, PitchBendSensitivity.Default, -200.0),
+        (-4096, PitchBendSensitivity.Default, -100.0),
+        (8191, PitchBendSensitivity(1, 50), 150.0),
+        (-8192, PitchBendSensitivity(12), -1200.0)
+      )
+
+      forAll(cases) { (value, pitchBendSensitivity, cents) =>
+        // When / Then
+        PitchBendMidiMsg(0, value).centsFor(pitchBendSensitivity) shouldEqual cents
+      }
+    }
+
+    "convert its value to cents against the implicit pitch bend sensitivity" in {
+      // Given
+      implicit val pitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(12)
+
+      // When / Then
+      PitchBendMidiMsg(0, 8191).cents shouldEqual 1200.0
+      PitchBendMidiMsg(0, -4096).cents shouldEqual -600.0
+    }
+
+    "be created from cents against a given pitch bend sensitivity" in {
+      // Given
+      val cases = Table(
+        ("cents", "pitchBendSensitivity", "value"),
+        (0, PitchBendSensitivity.Default, 0),
+        (100, PitchBendSensitivity.Default, 4096),
+        (-100, PitchBendSensitivity.Default, -4096),
+        (200, PitchBendSensitivity.Default, 8191),
+        (-200, PitchBendSensitivity.Default, -8192),
+        (50, PitchBendSensitivity(1), 4096)
+      )
+
+      forAll(cases) { (cents, pitchBendSensitivity, value) =>
+        // When / Then
+        PitchBendMidiMsg.fromCents(3, cents, pitchBendSensitivity) shouldEqual PitchBendMidiMsg(3, value)
+      }
+    }
+
+    "be created from cents against the default pitch bend sensitivity of 2 semitones when none is given" in {
+      // When / Then
+      PitchBendMidiMsg.fromCents(3, 100) shouldEqual PitchBendMidiMsg(3, 4096)
+    }
+
+    "reject being created from cents beyond the pitch bend sensitivity" in {
+      // When / Then
+      an[IllegalArgumentException] should be thrownBy PitchBendMidiMsg.fromCents(0, 201)
+      an[IllegalArgumentException] should be thrownBy PitchBendMidiMsg.fromCents(0, -201)
+      an[IllegalArgumentException] should be thrownBy PitchBendMidiMsg.fromCents(0, 101, PitchBendSensitivity(1))
+    }
+  }
+
+  "PitchBendMidiMsg conversions" should {
+    "scale cents down against MinValue and up against MaxValue, rounding to the nearest value" in {
+      // Given
+      val cases = Table(
+        ("cents", "value"),
+        (12.5, 512),
+        (-12.5, -512),
+        (50.0, 2048),
+        (-50.0, -2048),
+        (199.99, 8191),
+        (-199.99, -8192)
+      )
+
+      forAll(cases) { (cents, value) =>
+        // When / Then
+        PitchBendMidiMsg.convertCentsToValue(cents, PitchBendSensitivity.Default) shouldEqual value
+      }
+    }
+
+    "convert cents to a value and back to within half a step" in {
+      // Given
+      // 100 cents falls exactly halfway between two values, so the tolerance needs slack for floating-point error.
+      val halfStepCents = 0.5 * PitchBendSensitivity.Default.totalCents / PitchBendMidiMsg.MaxValue + 1e-9
+      val cases = Table("cents", (-200 to 200)*)
+
+      forAll(cases) { cents =>
+        // When
+        val value = PitchBendMidiMsg.convertCentsToValue(cents, PitchBendSensitivity.Default)
+
+        // Then
+        PitchBendMidiMsg.convertValueToCents(value, PitchBendSensitivity.Default) shouldEqual
+          cents.toDouble +- halfStepCents
+      }
+    }
+
+    "reject converting a value outside the signed 14-bit range to cents" in {
+      // When / Then
+      an[IllegalArgumentException] should be thrownBy
+        PitchBendMidiMsg.convertValueToCents(8192, PitchBendSensitivity.Default)
+      an[IllegalArgumentException] should be thrownBy
+        PitchBendMidiMsg.convertValueToCents(-8193, PitchBendSensitivity.Default)
+    }
+
+    "convert cents to the LSB and MSB data bytes, which convert back to the same value" in {
+      // Given
+      val cases = Table(
+        ("cents", "value", "dataBytes"),
+        (0.0, 0, (0x00, 0x40)),
+        (200.0, 8191, (0x7F, 0x7F)),
+        (-200.0, -8192, (0x00, 0x00)),
+        (100.0, 4096, (0x00, 0x60))
+      )
+
+      forAll(cases) { (cents, value, dataBytes) =>
+        // When
+        val (lsb, msb) = PitchBendMidiMsg.convertCentsToDataBytes(cents, PitchBendSensitivity.Default)
+
+        // Then
+        (lsb, msb) shouldEqual dataBytes
+        PitchBendMidiMsg.convertDataBytesToValue(lsb, msb) shouldEqual value
+      }
     }
   }
 
