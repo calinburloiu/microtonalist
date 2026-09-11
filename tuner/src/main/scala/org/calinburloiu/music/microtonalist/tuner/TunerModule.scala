@@ -19,15 +19,27 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.MidiManager
 
-class TunerModule(businessync: Businessync, trackRepo: TrackRepo) extends AutoCloseable {
+/**
+ * Composition root of the `tuner` module: lazily wires the sessions, the services and the [[TrackManager]] around
+ * the [[MidiManager]] it is given.
+ *
+ * @param businessync The event bus and business thread the sessions and services run on.
+ * @param trackRepo   Where [[TrackSession]] loads tracks from.
+ * @param midiManager Opens the MIDI devices of the tracks. The caller owns it and closes it after this module; it is
+ *                    not closed by [[close]].
+ */
+class TunerModule(businessync: Businessync,
+                  trackRepo: TrackRepo,
+                  midiManager: MidiManager) extends AutoCloseable {
 
+  /** Thread-safe facade over [[tuningSession]] for the application and UI layers. */
   lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
 
+  /** Holds the sequence of tunings and the current tuning index; may only be touched on the business thread. */
   lazy val tuningSession: TuningSession = new TuningSession(businessync)
 
+  /** Thread-safe facade over this module's [[TrackSession]] for the application and UI layers. */
   lazy val trackService: TrackService = new TrackService(trackSession, businessync)
-
-  private lazy val midiManager = new MidiManager(businessync)
 
   private lazy val trackManager = new TrackManager(midiManager, tuningService)
   businessync.register(trackManager)
@@ -36,6 +48,5 @@ class TunerModule(businessync: Businessync, trackRepo: TrackRepo) extends AutoCl
 
   override def close(): Unit = {
     trackManager.close()
-    midiManager.close()
   }
 }

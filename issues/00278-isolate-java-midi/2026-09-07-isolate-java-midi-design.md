@@ -29,6 +29,15 @@
   reordering. **D4** no longer makes `MidiTransmitter` (or `MidiReceiver`) `AutoCloseable`. **D2**'s instruction to
   record the `Msg` naming rule in `docs/development/coding-conventions.md` is withdrawn. D1, D3, D5, D7–D11 and the
   sub-issue order are unchanged, so the plans for #282, #283 and #285 stand.
+- **Revised a fifth time**: 2026-09-11 on `1a96970`, the top of `refactoring/282-midi-manager-traits` — the review
+  of [#290](https://github.com/calinburloiu/microtonalist/pull/290) amended D8, D9 and D11 to match what #282
+  actually lands. **D8**: `MidiManager` drops `openFirstAvailableInput` / `openFirstAvailableOutput`, which nothing
+  calls; `MidiDeviceInfo`'s connection limits are named `transmittersLimit` / `receiversLimit`; and
+  `JavaMidiDeviceHandle.device` is `private[javamidi]` rather than public, so no Java type escapes through it.
+  **D9**: `cli` injects the `MidiManager` into a `MidiDevicesCommand` instead of printing from `main`. **D11**:
+  `onEnvironmentChanged(listener)` is renamed `subscribeToEnvironmentChanged(handler)`. The ScalaDocs state the
+  device layer's intended contract, and every place where the ported bookkeeping diverges from it carries a
+  `// TODO #288`, #288 having grown to cover all of them. D1–D7, D10 and the sub-issue order are unchanged.
 - **Issue**: [#278](https://github.com/calinburloiu/microtonalist/issues/278) — "Isolate the Java Sound implementation
   from the sc-midi Scala API" (parent), with sub-issues
   [#279](https://github.com/calinburloiu/microtonalist/issues/279),
@@ -258,17 +267,18 @@ ones.
 API types in `scmidi`:
 
 - `case class MidiDeviceInfo(name: String, vendor: String, description: String, version: String,
-  maxTransmitters: MidiConnectionLimit, maxReceivers: MidiConnectionLimit)` with a derived `id: MidiDeviceId` and a
-  derived `endpointType: MidiEndpointType` (input if `maxTransmitters` is not `Limited(0)`, output likewise for
-  `maxReceivers`). It replaces `MidiDevice.Info` in every public signature. `MidiDeviceId.correspondsToInfo` takes
+  transmittersLimit: MidiConnectionLimit, receiversLimit: MidiConnectionLimit)` with a derived `id: MidiDeviceId`
+  and a derived `endpointType: MidiEndpointType` (input if `transmittersLimit` is not `Limited(0)`, output likewise
+  for `receiversLimit`). It replaces `MidiDevice.Info` in every public signature. `MidiDeviceId.correspondsToInfo` takes
   it; the factory from `MidiDevice.Info` moves to the Java side.
 - `enum MidiConnectionLimit { case Unlimited; case Limited(count: Int) }`: how many transmitters or receivers a
   device can open at once. Java Sound encodes "unlimited" as `-1`; the enum makes that explicit and prints as
   `unlimited` or the count. It is what the `cli` prints and what `MidiDeviceHandle.isInputDevice`/`isOutputDevice`
   derive from, so the `MidiDevice`-based helpers in the package object disappear once this lands.
-- `trait MidiManager extends AutoCloseable` with the current per-direction surface, unchanged in shape: `refresh()`,
-  and for each of input/output: `is…Available`, `…DeviceInfoOf`, `…DeviceIds`, `…DevicesInfo`, `open…`,
-  `openFirstAvailable…`, `…DeviceHandleOf`, `…OpenedDevices`, `close…`.
+- `trait MidiManager extends AutoCloseable` with the current per-direction surface: `refresh()`, and for each of
+  input/output: `is…Available`, `…DeviceInfoOf`, `…DeviceIds`, `…DevicesInfo`, `open…`, `…DeviceHandleOf`,
+  `…OpenedDevices`, `close…`. The shape is unchanged except that `openFirstAvailable…`, which nothing calls, is
+  dropped (fifth revision).
 - `trait MidiDeviceHandle extends AutoCloseable`: `id`, `info: Option[MidiDeviceInfo]`, `isInputDevice`,
   `isOutputDevice`, `endpointType`, `state`, `isConnected`, `isOpen`, `open()`, `close()`, `receiver: MidiReceiver`,
   `transmitter: ConcurrentMidiTransmitter`. The `State` enum and its transition diagram stay in the companion.
@@ -280,8 +290,8 @@ Java implementation in `scmidi.javamidi`:
   diffing, reference counting, `MidiEvent` publishing) and the CoreMIDI4J notification listener. It builds
   `MidiDeviceInfo` from `MidiDevice.Info`. The endpoint bookkeeping is not lifted into a reusable base class yet; a
   second implementation is the moment to do that.
-- `JavaMidiDeviceHandle`: today's handle, with `device: Option[MidiDevice]` as a public member of the concrete class
-  only, and the boundary conversion of D7.
+- `JavaMidiDeviceHandle`: today's handle, with `device: Option[MidiDevice]` as a `private[javamidi]` member of the
+  concrete class only (fifth revision; the first draft made it public), and the boundary conversion of D7.
 - `JavaMidiConverters`: moved unchanged, plus a `MidiDeviceInfo` builder that takes a `MidiDevice` (not only its
   `Info`, since the connection limits come from `getMaxTransmitters`/`getMaxReceivers`) and maps `-1` to
   `MidiConnectionLimit.Unlimited`. The two `MidiDevice` capability helpers moved by #279 are deleted here, replaced
@@ -291,9 +301,9 @@ Java implementation in `scmidi.javamidi`:
 
 - `TunerModule` receives a `MidiManager` through its constructor. `MicrotonalistApp` instantiates `JavaMidiManager`.
   `tuner` therefore imports nothing from `javamidi`.
-- `cli` instantiates `JavaMidiManager` and prints the `MidiDeviceInfo` fields, including the max transmitter count
-  for inputs and the max receiver count for outputs, as it does today, now read from `MidiConnectionLimit` instead
-  of `MidiSystem`.
+- `cli` instantiates `JavaMidiManager` and injects it into a `MidiDevicesCommand` (fifth revision), which prints the
+  `MidiDeviceInfo` fields, including the max transmitter count for inputs and the max receiver count for outputs, as
+  it does today, now read from `MidiConnectionLimit` instead of `MidiSystem`.
 - `Tuner.reset()`, `tune()`, `process()` and `TuningChanger.decide()` are typed on `MidiMsg`; `TunerProcessor`
   and `TuningChangeProcessor` follow. `Track` exposes `receiver: MidiReceiver` and `transmitter`; `TrackManager` calls
   `transmitter.addReceiver`.
@@ -348,8 +358,8 @@ case class PolyModeOnMidiMsg(channel: Int)                         extends Chann
 
 D8 moves the device layer into `javamidi`, but on its own it moves the untestability with it. A fake `MidiManager`
 lets `tuner`, `app`, and `cli` be tested against the trait, yet `JavaMidiManager`'s endpoint bookkeeping — the
-connect/disconnect diffing, the `MidiEvent` publishing, `purgeDisconnectedDevices`, the reference-counted open/close,
-`openFirstAvailableDevice` — is the same untested code in a new package. That bookkeeping is pure state
+connect/disconnect diffing, the `MidiEvent` publishing, `purgeDisconnectedDevices`, the reference-counted open/close —
+is the same untested code in a new package. That bookkeeping is pure state
 reconciliation and needs no MIDI hardware; what makes it unreachable is four static calls:
 
 | Call                                                | Today                        |
@@ -383,14 +393,14 @@ trait JavaMidiEnvironment {
   def deviceOf(info: MidiDevice.Info): MidiDevice
 
   /** Subscribes to MIDI environment changes; closing the returned subscription unsubscribes. */
-  def onEnvironmentChanged(listener: () => Unit): AutoCloseable
+  def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable
 }
 ```
 
 - `CoreMidi4JEnvironment` is the production implementation and the default constructor argument of
   `JavaMidiManager`, so no call site outside `javamidi` changes. It owns all four statics and nothing else, which
   leaves it a delegation-only adapter.
-- `onEnvironmentChanged` returns an `AutoCloseable` rather than taking a matching `remove` method, because
+- `subscribeToEnvironmentChanged` returns an `AutoCloseable` rather than taking a matching `remove` method, because
   `removeNotificationListener` matches on object identity and the implementation is what adapts a `() => Unit` into
   the `CoreMidiNotification` SAM that CoreMIDI4J actually holds.
 - Resolution is a separate `deviceOf` call rather than a `devices: Seq[MidiDevice]` that resolves internally (the
@@ -416,8 +426,7 @@ Behaviour must be preserved exactly, and the plan must pin these down:
 **What this unlocks, and what stays out of scope.** With the seam in place, a fake `JavaMidiEnvironment` over
 stateful fake `MidiDevice`s puts the whole bookkeeping under unit test: refresh publishes
 `MidiDeviceConnectedEvent` for new devices and `MidiDeviceDisconnectedEvent` for vanished ones,
-`purgeDisconnectedDevices` closes what it should, `openFirstAvailableDevice` stops at the first device that opens,
-`open()`/`close()` reference counting, the `Closed`/`Connected`/`WaitingToOpen`/`Open` transitions, and firing the
+`purgeDisconnectedDevices` closes what it should, `open()`/`close()` reference counting, the `Closed`/`Connected`/`WaitingToOpen`/`Open` transitions, and firing the
 environment callback triggers a refresh. The only test scaffolding needed is a fake `MidiDevice` — a stateful one
 rather than a mock, since `open`/`close`/`isOpen` are the semantics under test — and a four-line `MidiDevice.Info`
 subclass, its constructor being `protected`.

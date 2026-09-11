@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi
 import org.calinburloiu.businessync.BusinessyncEvent
 
 /**
- * Base class for all MIDI events emitted by [[MidiManager]].
+ * Base class for all MIDI events emitted by a [[MidiManager]] implementation.
  */
 abstract sealed class MidiEvent extends BusinessyncEvent
 
@@ -29,7 +29,8 @@ abstract sealed class MidiEvent extends BusinessyncEvent
  * This event is emitted when there are updates in the configuration of MIDI devices,
  * such as devices being added, removed, or reconfigured.
  *
- * This event is associated with a [[uk.co.xfactorylibrarians.coremidi4j.CoreMidiNotification]].
+ * An implementation publishes it when the platform reports such a change and then rescans the environment (the
+ * Java Sound implementation reacts to a CoreMIDI4J notification).
  */
 case object MidiEnvironmentChangedEvent extends MidiEvent
 

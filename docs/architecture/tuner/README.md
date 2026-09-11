@@ -109,8 +109,9 @@ and is exposed through `@ThreadSafe` `*Service` facades that marshal calls onto 
   on the business thread.
 - `TrackSession` loads tracks from a URI via `TrackRepo` and offers add/update/move/remove editing, pushing changes to
   `TrackManager` and publishing `TrackEvent`s; `TrackService` is its thread-safe facade.
-- `TunerModule` is the composition root that lazily wires the sessions, services, an internal `MidiManager`, and the
-  `TrackManager`. The `app` layer injects this rather than constructing the pieces individually.
+- `TunerModule` is the composition root that lazily wires the sessions, services and the `TrackManager` around the
+  `MidiManager` it is given. The `app` layer instantiates `JavaMidiManager` (from `sc-midi`'s `javamidi` package),
+  injects it and closes it after the module; `tuner` itself imports nothing from `javamidi`.
 
 **Persistence.** `TrackRepo` is the repository-pattern trait for reading/writing `TrackSpecs` by `URI`. It lives here
 because `tuner` owns the domain types, but its `TrackFormat` and the concrete `File`/`Http`/`Default` repos live in the
@@ -186,10 +187,11 @@ project [Threading Model](https://github.com/calinburloiu/microtonalist/wiki/Thr
 
 ## Dependencies
 
-The module **depends on** `sc-midi` (the Scala-idiomatic MIDI API: `MidiManager`, `MidiProcessor`/`MidiSerialProcessor`,
-`MidiReceiver`/`ConcurrentMidiTransmitter`, the `MidiMsg` message model, `MidiNote`, `PitchClass`, …), `businessync`
-(the event bus and `BusinessyncEvent`), and `common` (the `Plugin` trait and `OpenableSession`). The module imports
-nothing from `javax.sound.midi` (#281).
+The module **depends on** `sc-midi` (the Scala-idiomatic MIDI API: the `MidiManager` / `MidiDeviceHandle` traits,
+`MidiProcessor`/`MidiSerialProcessor`, `MidiReceiver`/`ConcurrentMidiTransmitter`, the `MidiMsg` message model,
+`MidiNote`, `PitchClass`, …), `businessync` (the event bus and `BusinessyncEvent`), and `common` (the `Plugin` trait
+and `OpenableSession`). The module imports nothing from `javax.sound.midi` (#281) nor from the `javamidi`
+implementation package (#282).
 
 It is **depended on by** `app`, `ui`, `composition`, and `format`, so `tuner` sits below the domain/format/UI layers but
 above `sc-midi`/`businessync`/`common`. In particular `composition` produces the `Seq[Tuning]` consumed here, and

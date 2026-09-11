@@ -25,6 +25,7 @@ import org.calinburloiu.music.microtonalist.config.*
 import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
+import org.calinburloiu.music.scmidi.javamidi.JavaMidiManager
 
 import java.net.URI
 import java.nio.file.{InvalidPathException, Path, Paths}
@@ -84,7 +85,8 @@ object MicrotonalistApp extends StrictLogging {
     val composition = formatModule.defaultCompositionRepo.read(inputUrl)
     val tuningList = TuningList.fromComposition(composition)
 
-    val tunerModule = new TunerModule(businessync, formatModule.defaultTrackRepo)
+    val midiManager = JavaMidiManager(businessync)
+    val tunerModule = TunerModule(businessync, formatModule.defaultTrackRepo, midiManager)
     val trackService = tunerModule.trackService
     composition.tracksUrl.foreach { uri =>
       // TODO #87 This will be moved as part of a composition opening workflow
@@ -101,6 +103,7 @@ object MicrotonalistApp extends StrictLogging {
       override def run(): Unit = {
         logger.info("Preparing to exit...")
         tunerModule.close()
+        midiManager.close()
         Thread.sleep(1_000)
 
         logger.info("Bye bye!")

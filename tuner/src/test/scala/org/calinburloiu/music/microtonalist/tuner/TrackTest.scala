@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
-import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}
+import org.calinburloiu.music.scmidi.{MidiManager, MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -37,8 +37,8 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     val tuningService: TuningService = stub[TuningService]
     val spec: TrackSpec = TrackSpec("track", "Track", tuner = Some(tuner))
     // The spec has no device input and no device output, so the track never touches the manager.
-    // TODO #282 Pass a stub once MidiManager is a trait.
-    val track: Track = Track(spec = spec, midiManager = null, tuningService = tuningService)
+    val midiManager: MidiManager = stub[MidiManager]
+    val track: Track = Track(spec = spec, midiManager = midiManager, tuningService = tuningService)
 
     val receiver: MidiReceiver = stub[MidiReceiver]
   }

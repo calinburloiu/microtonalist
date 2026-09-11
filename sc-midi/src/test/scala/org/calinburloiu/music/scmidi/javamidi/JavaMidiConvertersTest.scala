@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi.javamidi
 
-import org.calinburloiu.music.scmidi.MidiNote
+import org.calinburloiu.music.scmidi.{MidiConnectionLimit, MidiDeviceId, MidiDeviceInfo, MidiNote}
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalamock.scalatest.MockFactory
@@ -45,6 +45,10 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
   }
 
   private def textBytes(s: String): Array[Byte] = s.getBytes("ISO-8859-1")
+
+  /** `MidiDevice.Info` has a protected constructor; this is the four-line subclass tests need to build one. */
+  private class TestDeviceInfo(name: String, vendor: String, description: String, version: String)
+    extends MidiDevice.Info(name, vendor, description, version)
 
   private val sysexBytes: Array[Byte] = Array(0xF0.toByte, 0x43.toByte, 0x12.toByte, 0x7F.toByte, 0xF7.toByte)
 
@@ -188,46 +192,56 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     javaMessage.getMessage should equal(sysexBytes)
   }
 
-  behavior of "JavaMidiConverters.isInputDevice"
+  behavior of "JavaMidiConverters.connectionLimit"
 
-  it should "be true for devices with unlimited or positive maximum transmitters and false otherwise" in {
+  it should "map Java Sound's -1 to Unlimited and any other count to Limited" in {
     // Given
-    val cases = Table(
-      ("maxTransmitters", "expected"),
-      (-1, true),
-      (0, false),
-      (1, true),
-      (8, true)
+    val cases = Table[Int, MidiConnectionLimit](
+      ("javaMaxConnections", "expected"),
+      (-1, MidiConnectionLimit.Unlimited),
+      (0, MidiConnectionLimit.Limited(0)),
+      (1, MidiConnectionLimit.Limited(1)),
+      (8, MidiConnectionLimit.Limited(8))
     )
 
-    forAll(cases) { (maxTransmitters, expected) =>
-      val device = stub[MidiDevice]
-      (() => device.getMaxTransmitters).when().returns(maxTransmitters)
-
+    forAll(cases) { (javaMaxConnections, expected) =>
       // When / Then
-      device.isInputDevice shouldBe expected
+      JavaMidiConverters.connectionLimit(javaMaxConnections) shouldEqual expected
     }
   }
 
-  behavior of "JavaMidiConverters.isOutputDevice"
+  behavior of "JavaMidiConverters.asMidiDeviceId"
 
-  it should "be true for devices with unlimited or positive maximum receivers and false otherwise" in {
+  it should "take the name and vendor of the Java Sound device info" in {
     // Given
-    val cases = Table(
-      ("maxReceivers", "expected"),
-      (-1, true),
-      (0, false),
-      (1, true),
-      (8, true)
+    val javaInfo = TestDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0")
+
+    // When / Then
+    javaInfo.asMidiDeviceId shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+  }
+
+  behavior of "JavaMidiConverters.asMidiDeviceInfo"
+
+  it should "copy the Java Sound device info fields and convert the connection limits" in {
+    // Given
+    val device = stub[MidiDevice]
+    (() => device.getDeviceInfo).when().returns(TestDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0"))
+    (() => device.getMaxTransmitters).when().returns(-1)
+    (() => device.getMaxReceivers).when().returns(1)
+
+    // When
+    val info = device.asMidiDeviceInfo
+
+    // Then
+    info shouldEqual MidiDeviceInfo(
+      name = "CoreMIDI4J - FP-90",
+      vendor = "Roland",
+      description = "Digital piano",
+      version = "1.0",
+      transmittersLimit = MidiConnectionLimit.Unlimited,
+      receiversLimit = MidiConnectionLimit.Limited(1)
     )
-
-    forAll(cases) { (maxReceivers, expected) =>
-      val device = stub[MidiDevice]
-      (() => device.getMaxReceivers).when().returns(maxReceivers)
-
-      // When / Then
-      device.isOutputDevice shouldBe expected
-    }
+    info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
   }
 
   behavior of "JavaMidiConverters.asJava availability"

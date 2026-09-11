@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Calin-Andrei Burloiu
+ * Copyright 2026 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,275 +16,101 @@
 
 package org.calinburloiu.music.scmidi
 
-import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.businessync.Businessync
-import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
-
-import java.util.concurrent.ConcurrentHashMap
-import javax.sound.midi.MidiDevice
-import scala.collection.mutable
-import scala.jdk.CollectionConverters.*
-
 /**
- * Class that manages connections and gives information about MIDI devices.
+ * Manages connections to MIDI devices and gives information about them.
  *
- * The class has different sets of methods for inputs and outputs, because the Java MIDI API and CoreMIDI4J may
- * expose two [[MidiDevice]] ([[MidiDeviceHandle]]) instances for the same physical devices, one for input and the
- * other for output. Note that in this case, there is a single [[MidiDeviceId]].
+ * The trait has separate sets of methods for inputs and outputs, because a platform may expose two endpoints (two
+ * [[MidiDeviceHandle]]s) for the same physical device, one for input and the other for output. Note that in this
+ * case, there is a single [[MidiDeviceId]].
+ *
+ * An implementation scans the environment on [[refresh]] and typically also when the platform reports a change, and
+ * publishes [[MidiEvent]]s about what it finds. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiManager]] is the
+ * Java Sound implementation; consumers receive a [[MidiManager]] and the composition root picks the implementation.
  */
-class MidiManager(businessync: Businessync) extends AutoCloseable with StrictLogging {
-
-  import MidiManager.*
-
-  private val inputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Input, businessync)
-  private val outputEndpoint: MidiEndpoint = new MidiEndpoint(MidiEndpointType.Output, businessync)
-
-  private val onMidiNotification: CoreMidiNotification = () => {
-    logger.info("The MIDI environment has changed.")
-    businessync.publish(MidiEnvironmentChangedEvent)
-    refresh()
-  }
-
-  init()
-
-  private def init(): Unit = {
-    refresh()
-
-    // Automatically refresh when the MIDI environment has changed
-    CoreMidiDeviceProvider.addNotificationListener(onMidiNotification)
-  }
+trait MidiManager extends AutoCloseable {
 
   /**
-   * Rescans the environment for MIDI device information and updates the class internal state.
+   * Rescans the environment for MIDI device information and updates the internal state, publishing the
+   * [[MidiEvent]]s that describe what changed.
    */
-  def refresh(): Unit = {
-    // Alternative to `javax.sound.midi.MidiSystem.getMidiDeviceInfo()` to make Java MIDI work on Mac.
-    // This should also work on Windows.
-    val deviceInfoArray = CoreMidiDeviceProvider.getMidiDeviceInfo
+  def refresh(): Unit
 
-    val currentInputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
-    val currentOutputDevices: mutable.Buffer[MidiDeviceHandle] = mutable.Buffer()
-    deviceInfoArray.foreach { deviceInfo =>
-      val deviceHandle = MidiDeviceHandle(deviceInfo, businessync)
+  /** @return whether the input device with the given identifier is currently connected. */
+  def isInputAvailable(deviceId: MidiDeviceId): Boolean
 
-      if (deviceHandle.isInputDevice) {
-        currentInputDevices += deviceHandle
-      }
-      if (deviceHandle.isOutputDevice) {
-        currentOutputDevices += deviceHandle
-      }
-    }
+  /** @return the information of the input device with the given identifier, if it is currently connected. */
+  def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo]
 
-    inputEndpoint.updateDevices(currentInputDevices)
-    outputEndpoint.updateDevices(currentOutputDevices)
+  /** @return the identifiers of the input devices currently connected. */
+  def inputDeviceIds: Seq[MidiDeviceId]
 
-    inputEndpoint.purgeDisconnectedDevices()
-    outputEndpoint.purgeDisconnectedDevices()
-  }
-
-  override def close(): Unit = {
-    logger.info(s"Closing MIDI connections...")
-    inputEndpoint.close()
-    outputEndpoint.close()
-    logger.info(s"Finished closing MIDI connections.")
-
-    CoreMidiDeviceProvider.removeNotificationListener(onMidiNotification)
-  }
-
-  def isInputAvailable(deviceId: MidiDeviceId): Boolean = inputEndpoint.isDeviceAvailable(deviceId)
-
-  def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = inputEndpoint.deviceInfoOf(deviceId)
-
-  def inputDeviceIds: Seq[MidiDeviceId] = inputEndpoint.deviceIds
-
-  def inputDevicesInfo: Seq[MidiDevice.Info] = inputEndpoint.devicesInfo
+  /** @return the information of the input devices currently connected. */
+  def inputDevicesInfo: Seq[MidiDeviceInfo]
 
   /**
-   * Opens an input connection to a MIDI device based on its unique identifiers.
+   * Opens an input connection to a MIDI device based on its unique identifier.
+   *
+   * The device is not required to be connected: a handle is returned either way, and a device that is not connected
+   * yet is opened once it gets connected.
    *
    * @param deviceId Unique identifier of the device.
    * @return a handle object for the device.
    */
-  def openInput(deviceId: MidiDeviceId): MidiDeviceHandle = inputEndpoint.openDevice(deviceId)
+  def openInput(deviceId: MidiDeviceId): MidiDeviceHandle
 
   /**
-   * Tries to sequentially open a connection with the first output device available from the provided sequence (in
-   * that order).
-   *
-   * @param deviceIds A sequence of unique identifiers of the devices.
-   * @return a handle object for the device that succeeded.
+   * @return the handle of the input device with the given identifier, if it was requested to be opened through this
+   *         manager.
    */
-  def openFirstAvailableInput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] =
-    inputEndpoint.openFirstAvailableDevice(deviceIds)
+  def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = inputEndpoint.deviceHandleOf(deviceId)
-
-  def inputOpenedDevices: Seq[MidiDeviceHandle] = inputEndpoint.openedDevices
-
-  def closeInput(deviceId: MidiDeviceId): Unit = inputEndpoint.closeDevice(deviceId)
-
-
-  def isOutputAvailable(deviceId: MidiDeviceId): Boolean = outputEndpoint.isDeviceAvailable(deviceId)
-
-  def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = outputEndpoint.deviceInfoOf(deviceId)
-
-  def outputDeviceIds: Seq[MidiDeviceId] = outputEndpoint.deviceIds
-
-  def outputDevicesInfo: Seq[MidiDevice.Info] = outputEndpoint.devicesInfo
+  /** @return the handles of the input devices requested to be opened through this manager. */
+  def inputOpenedDevices: Seq[MidiDeviceHandle]
 
   /**
-   * Opens an output connection to a MIDI device based on its unique identifiers.
+   * Closes the input device with the given identifier, if it was requested to be opened through this manager. The
+   * operation is reference-counted at the handle level.
+   */
+  def closeInput(deviceId: MidiDeviceId): Unit
+
+  /** @return whether the output device with the given identifier is currently connected. */
+  def isOutputAvailable(deviceId: MidiDeviceId): Boolean
+
+  /** @return the information of the output device with the given identifier, if it is currently connected. */
+  def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo]
+
+  /** @return the identifiers of the output devices currently connected. */
+  def outputDeviceIds: Seq[MidiDeviceId]
+
+  /** @return the information of the output devices currently connected. */
+  def outputDevicesInfo: Seq[MidiDeviceInfo]
+
+  /**
+   * Opens an output connection to a MIDI device based on its unique identifier.
+   *
+   * The device is not required to be connected: a handle is returned either way, and a device that is not connected
+   * yet is opened once it gets connected.
    *
    * @param deviceId Unique identifier of the device.
    * @return a handle object for the device.
    */
-  def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle = outputEndpoint.openDevice(deviceId)
+  def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle
 
   /**
-   * Tries to sequentially open a connection with the first output device available from the provided sequence (in
-   * that order).
-   *
-   * @param deviceIds A sequence of unique identifiers of the devices.
-   * @return a handle object for the device that succeeded.
+   * @return the handle of the output device with the given identifier, if an open was requested through this
+   *         manager.
    */
-  def openFirstAvailableOutput(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] =
-    outputEndpoint.openFirstAvailableDevice(deviceIds)
+  def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = outputEndpoint.deviceHandleOf(deviceId)
-
-  def outputOpenedDevices: Seq[MidiDeviceHandle] = outputEndpoint.openedDevices
-
-  def closeOutput(deviceId: MidiDeviceId): Unit = outputEndpoint.closeDevice(deviceId)
-}
-
-object MidiManager {
+  /** @return the handles of the output devices requested to be opened through this manager. */
+  def outputOpenedDevices: Seq[MidiDeviceHandle]
 
   /**
-   * Helper class that manages either input or output MIDI devices. The reason for that is that the Java MIDI API
-   * lists input and output devices separately, so the same physical device may appear twice but with the same
-   * [[MidiDeviceId]].
-   *
-   * @param endpointType whether the devices managed are input or output devices.
+   * Closes the output device with the given identifier, if it was requested to be opened through this manager. The
+   * operation is reference-counted at the handle level.
    */
-  private class MidiEndpoint(val endpointType: MidiEndpointType,
-                             businessync: Businessync) extends AutoCloseable with StrictLogging {
+  def closeOutput(deviceId: MidiDeviceId): Unit
 
-    private val devicesIdToInfo = ConcurrentHashMap[MidiDeviceId, MidiDevice.Info]()
-    private val openedDevicesMap = ConcurrentHashMap[MidiDeviceId, MidiDeviceHandle]()
-
-    def updateDevices(deviceHandles: Iterable[MidiDeviceHandle]): Unit = {
-      // New devices
-      for (
-        currentDeviceHandle <- deviceHandles;
-        id = currentDeviceHandle.id;
-        deviceInfo <- currentDeviceHandle.info
-      ) {
-        var wasConnected = false
-        devicesIdToInfo.computeIfAbsent(id, _ => {
-          wasConnected = true
-          deviceInfo
-        })
-
-        if (wasConnected) {
-          logDebugConnectedDevice(currentDeviceHandle)
-          businessync.publish(MidiDeviceConnectedEvent(id))
-        }
-      }
-
-      // Removed devices
-      val currentIds = deviceHandles.map(_.id).toSet
-
-      for (previousId <- devicesIdToInfo.keys.asScala if !currentIds.contains(previousId)) {
-        devicesIdToInfo.remove(previousId)
-        logger.info(s"${endpointType.toString.capitalize} device $previousId was disconnected.")
-        businessync.publish(MidiDeviceDisconnectedEvent(previousId))
-      }
-    }
-
-    /** Remove devices that were previously opened, but now were disconnected. */
-    def purgeDisconnectedDevices(): Unit = {
-      val disconnectedDeviceIds = openedDevicesMap.keySet.asScala diff devicesIdToInfo.keySet.asScala
-
-      disconnectedDeviceIds.foreach { deviceId =>
-        val device = openedDevicesMap.get(deviceId).device
-
-        device.foreach(_.close())
-
-        openedDevicesMap.remove(deviceId)
-
-        logger.info(s"${endpointType.toString.capitalize} device $deviceId was closed.")
-        businessync.publish(MidiDeviceClosedEvent(deviceId))
-      }
-    }
-
-    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = devicesIdToInfo.containsKey(deviceId)
-
-    def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDevice.Info] = Option(devicesIdToInfo.get(deviceId))
-
-    def deviceIds: Seq[MidiDeviceId] = devicesIdToInfo.keys.asScala.toSeq
-
-    def devicesInfo: Seq[MidiDevice.Info] = devicesIdToInfo.values.asScala.toSeq
-
-    def openDevice(deviceId: MidiDeviceId): MidiDeviceHandle = {
-      val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId, _ => MidiDeviceHandle(deviceId, businessync))
-
-      deviceInfoOf(deviceId) match {
-        case Some(deviceInfo) =>
-          deviceHandle.onConnect(deviceInfo)
-          deviceHandle.open()
-          logger.info(s"Successfully opened $endpointType device $deviceId.")
-          businessync.publish(MidiDeviceOpenedEvent(deviceId))
-        case None => logger.warn(s"${endpointType.toString.capitalize} device $deviceId is not connected.")
-      }
-
-      deviceHandle
-    }
-
-    def openFirstAvailableDevice(deviceIds: Seq[MidiDeviceId]): Option[MidiDeviceHandle] = {
-      deviceIds.to(LazyList)
-        .map { deviceId =>
-          logger.info(s"Attempting to open $endpointType device $deviceId...")
-          openDevice(deviceId)
-        }
-        .find(_.isOpen)
-    }
-
-    def deviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = Option(openedDevicesMap.get(deviceId))
-
-    def openedDevices: Seq[MidiDeviceHandle] = openedDevicesMap.values.asScala.toSeq
-
-    def closeDevice(deviceId: MidiDeviceId): Unit = {
-      deviceHandleOf(deviceId) match {
-        case Some(openedDevice) if openedDevice.isOpen =>
-          logger.info(s"Closing $endpointType device $deviceId...")
-          openedDevice.close()
-          openedDevicesMap.remove(deviceId)
-          logger.info(s"Successfully $endpointType closed device $deviceId.")
-        case _ => // Do nothing
-      }
-    }
-
-    override def close(): Unit = {
-      openedDevicesMap.keys.asScala.foreach { deviceId =>
-        closeDevice(deviceId)
-      }
-    }
-
-    @inline
-    private def logDebugConnectedDevice(deviceHandle: MidiDeviceHandle): Unit = {
-      logger.whenDebugEnabled {
-        val deviceId = deviceHandle.id
-        val midiDevice = deviceHandle.device
-        val (handlerType, maxHandlers) = if (endpointType == MidiEndpointType.Input) {
-          ("transmitters", midiDevice.map(_.getMaxTransmitters).getOrElse(0))
-        } else {
-          ("receivers", midiDevice.map(_.getMaxReceivers).getOrElse(0))
-        }
-        val maxHandlersStr = if (maxHandlers == -1) "unlimited" else maxHandlers.toString
-
-        logger.debug(s"${endpointType.toString.capitalize} device $deviceId with $maxHandlersStr $handlerType was " +
-          s"connected.")
-      }
-    }
-  }
+  /** Closes every device opened through this manager and stops watching the environment. */
+  override def close(): Unit
 }

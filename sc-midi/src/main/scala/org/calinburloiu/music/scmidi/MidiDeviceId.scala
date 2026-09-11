@@ -16,13 +16,11 @@
 
 package org.calinburloiu.music.scmidi
 
-import javax.sound.midi.MidiDevice
-
 /**
  * Unique identifier of a device.
  *
- * Note that a physical device that works as both input and output will have a unique [[MidiDeviceId]] but
- * different instances for input and output for [[MidiDevice]] (or [[MidiDeviceHandle]]) and [[MidiDevice.Info]].
+ * Note that a physical device that works as both input and output has a single [[MidiDeviceId]] but is listed by a
+ * [[MidiManager]] once per direction, with a [[MidiDeviceInfo]] and a [[MidiDeviceHandle]] for each.
  *
  * @param name   Name of the MIDI device.
  * @param vendor The name of the company who supplies the device.
@@ -31,14 +29,12 @@ case class MidiDeviceId(name: String,
                         vendor: String) {
 
   /**
-   * Checks whether the current MIDI device identifier corresponds to the given MIDI device info.
+   * Checks whether this identifier is the one derived from the given device information.
    *
    * @param midiDeviceInfo The MIDI device information to compare against.
-   * @return True if the current device identifier matches the given device information, false otherwise.
+   * @return True if this identifier matches the given device information, false otherwise.
    */
-  def correspondsToInfo(midiDeviceInfo: MidiDevice.Info): Boolean = {
-    name == midiDeviceInfo.getName && vendor == midiDeviceInfo.getVendor
-  }
+  def correspondsToInfo(midiDeviceInfo: MidiDeviceInfo): Boolean = this == midiDeviceInfo.id
 
   /**
    * The app does not use the Java MIDI implementation and instead uses CoreMidi4J, which causes all device names to
@@ -60,7 +56,4 @@ case class MidiDeviceId(name: String,
 
 object MidiDeviceId {
   private val CoreMidi4JDeviceNamePrefix: String = "CoreMIDI4J - "
-
-  def apply(midiDeviceInfo: MidiDevice.Info): MidiDeviceId =
-    MidiDeviceId(midiDeviceInfo.getName, midiDeviceInfo.getVendor)
 }
