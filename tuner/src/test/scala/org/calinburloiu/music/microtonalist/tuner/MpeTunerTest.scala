@@ -2592,7 +2592,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
-  it should "discard Channel Mode messages received on a Member Channel" in new Fixture(tuner7MpeInput) {
+  it should "discard the Channel Mode messages 120-123 received on a Member Channel" in new Fixture(tuner7MpeInput) {
     // Given
     private val messages = Table("message",
       AllSoundOffMidiMsg(mpeInputChannel),
