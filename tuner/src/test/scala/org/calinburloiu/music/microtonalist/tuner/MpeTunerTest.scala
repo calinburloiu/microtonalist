@@ -2281,7 +2281,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     programChanges should contain(ProgramChangeMidiMsg(0, 5))
   }
 
-  it should "forward the Channel Mode messages that are not MIDI Mode messages on Master Channel" in new Fixture {
+  it should "forward the Channel Mode messages 120-123 on Master Channel" in new Fixture {
     // Given
     private val messages = Table(
       ("description", "message", "expected"),
@@ -2301,7 +2301,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- MIDI Mode messages ----
 
-  it should "discard the MIDI Mode messages" in new Fixture {
+  it should "discard the MIDI Mode messages 124-127" in new Fixture {
     // Given
     private val messages = Table("message",
       OmniModeOffMidiMsg(nonMpeInputChannel),
@@ -2802,7 +2802,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
 
   // ---- MIDI Mode messages ----
 
-  it should "discard the MIDI Mode messages at every level" in new Fixture(tuner7MpeInput) {
+  it should "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
     // Given
     private val channels = Table("channel", 0, mpeInputChannel, 10)
     forAll(channels) { channel =>
@@ -2814,7 +2814,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     }
   }
 
-  it should "still forward the Channel Mode messages that are not MIDI Mode messages on a Master Channel" in
+  it should "still forward the Channel Mode messages 120-123 received on a Master Channel" in
     new Fixture(tuner7MpeInput) {
       // Given
       private val messages = Table("message",
