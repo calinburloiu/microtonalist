@@ -315,6 +315,18 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
     a[NoSuchElementException] should be thrownBy tracker.cc(Channel, unknownCc)
   }
 
+  it should "reject ccDefaults keyed by a number that is not a controller number" in {
+    // Given — a Channel Mode number and the two numbers bordering the MIDI data byte range
+    val numbers = Seq(-1, AllNotesOffMidiMsg.Number, 128)
+
+    for (number <- numbers) {
+      // When / Then
+      withClue(number) {
+        an[IllegalArgumentException] should be thrownBy MidiChannelStateTracker(ccDefaults = Map(number -> 0))
+      }
+    }
+  }
+
   it should "use overrideDefaultValue when set and no value was recorded" in new TrackerFixture {
     // Given
     val unknownCc = 50
@@ -1651,20 +1663,11 @@ class MidiChannelStateTrackerTest extends AnyFlatSpec with Matchers {
       Some(MidiRpn.PitchBendSensitivityMsb), Some(MidiRpn.PitchBendSensitivityLsb))
   }
 
-  it should "not record a Channel Mode message as a Control Change value" in new ResettableTrackerFixture {
-    // When
-    tracker.send(AllSoundOffMidiMsg(Channel))
-    tracker.send(ResetAllControllersMidiMsg(Channel))
-    tracker.send(LocalControlMidiMsg(Channel, isOn = false))
-    tracker.send(AllNotesOffMidiMsg(Channel))
-    tracker.send(OmniModeOffMidiMsg(Channel))
-    tracker.send(OmniModeOnMidiMsg(Channel))
-    tracker.send(MonoModeOnMidiMsg(Channel, channelCount = 4))
-    tracker.send(PolyModeOnMidiMsg(Channel))
-
-    // Then — Channel Mode messages are not controllers, so none of their numbers holds a CC value
+  it should "reject a Channel Mode number as a Control Change number in ccOption / cc" in new TrackerFixture {
+    // When / Then — Channel Mode messages are not controllers, so none of their numbers can hold a CC value
     ChannelModeMidiMsg.NumberRange.foreach { number =>
-      tracker.ccOption(Channel, number) shouldBe None
+      an[IllegalArgumentException] should be thrownBy tracker.ccOption(Channel, number)
+      an[IllegalArgumentException] should be thrownBy tracker.cc(Channel, number, overrideDefaultValue = Some(0))
     }
   }
 

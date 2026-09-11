@@ -54,7 +54,8 @@ import scala.collection.mutable
  * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads. It should usually
  * be used from a track thread.
  *
- * @param ccDefaults                  per-CC-number default values that override the companion's defaults.
+ * @param ccDefaults                  per-CC-number default values that override the companion's defaults. Every key
+ *                                    must be a controller number (0-119).
  * @param rpnDefaults                 per-RPN default values that override the companion's defaults.
  * @param nrpnDefaults                per-NRPN default values that override the companion's defaults.
  * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off, Reset All Controllers
@@ -71,6 +72,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
                               shallRespondToResetMessages: Boolean = false) extends MidiReceiver {
 
   import MidiChannelStateTracker.*
+
+  ccDefaults.keys.foreach(MidiRequirements.requireControllerNumber)
 
   private val channelStates: Array[ChannelState] = Array.fill(ChannelCount)(ChannelState())
   private var _closed: Boolean = false
@@ -219,9 +222,14 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     channelStates(channel).pitchBend.getOrElse(0)
   }
 
-  /** @return the recorded value of the given CC on the given channel, or `None` if it has not been set. */
+  /**
+   * @return the recorded value of the given CC on the given channel, or `None` if it has not been set.
+   * @throws IllegalArgumentException if `ccNumber` is not a controller number (0-119): 120-127 are Channel Mode
+   *                                  messages, which are never recorded as CC values.
+   */
   def ccOption(channel: Int, ccNumber: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
+    MidiRequirements.requireControllerNumber(ccNumber)
     channelStates(channel).ccValues.get(ccNumber)
   }
 

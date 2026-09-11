@@ -143,7 +143,8 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 - **`MidiChannelStateTracker`** — an explicitly `@NotThreadSafe` `MidiReceiver` (for a single track thread) that derives
   **per-channel MIDI state** (active notes, CC/RPN/NRPN/pressure/pitch-bend/program values) from the messages sent to
   it, implementing the RPN/NRPN Data Entry protocol and, in a branch of its own over `ChannelModeMidiMsg`, the Channel
-  Mode messages (their numbers are never recorded as CC values). The MIDI Mode messages 124–127 set the receive mode
+  Mode messages (their numbers are never recorded as CC values, and `ccOption` / `cc` reject them). The MIDI Mode
+  messages 124–127 set the receive mode
   (`isOmniModeOn`, `isPolyModeOn` / `isMonoModeOn`, and the channel count of Mono mode, `monoModeChannelCount`) and
   Local Control sets `isLocalControlOn`; both start in MIDI 1.0's recommended power-up state — Omni On/Poly, Local
   Control on — and no reset message changes them. When the tracker is

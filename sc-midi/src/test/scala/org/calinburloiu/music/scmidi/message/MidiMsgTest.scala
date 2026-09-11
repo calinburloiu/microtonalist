@@ -138,6 +138,15 @@ class MidiMsgTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChec
     }
   }
 
+  it should "name the Channel Mode message types when rejecting a Channel Mode number" in {
+    // When
+    val exception = the[IllegalArgumentException] thrownBy CcMidiMsg(0, AllNotesOffMidiMsg.Number, 0)
+
+    // Then
+    exception.getMessage should include("Channel Mode")
+    exception.getMessage should include("ChannelModeMidiMsg")
+  }
+
   it should "reject the Channel Mode numbers and anything outside 0 to 119" in {
     // Given
     val numbers = Table("number", ChannelModeMidiMsg.NumberRange.toSeq*)

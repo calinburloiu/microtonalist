@@ -57,11 +57,15 @@ object MidiRequirements {
   /**
    * Requires that the given Control Change controller number is between 0 and [[MaxControllerNumber]]. Numbers
    * 120-127 are Channel Mode messages, which have their own types under
-   * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] and are not controllers.
+   * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] and are not controllers, so the error for one of them
+   * names those types.
    */
-  def requireControllerNumber(number: Int): Unit =
+  def requireControllerNumber(number: Int): Unit = {
+    require(!ChannelModeMidiMsg.NumberRange.contains(number),
+      s"number $number is a Channel Mode message, not a controller; use its ChannelModeMidiMsg subtype instead")
     require(number >= 0 && number <= MaxControllerNumber,
       s"number must be between 0 and $MaxControllerNumber; got $number")
+  }
 
   /** Requires that the given value is an unsigned 8-bit integer (0 to 255). */
   def requireUnsigned8BitValue(name: String, value: Int): Unit =
