@@ -20,7 +20,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
-class ClampValueTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
+class ScMidiPackageObjectTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 
   "clampValue" should {
     "keep an Int within the bounds and bring one outside them to the nearest bound" in {
