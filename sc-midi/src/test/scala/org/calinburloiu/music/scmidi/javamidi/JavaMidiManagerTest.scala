@@ -650,8 +650,6 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       val device: FakeMidiDevice = Input.newDevice(deviceName)
       environment.plug(device)
       val manager: JavaMidiManager = newManager()
-      val expectedFragments: Seq[String] = Seq("opened input device", "Closing MIDI connections",
-        "Closing input device", "closed device", "Finished closing MIDI connections")
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
@@ -660,9 +658,13 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
 
       // Then
-      val messages = events.messagesAt(Level.INFO)
-      messages should have size expectedFragments.size
-      messages.zip(expectedFragments).foreach { case (message, fragment) => message should include(fragment) }
+      events.messagesAt(Level.INFO) shouldEqual Seq(
+        s"Successfully opened input device ${device.id}.",
+        "Closing MIDI connections...",
+        s"Closing input device ${device.id}...",
+        s"Successfully closed input device ${device.id}.",
+        "Finished closing MIDI connections."
+      )
     }
 
     "report an environment change and the disconnection of a device at info level" in new Fixture {

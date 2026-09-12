@@ -260,7 +260,7 @@ object JavaMidiManager {
           logger.info(s"Closing $endpointType device $deviceId...")
           openedDevice.close()
           openedDevicesMap.remove(deviceId)
-          logger.info(s"Successfully $endpointType closed device $deviceId.")
+          logger.info(s"Successfully closed $endpointType device $deviceId.")
         case _ => // Do nothing
       }
     }
