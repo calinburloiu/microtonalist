@@ -17,17 +17,19 @@
 package org.calinburloiu.music.scmidi.javamidi
 
 import ch.qos.logback.classic.Level
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.LogCapture.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg}
+import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import javax.sound.midi.{MidiUnavailableException, ShortMessage}
 
-class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
+class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
   private val deviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
 
@@ -40,7 +42,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
                                  openFailure: Option[Exception] = None,
                                  closeFailure: Option[Exception] = None,
                                  providesReceiver: Boolean = true) {
-    val businessync: RecordingBusinessync = RecordingBusinessync()
+    val businessync: Stub[Businessync] = stub[Businessync]
+    businessync.publish.returns(_ => ())
+
     val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, businessync)
     val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters,
       openFailure = openFailure, closeFailure = closeFailure, providesReceiver = providesReceiver)
@@ -129,7 +133,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
       handle.isOpen shouldBe false
       handle.device shouldBe empty
       handle.info shouldBe empty
-      businessync.events shouldBe empty
+      businessync.publish.calls shouldBe empty
     }
 
     "publish MidiDeviceFailedToDisconnectEvent when the device fails to close, and still forget the device" in
@@ -141,7 +145,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
         handle.onDisconnect()
 
         // Then
-        businessync.events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, failure))
+        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, failure))
         handle.isConnected shouldBe false
         handle.device shouldBe empty
       }
@@ -202,7 +206,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
       handle.state shouldEqual State.Open
       handle.isOpen shouldBe true
       device.isOpen shouldBe true
-      businessync.events shouldBe empty
+      businessync.publish.calls shouldBe empty
     }
 
     "open the device only on the first of several calls" in new Fixture {
@@ -249,7 +253,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
       handle.open()
 
       // Then
-      businessync.events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
       handle.isOpen shouldBe false
     }
   }
@@ -306,7 +310,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
         handle.close()
 
         // Then
-        businessync.events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, failure))
+        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, failure))
         handle.state shouldEqual State.Connected
       }
   }
@@ -366,8 +370,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
     "fan out the messages of the open input device, converted from Java Sound, to receivers subscribed beforehand" in
       new Fixture {
         // Given
-        val receiver1: RecordingMidiReceiver = RecordingMidiReceiver()
-        val receiver2: RecordingMidiReceiver = RecordingMidiReceiver()
+        val receiver1: Stub[MidiReceiver] = stub[MidiReceiver]
+        val receiver2: Stub[MidiReceiver] = stub[MidiReceiver]
+        Seq(receiver1, receiver2).foreach(_.send.returns(_ => ()))
         handle.transmitter.addReceiver(receiver1)
         handle.transmitter.addReceiver(receiver2)
         connect()
@@ -377,13 +382,14 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
         device.transmitter.getReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 127), 7L)
 
         // Then
-        receiver1.messages shouldEqual Seq((CcMidiMsg(3, 64, 127), 7L))
-        receiver2.messages shouldEqual Seq((CcMidiMsg(3, 64, 127), 7L))
+        receiver1.send.calls shouldEqual Seq((CcMidiMsg(3, 64, 127), 7L))
+        receiver2.send.calls shouldEqual Seq((CcMidiMsg(3, 64, 127), 7L))
       }
 
     "keep fanning out after Java Sound closes the receiver the handle subscribed to the device" in new Fixture {
       // Given
-      val receiver: RecordingMidiReceiver = RecordingMidiReceiver()
+      val receiver: Stub[MidiReceiver] = stub[MidiReceiver]
+      receiver.send.returns(_ => ())
       handle.transmitter.addReceiver(receiver)
       connect()
       handle.open()
@@ -394,7 +400,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers {
       inboundReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 0), 8L)
 
       // Then
-      receiver.messages shouldEqual Seq((CcMidiMsg(3, 64, 0), 8L))
+      receiver.send.calls shouldEqual Seq((CcMidiMsg(3, 64, 0), 8L))
     }
   }
 

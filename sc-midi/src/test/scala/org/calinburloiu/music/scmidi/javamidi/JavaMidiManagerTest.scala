@@ -17,10 +17,12 @@
 package org.calinburloiu.music.scmidi.javamidi
 
 import ch.qos.logback.classic.Level
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.LogCapture.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
@@ -37,7 +39,7 @@ import javax.sound.midi.MidiUnavailableException
  * (#288), the tests that run exercise the code path without asserting the outcome that #288 is going to change, while
  * the tests that pin the expected outcome are ignored, each under a `TODO #288`, until #288 is fixed.
  */
-class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
+class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks with Stubs {
 
   private val deviceName: String = "CoreMIDI4J - FP-90"
 
@@ -108,7 +110,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   }
 
   private trait Fixture {
-    val businessync: RecordingBusinessync = RecordingBusinessync()
+    val businessync: Stub[Businessync] = stub[Businessync]
+    businessync.publish.returns(_ => ())
+
     val environment: FakeJavaMidiEnvironment = FakeJavaMidiEnvironment()
 
     /** Creates the manager, which scans the devices plugged into [[environment]] so far. */
@@ -140,7 +144,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       direction.deviceIds(manager) shouldEqual Seq(id)
       direction.devicesInfo(manager) shouldEqual Seq(device.asMidiDeviceInfo)
       direction.deviceInfoOf(manager, id) shouldEqual Some(device.asMidiDeviceInfo)
-      businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id))
     }
 
     "know nothing of a device that is not plugged in" in new EndpointFixture(isPluggedAtStart = false) {
@@ -150,7 +154,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       direction.devicesInfo(manager) shouldBe empty
       direction.deviceInfoOf(manager, id) shouldBe empty
       direction.deviceHandleOf(manager, id) shouldBe empty
-      businessync.events shouldBe empty
+      businessync.publish.calls shouldBe empty
     }
 
     "report a device plugged in after start-up as connected on refresh" in
@@ -163,7 +167,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
         // Then
         direction.isAvailable(manager, id) shouldBe true
-        businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(id))
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id))
       }
 
     "report an unplugged device as disconnected on refresh" in new EndpointFixture {
@@ -176,7 +180,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       direction.isAvailable(manager, id) shouldBe false
       direction.deviceIds(manager) shouldBe empty
-      businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceDisconnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceDisconnectedEvent(id))
     }
 
     "open a connected device, handing it to an open handle, and report it as opened" in new EndpointFixture {
@@ -190,7 +194,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       device.isOpen shouldBe true
       direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
       direction.openedDevices(manager) shouldEqual Seq(handle)
-      businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceOpenedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceOpenedEvent(id))
     }
 
     "return the same handle when a device is opened again" in new EndpointFixture {
@@ -228,7 +232,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         handle.id shouldEqual id
         handle.isConnected shouldBe false
         handle.isOpen shouldBe false
-        businessync.events shouldBe empty
+        businessync.publish.calls shouldBe empty
       }
 
     // TODO #288 openDevice does not open the handle of a device that is not connected, so the handle stays Closed.
@@ -297,7 +301,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       device.closeCount shouldEqual 0
-      businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id))
     }
 
     // TODO #288 closeDevice neither releases nor removes a handle that is not open.
@@ -332,7 +336,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       device.isOpen shouldBe false
-      businessync.events should contain(MidiDeviceDisconnectedEvent(id))
+      businessync.publish.calls should contain(MidiDeviceDisconnectedEvent(id))
     }
 
     // TODO #288 purgeDisconnectedDevices closes the device behind the handle's back and drops the handle, so the
@@ -432,7 +436,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       manager.inputDeviceIds shouldEqual Seq(id)
       manager.outputDeviceIds shouldEqual Seq(id)
-      businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceConnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceConnectedEvent(id))
 
       // When
       manager.openOutput(id)
@@ -453,7 +457,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       manager.refresh()
 
       // Then
-      businessync.events shouldEqual Seq(MidiDeviceConnectedEvent(device.id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(device.id))
     }
 
     "keep the device first resolved for an id that stays present" in new Fixture {
@@ -512,7 +516,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
           // Then
           manager.inputDeviceIds shouldBe empty
           manager.outputDeviceIds shouldBe empty
-          businessync.events shouldBe empty
+          businessync.publish.calls shouldBe empty
         }
       }
     }
@@ -529,7 +533,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       manager.inputDeviceIds shouldBe empty
       manager.outputDeviceIds shouldBe empty
-      businessync.events shouldEqual Seq(MidiDeviceFailedToConnectEvent(javaInfo.asMidiDeviceId, failure))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToConnectEvent(javaInfo.asMidiDeviceId, failure))
     }
   }
 
@@ -545,7 +549,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       manager.isInputAvailable(device.id) shouldBe true
-      businessync.events shouldEqual Seq(MidiEnvironmentChangedEvent, MidiDeviceConnectedEvent(device.id))
+      businessync.publish.calls shouldEqual Seq(MidiEnvironmentChangedEvent, MidiDeviceConnectedEvent(device.id))
     }
   }
 
