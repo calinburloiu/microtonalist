@@ -19,8 +19,9 @@ package org.calinburloiu.music.scmidi.javamidi
 import org.calinburloiu.music.scmidi.MidiDeviceId
 
 import java.util
-import javax.sound.midi.{MidiDevice, MidiMessage, Receiver, Transmitter}
+import javax.sound.midi.{MidiDevice, MidiMessage, MidiUnavailableException, Receiver, Transmitter}
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
 
 /** `MidiDevice.Info` has a protected constructor; this is the subclass tests need to build one. */
 class TestDeviceInfo(name: String, vendor: String, description: String, version: String)
@@ -33,13 +34,18 @@ class TestDeviceInfo(name: String, vendor: String, description: String, version:
  * The directions the device works in follow from its connection limits, as for a real device: `0` transmitters makes
  * it no input, `0` receivers makes it no output, and `-1` stands for unlimited.
  *
- * @param name             Name of the device.
- * @param vendor           Vendor of the device.
- * @param maxTransmitters  What `getMaxTransmitters` reports.
- * @param maxReceivers     What `getMaxReceivers` reports.
- * @param openFailure      Thrown by `open` when defined, leaving the device closed.
- * @param closeFailure     Thrown by `close` when defined, leaving the device in its current state.
- * @param providesReceiver Whether `getReceiver` returns [[receiver]] or `null`.
+ * Its receivers behave like those of CoreMIDI4J and of the JDK's own devices: each `getReceiver` call creates a new
+ * receiver, which stays attached to the device until it is closed, a receiver rejects messages once it is closed or
+ * while the device is not open, and closing the device closes all of its receivers.
+ *
+ * @param name            Name of the device.
+ * @param vendor          Vendor of the device.
+ * @param maxTransmitters What `getMaxTransmitters` reports.
+ * @param maxReceivers    What `getMaxReceivers` reports; with `0`, `getReceiver` throws `MidiUnavailableException`.
+ * @param openFailure     Thrown by `open` when defined, leaving the device closed.
+ * @param closeFailure    Thrown by `close` when defined, leaving the device in its current state.
+ * @param receiverFailure Thrown by `getReceiver` when defined, instead of creating a receiver; a test may set it at any
+ *                        time, e.g. to make only a later `getReceiver` call fail.
  */
 class FakeMidiDevice(name: String,
                      vendor: String = "Roland",
@@ -47,16 +53,22 @@ class FakeMidiDevice(name: String,
                      maxReceivers: Int = -1,
                      openFailure: Option[Exception] = None,
                      closeFailure: Option[Exception] = None,
-                     providesReceiver: Boolean = true) extends MidiDevice {
+                     var receiverFailure: Option[Exception] = None) extends MidiDevice {
 
   private val info: MidiDevice.Info = TestDeviceInfo(name, vendor, "Fake MIDI device", "1.0")
 
   private var _isOpen: Boolean = false
   private var _openCount: Int = 0
   private var _closeCount: Int = 0
+  private var _receiverCount: Int = 0
+  private val openReceivers: mutable.Buffer[Receiver] = mutable.ArrayBuffer()
+  private val _receivedMessages: mutable.Buffer[(MidiMessage, Long)] = mutable.ArrayBuffer()
 
-  /** The receiver of the device, which records every message sent to it. */
-  val receiver: RecordingJavaReceiver = RecordingJavaReceiver()
+  /** The messages sent to any receiver of the device so far, in order, each with its time stamp. */
+  def receivedMessages: Seq[(MidiMessage, Long)] = _receivedMessages.toSeq
+
+  /** How many receivers `getReceiver` created. */
+  def receiverCount: Int = _receiverCount
 
   /** The transmitter of the device; a test sends to its receiver to simulate a message coming from the device. */
   val transmitter: FakeTransmitter = FakeTransmitter()
@@ -82,6 +94,7 @@ class FakeMidiDevice(name: String,
     _closeCount += 1
     closeFailure.foreach(failure => throw failure)
     _isOpen = false
+    openReceivers.toSeq.foreach(_.close())
   }
 
   override def isOpen: Boolean = _isOpen
@@ -92,25 +105,43 @@ class FakeMidiDevice(name: String,
 
   override def getMaxTransmitters: Int = maxTransmitters
 
-  override def getReceiver: Receiver = if (providesReceiver) receiver else null
+  override def getReceiver: Receiver = {
+    if (maxReceivers == 0) {
+      throw MidiUnavailableException("The device has no receivers")
+    }
+    receiverFailure.foreach(failure => throw failure)
 
-  override def getReceivers: util.List[Receiver] = util.List.of(receiver)
+    val receiver = FakeReceiver()
+    openReceivers += receiver
+    _receiverCount += 1
+    receiver
+  }
+
+  override def getReceivers: util.List[Receiver] = util.List.copyOf(openReceivers.asJava)
 
   override def getTransmitter: Transmitter = transmitter
 
   override def getTransmitters: util.List[Transmitter] = util.List.of(transmitter)
-}
 
-/** A Java Sound [[Receiver]] that records every message sent to it, with its time stamp. */
-class RecordingJavaReceiver extends Receiver {
-  private val _messages: mutable.Buffer[(MidiMessage, Long)] = mutable.ArrayBuffer()
+  /** A receiver of the device, which records the messages sent to it on the device. */
+  private class FakeReceiver extends Receiver {
+    private var isClosed: Boolean = false
 
-  /** The messages received so far, in order, each with its time stamp. */
-  def messages: Seq[(MidiMessage, Long)] = _messages.toSeq
+    override def send(message: MidiMessage, timeStamp: Long): Unit = {
+      if (isClosed) {
+        throw IllegalStateException("The receiver is closed")
+      }
+      if (!_isOpen) {
+        throw IllegalStateException("The device of the receiver is not open")
+      }
+      _receivedMessages += (message -> timeStamp)
+    }
 
-  override def send(message: MidiMessage, timeStamp: Long): Unit = _messages += (message -> timeStamp)
-
-  override def close(): Unit = {}
+    override def close(): Unit = {
+      isClosed = true
+      openReceivers -= this
+    }
+  }
 }
 
 /** A Java Sound [[Transmitter]] that only holds the receiver it is given, `null` until then. */

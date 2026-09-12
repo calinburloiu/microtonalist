@@ -40,15 +40,17 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
    * A handle over [[device]], which is not yet connected to it. The parameters configure the device.
    */
   private abstract class Fixture(maxTransmitters: Int = -1,
+                                 maxReceivers: Int = -1,
                                  openFailure: Option[Exception] = None,
                                  closeFailure: Option[Exception] = None,
-                                 providesReceiver: Boolean = true) {
+                                 receiverFailure: Option[Exception] = None) {
     val businessync: Stub[Businessync] = stub[Businessync]
     businessync.publish.returns(_ => ())
 
     val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, businessync)
     val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters,
-      openFailure = openFailure, closeFailure = closeFailure, providesReceiver = providesReceiver)
+      maxReceivers = maxReceivers, openFailure = openFailure, closeFailure = closeFailure,
+      receiverFailure = receiverFailure)
 
     /** Informs the handle that `connectedDevice` got connected, as [[JavaMidiManager]] does. */
     def connect(connectedDevice: FakeMidiDevice = device): Unit = {
@@ -325,8 +327,38 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
 
       // Then
-      device.receiver.messages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+      device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
         Seq((NoteOnMidiMsg(2, MidiNote.C4, 100), 42L))
+    }
+
+    "obtain a single receiver from the device for all the messages it sends while the device is open" in new Fixture {
+      // Given
+      connect()
+      handle.open()
+
+      // When
+      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 0), 43L)
+
+      // Then
+      device.receivedMessages should have size 2
+      device.receiverCount shouldEqual 1
+    }
+
+    "send to the open device again after the device was closed and opened again" in new Fixture {
+      // Given
+      connect()
+      handle.open()
+      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      handle.close()
+      handle.open()
+
+      // When
+      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 0), 43L)
+
+      // Then
+      device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+        Seq((NoteOnMidiMsg(2, MidiNote.C4, 100), 42L), (NoteOnMidiMsg(2, MidiNote.C4, 0), 43L))
     }
 
     "drop the messages sent while the device is connected but not open" in new Fixture {
@@ -337,7 +369,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
 
       // Then
-      device.receiver.messages shouldBe empty
+      device.receivedMessages shouldBe empty
     }
 
     "drop the messages sent before the device is connected, instead of delivering them once it opens" in new Fixture {
@@ -350,19 +382,48 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
       // Then
       handle.isOpen shouldBe true
-      device.receiver.messages shouldBe empty
+      device.receivedMessages shouldBe empty
     }
 
-    "drop the messages when the open device provides no receiver" in new Fixture(providesReceiver = false) {
+    "publish MidiDeviceFailedToOpenEvent when the device fails to provide a receiver, and drop the messages" in
+      new Fixture(receiverFailure = Some(failure)) {
+        // Given
+        connect()
+
+        // When
+        handle.open()
+
+        // Then
+        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
+
+        // When / Then
+        noException should be thrownBy handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+        device.receivedMessages shouldBe empty
+      }
+
+    "drop the messages when the device opened again fails to provide a receiver" in new Fixture {
+      // Given
+      connect()
+      handle.open()
+      handle.close()
+      device.receiverFailure = Some(failure)
+
+      // When
+      handle.open()
+
+      // Then
+      noException should be thrownBy handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      device.receivedMessages shouldBe empty
+    }
+
+    "not ask a device that is not an output for a receiver" in new Fixture(maxReceivers = 0) {
       // Given
       connect()
       handle.open()
 
-      // When
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
-
-      // Then
-      device.receiver.messages shouldBe empty
+      // When / Then
+      noException should be thrownBy handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      device.receiverCount shouldEqual 0
     }
   }
 

@@ -53,6 +53,12 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
   @volatile private var _info: Option[MidiDeviceInfo] = None
   @volatile private var _device: Option[MidiDevice] = None
+  /**
+   * The receiver obtained from the device when it was last opened, if it is an output. A Java Sound device creates a
+   * new receiver on each `getReceiver` call and keeps it until it is closed, so the handle obtains a single one per
+   * open; closing the device closes it.
+   */
+  @volatile private var deviceReceiver: Option[Receiver] = None
 
   private var _state: State = State.Closed
 
@@ -73,8 +79,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   private class HandleReceiver extends MidiReceiver {
     override def send(message: MidiMsg, timeStamp: Long): Unit = message match {
       case midi1Message: Midi1Msg =>
-        for (midiDevice <- _device if midiDevice.isOpen; deviceReceiver <- Option(midiDevice.getReceiver)) {
-          deviceReceiver.send(midi1Message.asJava, timeStamp)
+        for (receiver <- deviceReceiver if isOpen) {
+          receiver.send(midi1Message.asJava, timeStamp)
         }
       case midi2Message: Midi2Msg =>
         logger.warn(s"Dropping $midi2Message sent to device $id: Java Sound devices speak MIDI 1.0 only.")
@@ -183,10 +189,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
   private def doOpen(): Unit = withLock {
     _state = State.Open
+    deviceReceiver = None
 
     try {
       _device.foreach { dev =>
         dev.open()
+
+        if (isOutputDevice) {
+          deviceReceiver = Some(dev.getReceiver)
+        }
 
         if (isInputDevice) {
           dev.getTransmitter.setReceiver(inboundReceiver)

@@ -67,7 +67,10 @@ for a still-present id and discards it; the retained instance is replaced only a
 connected set, which is what an unplug/replug does. `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a
 `javax.sound.midi.MidiDevice` (reachable only through its `private[javamidi] device: Option[MidiDevice]`) and the
 **Java Sound boundary**: its receiver converts each `Midi1Msg` with `asJava` and sends it to the open device (a
-`Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only), and the Java `Receiver` it hands to the
+`Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only) through the single Java `Receiver` it
+obtains from an output device each time it opens it — a Java Sound device creates a new receiver on every
+`getReceiver` call and keeps it until it is closed, so asking per message would leak one per message, and a device
+that cannot provide one fails the open with `MidiDeviceFailedToOpenEvent` — and the Java `Receiver` it hands to the
 device's transmitter converts with `asScala` into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 `JavaMidiEnvironment` is the seam between the manager and the platform — `deviceInfos`, `deviceOf(info)` and
 `subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment, as
