@@ -240,7 +240,8 @@ lazy val scMidiModule = (project in file("sc-midi"))
   .withId("sc-midi")
   .dependsOn(
     businessyncModule,
-    commonModule
+    commonModule,
+    commonTestUtilsModule % Test,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(

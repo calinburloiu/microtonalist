@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.scmidi
+package org.calinburloiu.music.microtonalist.common
 
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, Logger}
