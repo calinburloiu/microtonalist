@@ -67,12 +67,15 @@ for a still-present id and discards it; the retained instance is replaced only a
 connected set, which is what an unplug/replug does. `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a
 `javax.sound.midi.MidiDevice` (reachable only through its `private[javamidi] device: Option[MidiDevice]`) and the
 **Java Sound boundary**: its receiver converts each `Midi1Msg` with `asJava` and sends it to the open device (a
-`Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only), and the Java `Receiver` it hands to the
+`Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only) through the single Java `Receiver` it
+obtains from an output device each time it opens it — a Java Sound device creates a new receiver on every
+`getReceiver` call and keeps it until it is closed, so asking per message would leak one per message, and a device
+that cannot provide one fails the open with `MidiDeviceFailedToOpenEvent` — and the Java `Receiver` it hands to the
 device's transmitter converts with `asScala` into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 `JavaMidiEnvironment` is the seam between the manager and the platform — `deviceInfos`, `deviceOf(info)` and
-`subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment
-(follow-up work under #177); `CoreMidi4JEnvironment` is the production implementation and the only file that calls the
-CoreMIDI4J and `MidiSystem` statics.
+`subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment, as
+`JavaMidiManagerTest` does; `CoreMidi4JEnvironment`, in a file of its own, is the production implementation and the
+only file that calls the CoreMIDI4J and `MidiSystem` statics, which is why `build.sbt` excludes it from coverage.
 
 **`MidiEvent`** is a sealed `BusinessyncEvent` hierarchy — everything a `MidiManager` implementation publishes on the
 bus. `MidiEnvironmentChangedEvent` signals a change to the environment; the rest come as success/failure pairs for each
@@ -252,15 +255,12 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
 
 ## Notes / subject to change
 
-- Coverage targets are currently below the project-wide 80% goal (TODO #177). `JavaMidiManager` and
-  `JavaMidiDeviceHandle` are uncovered, but neither is hardware-bound any more, and for different reasons: the
-  `JavaMidiEnvironment` seam lets the manager's bookkeeping be driven over a fake environment, while the handle no
-  longer resolves a device itself — it is handed one through `onConnect(info, device)`, so a test can pass it a
-  `MidiDevice` double without an environment at all. Writing those tests is the follow-up work under #177.
-  `JavaMidiManager` does not yet keep its handles up to date as `MidiDeviceHandle` documents: it informs a handle of
+- `JavaMidiManager` does not yet keep its handles up to date as `MidiDeviceHandle` documents: it informs a handle of
   its device only from `openInput` / `openOutput`, neither when the device gets connected nor when it gets
   disconnected; `purgeDisconnectedDevices` orphans the handle of an unplugged open device; and opening an already
-  open device again (two tracks sharing it) closes the Java device behind the handle (#288).
+  open device again (two tracks sharing it) closes the Java device behind the handle (#288). `JavaMidiManagerTest`
+  and `JavaMidiDeviceHandleTest` pin the expected behaviour in tests that stay ignored, each under a `TODO #288`, until
+  the fix lands; the tests that run exercise those paths without asserting the outcomes #288 is going to change.
 - The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.

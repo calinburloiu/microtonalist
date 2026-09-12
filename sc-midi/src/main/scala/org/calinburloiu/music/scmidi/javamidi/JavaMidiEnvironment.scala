@@ -16,10 +16,7 @@
 
 package org.calinburloiu.music.scmidi.javamidi
 
-import uk.co.xfactorylibrarians.coremidi4j.{CoreMidiDeviceProvider, CoreMidiNotification}
-
-import javax.sound.midi.{MidiDevice, MidiSystem}
-import scala.collection.immutable.ArraySeq
+import javax.sound.midi.MidiDevice
 
 /**
  * The Java Sound environment a [[JavaMidiManager]] runs in: which devices are present, how a device is resolved, and
@@ -56,23 +53,4 @@ trait JavaMidiEnvironment {
    * @return a subscription; closing it unsubscribes the handler.
    */
   def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable
-}
-
-/**
- * The production [[JavaMidiEnvironment]]: delegates device discovery and change notifications to CoreMIDI4J, which
- * replaces the default Java Sound MIDI device provider to make Java MIDI work on macOS (this should also work on
- * Windows), and device resolution to `MidiSystem`. It is the only production code that calls these statics.
- */
-object CoreMidi4JEnvironment extends JavaMidiEnvironment {
-
-  override def deviceInfos: Seq[MidiDevice.Info] = ArraySeq.unsafeWrapArray(CoreMidiDeviceProvider.getMidiDeviceInfo)
-
-  override def deviceOf(info: MidiDevice.Info): MidiDevice = MidiSystem.getMidiDevice(info)
-
-  override def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable = {
-    // CoreMIDI4J matches listeners by identity on removal, so the same adapter instance must be used for both calls.
-    val notification: CoreMidiNotification = () => handler()
-    CoreMidiDeviceProvider.addNotificationListener(notification)
-    () => CoreMidiDeviceProvider.removeNotificationListener(notification)
-  }
 }
