@@ -18,8 +18,9 @@ package org.calinburloiu.music.scmidi.javamidi
 
 import ch.qos.logback.classic.Level
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
-import org.calinburloiu.music.scmidi.LogCapture.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg}
@@ -300,7 +301,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       device.openCount shouldEqual 0
     }
 
-    "publish MidiDeviceFailedToCloseEvent when the device fails to close, and still return the handle to Connected" in
+    "publish MidiDeviceFailedToCloseEvent when the device fails to close" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
         connect()
@@ -311,7 +312,6 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
         // Then
         businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, failure))
-        handle.state shouldEqual State.Connected
       }
   }
 

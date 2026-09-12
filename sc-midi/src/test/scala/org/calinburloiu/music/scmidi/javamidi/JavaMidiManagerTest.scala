@@ -18,8 +18,9 @@ package org.calinburloiu.music.scmidi.javamidi
 
 import ch.qos.logback.classic.Level
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
-import org.calinburloiu.music.scmidi.LogCapture.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.scalamock.stubs.{Stub, Stubs}
@@ -274,7 +275,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       direction.openedDevices(manager) shouldBe empty
     }
 
-    // TODO #288 closeDevice releases a single open and then drops the handle, whatever its reference count.
+    // TODO #288 The second open already closes the device behind its handle, so closeDevice, which releases a single
+    //   open and drops the handle whatever its reference count, then finds the handle not open and does nothing.
     "keep a device opened twice open, and its handle known, until it is closed twice" ignore new EndpointFixture {
       // Given
       val handle: MidiDeviceHandle = direction.open(manager, id)
@@ -575,7 +577,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       environment.subscriberCount shouldEqual 0
     }
 
-    // TODO #288 closeDevice releases a single open of a handle, so a device opened more than once is left open.
+    // TODO #288 The second open already closes the device behind its handle, so close() finds the handle not open and
+    //   leaves it known; once that is fixed, closeDevice still releases a single open of the handle and drops it.
     "close a device opened more than once" ignore new Fixture {
       // Given
       val device: FakeMidiDevice = Output.newDevice(deviceName)
