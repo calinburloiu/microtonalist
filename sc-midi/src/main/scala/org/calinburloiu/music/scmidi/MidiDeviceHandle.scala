@@ -135,35 +135,39 @@ object MidiDeviceHandle {
    * Represents the state of a MIDI device's connection and openness.
    *
    * {{{
-   *    ┌─────────────┐     connected    ┌────┐
+   *    ┌─────────────┐      connect     ┌────┐
    *    │             ├──────────────────►    │
-   *    │WaitingToOpen│                  │Open│
-   *    │             │            ┌─────►    │
-   *    └▲────────────┘            │     └────┘
-   *     │   │                   open       │
-   *     │   │                     │      close
-   *     │   │            ┌────────┴┐       │
-   *     │   │            │Connected◄───────┘
-   *     │   │close       └─▲────┬──┘
-   * open│   │              │    │
-   *     │   │     connected│    │disconnected
-   *     │   │              │    │
-   *     │   │             ┌┴────▼┐
-   *     │   └─────────────►      │
-   *     │                 │Closed│
+   *    │WaitingToOpen│                  │Open├───┐
+   *    │             │            ┌─────►    │   │
+   *    └▲────────────┘            │     └────┘   │
+   *     │   │                   open       │     │
+   *     │   │                     │      close   │
+   *     │   │            ┌────────┴┐       │     │
+   *     │   │            │Connected◄───────┘     │
+   *     │   │close       └─▲────┬──┘             │disconnect
+   * open│   │              │    │                │
+   *     │   │       connect│    │disconnect      │
+   *     │   │              │    │                │
+   *     │   │             ┌┴────▼┐               │
+   *     │   └─────────────►      │               │
+   *     │                 │Closed◄───────────────┘
    *     └─────────────────┤      │
    *                       └──────┘
    * }}}
    *
-   * @param isConnected Indicates whether the device is connected.
-   * @param isOpen      Indicates whether the device is open for use.
+   * The four states cover every combination of [[isConnected]] and [[isOpenRequested]], so the device is open for use
+   * only in [[Open]], where it is both connected and requested to open.
+   *
+   * @param isConnected     Indicates whether the device is connected.
+   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. [[MidiDeviceHandle.open]] was
+   *                        called more times than [[MidiDeviceHandle.close]], whether or not it is connected.
    */
   //@formatter:off
-  enum State(val isConnected: Boolean, val isOpen: Boolean) {
-    case Closed         extends State(isConnected = false,  isOpen = false)
-    case Connected      extends State(isConnected = true,   isOpen = false)
-    case WaitingToOpen  extends State(isConnected = false,  isOpen = false)
-    case Open           extends State(isConnected = true,   isOpen = true)
+  enum State(val isConnected: Boolean, val isOpenRequested: Boolean) {
+    case Closed        extends State(isConnected = false, isOpenRequested = false)
+    case Connected     extends State(isConnected = true,  isOpenRequested = false)
+    case WaitingToOpen extends State(isConnected = false, isOpenRequested = true)
+    case Open          extends State(isConnected = true,  isOpenRequested = true)
   }
   //@formatter:on
 }

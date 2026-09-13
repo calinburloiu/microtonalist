@@ -67,4 +67,25 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
       handle.isOutputDevice shouldBe isOutputDevice
     }
   }
+
+  behavior of "State"
+
+  it should "cover every combination of being connected and being requested to open with exactly one state" in {
+    // Given
+    val cases = Table[MidiDeviceHandle.State, Boolean, Boolean](
+      ("state", "isConnected", "isOpenRequested"),
+      (MidiDeviceHandle.State.Closed, false, false),
+      (MidiDeviceHandle.State.Connected, true, false),
+      (MidiDeviceHandle.State.WaitingToOpen, false, true),
+      (MidiDeviceHandle.State.Open, true, true)
+    )
+
+    forAll(cases) { (state, isConnected, isOpenRequested) =>
+      // When / Then
+      state.isConnected shouldBe isConnected
+      state.isOpenRequested shouldBe isOpenRequested
+    }
+    // Then
+    MidiDeviceHandle.State.values.map(state => (state.isConnected, state.isOpenRequested)).distinct should have size 4
+  }
 }
