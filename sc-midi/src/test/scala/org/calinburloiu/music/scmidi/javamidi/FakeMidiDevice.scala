@@ -76,7 +76,7 @@ class FakeMidiDevice(name: String,
   /** The [[MidiDeviceId]] Microtonalist derives from the device's name and vendor. */
   def id: MidiDeviceId = MidiDeviceId(name, vendor)
 
-  /** How many times the device was successfully opened. */
+  /** How many times `open` was called on the device, including the calls that failed. */
   def openCount: Int = _openCount
 
   /** How many times `close` was called on the device, including the calls that failed. */
@@ -85,8 +85,8 @@ class FakeMidiDevice(name: String,
   override def getDeviceInfo: MidiDevice.Info = info
 
   override def open(): Unit = {
-    openFailure.foreach(failure => throw failure)
     _openCount += 1
+    openFailure.foreach(failure => throw failure)
     _isOpen = true
   }
 

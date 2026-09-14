@@ -36,6 +36,17 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
   private val failure: Exception = MidiUnavailableException("The device is busy")
 
+  private val noteOn: NoteOnMidiMsg = NoteOnMidiMsg(2, MidiNote.C4, 100)
+
+  /** A second note on of the same pitch, with the zero velocity that conventionally releases it. */
+  private val secondNoteOn: NoteOnMidiMsg = NoteOnMidiMsg(2, MidiNote.C4, 0)
+
+  /** The sustain pedal (CC 64) pressed, as the tests expect it converted from Java Sound. */
+  private val sustainOn: CcMidiMsg = CcMidiMsg(3, 64, 127)
+
+  /** The sustain pedal (CC 64) released, as the tests expect it converted from Java Sound. */
+  private val sustainOff: CcMidiMsg = CcMidiMsg(3, 64, 0)
+
   /**
    * A handle over [[device]], which is not yet connected to it. The parameters configure the device.
    */
@@ -324,11 +335,11 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.open()
 
       // When
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      handle.receiver.send(noteOn, 42L)
 
       // Then
       device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
-        Seq((NoteOnMidiMsg(2, MidiNote.C4, 100), 42L))
+        Seq((noteOn, 42L))
     }
 
     "obtain a single receiver from the device for all the messages it sends while the device is open" in new Fixture {
@@ -337,8 +348,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.open()
 
       // When
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 0), 43L)
+      handle.receiver.send(noteOn, 42L)
+      handle.receiver.send(secondNoteOn, 43L)
 
       // Then
       device.receivedMessages should have size 2
@@ -349,16 +360,16 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       // Given
       connect()
       handle.open()
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      handle.receiver.send(noteOn, 42L)
       handle.close()
       handle.open()
 
       // When
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 0), 43L)
+      handle.receiver.send(secondNoteOn, 43L)
 
       // Then
       device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
-        Seq((NoteOnMidiMsg(2, MidiNote.C4, 100), 42L), (NoteOnMidiMsg(2, MidiNote.C4, 0), 43L))
+        Seq((noteOn, 42L), (secondNoteOn, 43L))
     }
 
     "drop the messages sent while the device is connected but not open" in new Fixture {
@@ -366,7 +377,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       connect()
 
       // When
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      handle.receiver.send(noteOn, 42L)
 
       // Then
       device.receivedMessages shouldBe empty
@@ -377,7 +388,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.open()
 
       // When
-      handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      handle.receiver.send(noteOn, 42L)
       connect()
 
       // Then
@@ -397,7 +408,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
 
         // When / Then
-        noException should be thrownBy handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+        noException should be thrownBy handle.receiver.send(noteOn, 42L)
         device.receivedMessages shouldBe empty
       }
 
@@ -412,7 +423,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.open()
 
       // Then
-      noException should be thrownBy handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      noException should be thrownBy handle.receiver.send(noteOn, 42L)
       device.receivedMessages shouldBe empty
     }
 
@@ -422,7 +433,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.open()
 
       // When / Then
-      noException should be thrownBy handle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 42L)
+      noException should be thrownBy handle.receiver.send(noteOn, 42L)
       device.receiverCount shouldEqual 0
     }
   }
@@ -443,8 +454,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         device.transmitter.getReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 127), 7L)
 
         // Then
-        receiver1.send.calls shouldEqual Seq((CcMidiMsg(3, 64, 127), 7L))
-        receiver2.send.calls shouldEqual Seq((CcMidiMsg(3, 64, 127), 7L))
+        receiver1.send.calls shouldEqual Seq((sustainOn, 7L))
+        receiver2.send.calls shouldEqual Seq((sustainOn, 7L))
       }
 
     "keep fanning out after Java Sound closes the receiver the handle subscribed to the device" in new Fixture {
@@ -461,7 +472,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       inboundReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 0), 8L)
 
       // Then
-      receiver.send.calls shouldEqual Seq((CcMidiMsg(3, 64, 0), 8L))
+      receiver.send.calls shouldEqual Seq((sustainOff, 8L))
     }
   }
 

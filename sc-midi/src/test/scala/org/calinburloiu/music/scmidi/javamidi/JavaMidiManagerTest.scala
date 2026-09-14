@@ -35,12 +35,12 @@ import javax.sound.midi.MidiUnavailableException
  *
  * The manager keeps inputs and outputs apart, behind two mirrored halves of its API; the behaviours of each half are
  * shared (see [[deviceEndpoint]]) and run once per [[Direction]]. The other sections cover what is common to both.
- *
- * Where the manager does not yet keep its handles up to date as [[MidiManager]] and [[MidiDeviceHandle]] document
- * (#288), the tests that run exercise the code path without asserting the outcome that #288 is going to change, while
- * the tests that pin the expected outcome are ignored, each under a `TODO #288`, until #288 is fixed.
  */
 class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks with Stubs {
+
+  // TODO #288 The manager does not yet keep its handles up to date as MidiManager and MidiDeviceHandle document.
+  //   Until that is fixed, the tests that run exercise those code paths without asserting the outcome #288 is going
+  //   to change, while the tests that pin the expected outcome are ignored, each under its own TODO #288.
 
   private val deviceName: String = "CoreMIDI4J - FP-90"
 
@@ -328,7 +328,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         device.isOpen shouldBe false
       }
 
-    "close an open device that got unplugged and report it as disconnected on refresh" in new EndpointFixture {
+    "disconnect an open device that got unplugged and report it as disconnected on refresh" in new EndpointFixture {
       // Given
       direction.open(manager, id)
       environment.unplug(device.getDeviceInfo)
