@@ -90,6 +90,15 @@ class JavaMidiManager(businessync: Businessync,
    * Resolves the Java Sound device described by `javaInfo`, or `None` if it cannot be: a `MidiUnavailableException`
    * or an `IllegalArgumentException` drops the device silently; any other exception is logged and published as a
    * [[MidiDeviceFailedToConnectEvent]] before the device is dropped.
+   *
+   * Both exceptions dropped silently mean that the device listed a moment earlier is not usable right now, which is
+   * routine while devices are plugged in and unplugged, and which every [[refresh]] would report again:
+   *
+   *   - `MidiUnavailableException` means the device is there but its resources are not, typically because another
+   *     application holds it exclusively.
+   *   - `IllegalArgumentException` is what `MidiSystem.getMidiDevice` (and CoreMIDI4J's provider) throws for an info
+   *     that no longer describes an installed device, so it is the outcome of the race between listing the devices
+   *     and resolving them: the device was unplugged in between, and the next refresh will not list it at all.
    */
   private def resolveDevice(javaInfo: MidiDevice.Info): Option[MidiDevice] = {
     try {
@@ -175,18 +184,18 @@ object JavaMidiManager {
       // New devices
       for (connectedDevice <- devices) {
         val id = connectedDevice.id
-        var wasConnected = false
-        connectedDevices.computeIfAbsent(id, _ => {
-          wasConnected = true
-          connectedDevice
-        })
+        // The latest resolution always wins: an id may keep standing for a device that was meanwhile replaced by
+        // another one with the same name and vendor, and the device resolved earlier is then stale.
+        val previousDevice = Option(connectedDevices.put(id, connectedDevice))
 
-        if (wasConnected) {
+        if (previousDevice.isEmpty) {
           logDebugConnectedDevice(connectedDevice.info)
           businessync.publish(MidiDeviceConnectedEvent(id))
           // TODO #288 A handle already requested to be opened for this device is not informed that the device got
           //   connected (onConnect), so it stays unconnected until openDevice is called again.
         }
+        // TODO #288 A handle holding the device that was replaced above is not informed of the replacement either, so
+        //   it keeps using a device that is no longer the one this id stands for.
       }
 
       // Removed devices
@@ -194,7 +203,7 @@ object JavaMidiManager {
 
       for (previousId <- connectedDevices.keys.asScala if !currentIds.contains(previousId)) {
         connectedDevices.remove(previousId)
-        logger.info(s"${endpointType.toString.capitalize} device $previousId was disconnected.")
+        logger.warn(s"${endpointType.toString.capitalize} device $previousId was disconnected.")
         businessync.publish(MidiDeviceDisconnectedEvent(previousId))
       }
     }

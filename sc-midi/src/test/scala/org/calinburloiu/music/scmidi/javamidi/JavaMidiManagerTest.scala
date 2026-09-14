@@ -44,6 +44,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
   private val deviceName: String = "CoreMIDI4J - FP-90"
 
+  /** The Java Sound information of a device that a test plugs in without a device behind it. */
+  private val javaDeviceInfo: TestDeviceInfo = TestDeviceInfo(deviceName, "Roland", "Digital piano", "1.0")
+
   /** One direction of the [[MidiManager]] API, so that the same behaviours run for inputs and for outputs. */
   private trait Direction {
     /** Creates a device that works in this direction only. */
@@ -438,6 +441,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       manager.inputDeviceIds shouldEqual Seq(id)
       manager.outputDeviceIds shouldEqual Seq(id)
+      // The event carries no direction (see MidiEvent), so the input and the output endpoint each report the same one.
       businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceConnectedEvent(id))
 
       // When
@@ -462,23 +466,26 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(device.id))
     }
 
-    "keep the device first resolved for an id that stays present" in new Fixture {
-      // Given
-      val firstDevice: FakeMidiDevice = Output.newDevice(deviceName)
-      val laterDevice: FakeMidiDevice = Output.newDevice(deviceName)
-      environment.plug(firstDevice)
-      val manager: JavaMidiManager = newManager()
-      environment.unplug(firstDevice.getDeviceInfo)
-      environment.plug(laterDevice)
+    "replace the device resolved earlier for an id that stays present, without reporting it as connected again" in
+      new Fixture {
+        // Given
+        val firstDevice: FakeMidiDevice = Output.newDevice(deviceName)
+        val laterDevice: FakeMidiDevice = Output.newDevice(deviceName)
+        val id: MidiDeviceId = firstDevice.id
+        environment.plug(firstDevice)
+        val manager: JavaMidiManager = newManager()
+        environment.unplug(firstDevice.getDeviceInfo)
+        environment.plug(laterDevice)
 
-      // When
-      manager.refresh()
-      manager.openOutput(firstDevice.id)
+        // When
+        manager.refresh()
+        manager.openOutput(id)
 
-      // Then
-      firstDevice.isOpen shouldBe true
-      laterDevice.isOpen shouldBe false
-    }
+        // Then
+        laterDevice.isOpen shouldBe true
+        firstDevice.isOpen shouldBe false
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceOpenedEvent(id))
+      }
 
     "resolve the device afresh for an id that left and came back" in new Fixture {
       // Given
@@ -499,18 +506,21 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       firstDevice.isOpen shouldBe false
     }
 
-    "silently skip a device that is unavailable or that the environment does not know" in {
+    "silently skip a device that is unavailable or that is gone by the time it is resolved" in {
       // Given
       val failures = Table[Exception](
         "failure",
+        // The device is there, but another application holds its resources.
         MidiUnavailableException("The device is busy"),
+        // The device was unplugged between the listing and the resolution, so its info no longer describes an
+        // installed device, which is what MidiSystem.getMidiDevice reports this way.
         IllegalArgumentException("Unknown device")
       )
 
       forAll(failures) { failure =>
         new Fixture {
           // Given
-          environment.plugUnresolvable(TestDeviceInfo(deviceName, "Roland", "Digital piano", "1.0"), failure)
+          environment.plugUnresolvable(javaDeviceInfo, failure)
 
           // When
           val manager: JavaMidiManager = newManager()
@@ -526,8 +536,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
     "skip a device that fails to resolve for any other reason and report it as failed to connect" in new Fixture {
       // Given
       val failure: Exception = IllegalStateException("CoreMIDI failure")
-      val javaInfo: TestDeviceInfo = TestDeviceInfo(deviceName, "Roland", "Digital piano", "1.0")
-      environment.plugUnresolvable(javaInfo, failure)
+      environment.plugUnresolvable(javaDeviceInfo, failure)
 
       // When
       val manager: JavaMidiManager = newManager()
@@ -535,7 +544,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       manager.inputDeviceIds shouldBe empty
       manager.outputDeviceIds shouldBe empty
-      businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToConnectEvent(javaInfo.asMidiDeviceId, failure))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToConnectEvent(javaDeviceInfo.asMidiDeviceId, failure))
     }
   }
 
@@ -618,8 +627,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
     "report a device that fails to resolve at error level, with the failure" in new Fixture {
       // Given
-      environment.plugUnresolvable(TestDeviceInfo(deviceName, "Roland", "Digital piano", "1.0"),
-        IllegalStateException("CoreMIDI failure"))
+      environment.plugUnresolvable(javaDeviceInfo, IllegalStateException("CoreMIDI failure"))
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
@@ -667,7 +675,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       )
     }
 
-    "report an environment change and the disconnection of a device at info level" in new Fixture {
+    "report an environment change at info level and the disconnection of a device at warn level" in new Fixture {
       // Given
       val device: FakeMidiDevice = Input.newDevice(deviceName)
       environment.plug(device)
@@ -680,10 +688,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
 
       // Then
-      events.messagesAt(Level.INFO) shouldEqual Seq(
-        "The MIDI environment has changed.",
-        s"Input device ${device.id} was disconnected."
-      )
+      events.messagesAt(Level.INFO) shouldEqual Seq("The MIDI environment has changed.")
+      events.messagesAt(Level.WARN) shouldEqual Seq(s"Input device ${device.id} was disconnected.")
     }
   }
 }

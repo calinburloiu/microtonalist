@@ -490,7 +490,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
       // Then
       events.failuresAt(Level.ERROR) shouldEqual
-        Seq(("""Failed to open input/output device "CoreMIDI4J - FP-90" (Roland).""", Some("The device is busy")))
+        Seq(("""Failed to open input/output device "CoreMIDI4J - FP-90" (Roland).""", Some(failure.getMessage)))
     }
 
     "report a failure to close the device at error level, with its cause" in
@@ -506,7 +506,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
         // Then
         events.failuresAt(Level.ERROR) shouldEqual
-          Seq(("""Failed to close input/output device "CoreMIDI4J - FP-90" (Roland)!""", Some("The device is busy")))
+          Seq(("""Failed to close input/output device "CoreMIDI4J - FP-90" (Roland)!""", Some(failure.getMessage)))
       }
 
     "report a failure to disconnect from the device at error level, with its cause" in
@@ -522,7 +522,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         // Then
         events.failuresAt(Level.ERROR) shouldEqual Seq((
           """Failed to disconnect from input/output device "CoreMIDI4J - FP-90" (Roland)!""",
-          Some("The device is busy")
+          Some(failure.getMessage)
         ))
       }
   }

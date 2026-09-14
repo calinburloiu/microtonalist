@@ -61,11 +61,12 @@ vendor)`) and `MidiEndpointType` (an `enum` of `None`/`Input`/`Output`/`InputOut
 keeps two internal endpoints — one for inputs, one for outputs — with the device diffing, the reference-counted
 open/close bookkeeping and the `MidiEvent` publishing; each `refresh()` resolves every `MidiDevice` once, builds its
 `MidiDeviceInfo` through `JavaMidiConverters.asMidiDeviceInfo` (Java Sound's `-1` becomes `Unlimited`) and hands the
-resolved device to the handle when it is opened. An endpoint **retains the `MidiDevice` it was handed when it first
-saw an id** (the connected-device map is filled with `computeIfAbsent`), so a later `refresh()` resolves a fresh device
-for a still-present id and discards it; the retained instance is replaced only after the id leaves and re-enters the
-connected set, which is what an unplug/replug does. `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a
-`javax.sound.midi.MidiDevice` (reachable only through its `private[javamidi] device: Option[MidiDevice]`) and the
+resolved device to the handle when it is opened. An endpoint **retains the `MidiDevice` resolved last for an id** (the
+connected-device map is filled with `put`), so a later `refresh()` replaces the instance retained for a still-present id
+rather than discarding the fresh one: an id may keep standing for a device that was meanwhile swapped for another one
+with the same name and vendor, and the instance resolved earlier is then stale. Only the first `refresh()` that sees an
+id reports it *connected*. `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice`
+(reachable only through its `private[javamidi] device: Option[MidiDevice]`) and the
 **Java Sound boundary**: its receiver converts each `Midi1Msg` with `asJava` and sends it to the open device (a
 `Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only) through the single Java `Receiver` it
 obtains from an output device each time it opens it — a Java Sound device creates a new receiver on every
@@ -227,10 +228,12 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
 `JavaMidiManager`'s internal endpoints reconcile the scanned device set against known state on every `refresh()` and
 publish the [`MidiEvent`s](#device-handling) as side effects of that diff: a newly seen device is reported
 *connected*, a vanished one *disconnected* (preceded by `MidiEnvironmentChangedEvent`), opening and closing emit
-*opened*/*closed*, and any failed transition emits the matching `…Failed…Event` carrying the exception. Nothing
-subscribes to these events yet — no `@Subscribe` handler or `Businessync.subscribe` call in the repository takes a
-`MidiEvent`, and `Businessync.subscribe` is itself still a stub (#90). They are published so that consumers such as
-the `tuner` track lifecycle can react to device changes instead of polling once there is a bus to do it on.
+*opened*/*closed*, and any failed transition emits the matching `…Failed…Event` carrying the exception. A device
+event identifies its device by `MidiDeviceId` alone and carries no direction, so a device that is both an input and
+an output is reported once by each endpoint, by two events that are equal. Nothing subscribes to these events yet — no
+`@Subscribe` handler or `Businessync.subscribe` call in the repository takes a `MidiEvent`, and
+`Businessync.subscribe` is itself still a stub (#90). They are published so that consumers such as the `tuner` track
+lifecycle can react to device changes instead of polling once there is a bus to do it on.
 
 ## Message conversion model
 
