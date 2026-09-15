@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.calinburloiu.music.scmidi.MidiManager
+import org.calinburloiu.music.scmidi.{MidiDeviceDisconnectedEvent, MidiDeviceFailedToDisconnectEvent, MidiDeviceId, MidiDeviceOpenedEvent, MidiEndpointType, MidiEvent, MidiManager}
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
@@ -27,7 +27,9 @@ import scala.collection.immutable.VectorMap
 // TODO #121 Logic to update tracks.
 
 /**
- * Manages a collection of MIDI tracks and updates their tuning based on external events.
+ * Manages a collection of MIDI tracks and updates them based on external events: it re-tunes every track when the
+ * tuning changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks
+ * whose input device gets disconnected.
  */
 @NotThreadSafe
 class TrackManager(private val midiManager: MidiManager,
@@ -50,6 +52,9 @@ class TrackManager(private val midiManager: MidiManager,
    */
   def replaceAllTracks(trackSpecs: TrackSpecs): Unit = {
     closeTracks()
+
+    // Forget the closed tracks before building the new ones, whose devices may publish events while they open
+    tracks = Seq.empty
 
     tracks = trackSpecs.tracks
       .filter { spec =>
@@ -116,6 +121,41 @@ class TrackManager(private val midiManager: MidiManager,
   @Subscribe
   private def onTuningChanged(event: TuningEvent): Unit = {
     tune(event.currentTuning)
+  }
+
+  /**
+   * Handles the MIDI device events that concern the devices of the tracks:
+   *
+   *   - when an output device opens, it resets the tuner of every track whose output is that device, since the device
+   *     may have (re)opened after the track was built;
+   *   - when an input device gets disconnected, or fails to, it releases the input of every track whose input is that
+   *     device, so that no note stays held on its output.
+   *
+   * @param event The MIDI event published by the [[MidiManager]].
+   */
+  // TODO #90 Remove @Subscribe after implementing businessync. Guava calls this handler on the thread that publishes
+  //  the event, which is CoreMIDI4J's notification thread for a device change, while TrackManager is meant to be used
+  //  on the business thread only.
+  @Subscribe
+  private def onMidiEvent(event: MidiEvent): Unit = event match {
+    case MidiDeviceOpenedEvent(deviceId, MidiEndpointType.Output) =>
+      // TODO #303 Restore the current tuning after resetting the tuner.
+      tracksWithOutputDevice(deviceId).foreach(_.resetTuner())
+    case MidiDeviceDisconnectedEvent(deviceId, MidiEndpointType.Input) =>
+      // TODO #303 Restore the current tuning after resetting the tuner.
+      tracksWithInputDevice(deviceId).foreach(_.releaseInput())
+    case MidiDeviceFailedToDisconnectEvent(deviceId, MidiEndpointType.Input, _) =>
+      // TODO #303 Restore the current tuning after resetting the tuner.
+      tracksWithInputDevice(deviceId).foreach(_.releaseInput())
+    case _ => // Nothing to do for the other events
+  }
+
+  private def tracksWithInputDevice(deviceId: MidiDeviceId): Seq[Track] = tracks.filter { track =>
+    track.spec.input.collect { case DeviceTrackInputSpec(midiDeviceId, _) => midiDeviceId }.contains(deviceId)
+  }
+
+  private def tracksWithOutputDevice(deviceId: MidiDeviceId): Seq[Track] = tracks.filter { track =>
+    track.spec.output.collect { case DeviceTrackOutputSpec(midiDeviceId, _) => midiDeviceId }.contains(deviceId)
   }
 }
 
