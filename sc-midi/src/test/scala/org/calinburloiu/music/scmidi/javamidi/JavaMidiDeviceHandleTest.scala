@@ -71,8 +71,12 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     def connect(connectedDevice: FakeMidiDevice = device): Seq[MidiEvent] =
       handle.connect(connectedDevice.asMidiDeviceInfo, connectedDevice)
 
-    /** Another instance of the device, as CoreMIDI4J creates one when the device is replugged or swapped. */
-    def newDevice(): FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor)
+    /**
+     * Another instance of the device, as CoreMIDI4J creates one when the device is replugged or swapped. The
+     * parameters configure the instance.
+     */
+    def newDevice(maxTransmitters: Int = -1, openFailure: Option[Exception] = None): FakeMidiDevice =
+      FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters, openFailure = openFailure)
   }
 
   "A new JavaMidiDeviceHandle" should {
@@ -189,6 +193,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       val swappedDevice: FakeMidiDevice = newDevice()
       connect()
       handle.open()
+      // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
+      device.close()
 
       // When
       val events: Seq[MidiEvent] = connect(swappedDevice)
@@ -197,11 +203,72 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events shouldEqual Seq(closed, opened)
       handle.state shouldEqual State.Open
+      handle.device shouldEqual Some(swappedDevice)
       device.isOpen shouldBe false
       swappedDevice.isOpen shouldBe true
       swappedDevice.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
         Seq((noteOn, 42L))
     }
+
+    "report a failure to close the device an open handle is swapped from, and still open the new one" in new Fixture {
+      // Given
+      val swappedDevice: FakeMidiDevice = newDevice()
+      connect()
+      handle.open()
+      // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
+      device.close()
+      device.closeFailure = Some(failure)
+
+      // When
+      val events: Seq[MidiEvent] = connect(swappedDevice)
+
+      // Then
+      events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, direction, failure), opened)
+      handle.state shouldEqual State.Open
+      handle.device shouldEqual Some(swappedDevice)
+      swappedDevice.isOpen shouldBe true
+    }
+
+    "roll an open handle back to Connected, with no reference held, when the device it is swapped for fails to open" in
+      new Fixture {
+        // Given
+        val swappedDevice: FakeMidiDevice = newDevice(openFailure = Some(failure))
+        connect()
+        handle.open()
+        // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
+        device.close()
+
+        // When
+        val events: Seq[MidiEvent] = connect(swappedDevice)
+
+        // Then
+        events shouldEqual Seq(closed, MidiDeviceFailedToOpenEvent(deviceId, direction, failure))
+        handle.state shouldEqual State.Connected
+        handle.isOpenRequested shouldBe false
+        handle.device shouldEqual Some(swappedDevice)
+        handle.close() shouldBe empty
+      }
+
+    "keep the device and the info of an open handle given another instance while the one it holds is still open" in
+      new Fixture {
+        // Given
+        // A JDK Sequencer or Synthesizer provider builds a new instance on every lookup, leaving the held one open
+        val anotherInstance: FakeMidiDevice = newDevice(maxTransmitters = 3)
+        connect()
+        handle.open()
+
+        // When
+        val events: Seq[MidiEvent] = connect(anotherInstance)
+
+        // Then
+        events shouldBe empty
+        handle.state shouldEqual State.Open
+        handle.device shouldEqual Some(device)
+        handle.info shouldEqual Some(device.asMidiDeviceInfo)
+        device.isOpen shouldBe true
+        device.closeCount shouldEqual 0
+        anotherInstance.openCount shouldEqual 0
+      }
 
     "reject the info of another device, leaving the handle unchanged" in new Fixture {
       // Given

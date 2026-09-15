@@ -142,8 +142,13 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    * On a handle that is not connected, this is the `connect` transition: a [[State.Closed]] handle moves to
    * [[State.Connected]], and a [[State.WaitingToOpen]] handle opens the device. On a connected handle, the same
    * `device` instance only updates the info. Another instance means the device was replugged or swapped between two
-   * scans: a [[State.Connected]] handle swaps it silently, and a [[State.Open]] handle closes the device it held and
-   * opens the new one.
+   * scans, and a [[State.Connected]] handle swaps it silently.
+   *
+   * A [[State.Open]] handle takes another instance for a swap only when the one it holds is no longer open: it then
+   * closes the device it held and opens the new one. CoreMIDI4J closes the instance of an endpoint that vanished before
+   * it reports the change, so a replugged or swapped device always passes that check. A JDK `Sequencer` or
+   * `Synthesizer`, which CoreMIDI4J passes through, resolves to a new instance on every lookup instead, while the one
+   * the handle opened stays open: the handle then keeps the device it holds and its info, and reports nothing.
    *
    * @param info   Information about the connected MIDI device.
    * @param device The resolved Java Sound device, which [[JavaMidiManager]] obtains once per environment scan.
@@ -155,23 +160,32 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     require(id.correspondsToInfo(info), s"The given MidiDeviceInfo $info does not correspond to the " +
       s"JavaMidiDeviceHandle $id!")
 
-    val previousDevice = _device
-    _info = Some(info)
-    _device = Some(device)
-
-    (_state, previousDevice) match {
+    (_state, _device) match {
       case (State.Closed, _) =>
+        hold(info, device)
         _state = State.Connected
         logConnected(info)
         Seq(MidiDeviceConnectedEvent(id, direction))
       case (State.WaitingToOpen, _) =>
+        hold(info, device)
         logConnected(info)
         MidiDeviceConnectedEvent(id, direction) +: doOpen(device)
-      case (State.Open, Some(openDevice)) if openDevice ne device =>
-        closeOpenDevice(openDevice) ++ doOpen(device)
+      case (State.Open, Some(heldDevice)) if (heldDevice ne device) && !heldDevice.isOpen =>
+        hold(info, device)
+        closeOpenDevice(heldDevice) ++ doOpen(device)
+      case (State.Open, Some(heldDevice)) if heldDevice ne device =>
+        // Not a swap: a device resolving to a new instance on every lookup, while the one held stays open and in use
+        Seq.empty
       case _ =>
+        hold(info, device)
         Seq.empty
     }
+  }
+
+  /** Makes `device`, described by `info`, the connected device of the handle. */
+  private def hold(info: MidiDeviceInfo, device: MidiDevice): Unit = {
+    _info = Some(info)
+    _device = Some(device)
   }
 
   /**

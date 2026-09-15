@@ -404,6 +404,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         val handle: MidiDeviceHandle = direction.open(manager, id)
         val swappedDevice: FakeMidiDevice = direction.newDevice(deviceName)
         environment.unplug(device.getDeviceInfo)
+        // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
+        device.close()
         environment.plug(swappedDevice)
 
         // When
@@ -419,6 +421,47 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
           MidiDeviceClosedEvent(id, et),
           MidiDeviceOpenedEvent(id, et)
         )
+      }
+
+    "keep an open device open, reporting nothing, on a refresh that finds the same instance of it" in
+      new EndpointFixture {
+        // Given
+        val handle: MidiDeviceHandle = direction.open(manager, id)
+
+        // When
+        manager.refresh()
+
+        // Then
+        handle.state shouldEqual State.Open
+        device.isOpen shouldBe true
+        device.closeCount shouldEqual 0
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et))
+      }
+
+    "keep an open device that resolves to a new instance on every lookup open, reporting nothing, on a refresh" in
+      new EndpointFixture(isPluggedAtStart = false) {
+        // Given
+        // A JDK Sequencer or Synthesizer provider builds a new instance on every lookup
+        val instances: mutable.Buffer[FakeMidiDevice] = mutable.ArrayBuffer()
+        environment.plugResolvingAfresh(device.getDeviceInfo, () => {
+          val instance = direction.newDevice(deviceName)
+          instances += instance
+          instance
+        })
+        manager.refresh()
+        val handle: MidiDeviceHandle = direction.open(manager, id)
+        val heldInstance: FakeMidiDevice = instances.last
+
+        // When
+        manager.refresh()
+
+        // Then
+        instances should have size 2
+        handle.state shouldEqual State.Open
+        heldInstance.isOpen shouldBe true
+        heldInstance.closeCount shouldEqual 0
+        instances.last.openCount shouldEqual 0
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et))
       }
   }
 

@@ -74,10 +74,16 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
   the result: a found device is handed to the handle of its id (created if there is none) with `connect`, and a
   connected handle whose device was not found gets `disconnect` and is forgotten if that leaves it `Closed`.
 - **Replugged and swapped devices.** The device **resolved last** for an id wins, and a handle compares device
-  instances. CoreMIDI4J keeps one `MidiDevice` per endpoint while the endpoint stays present and creates a new one
-  when it reappears. Another instance under a still-present id therefore means the device was replugged or swapped
-  between two refreshes: a `Connected` handle swaps it silently, and an `Open` one closes the old device and opens the
-  new one, reporting *closed* and *opened* but not *disconnected* and *connected*.
+  instances. CoreMIDI4J keeps one `MidiDevice` per endpoint while the endpoint stays present, creates a new one when
+  it reappears, and closes the instance of a vanished endpoint before it reports the change. Another instance under a
+  still-present id therefore means the device was replugged or swapped between two refreshes: a `Connected` handle
+  swaps it silently. An `Open` handle counts it as a swap only if the instance it holds is no longer open; it then
+  closes the old device and opens the new one, reporting *closed* and *opened* but not *disconnected* and
+  *connected*.
+  - The check exists for the JDK software devices CoreMIDI4J passes through, such as the Gervill `Synthesizer` and
+    the `Real Time Sequencer`. Their providers build a new instance on every lookup, so without it every refresh (any
+    MIDI plug anywhere) would close and reopen them. While the held instance is still open, the handle keeps it and
+    its info, and reports nothing.
 - **Locking and publishing.** A manager-wide `ReentrantLock` serialises `refresh()`, the open/close operations,
   `close()` and the registry reads (lock order: manager, then handle). Resolution happens before taking the lock. The
   events an operation collects are published in order only after the lock is released, because Guava delivers them
