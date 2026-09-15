@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
-import org.calinburloiu.music.scmidi.message.MidiMsg
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, MidiMsg}
 import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiDeviceHandle, MidiManager, MidiReceiver}
 
 import javax.annotation.concurrent.ThreadSafe
@@ -112,6 +112,36 @@ class Track(val spec: TrackSpec,
     tunerProcessor.foreach(_.tune(tuning))
   }
 
+  /**
+   * Resets the tuner of this track, if any, sending the messages that initialize the output instrument to the output
+   * of the track, e.g. after the output device (re)opened. The current tuning is not restored: the output plays in
+   * 12-EDO until the next tuning change.
+   */
+  def resetTuner(): Unit = {
+    tunerProcessor.foreach(_.reset())
+  }
+
+  /**
+   * Releases the output of this track after its input got disconnected, so that no note stays held on it. It:
+   *
+   *   1. sends All Notes Off on each of the 16 MIDI channels straight to the output of the track, bypassing the tuner,
+   *      so that it reaches every channel the tuner may have used, such as MPE Member Channels;
+   *   1. resets the tuning changers, so that a trigger held when the input disappeared does not swallow the first
+   *      trigger after it comes back;
+   *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one.
+   *
+   * The track keeps no state of its own about held notes.
+   */
+  def releaseInput(): Unit = {
+    val outputReceivers = transmitter.receivers
+    for (channel <- 0 until Track.MidiChannelCount; outputReceiver <- outputReceivers) {
+      outputReceiver.send(AllNotesOffMidiMsg(channel), -1)
+    }
+
+    tuningChangeProcessor.foreach(_.reset())
+    resetTuner()
+  }
+
   // TODO #297 These reach the tuner only when the pipeline already has output receivers, which a track that feeds
   //  another track does not have yet at this point; otherwise they are dropped without being processed. Unreachable
   //  today, initMidiMessages having no caller that passes it.
@@ -130,4 +160,7 @@ object Track {
    * 1-based.
    */
   val DefaultOutputChannel: Int = 0
+
+  /** The number of channels of a MIDI 1.0 connection. */
+  private val MidiChannelCount: Int = 16
 }

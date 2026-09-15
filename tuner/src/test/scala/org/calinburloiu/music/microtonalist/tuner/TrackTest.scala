@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager, MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -57,9 +57,13 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     midiManager.openInput.when(inputDeviceId).returns(FakeMidiDeviceHandle(inputDeviceId))
     midiManager.openOutput.when(outputDeviceId).returns(FakeMidiDeviceHandle(outputDeviceId, outputReceiver))
 
+    val tuningChanger: TuningChanger = stub[TuningChanger]
+    tuningChanger.decide.when(*).returns(NoTuningChange)
+
     val tuningService: TuningService = stub[TuningService]
     val spec: TrackSpec = TrackSpec("track", "Track", input = Some(DeviceTrackInputSpec(inputDeviceId, None)),
-      tuner = Some(tuner), output = Some(DeviceTrackOutputSpec(outputDeviceId, None)))
+      tuningChangers = Seq(tuningChanger), tuner = Some(tuner),
+      output = Some(DeviceTrackOutputSpec(outputDeviceId, None)))
     val track: Track = Track(spec = spec, midiManager = midiManager, tuningService = tuningService)
   }
 
@@ -103,4 +107,33 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     midiManager.closeInput.verify(*).never()
     midiManager.closeOutput.verify(*).never()
   }
+
+  behavior of "resetTuner"
+
+  it should "send the tuner's reset messages to the output" in new DeviceFixture {
+    // Given
+    outputReceiver.clear()
+
+    // When
+    track.resetTuner()
+
+    // Then
+    outputReceiver.messages shouldEqual Seq(initMessage)
+  }
+
+  behavior of "releaseInput"
+
+  it should "send All Notes Off on every channel straight to the output, then reset the tuning changers and the tuner" in
+    new DeviceFixture {
+      // Given
+      outputReceiver.clear()
+
+      // When
+      track.releaseInput()
+
+      // Then
+      outputReceiver.messages shouldEqual (0 until 16).map(AllNotesOffMidiMsg(_)) :+ initMessage
+      tuner.process.verify(*).never()
+      (() => tuningChanger.reset()).verify().once()
+    }
 }
