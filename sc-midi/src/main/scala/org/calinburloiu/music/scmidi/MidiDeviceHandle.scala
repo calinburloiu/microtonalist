@@ -93,6 +93,16 @@ trait MidiDeviceHandle extends AutoCloseable {
   def isOpen: Boolean
 
   /**
+   * Determines if the MIDI device has been requested to open, i.e. an [[open]] transition succeeded and no [[close]]
+   * transition has happened since, whether or not the device is connected. Unlike [[isOpen]], it is also true while
+   * the handle waits for the device to get connected in order to open it.
+   *
+   * @return True if the device has been requested to open, false otherwise.
+   * @see [[MidiDeviceHandle.State.isOpenRequested]], which this mirrors for the current [[state]].
+   */
+  def isOpenRequested: Boolean = state.isOpenRequested
+
+  /**
    * Attempts to open the MIDI device associated with this handle.
    *
    *   - If the device is not yet connected, the handle transitions to [[MidiDeviceHandle.State.WaitingToOpen]] and
@@ -135,34 +145,37 @@ object MidiDeviceHandle {
    * Represents the state of a MIDI device's connection and openness.
    *
    * {{{
-   *    ┌─────────────┐     connect      ┌────┐
-   *    │             ├──────────────────►    │
-   *    │             │                  │    ├───┐
-   *    │WaitingToOpen◄──────────────────┤Open│   │
-   *    │             │  disconnect      │    │   │
-   *    │             │            ┌─────►    │   │
-   *    └▲────────────┘            │     └────┘   │
-   *     │   │                   open       │     │
-   *     │   │                     │      close   │
-   *     │   │            ┌────────┴┐       │     │
-   *     │   │            │Connected◄───────┘     │
-   *     │   │close       └─▲────┬──┘             │close
-   * open│   │              │    │                │
-   *     │   │       connect│    │disconnect      │
-   *     │   │              │    │                │
-   *     │   │             ┌┴────▼┐               │
-   *     │   └─────────────►      │               │
-   *     │                 │Closed◄───────────────┘
-   *     └─────────────────┤      │
-   *                       └──────┘
+   *    ┌─────────────┐     connect      ┌─────────────┐
+   *    │             ├──────────────────►             │
+   *    │WaitingToOpen│                  │    Open     │
+   *    │             ◄──────────────────┤             │
+   *    └───▲─────┬───┘    disconnect    └───▲─────┬───┘
+   *        │     │                          │     │
+   *    open│     │close                 open│     │close
+   *        │     │                          │     │
+   *    ┌───┴─────▼───┐     connect      ┌───┴─────▼───┐
+   *    │             ├──────────────────►             │
+   *    │   Closed    │                  │  Connected  │
+   *    │             ◄──────────────────┤             │
+   *    └─────────────┘    disconnect    └─────────────┘
    * }}}
    *
-   * The four states cover every combination of [[isConnected]] and [[isOpenRequested]], so the device is open for use
-   * only in [[Open]], where it is both connected and requested to open.
+   * The diagram is a square over the two properties of a state: [[isConnected]] is false on the left and true on the
+   * right, and [[isOpenRequested]] is false at the bottom and true at the top. Hence, `connect` and `disconnect` move
+   * horizontally, while `open` and `close` move vertically. The four states cover every combination of the two, so the
+   * device is open for use only in [[Open]], where it is both connected and requested to open.
+   *
+   * Each transition either succeeds or fails, and a failure sets to false the property it concerns, so that the handle
+   * never relies on a device that failed: a failure of the connection leaves the handle not connected, and a failure to
+   * open or close the device leaves it not requested to open. Hence, a [[Connected]] handle whose device fails to open
+   * stays [[Connected]], an [[Open]] handle whose device fails to close moves to [[Connected]] anyway, and a
+   * [[Connected]] handle whose device fails to close as it gets disconnected moves to [[Closed]] anyway, where a later
+   * [[MidiDeviceHandle.open]] cannot open an unreliable connection.
    *
    * @param isConnected     Indicates whether the device is connected.
-   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. [[MidiDeviceHandle.open]] was
-   *                        called more times than [[MidiDeviceHandle.close]], whether or not it is connected.
+   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an [[MidiDeviceHandle.open]]
+   *                        transition succeeded and no [[MidiDeviceHandle.close]] transition has happened since,
+   *                        whether or not the device is connected.
    */
   //@formatter:off
   enum State(val isConnected: Boolean, val isOpenRequested: Boolean) {

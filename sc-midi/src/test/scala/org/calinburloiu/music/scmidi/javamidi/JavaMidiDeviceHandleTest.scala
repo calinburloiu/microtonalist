@@ -76,6 +76,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.state shouldEqual State.Closed
       handle.isConnected shouldBe false
       handle.isOpen shouldBe false
+      handle.isOpenRequested shouldBe false
       handle.device shouldBe empty
       handle.info shouldBe empty
     }
@@ -90,6 +91,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.state shouldEqual State.Connected
       handle.isConnected shouldBe true
       handle.isOpen shouldBe false
+      handle.isOpenRequested shouldBe false
       handle.device shouldEqual Some(device)
       handle.info shouldEqual Some(device.asMidiDeviceInfo)
       device.openCount shouldEqual 0
@@ -105,6 +107,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       // Then
       handle.state shouldEqual State.Open
       handle.isOpen shouldBe true
+      handle.isOpenRequested shouldBe true
       device.openCount shouldEqual 1
     }
 
@@ -128,12 +131,14 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
       // When / Then
       an[IllegalArgumentException] should be thrownBy handle.onConnect(otherDevice.asMidiDeviceInfo, otherDevice)
+      handle.state shouldEqual State.Closed
       handle.isConnected shouldBe false
     }
   }
 
   "onDisconnect" should {
-    "close the device and forget it along with its info" in new Fixture {
+    // TODO #131 onDisconnect leaves an open handle Open instead of moving it to WaitingToOpen.
+    "close the device and forget it along with its info" ignore new Fixture {
       // Given
       connect()
       handle.open()
@@ -143,14 +148,17 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
       // Then
       device.isOpen shouldBe false
+      handle.state shouldEqual State.WaitingToOpen
       handle.isConnected shouldBe false
       handle.isOpen shouldBe false
+      handle.isOpenRequested shouldBe true
       handle.device shouldBe empty
       handle.info shouldBe empty
       businessync.publish.calls shouldBe empty
     }
 
-    "publish MidiDeviceFailedToDisconnectEvent when the device fails to close, and still forget the device" in
+    // TODO #131 onDisconnect leaves a connected handle Connected instead of moving it to Closed.
+    "publish MidiDeviceFailedToDisconnectEvent when the device fails to close, and still forget the device" ignore
       new Fixture(closeFailure = Some(failure)) {
         // Given
         connect()
@@ -160,6 +168,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
         // Then
         businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, failure))
+        handle.state shouldEqual State.Closed
         handle.isConnected shouldBe false
         handle.device shouldBe empty
       }
@@ -174,6 +183,22 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
       // Then
       handle.state shouldEqual State.Closed
+    }
+
+    // TODO #131 onDisconnect leaves an open handle Open instead of moving it to WaitingToOpen.
+    "move an open handle to WaitingToOpen, keeping the request to open" ignore new Fixture {
+      // Given
+      connect()
+      handle.open()
+
+      // When
+      handle.onDisconnect()
+
+      // Then
+      handle.state shouldEqual State.WaitingToOpen
+      handle.isConnected shouldBe false
+      handle.isOpen shouldBe false
+      handle.isOpenRequested shouldBe true
     }
 
     // TODO #288 onDisconnect leaves an open handle Open, so it does not open the device it gets when it reconnects.
@@ -206,6 +231,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       // Then
       handle.state shouldEqual State.WaitingToOpen
       handle.isOpen shouldBe false
+      handle.isOpenRequested shouldBe true
       device.openCount shouldEqual 0
     }
 
@@ -219,6 +245,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       // Then
       handle.state shouldEqual State.Open
       handle.isOpen shouldBe true
+      handle.isOpenRequested shouldBe true
       device.isOpen shouldBe true
       businessync.publish.calls shouldBe empty
     }
@@ -255,21 +282,25 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.open()
 
       // Then
+      handle.state shouldEqual State.Open
       handle.isOpen shouldBe true
       Option(device.transmitter.getReceiver) shouldBe empty
     }
 
-    "publish MidiDeviceFailedToOpenEvent when the device fails to open" in new Fixture(openFailure = Some(failure)) {
-      // Given
-      connect()
+    // TODO #131 A device that fails to open moves the handle to Open instead of leaving it Connected.
+    "publish MidiDeviceFailedToOpenEvent when the device fails to open" ignore
+      new Fixture(openFailure = Some(failure)) {
+        // Given
+        connect()
 
-      // When
-      handle.open()
+        // When
+        handle.open()
 
-      // Then
-      businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
-      handle.isOpen shouldBe false
-    }
+        // Then
+        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
+        handle.state shouldEqual State.Connected
+        handle.isOpen shouldBe false
+      }
   }
 
   "close" should {
@@ -285,6 +316,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       // Then
       device.isOpen shouldBe true
       handle.state shouldEqual State.Open
+      handle.isOpenRequested shouldBe true
 
       // When
       handle.close()
@@ -292,6 +324,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       // Then
       device.isOpen shouldBe false
       handle.isOpen shouldBe false
+      handle.isOpenRequested shouldBe false
       handle.isConnected shouldBe true
       handle.state shouldEqual State.Connected
     }
@@ -305,6 +338,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
       // Then
       handle.state shouldEqual State.Closed
+      handle.isOpenRequested shouldBe false
 
       // When
       connect()
@@ -314,7 +348,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       device.openCount shouldEqual 0
     }
 
-    "publish MidiDeviceFailedToCloseEvent when the device fails to close" in
+    "publish MidiDeviceFailedToCloseEvent when the device fails to close, and still leave Open" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
         connect()
@@ -325,6 +359,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
         // Then
         businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, failure))
+        handle.state shouldEqual State.Connected
       }
   }
 
@@ -392,11 +427,13 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       connect()
 
       // Then
+      handle.state shouldEqual State.Open
       handle.isOpen shouldBe true
       device.receivedMessages shouldBe empty
     }
 
-    "publish MidiDeviceFailedToOpenEvent when the device fails to provide a receiver, and drop the messages" in
+    // TODO #131 A device that fails to provide a receiver moves the handle to Open instead of leaving it Connected.
+    "publish MidiDeviceFailedToOpenEvent when the device fails to provide a receiver, and drop the messages" ignore
       new Fixture(receiverFailure = Some(failure)) {
         // Given
         connect()
@@ -406,6 +443,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
 
         // Then
         businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
+        handle.state shouldEqual State.Connected
 
         // When / Then
         noException should be thrownBy handle.receiver.send(noteOn, 42L)

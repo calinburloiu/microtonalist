@@ -47,7 +47,12 @@ to date by the manager. A handle can exist for a device that is **not currently 
 `endpointType` derive from it — and its lifecycle is **reference-counted**: the device opens on the first `open()` and
 closes on the last `close()`. `open()` may be called before the device is connected — the handle moves to
 `WaitingToOpen` and opens once the device gets connected (the `State` enum in the companion captures the
-Closed/Connected/WaitingToOpen/Open transitions, drawn in its ScalaDoc). Callers **send** to an output via
+Closed/Connected/WaitingToOpen/Open transitions, drawn in its ScalaDoc; a failed transition sets to false the property
+it concerns, so a failure of the connection leaves the handle not connected and a failure to open or close the device
+leaves it not requested to open).
+Next to `isOpen`, which is true only while the device is actually open, `isOpenRequested` mirrors
+`State.isOpenRequested` — true once an `open()` transition succeeded and until a `close()` transition happens,
+including while the handle waits for the device to get connected. Callers **send** to an output via
 `handle.receiver: MidiReceiver` and **subscribe** to an input via `handle.transmitter: ConcurrentMidiTransmitter`; both
 survive disconnect/reconnect without re-wiring.
 
@@ -263,7 +268,10 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
   disconnected; `purgeDisconnectedDevices` orphans the handle of an unplugged open device; and opening an already
   open device again (two tracks sharing it) closes the Java device behind the handle (#288). `JavaMidiManagerTest`
   and `JavaMidiDeviceHandleTest` pin the expected behaviour in tests that stay ignored, each under a `TODO #288`, until
-  the fix lands; the tests that run exercise those paths without asserting the outcomes #288 is going to change.
+  the fix lands; the tests that run exercise those paths without asserting the outcomes #288 is going to change. The
+  `disconnect` transitions from `Open` to `WaitingToOpen` and from `Connected` to `Closed`, and the rollback of a failed
+  open, are likewise pinned by ignored `JavaMidiDeviceHandleTest` tests under a `TODO #131`: `onDisconnect` leaves the
+  state untouched, and a device that fails to open still moves the handle to `Open`.
 - The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless
   escape hatch.
