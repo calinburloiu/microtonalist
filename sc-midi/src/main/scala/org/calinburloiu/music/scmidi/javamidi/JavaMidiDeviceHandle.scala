@@ -213,6 +213,9 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
         try {
           device.close()
+          if (wasOpen) {
+            logger.info(s"Successfully closed $direction device $id.")
+          }
           logger.warn(s"${direction.toString.capitalize} device $id was disconnected.")
           val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, direction)) else Seq.empty
           closedEvents :+ MidiDeviceDisconnectedEvent(id, direction)

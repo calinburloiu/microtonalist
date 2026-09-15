@@ -789,6 +789,24 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       events.messagesAt(Level.WARN) shouldEqual Seq("""Output device "CoreMIDI4J - FP-90" (Roland) was disconnected.""")
     }
 
+    "report the closing of an open device at info level, then its disconnection at warn level" in new Fixture {
+      // Given
+      connect()
+      handle.open()
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        handle.disconnect()
+      }
+
+      // Then
+      events.filter(event => Set(Level.INFO, Level.WARN).contains(event.getLevel))
+        .map(event => (event.getLevel, event.getFormattedMessage)) shouldEqual Seq(
+          (Level.INFO, """Successfully closed output device "CoreMIDI4J - FP-90" (Roland)."""),
+          (Level.WARN, """Output device "CoreMIDI4J - FP-90" (Roland) was disconnected.""")
+        )
+    }
+
     "report the opening and the closing of the device at info level" in new Fixture {
       // Given
       connect()
