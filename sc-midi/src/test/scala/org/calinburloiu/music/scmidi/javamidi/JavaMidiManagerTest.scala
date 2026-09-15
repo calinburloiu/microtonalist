@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi.javamidi
 
 import ch.qos.logback.classic.Level
-import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
@@ -28,7 +28,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 import javax.sound.midi.MidiUnavailableException
+import scala.collection.mutable
 
 /**
  * Tests [[JavaMidiManager]] over a [[FakeJavaMidiEnvironment]].
@@ -37,10 +39,6 @@ import javax.sound.midi.MidiUnavailableException
  * shared (see [[deviceEndpoint]]) and run once per [[Direction]]. The other sections cover what is common to both.
  */
 class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks with Stubs {
-
-  // TODO #288 The manager does not yet keep its handles up to date as MidiManager and MidiDeviceHandle document.
-  //   Until that is fixed, the tests that run exercise those code paths without asserting the outcome #288 is going
-  //   to change, while the tests that pin the expected outcome are ignored, each under its own TODO #288.
 
   private val deviceName: String = "CoreMIDI4J - FP-90"
 
@@ -121,8 +119,11 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   }
 
   private trait Fixture {
+    /** What the bus does with each published event, besides recording it; a test may replace it. */
+    var onPublish: BusinessyncEvent => Unit = _ => ()
+
     val businessync: Stub[Businessync] = stub[Businessync]
-    businessync.publish.returns(_ => ())
+    businessync.publish.returns(event => onPublish(event))
 
     val environment: FakeJavaMidiEnvironment = FakeJavaMidiEnvironment()
 
@@ -134,6 +135,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
    * The behaviours of the half of the API that handles the devices of `direction`.
    */
   private def deviceEndpoint(direction: Direction): Unit = {
+    /** Shorthand for the [[MidiEndpointType]] that events about a device of `direction` carry. */
+    val et: MidiEndpointType = direction.endpointType
+
     /**
      * A manager over [[device]], a device of `direction`, plugged in before the manager is created unless
      * `isPluggedAtStart` is false.
@@ -149,14 +153,17 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       val manager: JavaMidiManager = newManager()
     }
 
-    "list a device plugged in at start-up, with its info, and report it as connected" in new EndpointFixture {
-      // Then
-      direction.isAvailable(manager, id) shouldBe true
-      direction.deviceIds(manager) shouldEqual Seq(id)
-      direction.devicesInfo(manager) shouldEqual Seq(device.asMidiDeviceInfo)
-      direction.deviceInfoOf(manager, id) shouldEqual Some(device.asMidiDeviceInfo)
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, direction.endpointType))
-    }
+    "list a device plugged in at start-up, with its info and a live handle in Connected, and report it as connected" in
+      new EndpointFixture {
+        // Then
+        direction.isAvailable(manager, id) shouldBe true
+        direction.deviceIds(manager) shouldEqual Seq(id)
+        direction.devicesInfo(manager) shouldEqual Seq(device.asMidiDeviceInfo)
+        direction.deviceInfoOf(manager, id) shouldEqual Some(device.asMidiDeviceInfo)
+        direction.deviceHandleOf(manager, id).map(_.state) shouldEqual Some(State.Connected)
+        direction.openedDevices(manager) shouldBe empty
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et))
+      }
 
     "know nothing of a device that is not plugged in" in new EndpointFixture(isPluggedAtStart = false) {
       // Then
@@ -178,11 +185,12 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
         // Then
         direction.isAvailable(manager, id) shouldBe true
-        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, direction.endpointType))
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et))
       }
 
-    "report an unplugged device as disconnected on refresh" in new EndpointFixture {
+    "report an unplugged device as disconnected on refresh, and forget its handle" in new EndpointFixture {
       // Given
+      val handle: MidiDeviceHandle = direction.deviceHandleOf(manager, id).get
       environment.unplug(device.getDeviceInfo)
 
       // When
@@ -191,9 +199,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       direction.isAvailable(manager, id) shouldBe false
       direction.deviceIds(manager) shouldBe empty
-      businessync.publish.calls shouldEqual Seq(
-        MidiDeviceConnectedEvent(id, direction.endpointType), MidiDeviceDisconnectedEvent(id, direction.endpointType)
-      )
+      direction.deviceHandleOf(manager, id) shouldBe empty
+      handle.state shouldEqual State.Closed
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceDisconnectedEvent(id, et))
     }
 
     "open a connected device, handing it to an open handle, and report it as opened" in new EndpointFixture {
@@ -207,9 +215,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       device.isOpen shouldBe true
       direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
       direction.openedDevices(manager) shouldEqual Seq(handle)
-      businessync.publish.calls shouldEqual Seq(
-        MidiDeviceConnectedEvent(id, direction.endpointType), MidiDeviceOpenedEvent(id, direction.endpointType)
-      )
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et))
     }
 
     "return the same handle when a device is opened again" in new EndpointFixture {
@@ -224,8 +230,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       direction.openedDevices(manager) shouldEqual Seq(handle)
     }
 
-    // TODO #288 Opening an open device again hands the device over to its handle again, which closes it.
-    "keep the device open when it is opened again" ignore new EndpointFixture {
+    "keep the device open when it is opened again" in new EndpointFixture {
       // Given
       val handle: MidiDeviceHandle = direction.open(manager, id)
 
@@ -238,30 +243,23 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       handle.isOpen shouldBe true
     }
 
-    "return a handle that is not open for a device that is not connected" in
+    "make the handle of a device that is not connected wait to open, without reporting anything" in
       new EndpointFixture(isPluggedAtStart = false) {
         // When
         val handle: MidiDeviceHandle = direction.open(manager, id)
 
         // Then
         handle.id shouldEqual id
+        handle.state shouldEqual State.WaitingToOpen
         handle.isConnected shouldBe false
         handle.isOpen shouldBe false
+        direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
+        direction.openedDevices(manager) shouldEqual Seq(handle)
+        direction.isAvailable(manager, id) shouldBe false
         businessync.publish.calls shouldBe empty
       }
 
-    // TODO #288 openDevice does not open the handle of a device that is not connected, so the handle stays Closed.
-    "make the handle of a device that is not connected wait to open" ignore
-      new EndpointFixture(isPluggedAtStart = false) {
-        // When
-        val handle: MidiDeviceHandle = direction.open(manager, id)
-
-        // Then
-        handle.state shouldEqual State.WaitingToOpen
-      }
-
-    // TODO #288 updateDevices does not hand a newly connected device to the handle already requested for it.
-    "open the device of a handle requested before the device got connected, once it gets connected" ignore
+    "open the device of a handle requested before the device got connected, once it gets connected" in
       new EndpointFixture(isPluggedAtStart = false) {
         // Given
         val handle: MidiDeviceHandle = direction.open(manager, id)
@@ -273,25 +271,27 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         // Then
         handle.state shouldEqual State.Open
         device.isOpen shouldBe true
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et))
       }
 
-    "close an open device and forget its handle" in new EndpointFixture {
-      // Given
-      val handle: MidiDeviceHandle = direction.open(manager, id)
+    "close an open device, keeping its handle live in Connected but no longer listed as opened" in
+      new EndpointFixture {
+        // Given
+        val handle: MidiDeviceHandle = direction.open(manager, id)
 
-      // When
-      direction.close(manager, id)
+        // When
+        direction.close(manager, id)
 
-      // Then
-      device.isOpen shouldBe false
-      handle.state shouldEqual State.Connected
-      direction.deviceHandleOf(manager, id) shouldBe empty
-      direction.openedDevices(manager) shouldBe empty
-    }
+        // Then
+        device.isOpen shouldBe false
+        handle.state shouldEqual State.Connected
+        direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
+        direction.openedDevices(manager) shouldBe empty
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et), MidiDeviceClosedEvent(id, et))
+      }
 
-    // TODO #288 The second open already closes the device behind its handle, so closeDevice, which releases a single
-    //   open and drops the handle whatever its reference count, then finds the handle not open and does nothing.
-    "keep a device opened twice open, and its handle known, until it is closed twice" ignore new EndpointFixture {
+    "keep a device opened twice open until it is closed twice" in new EndpointFixture {
       // Given
       val handle: MidiDeviceHandle = direction.open(manager, id)
       direction.open(manager, id)
@@ -301,14 +301,15 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       device.isOpen shouldBe true
-      direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
+      direction.openedDevices(manager) shouldEqual Seq(handle)
 
       // When
       direction.close(manager, id)
 
       // Then
       device.isOpen shouldBe false
-      direction.deviceHandleOf(manager, id) shouldBe empty
+      handle.state shouldEqual State.Connected
+      direction.openedDevices(manager) shouldBe empty
     }
 
     "ignore closing a device that is not open" in new EndpointFixture {
@@ -317,11 +318,10 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       device.closeCount shouldEqual 0
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, direction.endpointType))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et))
     }
 
-    // TODO #288 closeDevice neither releases nor removes a handle that is not open.
-    "release and forget the handle of a device that is not connected when it is closed" ignore
+    "release and forget the handle of a device that is not connected when it is closed" in
       new EndpointFixture(isPluggedAtStart = false) {
         // Given
         val handle: MidiDeviceHandle = direction.open(manager, id)
@@ -342,22 +342,22 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         device.isOpen shouldBe false
       }
 
-    "disconnect an open device that got unplugged and report it as disconnected on refresh" in new EndpointFixture {
-      // Given
-      direction.open(manager, id)
-      environment.unplug(device.getDeviceInfo)
+    "return a new handle for a device requested again after its handle was forgotten" in
+      new EndpointFixture(isPluggedAtStart = false) {
+        // Given
+        val forgottenHandle: MidiDeviceHandle = direction.open(manager, id)
+        direction.close(manager, id)
 
-      // When
-      manager.refresh()
+        // When
+        val handle: MidiDeviceHandle = direction.open(manager, id)
 
-      // Then
-      device.isOpen shouldBe false
-      businessync.publish.calls should contain(MidiDeviceDisconnectedEvent(id, direction.endpointType))
-    }
+        // Then
+        handle should not be theSameInstanceAs(forgottenHandle)
+        forgottenHandle.state shouldEqual State.Closed
+        handle.state shouldEqual State.WaitingToOpen
+      }
 
-    // TODO #288 purgeDisconnectedDevices closes the device behind the handle's back and drops the handle, so the
-    //   handle's state contradicts isConnected and isOpen.
-    "keep the handle of an open device that got unplugged, waiting to open it again" ignore new EndpointFixture {
+    "close an open device that got unplugged, keeping its handle waiting to open it again" in new EndpointFixture {
       // Given
       val handle: MidiDeviceHandle = direction.open(manager, id)
       environment.unplug(device.getDeviceInfo)
@@ -366,14 +366,20 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       manager.refresh()
 
       // Then
+      device.isOpen shouldBe false
       handle.state shouldEqual State.WaitingToOpen
-      handle.isConnected shouldBe false
-      handle.isOpen shouldBe false
       direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
+      direction.openedDevices(manager) shouldEqual Seq(handle)
+      direction.isAvailable(manager, id) shouldBe false
+      businessync.publish.calls shouldEqual Seq(
+        MidiDeviceConnectedEvent(id, et),
+        MidiDeviceOpenedEvent(id, et),
+        MidiDeviceClosedEvent(id, et),
+        MidiDeviceDisconnectedEvent(id, et)
+      )
     }
 
-    // TODO #288 A replugged device never reconnects to the handle that purgeDisconnectedDevices dropped.
-    "open the handle of an unplugged device with the device it gets when replugged" ignore new EndpointFixture {
+    "open the handle of an unplugged device with the device it gets when replugged" in new EndpointFixture {
       // Given
       val handle: MidiDeviceHandle = direction.open(manager, id)
       val repluggedDevice: FakeMidiDevice = direction.newDevice(deviceName)
@@ -388,7 +394,32 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       handle.state shouldEqual State.Open
       repluggedDevice.isOpen shouldBe true
       direction.openedDevices(manager) shouldEqual Seq(handle)
+      businessync.publish.calls.drop(4) shouldEqual
+        Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et))
     }
+
+    "close the device of an open handle and open the one it got swapped for between two refreshes" in
+      new EndpointFixture {
+        // Given
+        val handle: MidiDeviceHandle = direction.open(manager, id)
+        val swappedDevice: FakeMidiDevice = direction.newDevice(deviceName)
+        environment.unplug(device.getDeviceInfo)
+        environment.plug(swappedDevice)
+
+        // When
+        manager.refresh()
+
+        // Then
+        handle.state shouldEqual State.Open
+        device.isOpen shouldBe false
+        swappedDevice.isOpen shouldBe true
+        businessync.publish.calls shouldEqual Seq(
+          MidiDeviceConnectedEvent(id, et),
+          MidiDeviceOpenedEvent(id, et),
+          MidiDeviceClosedEvent(id, et),
+          MidiDeviceOpenedEvent(id, et)
+        )
+      }
   }
 
   "A new JavaMidiManager" should {
@@ -522,6 +553,27 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       firstDevice.isOpen shouldBe false
     }
 
+    "keep the device resolved last when the environment lists an id twice" in new Fixture {
+      // Given
+      val firstDevice: FakeMidiDevice = Output.newDevice(deviceName)
+      val lastDevice: FakeMidiDevice = Output.newDevice(deviceName)
+      environment.plug(firstDevice)
+      environment.plug(lastDevice)
+      val manager: JavaMidiManager = newManager()
+
+      // When
+      manager.openOutput(firstDevice.id)
+
+      // Then
+      lastDevice.isOpen shouldBe true
+      firstDevice.isOpen shouldBe false
+      manager.outputDeviceIds shouldEqual Seq(firstDevice.id)
+      businessync.publish.calls shouldEqual Seq(
+        MidiDeviceConnectedEvent(firstDevice.id, MidiEndpointType.Output),
+        MidiDeviceOpenedEvent(firstDevice.id, MidiEndpointType.Output)
+      )
+    }
+
     "silently skip a device that is unavailable or that is gone by the time it is resolved" in {
       // Given
       val failures = Table[Exception](
@@ -603,9 +655,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       environment.subscriberCount shouldEqual 0
     }
 
-    // TODO #288 The second open already closes the device behind its handle, so close() finds the handle not open and
-    //   leaves it known; once that is fixed, closeDevice still releases a single open of the handle and drops it.
-    "close a device opened more than once" ignore new Fixture {
+    "close a device opened more than once" in new Fixture {
       // Given
       val device: FakeMidiDevice = Output.newDevice(deviceName)
       environment.plug(device)
@@ -620,27 +670,49 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       device.isOpen shouldBe false
       manager.outputOpenedDevices shouldBe empty
     }
+
+    "forget the handle of a device waiting to open" in new Fixture {
+      // Given
+      val manager: JavaMidiManager = newManager()
+      val handle: MidiDeviceHandle = manager.openOutput(MidiDeviceId(deviceName, "Roland"))
+
+      // When
+      manager.close()
+
+      // Then
+      handle.state shouldEqual State.Closed
+      manager.outputDeviceHandleOf(handle.id) shouldBe empty
+    }
+  }
+
+  "Publishing" should {
+    "publish the events of an operation in order once it completes, outside the lock of the manager" in new Fixture {
+      // Given
+      val device: FakeMidiDevice = Output.newDevice(deviceName)
+      val manager: JavaMidiManager = newManager()
+      manager.openOutput(device.id)
+      environment.plug(device)
+      // What a subscriber on another thread sees of the handle when each event reaches it; with the lock still held,
+      // the lookup would time out.
+      val observedStates: mutable.Buffer[Option[State]] = mutable.ArrayBuffer()
+      onPublish = _ => observedStates += CompletableFuture
+        .supplyAsync(() => manager.outputDeviceHandleOf(device.id).map(_.state))
+        .get(5, TimeUnit.SECONDS)
+
+      // When
+      manager.refresh()
+
+      // Then
+      businessync.publish.calls shouldEqual Seq(
+        MidiDeviceConnectedEvent(device.id, MidiEndpointType.Output),
+        MidiDeviceOpenedEvent(device.id, MidiEndpointType.Output)
+      )
+      observedStates shouldEqual Seq(Some(State.Open), Some(State.Open))
+    }
   }
 
   "Logging" should {
     val loggerName = classOf[JavaMidiManager].getName
-
-    "report each connected device at debug level, with the connection limit of its direction" in new Fixture {
-      // Given
-      environment.plug(FakeMidiDevice("CoreMIDI4J - Seaboard", "ROLI", maxTransmitters = 2, maxReceivers = 0))
-      environment.plug(FakeMidiDevice(deviceName, maxTransmitters = 0, maxReceivers = -1))
-
-      // When
-      val (_, events) = LogCapture.capturing(loggerName) {
-        newManager()
-      }
-
-      // Then
-      events.messagesAt(Level.DEBUG) shouldEqual Seq(
-        """Input device "CoreMIDI4J - Seaboard" (ROLI) with 2 transmitters was connected.""",
-        """Output device "CoreMIDI4J - FP-90" (Roland) with unlimited receivers was connected."""
-      )
-    }
 
     "report a device that fails to resolve at error level, with the failure" in new Fixture {
       // Given
@@ -656,7 +728,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         Seq(("""Failed to connect to device "CoreMIDI4J - FP-90" (Roland)!""", Some("CoreMIDI failure")))
     }
 
-    "warn that a device to open is not connected" in new Fixture {
+    "warn that a device to open is not connected and will be opened once it gets connected" in new Fixture {
       // Given
       val manager: JavaMidiManager = newManager()
 
@@ -666,8 +738,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
 
       // Then
-      events.messagesAt(Level.WARN) shouldEqual
-        Seq("""Output device "CoreMIDI4J - FP-90" (Roland) is not connected.""")
+      events.messagesAt(Level.WARN) shouldEqual Seq("""Output device "CoreMIDI4J - FP-90" (Roland) is not connected; """ +
+        "it will be opened once it gets connected.")
     }
 
     "report the closing of the MIDI connections at info level" in new Fixture {
@@ -686,7 +758,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       events.messagesAt(Level.INFO) shouldEqual Seq("Closing MIDI connections...", "Finished closing MIDI connections.")
     }
 
-    "report an environment change at info level and the disconnection of a device at warn level" in new Fixture {
+    "report an environment change at info level" in new Fixture {
       // Given
       val device: FakeMidiDevice = Input.newDevice(deviceName)
       environment.plug(device)
@@ -700,7 +772,6 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       events.messagesAt(Level.INFO) shouldEqual Seq("The MIDI environment has changed.")
-      events.messagesAt(Level.WARN) shouldEqual Seq(s"Input device ${device.id} was disconnected.")
     }
   }
 }
