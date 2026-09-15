@@ -283,8 +283,9 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     } catch {
       case exception: Exception =>
         deviceReceiver = None
-        // The failure to report is the one to open: a failure to close the device on the way back adds nothing to it.
-        Try(device.close())
+        // The failure to report is the one to open: a failure to close the device on the way back is attached to it
+        // as a suppressed exception instead, so the error log's stack trace and the event's cause still carry it.
+        Try(device.close()).failed.foreach(exception.addSuppressed)
         _state = State.Connected
         openRefCount = 0
 

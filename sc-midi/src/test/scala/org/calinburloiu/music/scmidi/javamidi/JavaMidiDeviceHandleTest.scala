@@ -399,17 +399,23 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         device.receivedMessages shouldBe empty
       }
 
-    "report only the failure to open when closing the device on the way back fails too" in
-      new Fixture(openFailure = Some(failure), closeFailure = Some(IllegalStateException("Cannot close"))) {
+    "report only the failure to open when closing the device on the way back fails too, keeping the close failure " +
+      "as a suppressed exception" in {
         // Given
-        connect()
+        val openFailure = MidiUnavailableException("The device is busy")
+        val closeFailure = IllegalStateException("Cannot close")
 
-        // When
-        val events: Seq[MidiEvent] = handle.open()
+        new Fixture(openFailure = Some(openFailure), closeFailure = Some(closeFailure)) {
+          connect()
 
-        // Then
-        events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, direction, failure))
-        handle.state shouldEqual State.Connected
+          // When
+          val events: Seq[MidiEvent] = handle.open()
+
+          // Then
+          events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, direction, openFailure))
+          handle.state shouldEqual State.Connected
+          openFailure.getSuppressed shouldEqual Array(closeFailure)
+        }
       }
   }
 
