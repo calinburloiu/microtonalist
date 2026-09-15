@@ -738,8 +738,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
 
       // Then
-      events.messagesAt(Level.WARN) shouldEqual Seq("""Output device "CoreMIDI4J - FP-90" (Roland) is not connected; """ +
-        "it will be opened once it gets connected.")
+      events.messagesAt(Level.WARN) shouldEqual
+        Seq("""Output device "CoreMIDI4J - FP-90" (Roland) is not connected; it will be opened once it gets """ +
+          "connected.")
     }
 
     "report the closing of the MIDI connections at info level" in new Fixture {
