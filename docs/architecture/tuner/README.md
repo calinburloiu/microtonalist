@@ -95,14 +95,23 @@ chained; both plugins and both processors are typed on `MidiMsg`, so no conversi
 module. `TuningChangeProcessor` asks its `TuningChanger`s in order (first effective decision wins) and, on an effective
 change, calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`, forwarding `tune`/`process`, sending
 `reset()` to each receiver newly connected to its transmitter, and restoring 12-EDO on each receiver being
-disconnected.
+disconnected. `TunerProcessor.reset()` resets the tuner and sends its initialization messages to every current
+receiver, and `TuningChangeProcessor.reset()` resets its tuning changers; `Track` calls both when its devices change.
 
-**Track and lifecycle.** `Track` (`@ThreadSafe`) is one instrument pipeline built from a `TrackSpec`: it opens the
-input/output MIDI devices via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
-`TrackSpec` / `TrackSpecs` are the declarative description of a track and an immutable, id-keyed ordered collection of
-them. `TrackIO` holds the input/output spec plugins, including inter-track routing (`FromTrackInputSpec` /
-`ToTrackOutputSpec`). `TrackManager` (`@NotThreadSafe`) builds and replaces the live tracks from `TrackSpecs`, wires
-inter-track connections, and re-tunes every track when the tuning changes (it subscribes to `TuningEvent`).
+**Track and lifecycle.**
+
+- `Track` (`@ThreadSafe`) is one instrument pipeline built from a `TrackSpec`. It opens the input/output MIDI devices
+  via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
+  - `close()` switches back to 12-EDO and releases its devices through `MidiManager.closeInput` / `closeOutput`.
+  - `resetTuner()` re-initialises the output instrument, and `releaseInput()` silences it after its input device
+    disappears (see [Device changes](#device-changes)).
+- `TrackSpec` / `TrackSpecs` are the declarative description of a track and an immutable, id-keyed ordered collection
+  of them.
+- `TrackIO` holds the input/output spec plugins, including inter-track routing (`FromTrackInputSpec` /
+  `ToTrackOutputSpec`).
+- `TrackManager` (`@NotThreadSafe`) builds and replaces the live tracks from `TrackSpecs` and wires inter-track
+  connections. It re-tunes every track when the tuning changes (it subscribes to `TuningEvent`), and reacts to the
+  devices of its tracks opening and disconnecting (it subscribes to `MidiEvent`).
 
 **Sessions, services, and events.** Mutable state lives in `@NotThreadSafe` `*Session` objects (business-thread only)
 and is exposed through `@ThreadSafe` `*Service` facades that marshal calls onto the business thread via `Businessync`:
@@ -176,6 +185,31 @@ The reverse, application-driven path (loading a composition) sets the available 
 `composition` module is assigned to `TunerModule.tuningSession.tunings`, which publishes `TuningsUpdatedEvent` and makes
 `TrackManager` re-tune all tracks.
 
+## Device changes
+
+`TrackManager` keeps the tracks working while their MIDI devices come and go (#131):
+
+```
+MidiDeviceOpenedEvent(id, Output)             (an output device (re)opened)
+  → TrackManager.onMidiEvent
+  → Track.resetTuner() for every track whose output is DeviceTrackOutputSpec(id)
+  → TunerProcessor.reset() → Tuner.reset() messages → output device
+
+MidiDeviceDisconnectedEvent(id, Input) or MidiDeviceFailedToDisconnectEvent(id, Input, _)
+  → TrackManager.onMidiEvent
+  → Track.releaseInput() for every track whose input is DeviceTrackInputSpec(id)
+  → All Notes Off on channels 0–15, straight to the track's output (bypassing the tuner)
+  → TuningChangeProcessor.reset() → Track.resetTuner()
+```
+
+- Every other `MidiEvent` is ignored.
+- A device already connected when its track is built needs no event: connecting the device receiver as an initial
+  receiver of the pipeline already sends the tuner's reset messages.
+- `replaceAllTracks` forgets the closed tracks before building the new ones, so an event published while the new
+  tracks open their devices never reaches a closed track.
+- The reset does not restore the current tuning. Until #303, the instrument plays in 12-EDO until the next tuning
+  change.
+
 ## Threading model
 
 The module follows the Businessync two-thread model (see the [`businessync` doc](../businessync/README.md) and the
@@ -187,6 +221,8 @@ project [Threading Model](https://github.com/calinburloiu/microtonalist/wiki/Thr
   marshal work onto the business thread via `Businessync`.
 - State changes are broadcast as `BusinessyncEvent`s; `TrackManager`'s subscription to `TuningEvent` is the link between
   a tuning change and the instruments being retuned.
+- `TrackManager`'s `MidiEvent` handler runs on the thread that publishes the event, which for a device change is
+  CoreMIDI4J's notification thread, not the business thread (#90).
 
 ## Dependencies
 
@@ -209,3 +245,5 @@ These are signalled directly in the code:
   threads are not yet driven.
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).
+- `TrackManager`'s `MidiEvent` handler runs on the publishing thread instead of the business thread (TODO #90).
+- Resetting a track's tuner on a device event does not restore the current tuning (TODO #303).
