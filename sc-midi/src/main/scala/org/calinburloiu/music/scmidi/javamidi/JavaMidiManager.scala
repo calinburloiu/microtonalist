@@ -190,7 +190,7 @@ object JavaMidiManager {
 
         if (previousDevice.isEmpty) {
           logDebugConnectedDevice(connectedDevice.info)
-          businessync.publish(MidiDeviceConnectedEvent(id))
+          businessync.publish(MidiDeviceConnectedEvent(id, endpointType))
           // TODO #288 A handle already requested to be opened for this device is not informed that the device got
           //   connected (onConnect), so it stays unconnected until openDevice is called again.
         }
@@ -204,7 +204,7 @@ object JavaMidiManager {
       for (previousId <- connectedDevices.keys.asScala if !currentIds.contains(previousId)) {
         connectedDevices.remove(previousId)
         logger.warn(s"${endpointType.toString.capitalize} device $previousId was disconnected.")
-        businessync.publish(MidiDeviceDisconnectedEvent(previousId))
+        businessync.publish(MidiDeviceDisconnectedEvent(previousId, endpointType))
       }
     }
 
@@ -222,7 +222,7 @@ object JavaMidiManager {
         openedDevicesMap.remove(deviceId)
 
         logger.info(s"${endpointType.toString.capitalize} device $deviceId was closed.")
-        businessync.publish(MidiDeviceClosedEvent(deviceId))
+        businessync.publish(MidiDeviceClosedEvent(deviceId, endpointType))
       }
     }
 
@@ -236,7 +236,8 @@ object JavaMidiManager {
     def devicesInfo: Seq[MidiDeviceInfo] = connectedDevices.values.asScala.map(_.info).toSeq
 
     def openDevice(deviceId: MidiDeviceId): JavaMidiDeviceHandle = {
-      val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId, _ => JavaMidiDeviceHandle(deviceId, businessync))
+      val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId,
+        _ => JavaMidiDeviceHandle(deviceId, endpointType, businessync))
 
       Option(connectedDevices.get(deviceId)) match {
         case Some(connectedDevice) =>
@@ -246,7 +247,7 @@ object JavaMidiManager {
           deviceHandle.onConnect(connectedDevice.info, connectedDevice.device)
           deviceHandle.open()
           logger.info(s"Successfully opened $endpointType device $deviceId.")
-          businessync.publish(MidiDeviceOpenedEvent(deviceId))
+          businessync.publish(MidiDeviceOpenedEvent(deviceId, endpointType))
         case None =>
           // TODO #288 The handle is not opened, so it does not wait to open and would not open once the device gets
           //   connected, contrary to MidiManager.openInput / openOutput.

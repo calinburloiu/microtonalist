@@ -49,6 +49,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
   /** One direction of the [[MidiManager]] API, so that the same behaviours run for inputs and for outputs. */
   private trait Direction {
+    /** The [[MidiEndpointType]] that events about a device of this direction carry. */
+    val endpointType: MidiEndpointType
+
     /** Creates a device that works in this direction only. */
     def newDevice(name: String): FakeMidiDevice
 
@@ -70,6 +73,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   }
 
   private object Input extends Direction {
+    override val endpointType: MidiEndpointType = MidiEndpointType.Input
+
     override def newDevice(name: String): FakeMidiDevice = FakeMidiDevice(name, maxTransmitters = -1, maxReceivers = 0)
 
     override def isAvailable(manager: MidiManager, id: MidiDeviceId): Boolean = manager.isInputAvailable(id)
@@ -92,6 +97,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   }
 
   private object Output extends Direction {
+    override val endpointType: MidiEndpointType = MidiEndpointType.Output
+
     override def newDevice(name: String): FakeMidiDevice = FakeMidiDevice(name, maxTransmitters = 0, maxReceivers = -1)
 
     override def isAvailable(manager: MidiManager, id: MidiDeviceId): Boolean = manager.isOutputAvailable(id)
@@ -148,7 +155,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       direction.deviceIds(manager) shouldEqual Seq(id)
       direction.devicesInfo(manager) shouldEqual Seq(device.asMidiDeviceInfo)
       direction.deviceInfoOf(manager, id) shouldEqual Some(device.asMidiDeviceInfo)
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, direction.endpointType))
     }
 
     "know nothing of a device that is not plugged in" in new EndpointFixture(isPluggedAtStart = false) {
@@ -171,7 +178,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
         // Then
         direction.isAvailable(manager, id) shouldBe true
-        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id))
+        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, direction.endpointType))
       }
 
     "report an unplugged device as disconnected on refresh" in new EndpointFixture {
@@ -184,7 +191,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       direction.isAvailable(manager, id) shouldBe false
       direction.deviceIds(manager) shouldBe empty
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceDisconnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(
+        MidiDeviceConnectedEvent(id, direction.endpointType), MidiDeviceDisconnectedEvent(id, direction.endpointType)
+      )
     }
 
     "open a connected device, handing it to an open handle, and report it as opened" in new EndpointFixture {
@@ -198,7 +207,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       device.isOpen shouldBe true
       direction.deviceHandleOf(manager, id) shouldEqual Some(handle)
       direction.openedDevices(manager) shouldEqual Seq(handle)
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceOpenedEvent(id))
+      businessync.publish.calls shouldEqual Seq(
+        MidiDeviceConnectedEvent(id, direction.endpointType), MidiDeviceOpenedEvent(id, direction.endpointType)
+      )
     }
 
     "return the same handle when a device is opened again" in new EndpointFixture {
@@ -306,7 +317,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       device.closeCount shouldEqual 0
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, direction.endpointType))
     }
 
     // TODO #288 closeDevice neither releases nor removes a handle that is not open.
@@ -341,7 +352,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       device.isOpen shouldBe false
-      businessync.publish.calls should contain(MidiDeviceDisconnectedEvent(id))
+      businessync.publish.calls should contain(MidiDeviceDisconnectedEvent(id, direction.endpointType))
     }
 
     // TODO #288 purgeDisconnectedDevices closes the device behind the handle's back and drops the handle, so the
@@ -427,30 +438,33 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
     }
 
-    "list the input and the output endpoint of one physical device under the same id" in new Fixture {
-      // Given
-      val inputDevice: FakeMidiDevice = Input.newDevice(deviceName)
-      val outputDevice: FakeMidiDevice = Output.newDevice(deviceName)
-      environment.plug(inputDevice)
-      environment.plug(outputDevice)
-      val id: MidiDeviceId = inputDevice.id
+    "list the input and the output endpoint of one physical device under the same id, reporting each direction" in
+      new Fixture {
+        // Given
+        val inputDevice: FakeMidiDevice = Input.newDevice(deviceName)
+        val outputDevice: FakeMidiDevice = Output.newDevice(deviceName)
+        environment.plug(inputDevice)
+        environment.plug(outputDevice)
+        val id: MidiDeviceId = inputDevice.id
 
-      // When
-      val manager: JavaMidiManager = newManager()
+        // When
+        val manager: JavaMidiManager = newManager()
 
-      // Then
-      manager.inputDeviceIds shouldEqual Seq(id)
-      manager.outputDeviceIds shouldEqual Seq(id)
-      // The event carries no direction (see MidiEvent), so the input and the output endpoint each report the same one.
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceConnectedEvent(id))
+        // Then
+        manager.inputDeviceIds shouldEqual Seq(id)
+        manager.outputDeviceIds shouldEqual Seq(id)
+        businessync.publish.calls shouldEqual Seq(
+          MidiDeviceConnectedEvent(id, MidiEndpointType.Input),
+          MidiDeviceConnectedEvent(id, MidiEndpointType.Output)
+        )
 
-      // When
-      manager.openOutput(id)
+        // When
+        manager.openOutput(id)
 
-      // Then
-      outputDevice.isOpen shouldBe true
-      inputDevice.isOpen shouldBe false
-    }
+        // Then
+        outputDevice.isOpen shouldBe true
+        inputDevice.isOpen shouldBe false
+      }
 
     "not report a device again while it stays plugged in" in new Fixture {
       // Given
@@ -463,7 +477,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       manager.refresh()
 
       // Then
-      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(device.id))
+      businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(device.id, MidiEndpointType.Input))
     }
 
     "replace the device resolved earlier for an id that stays present, without reporting it as connected again" in
@@ -484,7 +498,9 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         // Then
         laterDevice.isOpen shouldBe true
         firstDevice.isOpen shouldBe false
-        businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id), MidiDeviceOpenedEvent(id))
+        businessync.publish.calls shouldEqual Seq(
+          MidiDeviceConnectedEvent(id, MidiEndpointType.Output), MidiDeviceOpenedEvent(id, MidiEndpointType.Output)
+        )
       }
 
     "resolve the device afresh for an id that left and came back" in new Fixture {
@@ -560,7 +576,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       manager.isInputAvailable(device.id) shouldBe true
-      businessync.publish.calls shouldEqual Seq(MidiEnvironmentChangedEvent, MidiDeviceConnectedEvent(device.id))
+      businessync.publish.calls shouldEqual
+        Seq(MidiEnvironmentChangedEvent, MidiDeviceConnectedEvent(device.id, MidiEndpointType.Input))
     }
   }
 

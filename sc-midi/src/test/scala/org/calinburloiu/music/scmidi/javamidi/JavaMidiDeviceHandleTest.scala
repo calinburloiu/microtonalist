@@ -26,11 +26,12 @@ import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, NoteOnMidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
 import javax.sound.midi.{MidiUnavailableException, ShortMessage}
 
-class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
+class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks with Stubs {
 
   private val deviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
 
@@ -58,7 +59,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
     val businessync: Stub[Businessync] = stub[Businessync]
     businessync.publish.returns(_ => ())
 
-    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, businessync)
+    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, MidiEndpointType.Output, businessync)
     val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters,
       maxReceivers = maxReceivers, openFailure = openFailure, closeFailure = closeFailure,
       receiverFailure = receiverFailure)
@@ -79,6 +80,17 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
       handle.isOpenRequested shouldBe false
       handle.device shouldBe empty
       handle.info shouldBe empty
+    }
+
+    "reject a direction other than input or output" in {
+      // Given
+      val directions = Table("direction", MidiEndpointType.None, MidiEndpointType.InputOutput)
+
+      forAll(directions) { direction =>
+        // When / Then
+        an[IllegalArgumentException] should be thrownBy
+          JavaMidiDeviceHandle(deviceId, direction, stub[Businessync])
+      }
     }
   }
 
@@ -167,7 +179,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         handle.onDisconnect()
 
         // Then
-        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, failure))
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceFailedToDisconnectEvent(deviceId, MidiEndpointType.Output, failure))
         handle.state shouldEqual State.Closed
         handle.isConnected shouldBe false
         handle.device shouldBe empty
@@ -297,7 +310,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         handle.open()
 
         // Then
-        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceFailedToOpenEvent(deviceId, MidiEndpointType.Output, failure))
         handle.state shouldEqual State.Connected
         handle.isOpen shouldBe false
       }
@@ -358,7 +372,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         handle.close()
 
         // Then
-        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, failure))
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceFailedToCloseEvent(deviceId, MidiEndpointType.Output, failure))
         handle.state shouldEqual State.Connected
       }
   }
@@ -442,7 +457,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with Stubs {
         handle.open()
 
         // Then
-        businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, failure))
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceFailedToOpenEvent(deviceId, MidiEndpointType.Output, failure))
         handle.state shouldEqual State.Connected
 
         // When / Then

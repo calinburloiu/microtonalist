@@ -42,12 +42,19 @@ import javax.sound.midi.{MidiDevice, MidiMessage, Receiver}
  * with `asScala` and fans out to the receivers of [[transmitter]].
  *
  * @param id          Unique identifier of the MIDI device.
+ * @param direction   The direction of the endpoint of the manager that owns the handle, [[MidiEndpointType.Input]] or
+ *                    [[MidiEndpointType.Output]], which the events of the handle carry as their `endpointType`. It is
+ *                    not [[endpointType]], which tells the directions the device works in.
  * @param businessync Used for publishing MIDI events about the device state.
  */
 @ThreadSafe
 class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
+                                             private[javamidi] val direction: MidiEndpointType,
                                              businessync: Businessync)
   extends MidiDeviceHandle, Locking, LazyLogging {
+
+  require(direction == MidiEndpointType.Input || direction == MidiEndpointType.Output,
+    s"The direction of a JavaMidiDeviceHandle must be input or output; got $direction!")
 
   private implicit val lock: Lock = ReentrantLock()
 
@@ -136,7 +143,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     } catch {
       case exception: Exception =>
         logger.error(s"Failed to disconnect from $endpointType device $id!", exception)
-        businessync.publish(MidiDeviceFailedToDisconnectEvent(id, exception))
+        businessync.publish(MidiDeviceFailedToDisconnectEvent(id, direction, exception))
     }
 
     _device = None
@@ -171,7 +178,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         } catch {
           case exception: Exception =>
             logger.error(s"Failed to close $endpointType device $id!", exception)
-            businessync.publish(MidiDeviceFailedToCloseEvent(id, exception))
+            businessync.publish(MidiDeviceFailedToCloseEvent(id, direction, exception))
         }
 
         _state = State.Connected
@@ -202,7 +209,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     } catch {
       case exception: Exception =>
         logger.error(s"Failed to open $endpointType device $id.", exception)
-        businessync.publish(MidiDeviceFailedToOpenEvent(id, exception))
+        businessync.publish(MidiDeviceFailedToOpenEvent(id, direction, exception))
     }
   }
 }
