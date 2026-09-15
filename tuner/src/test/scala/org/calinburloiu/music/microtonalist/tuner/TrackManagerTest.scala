@@ -35,11 +35,14 @@ class TrackManagerTest extends AnyFlatSpec with Matchers with Stubs {
   private val controllerId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Keystation", "M-Audio")
   private val synthId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Minilogue", "KORG")
 
-  /** A tuner whose reset sends [[initMessage]], which tunes nothing and lets every message through. */
-  private class ResetTuner extends Tuner {
+  /** The message the reset of a second tuner on the same output device sends, to tell the two resets apart. */
+  private val otherInitMessage: MidiMsg = CcMidiMsg(1, MidiCc.DataEntryMsb, 2)
+
+  /** A tuner whose reset sends `resetMessage`, which tunes nothing and lets every message through. */
+  private class ResetTuner(resetMessage: MidiMsg = initMessage) extends Tuner {
     override val typeName: String = "reset"
 
-    override def reset(): Seq[MidiMsg] = Seq(initMessage)
+    override def reset(): Seq[MidiMsg] = Seq(resetMessage)
 
     override def tune(tuning: Tuning): Seq[MidiMsg] = Seq.empty
 
@@ -95,6 +98,24 @@ class TrackManagerTest extends AnyFlatSpec with Matchers with Stubs {
     deviceReceivers(synthId).messages shouldBe empty
   }
 
+  it should "reset the tuner of every track whose output device got opened, when two tracks share it" in new Fixture {
+    // Given
+    trackManager.replaceAllTracks(TrackSpecs(Seq(
+      TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+        output = Some(DeviceTrackOutputSpec(pianoId, None))),
+      TrackSpec("controller", "Controller", input = Some(DeviceTrackInputSpec(controllerId, None)),
+        tuner = Some(ResetTuner(otherInitMessage)), output = Some(DeviceTrackOutputSpec(pianoId, None)))
+    )))
+    deviceReceivers.values.foreach(_.clear())
+
+    // When
+    businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiEndpointType.Output))
+
+    // Then
+    deviceReceivers(pianoId).messages shouldEqual Seq(initMessage, otherInitMessage)
+    deviceReceivers(synthId).messages shouldBe empty
+  }
+
   it should "ignore the opening of an input device" in new Fixture {
     // When
     businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiEndpointType.Input))
@@ -112,6 +133,25 @@ class TrackManagerTest extends AnyFlatSpec with Matchers with Stubs {
       // Then
       deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
       deviceReceivers(synthId).messages shouldBe empty
+    }
+
+  it should "release the output of every track whose input device got disconnected, when two tracks share it" in
+    new Fixture {
+      // Given
+      trackManager.replaceAllTracks(TrackSpecs(Seq(
+        TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+          output = Some(DeviceTrackOutputSpec(pianoId, None))),
+        TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+          output = Some(DeviceTrackOutputSpec(synthId, None)))
+      )))
+      deviceReceivers.values.foreach(_.clear())
+
+      // When
+      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiEndpointType.Input))
+
+      // Then
+      deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
+      deviceReceivers(synthId).messages shouldEqual allNotesOff :+ initMessage
     }
 
   it should "release the output of the tracks whose input device failed to disconnect" in new Fixture {
