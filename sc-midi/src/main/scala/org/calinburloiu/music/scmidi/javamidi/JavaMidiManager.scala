@@ -237,17 +237,14 @@ object JavaMidiManager {
 
     def openDevice(deviceId: MidiDeviceId): JavaMidiDeviceHandle = {
       val deviceHandle = openedDevicesMap.computeIfAbsent(deviceId,
-        _ => JavaMidiDeviceHandle(deviceId, endpointType, businessync))
+        _ => JavaMidiDeviceHandle(deviceId, endpointType))
 
       Option(connectedDevices.get(deviceId)) match {
         case Some(connectedDevice) =>
-          // TODO #288 onConnect is called even on a handle that is already open, e.g. a second track sharing the
-          //   device: it closes the Java device while the handle keeps reporting State.Open, and the following open()
-          //   only bumps the reference count, so the handle silently drops every message from then on.
-          deviceHandle.onConnect(connectedDevice.info, connectedDevice.device)
-          deviceHandle.open()
-          logger.info(s"Successfully opened $endpointType device $deviceId.")
-          businessync.publish(MidiDeviceOpenedEvent(deviceId, endpointType))
+          // TODO #288 The connection events are dropped, because updateDevices already reported the connection; the
+          //   endpoint is going to hand every connected device to its handle from refresh instead.
+          deviceHandle.connect(connectedDevice.info, connectedDevice.device)
+          deviceHandle.open().foreach(businessync.publish)
         case None =>
           // TODO #288 The handle is not opened, so it does not wait to open and would not open once the device gets
           //   connected, contrary to MidiManager.openInput / openOutput.
@@ -267,10 +264,8 @@ object JavaMidiManager {
       //   open, such as one requested while its device was disconnected, is neither released nor removed.
       deviceHandleOf(deviceId) match {
         case Some(openedDevice) if openedDevice.isOpen =>
-          logger.info(s"Closing $endpointType device $deviceId...")
-          openedDevice.close()
+          openedDevice.close().foreach(businessync.publish)
           openedDevicesMap.remove(deviceId)
-          logger.info(s"Successfully closed $endpointType device $deviceId.")
         case _ => // Do nothing
       }
     }

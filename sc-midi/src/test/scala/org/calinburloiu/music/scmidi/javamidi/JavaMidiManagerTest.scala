@@ -670,7 +670,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         Seq("""Output device "CoreMIDI4J - FP-90" (Roland) is not connected.""")
     }
 
-    "report the opening and the closing of devices at info level" in new Fixture {
+    "report the closing of the MIDI connections at info level" in new Fixture {
       // Given
       val device: FakeMidiDevice = Input.newDevice(deviceName)
       environment.plug(device)
@@ -683,13 +683,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
 
       // Then
-      events.messagesAt(Level.INFO) shouldEqual Seq(
-        s"Successfully opened input device ${device.id}.",
-        "Closing MIDI connections...",
-        s"Closing input device ${device.id}...",
-        s"Successfully closed input device ${device.id}.",
-        "Finished closing MIDI connections."
-      )
+      events.messagesAt(Level.INFO) shouldEqual Seq("Closing MIDI connections...", "Finished closing MIDI connections.")
     }
 
     "report an environment change at info level and the disconnection of a device at warn level" in new Fixture {
