@@ -96,4 +96,15 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     // Then
     receiverStub.send.verify(*, *).never()
   }
+
+  behavior of "reset"
+
+  it should "reset every tuning changer" in new Fixture {
+    // When
+    processor.reset()
+
+    // Then
+    (() => noteTuningChangerStub.reset()).verify().once()
+    (() => ccTuningChangerStub.reset()).verify().once()
+  }
 }

@@ -119,4 +119,18 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
       receiver.send.verify(tuneMessage2, -1L).once()
       anotherReceiver.send.verify(tuneMessage2, -1L).never()
     }
+
+  "reset" should "reset the tuner and send its reset messages to every receiver" in new Fixture {
+    // Given
+    val anotherReceiver: MidiReceiver = stub[MidiReceiver]
+    processor.transmitter.addReceiver(anotherReceiver)
+
+    // When
+    processor.reset()
+
+    // Then
+    // Once when each receiver got connected, and once more on reset
+    receiver.send.verify(initMessage, -1L).repeated(2)
+    anotherReceiver.send.verify(initMessage, -1L).repeated(2)
+  }
 }

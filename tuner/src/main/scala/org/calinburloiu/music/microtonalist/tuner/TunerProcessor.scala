@@ -34,6 +34,7 @@ import javax.annotation.concurrent.NotThreadSafe
  * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receivers.
  * - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
  * - Properly resetting the tuner and sending initialization messages when connected.
+ * - Resetting the tuner on request and sending the initialization messages to every receiver.
  * - Restoring the default tuning and ensuring a clean state upon disconnection.
  * - Safeguarding message transmission to the MIDI receivers and handling any transmission errors.
  *
@@ -56,6 +57,17 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   def tune(tuning: Tuning): Unit = {
     val tuningMessages = tuner.tune(tuning)
     sendToReceivers(tuningMessages, -1)
+  }
+
+  /**
+   * Resets the tuner and sends the messages that initialize the output to every receiver of the transmitter, as a
+   * newly connected receiver gets them, e.g. when the output device (re)opens after the processor was connected to it.
+   *
+   * It does not apply any tuning: the output plays in the tuning the tuner is left in by its reset.
+   */
+  def reset(): Unit = {
+    val initMessages = tuner.reset()
+    sendToReceivers(initMessages, -1)
   }
 
   override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = tuner.process(message)
