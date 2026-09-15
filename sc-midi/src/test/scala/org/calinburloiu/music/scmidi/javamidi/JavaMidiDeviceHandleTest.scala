@@ -634,6 +634,18 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       noException should be thrownBy handle.receiver.send(noteOn, 42L)
       device.receivedMessages shouldBe empty
     }
+
+    "drop a message that reaches a receiver Java Sound already closed, without throwing" in new Fixture {
+      // Given
+      connect()
+      handle.open()
+      // Java Sound closes the device, and its receivers, before the manager learns that the device is gone
+      device.close()
+
+      // When / Then
+      noException should be thrownBy handle.receiver.send(noteOn, 42L)
+      device.receivedMessages shouldBe empty
+    }
   }
 
   "transmitter" should {
@@ -773,5 +785,30 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
           Some(failure.getMessage)
         ))
       }
+
+    "warn of the first message dropped after each open and report the following ones at debug level" in new Fixture {
+      // Given
+      connect()
+      handle.open()
+      device.close()
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        handle.receiver.send(noteOn, 42L)
+        handle.receiver.send(secondNoteOn, 43L)
+        handle.close()
+        handle.open()
+        device.close()
+        handle.receiver.send(noteOn, 44L)
+      }
+
+      // Then
+      val warning = """Dropping the messages sent to output device "CoreMIDI4J - FP-90" (Roland), which Java Sound """ +
+        "already closed, until it opens again."
+      events.messagesAt(Level.WARN) shouldEqual Seq(warning, warning)
+      events.messagesAt(Level.DEBUG) shouldEqual
+        Seq(s"""Dropping $secondNoteOn sent to output device "CoreMIDI4J - FP-90" (Roland), which Java Sound already """ +
+          "closed.")
+    }
   }
 }

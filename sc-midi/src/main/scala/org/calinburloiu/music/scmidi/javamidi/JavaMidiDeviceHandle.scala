@@ -23,6 +23,7 @@ import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.{Midi1Msg, Midi2Msg, MidiMsg}
 
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 import javax.annotation.concurrent.ThreadSafe
 import javax.sound.midi.{MidiDevice, MidiMessage, Receiver}
@@ -53,7 +54,9 @@ import scala.util.Try
  *   - The Java `Receiver` registered on the device's transmitter converts with `asScala` and fans out to the
  *     receivers of [[transmitter]].
  *
- * Sending never takes the lock of the handle.
+ * Sending never takes the lock of the handle. A message that reaches a receiver Java Sound already closed, because
+ * the device vanished before the manager learned of it, is dropped: the first one after each open is logged at warn
+ * level, and the following ones at debug level.
  *
  * @param id        Unique identifier of the MIDI device.
  * @param direction The direction of the endpoint of the manager that owns the handle, [[MidiEndpointType.Input]] or
@@ -79,6 +82,9 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    */
   @volatile private var deviceReceiver: Option[Receiver] = None
 
+  /** Whether a message dropped since the device last opened was already reported at warn level. */
+  private val hasWarnedOfDroppedMessage: AtomicBoolean = AtomicBoolean(false)
+
   private var _state: State = State.Closed
 
   private var openRefCount: Int = 0
@@ -98,7 +104,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   private class HandleReceiver extends MidiReceiver {
     override def send(message: MidiMsg, timeStamp: Long): Unit = message match {
       case midi1Message: Midi1Msg =>
-        deviceReceiver.foreach(_.send(midi1Message.asJava, timeStamp))
+        for (javaReceiver <- deviceReceiver) {
+          try {
+            javaReceiver.send(midi1Message.asJava, timeStamp)
+          } catch {
+            // TODO #302 Inform the manager that the device is gone, instead of only dropping the message until
+            //  CoreMIDI4J reports the change.
+            case _: IllegalStateException => logDroppedMessage(midi1Message)
+          }
+        }
       case midi2Message: Midi2Msg =>
         logger.warn(s"Dropping $midi2Message sent to device $id: Java Sound devices speak MIDI 1.0 only.")
     }
@@ -277,6 +291,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         device.getTransmitter.setReceiver(inboundReceiver)
       }
 
+      hasWarnedOfDroppedMessage.set(false)
       _state = State.Open
       logger.info(s"Successfully opened $direction device $id.")
       Seq(MidiDeviceOpenedEvent(id, direction))
@@ -305,6 +320,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       case exception: Exception =>
         logger.error(s"Failed to close $direction device $id!", exception)
         Seq(MidiDeviceFailedToCloseEvent(id, direction, exception))
+    }
+  }
+
+  private def logDroppedMessage(message: Midi1Msg): Unit = {
+    if (hasWarnedOfDroppedMessage.compareAndSet(false, true)) {
+      logger.warn(s"Dropping the messages sent to $direction device $id, which Java Sound already closed, until it " +
+        "opens again.")
+    } else {
+      logger.debug(s"Dropping $message sent to $direction device $id, which Java Sound already closed.")
     }
   }
 
