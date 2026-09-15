@@ -115,4 +115,7 @@ lazy val myModule = (project in file("my-module"))
   .dependsOn(commonTestUtils % Test)
 ```
 
+`common-test-utils` already provides `CommonTestUtils` (e.g. `uriOfResource`) and `LogCapture`, which captures the
+events of a logger so that a test can assert on log output that tests otherwise discard.
+
 Test-utility modules have `coverageEnabled := false` so that they do not appear in coverage reports.

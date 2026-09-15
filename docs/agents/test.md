@@ -24,6 +24,8 @@ Running all tests (across all modules):
 sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"
 ```
 
+> **Note:** `root` aggregates every module except `experiments` (see `build.sbt`), which currently has no tests.
+
 Testing a single module `${MODULE}`:
 
 ```bash

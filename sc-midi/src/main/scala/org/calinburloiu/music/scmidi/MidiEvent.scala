@@ -20,6 +20,12 @@ import org.calinburloiu.businessync.BusinessyncEvent
 
 /**
  * Base class for all MIDI events emitted by a [[MidiManager]] implementation.
+ *
+ * A device event identifies its device by [[MidiDeviceId]] alone and does not tell whether the device is an input or
+ * an output. A [[MidiManager]] keeps the two apart, because the platform may expose one physical device once per
+ * direction (see [[MidiManager]]), so a device that works in both directions is reported once for each of them, by
+ * two events that are equal. A subscriber that needs the direction asks the manager, e.g. with
+ * [[MidiManager.isInputAvailable]] and [[MidiManager.isOutputAvailable]] or via [[MidiDeviceInfo.endpointType]].
  */
 abstract sealed class MidiEvent extends BusinessyncEvent
 

@@ -46,10 +46,6 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
 
   private def textBytes(s: String): Array[Byte] = s.getBytes("ISO-8859-1")
 
-  /** `MidiDevice.Info` has a protected constructor; this is the four-line subclass tests need to build one. */
-  private class TestDeviceInfo(name: String, vendor: String, description: String, version: String)
-    extends MidiDevice.Info(name, vendor, description, version)
-
   private val sysexBytes: Array[Byte] = Array(0xF0.toByte, 0x43.toByte, 0x12.toByte, 0x7F.toByte, 0xF7.toByte)
 
   private val cases = Table[Midi1Msg, MidiMessage](
