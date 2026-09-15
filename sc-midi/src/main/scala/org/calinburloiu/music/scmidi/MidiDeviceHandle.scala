@@ -135,16 +135,18 @@ object MidiDeviceHandle {
    * Represents the state of a MIDI device's connection and openness.
    *
    * {{{
-   *    ┌─────────────┐      connect     ┌────┐
+   *    ┌─────────────┐     connect      ┌────┐
    *    │             ├──────────────────►    │
-   *    │WaitingToOpen│                  │Open├───┐
+   *    │             │                  │    ├───┐
+   *    │WaitingToOpen◄──────────────────┤Open│   │
+   *    │             │  disconnect      │    │   │
    *    │             │            ┌─────►    │   │
    *    └▲────────────┘            │     └────┘   │
    *     │   │                   open       │     │
    *     │   │                     │      close   │
    *     │   │            ┌────────┴┐       │     │
    *     │   │            │Connected◄───────┘     │
-   *     │   │close       └─▲────┬──┘             │disconnect
+   *     │   │close       └─▲────┬──┘             │close
    * open│   │              │    │                │
    *     │   │       connect│    │disconnect      │
    *     │   │              │    │                │
