@@ -108,6 +108,21 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     midiManager.closeOutput.verify(*).never()
   }
 
+  it should "release nothing through the MIDI manager when its input and output are other tracks" in new Fixture {
+    // Given
+    val trackSpecWithTrackIO: TrackSpec = spec.copy(
+      input = Some(FromTrackInputSpec("upstream", None)), output = Some(ToTrackOutputSpec("downstream", None)))
+    val trackWithTrackIO: Track = Track(spec = trackSpecWithTrackIO, midiManager = midiManager,
+      tuningService = tuningService)
+
+    // When
+    trackWithTrackIO.close()
+
+    // Then
+    midiManager.closeInput.verify(*).never()
+    midiManager.closeOutput.verify(*).never()
+  }
+
   behavior of "resetTuner"
 
   it should "send the tuner's reset messages to the output" in new DeviceFixture {
