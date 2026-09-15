@@ -33,7 +33,8 @@ import javax.annotation.concurrent.ThreadSafe
  *
  * @param spec             The declarative description this track is built from: its id, input, output, tuner and
  *                         tuning changers.
- * @param midiManager      Used to open the input and output MIDI devices named by the spec.
+ * @param midiManager      Used to open the input and output MIDI devices named by the spec, and to release them when
+ *                         the track is closed.
  * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
  *                         tuning change.
  * @param initMidiMessages MIDI messages sent into the pipeline right after it is built, typically to initialize the
@@ -92,8 +93,14 @@ class Track(val spec: TrackSpec,
     logger.info(s"Switching back to 12-EDO for track $id...")
     tune(Tuning.Standard)
 
-    inputDeviceHandle.foreach(_.close())
-    outputDeviceHandle.foreach(_.close())
+    spec.input.foreach {
+      case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.closeInput(midiDeviceId)
+      case _ => // Not a device: nothing to release
+    }
+    spec.output.foreach {
+      case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.closeOutput(midiDeviceId)
+      case _ => // Not a device: nothing to release
+    }
   }
 
   /**

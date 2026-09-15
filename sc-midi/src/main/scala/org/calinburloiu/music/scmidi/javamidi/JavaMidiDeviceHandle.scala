@@ -146,7 +146,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   /**
    * @see `MidiDevice.open()` from the Java MIDI API, which is called by this method to open the device.
    */
-  override def open(): Unit = withLock {
+  private[javamidi] def open(): Unit = withLock {
     openRefCount += 1
     if (openRefCount == 1) {
       if (_state == State.Closed) {
@@ -160,7 +160,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   /**
    * @see `MidiDevice.close()` from the Java MIDI API, which is called by this method to close the device.
    */
-  override def close(): Unit = withLock {
+  private[javamidi] def close(): Unit = withLock {
     openRefCount -= 1
     if (openRefCount == 0) {
       if (_state == State.WaitingToOpen) {
@@ -178,10 +178,6 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       }
     }
   }
-
-  override def isConnected: Boolean = _device.isDefined
-
-  override def isOpen: Boolean = _device.exists(_.isOpen)
 
   override def receiver: MidiReceiver = _receiver
 

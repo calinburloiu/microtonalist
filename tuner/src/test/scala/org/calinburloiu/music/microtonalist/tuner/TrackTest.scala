@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
-import org.calinburloiu.music.scmidi.{MidiManager, MidiNote, MidiReceiver}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager, MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -43,6 +43,26 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     val receiver: MidiReceiver = stub[MidiReceiver]
   }
 
+  /** A track over an input device and an output device, both opened through a stubbed manager. */
+  trait DeviceFixture {
+    val inputDeviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Seaboard", "ROLI")
+    val outputDeviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+
+    val tuner: Tuner = stub[Tuner]
+    (() => tuner.reset()).when().returns(Seq(initMessage))
+    tuner.tune.when(*).returns(Seq.empty)
+
+    val outputReceiver: RecordingMidiReceiver = RecordingMidiReceiver()
+    val midiManager: MidiManager = stub[MidiManager]
+    midiManager.openInput.when(inputDeviceId).returns(FakeMidiDeviceHandle(inputDeviceId))
+    midiManager.openOutput.when(outputDeviceId).returns(FakeMidiDeviceHandle(outputDeviceId, outputReceiver))
+
+    val tuningService: TuningService = stub[TuningService]
+    val spec: TrackSpec = TrackSpec("track", "Track", input = Some(DeviceTrackInputSpec(inputDeviceId, None)),
+      tuner = Some(tuner), output = Some(DeviceTrackOutputSpec(outputDeviceId, None)))
+    val track: Track = Track(spec = spec, midiManager = midiManager, tuningService = tuningService)
+  }
+
   behavior of "transmitter"
 
   it should "deliver the tuner's reset messages to a receiver added after the track was built" in new Fixture {
@@ -62,5 +82,25 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
 
     // Then
     receiver.send.verify(outputMessage, *).once()
+  }
+
+  behavior of "close"
+
+  it should "release its input and output devices through the MIDI manager" in new DeviceFixture {
+    // When
+    track.close()
+
+    // Then
+    midiManager.closeInput.verify(inputDeviceId).once()
+    midiManager.closeOutput.verify(outputDeviceId).once()
+  }
+
+  it should "release nothing through the MIDI manager when it has no device" in new Fixture {
+    // When
+    track.close()
+
+    // Then
+    midiManager.closeInput.verify(*).never()
+    midiManager.closeOutput.verify(*).never()
   }
 }

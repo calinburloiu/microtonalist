@@ -23,19 +23,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
-  /** A handle that only knows its info; the members under test derive from it. */
-  private class InfoOnlyHandle(override val info: Option[MidiDeviceInfo]) extends MidiDeviceHandle {
+  /** A handle that only knows its info and its state; the members under test derive from them. */
+  private class TestHandle(override val info: Option[MidiDeviceInfo] = None,
+                           override val state: MidiDeviceHandle.State = MidiDeviceHandle.State.Closed)
+    extends MidiDeviceHandle {
     override def id: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
-
-    override def state: MidiDeviceHandle.State = MidiDeviceHandle.State.Closed
-
-    override def isConnected: Boolean = false
-
-    override def isOpen: Boolean = false
-
-    override def open(): Unit = {}
-
-    override def close(): Unit = {}
 
     override def receiver: MidiReceiver = NoOpMidiReceiver()
 
@@ -59,12 +51,35 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
     forAll(cases) { (info, endpointType, isInputDevice, isOutputDevice) =>
       // When
-      val handle = InfoOnlyHandle(info)
+      val handle = TestHandle(info = info)
 
       // Then
       handle.endpointType shouldEqual endpointType
       handle.isInputDevice shouldBe isInputDevice
       handle.isOutputDevice shouldBe isOutputDevice
+    }
+  }
+
+  behavior of "isConnected, isOpen and isOpenRequested"
+
+  it should "derive from the state, the device being open for use only in Open" in {
+    // Given
+    val cases = Table[MidiDeviceHandle.State, Boolean, Boolean, Boolean](
+      ("state", "isConnected", "isOpen", "isOpenRequested"),
+      (MidiDeviceHandle.State.Closed, false, false, false),
+      (MidiDeviceHandle.State.Connected, true, false, false),
+      (MidiDeviceHandle.State.WaitingToOpen, false, false, true),
+      (MidiDeviceHandle.State.Open, true, true, true)
+    )
+
+    forAll(cases) { (state, isConnected, isOpen, isOpenRequested) =>
+      // When
+      val handle = TestHandle(state = state)
+
+      // Then
+      handle.isConnected shouldBe isConnected
+      handle.isOpen shouldBe isOpen
+      handle.isOpenRequested shouldBe isOpenRequested
     }
   }
 
