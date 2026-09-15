@@ -271,8 +271,8 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
 
 ## Device lifecycle and events
 
-`JavaMidiManager`'s endpoints reconcile the scanned device set against their live handles on every `refresh()`. Every
-handle transition reports exactly one [`MidiEvent`](#device-handling), and a failure event replaces its success event:
+`JavaMidiManager`'s endpoints reconcile the scanned device set against their live handles on every `refresh()`. Each
+[`MidiEvent`](#device-handling) reports one transition of one handle, and a failure event replaces its success event:
 
 - *connected* / *disconnected* on `connect` / `disconnect`; `…FailedToDisconnect` replaces *disconnected* when releasing
   the device throws, and the handle ends up disconnected either way. Only the first refresh that sees an id reports it

@@ -76,8 +76,8 @@ trait MidiManager extends AutoCloseable {
   /**
    * Releases one reference to the input device with the given identifier. It does nothing when the device has no live
    * handle requested to open. When the last reference is released, the handle moves to
-   * [[MidiDeviceHandle.State.Connected]] or, if its device is not connected, to [[MidiDeviceHandle.State.Closed]],
-   * and is then forgotten.
+   * [[MidiDeviceHandle.State.Connected]], where it stays live, or, if its device is not connected, to
+   * [[MidiDeviceHandle.State.Closed]], where it is forgotten.
    */
   def closeInput(deviceId: MidiDeviceId): Unit
 
@@ -118,8 +118,8 @@ trait MidiManager extends AutoCloseable {
   /**
    * Releases one reference to the output device with the given identifier. It does nothing when the device has no
    * live handle requested to open. When the last reference is released, the handle moves to
-   * [[MidiDeviceHandle.State.Connected]] or, if its device is not connected, to [[MidiDeviceHandle.State.Closed]],
-   * and is then forgotten.
+   * [[MidiDeviceHandle.State.Connected]], where it stays live, or, if its device is not connected, to
+   * [[MidiDeviceHandle.State.Closed]], where it is forgotten.
    */
   def closeOutput(deviceId: MidiDeviceId): Unit
 

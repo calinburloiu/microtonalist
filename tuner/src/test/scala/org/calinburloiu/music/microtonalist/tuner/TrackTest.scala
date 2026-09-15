@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg,
+  PitchBendMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager, MidiNote, MidiReceiver, MidiSplitter}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -189,7 +190,7 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
 
   behavior of "releaseInput"
 
-  it should "send All Notes Off on every channel straight to the output, then reset the tuning changers and the tuner" in
+  it should "send All Notes Off on every channel straight to the output, then reset the tuning changers and tuner" in
     new DeviceFixture {
       // Given
       outputReceiver.clear()

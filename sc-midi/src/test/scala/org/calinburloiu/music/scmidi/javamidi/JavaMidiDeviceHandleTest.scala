@@ -892,8 +892,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         "already closed, until it opens again."
       events.messagesAt(Level.WARN) shouldEqual Seq(warning, warning)
       events.messagesAt(Level.DEBUG) shouldEqual
-        Seq(s"""Dropping $secondNoteOn sent to output device "CoreMIDI4J - FP-90" (Roland), which Java Sound already """ +
-          "closed.")
+        Seq(s"""Dropping $secondNoteOn sent to output device "CoreMIDI4J - FP-90" (Roland), which Java Sound """ +
+          "already closed.")
     }
   }
 }

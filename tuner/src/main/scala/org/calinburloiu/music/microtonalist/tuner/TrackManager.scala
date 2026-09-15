@@ -18,7 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.calinburloiu.music.scmidi.{MidiDeviceDisconnectedEvent, MidiDeviceFailedToDisconnectEvent, MidiDeviceId, MidiDeviceOpenedEvent, MidiEndpointType, MidiEvent, MidiManager}
+import org.calinburloiu.music.scmidi.{MidiDeviceDisconnectedEvent, MidiDeviceFailedToDisconnectEvent, MidiDeviceId,
+  MidiDeviceOpenedEvent, MidiEndpointType, MidiEvent, MidiManager}
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
@@ -135,7 +136,8 @@ class TrackManager(private val midiManager: MidiManager,
    */
   // TODO #90 Remove @Subscribe after implementing businessync. Guava calls this handler on the thread that publishes
   //  the event, which is CoreMIDI4J's notification thread for a device change, while TrackManager is meant to be used
-  //  on the business thread only.
+  //  on the business thread only. It reads the tracks on that thread, so a device that opens while replaceAllTracks
+  //  builds the tracks on another thread can miss its tuner reset.
   @Subscribe
   private def onMidiEvent(event: MidiEvent): Unit = event match {
     case MidiDeviceOpenedEvent(deviceId, MidiEndpointType.Output) =>
