@@ -102,7 +102,11 @@ receiver, and `TuningChangeProcessor.reset()` resets its tuning changers; `Track
 
 - `Track` (`@ThreadSafe`) is one instrument pipeline built from a `TrackSpec`. It opens the input/output MIDI devices
   via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
-  - `close()` switches back to 12-EDO and releases its devices through `MidiManager.closeInput` / `closeOutput`.
+  - `close()` unsubscribes from its input device and detaches its output device, which the tuner switches back to
+    12-EDO as it gets disconnected, then switches the tracks it feeds back to 12-EDO, so each output gets those
+    messages once. It finally releases its devices through `MidiManager.closeInput` / `closeOutput`. It must detach
+    because a released handle whose device is still connected stays live and is the one a later track for that device
+    gets: a closed track left attached would keep receiving and sending next to its replacement.
   - `resetTuner()` re-initialises the output instrument, and `releaseInput()` silences it after its input device
     disappears (see [Device changes](#device-changes)).
 - `TrackSpec` / `TrackSpecs` are the declarative description of a track and an immutable, id-keyed ordered collection

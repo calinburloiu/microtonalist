@@ -87,10 +87,27 @@ class Track(val spec: TrackSpec,
    */
   def transmitter: ConcurrentMidiTransmitter = pipeline.transmitter
 
+  /**
+   * Closes the track. It:
+   *
+   *   1. unsubscribes from its input device, so that nothing the device still sends enters the track;
+   *   1. detaches its output device, which the tuner switches back to 12-EDO as it gets disconnected;
+   *   1. switches back to 12-EDO the tracks it feeds, which stay attached;
+   *   1. releases its devices through the [[MidiManager]].
+   *
+   * Each output gets the 12-EDO messages exactly once. The track detaches from its devices because a released handle
+   * whose device is still connected stays live, and a track built later for the same device gets that same handle: a
+   * closed track still attached to it would go on receiving from the input and sending to the output.
+   */
   override def close(): Unit = {
     logger.info(s"Closing track $id...")
 
+    inputDeviceHandle.foreach(_.transmitter.removeReceiver(receiver))
+
     logger.info(s"Switching back to 12-EDO for track $id...")
+    // Removing the output device receiver makes the TunerProcessor send it the 12-EDO messages, so tuning afterwards
+    // reaches only the receivers left, the tracks this one feeds.
+    outputDeviceHandle.foreach(handle => transmitter.removeReceiver(handle.receiver))
     tune(Tuning.Standard)
 
     spec.input.foreach {

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager, MidiNote, MidiReceiver}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager, MidiNote, MidiReceiver, MidiSplitter}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -27,11 +27,13 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
   val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
   val inputMessage: MidiMsg = NoteOnMidiMsg(0, MidiNote.C4, 64)
   val outputMessage: MidiMsg = PitchBendMidiMsg(0, 100)
+  /** What the stubbed tuner sends when it is tuned to 12-EDO. */
+  val standardTuningMessage: MidiMsg = PitchBendMidiMsg(1, -100)
 
   trait Fixture {
     val tuner: Tuner = stub[Tuner]
     (() => tuner.reset()).when().returns(Seq(initMessage))
-    tuner.tune.when(*).returns(Seq.empty)
+    tuner.tune.when(Tuning.Standard).returns(Seq(standardTuningMessage))
     tuner.process.when(inputMessage).returns(Seq(outputMessage))
 
     val tuningService: TuningService = stub[TuningService]
@@ -50,11 +52,13 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
 
     val tuner: Tuner = stub[Tuner]
     (() => tuner.reset()).when().returns(Seq(initMessage))
-    tuner.tune.when(*).returns(Seq.empty)
+    tuner.tune.when(Tuning.Standard).returns(Seq(standardTuningMessage))
+    tuner.process.when(inputMessage).returns(Seq(outputMessage))
 
+    val inputHandle: FakeMidiDeviceHandle = FakeMidiDeviceHandle(inputDeviceId)
     val outputReceiver: RecordingMidiReceiver = RecordingMidiReceiver()
     val midiManager: MidiManager = stub[MidiManager]
-    midiManager.openInput.when(inputDeviceId).returns(FakeMidiDeviceHandle(inputDeviceId))
+    midiManager.openInput.when(inputDeviceId).returns(inputHandle)
     midiManager.openOutput.when(outputDeviceId).returns(FakeMidiDeviceHandle(outputDeviceId, outputReceiver))
 
     val tuningChanger: TuningChanger = stub[TuningChanger]
@@ -97,6 +101,53 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     midiManager.closeInput.verify(inputDeviceId).once()
     midiManager.closeOutput.verify(outputDeviceId).once()
+  }
+
+  it should "stop forwarding the messages of its input device to its output" in new DeviceFixture {
+    // Given
+    track.close()
+    outputReceiver.clear()
+
+    // When
+    MidiSplitter(inputHandle.transmitter).send(inputMessage, 7L)
+
+    // Then
+    inputHandle.transmitter.receivers shouldBe empty
+    outputReceiver.messages shouldBe empty
+  }
+
+  it should "stop sending the messages it receives to its output device" in new DeviceFixture {
+    // Given
+    track.close()
+    outputReceiver.clear()
+
+    // When
+    track.receiver.send(inputMessage, 7L)
+
+    // Then
+    outputReceiver.messages shouldBe empty
+  }
+
+  it should "switch its output device back to 12-EDO exactly once" in new DeviceFixture {
+    // Given
+    outputReceiver.clear()
+
+    // When
+    track.close()
+
+    // Then
+    outputReceiver.messages shouldEqual Seq(standardTuningMessage)
+  }
+
+  it should "switch the tracks it feeds back to 12-EDO exactly once" in new Fixture {
+    // Given
+    track.transmitter.addReceiver(receiver)
+
+    // When
+    track.close()
+
+    // Then
+    receiver.send.verify(standardTuningMessage, -1L).once()
   }
 
   it should "release nothing through the MIDI manager when it has no device" in new Fixture {
