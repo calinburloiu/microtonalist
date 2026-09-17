@@ -1,4 +1,4 @@
-# MIDI device lifecycle: connected, open, attached
+# MIDI device lifecycle: connected/disconnected, open/closed, attached/detached
 
 Three pairs of terms describe where a MIDI device stands at any moment, and plain English uses *connect* for all
 three. This document fixes the vocabulary: each pair answers a different question, and knowing one tells you nothing
@@ -69,10 +69,10 @@ For a `Track` the two directions are wired in opposite senses:
 `MidiProcessor` runs an **attach / detach protocol** over every change of its transmitter's receivers, calling
 `onDetach(removed)` before the change and `onAttach(added)` after it, with exactly the receivers the change affects,
 followed by `onReceiversChanged(all)`. `TunerProcessor` is the main client: it sends the tuner's `reset()` messages
-to each receiver that attaches, and restores 12-EDO on each receiver that detaches, so an output instrument is
-initialised when it joins and left in a consistent state when it leaves. Only a `MidiProcessor`'s transmitter runs
-this protocol — a `MidiDeviceHandle`'s transmitter is a plain `ConcurrentMidiTransmitter`, so attaching to a device's
-input fires no hooks.
+to each receiver that attaches, so an output instrument is initialised when it joins. It today also restores 12-EDO
+on each receiver that detaches, which [#305](#subject-to-change-305) moves onto the *close*, where it belongs. Only a
+`MidiProcessor`'s transmitter runs this protocol — a `MidiDeviceHandle`'s transmitter is a plain
+`ConcurrentMidiTransmitter`, so attaching to a device's input fires no hooks.
 
 ## How the three relate
 
@@ -82,23 +82,53 @@ Attaching and detaching are what a track does with its own wiring; opening and c
 1. **Built.** It takes a reference with `openInput` / `openOutput` — an *open request*, which opens the device now or
    as soon as it gets connected — and then attaches: its receiver to the input device's transmitter, the output
    device's receiver to its pipeline.
-2. **Closed.** It detaches from both — the output device receiver leaving the pipeline is what makes `TunerProcessor`
-   send it the 12-EDO messages — and only then issues the *close request* with `closeInput` / `closeOutput`. The
-   device is closed only if that released the last reference; another track sharing it keeps it open.
+2. **Closed.** It detaches from both, then issues the *close request* with `closeInput` / `closeOutput`. The device
+   is really closed only if that released the last reference; another track sharing it keeps it open.
 
 A track must detach on close, and not merely release its devices: a released handle whose device is still connected
 stays live, and a track built later for the same device gets that same handle. A closed track left attached would go
 on receiving from the input and sending to the output next to its replacement.
 
-The three pairs stay independent throughout:
+What keeps the three pairs from collapsing into one another is that **a request is not its effect**:
 
-- **Attaching does not open.** A receiver may be attached to a handle that is disconnected or closed; it simply gets
-  nothing, and starts working without re-wiring once the device is usable. This is what lets a track survive its
-  device being unplugged and plugged back in.
-- **Detaching does not close**, and **closing does not detach**. They are separate calls, and `Track.close()` makes
-  both.
+- **An open request does not necessarily open.** If the device is not connected, the handle waits in `WaitingToOpen`
+  and opens by itself once it gets connected.
+- **A close request does not necessarily close.** It releases one reference; the device closes only when the last
+  one goes.
+- **Attaching to a device that is not usable is legal.** A receiver may be attached to a handle that is disconnected
+  or closed; it simply gets nothing, and starts working without re-wiring once the device becomes usable. This is
+  what lets a track survive its device being unplugged and plugged back in.
+- **Attaching never connects and detaching never disconnects.** Only the platform decides that pair.
 - **Disconnecting does not detach.** When a device vanishes, its handle reports *closed* and then *disconnected*
   while every receiver stays attached, ready for the device to come back.
+
+It follows that the **courtesy 12-EDO messages belong to the close, not to the detach**: an output another track
+still holds open must keep playing in the tuning it is in, so detaching one track from it has to leave it alone.
+Today `TunerProcessor.onDetach` sends them on every detach regardless, which is one of the things
+[#305](#subject-to-change-305) fixes.
+
+## Subject to change (#305)
+
+[#305](https://github.com/calinburloiu/microtonalist/issues/305), under the *Track Management* milestone, keeps this
+vocabulary but rewires what drives what. The notes below are forward-looking; everything above describes the code as
+it is today.
+
+- **Attach drives the open request, detach drives the close request.** An input or output attaches to a track
+  regardless of whether its device is connected, and that attach is what initiates `openInput` / `openOutput`;
+  detaching initiates `closeInput` / `closeOutput`. A track will no longer open and attach as two separate steps.
+- **Reactions key off what happened to the device, not off the wiring alone:**
+    - An input that gets **attached or connected** needs no handling.
+    - An input that gets **detached or disconnected** is released, the two cases handled identically: All Notes Off
+      to every output, then the `Tuner` and the `TuningChanger` are reset.
+    - An output that gets **attached while open** triggers a reset, so it learns the current configuration and the
+      current tuning.
+    - An output that gets **detached and thereby becomes closed** triggers a reset *and* gets the courtesy 12-EDO
+      messages. An output that stays open because another track still holds it gets neither.
+- **`Tuner` changes shape.** `tune` and `reset` become `final` on the trait, delegating to new `onTune` / `onReset`
+  hooks. `reset` re-states the *current* tuning and the *current* configuration instead of reverting to 12-EDO and
+  to the configuration passed to the constructor — so a newly attached output learns where things actually stand —
+  while still clearing the internal note state. Rendering the 12-EDO courtesy messages becomes a separate read-only
+  method that reads the configuration but mutates nothing.
 
 ## Related documents
 

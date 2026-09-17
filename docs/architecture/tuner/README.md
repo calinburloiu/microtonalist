@@ -254,3 +254,10 @@ These are signalled directly in the code:
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).
 - `TrackManager`'s `MidiEvent` handler runs on the publishing thread instead of the business thread (TODO #90).
 - Resetting a track's tuner on a device event does not restore the current tuning (TODO #303).
+
+Not signalled in the code yet: [#305](https://github.com/calinburloiu/microtonalist/issues/305) will make attaching
+and detaching a track input/output drive the open and close requests, and will tie the tuner reset and the courtesy
+12-EDO messages to the device actually opening and closing rather than to the wiring change alone — so an output that
+another track still holds open is left playing in its current tuning. It also reshapes `Tuner.tune` / `Tuner.reset`
+into `final` methods over new `onTune` / `onReset` hooks. See
+[`midi-device-lifecycle.md`](../midi-device-lifecycle.md#subject-to-change-305).
