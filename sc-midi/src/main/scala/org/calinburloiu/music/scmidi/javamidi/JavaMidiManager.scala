@@ -133,7 +133,7 @@ class JavaMidiManager(businessync: Businessync,
    * @return the result of the operation.
    */
   private def withLockThenPublish[R](operation: => (R, Seq[MidiEvent])): R = {
-    val (result, events) = withLock(operation)
+    val (result, events) = withLock { operation }
     events.foreach(businessync.publish)
     result
   }
@@ -246,14 +246,14 @@ object JavaMidiManager {
         devicesById.updated(device.id, device)
       }
 
-      val connectionEvents = devicesById.values.toSeq.flatMap { connectedDevice =>
+      val connectionEvents = devicesById.values.flatMap { connectedDevice =>
         handleOf(connectedDevice.id).connect(connectedDevice.info, connectedDevice.device)
       }
-      val disconnectionEvents = handles.values.toSeq
+      val disconnectionEvents = handles.values
         .filter(handle => handle.isConnected && !devicesById.contains(handle.id))
         .flatMap(handle => forgettingIfClosed(handle)(handle.disconnect()))
 
-      connectionEvents ++ disconnectionEvents
+      Seq.from(connectionEvents ++ disconnectionEvents)
     }
 
     def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = handles.get(deviceId).exists(_.isConnected)
@@ -287,9 +287,9 @@ object JavaMidiManager {
     }
 
     /** Releases every reference to every device. */
-    def closeAll(): Seq[MidiEvent] = handles.values.toSeq.flatMap { handle =>
+    def closeAll(): Seq[MidiEvent] = handles.values.flatMap { handle =>
       forgettingIfClosed(handle)(handle.closeAll())
-    }
+    }.toSeq
 
     private def connectedHandles: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isConnected).toSeq
 
