@@ -42,5 +42,7 @@ By build convention each module's SBT project ID equals its base directory name 
 
 ## Other architecture material
 
+- [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *connected*/*disconnected*, *open*/*closed* and
+  *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
 - [`tuner/mpe-spec.md`](tuner/mpe-spec.md) — MPE specification notes.
 - [`tuner/mpe-tuner-paper.md`](tuner/mpe-tuner-paper.md) — MPE tuner design paper.

@@ -94,19 +94,22 @@ held pedal's CC stream).
 chained; both plugins and both processors are typed on `MidiMsg`, so no conversion to Java Sound happens in this
 module. `TuningChangeProcessor` asks its `TuningChanger`s in order (first effective decision wins) and, on an effective
 change, calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`, forwarding `tune`/`process`, sending
-`reset()` to each receiver newly connected to its transmitter, and restoring 12-EDO on each receiver being
-disconnected. `TunerProcessor.reset()` resets the tuner and sends its initialization messages to every current
-receiver, and `TuningChangeProcessor.reset()` resets its tuning changers; `Track` calls both when its devices change.
+`reset()` to each receiver newly **attached** to its transmitter, and restoring 12-EDO on each receiver being
+**detached** — not to be confused with the device being connected or open, see
+[`midi-device-lifecycle.md`](../midi-device-lifecycle.md). `TunerProcessor.reset()` resets the tuner and sends its
+initialization messages to every current receiver, and `TuningChangeProcessor.reset()` resets its tuning changers;
+`Track` calls both when its devices change.
 
 **Track and lifecycle.**
 
 - `Track` (`@ThreadSafe`) is one instrument pipeline built from a `TrackSpec`. It opens the input/output MIDI devices
   via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
-  - `close()` unsubscribes from its input device and detaches its output device, which the tuner switches back to
-    12-EDO as it gets disconnected, then switches the tracks it feeds back to 12-EDO, so each output gets those
-    messages once. It finally releases its devices through `MidiManager.closeInput` / `closeOutput`. It must detach
-    because a released handle whose device is still connected stays live and is the one a later track for that device
-    gets: a closed track left attached would keep receiving and sending next to its replacement.
+  - `close()` detaches from its input device and detaches its output device, which the tuner switches back to
+    12-EDO as it gets detached, then switches the tracks it feeds back to 12-EDO, so each output gets those
+    messages once. It finally releases its devices through `MidiManager.closeInput` / `closeOutput`, a *close request*
+    that closes the device only once the last reference goes. It must detach because a released handle whose device is
+    still connected stays live and is the one a later track for that device gets: a closed track left attached would
+    keep receiving and sending next to its replacement.
   - `resetTuner()` re-initialises the output instrument, and `releaseInput()` silences it after its input device
     disappears (see [Device changes](#device-changes)).
 - `TrackSpec` / `TrackSpecs` are the declarative description of a track and an immutable, id-keyed ordered collection
@@ -162,7 +165,7 @@ input device ──▶ TuningChangeProcessor ──▶ TunerProcessor ──▶ 
 - Input/output can be a MIDI device or another track (`FromTrackInputSpec` / `ToTrackOutputSpec`). The output device
   receiver is an initial receiver of the pipeline, so a tuner's `reset()` messages reach the device as soon as the
   track is built; `TrackManager` wires the inter-track connections afterwards with `transmitter.addReceiver`, which
-  fires `onConnect` with exactly the newly added downstream track receiver — the device receiver, already present, is
+  fires `onAttach` with exactly the newly added downstream track receiver — the device receiver, already attached, is
   untouched — sending the tuner's `reset()` messages to that new receiver alone. So an upstream tuner's `reset()`
   output — pitch bend sensitivity RPN sequences and the like — also reaches the newly added downstream track's
   pipeline, where that track's tuner processes it as if it were performance MIDI.
@@ -207,7 +210,7 @@ MidiDeviceDisconnectedEvent(id, Input) or MidiDeviceFailedToDisconnectEvent(id, 
 ```
 
 - Every other `MidiEvent` is ignored.
-- A device already connected when its track is built needs no event: connecting the device receiver as an initial
+- A device already connected when its track is built needs no event: attaching the device receiver as an initial
   receiver of the pipeline already sends the tuner's reset messages.
 - `replaceAllTracks` forgets the closed tracks before building the new ones, so an event published while the new
   tracks open their devices never reaches a closed track.

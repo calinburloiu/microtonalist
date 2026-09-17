@@ -94,10 +94,10 @@ variant, typically from a flag the fixture takes as a parameter, so nothing can 
 duplicating a fixture for the sake of one wiring step:
 
 ```scala
-abstract class Fixture(shouldConnect: Boolean = true) {
+abstract class Fixture(shouldAttach: Boolean = true) {
   val processor: TunerProcessor = TunerProcessor(tuner)
 
-  if (shouldConnect) {
+  if (shouldAttach) {
     processor.transmitter.addReceiver(receiver)
   }
 }

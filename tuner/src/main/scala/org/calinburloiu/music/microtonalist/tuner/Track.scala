@@ -27,9 +27,9 @@ import javax.annotation.concurrent.ThreadSafe
  * MIDI route for tuning an output device.
  *
  * When the track has a device output, the output device receiver is an initial receiver of the pipeline, so the
- * pipeline connects — and a tuner sends its `reset()` messages to the device — as soon as the track is built. A
- * receiver added later through [[transmitter]] (another track) is connected on its own: the device receiver, already
- * there, is left alone rather than being disconnected and reconnected.
+ * pipeline attaches to it — and a tuner sends its `reset()` messages to the device — as soon as the track is built.
+ * A receiver added later through [[transmitter]] (another track) attaches on its own: the device receiver, already
+ * there, is left alone rather than being detached and re-attached.
  *
  * @param spec             The declarative description this track is built from: its id, input, output, tuner and
  *                         tuning changers.
@@ -91,7 +91,7 @@ class Track(val spec: TrackSpec,
    * Closes the track. It:
    *
    *   1. unsubscribes from its input device, so that nothing the device still sends enters the track;
-   *   1. detaches its output device, which the tuner switches back to 12-EDO as it gets disconnected;
+   *   1. detaches its output device, which the tuner switches back to 12-EDO as it gets detached;
    *   1. switches back to 12-EDO the tracks it feeds, which stay attached;
    *   1. releases its devices through the [[MidiManager]].
    *

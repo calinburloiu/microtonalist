@@ -126,7 +126,8 @@ on the bus.
   transition.
 
 Note that "connected" means *available to the system*, not *opened by the application*: they are distinct,
-separately evented states.
+separately evented states, and both differ again from a receiver being *attached* to a transmitter. See
+[`midi-device-lifecycle.md`](../midi-device-lifecycle.md) for the three pairs of terms and how they relate.
 
 ### MIDI message model (`message` sub-package)
 
@@ -191,12 +192,15 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 - **`MidiProcessor`** — a MIDI interceptor that can filter, modify, or synthesise messages as they pass through.
   Subclasses implement `process(message: MidiMsg, timeStamp): Seq[MidiMsg]`; its `receiver` processes each message
   once and forwards the results to every receiver of its `transmitter`, a `MidiProcessorTransmitter` (a
-  `ConcurrentMidiTransmitter`) that calls `onDisconnect(removed)` before and `onConnect(added)` after every change of
-  its receiver set — with exactly the receivers the change drops/adds, never for a receiver present on both sides of
-  the change, and never with an empty sequence — and then `onReceiversChanged(newReceivers)` with the whole sequence.
+  `ConcurrentMidiTransmitter`) that runs the **attach / detach protocol**: it calls `onDetach(removed)` before and
+  `onAttach(added)` after every change of its receiver set — with exactly the receivers the change drops/adds, never
+  for a receiver present on both sides of the change, and never with an empty sequence — and then
+  `onReceiversChanged(newReceivers)` with the whole sequence. *Attached* / *detached* is deliberately not
+  *connected* / *disconnected*, which is about a device being available to the system
+  ([`midi-device-lifecycle.md`](../midi-device-lifecycle.md)).
   The membership hooks are what a processor overrides to initialise or clean up an individual receiver; the sequence
   hook is what it overrides to keep something else in step with the sequence as a whole, and it is the only one that
-  reports a change which merely reorders the receivers or repeats one already connected. All three run inside the
+  reports a change which merely reorders the receivers or repeats one already attached. All three run inside the
   write lock, so that the reset/initialisation messages the hooks emit cannot interleave with a send that has not yet
   read the receivers (a fan-out already in flight is not held off). **This is the abstraction `tuner` extends** to
   tune the MIDI stream. A processor with no output receivers drops messages without processing them.
