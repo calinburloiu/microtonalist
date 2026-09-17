@@ -37,7 +37,8 @@ the handle waits for it.
 out through `handle.receiver` or come in through `handle.transmitter`.
 
 - Requested through `MidiManager.openInput` / `openOutput` and released through `closeInput` / `closeOutput`, which
-  return and act on the handle of a `MidiDeviceId`.
+  return and act on the handle of a `MidiDeviceId`. Attaching an input or output is what triggers the request and
+  detaching it what triggers the release — see [How the three relate](#how-the-three-relate).
 - **Both are reference-counted.** `openInput` / `openOutput` take one reference; `closeInput` / `closeOutput` release
   one. The device is really closed only when the last reference goes, because several tracks may share one device —
   releasing one of them must not silence the others.
@@ -76,31 +77,39 @@ on each receiver that detaches, which [#305](#subject-to-change-305) moves onto 
 
 ## How the three relate
 
-Attaching and detaching are what a track does with its own wiring; opening and closing are what it asks the
-`MidiManager` to do on its behalf. A `Track` pairs them:
+The pairs are not independent. The wiring drives the device requests, and the platform drives the rest:
 
-1. **Built.** It takes a reference with `openInput` / `openOutput` — an *open request*, which opens the device now or
-   as soon as it gets connected — and then attaches: its receiver to the input device's transmitter, the output
-   device's receiver to its pipeline.
-2. **Closed.** It detaches from both, then issues the *close request* with `closeInput` / `closeOutput`. The device
-   is really closed only if that released the last reference; another track sharing it keeps it open.
+> **Attaching requests opening; detaching requests closing.**
+
+A track attaches an input or output whether or not its device is connected, and that attach is what asks the
+`MidiManager` for the device with `openInput` / `openOutput`; detaching is what asks for its release with
+`closeInput` / `closeOutput`. Today `Track` makes the two calls by hand — opening in its constructor, releasing at
+the end of `close()` — and [#305](#subject-to-change-305) makes the attach and the detach initiate them.
+
+What this does *not* mean is that a request is its effect:
+
+- **An open request does not necessarily open now.** If the device is not connected, the handle waits in
+  `WaitingToOpen` and opens by itself once the device gets connected. This is what lets a track be wired to a device
+  that is not plugged in yet, and lets it survive one being unplugged and plugged back in — the wiring keeps
+  working, with no re-attach.
+- **A close request does not necessarily close.** It releases one reference; the device closes only when the last one
+  goes, so another track sharing it keeps it open.
+- **Neither ever connects or disconnects anything.** Only the platform decides that pair, and `refresh()` reports it.
+- **Disconnecting does not detach.** When a device vanishes, its handle reports *closed* and then *disconnected*
+  while every receiver stays attached, ready for the device to come back.
+
+Two situations are therefore errors rather than states to design for:
+
+- **Attached to a `Closed` handle.** Attaching is what takes a handle out of `Closed`, so an input or output that is
+  attached is always at least requested to open: `WaitingToOpen` while its device is not connected, `Open` once it
+  is. Attaching to a closed device is meaningless, not merely inert.
+- **Closed while still attached.** A device must be detached before it is released; closing one a track is still
+  attached to should be logged as an error. Nothing checks this today — `Track.close()` simply observes the rule,
+  detaching from both devices before it calls `closeInput` / `closeOutput`.
 
 A track must detach on close, and not merely release its devices: a released handle whose device is still connected
 stays live, and a track built later for the same device gets that same handle. A closed track left attached would go
 on receiving from the input and sending to the output next to its replacement.
-
-What keeps the three pairs from collapsing into one another is that **a request is not its effect**:
-
-- **An open request does not necessarily open.** If the device is not connected, the handle waits in `WaitingToOpen`
-  and opens by itself once it gets connected.
-- **A close request does not necessarily close.** It releases one reference; the device closes only when the last
-  one goes.
-- **Attaching to a device that is not usable is legal.** A receiver may be attached to a handle that is disconnected
-  or closed; it simply gets nothing, and starts working without re-wiring once the device becomes usable. This is
-  what lets a track survive its device being unplugged and plugged back in.
-- **Attaching never connects and detaching never disconnects.** Only the platform decides that pair.
-- **Disconnecting does not detach.** When a device vanishes, its handle reports *closed* and then *disconnected*
-  while every receiver stays attached, ready for the device to come back.
 
 It follows that the **courtesy 12-EDO messages belong to the close, not to the detach**: an output another track
 still holds open must keep playing in the tuning it is in, so detaching one track from it has to leave it alone.
@@ -113,9 +122,9 @@ Today `TunerProcessor.onDetach` sends them on every detach regardless, which is 
 vocabulary but rewires what drives what. The notes below are forward-looking; everything above describes the code as
 it is today.
 
-- **Attach drives the open request, detach drives the close request.** An input or output attaches to a track
-  regardless of whether its device is connected, and that attach is what initiates `openInput` / `openOutput`;
-  detaching initiates `closeInput` / `closeOutput`. A track will no longer open and attach as two separate steps.
+- **The attach and the detach initiate the requests themselves.** The pairing is already the rule (see
+  [How the three relate](#how-the-three-relate)), but `Track` implements it by hand today, opening in its
+  constructor and releasing at the end of `close()`; it will no longer open and attach as two separate steps.
 - **Reactions key off what happened to the device, not off the wiring alone:**
     - An input that gets **attached or connected** needs no handling.
     - An input that gets **detached or disconnected** is released, the two cases handled identically: All Notes Off
