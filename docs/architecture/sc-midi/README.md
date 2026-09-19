@@ -65,8 +65,7 @@ receiversLimit)` with a derived `id: MidiDeviceId` and `direction`), `MidiConnec
 `Unlimited` / `Limited(count)` — how many transmitters or receivers a device can open; it prints as `unlimited` or the
 count, and its `allowsConnections` is what a device's direction derives from), `MidiDeviceId` (`case class(name,
 vendor)`) and `MidiDirection` (an `enum` of `None`/`Input`/`Output`/`InputOutput` — the direction an endpoint works
-in; a device may work in both or in neither, while a manager endpoint and an event direction are only `Input` or
-`Output`).
+in; a device may work in both or in neither).
 
 **The Java Sound implementation** (`javamidi`). `JavaMidiManager(businessync, environment = CoreMidi4JEnvironment)`
 keeps two internal endpoints, one for inputs and one for outputs. Each is a registry of its **live handles**: one

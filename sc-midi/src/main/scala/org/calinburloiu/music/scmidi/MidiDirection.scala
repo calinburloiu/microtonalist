@@ -19,9 +19,7 @@ package org.calinburloiu.music.scmidi
 /**
  * The direction a MIDI endpoint, like a device, works in: whether it supports input and/or output.
  *
- * A device may work in both directions, or in neither, so all four values describe one. The two endpoints a
- * [[MidiManager]] keeps its devices in, on the other hand, are only [[Input]] and [[Output]], and so are the
- * directions its [[MidiEvent]]s carry.
+ * A device may work in both directions, or in neither, so all four values describe one.
  *
  * @param name     Descriptive name of the direction.
  * @param isInput  Indicates whether the endpoint supports MIDI input.
