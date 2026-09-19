@@ -53,7 +53,8 @@ device events described in [Device lifecycle and events](#device-lifecycle-and-e
 - **Accepted directions.** `MidiDirection.None` names no endpoint, and every implementation rejects it with an
   `IllegalArgumentException`. The other values are accepted only where they match how an implementation keeps its
   devices, so one with separate endpoints — `JavaMidiManager`, like every implementation today — also rejects
-  `InputOutput`. Passing either is a programming error, which is why it throws instead of returning an empty result.
+  `InputOutput`. Passing a direction the implementation does not accept is a programming error, not a runtime
+  condition, so it throws rather than return an empty result that would read as "no such devices".
 
 **`MidiDeviceHandle`** is the read-only trait for a handle to a single device identified by a `MidiDeviceId`.
 
