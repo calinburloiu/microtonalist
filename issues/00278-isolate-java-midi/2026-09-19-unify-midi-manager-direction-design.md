@@ -60,7 +60,7 @@ once.
   leaves it open and warns that an implementation may not support it. An implementation that keeps input and output in
   separate endpoints — which is every implementation today — rejects it, and `JavaMidiManager` does. Rejection throws,
   rather than returning an empty result or doing nothing, because it is a programming error and not a runtime
-  condition: an empty `deviceIds(InputOutput)` would read as "no such devices" and hide the bug.
+  condition: an empty `deviceIdsFor(InputOutput)` would read as "no such devices" and hide the bug.
 - **D4 — Both checks are code in the implementation; only the `None` one is a promise of the trait.** Every
   rejection is a single catch-all in `JavaMidiManager.endpointOf` (Section 4.1) — nothing is added to `MidiDirection`'s
   companion, and the trait stays abstract. What differs is the contract each check answers to: rejecting `None` is
@@ -68,17 +68,20 @@ once.
   states it, and a future UMP manager accepting `InputOutput` breaks no promise. Which directions are addressable is
   an implementation's business, and that manager should not have to work around a check baked into the shared type or
   the trait. That this design's one implementation happens to reject both values does not make them one rule.
-- **D5 — Method names drop the direction prefix and otherwise keep today's stems, except `deviceOf` (D5b).** They then
-  coincide with the names `JavaMidiManager.MidiEndpoint` already uses privately, so the trait and its implementation's
-  internals finally speak one vocabulary — and since D5b renames one trait method, the private `MidiEndpoint` method
-  is renamed with it, to keep that property.
-- **D5a — No method of the trait names a handle: the listings are `openDevices` and `devicesRequestedToOpen`.** The
-  trait's noun for a device the manager holds is "device", and a handle is simply how this API hands one over —
-  `openDevice` and `closeDevice` already return and take `MidiDeviceHandle`s without saying so. Naming the return type
-  in two methods and not in the other seven would make the exception, not the rule, the thing a reader has to
-  remember. The cost this accepts is stated in Section 3.1.
-- **D5b — The same rule applied to the single-device accessor: `deviceOf`, not `deviceHandleOf`.** It belongs to the
-  `…Of` family beside `deviceInfoOf`, and spelling `Handle` out made it the odd member of it.
+- **D5 — Method names drop the direction prefix and otherwise keep today's stems, adjusted by D5a–D5c.** The stems
+  are those `JavaMidiManager.MidiEndpoint` already uses privately, so the trait and its implementation's internals
+  speak one vocabulary; `MidiEndpoint` follows D5b but not D5c (Section 3.1).
+- **D5a — No method of the trait names a handle.** The trait's noun for a device the manager holds is "device", and a
+  handle is simply how this API hands one over — `openDevice` and `closeDevice` already return and take
+  `MidiDeviceHandle`s without saying so. Naming the return type in some methods and not in the others would make the
+  exception, not the rule, the thing a reader has to remember.
+- **D5b — The single-device accessor is `deviceOf`, not `deviceHandleOf`** (D5a). It belongs to the `…Of` family
+  beside `deviceInfoOf`.
+- **D5c — A method whose only parameter is `direction` takes a `For` suffix: `deviceIdsFor`, `devicesInfoFor`,
+  `openDevicesFor`, `devicesRequestedToOpenFor`.** The suffix reads the direction into the name — "the device ids for
+  a direction" — and marks these four as listings. It also cures `openDevices`, which without it reads as an order
+  and sits one letter from `openDevice`. `Of` stays with the methods keyed by a device id (`deviceOf`,
+  `deviceInfoOf`), so the suffix tells which kind of method it is before its arguments are read.
 - **D10 — `javamidi`'s Java Sound-typed identifiers take a `java` prefix, here and not in a later issue.** D5b's
   `deviceOf` would otherwise share a file with `JavaMidiEnvironment.deviceOf`, which returns a
   `javax.sound.midi.MidiDevice`. The sweep is mechanical and compiler-checked, and stacking one more issue and PR
@@ -112,17 +115,17 @@ trait MidiManager extends AutoCloseable {
 
   def deviceInfoOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceInfo]
 
-  def deviceIds(direction: MidiDirection): Seq[MidiDeviceId]
+  def deviceIdsFor(direction: MidiDirection): Seq[MidiDeviceId]
 
-  def devicesInfo(direction: MidiDirection): Seq[MidiDeviceInfo]
+  def devicesInfoFor(direction: MidiDirection): Seq[MidiDeviceInfo]
 
   def openDevice(deviceId: MidiDeviceId, direction: MidiDirection): MidiDeviceHandle
 
   def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle]
 
-  def openDevices(direction: MidiDirection): Seq[MidiDeviceHandle]
+  def openDevicesFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
-  def devicesRequestedToOpen(direction: MidiDirection): Seq[MidiDeviceHandle]
+  def devicesRequestedToOpenFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
   def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit
 
@@ -133,17 +136,16 @@ trait MidiManager extends AutoCloseable {
 Twenty members become eleven. Every ScalaDoc that was written twice is written once, with a single `@param direction`
 line replacing the word that used to differ between the two copies.
 
-**Accepted cost (D5a).** `openDevice(deviceId, direction)` (take a reference) and `openDevices(direction)` (list the
-handles that are open) differ by one letter and mean different things; in `openDevices`, "open" is an adjective. Naming
-the listings `openDeviceHandles` and `deviceHandlesRequestedToOpen` was adopted for a while and then reverted: it
-removed the collision only by making two methods the only ones in the trait that name a handle. The call sites tell
-the two apart anyway — `openDevice` takes the device's id and `openDevices` does not, and they return a
-`MidiDeviceHandle` and a `Seq[MidiDeviceHandle]` — and the ScalaDoc of `openDevices` says in its first words that it
-lists the devices that are open, rather than opening anything.
+**How the names were reached (D5a, D5c).** Plainly dropping the direction prefix left `openDevices(direction)` one
+letter from `openDevice(deviceId, direction)`, and read as an imperative, though it only lists the devices that are
+open. Naming the listings `openDeviceHandles` and `deviceHandlesRequestedToOpen` was tried and reverted, because it
+made them the only methods naming a handle (D5a). The `For` suffix (D5c) settles it: `openDevicesFor(direction)` reads
+as "the open devices for a direction", not as an order to open them.
 
-The private `MidiEndpoint` already names the listings `openDevices` / `devicesRequestedToOpen`, so only its
-`deviceHandleOf` changes, becoming `deviceOf` (D5). That also puts a noun between it and the neighbouring `handleOf`,
-which gets or creates rather than looks up — today the two differ only by a prefix.
+The private `MidiEndpoint` keeps its unsuffixed names (`deviceIds`, `devicesInfo`, `openDevices`,
+`devicesRequestedToOpen`): it takes no direction, since it *is* one direction, so there is nothing for `For` to refer
+to. Only its `deviceHandleOf` changes, becoming `deviceOf` (D5b). That also puts a noun between it and the
+neighbouring `handleOf`, which gets or creates rather than looks up — today the two differ only by a prefix.
 
 ### 3.2 The direction contract
 
@@ -189,7 +191,7 @@ The class ScalaDoc of `JavaMidiManager` states which values it accepts, as the t
 The 18 overrides become nine, each still a one-liner under the same lock as before:
 
 ```scala
-override def deviceIds(direction: MidiDirection): Seq[MidiDeviceId] = withLock {
+override def deviceIdsFor(direction: MidiDirection): Seq[MidiDeviceId] = withLock {
   endpointOf(direction).deviceIds
 }
 
@@ -246,7 +248,7 @@ Six in total, all outside `sc-midi`:
 | File | Sites | Change |
 | ---- | ----- | ------ |
 | `tuner/…/Track.scala` | 4 (lines 51, 60, 115, 119) | `openInput(id)` → `openDevice(id, MidiDirection.Input)`, and the three siblings. The `DeviceTrackInputSpec` / `DeviceTrackOutputSpec` branches may collapse into one now that only the direction differs; whether they do is decided when the code is in front of us, and it is not a goal. |
-| `cli/…/MidiDevicesCommand.scala` | 2 | `inputDevicesInfo` / `outputDevicesInfo` → `devicesInfo(direction)`. It already prints one endpoint at a time through `printMidiDevicesByEndpoint`, so the direction becomes another argument it passes through. |
+| `cli/…/MidiDevicesCommand.scala` | 2 | `inputDevicesInfo` / `outputDevicesInfo` → `devicesInfoFor(direction)`. It already prints one endpoint at a time through `printMidiDevicesByEndpoint`, so the direction becomes another argument it passes through. |
 
 `MidiDeviceHandle`'s class ScalaDoc references `MidiManager.openInput` / `openOutput` / `closeInput` / `closeOutput`
 (lines 23–24) and must be updated with them.
@@ -283,7 +285,7 @@ rename of its own and belongs in its own commit, with no other change riding in 
 - **`JavaMidiManagerTest`** is where most of the work and most of the payoff is. The `Endpoint` trait loses all nine
   delegating methods, keeping only `direction` and `newDevice`; `Input` and `Output` shrink accordingly, or collapse
   into a table of `(direction, newDevice)` driven by the `TableDrivenPropertyChecks` the suite already mixes in. The
-  shared behaviours in `deviceEndpoint` call `manager.deviceIds(direction)` and friends directly. The class ScalaDoc,
+  shared behaviours in `deviceEndpoint` call `manager.deviceIdsFor(direction)` and friends directly. The class ScalaDoc,
   which explains the `Endpoint` indirection, is rewritten to match.
 - **New cases** pin D3, in `JavaMidiManagerTest` because both rejections are this implementation's: each of the nine
   methods rejects `MidiDirection.None` — the trait's contract — and `MidiDirection.InputOutput` — this manager's own
@@ -292,7 +294,7 @@ rename of its own and belongs in its own commit, with no other change riding in 
 - **`MidiDevicesCommandTest`** (renamed to `MidiDevicesCliCommandTest`, Section 5.1) stubs `MidiManager` through
   ScalaMock's older `MockFactory`, and reaches the
   parameterless `inputDevicesInfo` / `outputDevicesInfo` through the eta-expansion workaround
-  `(() => midiManager.inputDevicesInfo).when().returns(…)`. Because `devicesInfo(direction)` takes a parameter, those
+  `(() => midiManager.inputDevicesInfo).when().returns(…)`. Because `devicesInfoFor(direction)` takes a parameter, those
   become ordinary stubbings that match on the direction, which is a small simplification rather than a cost. The
   suite is one of the `AnyFlatSpec` ones not yet migrated by
   [#299](https://github.com/calinburloiu/microtonalist/issues/299), so any case touched there keeps that style.
