@@ -62,7 +62,7 @@ once.
   rather than returning an empty result or doing nothing, because it is a programming error and not a runtime
   condition: an empty `deviceIds(InputOutput)` would read as "no such devices" and hide the bug.
 - **D4 — Both checks are code in the implementation; only the `None` one is a promise of the trait.** Every
-  rejection is a single catch-all in `JavaMidiManager.endpointOf` (Section 4) — nothing is added to `MidiDirection`'s
+  rejection is a single catch-all in `JavaMidiManager.endpointOf` (Section 4.1) — nothing is added to `MidiDirection`'s
   companion, and the trait stays abstract. What differs is the contract each check answers to: rejecting `None` is
   owed by every implementation, so the trait states it; rejecting `InputOutput` is this manager's, so its own ScalaDoc
   states it, and a future UMP manager accepting `InputOutput` breaks no promise. Which directions are addressable is
@@ -81,6 +81,11 @@ once.
   being simply how this API hands a consumer a device. Spelling `Handle` out in one accessor made it the odd member of
   the `…Of` family it belongs to, beside `deviceInfoOf`. The two listings of D5a keep their `Handles` suffix as the
   documented exception: they carry it to escape a collision, not because this trait names its return types.
+- **D10 — `javamidi`'s Java Sound-typed identifiers take a `java` prefix, here and not in a later issue.** D5b's
+  `deviceOf` would otherwise share a file with `JavaMidiEnvironment.deviceOf`, which returns a
+  `javax.sound.midi.MidiDevice`. The sweep is mechanical and compiler-checked, and stacking one more issue and PR
+  under #278 to carry it would cost more review depth than the rename costs to carry here. Section 4.2 lists it and
+  states where it stops.
 - **D6 — The reference-counted pair is `openDevice` / `closeDevice`, not `open` / `close`.** `close()` is
   `AutoCloseable`'s and means "shut down the manager"; overloading it with `close(deviceId, direction)`, which means
   "release one reference to a device", would put two unrelated meanings on one name. `openDevice` is named to match.
@@ -161,7 +166,9 @@ Note the deliberate asymmetry with `MidiDeviceHandle.direction` and `MidiDeviceI
 type and describe *what the device is capable of*, while this one says *where the manager filed it*. Section 7 records
 why that asymmetry needs no rename.
 
-## 4. `JavaMidiManager`
+## 4. The `javamidi` implementation
+
+### 4.1 `JavaMidiManager`
 
 The two `MidiEndpoint` fields stay as they are. A `Map[MidiDirection, MidiEndpoint]` was considered and rejected: it
 buys nothing, because `refresh()` and `close()` name both endpoints explicitly anyway, and it would turn every
@@ -202,26 +209,35 @@ inside or outside `withLock` makes no difference; it runs inside, where the dele
 direction therefore throws from inside the lock, which `withLock` releases on the way out as it does for any other
 throw. The publish-after-unlock discipline of `withLockThenPublish` is untouched.
 
-**`deviceOf` meets another `deviceOf` here (D5b), and the fix is a follow-up.**
-`JavaMidiEnvironment.deviceOf(info: MidiDevice.Info): MidiDevice` returns the *platform's* device, and `resolveDevice`
-calls it (line 120); the manager now also overrides `deviceOf(deviceId, direction): Option[MidiDeviceHandle]`, which
-returns *this API's*. The two share a file and are told apart only by their receiver and their arguments.
+**Nothing else in `JavaMidiManager` changes**, beyond the `java` prefix of Section 4.2. `refresh()`, `close()`, the
+reconciliation and the `MidiEndpoint` class keep their logic.
 
-The resolution is to make the Java Sound side explicit throughout `javamidi` — `javaDeviceOf`, `javaDevice`, and so on
-— which the package already does for `resolveDevice(javaInfo: MidiDevice.Info, …)` and for `asJava` / `asScala`. It
-is the right change for a package whose whole point is isolating `javax.sound.midi` (#278), and it stands on its own
-reasons, not on this one.
+### 4.2 The `java` prefix (D10)
 
-It is **not done here**, because it reaches well past this design: `JavaMidiDeviceHandle` (`_device`, `device`,
-`heldDevice` and the locals of `connect`, `hold` and `closeOpenDevice`), `JavaMidiEnvironment` with both its
-implementations, `JavaMidiConverters`' `MidiDevice` extensions, and the tests of each — four files this change never
-otherwise opens, folded into a diff that already turns 18 trait methods into 9 and rewrites a test suite. Its own
-issue under #278, its own review. Until then the overlap is tolerable: inside `javamidi`, "device" already means the
-Java Sound object in `resolveDevice`, `ConnectedDevice.device` and `closeOpenDevice`, so the file's reader is not
-newly misled — there is simply one more name for them to keep straight.
+D5b puts `MidiManager.deviceOf(deviceId, direction): Option[MidiDeviceHandle]` next to
+`JavaMidiEnvironment.deviceOf(info: MidiDevice.Info): MidiDevice`, which returns the *platform's* device and which
+`resolveDevice` calls (line 120). Rather than let one word mean two things in one file, every identifier in `javamidi`
+whose type comes from `javax.sound.midi` says so:
 
-**Nothing else in `JavaMidiManager` changes.** `refresh()`, `resolveDevice`, `close()`, the `MidiEndpoint` class and
-`JavaMidiDeviceHandle` are all out of scope.
+| Where | Today | Becomes |
+| ----- | ----- | ------- |
+| `JavaMidiEnvironment` + `CoreMidi4JEnvironment` + `FakeJavaMidiEnvironment` | `deviceInfos`, `deviceOf(info)` | `javaDeviceInfos`, `javaDeviceOf(javaInfo)` |
+| `JavaMidiManager` | `resolveDevice(javaInfo, events): Option[MidiDevice]`, `ConnectedDevice(info, device)` | `resolveJavaDevice(…)`, `ConnectedDevice(info, javaDevice)` — `info` stays, being the module's own `MidiDeviceInfo` |
+| `JavaMidiDeviceHandle` | `_device`, `private[javamidi] def device`, and the `device` / `heldDevice` parameters and locals of `connect`, `hold`, `doOpen`, `closeOpenDevice` | `_javaDevice`, `javaDevice`, `javaDevice` / `heldJavaDevice` |
+| `JavaMidiConverters` | `extension (info: MidiDevice.Info)`, `extension (device: MidiDevice)` | `javaInfo`, `javaDevice` |
+
+The package already reads this way in places — `resolveDevice(javaInfo: MidiDevice.Info, …)`, `asJava` / `asScala`,
+`javaMaxConnections` — so this finishes a convention rather than inventing one, in a package whose whole purpose is
+isolating `javax.sound.midi` (#278).
+
+**Where it stops.** The rule is *the type comes from `javax.sound.midi`*, so `MidiDeviceInfo`, `MidiDeviceId` and the
+handles keep their plain names, and so do the suites' `FakeMidiDevice` locals (`device`, `repluggedDevice`,
+`inputDevice`, …), whose declared type already names the fake and which sit beside no `MidiDevice` of the module's
+own. `JavaMidiDeviceHandleTest`'s dozen `handle.device` assertions follow the getter rename mechanically, as the
+compiler dictates.
+
+This is a rename, entirely compiler-checked, and it is confined to `javamidi` — `device` is `private[javamidi]`, so
+nothing outside the package names any of this.
 
 ## 5. Consumers, tests, documentation
 
@@ -288,7 +304,8 @@ rename of its own and belongs in its own commit, with no other change riding in 
 
 - `docs/architecture/sc-midi/README.md` — the `MidiManager` paragraph ("a per-direction API mirrored for input and
   output…"), the `MidiDeviceHandle` ownership bullet, steps 2–5 of "How MIDI devices are opened, enumerated, and
-  used", and the `MidiEvent` bullet that repeats the "always `Input` or `Output`" claim D9 rewrites (line 136).
+  used", the `MidiEvent` bullet that repeats the "always `Input` or `Output`" claim D9 rewrites (line 136), and the
+  `JavaMidiEnvironment` paragraph, which names the seam's `deviceInfos` and `deviceOf(info)` that D10 prefixes.
 - `docs/architecture/tuner/README.md`, `docs/architecture/cli/README.md`,
   `docs/architecture/midi-device-lifecycle.md` — each mentions the old method names. The `cli` one also names
   `MidiDevicesCommand` four times (lines 23, 27, 32, 46), which the rider of Section 5.1 renames.
@@ -364,9 +381,11 @@ that must compile before it can fail for the right reason:
    gone.
 5. **Documentation.** Section 5.3, plus the `MidiEvent` ScalaDoc of D9 — which is a source file but carries no code
    change, so it belongs here and not in steps 1–3.
-6. **Rider, on its own commit.** Rename `MidiDevicesCommand` to `MidiDevicesCliCommand` with its test and the three
-   references of Section 5.1. It is independent of steps 1–5 and can go first or last; last keeps the two renames
-   from being read as one.
+6. **The `java` prefix, on its own commit.** The sweep of Section 4.2 (D10). It comes after step 3, so that the
+   trait's names are final and the only `deviceOf` left to disambiguate is the one that stays.
+7. **Rider, on its own commit.** Rename `MidiDevicesCommand` to `MidiDevicesCliCommand` with its test and the three
+   references of Section 5.1. It is independent of steps 1–6 and can go first or last; last keeps the renames from
+   being read as one.
 
 Steps 1–2 and 3 cannot be reordered — the old methods can only be deleted once nothing calls them — but step 3's
 migration and deletion can be one commit per module if that reads better in review.
@@ -383,11 +402,11 @@ would restate them.
   ScalaDoc text of `MidiDeviceHandle` and of `MidiEvent` (Section 5.1). Section 7 is settled and adds nothing here.
 - Any change to what an event *carries*: D9 rewrites what the ScalaDoc claims about `MidiEvent.direction`, and no
   event gains, loses or changes a field, nor does any implementation publish a direction it did not publish before.
-- Anything in `JavaMidiManager` beyond the overrides and `endpointOf` — in particular `refresh()`, the reconciliation,
-  and the locking and publishing discipline (Section 4).
+- Any *behaviour* in `javamidi`: the overrides, `endpointOf` and the renames of Section 4.2 are the whole of it, and
+  `refresh()`, the reconciliation, and the locking and publishing discipline keep working exactly as they do.
 - The `#306` two-devices-under-one-id problem, which is about keying the registries and is untouched by this change.
-- Prefixing the Java Sound-typed identifiers of `javamidi` with `java` (`javaDeviceOf`, `javaDevice`, …), which D5b
-  makes worth doing and Section 4 defers to an issue of its own under #278.
+- Renaming anything in `javamidi` beyond the `java` prefix of Section 4.2 — in particular the types themselves,
+  `MidiDeviceInfo` and `MidiDeviceId`, which are the module's own and keep their plain names (D10).
 
 ## 10. Verification
 
