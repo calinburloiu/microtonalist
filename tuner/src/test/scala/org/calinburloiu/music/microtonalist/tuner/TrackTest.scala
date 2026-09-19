@@ -157,8 +157,7 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     track.close()
 
     // Then
-    midiManager.closeDevice.verify(*, MidiDirection.Input).never()
-    midiManager.closeDevice.verify(*, MidiDirection.Output).never()
+    midiManager.closeDevice.verify(*, *).never()
   }
 
   it should "release nothing through the MIDI manager when its input and output are other tracks" in new Fixture {
@@ -172,8 +171,7 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     trackWithTrackIO.close()
 
     // Then
-    midiManager.closeDevice.verify(*, MidiDirection.Input).never()
-    midiManager.closeDevice.verify(*, MidiDirection.Output).never()
+    midiManager.closeDevice.verify(*, *).never()
   }
 
   behavior of "resetTuner"
