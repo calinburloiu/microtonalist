@@ -184,12 +184,16 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       case (State.Open, Some(heldDevice)) if heldDevice ne device =>
         // Not a swap: a device resolving to a new instance on every lookup, while the one held stays open and in use
         Seq.empty
-      case _ =>
-        // What is left holds no open device of another instance, so replacing what the handle holds neither opens nor
-        // closes anything: a State.Connected handle, which swaps a new instance silently, and a State.Open handle
-        // resolving the very instance it holds, which only refreshes the info. The remaining combinations — being
-        // connected while holding no device — cannot occur, State.Connected and State.Open both implying one.
+      case (State.Connected | State.Open, Some(_)) =>
+        // Replacing what the handle holds neither opens nor closes anything here: a State.Connected handle swaps a new
+        // instance silently, and a State.Open handle, left by the cases above with the very instance it holds, only
+        // refreshes the info.
         hold(info, device)
+        Seq.empty
+      case (_, None) =>
+        // Cannot occur: State.Connected and State.Open, the states left, both imply a held device.
+        logger.error(s"Ignoring the connection of $requestedDirection device $id: its handle is ${_state} while " +
+          "holding no device, which should never happen!")
         Seq.empty
     }
   }
