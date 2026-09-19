@@ -782,6 +782,23 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         Seq(("""Failed to connect to device "CoreMIDI4J - FP-90" (Roland)!""", Some("CoreMIDI failure")))
     }
 
+    "warn that two devices of a direction share an id, only the last resolved being used" in new Fixture {
+      // Given
+      environment.plug(Output.newDevice(deviceName))
+      environment.plug(Output.newDevice(deviceName))
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName) {
+        newManager()
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldEqual
+        Seq("""Found more than one output device with id "CoreMIDI4J - FP-90" (Roland); only the last one resolved """ +
+          "is used and the others are ignored. Rename one of them in the MIDI setup of the operating system to tell " +
+          "them apart.")
+    }
+
     "warn that a device to open is not connected and will be opened once it gets connected" in new Fixture {
       // Given
       val manager: JavaMidiManager = newManager()

@@ -76,6 +76,13 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
   `JavaMidiConverters.asMidiDeviceInfo` (Java Sound's `-1` becomes `Unlimited`). It then reconciles each registry with
   the result: a found device is handed to the handle of its id (created if there is none) with `connect`, and a
   connected handle whose device was not found gets `disconnect` and is forgotten if that leaves it `Closed`.
+- **Two devices under one id (#306).** A `MidiDeviceId` is a name and a vendor, and two units of the same model
+  plugged in at once match on both — CoreMIDI4J derives them from the endpoint's CoreMIDI properties and appends no
+  counter. Only one of them can have the handle of that id, so the reconciliation keeps the device **resolved last**
+  and warns that it ignored the others. CoreMIDI4J does expose a discriminator, `CoreMidiDeviceInfo`'s endpoint unique
+  id, which it keys its own device map by; it cannot go into `MidiDeviceId`, which `format` serializes into `.tracks`
+  files, so fixing this means keying the registries on a platform key instead. Note that a device working in both
+  directions is *not* this case — the two registries already keep it apart.
 - **Replugged and swapped devices.** The device **resolved last** for an id wins, and a handle compares device
   instances. CoreMIDI4J keeps one `MidiDevice` per endpoint while the endpoint stays present, creates a new one when
   it reappears, and closes the instance of a vanished endpoint before it reports the change. Another instance under a
@@ -332,6 +339,8 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
 
 ## Notes / subject to change
 
+- Two identical devices connected at once collapse into one handle, the one resolved last, with a warning; see the
+  reconciliation bullet above and #306.
 - A vanished device is noticed only when CoreMIDI4J reports the change: until then a send to it is dropped. A handle
   whose device failed to open stays `Connected` with no reference held, and so unusable by the track that requested
   it, until the tracks are rebuilt (#302).

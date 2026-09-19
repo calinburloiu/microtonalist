@@ -257,7 +257,14 @@ object JavaMidiManager {
       // Two devices of this direction can share an id, a MidiDeviceId being a name and a vendor: two identical
       // devices of the same model plugged in at once are told apart by nothing else. Only one can have the handle of
       // that id, and the device resolved last for it wins.
+      // TODO #306 Give each of them a handle, keying the registry on a platform key instead of the MidiDeviceId.
       val devicesById = devices.foldLeft(VectorMap.empty[MidiDeviceId, ConnectedDevice]) { (devicesById, device) =>
+        if (devicesById.contains(device.id)) {
+          logger.warn(s"Found more than one $direction device with id ${device.id}; only the last one resolved is " +
+            "used and the others are ignored. Rename one of them in the MIDI setup of the operating system to tell " +
+            "them apart.")
+        }
+
         devicesById.updated(device.id, device)
       }
 
