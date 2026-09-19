@@ -19,13 +19,20 @@ package org.calinburloiu.music.scmidi
 /**
  * Handle to a single MIDI device, identified by a [[MidiDeviceId]].
  *
- * A [[MidiManager]] creates the handles and keeps them up to date behind the scenes. The device is not required to be
- * connected to the system when its handle is created: the manager informs the handle when the device gets connected or
- * disconnected, and [[info]] is defined only while the device is connected.
+ * A [[MidiManager]] creates the handles and is the only one to change their state. A consumer requests a device with
+ * [[MidiManager.openInput]] or [[MidiManager.openOutput]], which return its handle, and releases it with
+ * [[MidiManager.closeInput]] or [[MidiManager.closeOutput]]; both are reference-counted. The consumer only inspects the
+ * handle and uses it for MIDI I/O.
  *
- * A device can only be used after it is opened via [[open]]; when it is no longer needed, [[close]] must be called.
- * The operation is reference-counted. [[open]] may be called while the device is not connected, in which case the
- * handle moves to [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the device gets connected.
+ * The device is not required to be connected to the system when it is requested: the manager informs the handle when
+ * the device gets connected or disconnected, and [[info]] is defined only while the device is connected. A handle
+ * requested while its device is not connected waits in [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the
+ * device gets connected.
+ *
+ * A handle is live while its manager holds it, which is exactly while its [[state]] is not
+ * [[MidiDeviceHandle.State.Closed]]. A handle that reaches `Closed` is forgotten by its manager and stays `Closed` for
+ * good: requesting the same device again returns a new handle, so a consumer must not keep a handle after it released
+ * its references to it.
  *
  * A handle exposes a [[MidiReceiver]] and a [[ConcurrentMidiTransmitter]] via [[receiver]] and [[transmitter]]. They
  * can be wired while the device is disconnected or closed, in which case they do nothing; once the device becomes
@@ -34,7 +41,7 @@ package org.calinburloiu.music.scmidi
  * [[state]] tells the current state of the handle and of its device; see [[MidiDeviceHandle.State]] for the
  * transitions. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiDeviceHandle]] is the Java Sound implementation.
  */
-trait MidiDeviceHandle extends AutoCloseable {
+trait MidiDeviceHandle {
 
   /** Unique identifier of the MIDI device. */
   def id: MidiDeviceId
@@ -67,10 +74,10 @@ trait MidiDeviceHandle extends AutoCloseable {
   /**
    * Tells whether the device supports input and/or output.
    *
-   * @return A [[MidiEndpointType]] indicating the input/output capabilities of the device; [[MidiEndpointType.None]]
+   * @return A [[MidiDirection]] indicating the input/output capabilities of the device; [[MidiDirection.None]]
    *         while it is disconnected.
    */
-  def endpointType: MidiEndpointType = MidiEndpointType(isInputDevice, isOutputDevice)
+  def direction: MidiDirection = MidiDirection(isInputDevice, isOutputDevice)
 
   /**
    * Retrieves the current state of the handle and its device.
@@ -80,20 +87,20 @@ trait MidiDeviceHandle extends AutoCloseable {
   /**
    * Checks whether the MIDI device is currently connected to the system.
    *
-   * @return True if the device is connected, false otherwise.
+   * @return True if the device is connected, i.e. the [[state]] is [[MidiDeviceHandle.State.Connected]] or
+   *         [[MidiDeviceHandle.State.Open]]; false otherwise.
    */
-  def isConnected: Boolean
+  def isConnected: Boolean = state.isConnected
 
   /**
-   * Determines if the MIDI device is currently open.
+   * Determines if the MIDI device is currently open for use.
    *
-   * @return True if the device is open, false otherwise.
-   * @see [[open]] and [[close]], the methods that update this state.
+   * @return True if the [[state]] is [[MidiDeviceHandle.State.Open]], false otherwise.
    */
-  def isOpen: Boolean
+  def isOpen: Boolean = state == MidiDeviceHandle.State.Open
 
   /**
-   * Determines if the MIDI device has been requested to open, i.e. an [[open]] transition succeeded and no [[close]]
+   * Determines if the MIDI device has been requested to open, i.e. an `open` transition succeeded and no `close`
    * transition has happened since, whether or not the device is connected. Unlike [[isOpen]], it is also true while
    * the handle waits for the device to get connected in order to open it.
    *
@@ -101,26 +108,6 @@ trait MidiDeviceHandle extends AutoCloseable {
    * @see [[MidiDeviceHandle.State.isOpenRequested]], which this mirrors for the current [[state]].
    */
   def isOpenRequested: Boolean = state.isOpenRequested
-
-  /**
-   * Attempts to open the MIDI device associated with this handle.
-   *
-   *   - If the device is not yet connected, the handle transitions to [[MidiDeviceHandle.State.WaitingToOpen]] and
-   *     opens once the device gets connected.
-   *   - If the device is already connected, the device will attempt to open immediately.
-   *
-   * This is a reference-counted operation; the device will only transition to an opened state if this is the first
-   * call to the method, and it is in a state that allows opening.
-   */
-  def open(): Unit
-
-  /**
-   * Closes the MIDI device handle, updating its internal state.
-   *
-   * If this is the last reference to the device, it is properly closed or its state is adjusted depending on
-   * the current state and connection status.
-   */
-  override def close(): Unit
 
   /**
    * Retrieves the receiver of the device, which can be used to send MIDI messages to it. A message sent while the
@@ -170,12 +157,12 @@ object MidiDeviceHandle {
    * open or close the device leaves it not requested to open. Hence, a [[Connected]] handle whose device fails to open
    * stays [[Connected]], an [[Open]] handle whose device fails to close moves to [[Connected]] anyway, and a
    * [[Connected]] handle whose device fails to close as it gets disconnected moves to [[Closed]] anyway, where a later
-   * [[MidiDeviceHandle.open]] cannot open an unreliable connection.
+   * request to open the device waits for it to get connected again.
    *
    * @param isConnected     Indicates whether the device is connected.
-   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an [[MidiDeviceHandle.open]]
-   *                        transition succeeded and no [[MidiDeviceHandle.close]] transition has happened since,
-   *                        whether or not the device is connected.
+   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an `open` transition
+   *                        succeeded and no `close` transition has happened since, whether or not the device is
+   *                        connected.
    */
   //@formatter:off
   enum State(val isConnected: Boolean, val isOpenRequested: Boolean) {

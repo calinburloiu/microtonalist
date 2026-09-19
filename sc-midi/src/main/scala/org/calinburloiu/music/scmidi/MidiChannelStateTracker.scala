@@ -75,7 +75,7 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   ccDefaults.keys.foreach(MidiRequirements.requireControllerNumber)
 
-  private val channelStates: Array[ChannelState] = Array.fill(ChannelCount)(ChannelState())
+  private val channelStates: Array[ChannelState] = Array.fill(MidiChannelCount)(ChannelState())
 
   override def send(message: MidiMsg, timeStamp: Long = -1L): Unit = message match {
     case NoteOnMidiMsg(channel, midiNote, NoteOnMidiMsg.NoteOffVelocity) =>
@@ -122,7 +122,7 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
    * @see [[reset(channel:Int):Unit reset(channel: Int)]] for per-channel reset.
    */
   def reset(): Unit = {
-    for (channel <- 0 until ChannelCount) {
+    for (channel <- 0 until MidiChannelCount) {
       channelStates(channel) = ChannelState()
     }
   }
@@ -531,9 +531,6 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 }
 
 object MidiChannelStateTracker {
-
-  /** The number of MIDI channels (1..16, 0-indexed as 0..15). */
-  private val ChannelCount: Int = 16
 
   /** Maximum 14-bit value (`(127 << 7) | 127`). */
   private val Max14BitValue: Int = (1 << 14) - 1

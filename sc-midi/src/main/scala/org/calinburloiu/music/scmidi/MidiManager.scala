@@ -26,6 +26,10 @@ package org.calinburloiu.music.scmidi
  * An implementation scans the environment on [[refresh]] and typically also when the platform reports a change, and
  * publishes [[MidiEvent]]s about what it finds. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiManager]] is the
  * Java Sound implementation; consumers receive a [[MidiManager]] and the composition root picks the implementation.
+ *
+ * A handle is live while the manager holds it, which is exactly while its state is not
+ * [[MidiDeviceHandle.State.Closed]] (see [[MidiDeviceHandle]]). The manager holds a handle for every device that is
+ * connected, requested to open, or both, and it forgets a handle once it reaches `Closed`.
  */
 trait MidiManager extends AutoCloseable {
 
@@ -48,28 +52,38 @@ trait MidiManager extends AutoCloseable {
   def inputDevicesInfo: Seq[MidiDeviceInfo]
 
   /**
-   * Opens an input connection to a MIDI device based on its unique identifier.
+   * Takes one reference to the input device with the given identifier and returns its live handle, creating one if
+   * there is none.
    *
-   * The device is not required to be connected: a handle is returned either way, and a device that is not connected
-   * yet is opened once it gets connected.
+   * The device is not required to be connected. The handle is [[MidiDeviceHandle.State.Open]] if the device is
+   * connected and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not connected, in which case it opens once
+   * the device gets connected, and [[MidiDeviceHandle.State.Connected]] if the device fails to open.
    *
    * @param deviceId Unique identifier of the device.
-   * @return a handle object for the device.
+   * @return the live handle of the device.
    */
   def openInput(deviceId: MidiDeviceId): MidiDeviceHandle
 
   /**
-   * @return the handle of the input device with the given identifier, if it was requested to be opened through this
-   *         manager.
+   * @return the live handle of the input device with the given identifier: requested to open, connected, or both. A
+   *         connected device nobody opened has one, in [[MidiDeviceHandle.State.Connected]].
    */
   def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  /** @return the handles of the input devices requested to be opened through this manager. */
-  def inputOpenedDevices: Seq[MidiDeviceHandle]
+  /** @return the live handles of the input devices that are open, i.e. connected and requested to open. */
+  def inputOpenDevices: Seq[MidiDeviceHandle]
 
   /**
-   * Closes the input device with the given identifier, if it was requested to be opened through this manager. The
-   * operation is reference-counted at the handle level.
+   * @return the live handles of the input devices requested to open, whether or not their device is connected: the
+   *         open ones, and those waiting to open once their device gets connected.
+   */
+  def inputDevicesRequestedToOpen: Seq[MidiDeviceHandle]
+
+  /**
+   * Releases one reference to the input device with the given identifier. It does nothing when the device has no live
+   * handle requested to open. When the last reference is released, the handle moves to
+   * [[MidiDeviceHandle.State.Connected]], where it stays live, or, if its device is not connected, to
+   * [[MidiDeviceHandle.State.Closed]], where it is forgotten.
    */
   def closeInput(deviceId: MidiDeviceId): Unit
 
@@ -86,31 +100,44 @@ trait MidiManager extends AutoCloseable {
   def outputDevicesInfo: Seq[MidiDeviceInfo]
 
   /**
-   * Opens an output connection to a MIDI device based on its unique identifier.
+   * Takes one reference to the output device with the given identifier and returns its live handle, creating one if
+   * there is none.
    *
-   * The device is not required to be connected: a handle is returned either way, and a device that is not connected
-   * yet is opened once it gets connected.
+   * The device is not required to be connected. The handle is [[MidiDeviceHandle.State.Open]] if the device is
+   * connected and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not connected, in which case it opens once
+   * the device gets connected, and [[MidiDeviceHandle.State.Connected]] if the device fails to open.
    *
    * @param deviceId Unique identifier of the device.
-   * @return a handle object for the device.
+   * @return the live handle of the device.
    */
   def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle
 
   /**
-   * @return the handle of the output device with the given identifier, if an open was requested through this
-   *         manager.
+   * @return the live handle of the output device with the given identifier: requested to open, connected, or both. A
+   *         connected device nobody opened has one, in [[MidiDeviceHandle.State.Connected]].
    */
   def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  /** @return the handles of the output devices requested to be opened through this manager. */
-  def outputOpenedDevices: Seq[MidiDeviceHandle]
+  /** @return the live handles of the output devices that are open, i.e. connected and requested to open. */
+  def outputOpenDevices: Seq[MidiDeviceHandle]
 
   /**
-   * Closes the output device with the given identifier, if it was requested to be opened through this manager. The
-   * operation is reference-counted at the handle level.
+   * @return the live handles of the output devices requested to open, whether or not their device is connected: the
+   *         open ones, and those waiting to open once their device gets connected.
+   */
+  def outputDevicesRequestedToOpen: Seq[MidiDeviceHandle]
+
+  /**
+   * Releases one reference to the output device with the given identifier. It does nothing when the device has no
+   * live handle requested to open. When the last reference is released, the handle moves to
+   * [[MidiDeviceHandle.State.Connected]], where it stays live, or, if its device is not connected, to
+   * [[MidiDeviceHandle.State.Closed]], where it is forgotten.
    */
   def closeOutput(deviceId: MidiDeviceId): Unit
 
-  /** Closes every device opened through this manager and stops watching the environment. */
+  /**
+   * Releases every reference held through this manager, so that every device it opened ends up closed, and stops
+   * watching the environment.
+   */
   override def close(): Unit
 }

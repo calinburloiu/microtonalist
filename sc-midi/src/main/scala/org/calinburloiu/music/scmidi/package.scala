@@ -25,6 +25,9 @@ package object scmidi {
   /** Concert pitch frequency in Hz for central A4. */
   val DefaultConcertPitchFreq: Double = 440.0
 
+  /** The number of channels of a MIDI 1.0 connection, numbered 0 to 15 internally. */
+  val MidiChannelCount: Int = 16
+
   implicit class MidiNote(val number: Int) extends AnyVal {
     /**
      * Call this method after creating an instance.

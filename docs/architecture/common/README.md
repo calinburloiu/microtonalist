@@ -28,7 +28,7 @@ block while holding an implicitly-passed lock and always release it in a `finall
 `withReadLock { _x }`.
 
 **`OpenableSession`** is a small lifecycle trait (extending `java.io.Closeable`) for a resource opened asynchronously
-against a `URI`: `open(uri): Future[Unit]`, `close()`, `isOpened`, `uri`. Implemented by `TrackSession` in `tuner`.
+against a `URI`: `open(uri): Future[Unit]`, `close()`, `isOpen`, `uri`. Implemented by `TrackSession` in `tuner`.
 
 **Package-object functions** — chiefly `parseUrlOrPath(urlString): Option[URI]`, which parses a string as either an
 absolute URL or a local file path, enforcing the project convention that a directory URI ends in `/`. Used by `app` and

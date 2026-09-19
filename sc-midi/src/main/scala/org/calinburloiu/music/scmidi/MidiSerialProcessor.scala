@@ -22,7 +22,7 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
 import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 
 /**
- * A [[MidiProcessor]] that connects a sequence of [[MidiProcessor]]s in a chain ending with the receivers of its own
+ * A [[MidiProcessor]] that chains a sequence of [[MidiProcessor]]s, ending with the receivers of its own
  * [[transmitter]].
  *
  * {{{
@@ -31,8 +31,8 @@ import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
  *
  * Every mutation of the chain rewires the neighbours; the last processor's transmitter always carries this
  * processor's output receivers, so a change of those propagates to it through [[onReceiversChanged]]. It is that
- * hook, rather than [[onConnect]] / [[onDisconnect]], because the whole sequence has to be mirrored and not only the
- * receivers a change adds or drops; the last processor's own transmitter then runs the connect / disconnect protocol
+ * hook, rather than [[onAttach]] / [[onDetach]], because the whole sequence has to be mirrored and not only the
+ * receivers a change adds or drops; the last processor's own transmitter then runs the attach / detach protocol
  * over the mirrored sequence, so each of those receivers is still initialized and cleaned up exactly once.
  *
  * Lock ordering: the hook takes this processor's lock while the transmitter's write lock is held, whereas the
@@ -150,7 +150,7 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
   }
 
   /**
-   * Clears all MIDI processors in the chain and disconnects their transmitters.
+   * Clears all MIDI processors in the chain and detaches the receivers of their transmitters.
    */
   def clear(): Unit = withWriteLock {
     _processors.foreach(_.transmitter.clearReceivers())
@@ -179,7 +179,7 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
 
   /**
    * Mirrors this processor's output receivers onto the last processor of the chain, which then runs its own
-   * connect / disconnect protocol over them.
+   * attach / detach protocol over them.
    */
   override protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = wireOutput()
 
@@ -220,7 +220,7 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    * Wires the current processor at the specified index to the previous processor in the chain,
    * enabling data flow between them.
    *
-   * @param index The index of the processor to be connected to its predecessor. Must be between 1 and size - 1.
+   * @param index The index of the processor to be wired to its predecessor. Must be between 1 and size - 1.
    */
   private def wireProcessorToPrevious(_index: Int): Unit = withWriteLock {
     require(1 <= _index, s"index should be greater or equal to 1")

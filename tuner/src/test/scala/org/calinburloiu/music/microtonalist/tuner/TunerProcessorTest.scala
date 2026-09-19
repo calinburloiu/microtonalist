@@ -32,7 +32,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
   val processMessage1: MidiMsg = NoteOnMidiMsg(0, MidiNote(60), 64)
   val processMessage2: MidiMsg = PitchBendMidiMsg(0, 101)
 
-  abstract class Fixture(shouldConnect: Boolean = true) {
+  abstract class Fixture(shouldAttach: Boolean = true) {
     val tuner: Tuner = stub[Tuner]
     (() => tuner.reset()).when().returns(Seq(initMessage))
     tuner.tune.when(TestTunings.justCMaj).returns(Seq(tuneMessage1))
@@ -42,23 +42,23 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     val receiver: MidiReceiver = stub[MidiReceiver]
     val processor: TunerProcessor = TunerProcessor(tuner)
 
-    if (shouldConnect) {
+    if (shouldAttach) {
       processor.transmitter.addReceiver(receiver)
     }
   }
 
-  "onConnect" should "send init message after connecting" in new Fixture(shouldConnect = false) {
+  "onAttach" should "send init message after attaching" in new Fixture(shouldAttach = false) {
     // When
     processor.transmitter.addReceiver(receiver)
     // Then
     receiver.send.verify(initMessage, -1L).once()
   }
 
-  it should "not send init message before connecting" in new Fixture(shouldConnect = false) {
+  it should "not send init message before attaching" in new Fixture(shouldAttach = false) {
     receiver.send.verify(*, *).never()
   }
 
-  it should "send init message to every receiver newly connected in one change" in new Fixture(shouldConnect = false) {
+  it should "send init message to every receiver newly attached in one change" in new Fixture(shouldAttach = false) {
     // Given
     val anotherReceiver: MidiReceiver = stub[MidiReceiver]
     // When
@@ -68,7 +68,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     anotherReceiver.send.verify(initMessage, -1L).once()
   }
 
-  it should "send init message only to the receiver newly added, not again to one already connected" in new Fixture {
+  it should "send init message only to the receiver newly added, not again to one already attached" in new Fixture {
     // Given
     val anotherReceiver: MidiReceiver = stub[MidiReceiver]
     // When
@@ -97,7 +97,7 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
     receiver.send.verify(processMessage2, timeStamp).once()
   }
 
-  "onDisconnect" should "reset tuning to 12-EDO on the receivers still in place when they are cleared" in new Fixture {
+  "onDetach" should "reset tuning to 12-EDO on the receivers still in place when they are cleared" in new Fixture {
     // When
     processor.transmitter.clearReceivers()
     // Then
@@ -119,4 +119,18 @@ class TunerProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
       receiver.send.verify(tuneMessage2, -1L).once()
       anotherReceiver.send.verify(tuneMessage2, -1L).never()
     }
+
+  "reset" should "reset the tuner and send its reset messages to every receiver" in new Fixture {
+    // Given
+    val anotherReceiver: MidiReceiver = stub[MidiReceiver]
+    processor.transmitter.addReceiver(anotherReceiver)
+
+    // When
+    processor.reset()
+
+    // Then
+    // Once when each receiver attached, and once more on reset
+    receiver.send.verify(initMessage, -1L).repeated(2)
+    anotherReceiver.send.verify(initMessage, -1L).repeated(2)
+  }
 }
