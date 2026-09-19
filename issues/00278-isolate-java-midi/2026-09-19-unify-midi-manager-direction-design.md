@@ -12,6 +12,12 @@
   carried out from it. The change is a behaviour-preserving refactoring with exactly one new behaviour (Section 3.2).
   It is also the plan: Section 8 is the order of work and Section 10 the verification, and no separate plan document
   is written.
+- **Revised**: 2026-09-19, after the review of [#308](https://github.com/calinburloiu/microtonalist/pull/308) at
+  `e07a08a`. The public ScalaDocs no longer describe the `direction` parameter as the endpoint of the manager a device
+  is kept in, since how an implementation organises its devices is not the API's business: they describe it as *how
+  the caller wants to use a device* — as an input, an output or both. Sections 3.2, 5.1, 6 and 7 and D2, D3 and D9
+  are restated in those terms; the endpoints that remain are `JavaMidiManager`'s internals and MIDI 2.0's UMP
+  endpoints.
 
 ## 1. Why
 
@@ -48,14 +54,14 @@ once.
   methods; `refresh()` and `close()` are unchanged. `deviceId` stays first where present, so the existing argument
   reads the same way and the direction is the added qualifier.
 - **D2 — The parameter is the existing `MidiDirection` enum, not a new two-value type.** `MidiEvent` already carries
-  `MidiDirection` with the same "one of the manager's two endpoints" meaning, so the module keeps one direction
+  `MidiDirection` with the same meaning, the use of the device an event concerns, so the module keeps one direction
   vocabulary. A narrower `enum MidiEndpointDirection { case Input, Output }` would make the illegal values
   unrepresentable, but it would need a third value the moment UMP endpoints arrive (Section 6), and it would pull
   `MidiEvent` along with it or leave two direction types side by side. Keeping one type is also what makes an event's
   `direction` and a method's `direction` the same value by construction — see D9.
 - **D3 — `None` is rejected by every implementation; `InputOutput` is legal in principle and rejected by
-  `JavaMidiManager`.** This is the one new behaviour. `None` names no endpoint under any implementation, so the
-  *trait* states that passing it throws an `IllegalArgumentException`. `InputOutput` is a different case: it is a
+  `JavaMidiManager`.** This is the one new behaviour. `None` requests no use of a device under any implementation, so
+  the *trait* states that passing it throws an `IllegalArgumentException`. `InputOutput` is a different case: it is a
   legal thing to ask of a manager built over bidirectional endpoints, such as a future MIDI 2.0 one, so the trait
   leaves it open and warns that an implementation may not support it. An implementation that keeps input and output in
   separate endpoints — which is every implementation today — rejects it, and `JavaMidiManager` does. Rejection throws,
@@ -95,10 +101,10 @@ once.
   The change is confined to the manager's API surface, its implementation, and the call sites. The ScalaDoc *text* of
   `MidiDeviceHandle` and `MidiEvent` does change — the first names the four methods being renamed, the second states a
   contract this design rewrites (D9) — but no member of either does.
-- **D9 — A `MidiEvent`'s `direction` is restated as the endpoint's, on the same terms as D3, instead of as "always
-  `Input` or `Output`".** An event's `direction` is its handle's `requestedDirection`, which is the direction of the
-  endpoint the manager filed the device in — by construction the very value a consumer passes to the methods of
-  Section 3.1 to address it. So the two now say the same thing, and the event's ScalaDoc must not keep claiming
+- **D9 — A `MidiEvent`'s `direction` is restated as the use of the device it concerns, on the same terms as D3,
+  instead of as "always `Input` or `Output`".** An event's `direction` is its handle's `requestedDirection`, the use
+  the device was requested for — by construction the very value a consumer passes to the methods of Section 3.1 to
+  request that use. So the two now say the same thing, and the event's ScalaDoc must not keep claiming
   more: "always `Input` or `Output`, never another value" is a property of the implementations that exist, not of the
   event. The claim moves where D3 put its twin, from the type to the implementation. Section 5.1 has the wording.
 
@@ -152,19 +158,25 @@ neighbouring `handleOf`, which gets or creates rather than looks up — today th
 The trait's ScalaDoc gains a paragraph stating, once, what every method's `direction` parameter means and what it
 accepts:
 
-> The `direction` selects which endpoint of the manager the device is kept in. An implementation may expose separate
-> input and output endpoints for the same physical device — two handles under a single `MidiDeviceId`, as the Java
-> Sound one does — or a single bidirectional endpoint, as a MIDI 2.0 one would.
+> The `direction` a method takes tells how the caller wants to use a device: as an input (`MidiDirection.Input`), as
+> an output (`MidiDirection.Output`) or as both (`MidiDirection.InputOutput`). It is a request: the `direction` of a
+> `MidiDeviceHandle` or of a `MidiDeviceInfo` tells instead what the device itself is capable of, and a caller may
+> request less than that. A MIDI 2.0 implementation, for instance, would let it request only the input of a device
+> that works in both directions, and so a projection of that device.
 >
-> `MidiDirection.None` names no endpoint and always throws an `IllegalArgumentException`. The other three values name
-> one in principle, but an implementation supports only those that match how it keeps its devices, and throws an
-> `IllegalArgumentException` for the rest: one with separate endpoints — every implementation today, including
-> `JavaMidiManager` — accepts `Input` and `Output` and rejects `InputOutput`. Each implementation documents which
-> values it accepts.
+> `MidiDirection.None` requests no use of a device and always throws an `IllegalArgumentException`. Of the other three
+> values, an implementation accepts only those it can serve, throws an `IllegalArgumentException` for the rest, and
+> documents which values it accepts. Every implementation today, including `JavaMidiManager`, accepts `Input` and
+> `Output` and rejects `InputOutput`.
 
 Note the deliberate asymmetry with `MidiDeviceHandle.direction` and `MidiDeviceInfo.direction`, which are the same
-type and describe *what the device is capable of*, while this one says *where the manager filed it*. Section 7 records
-why that asymmetry needs no rename.
+type and describe *what the device is capable of*, while this one says *how the caller wants to use it*. Section 7
+records why that asymmetry needs no rename.
+
+The paragraph first said that the `direction` *selects which endpoint of the manager the device is kept in*. The
+review of #308 dropped that: it described how `JavaMidiManager` stores its handles, which is not the trait's business,
+whereas the parameter states what the caller wants to do with the device. Why `JavaMidiManager` rejects `InputOutput`
+is its own ScalaDoc's to say (Section 4.1).
 
 ## 4. The `javamidi` implementation
 
@@ -255,16 +267,15 @@ Six in total, all outside `sc-midi`:
 
 **`MidiEvent`'s ScalaDoc (D9).** Its class ScalaDoc says an event's `direction` is "always `MidiDirection.Input` or
 `MidiDirection.Output`", and each of the seven events that carry one repeats "`Input` or `Output`, never another
-value" in its `@param`. That becomes the endpoint contract of Section 3.2, stated once:
+value" in its `@param`. That becomes the direction contract of Section 3.2, stated once:
 
 > A device event identifies its device by `MidiDeviceId` and, except for `MidiDeviceFailedToConnectEvent`, tells in
-> its `direction` the direction of the endpoint it concerns — the same value that addresses that endpoint in
-> `MidiManager`'s methods, and so one of those the publishing implementation keeps its devices in. An implementation
-> with separate input and output endpoints publishes only `MidiDirection.Input` and `MidiDirection.Output`, and lists
-> one physical device once per direction (see `MidiManager`), so a device that works in both directions is reported
-> once for each of them, by two events that differ in their `direction`.
+> its `direction` the use of the device it concerns — the same value a caller passes to `MidiManager`'s methods to
+> request that use, and so one of those the publishing implementation accepts. An implementation that accepts only
+> `MidiDirection.Input` and `MidiDirection.Output` publishes only those, so a device that works in both directions is
+> reported once for each of them, by two events that differ in their `direction`.
 
-The seven `@param direction` copies shrink to one line each — the direction of the endpoint whose handle made the
+The seven `@param direction` copies shrink to one line each — the use of the device by the handle that made the
 transition, pointing at the class ScalaDoc for the values it takes — which removes the same duplication this design
 removes everywhere else.
 
@@ -330,9 +341,11 @@ scaffolding — in particular no `(deviceId, direction)` parameter object — is
 - **Function Blocks are device description.** A block carries its own direction and spans one or more groups, so
   enumerating the blocks of an endpoint is richer `MidiDeviceInfo` plus, possibly, a new method — not an extra
   argument threaded through the nine existing ones.
-- **The parameter that genuinely changes meaning is `direction`.** A UMP endpoint is bidirectional, so `direction`
-  stops being "which of two registries" and becomes "which side of one endpoint, or both". D2 is what lets that happen
-  by widening the accepted values of a type that is already there, instead of changing the type.
+- **The parameter that genuinely changes is `direction`, in the values it accepts.** It already tells how the caller
+  wants to use a device (Section 3.2). A UMP endpoint is bidirectional, so a MIDI 2.0 manager would accept
+  `InputOutput` as well, and would serve `Input` or `Output` as a projection of such an endpoint onto one of its
+  sides. D2 is what lets that happen by widening the accepted values of a type that is already there, instead of
+  changing the type.
 
 Everything in this section about UMP is drawn from the outlook document, which states (its Section 6) that its
 message layouts and numbers must be verified against the MIDI Association specifications before implementation. That
@@ -342,15 +355,15 @@ it must not be read as settled fact about UMP.
 ## 7. Settled: `MidiDeviceHandle.direction` keeps its name
 
 **The question.** The handle's `direction` means *what the device is capable of* — `InputOutput` for a bidirectional
-piano — while the manager's new parameter of the same name and type means *which endpoint*. The two never mix at the
-type level, but they read alike at a call site. The options were to leave it, or to rename the handle's to
-`deviceDirection`.
+piano — while the manager's new parameter of the same name and type means *how the caller wants to use it*. The two
+never mix at the type level, but they read alike at a call site. The options were to leave it, or to rename the
+handle's to `deviceDirection`.
 
 **Settled: leave it**, by the work merged from `feature/hot-plug-midi-devices` after this document was first drafted:
 
 - `cec25c3` renamed `JavaMidiDeviceHandle.managerDirection` to **`requestedDirection`**. That was the name the second
   option was meant to disambiguate from, and the rename disambiguated it from the other side: a handle now has
-  `direction` (what the device can do) next to `requestedDirection` (the endpoint it was requested for), and the
+  `direction` (what the device can do) next to `requestedDirection` (the use it was requested for), and the
   manager's new parameter is the latter meaning. Renaming `direction` on top of that would re-open a distinction that
   is already drawn.
 - `13dba0e` removed the sentences in `MidiDirection`'s ScalaDoc and the `sc-midi` README that said a manager's

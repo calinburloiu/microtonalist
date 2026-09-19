@@ -37,7 +37,7 @@ the handle waits for it.
 out through `handle.receiver` or come in through `handle.transmitter`.
 
 - Requested through `MidiManager.openDevice` and released through `closeDevice`, which return and act on the handle
-  of a `MidiDeviceId` in the endpoint their `MidiDirection` selects. Attaching an input or output is what triggers the
+  of a `MidiDeviceId` for the use their `MidiDirection` requests. Attaching an input or output is what triggers the
   request and detaching it what triggers the release — see [How the three relate](#how-the-three-relate).
 - **Both are reference-counted.** `openDevice` takes one reference; `closeDevice` releases one. The device is really
   closed only when the last reference goes, because several tracks may share one device — releasing one of them must
