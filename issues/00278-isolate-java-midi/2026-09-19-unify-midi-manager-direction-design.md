@@ -68,19 +68,17 @@ once.
   states it, and a future UMP manager accepting `InputOutput` breaks no promise. Which directions are addressable is
   an implementation's business, and that manager should not have to work around a check baked into the shared type or
   the trait. That this design's one implementation happens to reject both values does not make them one rule.
-- **D5 — Method names drop the direction prefix, keeping today's stems except for the two listings D5a renames.**
-  They then coincide with the names `JavaMidiManager.MidiEndpoint` already uses privately, so the trait and its
-  implementation's internals finally speak one vocabulary — and where D5a or D5b renames a trait method, the private
-  `MidiEndpoint` method is renamed with it, to keep that property.
-- **D5a — The two handle listings are named `openDeviceHandles` and `deviceHandlesRequestedToOpen`.** Dropping the
-  direction prefix would otherwise leave `openDevices(direction)` one letter away from `openDevice(deviceId,
-  direction)` while meaning something unrelated — list the handles that are open, versus take a reference. Naming what
-  they return removes the collision. See Section 3.1 for the cost that was weighed against it.
-- **D5b — The single-device accessor is `deviceOf`, not `deviceHandleOf`.** The trait's noun for a device the manager
-  holds is already "device": `openDevice` and `closeDevice` deal in `MidiDeviceHandle`s without saying so, a handle
-  being simply how this API hands a consumer a device. Spelling `Handle` out in one accessor made it the odd member of
-  the `…Of` family it belongs to, beside `deviceInfoOf`. The two listings of D5a keep their `Handles` suffix as the
-  documented exception: they carry it to escape a collision, not because this trait names its return types.
+- **D5 — Method names drop the direction prefix and otherwise keep today's stems, except `deviceOf` (D5b).** They then
+  coincide with the names `JavaMidiManager.MidiEndpoint` already uses privately, so the trait and its implementation's
+  internals finally speak one vocabulary — and since D5b renames one trait method, the private `MidiEndpoint` method
+  is renamed with it, to keep that property.
+- **D5a — No method of the trait names a handle: the listings are `openDevices` and `devicesRequestedToOpen`.** The
+  trait's noun for a device the manager holds is "device", and a handle is simply how this API hands one over —
+  `openDevice` and `closeDevice` already return and take `MidiDeviceHandle`s without saying so. Naming the return type
+  in two methods and not in the other seven would make the exception, not the rule, the thing a reader has to
+  remember. The cost this accepts is stated in Section 3.1.
+- **D5b — The same rule applied to the single-device accessor: `deviceOf`, not `deviceHandleOf`.** It belongs to the
+  `…Of` family beside `deviceInfoOf`, and spelling `Handle` out made it the odd member of it.
 - **D10 — `javamidi`'s Java Sound-typed identifiers take a `java` prefix, here and not in a later issue.** D5b's
   `deviceOf` would otherwise share a file with `JavaMidiEnvironment.deviceOf`, which returns a
   `javax.sound.midi.MidiDevice`. The sweep is mechanical and compiler-checked, and stacking one more issue and PR
@@ -122,9 +120,9 @@ trait MidiManager extends AutoCloseable {
 
   def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle]
 
-  def openDeviceHandles(direction: MidiDirection): Seq[MidiDeviceHandle]
+  def openDevices(direction: MidiDirection): Seq[MidiDeviceHandle]
 
-  def deviceHandlesRequestedToOpen(direction: MidiDirection): Seq[MidiDeviceHandle]
+  def devicesRequestedToOpen(direction: MidiDirection): Seq[MidiDeviceHandle]
 
   def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit
 
@@ -135,16 +133,16 @@ trait MidiManager extends AutoCloseable {
 Twenty members become eleven. Every ScalaDoc that was written twice is written once, with a single `@param direction`
 line replacing the word that used to differ between the two copies.
 
-**The two listings and their cost (D5a).** Mechanically dropping the direction prefix would have given
-`openDevices(direction)` next to `openDevice(deviceId, direction)`: one letter apart, and meaning "list the handles
-that are open" versus "take a reference to this device". Differing ScalaDocs and return types do not undo a name that
-invites a misreading at the call site, so the two listings name what they return instead. The accepted costs are that
-they are longer than their siblings, and that `openDeviceHandles` can still be read for a moment as an imperative
-("open the device handles") — the `Handles` suffix and the `Seq` return settle it, and no method of this trait opens
-more than one device, so the imperative reading has nowhere to go. `deviceHandlesRequestedToOpen` has neither problem.
+**Accepted cost (D5a).** `openDevice(deviceId, direction)` (take a reference) and `openDevices(direction)` (list the
+handles that are open) differ by one letter and mean different things; in `openDevices`, "open" is an adjective. Naming
+the listings `openDeviceHandles` and `deviceHandlesRequestedToOpen` was adopted for a while and then reverted: it
+removed the collision only by making two methods the only ones in the trait that name a handle. The call sites tell
+the two apart anyway — `openDevice` takes the device's id and `openDevices` does not, and they return a
+`MidiDeviceHandle` and a `Seq[MidiDeviceHandle]` — and the ScalaDoc of `openDevices` says in its first words that it
+lists the devices that are open, rather than opening anything.
 
-The private `MidiEndpoint.openDevices` / `devicesRequestedToOpen` are renamed to match, and so is its
-`deviceHandleOf`, which becomes `deviceOf` (D5). That also puts a noun between it and the neighbouring `handleOf`,
+The private `MidiEndpoint` already names the listings `openDevices` / `devicesRequestedToOpen`, so only its
+`deviceHandleOf` changes, becoming `deviceOf` (D5). That also puts a noun between it and the neighbouring `handleOf`,
 which gets or creates rather than looks up — today the two differ only by a prefix.
 
 ### 3.2 The direction contract
@@ -373,7 +371,7 @@ that must compile before it can fail for the right reason:
    as the thinnest possible stub (`???` bodies) and `JavaMidiManager` overrides them the same way. Confirm the tests
    fail because nothing rejects anything, not because something is unimplemented.
 2. **Green.** Implement `endpointOf` with its rejecting catch-all and the nine delegating overrides, and rename
-   `MidiEndpoint.openDevices` / `devicesRequestedToOpen` to match D5a.
+   `MidiEndpoint.deviceHandleOf` to `deviceOf` to match D5b.
 3. **Refactor, suite green throughout.** Migrate `Track`, `MidiDevicesCommand` and the four test suites to the
    unified methods, then delete the old 18 trait methods and their overrides. The compiler finds every site; nothing
    here is behavioural.
