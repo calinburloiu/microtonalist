@@ -99,9 +99,9 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
   events an operation collects are published in order only after the lock is released, because Guava delivers them
   synchronously and `TrackManager`'s handler sends MIDI.
 
-`JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for one direction, its
-`managerDirection`, which its events carry — not its inherited `direction`, which tells the directions the device
-itself works in. The device is reachable only through its
+`JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for the one direction it is
+requested for, its `requestedDirection`, which its events carry — not its inherited `direction`, which tells the
+directions the device itself works in. The device is reachable only through its
 `private[javamidi] device: Option[MidiDevice]`.
 
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are

@@ -34,14 +34,14 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
   private val deviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
 
-  private val managerDirection: MidiDirection = MidiDirection.Output
+  private val requestedDirection: MidiDirection = MidiDirection.Output
 
   private val failure: Exception = MidiUnavailableException("The device is busy")
 
-  private val connected: MidiEvent = MidiDeviceConnectedEvent(deviceId, managerDirection)
-  private val disconnected: MidiEvent = MidiDeviceDisconnectedEvent(deviceId, managerDirection)
-  private val opened: MidiEvent = MidiDeviceOpenedEvent(deviceId, managerDirection)
-  private val closed: MidiEvent = MidiDeviceClosedEvent(deviceId, managerDirection)
+  private val connected: MidiEvent = MidiDeviceConnectedEvent(deviceId, requestedDirection)
+  private val disconnected: MidiEvent = MidiDeviceDisconnectedEvent(deviceId, requestedDirection)
+  private val opened: MidiEvent = MidiDeviceOpenedEvent(deviceId, requestedDirection)
+  private val closed: MidiEvent = MidiDeviceClosedEvent(deviceId, requestedDirection)
 
   private val noteOn: NoteOnMidiMsg = NoteOnMidiMsg(2, MidiNote.C4, 100)
 
@@ -62,7 +62,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
                                  openFailure: Option[Exception] = None,
                                  closeFailure: Option[Exception] = None,
                                  receiverFailure: Option[Exception] = None) {
-    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, managerDirection)
+    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, requestedDirection)
     val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters,
       maxReceivers = maxReceivers, openFailure = openFailure, closeFailure = closeFailure,
       receiverFailure = receiverFailure)
@@ -83,7 +83,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "be closed and disconnected, with no device and no info" in new Fixture {
       // Then
       handle.id shouldEqual deviceId
-      handle.managerDirection shouldEqual managerDirection
+      handle.requestedDirection shouldEqual requestedDirection
       handle.state shouldEqual State.Closed
       handle.isConnected shouldBe false
       handle.isOpen shouldBe false
@@ -138,7 +138,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val events: Seq[MidiEvent] = connect()
 
         // Then
-        events shouldEqual Seq(connected, MidiDeviceFailedToOpenEvent(deviceId, managerDirection, failure))
+        events shouldEqual Seq(connected, MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Connected
         handle.isOpenRequested shouldBe false
         handle.close() shouldBe empty
@@ -223,7 +223,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       val events: Seq[MidiEvent] = connect(swappedDevice)
 
       // Then
-      events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, managerDirection, failure), opened)
+      events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, failure), opened)
       handle.state shouldEqual State.Open
       handle.device shouldEqual Some(swappedDevice)
       swappedDevice.isOpen shouldBe true
@@ -242,7 +242,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val events: Seq[MidiEvent] = connect(swappedDevice)
 
         // Then
-        events shouldEqual Seq(closed, MidiDeviceFailedToOpenEvent(deviceId, managerDirection, failure))
+        events shouldEqual Seq(closed, MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Connected
         handle.isOpenRequested shouldBe false
         handle.device shouldEqual Some(swappedDevice)
@@ -322,7 +322,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val events: Seq[MidiEvent] = handle.disconnect()
 
         // Then
-        events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, managerDirection, failure))
+        events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Closed
         handle.device shouldBe empty
       }
@@ -337,7 +337,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val events: Seq[MidiEvent] = handle.disconnect()
 
         // Then
-        events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, managerDirection, failure))
+        events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.WaitingToOpen
       }
 
@@ -441,7 +441,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val events: Seq[MidiEvent] = handle.open()
 
         // Then
-        events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, managerDirection, failure))
+        events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Connected
         handle.isOpenRequested shouldBe false
         device.closeCount shouldEqual 1
@@ -457,7 +457,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val events: Seq[MidiEvent] = handle.open()
 
         // Then
-        events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, managerDirection, failure))
+        events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Connected
         device.isOpen shouldBe false
 
@@ -479,7 +479,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
           val events: Seq[MidiEvent] = handle.open()
 
           // Then
-          events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, managerDirection, openFailure))
+          events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, openFailure))
           handle.state shouldEqual State.Connected
           openFailure.getSuppressed shouldEqual Array(closeFailure)
         }
@@ -538,7 +538,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       val events: Seq[MidiEvent] = handle.close()
 
       // Then
-      events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, managerDirection, failure))
+      events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, failure))
       handle.state shouldEqual State.Connected
     }
 
