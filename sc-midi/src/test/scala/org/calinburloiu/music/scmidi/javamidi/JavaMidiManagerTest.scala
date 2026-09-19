@@ -77,26 +77,26 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
     override def newDevice(name: String): FakeMidiDevice = FakeMidiDevice(name, maxTransmitters = -1, maxReceivers = 0)
 
-    override def isAvailable(manager: MidiManager, id: MidiDeviceId): Boolean = manager.isInputAvailable(id)
+    override def isAvailable(manager: MidiManager, id: MidiDeviceId): Boolean = manager.isDeviceAvailable(id, direction)
 
     override def deviceInfoOf(manager: MidiManager, id: MidiDeviceId): Option[MidiDeviceInfo] =
-      manager.inputDeviceInfoOf(id)
+      manager.deviceInfoOf(id, direction)
 
-    override def deviceIds(manager: MidiManager): Seq[MidiDeviceId] = manager.inputDeviceIds
+    override def deviceIds(manager: MidiManager): Seq[MidiDeviceId] = manager.deviceIdsFor(direction)
 
-    override def devicesInfo(manager: MidiManager): Seq[MidiDeviceInfo] = manager.inputDevicesInfo
+    override def devicesInfo(manager: MidiManager): Seq[MidiDeviceInfo] = manager.devicesInfoFor(direction)
 
-    override def open(manager: MidiManager, id: MidiDeviceId): MidiDeviceHandle = manager.openInput(id)
+    override def open(manager: MidiManager, id: MidiDeviceId): MidiDeviceHandle = manager.openDevice(id, direction)
 
     override def deviceHandleOf(manager: MidiManager, id: MidiDeviceId): Option[MidiDeviceHandle] =
-      manager.inputDeviceHandleOf(id)
+      manager.deviceOf(id, direction)
 
-    override def openDevices(manager: MidiManager): Seq[MidiDeviceHandle] = manager.inputOpenDevices
+    override def openDevices(manager: MidiManager): Seq[MidiDeviceHandle] = manager.openDevicesFor(direction)
 
     override def devicesRequestedToOpen(manager: MidiManager): Seq[MidiDeviceHandle] =
-      manager.inputDevicesRequestedToOpen
+      manager.devicesRequestedToOpenFor(direction)
 
-    override def close(manager: MidiManager, id: MidiDeviceId): Unit = manager.closeInput(id)
+    override def close(manager: MidiManager, id: MidiDeviceId): Unit = manager.closeDevice(id, direction)
   }
 
   private object Output extends Endpoint {
@@ -104,26 +104,26 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
     override def newDevice(name: String): FakeMidiDevice = FakeMidiDevice(name, maxTransmitters = 0, maxReceivers = -1)
 
-    override def isAvailable(manager: MidiManager, id: MidiDeviceId): Boolean = manager.isOutputAvailable(id)
+    override def isAvailable(manager: MidiManager, id: MidiDeviceId): Boolean = manager.isDeviceAvailable(id, direction)
 
     override def deviceInfoOf(manager: MidiManager, id: MidiDeviceId): Option[MidiDeviceInfo] =
-      manager.outputDeviceInfoOf(id)
+      manager.deviceInfoOf(id, direction)
 
-    override def deviceIds(manager: MidiManager): Seq[MidiDeviceId] = manager.outputDeviceIds
+    override def deviceIds(manager: MidiManager): Seq[MidiDeviceId] = manager.deviceIdsFor(direction)
 
-    override def devicesInfo(manager: MidiManager): Seq[MidiDeviceInfo] = manager.outputDevicesInfo
+    override def devicesInfo(manager: MidiManager): Seq[MidiDeviceInfo] = manager.devicesInfoFor(direction)
 
-    override def open(manager: MidiManager, id: MidiDeviceId): MidiDeviceHandle = manager.openOutput(id)
+    override def open(manager: MidiManager, id: MidiDeviceId): MidiDeviceHandle = manager.openDevice(id, direction)
 
     override def deviceHandleOf(manager: MidiManager, id: MidiDeviceId): Option[MidiDeviceHandle] =
-      manager.outputDeviceHandleOf(id)
+      manager.deviceOf(id, direction)
 
-    override def openDevices(manager: MidiManager): Seq[MidiDeviceHandle] = manager.outputOpenDevices
+    override def openDevices(manager: MidiManager): Seq[MidiDeviceHandle] = manager.openDevicesFor(direction)
 
     override def devicesRequestedToOpen(manager: MidiManager): Seq[MidiDeviceHandle] =
-      manager.outputDevicesRequestedToOpen
+      manager.devicesRequestedToOpenFor(direction)
 
-    override def close(manager: MidiManager, id: MidiDeviceId): Unit = manager.closeOutput(id)
+    override def close(manager: MidiManager, id: MidiDeviceId): Unit = manager.closeDevice(id, direction)
   }
 
   private trait Fixture {
@@ -548,8 +548,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
           val manager: JavaMidiManager = newManager()
 
           // Then
-          manager.isInputAvailable(device.id) shouldBe isInput
-          manager.isOutputAvailable(device.id) shouldBe isOutput
+          manager.isDeviceAvailable(device.id, MidiDirection.Input) shouldBe isInput
+          manager.isDeviceAvailable(device.id, MidiDirection.Output) shouldBe isOutput
         }
       }
     }
@@ -567,15 +567,15 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         val manager: JavaMidiManager = newManager()
 
         // Then
-        manager.inputDeviceIds shouldEqual Seq(id)
-        manager.outputDeviceIds shouldEqual Seq(id)
+        manager.deviceIdsFor(MidiDirection.Input) shouldEqual Seq(id)
+        manager.deviceIdsFor(MidiDirection.Output) shouldEqual Seq(id)
         businessync.publish.calls shouldEqual Seq(
           MidiDeviceConnectedEvent(id, MidiDirection.Input),
           MidiDeviceConnectedEvent(id, MidiDirection.Output)
         )
 
         // When
-        manager.openOutput(id)
+        manager.openDevice(id, MidiDirection.Output)
 
         // Then
         outputDevice.isOpen shouldBe true
@@ -609,7 +609,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
         // When
         manager.refresh()
-        manager.openOutput(id)
+        manager.openDevice(id, MidiDirection.Output)
 
         // Then
         laterDevice.isOpen shouldBe true
@@ -631,7 +631,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // When
       manager.refresh()
-      manager.openOutput(firstDevice.id)
+      manager.openDevice(firstDevice.id, MidiDirection.Output)
 
       // Then
       laterDevice.isOpen shouldBe true
@@ -647,12 +647,12 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       val manager: JavaMidiManager = newManager()
 
       // When
-      manager.openOutput(firstDevice.id)
+      manager.openDevice(firstDevice.id, MidiDirection.Output)
 
       // Then
       lastDevice.isOpen shouldBe true
       firstDevice.isOpen shouldBe false
-      manager.outputDeviceIds shouldEqual Seq(firstDevice.id)
+      manager.deviceIdsFor(MidiDirection.Output) shouldEqual Seq(firstDevice.id)
       businessync.publish.calls shouldEqual Seq(
         MidiDeviceConnectedEvent(firstDevice.id, MidiDirection.Output),
         MidiDeviceOpenedEvent(firstDevice.id, MidiDirection.Output)
@@ -679,8 +679,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
           val manager: JavaMidiManager = newManager()
 
           // Then
-          manager.inputDeviceIds shouldBe empty
-          manager.outputDeviceIds shouldBe empty
+          manager.deviceIdsFor(MidiDirection.Input) shouldBe empty
+          manager.deviceIdsFor(MidiDirection.Output) shouldBe empty
           businessync.publish.calls shouldBe empty
         }
       }
@@ -695,8 +695,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       val manager: JavaMidiManager = newManager()
 
       // Then
-      manager.inputDeviceIds shouldBe empty
-      manager.outputDeviceIds shouldBe empty
+      manager.deviceIdsFor(MidiDirection.Input) shouldBe empty
+      manager.deviceIdsFor(MidiDirection.Output) shouldBe empty
       businessync.publish.calls shouldEqual Seq(MidiDeviceFailedToConnectEvent(javaDeviceInfo.asMidiDeviceId, failure))
     }
   }
@@ -712,7 +712,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       environment.notifyChanged()
 
       // Then
-      manager.isInputAvailable(device.id) shouldBe true
+      manager.isDeviceAvailable(device.id, MidiDirection.Input) shouldBe true
       businessync.publish.calls shouldEqual
         Seq(MidiEnvironmentChangedEvent, MidiDeviceConnectedEvent(device.id, MidiDirection.Input))
     }
@@ -726,8 +726,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       environment.plug(inputDevice)
       environment.plug(outputDevice)
       val manager: JavaMidiManager = newManager()
-      manager.openInput(inputDevice.id)
-      manager.openOutput(outputDevice.id)
+      manager.openDevice(inputDevice.id, MidiDirection.Input)
+      manager.openDevice(outputDevice.id, MidiDirection.Output)
 
       // When
       manager.close()
@@ -735,8 +735,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Then
       inputDevice.isOpen shouldBe false
       outputDevice.isOpen shouldBe false
-      manager.inputDevicesRequestedToOpen shouldBe empty
-      manager.outputDevicesRequestedToOpen shouldBe empty
+      manager.devicesRequestedToOpenFor(MidiDirection.Input) shouldBe empty
+      manager.devicesRequestedToOpenFor(MidiDirection.Output) shouldBe empty
       environment.subscriberCount shouldEqual 0
     }
 
@@ -745,28 +745,28 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       val device: FakeMidiDevice = Output.newDevice(deviceName)
       environment.plug(device)
       val manager: JavaMidiManager = newManager()
-      manager.openOutput(device.id)
-      manager.openOutput(device.id)
+      manager.openDevice(device.id, MidiDirection.Output)
+      manager.openDevice(device.id, MidiDirection.Output)
 
       // When
       manager.close()
 
       // Then
       device.isOpen shouldBe false
-      manager.outputDevicesRequestedToOpen shouldBe empty
+      manager.devicesRequestedToOpenFor(MidiDirection.Output) shouldBe empty
     }
 
     "forget the handle of a device waiting to open" in new Fixture {
       // Given
       val manager: JavaMidiManager = newManager()
-      val handle: MidiDeviceHandle = manager.openOutput(MidiDeviceId(deviceName, "Roland"))
+      val handle: MidiDeviceHandle = manager.openDevice(MidiDeviceId(deviceName, "Roland"), MidiDirection.Output)
 
       // When
       manager.close()
 
       // Then
       handle.state shouldEqual State.Closed
-      manager.outputDeviceHandleOf(handle.id) shouldBe empty
+      manager.deviceOf(handle.id, MidiDirection.Output) shouldBe empty
     }
   }
 
@@ -775,13 +775,13 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // Given
       val device: FakeMidiDevice = Output.newDevice(deviceName)
       val manager: JavaMidiManager = newManager()
-      manager.openOutput(device.id)
+      manager.openDevice(device.id, MidiDirection.Output)
       environment.plug(device)
       // What a subscriber on another thread sees of the handle when each event reaches it; with the lock still held,
       // the lookup would time out.
       val observedStates: mutable.Buffer[Option[State]] = mutable.ArrayBuffer()
       onPublish = _ => observedStates += CompletableFuture
-        .supplyAsync(() => manager.outputDeviceHandleOf(device.id).map(_.state))
+        .supplyAsync(() => manager.deviceOf(device.id, MidiDirection.Output).map(_.state))
         .get(5, TimeUnit.SECONDS)
 
       // When
@@ -836,7 +836,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
-        manager.openOutput(MidiDeviceId(deviceName, "Roland"))
+        manager.openDevice(MidiDeviceId(deviceName, "Roland"), MidiDirection.Output)
       }
 
       // Then
@@ -853,7 +853,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
-        manager.openInput(device.id)
+        manager.openDevice(device.id, MidiDirection.Input)
         manager.close()
       }
 
