@@ -49,12 +49,14 @@ trait MidiManager extends AutoCloseable {
   def refresh(): Unit
 
   /**
+   * @param deviceId  Unique identifier of the device.
    * @param direction The endpoint to look in (see [[MidiManager]]).
    * @return whether the device with the given identifier is currently connected.
    */
   def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean
 
   /**
+   * @param deviceId  Unique identifier of the device.
    * @param direction The endpoint to look in (see [[MidiManager]]).
    * @return the information of the device with the given identifier, if it is currently connected.
    */
@@ -87,6 +89,7 @@ trait MidiManager extends AutoCloseable {
   def openDevice(deviceId: MidiDeviceId, direction: MidiDirection): MidiDeviceHandle
 
   /**
+   * @param deviceId  Unique identifier of the device.
    * @param direction The endpoint to look in (see [[MidiManager]]).
    * @return the live handle of the device with the given identifier: requested to open, connected, or both. A
    *         connected device nobody opened has one, in [[MidiDeviceHandle.State.Connected]].
@@ -112,6 +115,7 @@ trait MidiManager extends AutoCloseable {
    * where it stays live, or, if its device is not connected, to [[MidiDeviceHandle.State.Closed]], where it is
    * forgotten.
    *
+   * @param deviceId  Unique identifier of the device.
    * @param direction The endpoint the device was opened in (see [[MidiManager]]).
    */
   def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit
