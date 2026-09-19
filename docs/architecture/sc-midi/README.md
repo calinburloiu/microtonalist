@@ -34,19 +34,29 @@ provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display 
 
 ### Device handling
 
-**`MidiManager`** is the trait through which devices are discovered and opened. It is `AutoCloseable` and offers a
-per-direction API mirrored for input and output (availability, id/info enumeration as `MidiDeviceInfo`,
-`open*`/`close*`, handle lookup, and two listings of live handles — `input`/`outputOpenDevices` for the ones that are
-open, `input`/`outputDevicesRequestedToOpen` for those plus the ones waiting for their device), because a platform may expose a physical bidirectional device as two endpoints that
-nonetheless share one `MidiDeviceId`. `refresh()` rescans the environment; an implementation also refreshes when the
-platform reports a change, emitting the device events described in
-[Device lifecycle and events](#device-lifecycle-and-events) as it reconciles state.
+**`MidiManager`** is the trait through which devices are discovered and opened. It is `AutoCloseable`, and each of its
+methods about devices takes a `direction: MidiDirection` that selects the endpoint of the manager the device is kept
+in: availability (`isDeviceAvailable`), id/info enumeration as `MidiDeviceInfo` (`deviceIdsFor`, `devicesInfoFor`,
+`deviceInfoOf`), `openDevice`/`closeDevice`, handle lookup (`deviceOf`), and two listings of live handles —
+`openDevicesFor` for the ones that are open, `devicesRequestedToOpenFor` for those plus the ones waiting for their
+device. The `For` suffix marks a listing, which takes only a direction, and `Of` a lookup keyed by a device id.
+`refresh()` rescans the environment; an implementation also refreshes when the platform reports a change, emitting the
+device events described in [Device lifecycle and events](#device-lifecycle-and-events) as it reconciles state.
+
+- **Endpoints.** A platform may expose a physical bidirectional device as two endpoints, one for input and one for
+  output, that nonetheless share one `MidiDeviceId` — as Java Sound does — or as a single bidirectional endpoint, as a
+  MIDI 2.0 one would. The `direction` a method takes therefore tells *where the manager keeps a device*, whereas the
+  `direction` of a `MidiDeviceHandle` or a `MidiDeviceInfo` tells *what the device itself is capable of*.
+- **Accepted directions.** `MidiDirection.None` names no endpoint, and every implementation rejects it with an
+  `IllegalArgumentException`. The other values are accepted only where they match how an implementation keeps its
+  devices, so one with separate endpoints — `JavaMidiManager`, like every implementation today — also rejects
+  `InputOutput`. Passing either is a programming error, which is why it throws instead of returning an empty result.
 
 **`MidiDeviceHandle`** is the read-only trait for a handle to a single device identified by a `MidiDeviceId`.
 
 - **Ownership.** The manager creates the handle and is the only one to change its state. A consumer requests a device
-  with `openInput` / `openOutput` and releases it with `closeInput` / `closeOutput`, both reference-counted; otherwise
-  it only inspects the handle and uses it for I/O.
+  with `openDevice` and releases it with `closeDevice`, both reference-counted; otherwise it only inspects the handle
+  and uses it for I/O.
 - **Disconnected devices.** A handle can exist for a device that is **not currently connected**:
   `info: Option[MidiDeviceInfo]` is defined only while it is connected, and `isInputDevice` / `isOutputDevice` /
   `direction` derive from it. A request made while the device is not connected moves the handle to
@@ -133,8 +143,9 @@ on the bus.
 - The rest come as success/failure pairs for each lifecycle transition (connected/disconnected/opened/closed), each
   failure event (`…FailedTo…Event`) carrying the cause.
 - All carry the `MidiDeviceId`. All but `MidiDeviceFailedToConnectEvent`, which is published before resolution tells
-  the direction, also carry a `direction`: always `Input` or `Output`, the direction of the handle that made the
-  transition.
+  the direction, also carry a `direction`: the direction of the endpoint whose handle made the transition, the same
+  value that addresses that endpoint in `MidiManager`'s methods. `JavaMidiManager`, which keeps separate endpoints,
+  therefore publishes only `Input` and `Output`.
 
 Note that "connected" means *available to the system*, not *opened by the application*: they are distinct,
 separately evented states, and both differ again from a receiver being *attached* to a transmitter. See
@@ -275,16 +286,16 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
 1. Construct a single `JavaMidiManager(businessync)` at the composition root (`MicrotonalistApp`,
    `MicrotonalistToolApp`) and pass it around as a `MidiManager`; its initialization runs a first `refresh()` and
    subscribes to environment changes so the device list stays current.
-2. Enumerate with `inputDeviceIds` / `outputDeviceIds` (or the `…DevicesInfo` variants); `sanitizedName` gives a
-   UI-friendly name.
-3. Open a device with `openInput`/`openOutput`; each returns a `MidiDeviceHandle`.
+2. Enumerate an endpoint with `deviceIdsFor(direction)` (or `devicesInfoFor`); `sanitizedName` gives a UI-friendly
+   name.
+3. Open a device with `openDevice(deviceId, direction)`, which returns a `MidiDeviceHandle`.
 4. Use the handle: send `MidiMsg` values via `handle.receiver` (outputs), subscribe `MidiReceiver`s via
    `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles: the manager hands the
    replugged device to the same live handle.
-5. `closeInput`/`closeOutput` (reference-counted) release a device. The handle is read-only and has no `close()`;
-   `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and then releases
-   every reference held through the manager, so every device it opened ends up closed — in that order, so that a
-   change reported meanwhile cannot reconnect or reopen a handle after it was closed.
+5. `closeDevice(deviceId, direction)` (reference-counted) releases a device. The handle is read-only and has no
+   `close()`; `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and
+   then releases every reference held through the manager, so every device it opened ends up closed — in that order,
+   so that a change reported meanwhile cannot reconnect or reopen a handle after it was closed.
 
 ## Device lifecycle and events
 
@@ -349,6 +360,7 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
 - The `Sc` prefix is gone (#279), the `MidiTransmitter` family replaced `MultiTransmitter` (#280, #281), the
   pipeline carries `MidiMsg` end to end (#281), the device layer is a pair of traits with a Java Sound
   implementation under `javamidi` (#282), the MIDI 2.0 outlook that the empty `Midi2Msg` stands in for has been
-  written (#283, `issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`), and the Channel Mode messages are
-  their own types (#285). Every #278 sub-issue nonetheless remains open until the branch stack that implements them
+  written (#283, `issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`), the Channel Mode messages are their
+  own types (#285), and `MidiManager` takes the endpoint as a `MidiDirection` parameter instead of mirroring its API for
+  input and output (#307). Every #278 sub-issue nonetheless remains open until the branch stack that implements them
   merges — see `issues/00278-isolate-java-midi/`.

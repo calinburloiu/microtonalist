@@ -25,11 +25,12 @@ composition root: it constructs a `Businessync` and a `JavaMidiManager` (`sc-mid
 its `javamidi` package), injects the manager into the command and closes it when done.
 
 **`MidiDevicesCommand`** implements `midi-devices` over the `MidiManager` injected through its constructor: `run()`
-iterates `inputDevicesInfo` and `outputDevicesInfo` and prints each `MidiDeviceInfo`'s name, vendor, version and
-description plus its maximum transmitter (inputs) or receiver (outputs) count, which a `MidiConnectionLimit` renders as
-`unlimited` or as the number — Java Sound's `-1` sentinel is mapped to `MidiConnectionLimit.Unlimited` inside
-`javamidi` and never reaches the `cli`. Injecting the manager is what makes the command testable without MIDI hardware
-(`MidiDevicesCommandTest` runs it over a stubbed `MidiManager`). There is no command framework.
+lists `devicesInfoFor` the input and then the output direction and prints each `MidiDeviceInfo`'s name, vendor,
+version and description plus its maximum transmitter (inputs) or receiver (outputs) count, which a
+`MidiConnectionLimit` renders as `unlimited` or as the number — Java Sound's `-1` sentinel is mapped to
+`MidiConnectionLimit.Unlimited` inside `javamidi` and never reaches the `cli`. Injecting the manager is what makes the
+command testable without MIDI hardware (`MidiDevicesCommandTest` runs it over a stubbed `MidiManager`). There is no
+command framework.
 
 ## Dependencies
 
