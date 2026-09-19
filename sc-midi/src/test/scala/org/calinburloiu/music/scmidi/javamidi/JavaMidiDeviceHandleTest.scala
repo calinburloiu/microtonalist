@@ -88,7 +88,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.isConnected shouldBe false
       handle.isOpen shouldBe false
       handle.isOpenRequested shouldBe false
-      handle.device shouldBe empty
+      handle.javaDevice shouldBe empty
       handle.info shouldBe empty
     }
 
@@ -111,7 +111,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events shouldEqual Seq(connected)
       handle.state shouldEqual State.Connected
-      handle.device shouldEqual Some(device)
+      handle.javaDevice shouldEqual Some(device)
       handle.info shouldEqual Some(device.asMidiDeviceInfo)
       device.openCount shouldEqual 0
     }
@@ -184,7 +184,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events shouldBe empty
       handle.state shouldEqual State.Connected
-      handle.device shouldEqual Some(swappedDevice)
+      handle.javaDevice shouldEqual Some(swappedDevice)
       device.closeCount shouldEqual 0
     }
 
@@ -203,7 +203,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events shouldEqual Seq(closed, opened)
       handle.state shouldEqual State.Open
-      handle.device shouldEqual Some(swappedDevice)
+      handle.javaDevice shouldEqual Some(swappedDevice)
       device.isOpen shouldBe false
       swappedDevice.isOpen shouldBe true
       swappedDevice.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
@@ -225,7 +225,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, failure), opened)
       handle.state shouldEqual State.Open
-      handle.device shouldEqual Some(swappedDevice)
+      handle.javaDevice shouldEqual Some(swappedDevice)
       swappedDevice.isOpen shouldBe true
     }
 
@@ -245,7 +245,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         events shouldEqual Seq(closed, MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Connected
         handle.isOpenRequested shouldBe false
-        handle.device shouldEqual Some(swappedDevice)
+        handle.javaDevice shouldEqual Some(swappedDevice)
         handle.close() shouldBe empty
       }
 
@@ -263,7 +263,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         // Then
         events shouldBe empty
         handle.state shouldEqual State.Open
-        handle.device shouldEqual Some(device)
+        handle.javaDevice shouldEqual Some(device)
         handle.info shouldEqual Some(device.asMidiDeviceInfo)
         device.isOpen shouldBe true
         device.closeCount shouldEqual 0
@@ -295,7 +295,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       device.isOpen shouldBe false
       handle.state shouldEqual State.WaitingToOpen
       handle.isOpenRequested shouldBe true
-      handle.device shouldBe empty
+      handle.javaDevice shouldBe empty
       handle.info shouldBe empty
     }
 
@@ -309,7 +309,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events shouldEqual Seq(disconnected)
       handle.state shouldEqual State.Closed
-      handle.device shouldBe empty
+      handle.javaDevice shouldBe empty
       device.closeCount shouldEqual 1
     }
 
@@ -324,7 +324,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         // Then
         events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Closed
-        handle.device shouldBe empty
+        handle.javaDevice shouldBe empty
       }
 
     "report only a failure to disconnect an open handle whose device fails to close, and still make it wait" in

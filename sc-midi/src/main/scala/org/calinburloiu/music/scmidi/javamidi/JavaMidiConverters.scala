@@ -26,8 +26,8 @@ import scala.collection.immutable.ArraySeq
  * Bidirectional converters between [[Midi1Msg]] / [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
  * [[scala.jdk.CollectionConverters]].
  *
- * It also builds the device-level API values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and
- * [[connectionLimit]].
+ * It also builds the device-level API values from Java Sound: `javaDevice.asMidiDeviceInfo`,
+ * `javaInfo.asMidiDeviceId` and [[connectionLimit]].
  *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
  *
@@ -95,25 +95,25 @@ object JavaMidiConverters {
     if (javaMaxConnections == -1) MidiConnectionLimit.Unlimited else MidiConnectionLimit.Limited(javaMaxConnections)
   }
 
-  extension (info: MidiDevice.Info) {
+  extension (javaInfo: MidiDevice.Info) {
     /** The [[MidiDeviceId]] of the device this Java Sound info describes: its name and vendor. */
-    def asMidiDeviceId: MidiDeviceId = MidiDeviceId(info.getName, info.getVendor)
+    def asMidiDeviceId: MidiDeviceId = MidiDeviceId(javaInfo.getName, javaInfo.getVendor)
   }
 
-  extension (device: MidiDevice) {
+  extension (javaDevice: MidiDevice) {
     /**
      * Builds the [[MidiDeviceInfo]] of this Java Sound device. It needs the device rather than its
      * `MidiDevice.Info` alone, because the connection limits come from `getMaxTransmitters` / `getMaxReceivers`.
      */
     def asMidiDeviceInfo: MidiDeviceInfo = {
-      val info = device.getDeviceInfo
+      val javaInfo = javaDevice.getDeviceInfo
       MidiDeviceInfo(
-        name = info.getName,
-        vendor = info.getVendor,
-        description = info.getDescription,
-        version = info.getVersion,
-        transmittersLimit = connectionLimit(device.getMaxTransmitters),
-        receiversLimit = connectionLimit(device.getMaxReceivers)
+        name = javaInfo.getName,
+        vendor = javaInfo.getVendor,
+        description = javaInfo.getDescription,
+        version = javaInfo.getVersion,
+        transmittersLimit = connectionLimit(javaDevice.getMaxTransmitters),
+        receiversLimit = connectionLimit(javaDevice.getMaxReceivers)
       )
     }
   }

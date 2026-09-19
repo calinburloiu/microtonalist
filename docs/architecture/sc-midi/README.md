@@ -27,8 +27,11 @@ Package: `org.calinburloiu.music.scmidi` is the pure Scala API, with a `message`
 and its constants. The `javamidi` sub-package is the Java Sound implementation: `JavaMidiManager`,
 `JavaMidiDeviceHandle`, the `JavaMidiEnvironment` seam with its `CoreMidi4JEnvironment` production implementation, and
 `JavaMidiConverters`. The two live in the same sbt module; the isolation is enforced by convention and review, not by
-the build (#278, D1). macOS support comes from **CoreMIDI4J**, which replaces the default Java Sound MIDI device
-provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by `MidiDeviceId.sanitizedName`).
+the build (#278, D1). Inside `javamidi`, an identifier holding a Java Sound device or its `MidiDevice.Info` says so with
+a `java` prefix (`javaDevice`, `javaInfo`, `javaDeviceOf`), so that it never reads like the module's own
+`MidiDeviceInfo` or `MidiManager.deviceOf`. macOS support comes from **CoreMIDI4J**, which replaces the default Java
+Sound MIDI device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
+`MidiDeviceId.sanitizedName`).
 
 ## Key types
 
@@ -111,7 +114,7 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
 `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for the one direction it is
 requested for, its `requestedDirection`, which its events carry — not its inherited `direction`, which tells the
 directions the device itself works in. The device is reachable only through its
-`private[javamidi] device: Option[MidiDevice]`.
+`private[javamidi] javaDevice: Option[MidiDevice]`.
 
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
   called only by the manager and return the `MidiEvent`s of their transitions instead of publishing them.
@@ -131,8 +134,8 @@ directions the device itself works in. The device is reachable only through its
 - **Java Sound boundary, inbound.** The Java `Receiver` it hands to the device's transmitter converts with `asScala`
   into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 
-`JavaMidiEnvironment` is the seam between the manager and the platform — `deviceInfos`, `deviceOf(info)` and
-`subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment, as
+`JavaMidiEnvironment` is the seam between the manager and the platform — `javaDeviceInfos`, `javaDeviceOf(javaInfo)`
+and `subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment, as
 `JavaMidiManagerTest` does; `CoreMidi4JEnvironment`, in a file of its own, is the production implementation and the
 only file that calls the CoreMIDI4J and `MidiSystem` statics, which is why `build.sbt` excludes it from coverage.
 
@@ -177,10 +180,10 @@ returns `MidiMsg`. Both directions dispatch through lookup tables (by concrete s
 status/meta-type byte inbound) rather than large pattern matches. A Control Change is the one status byte both tables
 split further, by controller number, into a `CcMidiMsg` and a Channel Mode message; a Mono Mode On asking for more
 channels than MIDI 1.0 allows decodes to `UnsupportedMidiMsg` rather than throwing on the device's own thread. The same
-object also builds the device-level API values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and
-`connectionLimit(javaMaxConnections)`. Value validation for message constructors is centralized in `MidiRequirements`
-(channel and bit-width `require…` checks), and the controller/parameter numbers live in `MidiCc` / `MidiRpn` /
-`MidiNrpn` (including the MPE Configuration Message and the MPE Slide CC).
+object also builds the device-level API values from Java Sound: `javaDevice.asMidiDeviceInfo`,
+`javaInfo.asMidiDeviceId` and `connectionLimit(javaMaxConnections)`. Value validation for message constructors is
+centralized in `MidiRequirements` (channel and bit-width `require…` checks), and the controller/parameter numbers live
+in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE Configuration Message and the MPE Slide CC).
 
 ### MIDI plumbing (receivers, transmitters, processors)
 

@@ -31,9 +31,10 @@ import scala.collection.immutable.ArraySeq
  */
 object CoreMidi4JEnvironment extends JavaMidiEnvironment {
 
-  override def deviceInfos: Seq[MidiDevice.Info] = ArraySeq.unsafeWrapArray(CoreMidiDeviceProvider.getMidiDeviceInfo)
+  override def javaDeviceInfos: Seq[MidiDevice.Info] =
+    ArraySeq.unsafeWrapArray(CoreMidiDeviceProvider.getMidiDeviceInfo)
 
-  override def deviceOf(info: MidiDevice.Info): MidiDevice = MidiSystem.getMidiDevice(info)
+  override def javaDeviceOf(javaInfo: MidiDevice.Info): MidiDevice = MidiSystem.getMidiDevice(javaInfo)
 
   override def subscribeToEnvironmentChanged(handler: () => Unit): AutoCloseable = {
     // CoreMIDI4J matches listeners by identity on removal, so the same adapter instance must be used for both calls.

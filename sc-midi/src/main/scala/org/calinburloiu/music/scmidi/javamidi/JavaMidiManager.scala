@@ -90,8 +90,9 @@ class JavaMidiManager(businessync: Businessync,
   /** Refreshes, publishing `leadingEvents` before the events of the refresh. */
   private def refreshAfter(leadingEvents: Seq[MidiEvent]): Unit = {
     val resolutionEvents = mutable.Buffer.from(leadingEvents)
-    val devices = environment.deviceInfos.flatMap { javaInfo =>
-      resolveDevice(javaInfo, resolutionEvents).map(device => ConnectedDevice(device.asMidiDeviceInfo, device))
+    val devices = environment.javaDeviceInfos.flatMap { javaInfo =>
+      resolveJavaDevice(javaInfo, resolutionEvents)
+        .map(javaDevice => ConnectedDevice(javaDevice.asMidiDeviceInfo, javaDevice))
     }
 
     withLockThenPublish {
@@ -116,9 +117,9 @@ class JavaMidiManager(businessync: Businessync,
    *     that no longer describes an installed device, so it is the outcome of the race between listing the devices
    *     and resolving them: the device was unplugged in between, and the next refresh will not list it at all.
    */
-  private def resolveDevice(javaInfo: MidiDevice.Info, events: mutable.Buffer[MidiEvent]): Option[MidiDevice] = {
+  private def resolveJavaDevice(javaInfo: MidiDevice.Info, events: mutable.Buffer[MidiEvent]): Option[MidiDevice] = {
     try {
-      Some(environment.deviceOf(javaInfo))
+      Some(environment.javaDeviceOf(javaInfo))
     } catch {
       case _: MidiUnavailableException => None
       case _: IllegalArgumentException => None
@@ -202,7 +203,7 @@ class JavaMidiManager(businessync: Businessync,
 object JavaMidiManager {
 
   /** A device present in the environment: its API-level information and the resolved Java Sound device. */
-  private case class ConnectedDevice(info: MidiDeviceInfo, device: MidiDevice) {
+  private case class ConnectedDevice(info: MidiDeviceInfo, javaDevice: MidiDevice) {
     def id: MidiDeviceId = info.id
   }
 
@@ -242,7 +243,7 @@ object JavaMidiManager {
       }
 
       val connectionEvents = devicesById.values.flatMap { connectedDevice =>
-        handleOf(connectedDevice.id).connect(connectedDevice.info, connectedDevice.device)
+        handleOf(connectedDevice.id).connect(connectedDevice.info, connectedDevice.javaDevice)
       }
       val disconnectionEvents = handles.values
         .filter(handle => handle.isConnected && !devicesById.contains(handle.id))
