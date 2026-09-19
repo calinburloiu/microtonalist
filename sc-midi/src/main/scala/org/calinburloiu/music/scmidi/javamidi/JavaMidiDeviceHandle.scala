@@ -59,18 +59,19 @@ import scala.util.Try
  * handle, the device never gaining the ability to speak MIDI 2.0, and for a message that reaches a receiver Java
  * Sound already closed, because the device vanished before the manager learned of it, once per open.
  *
- * @param id               Unique identifier of the MIDI device.
- * @param managerDirection The direction of the endpoint of the manager that owns the handle, [[MidiDirection.Input]]
- *                         or [[MidiDirection.Output]], which the events of the handle carry as their `direction`. It
- *                         is not [[direction]], which tells the directions the device itself works in and so takes
- *                         any of the four values, [[MidiDirection.InputOutput]] and [[MidiDirection.None]] included.
+ * @param id                 Unique identifier of the MIDI device.
+ * @param requestedDirection The direction the handle is requested for, [[MidiDirection.Input]] or
+ *                           [[MidiDirection.Output]]: that of the endpoint of the manager that owns it, which the
+ *                           events of the handle carry as their `direction`. It is not [[direction]], which tells the
+ *                           directions the device itself works in and so takes any of the four values,
+ *                           [[MidiDirection.InputOutput]] and [[MidiDirection.None]] included.
  */
 @ThreadSafe
 class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
-                                             private[javamidi] val managerDirection: MidiDirection)
+                                             private[javamidi] val requestedDirection: MidiDirection)
   extends MidiDeviceHandle, Locking, LazyLogging {
-  require(managerDirection == MidiDirection.Input || managerDirection == MidiDirection.Output,
-    s"The direction of a JavaMidiDeviceHandle must be input or output; got $managerDirection!")
+  require(requestedDirection == MidiDirection.Input || requestedDirection == MidiDirection.Output,
+    s"The requested direction of a JavaMidiDeviceHandle must be input or output; got $requestedDirection!")
 
   private implicit val lock: Lock = ReentrantLock()
 
@@ -172,23 +173,27 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         hold(info, device)
         _state = State.Connected
         logConnected(info)
-        Seq(MidiDeviceConnectedEvent(id, managerDirection))
+        Seq(MidiDeviceConnectedEvent(id, requestedDirection))
       case (State.WaitingToOpen, _) =>
         hold(info, device)
         logConnected(info)
-        MidiDeviceConnectedEvent(id, managerDirection) +: doOpen(device)
+        MidiDeviceConnectedEvent(id, requestedDirection) +: doOpen(device)
       case (State.Open, Some(heldDevice)) if (heldDevice ne device) && !heldDevice.isOpen =>
         hold(info, device)
         closeOpenDevice(heldDevice) ++ doOpen(device)
       case (State.Open, Some(heldDevice)) if heldDevice ne device =>
         // Not a swap: a device resolving to a new instance on every lookup, while the one held stays open and in use
         Seq.empty
-      case _ =>
-        // What is left holds no open device of another instance, so replacing what the handle holds neither opens nor
-        // closes anything: a State.Connected handle, which swaps a new instance silently, and a State.Open handle
-        // resolving the very instance it holds, which only refreshes the info. The remaining combinations — being
-        // connected while holding no device — cannot occur, State.Connected and State.Open both implying one.
+      case (State.Connected | State.Open, Some(_)) =>
+        // Replacing what the handle holds neither opens nor closes anything here: a State.Connected handle swaps a new
+        // instance silently, and a State.Open handle, left by the cases above with the very instance it holds, only
+        // refreshes the info.
         hold(info, device)
+        Seq.empty
+      case (_, None) =>
+        // Cannot occur: State.Connected and State.Open, the states left, both imply a held device.
+        logger.error(s"Ignoring the connection of $requestedDirection device $id: its handle is ${_state} while " +
+          "holding no device, which should never happen!")
         Seq.empty
     }
   }
@@ -225,15 +230,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         try {
           device.close()
           if (wasOpen) {
-            logger.info(s"Successfully closed $managerDirection device $id.")
+            logger.info(s"Successfully closed $requestedDirection device $id.")
           }
-          logger.warn(s"${managerDirection.toString.capitalize} device $id was disconnected.")
-          val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, managerDirection)) else Seq.empty
-          closedEvents :+ MidiDeviceDisconnectedEvent(id, managerDirection)
+          logger.warn(s"${requestedDirection.toString.capitalize} device $id was disconnected.")
+          val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, requestedDirection)) else Seq.empty
+          closedEvents :+ MidiDeviceDisconnectedEvent(id, requestedDirection)
         } catch {
           case exception: Exception =>
-            logger.error(s"Failed to disconnect from $managerDirection device $id!", exception)
-            Seq(MidiDeviceFailedToDisconnectEvent(id, managerDirection, exception))
+            logger.error(s"Failed to disconnect from $requestedDirection device $id!", exception)
+            Seq(MidiDeviceFailedToDisconnectEvent(id, requestedDirection, exception))
         }
       case None =>
         Seq.empty
@@ -321,8 +326,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
       hasWarnedOfDroppedMessage.set(false)
       _state = State.Open
-      logger.info(s"Successfully opened $managerDirection device $id.")
-      Seq(MidiDeviceOpenedEvent(id, managerDirection))
+      logger.info(s"Successfully opened $requestedDirection device $id.")
+      Seq(MidiDeviceOpenedEvent(id, requestedDirection))
     } catch {
       case exception: Exception =>
         deviceReceiver = None
@@ -332,8 +337,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         _state = State.Connected
         openRefCount = 0
 
-        logger.error(s"Failed to open $managerDirection device $id.", exception)
-        Seq(MidiDeviceFailedToOpenEvent(id, managerDirection, exception))
+        logger.error(s"Failed to open $requestedDirection device $id.", exception)
+        Seq(MidiDeviceFailedToOpenEvent(id, requestedDirection, exception))
     }
   }
 
@@ -342,22 +347,23 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     deviceReceiver = None
     try {
       device.close()
-      logger.info(s"Successfully closed $managerDirection device $id.")
-      Seq(MidiDeviceClosedEvent(id, managerDirection))
+      logger.info(s"Successfully closed $requestedDirection device $id.")
+      Seq(MidiDeviceClosedEvent(id, requestedDirection))
     } catch {
       case exception: Exception =>
-        logger.error(s"Failed to close $managerDirection device $id!", exception)
-        Seq(MidiDeviceFailedToCloseEvent(id, managerDirection, exception))
+        logger.error(s"Failed to close $requestedDirection device $id!", exception)
+        Seq(MidiDeviceFailedToCloseEvent(id, requestedDirection, exception))
     }
   }
 
   private def logDroppedMessage(message: Midi1Msg): Unit = logDropped(hasWarnedOfDroppedMessage,
-    s"Dropping the messages sent to $managerDirection device $id, which Java Sound already closed, until it opens again.",
-    s"Dropping $message sent to $managerDirection device $id, which Java Sound already closed.")
+    s"Dropping the messages sent to $requestedDirection device $id, which Java Sound already closed, until it opens " +
+      "again.",
+    s"Dropping $message sent to $requestedDirection device $id, which Java Sound already closed.")
 
   private def logDroppedMidi2Message(message: Midi2Msg): Unit = logDropped(hasWarnedOfDroppedMidi2Message,
-    s"Dropping the MIDI 2.0 messages sent to $managerDirection device $id: Java Sound devices speak MIDI 1.0 only.",
-    s"Dropping $message sent to $managerDirection device $id: Java Sound devices speak MIDI 1.0 only.")
+    s"Dropping the MIDI 2.0 messages sent to $requestedDirection device $id: Java Sound devices speak MIDI 1.0 only.",
+    s"Dropping $message sent to $requestedDirection device $id: Java Sound devices speak MIDI 1.0 only.")
 
   /**
    * Reports a dropped message: the first one for its reason at warn level, naming the reason, and the following ones
@@ -373,13 +379,14 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
   private def logConnected(info: MidiDeviceInfo): Unit = {
     logger.whenDebugEnabled {
-      val (handlerType, connectionLimit) = if (managerDirection == MidiDirection.Input) {
+      val (handlerType, connectionLimit) = if (requestedDirection == MidiDirection.Input) {
         ("transmitters", info.transmittersLimit)
       } else {
         ("receivers", info.receiversLimit)
       }
 
-      logger.debug(s"${managerDirection.toString.capitalize} device $id with $connectionLimit $handlerType was connected.")
+      logger.debug(s"${requestedDirection.toString.capitalize} device $id with $connectionLimit $handlerType was " +
+        "connected.")
     }
   }
 }

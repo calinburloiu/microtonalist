@@ -37,9 +37,8 @@ import javax.annotation.concurrent.NotThreadSafe
  * - Resetting the tuner on request and sending the initialization messages to every receiver.
  * - Restoring the default tuning and ensuring a clean state on each receiver that detaches.
  *
- * Sending is not guarded here: a message that its device can no longer take is dropped by
- * [[org.calinburloiu.music.scmidi.MidiDeviceHandle]], which owns the Java Sound boundary, rather than raised back into
- * the track.
+ * Sending is not guarded against exceptions here: a message that its device can no longer take should be dropped
+ * and addressed by [[org.calinburloiu.music.scmidi.MidiDeviceHandle]].
  *
  * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures
  * external synchronization.

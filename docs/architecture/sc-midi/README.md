@@ -65,8 +65,7 @@ receiversLimit)` with a derived `id: MidiDeviceId` and `direction`), `MidiConnec
 `Unlimited` / `Limited(count)` — how many transmitters or receivers a device can open; it prints as `unlimited` or the
 count, and its `allowsConnections` is what a device's direction derives from), `MidiDeviceId` (`case class(name,
 vendor)`) and `MidiDirection` (an `enum` of `None`/`Input`/`Output`/`InputOutput` — the direction an endpoint works
-in; a device may work in both or in neither, while a manager endpoint and an event direction are only `Input` or
-`Output`).
+in; a device may work in both or in neither).
 
 **The Java Sound implementation** (`javamidi`). `JavaMidiManager(businessync, environment = CoreMidi4JEnvironment)`
 keeps two internal endpoints, one for inputs and one for outputs. Each is a registry of its **live handles**: one
@@ -99,9 +98,9 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
   events an operation collects are published in order only after the lock is released, because Guava delivers them
   synchronously and `TrackManager`'s handler sends MIDI.
 
-`JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for one direction, its
-`managerDirection`, which its events carry — not its inherited `direction`, which tells the directions the device
-itself works in. The device is reachable only through its
+`JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for the one direction it is
+requested for, its `requestedDirection`, which its events carry — not its inherited `direction`, which tells the
+directions the device itself works in. The device is reachable only through its
 `private[javamidi] device: Option[MidiDevice]`.
 
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
