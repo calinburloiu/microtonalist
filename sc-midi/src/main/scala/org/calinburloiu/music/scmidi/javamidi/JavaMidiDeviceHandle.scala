@@ -62,8 +62,8 @@ import scala.util.Try
  * @param id               Unique identifier of the MIDI device.
  * @param managerDirection The direction of the endpoint of the manager that owns the handle, [[MidiDirection.Input]]
  *                         or [[MidiDirection.Output]], which the events of the handle carry as their `direction`. It
- *                         is not [[direction]], which tells the directions the device itself works in and may also be
- *                         [[MidiDirection.InputOutput]] or [[MidiDirection.None]].
+ *                         is not [[direction]], which tells the directions the device itself works in and so takes
+ *                         any of the four values, [[MidiDirection.InputOutput]] and [[MidiDirection.None]] included.
  */
 @ThreadSafe
 class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
