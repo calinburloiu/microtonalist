@@ -16,14 +16,14 @@
 
 package org.calinburloiu.music.microtonalist.cli
 
-import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiManager}
+import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiDirection, MidiManager}
 
 /**
  * The `midi-devices` command of the `microtonalist-cli` tool, which lists the MIDI devices connected to the computer.
  *
  * @param midiManager Lists the devices. The caller owns it and closes it after running the command.
  */
-class MidiDevicesCommand(midiManager: MidiManager) {
+class MidiDevicesCliCommand(midiManager: MidiManager) {
 
   /**
    * Prints every input and output device: its name, vendor, version and description, and how many transmitters
@@ -31,17 +31,17 @@ class MidiDevicesCommand(midiManager: MidiManager) {
    */
   def run(): Unit = {
     println("=== Input Devices ===\n")
-    printMidiDevicesByEndpoint(midiManager.inputDevicesInfo,
+    printMidiDevicesByEndpoint(MidiDirection.Input,
       info => println(s"Max. Transmitters: ${info.transmittersLimit}"))
 
     println("\n=== Output Devices ===\n")
-    printMidiDevicesByEndpoint(midiManager.outputDevicesInfo,
+    printMidiDevicesByEndpoint(MidiDirection.Output,
       info => println(s"Max. Receivers: ${info.receiversLimit}"))
   }
 
   // Endpoint is a term for input or output
-  private def printMidiDevicesByEndpoint(devicesInfo: Seq[MidiDeviceInfo], printLimit: MidiDeviceInfo => Unit): Unit = {
-    devicesInfo.foreach { info =>
+  private def printMidiDevicesByEndpoint(direction: MidiDirection, printLimit: MidiDeviceInfo => Unit): Unit = {
+    midiManager.devicesInfoFor(direction).foreach { info =>
       println(
         s"""Name: ${info.name}
            |Vendor: ${info.vendor}

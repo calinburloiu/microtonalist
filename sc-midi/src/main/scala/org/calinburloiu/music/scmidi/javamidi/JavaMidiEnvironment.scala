@@ -28,23 +28,24 @@ import javax.sound.midi.MidiDevice
 trait JavaMidiEnvironment {
 
   /** The information of every MIDI device currently present, as Java Sound reports it. */
-  def deviceInfos: Seq[MidiDevice.Info]
+  def javaDeviceInfos: Seq[MidiDevice.Info]
 
   /**
-   * Resolves the device described by `info`.
+   * Resolves the device described by `javaInfo`.
    *
-   * A device's id is derived from `info` on the failure path (`info.asMidiDeviceId`, used when this method throws)
-   * and from the resolved device's own info (`device.asMidiDeviceInfo`) on the success path. The two agree as long
-   * as the device keeps its name and vendor between the listing and the resolution: `MidiSystem.getMidiDevice(info)`
-   * returns the device `info` describes, but that device reports its current info, which CoreMIDI4J replaces when
-   * the device is renamed. A fake implementation of this trait must keep the two consistent, or a device's id will
-   * diverge between the failure event and the connected set.
+   * A device's id is derived from `javaInfo` on the failure path (`javaInfo.asMidiDeviceId`, used when this method
+   * throws) and from the resolved device's own info (`javaDevice.asMidiDeviceInfo`) on the success path. The two agree
+   * as long as the device keeps its name and vendor between the listing and the resolution:
+   * `MidiSystem.getMidiDevice(javaInfo)` returns the device `javaInfo` describes, but that device reports its current
+   * info, which CoreMIDI4J replaces when the device is renamed. A fake implementation of this trait must keep the two
+   * consistent, or a device's id will diverge between the failure event and the connected set.
    *
    * @throws javax.sound.midi.MidiUnavailableException if the device cannot be resolved because of a resource
    *                                                    restriction.
-   * @throws IllegalArgumentException                   if `info` does not describe a device of this environment.
+   * @throws IllegalArgumentException                   if `javaInfo` does not describe a device of this
+   *                                                    environment.
    */
-  def deviceOf(info: MidiDevice.Info): MidiDevice
+  def javaDeviceOf(javaInfo: MidiDevice.Info): MidiDevice
 
   /**
    * Subscribes to changes of the MIDI environment, such as a device being plugged in or unplugged.

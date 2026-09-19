@@ -32,9 +32,10 @@ import scala.collection.mutable
 /**
  * [[MidiManager]] over Java Sound and CoreMIDI4J.
  *
- * The class has different sets of methods for inputs and outputs, because the Java MIDI API and CoreMIDI4J may
- * expose two [[MidiDevice]] ([[JavaMidiDeviceHandle]]) instances for the same physical device, one for input and the
- * other for output. Note that in this case, there is a single [[MidiDeviceId]].
+ * The Java MIDI API and CoreMIDI4J may expose two [[MidiDevice]] instances for the same physical device, one for input
+ * and the other for output, under a single [[MidiDeviceId]]. The manager therefore keeps its devices in two separate
+ * endpoints, and the `direction` its methods take accepts only [[MidiDirection.Input]] and [[MidiDirection.Output]]:
+ * [[MidiDirection.None]] and [[MidiDirection.InputOutput]] throw an `IllegalArgumentException` (see [[MidiManager]]).
  *
  * Each of the two endpoints, one for inputs and one for outputs, keeps a registry of its live
  * [[JavaMidiDeviceHandle]]s: one for every device that is connected, requested to open, or both.
@@ -89,8 +90,9 @@ class JavaMidiManager(businessync: Businessync,
   /** Refreshes, publishing `leadingEvents` before the events of the refresh. */
   private def refreshAfter(leadingEvents: Seq[MidiEvent]): Unit = {
     val resolutionEvents = mutable.Buffer.from(leadingEvents)
-    val devices = environment.deviceInfos.flatMap { javaInfo =>
-      resolveDevice(javaInfo, resolutionEvents).map(device => ConnectedDevice(device.asMidiDeviceInfo, device))
+    val devices = environment.javaDeviceInfos.flatMap { javaInfo =>
+      resolveJavaDevice(javaInfo, resolutionEvents)
+        .map(javaDevice => ConnectedDevice(javaDevice.asMidiDeviceInfo, javaDevice))
     }
 
     withLockThenPublish {
@@ -115,9 +117,9 @@ class JavaMidiManager(businessync: Businessync,
    *     that no longer describes an installed device, so it is the outcome of the race between listing the devices
    *     and resolving them: the device was unplugged in between, and the next refresh will not list it at all.
    */
-  private def resolveDevice(javaInfo: MidiDevice.Info, events: mutable.Buffer[MidiEvent]): Option[MidiDevice] = {
+  private def resolveJavaDevice(javaInfo: MidiDevice.Info, events: mutable.Buffer[MidiEvent]): Option[MidiDevice] = {
     try {
-      Some(environment.deviceOf(javaInfo))
+      Some(environment.javaDeviceOf(javaInfo))
     } catch {
       case _: MidiUnavailableException => None
       case _: IllegalArgumentException => None
@@ -153,83 +155,55 @@ class JavaMidiManager(businessync: Businessync,
     logger.info(s"Finished closing MIDI connections.")
   }
 
-  override def isInputAvailable(deviceId: MidiDeviceId): Boolean = withLock {
-    inputEndpoint.isDeviceAvailable(deviceId)
+  override def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean = withLock {
+    endpointOf(direction).isDeviceAvailable(deviceId)
   }
 
-  override def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo] = withLock {
-    inputEndpoint.deviceInfoOf(deviceId)
+  override def deviceInfoOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceInfo] = withLock {
+    endpointOf(direction).deviceInfoOf(deviceId)
   }
 
-  override def inputDeviceIds: Seq[MidiDeviceId] = withLock {
-    inputEndpoint.deviceIds
+  override def deviceIdsFor(direction: MidiDirection): Seq[MidiDeviceId] = withLock {
+    endpointOf(direction).deviceIds
   }
 
-  override def inputDevicesInfo: Seq[MidiDeviceInfo] = withLock {
-    inputEndpoint.devicesInfo
+  override def devicesInfoFor(direction: MidiDirection): Seq[MidiDeviceInfo] = withLock {
+    endpointOf(direction).devicesInfo
   }
 
-  override def openInput(deviceId: MidiDeviceId): MidiDeviceHandle = withLockThenPublish {
-    inputEndpoint.openDevice(deviceId)
+  override def openDevice(deviceId: MidiDeviceId, direction: MidiDirection): MidiDeviceHandle = withLockThenPublish {
+    endpointOf(direction).openDevice(deviceId)
   }
 
-  override def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = withLock {
-    inputEndpoint.deviceHandleOf(deviceId)
+  override def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle] = withLock {
+    endpointOf(direction).deviceOf(deviceId)
   }
 
-  override def inputOpenDevices: Seq[MidiDeviceHandle] = withLock {
-    inputEndpoint.openDevices
+  override def openDevicesFor(direction: MidiDirection): Seq[MidiDeviceHandle] = withLock {
+    endpointOf(direction).openDevices
   }
 
-  override def inputDevicesRequestedToOpen: Seq[MidiDeviceHandle] = withLock {
-    inputEndpoint.devicesRequestedToOpen
+  override def devicesRequestedToOpenFor(direction: MidiDirection): Seq[MidiDeviceHandle] = withLock {
+    endpointOf(direction).devicesRequestedToOpen
   }
 
-  override def closeInput(deviceId: MidiDeviceId): Unit = withLockThenPublish {
-    ((), inputEndpoint.closeDevice(deviceId))
+  override def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit = withLockThenPublish {
+    ((), endpointOf(direction).closeDevice(deviceId))
   }
 
-  override def isOutputAvailable(deviceId: MidiDeviceId): Boolean = withLock {
-    outputEndpoint.isDeviceAvailable(deviceId)
-  }
-
-  override def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo] = withLock {
-    outputEndpoint.deviceInfoOf(deviceId)
-  }
-
-  override def outputDeviceIds: Seq[MidiDeviceId] = withLock {
-    outputEndpoint.deviceIds
-  }
-
-  override def outputDevicesInfo: Seq[MidiDeviceInfo] = withLock {
-    outputEndpoint.devicesInfo
-  }
-
-  override def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle = withLockThenPublish {
-    outputEndpoint.openDevice(deviceId)
-  }
-
-  override def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = withLock {
-    outputEndpoint.deviceHandleOf(deviceId)
-  }
-
-  override def outputOpenDevices: Seq[MidiDeviceHandle] = withLock {
-    outputEndpoint.openDevices
-  }
-
-  override def outputDevicesRequestedToOpen: Seq[MidiDeviceHandle] = withLock {
-    outputEndpoint.devicesRequestedToOpen
-  }
-
-  override def closeOutput(deviceId: MidiDeviceId): Unit = withLockThenPublish {
-    ((), outputEndpoint.closeDevice(deviceId))
+  /** @return the endpoint that keeps the devices of `direction`, which must be `Input` or `Output`. */
+  private def endpointOf(direction: MidiDirection): MidiEndpoint = direction match {
+    case MidiDirection.Input => inputEndpoint
+    case MidiDirection.Output => outputEndpoint
+    case other => throw IllegalArgumentException(
+      s"This MIDI manager keeps a device in an input or an output endpoint, not in $other!")
   }
 }
 
 object JavaMidiManager {
 
   /** A device present in the environment: its API-level information and the resolved Java Sound device. */
-  private case class ConnectedDevice(info: MidiDeviceInfo, device: MidiDevice) {
+  private case class ConnectedDevice(info: MidiDeviceInfo, javaDevice: MidiDevice) {
     def id: MidiDeviceId = info.id
   }
 
@@ -269,7 +243,7 @@ object JavaMidiManager {
       }
 
       val connectionEvents = devicesById.values.flatMap { connectedDevice =>
-        handleOf(connectedDevice.id).connect(connectedDevice.info, connectedDevice.device)
+        handleOf(connectedDevice.id).connect(connectedDevice.info, connectedDevice.javaDevice)
       }
       val disconnectionEvents = handles.values
         .filter(handle => handle.isConnected && !devicesById.contains(handle.id))
@@ -298,7 +272,7 @@ object JavaMidiManager {
       (handle, events)
     }
 
-    def deviceHandleOf(deviceId: MidiDeviceId): Option[JavaMidiDeviceHandle] = handles.get(deviceId)
+    def deviceOf(deviceId: MidiDeviceId): Option[JavaMidiDeviceHandle] = handles.get(deviceId)
 
     def openDevices: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isOpen).toSeq
 

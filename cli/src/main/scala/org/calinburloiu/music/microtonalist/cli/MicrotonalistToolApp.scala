@@ -29,7 +29,7 @@ object MicrotonalistToolApp {
   /**
    * Runs the subcommand named by the first argument, printing a usage message for anything else.
    *
-   * This is the composition root of the tool: it creates the [[JavaMidiManager]] that [[MidiDevicesCommand]] lists
+   * This is the composition root of the tool: it creates the [[JavaMidiManager]] that [[MidiDevicesCliCommand]] lists
    * devices through and closes it when done.
    *
    * @param args Command-line arguments; only `midi-devices` is supported.
@@ -39,7 +39,7 @@ object MicrotonalistToolApp {
       case Array("midi-devices") =>
         val midiManager = JavaMidiManager(Businessync(EventBus()))
         try {
-          MidiDevicesCommand(midiManager).run()
+          MidiDevicesCliCommand(midiManager).run()
         } finally {
           midiManager.close()
         }

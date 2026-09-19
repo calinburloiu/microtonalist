@@ -58,12 +58,12 @@ class FakeJavaMidiEnvironment extends JavaMidiEnvironment {
   /** The number of handlers currently subscribed to environment changes. */
   def subscriberCount: Int = handlers.size
 
-  override def deviceInfos: Seq[MidiDevice.Info] = entries.map { case (info, _) => info }
+  override def javaDeviceInfos: Seq[MidiDevice.Info] = entries.map { case (info, _) => info }
 
-  override def deviceOf(info: MidiDevice.Info): MidiDevice = {
-    entries.find { case (entryInfo, _) => entryInfo eq info } match {
+  override def javaDeviceOf(javaInfo: MidiDevice.Info): MidiDevice = {
+    entries.find { case (entryInfo, _) => entryInfo eq javaInfo } match {
       case Some((_, resolve)) => resolve()
-      case None => throw IllegalArgumentException(s"$info does not describe a device of this environment")
+      case None => throw IllegalArgumentException(s"$javaInfo does not describe a device of this environment")
     }
   }
 

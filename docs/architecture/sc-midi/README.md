@@ -27,26 +27,43 @@ Package: `org.calinburloiu.music.scmidi` is the pure Scala API, with a `message`
 and its constants. The `javamidi` sub-package is the Java Sound implementation: `JavaMidiManager`,
 `JavaMidiDeviceHandle`, the `JavaMidiEnvironment` seam with its `CoreMidi4JEnvironment` production implementation, and
 `JavaMidiConverters`. The two live in the same sbt module; the isolation is enforced by convention and review, not by
-the build (#278, D1). macOS support comes from **CoreMIDI4J**, which replaces the default Java Sound MIDI device
-provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by `MidiDeviceId.sanitizedName`).
+the build (#278, D1). Inside `javamidi`, an identifier holding a Java Sound device or its `MidiDevice.Info` says so with
+a `java` prefix (`javaDevice`, `javaInfo`, `javaDeviceOf`), so that it never reads like the module's own
+`MidiDeviceInfo` or `MidiManager.deviceOf`. macOS support comes from **CoreMIDI4J**, which replaces the default Java
+Sound MIDI device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
+`MidiDeviceId.sanitizedName`).
 
 ## Key types
 
 ### Device handling
 
-**`MidiManager`** is the trait through which devices are discovered and opened. It is `AutoCloseable` and offers a
-per-direction API mirrored for input and output (availability, id/info enumeration as `MidiDeviceInfo`,
-`open*`/`close*`, handle lookup, and two listings of live handles — `input`/`outputOpenDevices` for the ones that are
-open, `input`/`outputDevicesRequestedToOpen` for those plus the ones waiting for their device), because a platform may expose a physical bidirectional device as two endpoints that
-nonetheless share one `MidiDeviceId`. `refresh()` rescans the environment; an implementation also refreshes when the
-platform reports a change, emitting the device events described in
-[Device lifecycle and events](#device-lifecycle-and-events) as it reconciles state.
+**`MidiManager`** is the trait through which devices are discovered and opened. It is `AutoCloseable`, and each of its
+methods about devices takes a `direction: MidiDirection` that tells how the caller wants to use the device — as an
+input, an output or both: availability (`isDeviceAvailable`), id/info enumeration as `MidiDeviceInfo`
+(`deviceIdsFor`, `devicesInfoFor`, `deviceInfoOf`), `openDevice`/`closeDevice`, handle lookup (`deviceOf`), and two
+listings of live handles — `openDevicesFor` for the ones that are open, `devicesRequestedToOpenFor` for those plus the
+ones waiting for their device. The `For` suffix marks a listing, which takes only a direction, and `Of` a lookup keyed
+by a device id. `refresh()` rescans the environment; an implementation also refreshes when the platform reports a
+change, emitting the device events described in [Device lifecycle and events](#device-lifecycle-and-events) as it
+reconciles state.
+
+- **Requested use.** The `direction` a method takes is a request: it tells *how the caller wants to use a device*,
+  whereas the `direction` of a `MidiDeviceHandle` or a `MidiDeviceInfo` tells *what the device itself is capable of*.
+  A caller may request less than that; a MIDI 2.0 implementation, for instance, would let it request only the input
+  of a device that works in both directions, and so a projection of that device.
+- **Accepted directions.** `MidiDirection.None` requests no use of a device, and every implementation rejects it with
+  an `IllegalArgumentException`. Of the other values, an implementation accepts only those it can serve.
+  `JavaMidiManager`, like every implementation today, also rejects `InputOutput`: Java Sound exposes a physical
+  bidirectional device as two devices, one for input and one for output, that nonetheless share one `MidiDeviceId`,
+  and the manager keeps them apart (see the Java Sound implementation below). Passing a direction the implementation
+  does not accept is a programming error, not a runtime condition, so it throws rather than return an empty result
+  that would read as "no such devices".
 
 **`MidiDeviceHandle`** is the read-only trait for a handle to a single device identified by a `MidiDeviceId`.
 
 - **Ownership.** The manager creates the handle and is the only one to change its state. A consumer requests a device
-  with `openInput` / `openOutput` and releases it with `closeInput` / `closeOutput`, both reference-counted; otherwise
-  it only inspects the handle and uses it for I/O.
+  with `openDevice` and releases it with `closeDevice`, both reference-counted; otherwise it only inspects the handle
+  and uses it for I/O.
 - **Disconnected devices.** A handle can exist for a device that is **not currently connected**:
   `info: Option[MidiDeviceInfo]` is defined only while it is connected, and `isInputDevice` / `isOutputDevice` /
   `direction` derive from it. A request made while the device is not connected moves the handle to
@@ -101,7 +118,7 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
 `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for the one direction it is
 requested for, its `requestedDirection`, which its events carry — not its inherited `direction`, which tells the
 directions the device itself works in. The device is reachable only through its
-`private[javamidi] device: Option[MidiDevice]`.
+`private[javamidi] javaDevice: Option[MidiDevice]`.
 
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
   called only by the manager and return the `MidiEvent`s of their transitions instead of publishing them.
@@ -121,8 +138,8 @@ directions the device itself works in. The device is reachable only through its
 - **Java Sound boundary, inbound.** The Java `Receiver` it hands to the device's transmitter converts with `asScala`
   into an internal `MidiSplitter(ConcurrentMidiTransmitter())`.
 
-`JavaMidiEnvironment` is the seam between the manager and the platform — `deviceInfos`, `deviceOf(info)` and
-`subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment, as
+`JavaMidiEnvironment` is the seam between the manager and the platform — `javaDeviceInfos`, `javaDeviceOf(javaInfo)`
+and `subscribeToEnvironmentChanged(handler)` — so that the bookkeeping can be unit-tested over a fake environment, as
 `JavaMidiManagerTest` does; `CoreMidi4JEnvironment`, in a file of its own, is the production implementation and the
 only file that calls the CoreMIDI4J and `MidiSystem` statics, which is why `build.sbt` excludes it from coverage.
 
@@ -133,8 +150,9 @@ on the bus.
 - The rest come as success/failure pairs for each lifecycle transition (connected/disconnected/opened/closed), each
   failure event (`…FailedTo…Event`) carrying the cause.
 - All carry the `MidiDeviceId`. All but `MidiDeviceFailedToConnectEvent`, which is published before resolution tells
-  the direction, also carry a `direction`: always `Input` or `Output`, the direction of the handle that made the
-  transition.
+  the direction, also carry a `direction`: the use of the device the event concerns, the same value a caller passes to
+  `MidiManager`'s methods to request that use. `JavaMidiManager`, which accepts only `Input` and `Output`, therefore
+  publishes only those.
 
 Note that "connected" means *available to the system*, not *opened by the application*: they are distinct,
 separately evented states, and both differ again from a receiver being *attached* to a transmitter. See
@@ -166,10 +184,10 @@ returns `MidiMsg`. Both directions dispatch through lookup tables (by concrete s
 status/meta-type byte inbound) rather than large pattern matches. A Control Change is the one status byte both tables
 split further, by controller number, into a `CcMidiMsg` and a Channel Mode message; a Mono Mode On asking for more
 channels than MIDI 1.0 allows decodes to `UnsupportedMidiMsg` rather than throwing on the device's own thread. The same
-object also builds the device-level API values from Java Sound: `device.asMidiDeviceInfo`, `info.asMidiDeviceId` and
-`connectionLimit(javaMaxConnections)`. Value validation for message constructors is centralized in `MidiRequirements`
-(channel and bit-width `require…` checks), and the controller/parameter numbers live in `MidiCc` / `MidiRpn` /
-`MidiNrpn` (including the MPE Configuration Message and the MPE Slide CC).
+object also builds the device-level API values from Java Sound: `javaDevice.asMidiDeviceInfo`,
+`javaInfo.asMidiDeviceId` and `connectionLimit(javaMaxConnections)`. Value validation for message constructors is
+centralized in `MidiRequirements` (channel and bit-width `require…` checks), and the controller/parameter numbers live
+in `MidiCc` / `MidiRpn` / `MidiNrpn` (including the MPE Configuration Message and the MPE Slide CC).
 
 ### MIDI plumbing (receivers, transmitters, processors)
 
@@ -275,16 +293,16 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
 1. Construct a single `JavaMidiManager(businessync)` at the composition root (`MicrotonalistApp`,
    `MicrotonalistToolApp`) and pass it around as a `MidiManager`; its initialization runs a first `refresh()` and
    subscribes to environment changes so the device list stays current.
-2. Enumerate with `inputDeviceIds` / `outputDeviceIds` (or the `…DevicesInfo` variants); `sanitizedName` gives a
-   UI-friendly name.
-3. Open a device with `openInput`/`openOutput`; each returns a `MidiDeviceHandle`.
+2. Enumerate the devices usable in a direction with `deviceIdsFor(direction)` (or `devicesInfoFor`); `sanitizedName`
+   gives a UI-friendly name.
+3. Open a device with `openDevice(deviceId, direction)`, which returns a `MidiDeviceHandle`.
 4. Use the handle: send `MidiMsg` values via `handle.receiver` (outputs), subscribe `MidiReceiver`s via
    `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles: the manager hands the
    replugged device to the same live handle.
-5. `closeInput`/`closeOutput` (reference-counted) release a device. The handle is read-only and has no `close()`;
-   `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and then releases
-   every reference held through the manager, so every device it opened ends up closed — in that order, so that a
-   change reported meanwhile cannot reconnect or reopen a handle after it was closed.
+5. `closeDevice(deviceId, direction)` (reference-counted) releases a device. The handle is read-only and has no
+   `close()`; `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and
+   then releases every reference held through the manager, so every device it opened ends up closed — in that order,
+   so that a change reported meanwhile cannot reconnect or reopen a handle after it was closed.
 
 ## Device lifecycle and events
 
@@ -349,6 +367,7 @@ I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` 
 - The `Sc` prefix is gone (#279), the `MidiTransmitter` family replaced `MultiTransmitter` (#280, #281), the
   pipeline carries `MidiMsg` end to end (#281), the device layer is a pair of traits with a Java Sound
   implementation under `javamidi` (#282), the MIDI 2.0 outlook that the empty `Midi2Msg` stands in for has been
-  written (#283, `issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`), and the Channel Mode messages are
-  their own types (#285). Every #278 sub-issue nonetheless remains open until the branch stack that implements them
+  written (#283, `issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`), the Channel Mode messages are their
+  own types (#285), and `MidiManager` takes the direction as a `MidiDirection` parameter instead of mirroring its API
+  for input and output (#307). Every #278 sub-issue nonetheless remains open until the branch stack that implements them
   merges — see `issues/00278-isolate-java-midi/`.

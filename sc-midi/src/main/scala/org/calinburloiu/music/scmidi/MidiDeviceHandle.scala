@@ -20,9 +20,8 @@ package org.calinburloiu.music.scmidi
  * Handle to a single MIDI device, identified by a [[MidiDeviceId]].
  *
  * A [[MidiManager]] creates the handles and is the only one to change their state. A consumer requests a device with
- * [[MidiManager.openInput]] or [[MidiManager.openOutput]], which return its handle, and releases it with
- * [[MidiManager.closeInput]] or [[MidiManager.closeOutput]]; both are reference-counted. The consumer only inspects the
- * handle and uses it for MIDI I/O.
+ * [[MidiManager.openDevice]], which returns its handle, and releases it with [[MidiManager.closeDevice]]; both are
+ * reference-counted. The consumer only inspects the handle and uses it for MIDI I/O.
  *
  * The device is not required to be connected to the system when it is requested: the manager informs the handle when
  * the device gets connected or disconnected, and [[info]] is defined only while the device is connected. A handle

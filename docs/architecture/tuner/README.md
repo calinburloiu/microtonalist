@@ -106,8 +106,8 @@ initialization messages to every current receiver, and `TuningChangeProcessor.re
   via `MidiManager` and assembles the processor chain (see [Track pipeline](#track-pipeline)).
   - `close()` detaches from its input device and detaches its output device, which the tuner switches back to
     12-EDO as it gets detached, then switches the tracks it feeds back to 12-EDO, so each output gets those
-    messages once. It finally releases its devices through `MidiManager.closeInput` / `closeOutput`, a *close request*
-    that closes the device only once the last reference goes. It must detach because a released handle whose device is
+    messages once. It finally releases its devices through `MidiManager.closeDevice`, a *close request* that closes
+    the device only once the last reference goes. It must detach because a released handle whose device is
     still connected stays live and is the one a later track for that device gets: a closed track left attached would
     keep receiving and sending next to its replacement.
   - `resetTuner()` re-initialises the output instrument, and `releaseInput()` silences it after its input device
