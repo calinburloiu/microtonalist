@@ -32,9 +32,10 @@ import scala.collection.mutable
 /**
  * [[MidiManager]] over Java Sound and CoreMIDI4J.
  *
- * The class has different sets of methods for inputs and outputs, because the Java MIDI API and CoreMIDI4J may
- * expose two [[MidiDevice]] ([[JavaMidiDeviceHandle]]) instances for the same physical device, one for input and the
- * other for output. Note that in this case, there is a single [[MidiDeviceId]].
+ * The Java MIDI API and CoreMIDI4J may expose two [[MidiDevice]] instances for the same physical device, one for input
+ * and the other for output, under a single [[MidiDeviceId]]. The manager therefore keeps its devices in two separate
+ * endpoints, and the `direction` its methods take accepts only [[MidiDirection.Input]] and [[MidiDirection.Output]]:
+ * [[MidiDirection.None]] and [[MidiDirection.InputOutput]] throw an `IllegalArgumentException` (see [[MidiManager]]).
  *
  * Each of the two endpoints, one for inputs and one for outputs, keeps a registry of its live
  * [[JavaMidiDeviceHandle]]s: one for every device that is connected, requested to open, or both.
@@ -153,6 +154,50 @@ class JavaMidiManager(businessync: Businessync,
     logger.info(s"Finished closing MIDI connections.")
   }
 
+  override def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean = withLock {
+    endpointOf(direction).isDeviceAvailable(deviceId)
+  }
+
+  override def deviceInfoOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceInfo] = withLock {
+    endpointOf(direction).deviceInfoOf(deviceId)
+  }
+
+  override def deviceIdsFor(direction: MidiDirection): Seq[MidiDeviceId] = withLock {
+    endpointOf(direction).deviceIds
+  }
+
+  override def devicesInfoFor(direction: MidiDirection): Seq[MidiDeviceInfo] = withLock {
+    endpointOf(direction).devicesInfo
+  }
+
+  override def openDevice(deviceId: MidiDeviceId, direction: MidiDirection): MidiDeviceHandle = withLockThenPublish {
+    endpointOf(direction).openDevice(deviceId)
+  }
+
+  override def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle] = withLock {
+    endpointOf(direction).deviceOf(deviceId)
+  }
+
+  override def openDevicesFor(direction: MidiDirection): Seq[MidiDeviceHandle] = withLock {
+    endpointOf(direction).openDevices
+  }
+
+  override def devicesRequestedToOpenFor(direction: MidiDirection): Seq[MidiDeviceHandle] = withLock {
+    endpointOf(direction).devicesRequestedToOpen
+  }
+
+  override def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit = withLockThenPublish {
+    ((), endpointOf(direction).closeDevice(deviceId))
+  }
+
+  /** @return the endpoint that keeps the devices of `direction`, which must be `Input` or `Output`. */
+  private def endpointOf(direction: MidiDirection): MidiEndpoint = direction match {
+    case MidiDirection.Input => inputEndpoint
+    case MidiDirection.Output => outputEndpoint
+    case other => throw IllegalArgumentException(
+      s"This MIDI manager keeps a device in an input or an output endpoint, not in $other!")
+  }
+
   override def isInputAvailable(deviceId: MidiDeviceId): Boolean = withLock {
     inputEndpoint.isDeviceAvailable(deviceId)
   }
@@ -174,7 +219,7 @@ class JavaMidiManager(businessync: Businessync,
   }
 
   override def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = withLock {
-    inputEndpoint.deviceHandleOf(deviceId)
+    inputEndpoint.deviceOf(deviceId)
   }
 
   override def inputOpenDevices: Seq[MidiDeviceHandle] = withLock {
@@ -210,7 +255,7 @@ class JavaMidiManager(businessync: Businessync,
   }
 
   override def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle] = withLock {
-    outputEndpoint.deviceHandleOf(deviceId)
+    outputEndpoint.deviceOf(deviceId)
   }
 
   override def outputOpenDevices: Seq[MidiDeviceHandle] = withLock {
@@ -298,7 +343,7 @@ object JavaMidiManager {
       (handle, events)
     }
 
-    def deviceHandleOf(deviceId: MidiDeviceId): Option[JavaMidiDeviceHandle] = handles.get(deviceId)
+    def deviceOf(deviceId: MidiDeviceId): Option[JavaMidiDeviceHandle] = handles.get(deviceId)
 
     def openDevices: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isOpen).toSeq
 

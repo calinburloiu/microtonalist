@@ -494,6 +494,37 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
     behave like deviceEndpoint(Output)
   }
 
+  "A method taking a direction" should {
+    "reject None, which names no endpoint, and InputOutput, which names neither of the manager's two" in new Fixture {
+      // Given
+      val manager: JavaMidiManager = newManager()
+      val id: MidiDeviceId = MidiDeviceId(deviceName, "Roland")
+      val methods: Seq[(String, MidiDirection => Any)] = Seq(
+        ("isDeviceAvailable", manager.isDeviceAvailable(id, _)),
+        ("deviceInfoOf", manager.deviceInfoOf(id, _)),
+        ("deviceIdsFor", manager.deviceIdsFor(_)),
+        ("devicesInfoFor", manager.devicesInfoFor(_)),
+        ("openDevice", manager.openDevice(id, _)),
+        ("deviceOf", manager.deviceOf(id, _)),
+        ("openDevicesFor", manager.openDevicesFor(_)),
+        ("devicesRequestedToOpenFor", manager.devicesRequestedToOpenFor(_)),
+        ("closeDevice", manager.closeDevice(id, _))
+      )
+      val cases = Table(
+        ("method", "direction", "call"),
+        (for {
+          (method, call) <- methods
+          direction <- Seq(MidiDirection.None, MidiDirection.InputOutput)
+        } yield (method, direction, call))*
+      )
+
+      forAll(cases) { (_, direction, call) =>
+        // When / Then
+        an[IllegalArgumentException] should be thrownBy call(direction)
+      }
+    }
+  }
+
   "refresh" should {
     "list each device in the directions its connection limits allow" in {
       // Given
