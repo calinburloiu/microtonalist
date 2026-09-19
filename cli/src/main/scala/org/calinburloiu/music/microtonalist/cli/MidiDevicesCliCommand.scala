@@ -23,7 +23,7 @@ import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiDirection, MidiManager
  *
  * @param midiManager Lists the devices. The caller owns it and closes it after running the command.
  */
-class MidiDevicesCommand(midiManager: MidiManager) {
+class MidiDevicesCliCommand(midiManager: MidiManager) {
 
   /**
    * Prints every input and output device: its name, vendor, version and description, and how many transmitters

@@ -20,16 +20,16 @@ Package: `org.calinburloiu.music.microtonalist.cli`.
 
 **`MicrotonalistToolApp`** is a plain Scala `object` with a `main` method — the executable's entry point and the
 assembly `mainClass`. It does its own minimal argument dispatch (no CLI-parsing library): `main` pattern-matches the
-first argument, routing `midi-devices` to `MidiDevicesCommand` and anything else to a usage message. `main` is the
+first argument, routing `midi-devices` to `MidiDevicesCliCommand` and anything else to a usage message. `main` is the
 composition root: it constructs a `Businessync` and a `JavaMidiManager` (`sc-midi`'s Java Sound implementation, from
 its `javamidi` package), injects the manager into the command and closes it when done.
 
-**`MidiDevicesCommand`** implements `midi-devices` over the `MidiManager` injected through its constructor: `run()`
+**`MidiDevicesCliCommand`** implements `midi-devices` over the `MidiManager` injected through its constructor: `run()`
 lists `devicesInfoFor` the input and then the output direction and prints each `MidiDeviceInfo`'s name, vendor,
 version and description plus its maximum transmitter (inputs) or receiver (outputs) count, which a
 `MidiConnectionLimit` renders as `unlimited` or as the number — Java Sound's `-1` sentinel is mapped to
 `MidiConnectionLimit.Unlimited` inside `javamidi` and never reaches the `cli`. Injecting the manager is what makes the
-command testable without MIDI hardware (`MidiDevicesCommandTest` runs it over a stubbed `MidiManager`). There is no
+command testable without MIDI hardware (`MidiDevicesCliCommandTest` runs it over a stubbed `MidiManager`). There is no
 command framework.
 
 ## Dependencies
@@ -44,6 +44,6 @@ packaged as its own fat JAR.
 ## Future / planned changes
 
 - Coverage thresholds are currently 0 with `// TODO #181` to raise them toward the project's 80% target. Since #282
-  the module does have a test — `MidiDevicesCommand` is covered through a stubbed `MidiManager` — but `main` is not,
+  the module does have a test — `MidiDevicesCliCommand` is covered through a stubbed `MidiManager` — but `main` is not,
   because it builds the real `JavaMidiManager`.
 - The hand-rolled argument dispatch is structured to grow: new subcommands are added as additional `case` branches.

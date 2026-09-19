@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.ByteArrayOutputStream
 
-class MidiDevicesCommandTest extends AnyFlatSpec with Matchers with MockFactory {
+class MidiDevicesCliCommandTest extends AnyFlatSpec with Matchers with MockFactory {
 
   behavior of "run"
 
@@ -32,7 +32,7 @@ class MidiDevicesCommandTest extends AnyFlatSpec with Matchers with MockFactory 
     val midiManager = stub[MidiManager]
     midiManager.devicesInfoFor.when(MidiDirection.Input).returns(Seq.empty)
     midiManager.devicesInfoFor.when(MidiDirection.Output).returns(Seq.empty)
-    val command = MidiDevicesCommand(midiManager)
+    val command = MidiDevicesCliCommand(midiManager)
     val out = ByteArrayOutputStream()
 
     // When
@@ -71,7 +71,7 @@ class MidiDevicesCommandTest extends AnyFlatSpec with Matchers with MockFactory 
     val midiManager = stub[MidiManager]
     midiManager.devicesInfoFor.when(MidiDirection.Input).returns(Seq(input))
     midiManager.devicesInfoFor.when(MidiDirection.Output).returns(Seq(output))
-    val command = MidiDevicesCommand(midiManager)
+    val command = MidiDevicesCliCommand(midiManager)
     val out = ByteArrayOutputStream()
 
     // When
