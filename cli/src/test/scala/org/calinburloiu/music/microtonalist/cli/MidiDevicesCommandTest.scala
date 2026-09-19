@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.cli
 
-import org.calinburloiu.music.scmidi.{MidiConnectionLimit, MidiDeviceInfo, MidiManager}
+import org.calinburloiu.music.scmidi.{MidiConnectionLimit, MidiDeviceInfo, MidiDirection, MidiManager}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -30,8 +30,8 @@ class MidiDevicesCommandTest extends AnyFlatSpec with Matchers with MockFactory 
   it should "print only the section headers when there are no devices" in {
     // Given
     val midiManager = stub[MidiManager]
-    (() => midiManager.inputDevicesInfo).when().returns(Seq.empty)
-    (() => midiManager.outputDevicesInfo).when().returns(Seq.empty)
+    midiManager.devicesInfoFor.when(MidiDirection.Input).returns(Seq.empty)
+    midiManager.devicesInfoFor.when(MidiDirection.Output).returns(Seq.empty)
     val command = MidiDevicesCommand(midiManager)
     val out = ByteArrayOutputStream()
 
@@ -69,8 +69,8 @@ class MidiDevicesCommandTest extends AnyFlatSpec with Matchers with MockFactory 
       receiversLimit = MidiConnectionLimit.Limited(1)
     )
     val midiManager = stub[MidiManager]
-    (() => midiManager.inputDevicesInfo).when().returns(Seq(input))
-    (() => midiManager.outputDevicesInfo).when().returns(Seq(output))
+    midiManager.devicesInfoFor.when(MidiDirection.Input).returns(Seq(input))
+    midiManager.devicesInfoFor.when(MidiDirection.Output).returns(Seq(output))
     val command = MidiDevicesCommand(midiManager)
     val out = ByteArrayOutputStream()
 
