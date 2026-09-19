@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import org.calinburloiu.music.scmidi.{MidiDeviceDisconnectedEvent, MidiDeviceFailedToDisconnectEvent, MidiDeviceId,
-  MidiDeviceOpenedEvent, MidiEndpointType, MidiEvent, MidiManager}
+  MidiDeviceOpenedEvent, MidiDirection, MidiEvent, MidiManager}
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
@@ -37,6 +37,8 @@ class TrackManager(private val midiManager: MidiManager,
                    private val tuningService: TuningService,
                    private val executorService: ExecutorService = TrackManager.createExecutorService())
   extends AutoCloseable with StrictLogging {
+
+  import TrackManager.InputDeviceGone
 
   private var tracksById: VectorMap[TrackSpec.Id, Track] = VectorMap()
 
@@ -140,13 +142,10 @@ class TrackManager(private val midiManager: MidiManager,
   //  builds the tracks on another thread can miss its tuner reset.
   @Subscribe
   private def onMidiEvent(event: MidiEvent): Unit = event match {
-    case MidiDeviceOpenedEvent(deviceId, MidiEndpointType.Output) =>
+    case MidiDeviceOpenedEvent(deviceId, MidiDirection.Output) =>
       // TODO #303 Restore the current tuning after resetting the tuner.
       tracksWithOutputDevice(deviceId).foreach(_.resetTuner())
-    case MidiDeviceDisconnectedEvent(deviceId, MidiEndpointType.Input) =>
-      // TODO #303 Restore the current tuning after resetting the tuner.
-      tracksWithInputDevice(deviceId).foreach(_.releaseInput())
-    case MidiDeviceFailedToDisconnectEvent(deviceId, MidiEndpointType.Input, _) =>
+    case InputDeviceGone(deviceId) =>
       // TODO #303 Restore the current tuning after resetting the tuner.
       tracksWithInputDevice(deviceId).foreach(_.releaseInput())
     case _ => // Nothing to do for the other events
@@ -162,6 +161,23 @@ class TrackManager(private val midiManager: MidiManager,
 }
 
 object TrackManager extends LazyLogging {
+
+  /**
+   * Matches the [[MidiEvent]]s that tell an input device is gone, whatever came of disconnecting it: a
+   * [[MidiDeviceDisconnectedEvent]] and the [[MidiDeviceFailedToDisconnectEvent]] that replaces it when releasing the
+   * device throws, which leaves the device just as gone.
+   *
+   * The two share a handler, and Scala forbids binding a variable in a pattern alternative, so they are matched by
+   * name here instead of by `MidiDeviceDisconnectedEvent(deviceId, _) | MidiDeviceFailedToDisconnectEvent(…)`.
+   */
+  private object InputDeviceGone {
+    def unapply(event: MidiEvent): Option[MidiDeviceId] = event match {
+      case MidiDeviceDisconnectedEvent(deviceId, MidiDirection.Input) => Some(deviceId)
+      case MidiDeviceFailedToDisconnectEvent(deviceId, MidiDirection.Input, _) => Some(deviceId)
+      case _ => None
+    }
+  }
+
   private[tuner] val TrackThreadsNamePrefix: String = "Track-"
   private[tuner] val TrackThreadsGroup: ThreadGroup = new ThreadGroup("Track")
   private val TrackThreadsPriority: Int = Thread.NORM_PRIORITY + 2

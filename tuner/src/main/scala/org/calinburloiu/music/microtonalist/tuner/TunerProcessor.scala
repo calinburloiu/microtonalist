@@ -36,7 +36,10 @@ import javax.annotation.concurrent.NotThreadSafe
  * - Properly resetting the tuner and sending initialization messages to each receiver that attaches.
  * - Resetting the tuner on request and sending the initialization messages to every receiver.
  * - Restoring the default tuning and ensuring a clean state on each receiver that detaches.
- * - Safeguarding message transmission to the MIDI receivers and handling any transmission errors.
+ *
+ * Sending is not guarded here: a message that its device can no longer take is dropped by
+ * [[org.calinburloiu.music.scmidi.MidiDeviceHandle]], which owns the Java Sound boundary, rather than raised back into
+ * the track.
  *
  * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures
  * external synchronization.
@@ -100,16 +103,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     messages, timeStamp)
 
   private def sendTo(receivers: Seq[MidiReceiver], messages: Seq[MidiMsg], timeStamp: Long): Unit = {
-    // TODO #97 Handle the try differently
-    try {
-      for (message <- messages; outputReceiver <- receivers) {
-        outputReceiver.send(message, timeStamp)
-      }
-    } catch {
-      case e: IllegalStateException => throw TunerException(e)
+    for (message <- messages; outputReceiver <- receivers) {
+      outputReceiver.send(message, timeStamp)
     }
   }
 }
-
-class TunerException(cause: Throwable) extends RuntimeException(
-  "Failed to send message to device! Did you disconnect the device?", cause)

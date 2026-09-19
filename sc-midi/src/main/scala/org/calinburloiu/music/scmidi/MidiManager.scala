@@ -70,8 +70,14 @@ trait MidiManager extends AutoCloseable {
    */
   def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  /** @return the live handles of the input devices requested to open. */
-  def inputOpenedDevices: Seq[MidiDeviceHandle]
+  /** @return the live handles of the input devices that are open, i.e. connected and requested to open. */
+  def inputOpenDevices: Seq[MidiDeviceHandle]
+
+  /**
+   * @return the live handles of the input devices requested to open, whether or not their device is connected: the
+   *         open ones, and those waiting to open once their device gets connected.
+   */
+  def inputDevicesRequestedToOpen: Seq[MidiDeviceHandle]
 
   /**
    * Releases one reference to the input device with the given identifier. It does nothing when the device has no live
@@ -112,8 +118,14 @@ trait MidiManager extends AutoCloseable {
    */
   def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
 
-  /** @return the live handles of the output devices requested to open. */
-  def outputOpenedDevices: Seq[MidiDeviceHandle]
+  /** @return the live handles of the output devices that are open, i.e. connected and requested to open. */
+  def outputOpenDevices: Seq[MidiDeviceHandle]
+
+  /**
+   * @return the live handles of the output devices requested to open, whether or not their device is connected: the
+   *         open ones, and those waiting to open once their device gets connected.
+   */
+  def outputDevicesRequestedToOpen: Seq[MidiDeviceHandle]
 
   /**
    * Releases one reference to the output device with the given identifier. It does nothing when the device has no

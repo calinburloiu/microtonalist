@@ -50,5 +50,5 @@ case class MidiDeviceInfo(name: String,
   def isOutputDevice: Boolean = receiversLimit.allowsConnections
 
   /** The directions in which the device can be used. */
-  def endpointType: MidiEndpointType = MidiEndpointType(isInputDevice, isOutputDevice)
+  def direction: MidiDirection = MidiDirection(isInputDevice, isOutputDevice)
 }

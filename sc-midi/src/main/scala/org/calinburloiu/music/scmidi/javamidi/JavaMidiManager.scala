@@ -45,7 +45,10 @@ import scala.collection.mutable
  * refreshes whenever the environment reports a change, until it is closed.
  *
  * A manager-wide lock serialises the operations and the registry reads. The lock of a handle is only ever taken
- * inside it, never the other way around.
+ * inside it, never the other way around. One exclusive lock is enough, rather than a read-write one: the reads are a
+ * handful of handle lookups made by the UI and the composition root, never on the MIDI path, and each of them takes
+ * the lock of every handle it inspects anyway, so there is no read contention for a read-write lock to relieve — only
+ * its higher uncontended cost and its read lock that cannot be upgraded.
  *
  * Resolving the devices happens before taking the lock. The [[MidiEvent]]s of an operation are published in order
  * once the lock is released, because the bus delivers them synchronously to subscribers that may use the manager or
@@ -64,8 +67,8 @@ class JavaMidiManager(businessync: Businessync,
 
   private implicit val lock: Lock = ReentrantLock()
 
-  private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiEndpointType.Input)
-  private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiEndpointType.Output)
+  private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Input)
+  private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Output)
 
   private val environmentSubscription: AutoCloseable = init()
 
@@ -139,13 +142,15 @@ class JavaMidiManager(businessync: Businessync,
   }
 
   override def close(): Unit = {
+    // Stop watching the environment before closing the devices, so that a change reported meanwhile cannot refresh
+    // the registries — and reconnect or reopen a handle — after they were closed.
+    environmentSubscription.close()
+
     logger.info(s"Closing MIDI connections...")
     withLockThenPublish {
       ((), inputEndpoint.closeAll() ++ outputEndpoint.closeAll())
     }
     logger.info(s"Finished closing MIDI connections.")
-
-    environmentSubscription.close()
   }
 
   override def isInputAvailable(deviceId: MidiDeviceId): Boolean = withLock {
@@ -172,8 +177,12 @@ class JavaMidiManager(businessync: Businessync,
     inputEndpoint.deviceHandleOf(deviceId)
   }
 
-  override def inputOpenedDevices: Seq[MidiDeviceHandle] = withLock {
-    inputEndpoint.openedDevices
+  override def inputOpenDevices: Seq[MidiDeviceHandle] = withLock {
+    inputEndpoint.openDevices
+  }
+
+  override def inputDevicesRequestedToOpen: Seq[MidiDeviceHandle] = withLock {
+    inputEndpoint.devicesRequestedToOpen
   }
 
   override def closeInput(deviceId: MidiDeviceId): Unit = withLockThenPublish {
@@ -204,8 +213,12 @@ class JavaMidiManager(businessync: Businessync,
     outputEndpoint.deviceHandleOf(deviceId)
   }
 
-  override def outputOpenedDevices: Seq[MidiDeviceHandle] = withLock {
-    outputEndpoint.openedDevices
+  override def outputOpenDevices: Seq[MidiDeviceHandle] = withLock {
+    outputEndpoint.openDevices
+  }
+
+  override def outputDevicesRequestedToOpen: Seq[MidiDeviceHandle] = withLock {
+    outputEndpoint.devicesRequestedToOpen
   }
 
   override def closeOutput(deviceId: MidiDeviceId): Unit = withLockThenPublish {
@@ -230,7 +243,7 @@ object JavaMidiManager {
    * @param direction whether the devices managed are input or output devices.
    */
   @NotThreadSafe
-  private class MidiEndpoint(val direction: MidiEndpointType) extends StrictLogging {
+  private class MidiEndpoint(val direction: MidiDirection) extends StrictLogging {
 
     /** The live handles, which are connected, requested to open, or both, in the order they were created. */
     private val handles: mutable.LinkedHashMap[MidiDeviceId, JavaMidiDeviceHandle] = mutable.LinkedHashMap()
@@ -241,7 +254,9 @@ object JavaMidiManager {
      * disconnected, and forgotten if that leaves it closed.
      */
     def reconcile(devices: Seq[ConnectedDevice]): Seq[MidiEvent] = {
-      // The device resolved last for an id wins
+      // Two devices of this direction can share an id, a MidiDeviceId being a name and a vendor: two identical
+      // devices of the same model plugged in at once are told apart by nothing else. Only one can have the handle of
+      // that id, and the device resolved last for it wins.
       val devicesById = devices.foldLeft(VectorMap.empty[MidiDeviceId, ConnectedDevice]) { (devicesById, device) =>
         devicesById.updated(device.id, device)
       }
@@ -278,7 +293,9 @@ object JavaMidiManager {
 
     def deviceHandleOf(deviceId: MidiDeviceId): Option[JavaMidiDeviceHandle] = handles.get(deviceId)
 
-    def openedDevices: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isOpenRequested).toSeq
+    def openDevices: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isOpen).toSeq
+
+    def devicesRequestedToOpen: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isOpenRequested).toSeq
 
     /** Releases one reference to the device, if its live handle is requested to open. */
     def closeDevice(deviceId: MidiDeviceId): Seq[MidiEvent] = handles.get(deviceId) match {

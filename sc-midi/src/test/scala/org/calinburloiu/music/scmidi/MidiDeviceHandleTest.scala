@@ -37,24 +37,24 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
   private def info(transmittersLimit: MidiConnectionLimit, receiversLimit: MidiConnectionLimit): MidiDeviceInfo =
     MidiDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0", transmittersLimit, receiversLimit)
 
-  behavior of "endpointType"
+  behavior of "direction"
 
   it should "derive the directions from the info while connected and report none while disconnected" in {
     // Given
-    val cases = Table[Option[MidiDeviceInfo], MidiEndpointType, Boolean, Boolean](
-      ("info", "endpointType", "isInputDevice", "isOutputDevice"),
-      (None, MidiEndpointType.None, false, false),
-      (Some(info(Unlimited, Limited(0))), MidiEndpointType.Input, true, false),
-      (Some(info(Limited(0), Limited(1))), MidiEndpointType.Output, false, true),
-      (Some(info(Limited(1), Unlimited)), MidiEndpointType.InputOutput, true, true)
+    val cases = Table[Option[MidiDeviceInfo], MidiDirection, Boolean, Boolean](
+      ("info", "direction", "isInputDevice", "isOutputDevice"),
+      (None, MidiDirection.None, false, false),
+      (Some(info(Unlimited, Limited(0))), MidiDirection.Input, true, false),
+      (Some(info(Limited(0), Limited(1))), MidiDirection.Output, false, true),
+      (Some(info(Limited(1), Unlimited)), MidiDirection.InputOutput, true, true)
     )
 
-    forAll(cases) { (info, endpointType, isInputDevice, isOutputDevice) =>
+    forAll(cases) { (info, direction, isInputDevice, isOutputDevice) =>
       // When
       val handle = TestHandle(info = info)
 
       // Then
-      handle.endpointType shouldEqual endpointType
+      handle.direction shouldEqual direction
       handle.isInputDevice shouldBe isInputDevice
       handle.isOutputDevice shouldBe isOutputDevice
     }

@@ -21,14 +21,14 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TrackManagerTest extends AnyFlatSpec with Matchers with Stubs {
+class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
 
   private val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
 
-  private val allNotesOff: Seq[MidiMsg] = (0 until 16).map(AllNotesOffMidiMsg(_))
+  private val allNotesOff: Seq[MidiMsg] = (0 until MidiChannelCount).map(AllNotesOffMidiMsg(_))
 
   private val keyboardId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Seaboard", "ROLI")
   private val pianoId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
@@ -87,56 +87,53 @@ class TrackManagerTest extends AnyFlatSpec with Matchers with Stubs {
     deviceReceivers.values.foreach(_.clear())
   }
 
-  behavior of "a MIDI device event"
-
-  it should "reset the tuner of the tracks whose output device got opened, and of no other track" in new Fixture {
-    // When
-    businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiEndpointType.Output))
-
-    // Then
-    deviceReceivers(pianoId).messages shouldEqual Seq(initMessage)
-    deviceReceivers(synthId).messages shouldBe empty
-  }
-
-  it should "reset the tuner of every track whose output device got opened, when two tracks share it" in new Fixture {
-    // Given
-    trackManager.replaceAllTracks(TrackSpecs(Seq(
-      TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
-        output = Some(DeviceTrackOutputSpec(pianoId, None))),
-      TrackSpec("controller", "Controller", input = Some(DeviceTrackInputSpec(controllerId, None)),
-        tuner = Some(ResetTuner(otherInitMessage)), output = Some(DeviceTrackOutputSpec(pianoId, None)))
-    )))
-    deviceReceivers.values.foreach(_.clear())
-
-    // When
-    businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiEndpointType.Output))
-
-    // Then
-    deviceReceivers(pianoId).messages shouldEqual Seq(initMessage, otherInitMessage)
-    deviceReceivers(synthId).messages shouldBe empty
-  }
-
-  it should "ignore the opening of an input device" in new Fixture {
-    // When
-    businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiEndpointType.Input))
-    businessync.publish(MidiDeviceOpenedEvent(keyboardId, MidiEndpointType.Input))
-
-    // Then
-    deviceReceivers.values.flatMap(_.messages) shouldBe empty
-  }
-
-  it should "release the output of the tracks whose input device got disconnected, and of no other track" in
-    new Fixture {
+  "a MIDI device event" should {
+    "reset the tuner of the tracks whose output device got opened, and of no other track" in new Fixture {
       // When
-      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiEndpointType.Input))
+      businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiDirection.Output))
+
+      // Then
+      deviceReceivers(pianoId).messages shouldEqual Seq(initMessage)
+      deviceReceivers(synthId).messages shouldBe empty
+    }
+
+    "reset the tuner of every track whose output device got opened, when two tracks share it" in new Fixture {
+      // Given
+      trackManager.replaceAllTracks(TrackSpecs(Seq(
+        TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+          output = Some(DeviceTrackOutputSpec(pianoId, None))),
+        TrackSpec("controller", "Controller", input = Some(DeviceTrackInputSpec(controllerId, None)),
+          tuner = Some(ResetTuner(otherInitMessage)), output = Some(DeviceTrackOutputSpec(pianoId, None)))
+      )))
+      deviceReceivers.values.foreach(_.clear())
+
+      // When
+      businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiDirection.Output))
+
+      // Then
+      deviceReceivers(pianoId).messages shouldEqual Seq(initMessage, otherInitMessage)
+      deviceReceivers(synthId).messages shouldBe empty
+    }
+
+    "ignore the opening of an input device" in new Fixture {
+      // When
+      businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiDirection.Input))
+      businessync.publish(MidiDeviceOpenedEvent(keyboardId, MidiDirection.Input))
+
+      // Then
+      deviceReceivers.values.flatMap(_.messages) shouldBe empty
+    }
+
+    "release the output of the tracks whose input device got disconnected, and of no other track" in new Fixture {
+      // When
+      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Input))
 
       // Then
       deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
       deviceReceivers(synthId).messages shouldBe empty
     }
 
-  it should "release the output of every track whose input device got disconnected, when two tracks share it" in
-    new Fixture {
+    "release the output of every track whose input device got disconnected, when two tracks share it" in new Fixture {
       // Given
       trackManager.replaceAllTracks(TrackSpecs(Seq(
         TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
@@ -147,54 +144,55 @@ class TrackManagerTest extends AnyFlatSpec with Matchers with Stubs {
       deviceReceivers.values.foreach(_.clear())
 
       // When
-      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiEndpointType.Input))
+      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Input))
 
       // Then
       deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
       deviceReceivers(synthId).messages shouldEqual allNotesOff :+ initMessage
     }
 
-  it should "release the output of the tracks whose input device failed to disconnect" in new Fixture {
-    // When
-    businessync.publish(
-      MidiDeviceFailedToDisconnectEvent(keyboardId, MidiEndpointType.Input, IllegalStateException("Cannot close")))
+    "release the output of the tracks whose input device failed to disconnect" in new Fixture {
+      // When
+      businessync.publish(
+        MidiDeviceFailedToDisconnectEvent(keyboardId, MidiDirection.Input, IllegalStateException("Cannot close")))
 
-    // Then
-    deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
-    deviceReceivers(synthId).messages shouldBe empty
+      // Then
+      deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
+      deviceReceivers(synthId).messages shouldBe empty
+    }
+
+    "ignore the disconnection of an output device" in new Fixture {
+      // When
+      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Output))
+      businessync.publish(MidiDeviceDisconnectedEvent(pianoId, MidiDirection.Output))
+
+      // Then
+      deviceReceivers.values.flatMap(_.messages) shouldBe empty
+    }
+
+    "ignore the other MIDI events" in new Fixture {
+      // When
+      businessync.publish(MidiEnvironmentChangedEvent)
+      businessync.publish(MidiDeviceConnectedEvent(pianoId, MidiDirection.Output))
+      businessync.publish(MidiDeviceClosedEvent(keyboardId, MidiDirection.Input))
+
+      // Then
+      deviceReceivers.values.flatMap(_.messages) shouldBe empty
+    }
   }
 
-  it should "ignore the disconnection of an output device" in new Fixture {
-    // When
-    businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiEndpointType.Output))
-    businessync.publish(MidiDeviceDisconnectedEvent(pianoId, MidiEndpointType.Output))
+  "replaceAllTracks" should {
+    "not deliver an event published while it builds the new tracks to the tracks it closed" in new Fixture {
+      // Given
+      onOpenOutput = deviceId => businessync.publish(MidiDeviceOpenedEvent(deviceId, MidiDirection.Output))
 
-    // Then
-    deviceReceivers.values.flatMap(_.messages) shouldBe empty
-  }
+      // When
+      trackManager.replaceAllTracks(trackSpecs)
 
-  it should "ignore the other MIDI events" in new Fixture {
-    // When
-    businessync.publish(MidiEnvironmentChangedEvent)
-    businessync.publish(MidiDeviceConnectedEvent(pianoId, MidiEndpointType.Output))
-    businessync.publish(MidiDeviceClosedEvent(keyboardId, MidiEndpointType.Input))
-
-    // Then
-    deviceReceivers.values.flatMap(_.messages) shouldBe empty
-  }
-
-  behavior of "replaceAllTracks"
-
-  it should "not deliver an event published while it builds the new tracks to the tracks it closed" in new Fixture {
-    // Given
-    onOpenOutput = deviceId => businessync.publish(MidiDeviceOpenedEvent(deviceId, MidiEndpointType.Output))
-
-    // When
-    trackManager.replaceAllTracks(trackSpecs)
-
-    // Then
-    // Only the new track, connecting its device receiver when it is built, resets the tuner
-    deviceReceivers(pianoId).messages shouldEqual Seq(initMessage)
-    deviceReceivers(synthId).messages shouldEqual Seq(initMessage)
+      // Then
+      // Only the new track, connecting its device receiver when it is built, resets the tuner
+      deviceReceivers(pianoId).messages shouldEqual Seq(initMessage)
+      deviceReceivers(synthId).messages shouldEqual Seq(initMessage)
+    }
   }
 }

@@ -36,7 +36,8 @@ provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display 
 
 **`MidiManager`** is the trait through which devices are discovered and opened. It is `AutoCloseable` and offers a
 per-direction API mirrored for input and output (availability, id/info enumeration as `MidiDeviceInfo`,
-`open*`/`close*`, handle lookup), because a platform may expose a physical bidirectional device as two endpoints that
+`open*`/`close*`, handle lookup, and two listings of live handles — `input`/`outputOpenDevices` for the ones that are
+open, `input`/`outputDevicesRequestedToOpen` for those plus the ones waiting for their device), because a platform may expose a physical bidirectional device as two endpoints that
 nonetheless share one `MidiDeviceId`. `refresh()` rescans the environment; an implementation also refreshes when the
 platform reports a change, emitting the device events described in
 [Device lifecycle and events](#device-lifecycle-and-events) as it reconciles state.
@@ -48,7 +49,7 @@ platform reports a change, emitting the device events described in
   it only inspects the handle and uses it for I/O.
 - **Disconnected devices.** A handle can exist for a device that is **not currently connected**:
   `info: Option[MidiDeviceInfo]` is defined only while it is connected, and `isInputDevice` / `isOutputDevice` /
-  `endpointType` derive from it. A request made while the device is not connected moves the handle to
+  `direction` derive from it. A request made while the device is not connected moves the handle to
   `WaitingToOpen`, and the handle opens once the device gets connected.
 - **States.** The `State` enum in the companion captures the Closed/Connected/WaitingToOpen/Open transitions, drawn in
   its ScalaDoc. A failed transition sets to false the property it concerns: a failure of the connection leaves the
@@ -60,10 +61,12 @@ platform reports a change, emitting the device events described in
   `handle.transmitter: ConcurrentMidiTransmitter`. Both survive disconnect/reconnect without re-wiring.
 
 Supporting value types: `MidiDeviceInfo` (`case class(name, vendor, description, version, transmittersLimit,
-receiversLimit)` with a derived `id: MidiDeviceId` and `endpointType`), `MidiConnectionLimit` (an `enum` of
+receiversLimit)` with a derived `id: MidiDeviceId` and `direction`), `MidiConnectionLimit` (an `enum` of
 `Unlimited` / `Limited(count)` — how many transmitters or receivers a device can open; it prints as `unlimited` or the
 count, and its `allowsConnections` is what a device's direction derives from), `MidiDeviceId` (`case class(name,
-vendor)`) and `MidiEndpointType` (an `enum` of `None`/`Input`/`Output`/`InputOutput`).
+vendor)`) and `MidiDirection` (an `enum` of `None`/`Input`/`Output`/`InputOutput` — the direction an endpoint works
+in; a device may work in both or in neither, while a manager endpoint and an event direction are only `Input` or
+`Output`).
 
 **The Java Sound implementation** (`javamidi`). `JavaMidiManager(businessync, environment = CoreMidi4JEnvironment)`
 keeps two internal endpoints, one for inputs and one for outputs. Each is a registry of its **live handles**: one
@@ -90,7 +93,8 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
   synchronously and `TrackManager`'s handler sends MIDI.
 
 `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for one direction, its
-`direction`, which its events carry. The device is reachable only through its
+`managerDirection`, which its events carry — not its inherited `direction`, which tells the directions the device
+itself works in. The device is reachable only through its
 `private[javamidi] device: Option[MidiDevice]`.
 
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
@@ -99,7 +103,8 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
   no reference held. A failed close still moves to `Connected`. A failed disconnect still leaves the handle
   disconnected.
 - **Java Sound boundary, outbound.** Its receiver converts each `Midi1Msg` with `asJava` and sends it to the open
-  device; a `Midi2Msg` is dropped with a warning, since Java Sound speaks MIDI 1.0 only.
+  device; a `Midi2Msg` is dropped, since Java Sound speaks MIDI 1.0 only — reported once per handle at warn level and
+    at debug level from then on, the device never gaining the ability to speak MIDI 2.0.
   - It sends through the single Java `Receiver` it obtains from an output device each time it opens it. A Java Sound
     device creates a new receiver on every `getReceiver` call and keeps it until it is closed, so asking per message
     would leak one per message. A device that cannot provide one fails the open with `MidiDeviceFailedToOpenEvent`.
@@ -122,7 +127,7 @@ on the bus.
 - The rest come as success/failure pairs for each lifecycle transition (connected/disconnected/opened/closed), each
   failure event (`…FailedTo…Event`) carrying the cause.
 - All carry the `MidiDeviceId`. All but `MidiDeviceFailedToConnectEvent`, which is published before resolution tells
-  the direction, also carry an `endpointType`: always `Input` or `Output`, the direction of the handle that made the
+  the direction, also carry a `direction`: always `Input` or `Output`, the direction of the handle that made the
   transition.
 
 Note that "connected" means *available to the system*, not *opened by the application*: they are distinct,
@@ -237,7 +242,8 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
 The package object and a few value types provide `MidiNote` (a value class over a 0–127 note number, with `pitchClass`,
 `octave`, `freq`, and named constants), `PitchClass` (a value class over 0–11 with sharp/flat names and parsing), and
 `PitchBendSensitivity` (RPN #0 pitch-bend range, default ±2 semitones, with a helper that builds the RPN message
-sequence). The package object also carries the `clampValue` helpers; channel rewriting is `ChannelMidiMsg.mapChannel`.
+sequence). The package object also carries `MidiChannelCount` (the 16 channels of a MIDI 1.0 connection) and the `clampValue`
+helpers; channel rewriting is `ChannelMidiMsg.mapChannel`.
 
 `RpnSelector` and `RpnMessages` are the two halves of the Registered and Non-Registered Parameter vocabulary.
 `RpnSelector` is the parameter a channel holds selected — `None`, an `Rpn(msb, lsb)`, or an `Nrpn(msb, lsb)` — and is
@@ -270,8 +276,9 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
    `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles: the manager hands the
    replugged device to the same live handle.
 5. `closeInput`/`closeOutput` (reference-counted) release a device. The handle is read-only and has no `close()`;
-   `Track.close()` releases its devices this way. `MidiManager.close()` releases every reference held through the
-   manager, so every device it opened ends up closed, and stops watching the environment.
+   `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and then releases
+   every reference held through the manager, so every device it opened ends up closed — in that order, so that a
+   change reported meanwhile cannot reconnect or reopen a handle after it was closed.
 
 ## Device lifecycle and events
 
@@ -291,7 +298,7 @@ Other events around a refresh:
 - A refresh triggered by the platform is preceded by `MidiEnvironmentChangedEvent`.
 - A device that fails to resolve for an unexpected reason is reported by `MidiDeviceFailedToConnectEvent`.
 - A device working in both directions is reported once per direction, by two events that differ in their
-  `endpointType`.
+  `direction`.
 
 Delivery and subscribers:
 

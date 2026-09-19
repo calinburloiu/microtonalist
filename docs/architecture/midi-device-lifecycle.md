@@ -22,7 +22,7 @@ says nothing about whether Microtonalist is using it.
   an environment change — by reconciling the devices it scans against the handles it holds.
 - It is the manager, never a consumer, that connects and disconnects a `MidiDeviceHandle`; a consumer only reads
   `isConnected`. `MidiDeviceHandle.info` is defined exactly while the handle is connected, which is why
-  `isInputDevice` / `isOutputDevice` / `endpointType` are unknown (`false` / `None`) while it is not.
+  `isInputDevice` / `isOutputDevice` / `direction` are unknown (`false` / `None`) while it is not.
 - Reported on the [Businessync](businessync/README.md) bus as `MidiDeviceConnectedEvent` /
   `MidiDeviceDisconnectedEvent`, with `MidiDeviceFailedToConnectEvent` / `MidiDeviceFailedToDisconnectEvent` in their
   place on failure.

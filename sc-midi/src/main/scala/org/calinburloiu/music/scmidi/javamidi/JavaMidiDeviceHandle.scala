@@ -50,25 +50,27 @@ import scala.util.Try
  * The handle is the only place where messages cross between the Scala model and Java Sound:
  *
  *   - [[receiver]] converts each [[Midi1Msg]] with `asJava` and sends it to the open device. A [[Midi2Msg]] is
- *     dropped with a warning, since a Java Sound device speaks MIDI 1.0 only.
+ *     dropped, since a Java Sound device speaks MIDI 1.0 only.
  *   - The Java `Receiver` registered on the device's transmitter converts with `asScala` and fans out to the
  *     receivers of [[transmitter]].
  *
- * Sending never takes the lock of the handle. A message that reaches a receiver Java Sound already closed, because
- * the device vanished before the manager learned of it, is dropped: the first one after each open is logged at warn
- * level, and the following ones at debug level.
+ * Sending never takes the lock of the handle. A dropped message is reported once at warn level, naming the reason,
+ * and at debug level from then on, so that a stream of them does not flood the log: for a [[Midi2Msg]] once per
+ * handle, the device never gaining the ability to speak MIDI 2.0, and for a message that reaches a receiver Java
+ * Sound already closed, because the device vanished before the manager learned of it, once per open.
  *
- * @param id        Unique identifier of the MIDI device.
- * @param direction The direction of the endpoint of the manager that owns the handle, [[MidiEndpointType.Input]] or
- *                  [[MidiEndpointType.Output]], which the events of the handle carry as their `endpointType`. It is
- *                  not [[endpointType]], which tells the directions the device works in.
+ * @param id               Unique identifier of the MIDI device.
+ * @param managerDirection The direction of the endpoint of the manager that owns the handle, [[MidiDirection.Input]]
+ *                         or [[MidiDirection.Output]], which the events of the handle carry as their `direction`. It
+ *                         is not [[direction]], which tells the directions the device itself works in and may also be
+ *                         [[MidiDirection.InputOutput]] or [[MidiDirection.None]].
  */
 @ThreadSafe
 class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
-                                             private[javamidi] val direction: MidiEndpointType)
+                                             private[javamidi] val managerDirection: MidiDirection)
   extends MidiDeviceHandle, Locking, LazyLogging {
-  require(direction == MidiEndpointType.Input || direction == MidiEndpointType.Output,
-    s"The direction of a JavaMidiDeviceHandle must be input or output; got $direction!")
+  require(managerDirection == MidiDirection.Input || managerDirection == MidiDirection.Output,
+    s"The direction of a JavaMidiDeviceHandle must be input or output; got $managerDirection!")
 
   private implicit val lock: Lock = ReentrantLock()
 
@@ -84,6 +86,12 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
   /** Whether a message dropped since the device last opened was already reported at warn level. */
   private val hasWarnedOfDroppedMessage: AtomicBoolean = AtomicBoolean(false)
+
+  /**
+   * Whether a MIDI 2.0 message dropped was already reported at warn level. Unlike [[hasWarnedOfDroppedMessage]], it
+   * is never reset: a Java Sound device speaks MIDI 1.0 for as long as the handle lives.
+   */
+  private val hasWarnedOfDroppedMidi2Message: AtomicBoolean = AtomicBoolean(false)
 
   private var _state: State = State.Closed
 
@@ -113,8 +121,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
             case _: IllegalStateException => logDroppedMessage(midi1Message)
           }
         }
-      case midi2Message: Midi2Msg =>
-        logger.warn(s"Dropping $midi2Message sent to device $id: Java Sound devices speak MIDI 1.0 only.")
+      case midi2Message: Midi2Msg => logDroppedMidi2Message(midi2Message)
     }
   }
 
@@ -165,11 +172,11 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         hold(info, device)
         _state = State.Connected
         logConnected(info)
-        Seq(MidiDeviceConnectedEvent(id, direction))
+        Seq(MidiDeviceConnectedEvent(id, managerDirection))
       case (State.WaitingToOpen, _) =>
         hold(info, device)
         logConnected(info)
-        MidiDeviceConnectedEvent(id, direction) +: doOpen(device)
+        MidiDeviceConnectedEvent(id, managerDirection) +: doOpen(device)
       case (State.Open, Some(heldDevice)) if (heldDevice ne device) && !heldDevice.isOpen =>
         hold(info, device)
         closeOpenDevice(heldDevice) ++ doOpen(device)
@@ -177,6 +184,10 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         // Not a swap: a device resolving to a new instance on every lookup, while the one held stays open and in use
         Seq.empty
       case _ =>
+        // What is left holds no open device of another instance, so replacing what the handle holds neither opens nor
+        // closes anything: a State.Connected handle, which swaps a new instance silently, and a State.Open handle
+        // resolving the very instance it holds, which only refreshes the info. The remaining combinations — being
+        // connected while holding no device — cannot occur, State.Connected and State.Open both implying one.
         hold(info, device)
         Seq.empty
     }
@@ -214,15 +225,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         try {
           device.close()
           if (wasOpen) {
-            logger.info(s"Successfully closed $direction device $id.")
+            logger.info(s"Successfully closed $managerDirection device $id.")
           }
-          logger.warn(s"${direction.toString.capitalize} device $id was disconnected.")
-          val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, direction)) else Seq.empty
-          closedEvents :+ MidiDeviceDisconnectedEvent(id, direction)
+          logger.warn(s"${managerDirection.toString.capitalize} device $id was disconnected.")
+          val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, managerDirection)) else Seq.empty
+          closedEvents :+ MidiDeviceDisconnectedEvent(id, managerDirection)
         } catch {
           case exception: Exception =>
-            logger.error(s"Failed to disconnect from $direction device $id!", exception)
-            Seq(MidiDeviceFailedToDisconnectEvent(id, direction, exception))
+            logger.error(s"Failed to disconnect from $managerDirection device $id!", exception)
+            Seq(MidiDeviceFailedToDisconnectEvent(id, managerDirection, exception))
         }
       case None =>
         Seq.empty
@@ -310,8 +321,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
       hasWarnedOfDroppedMessage.set(false)
       _state = State.Open
-      logger.info(s"Successfully opened $direction device $id.")
-      Seq(MidiDeviceOpenedEvent(id, direction))
+      logger.info(s"Successfully opened $managerDirection device $id.")
+      Seq(MidiDeviceOpenedEvent(id, managerDirection))
     } catch {
       case exception: Exception =>
         deviceReceiver = None
@@ -321,8 +332,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         _state = State.Connected
         openRefCount = 0
 
-        logger.error(s"Failed to open $direction device $id.", exception)
-        Seq(MidiDeviceFailedToOpenEvent(id, direction, exception))
+        logger.error(s"Failed to open $managerDirection device $id.", exception)
+        Seq(MidiDeviceFailedToOpenEvent(id, managerDirection, exception))
     }
   }
 
@@ -331,33 +342,44 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     deviceReceiver = None
     try {
       device.close()
-      logger.info(s"Successfully closed $direction device $id.")
-      Seq(MidiDeviceClosedEvent(id, direction))
+      logger.info(s"Successfully closed $managerDirection device $id.")
+      Seq(MidiDeviceClosedEvent(id, managerDirection))
     } catch {
       case exception: Exception =>
-        logger.error(s"Failed to close $direction device $id!", exception)
-        Seq(MidiDeviceFailedToCloseEvent(id, direction, exception))
+        logger.error(s"Failed to close $managerDirection device $id!", exception)
+        Seq(MidiDeviceFailedToCloseEvent(id, managerDirection, exception))
     }
   }
 
-  private def logDroppedMessage(message: Midi1Msg): Unit = {
-    if (hasWarnedOfDroppedMessage.compareAndSet(false, true)) {
-      logger.warn(s"Dropping the messages sent to $direction device $id, which Java Sound already closed, until it " +
-        "opens again.")
+  private def logDroppedMessage(message: Midi1Msg): Unit = logDropped(hasWarnedOfDroppedMessage,
+    s"Dropping the messages sent to $managerDirection device $id, which Java Sound already closed, until it opens again.",
+    s"Dropping $message sent to $managerDirection device $id, which Java Sound already closed.")
+
+  private def logDroppedMidi2Message(message: Midi2Msg): Unit = logDropped(hasWarnedOfDroppedMidi2Message,
+    s"Dropping the MIDI 2.0 messages sent to $managerDirection device $id: Java Sound devices speak MIDI 1.0 only.",
+    s"Dropping $message sent to $managerDirection device $id: Java Sound devices speak MIDI 1.0 only.")
+
+  /**
+   * Reports a dropped message: the first one for its reason at warn level, naming the reason, and the following ones
+   * at debug level, naming the message too.
+   */
+  private def logDropped(hasWarned: AtomicBoolean, warnMessage: => String, debugMessage: => String): Unit = {
+    if (hasWarned.compareAndSet(false, true)) {
+      logger.warn(warnMessage)
     } else {
-      logger.debug(s"Dropping $message sent to $direction device $id, which Java Sound already closed.")
+      logger.debug(debugMessage)
     }
   }
 
   private def logConnected(info: MidiDeviceInfo): Unit = {
     logger.whenDebugEnabled {
-      val (handlerType, connectionLimit) = if (direction == MidiEndpointType.Input) {
+      val (handlerType, connectionLimit) = if (managerDirection == MidiDirection.Input) {
         ("transmitters", info.transmittersLimit)
       } else {
         ("receivers", info.receiversLimit)
       }
 
-      logger.debug(s"${direction.toString.capitalize} device $id with $connectionLimit $handlerType was connected.")
+      logger.debug(s"${managerDirection.toString.capitalize} device $id with $connectionLimit $handlerType was connected.")
     }
   }
 }

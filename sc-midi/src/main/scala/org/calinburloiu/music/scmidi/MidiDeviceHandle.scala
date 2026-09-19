@@ -74,10 +74,10 @@ trait MidiDeviceHandle {
   /**
    * Tells whether the device supports input and/or output.
    *
-   * @return A [[MidiEndpointType]] indicating the input/output capabilities of the device; [[MidiEndpointType.None]]
+   * @return A [[MidiDirection]] indicating the input/output capabilities of the device; [[MidiDirection.None]]
    *         while it is disconnected.
    */
-  def endpointType: MidiEndpointType = MidiEndpointType(isInputDevice, isOutputDevice)
+  def direction: MidiDirection = MidiDirection(isInputDevice, isOutputDevice)
 
   /**
    * Retrieves the current state of the handle and its device.

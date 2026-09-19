@@ -19,7 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, MidiMsg}
-import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiDeviceHandle, MidiManager, MidiReceiver}
+import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiManager,
+  MidiReceiver}
 
 import javax.annotation.concurrent.ThreadSafe
 
@@ -151,7 +152,7 @@ class Track(val spec: TrackSpec,
    */
   def releaseInput(): Unit = {
     val outputReceivers = transmitter.receivers
-    for (channel <- 0 until Track.MidiChannelCount; outputReceiver <- outputReceivers) {
+    for (channel <- 0 until MidiChannelCount; outputReceiver <- outputReceivers) {
       outputReceiver.send(AllNotesOffMidiMsg(channel), -1)
     }
 
@@ -177,7 +178,4 @@ object Track {
    * 1-based.
    */
   val DefaultOutputChannel: Int = 0
-
-  /** The number of channels of a MIDI 1.0 connection. */
-  private val MidiChannelCount: Int = 16
 }
