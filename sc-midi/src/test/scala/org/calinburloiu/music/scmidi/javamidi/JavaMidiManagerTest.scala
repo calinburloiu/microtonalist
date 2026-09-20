@@ -28,6 +28,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{CompletableFuture, TimeUnit}
 import javax.sound.midi.MidiUnavailableException
 import scala.collection.mutable
@@ -516,6 +517,29 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   }
 
   "refresh" should {
+    "serialise concurrent refreshes, so that one never scans the environment while another is refreshing" in
+      new Fixture {
+        // Given
+        val manager: JavaMidiManager = newManager()
+        val scansInFlight: AtomicInteger = AtomicInteger()
+        val mostScansInFlight: AtomicInteger = AtomicInteger()
+        // Each scan lingers, so that a second refresh allowed to run alongside would be caught in the act. Serialised
+        // refreshes can never overlap, whatever the timing, so the assertion below cannot fail spuriously.
+        environment.onScan = () => {
+          mostScansInFlight.accumulateAndGet(scansInFlight.incrementAndGet(), Math.max)
+          Thread.sleep(100)
+          scansInFlight.decrementAndGet()
+        }
+
+        // When
+        val refreshes: Seq[CompletableFuture[Void]] =
+          Seq.fill(2)(CompletableFuture.runAsync(() => manager.refresh()))
+
+        // Then
+        refreshes.foreach(_.get(5, TimeUnit.SECONDS))
+        mostScansInFlight.get shouldEqual 1
+      }
+
     "list each device in the directions its connection limits allow" in {
       // Given
       val cases = Table(

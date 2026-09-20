@@ -44,39 +44,59 @@ import scala.collection.mutable
  * handles whose device is gone. A handle that ends up [[MidiDeviceHandle.State.Closed]] is forgotten. The manager also
  * refreshes whenever the environment reports a change, until it is closed.
  *
- * A manager-wide lock serialises the operations and the registry reads. The lock of a handle is only ever taken
- * inside it, never the other way around. One exclusive lock is enough, rather than a read-write one: the reads are a
- * handful of handle lookups made by the UI and the composition root, never on the MIDI path, and each of them takes
- * the lock of every handle it inspects anyway, so there is no read contention for a read-write lock to relieve — only
- * its higher uncontended cost and its read lock that cannot be upgraded.
+ * There are two locks, always taken in this order and never the other way around:
  *
- * Resolving the devices happens before taking the lock. The [[MidiEvent]]s of an operation are published in order
- * once the lock is released, because the bus delivers them synchronously to subscribers that may use the manager or
- * send MIDI. Sending MIDI takes neither lock.
+ *   1. a refresh lock, held for the whole of a refresh, so that two refreshes cannot interleave and the one that
+ *      scanned first cannot reconcile last and win with a stale snapshot;
+ *   1. a manager-wide lock, which serialises the operations and the registry reads. The lock of a handle is only ever
+ *      taken inside it. One exclusive lock is enough here, rather than a read-write one: the reads are a handful of
+ *      handle lookups made by the UI and the composition root, never on the MIDI path, and each of them takes the
+ *      lock of every handle it inspects anyway, so there is no read contention for a read-write lock to relieve —
+ *      only its higher uncontended cost and its read lock that cannot be upgraded.
+ *
+ * Resolving the devices happens inside the refresh lock but before the manager lock is taken, so that a call into
+ * Java Sound, which can block, neither holds off the readers nor runs while holding the lock that the environment
+ * callbacks need. The [[MidiEvent]]s of an operation are published in order once the locks are released, because the
+ * bus delivers them synchronously to subscribers that may use the manager or send MIDI. Sending MIDI takes no lock.
+ *
+ * Build one through [[JavaMidiManager.apply]], which starts it once it is constructed; the constructor itself
+ * neither publishes nor subscribes.
  *
  * @param businessync Used for publishing [[MidiEvent]]s.
  * @param environment The Java Sound environment to scan and subscribe to; the production default is
  *                    [[CoreMidi4JEnvironment]], a fake is what a test passes.
  */
 @ThreadSafe
-class JavaMidiManager(businessync: Businessync,
-                      environment: JavaMidiEnvironment = CoreMidi4JEnvironment)
+class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnvironment)
   extends MidiManager, Locking, StrictLogging {
 
   import JavaMidiManager.*
 
   private implicit val lock: Lock = ReentrantLock()
 
+  /**
+   * Taken for the whole of a refresh, scan included, so that refreshes cannot overlap. It is always taken before
+   * [[lock]] and never while holding it, the two being ordered that way.
+   */
+  private val refreshLock: Lock = ReentrantLock()
+
   private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Input)
   private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Output)
 
-  private val environmentSubscription: AutoCloseable = init()
+  @volatile private var environmentSubscription: Option[AutoCloseable] = None
 
-  private def init(): AutoCloseable = {
+  /**
+   * Scans the environment for the first time and subscribes to its changes.
+   *
+   * It is called by [[JavaMidiManager.apply]] once the instance is built, rather than from the constructor: it
+   * publishes the events of that first scan, and hands the environment a callback holding this instance, neither of
+   * which may happen while the instance is still being constructed.
+   */
+  private def start(): Unit = {
     refresh()
 
     // Automatically refresh when the MIDI environment has changed
-    environment.subscribeToEnvironmentChanged(() => onEnvironmentChanged())
+    environmentSubscription = Some(environment.subscribeToEnvironmentChanged(() => onEnvironmentChanged()))
   }
 
   private def onEnvironmentChanged(): Unit = {
@@ -89,22 +109,29 @@ class JavaMidiManager(businessync: Businessync,
   /**
    * Refreshes, publishing `leadingEvents` before the events of the refresh.
    *
-   * The environment is scanned before the lock is taken, so that resolving the devices — which calls into Java Sound
-   * and can block — does not hold off the readers. Refreshes must therefore not overlap, as [[refresh]] states: the
-   * one that scanned first can reconcile last and win with a stale snapshot. Nothing serialises them here, since
-   * CoreMIDI4J delivers its environment callbacks one at a time and [[init]] is the only other caller.
+   * [[refreshLock]] covers the whole refresh, so that two of them cannot interleave: were only the reconciliation
+   * locked, the refresh that scanned first could reconcile last and win with a stale snapshot, which nothing would
+   * correct until the next change. [[lock]] is taken only for the reconciliation itself, so that scanning the
+   * environment — which calls into Java Sound and can block — neither holds off the readers nor calls into Java
+   * Sound while holding the lock that its own callbacks need.
+   *
+   * The events are published once both locks are released, so that a subscriber runs inside neither.
    */
   private def refreshAfter(leadingEvents: Seq[MidiEvent]): Unit = {
-    val resolutionEvents = mutable.Buffer.from(leadingEvents)
-    val devices = environment.deviceInfos.flatMap { javaInfo =>
-      resolveDevice(javaInfo, resolutionEvents).map(device => ConnectedDevice(device.asMidiDeviceInfo, device))
-    }
+    val events = withLock {
+      val resolutionEvents = mutable.Buffer.from(leadingEvents)
+      val devices = environment.deviceInfos.flatMap { javaInfo =>
+        resolveDevice(javaInfo, resolutionEvents).map(device => ConnectedDevice(device.asMidiDeviceInfo, device))
+      }
 
-    withLockThenPublish {
-      val reconciliationEvents = inputEndpoint.reconcile(devices.filter(_.info.isInputDevice)) ++
-        outputEndpoint.reconcile(devices.filter(_.info.isOutputDevice))
-      ((), resolutionEvents.toSeq ++ reconciliationEvents)
-    }
+      withLock {
+        val reconciliationEvents = inputEndpoint.reconcile(devices.filter(_.info.isInputDevice)) ++
+          outputEndpoint.reconcile(devices.filter(_.info.isOutputDevice))
+        resolutionEvents.toSeq ++ reconciliationEvents
+      }(lock)
+    }(refreshLock)
+
+    events.foreach(businessync.publish)
   }
 
   /**
@@ -151,7 +178,7 @@ class JavaMidiManager(businessync: Businessync,
   override def close(): Unit = {
     // Stop watching the environment before closing the devices, so that a change reported meanwhile cannot refresh
     // the registries — and reconnect or reopen a handle — after they were closed.
-    environmentSubscription.close()
+    environmentSubscription.foreach(_.close())
 
     logger.info(s"Closing MIDI connections...")
     withLockThenPublish {
@@ -234,6 +261,20 @@ class JavaMidiManager(businessync: Businessync,
 }
 
 object JavaMidiManager {
+
+  /**
+   * Creates a manager, scans the MIDI environment and subscribes to its changes.
+   *
+   * @param businessync Used for publishing [[MidiEvent]]s.
+   * @param environment The Java Sound environment to scan and subscribe to.
+   * @return the manager, fully constructed and watching the environment.
+   */
+  def apply(businessync: Businessync,
+            environment: JavaMidiEnvironment = CoreMidi4JEnvironment): JavaMidiManager = {
+    val manager = new JavaMidiManager(businessync, environment)
+    manager.start()
+    manager
+  }
 
   /** A device present in the environment: its API-level information and the resolved Java Sound device. */
   private case class ConnectedDevice(info: MidiDeviceInfo, device: MidiDevice) {

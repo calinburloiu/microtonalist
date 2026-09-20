@@ -37,9 +37,9 @@ trait MidiManager extends AutoCloseable {
    * Rescans the environment for MIDI device information and updates the internal state, publishing the
    * [[MidiEvent]]s that describe what changed.
    *
-   * Unlike the rest of this API, refreshes must not overlap: a refresh scans the environment before it reconciles
-   * the result, so two running at once can reconcile in the opposite order and leave the registries describing the
-   * environment as it was at the earlier scan, which nothing corrects until the next change.
+   * Refreshes are serialised: a refresh scans the environment before it reconciles the result, so two running at
+   * once would otherwise be able to reconcile in the opposite order and leave the registries describing the
+   * environment as it was at the earlier scan. A concurrent call therefore waits for the one in progress.
    */
   def refresh(): Unit
 
