@@ -152,6 +152,9 @@ class Track(val spec: TrackSpec,
    *
    * The track keeps no state of its own about held notes.
    */
+  // TODO #316 A track this one feeds is not released: the messages below reach its pipeline input, where its tuner
+  //  discards what falls outside its input zone, and its own tuner and tuning changers are never reset, so its output
+  //  device can keep notes held.
   def releaseInput(): Unit = {
     val outputReceivers = transmitter.receivers
     for (channel <- 0 until MidiChannelCount; outputReceiver <- outputReceivers) {

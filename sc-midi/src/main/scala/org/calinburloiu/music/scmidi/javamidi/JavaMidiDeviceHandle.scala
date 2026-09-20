@@ -317,6 +317,9 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    */
   private def doOpen(device: MidiDevice): Seq[MidiEvent] = {
     try {
+      // TODO #315 A device working in both directions has one handle per direction over the same MidiDevice
+      //  instance, and each opens and closes it on its own. Java Sound closes it outright on the first close, so
+      //  either handle can close it under the other, which goes on reporting State.Open over a dead device.
       device.open()
       // Keyed on what the handle is for, not on what the device can do: a device that works in both directions has
       // one handle per direction, and an input handle taking a receiver would spend one of the device's, which are

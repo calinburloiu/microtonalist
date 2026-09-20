@@ -217,6 +217,10 @@ MidiDeviceDisconnectedEvent(id, Input) or MidiDeviceFailedToDisconnectEvent(id, 
   tracks open their devices never reaches a closed track.
 - The reset does not restore the current tuning. Until #303, the instrument plays in 12-EDO until the next tuning
   change.
+- Only the tracks wired straight to a device react. A track fed by another through `ToTrack` / `FromTrack` is not
+  released when the feeding track's input device disconnects, nor reset when its own output device opens: the release
+  reaches its pipeline input, where its tuner discards what falls outside its input zone, and its own tuner and tuning
+  changers are never reset. See #316.
 
 ## Threading model
 
