@@ -66,8 +66,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
                                  maxReceivers: Int = -1,
                                  openFailure: Option[Exception] = None,
                                  closeFailure: Option[Exception] = None,
-                                 receiverFailure: Option[Exception] = None) {
-    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, requestedDirection)
+                                 receiverFailure: Option[Exception] = None,
+                                 direction: MidiDirection = requestedDirection) {
+    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, direction)
     val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters,
       maxReceivers = maxReceivers, openFailure = openFailure, closeFailure = closeFailure,
       receiverFailure = receiverFailure)
@@ -436,7 +437,19 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.state shouldEqual State.Open
     }
 
-    "subscribe to the device's transmitter when the device is an input" in new Fixture {
+    "subscribe to the device's transmitter when the handle is requested for input" in
+      new Fixture(direction = MidiDirection.Input) {
+        // Given
+        connect()
+
+        // When
+        handle.open()
+
+        // Then
+        Option(device.transmitter.getReceiver) shouldBe defined
+      }
+
+    "not subscribe to the device's transmitter when the handle is requested for output" in new Fixture {
       // Given
       connect()
 
@@ -444,20 +457,36 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.open()
 
       // Then
-      Option(device.transmitter.getReceiver) shouldBe defined
-    }
-
-    "not subscribe to the device's transmitter when the device is not an input" in new Fixture(maxTransmitters = 0) {
-      // Given
-      connect()
-
-      // When
-      handle.open()
-
-      // Then
+      // The device works in both directions, but this handle is the output endpoint of its manager: the input
+      // endpoint has its own handle for the input side.
       handle.state shouldEqual State.Open
       Option(device.transmitter.getReceiver) shouldBe empty
     }
+
+    "obtain a receiver from the device when the handle is requested for output" in new Fixture {
+      // Given
+      connect()
+
+      // When
+      handle.open()
+
+      // Then
+      device.receiverCount shouldEqual 1
+    }
+
+    "obtain no receiver from the device when the handle is requested for input" in
+      new Fixture(direction = MidiDirection.Input) {
+        // Given
+        connect()
+
+        // When
+        handle.open()
+
+        // Then
+        // A receiver is a scarce resource on some devices, so an input handle must not take one it cannot use
+        handle.state shouldEqual State.Open
+        device.receiverCount shouldEqual 0
+      }
 
     "roll back to Connected, closing the device, with no reference held, when the device fails to open" in
       new Fixture(openFailure = Some(failure)) {
@@ -744,7 +773,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
   "transmitter" should {
     "fan out the messages of the open input device, converted from Java Sound, to receivers subscribed beforehand" in
-      new Fixture {
+      new Fixture(direction = MidiDirection.Input) {
         // Given
         val receiver1: Stub[MidiReceiver] = stub[MidiReceiver]
         val receiver2: Stub[MidiReceiver] = stub[MidiReceiver]
@@ -762,22 +791,23 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         receiver2.send.calls shouldEqual Seq((sustainOn, 7L))
       }
 
-    "keep fanning out after Java Sound closes the receiver the handle subscribed to the device" in new Fixture {
-      // Given
-      val receiver: Stub[MidiReceiver] = stub[MidiReceiver]
-      receiver.send.returns(_ => ())
-      handle.transmitter.addReceiver(receiver)
-      connect()
-      handle.open()
-      val inboundReceiver = device.transmitter.getReceiver
+    "keep fanning out after Java Sound closes the receiver the handle subscribed to the device" in
+      new Fixture(direction = MidiDirection.Input) {
+        // Given
+        val receiver: Stub[MidiReceiver] = stub[MidiReceiver]
+        receiver.send.returns(_ => ())
+        handle.transmitter.addReceiver(receiver)
+        connect()
+        handle.open()
+        val inboundReceiver = device.transmitter.getReceiver
 
-      // When
-      inboundReceiver.close()
-      inboundReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 0), 8L)
+        // When
+        inboundReceiver.close()
+        inboundReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 0), 8L)
 
-      // Then
-      receiver.send.calls shouldEqual Seq((sustainOff, 8L))
-    }
+        // Then
+        receiver.send.calls shouldEqual Seq((sustainOff, 8L))
+      }
   }
 
   "Logging" should {

@@ -310,17 +310,21 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   }
 
   /**
-   * Opens `device`, obtaining the receiver of an output and subscribing to the transmitter of an input, and only then
-   * moves to [[State.Open]]. On any failure, it closes the device as far as it can and rolls back to
-   * [[State.Connected]] with no reference held, so that the handle is no longer requested to open.
+   * Opens `device`, obtaining its receiver when the handle is requested for output and subscribing to its transmitter
+   * when it is requested for input, and only then moves to [[State.Open]]. On any failure, it closes the device as
+   * far as it can and rolls back to [[State.Connected]] with no reference held, so that the handle is no longer
+   * requested to open.
    */
   private def doOpen(device: MidiDevice): Seq[MidiEvent] = {
     try {
       device.open()
-      if (isOutputDevice) {
+      // Keyed on what the handle is for, not on what the device can do: a device that works in both directions has
+      // one handle per direction, and an input handle taking a receiver would spend one of the device's, which are
+      // limited on some of them.
+      if (requestedDirection.isOutput) {
         deviceReceiver = Some(device.getReceiver)
       }
-      if (isInputDevice) {
+      if (requestedDirection.isInput) {
         device.getTransmitter.setReceiver(inboundReceiver)
       }
 
