@@ -18,7 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.calinburloiu.music.scmidi.MidiManager
+import org.calinburloiu.music.scmidi.{MidiDeviceDisconnectedEvent, MidiDeviceFailedToDisconnectEvent, MidiDeviceId,
+  MidiDeviceOpenedEvent, MidiDirection, MidiEvent, MidiManager}
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
@@ -27,13 +28,17 @@ import scala.collection.immutable.VectorMap
 // TODO #121 Logic to update tracks.
 
 /**
- * Manages a collection of MIDI tracks and updates their tuning based on external events.
+ * Manages a collection of MIDI tracks and updates them based on external events: it re-tunes every track when the
+ * tuning changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks
+ * whose input device gets disconnected.
  */
 @NotThreadSafe
 class TrackManager(private val midiManager: MidiManager,
                    private val tuningService: TuningService,
                    private val executorService: ExecutorService = TrackManager.createExecutorService())
   extends AutoCloseable with StrictLogging {
+
+  import TrackManager.InputDeviceGone
 
   private var tracksById: VectorMap[TrackSpec.Id, Track] = VectorMap()
 
@@ -51,6 +56,9 @@ class TrackManager(private val midiManager: MidiManager,
   def replaceAllTracks(trackSpecs: TrackSpecs): Unit = {
     closeTracks()
 
+    // Forget the closed tracks before building the new ones, whose devices may publish events while they open
+    tracks = Seq.empty
+
     tracks = trackSpecs.tracks
       .filter { spec =>
         if (spec.muted) {
@@ -63,7 +71,7 @@ class TrackManager(private val midiManager: MidiManager,
     // Wire inter-track connections
     // TODO #296 The two branches below wire each direction independently, so a spec pair declaring the same link
     //  from both ends — A.output = ToTrack(B) and B.input = FromTrack(A) — adds B.receiver to A's transmitter twice
-    //  and B then processes every message twice. The duplicate add fires no onConnect, so it is silent.
+    //  and B then processes every message twice. The duplicate add fires no onAttach, so it is silent.
     for (currTrack <- tracks) {
       currTrack.spec.input match {
         case Some(FromTrackInputSpec(trackId, _)) =>
@@ -100,6 +108,11 @@ class TrackManager(private val midiManager: MidiManager,
    */
   override def close(): Unit = {
     closeTracks()
+
+    // Forget the closed tracks, as replaceAllTracks does: the manager stays registered on the bus, so a device
+    // unplugged before the application finishes shutting down would otherwise reach tracks that are already closed.
+    tracks = Seq.empty
+
     executorService.shutdown()
   }
 
@@ -117,9 +130,62 @@ class TrackManager(private val midiManager: MidiManager,
   private def onTuningChanged(event: TuningEvent): Unit = {
     tune(event.currentTuning)
   }
+
+  /**
+   * Handles the MIDI device events that concern the devices of the tracks:
+   *
+   *   - when an output device opens, it resets the tuner of every track whose output is that device, since the device
+   *     may have (re)opened after the track was built;
+   *   - when an input device gets disconnected, or fails to, it releases the input of every track whose input is that
+   *     device, so that no note stays held on its output.
+   *
+   * @param event The MIDI event published by the [[MidiManager]].
+   */
+  // TODO #90 Remove @Subscribe after implementing businessync. Guava calls this handler on the thread that publishes
+  //  the event, which is CoreMIDI4J's notification thread for a device change, while TrackManager is meant to be used
+  //  on the business thread only. It reads the tracks on that thread, so a device that opens while replaceAllTracks
+  //  builds the tracks on another thread can miss its tuner reset. Worse, resetTuner() and releaseInput() also mutate
+  //  Tuner and TuningChanger state from that thread, racing the tuner.process of the input callback thread and the
+  //  tune of the business thread: TunerProcessor is @NotThreadSafe and expects the external synchronization of the
+  //  track thread that TODO #121 has yet to introduce.
+  @Subscribe
+  private def onMidiEvent(event: MidiEvent): Unit = event match {
+    case MidiDeviceOpenedEvent(deviceId, MidiDirection.Output) =>
+      // TODO #303 Restore the current tuning after resetting the tuner.
+      tracksWithOutputDevice(deviceId).foreach(_.resetTuner())
+    case InputDeviceGone(deviceId) =>
+      // TODO #303 Restore the current tuning after resetting the tuner.
+      tracksWithInputDevice(deviceId).foreach(_.releaseInput())
+    case _ => // Nothing to do for the other events
+  }
+
+  private def tracksWithInputDevice(deviceId: MidiDeviceId): Seq[Track] = tracks.filter { track =>
+    track.spec.input.collect { case DeviceTrackInputSpec(midiDeviceId, _) => midiDeviceId }.contains(deviceId)
+  }
+
+  private def tracksWithOutputDevice(deviceId: MidiDeviceId): Seq[Track] = tracks.filter { track =>
+    track.spec.output.collect { case DeviceTrackOutputSpec(midiDeviceId, _) => midiDeviceId }.contains(deviceId)
+  }
 }
 
 object TrackManager extends LazyLogging {
+
+  /**
+   * Matches the [[MidiEvent]]s that tell an input device is gone, whatever came of disconnecting it: a
+   * [[MidiDeviceDisconnectedEvent]] and the [[MidiDeviceFailedToDisconnectEvent]] that replaces it when releasing the
+   * device throws, which leaves the device just as gone.
+   *
+   * The two share a handler, and Scala forbids binding a variable in a pattern alternative, so they are matched by
+   * name here instead of by `MidiDeviceDisconnectedEvent(deviceId, _) | MidiDeviceFailedToDisconnectEvent(…)`.
+   */
+  private object InputDeviceGone {
+    def unapply(event: MidiEvent): Option[MidiDeviceId] = event match {
+      case MidiDeviceDisconnectedEvent(deviceId, MidiDirection.Input) => Some(deviceId)
+      case MidiDeviceFailedToDisconnectEvent(deviceId, MidiDirection.Input, _) => Some(deviceId)
+      case _ => None
+    }
+  }
+
   private[tuner] val TrackThreadsNamePrefix: String = "Track-"
   private[tuner] val TrackThreadsGroup: ThreadGroup = new ThreadGroup("Track")
   private val TrackThreadsPriority: Int = Thread.NORM_PRIORITY + 2

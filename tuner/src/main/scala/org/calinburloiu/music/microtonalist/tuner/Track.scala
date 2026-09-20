@@ -18,8 +18,9 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
-import org.calinburloiu.music.scmidi.message.MidiMsg
-import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiDeviceHandle, MidiManager, MidiReceiver}
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
+import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiManager,
+  MidiReceiver}
 
 import javax.annotation.concurrent.ThreadSafe
 
@@ -27,13 +28,14 @@ import javax.annotation.concurrent.ThreadSafe
  * MIDI route for tuning an output device.
  *
  * When the track has a device output, the output device receiver is an initial receiver of the pipeline, so the
- * pipeline connects — and a tuner sends its `reset()` messages to the device — as soon as the track is built. A
- * receiver added later through [[transmitter]] (another track) is connected on its own: the device receiver, already
- * there, is left alone rather than being disconnected and reconnected.
+ * pipeline attaches to it — and a tuner sends its `reset()` messages to the device — as soon as the track is built.
+ * A receiver added later through [[transmitter]] (another track) attaches on its own: the device receiver, already
+ * there, is left alone rather than being detached and re-attached.
  *
  * @param spec             The declarative description this track is built from: its id, input, output, tuner and
  *                         tuning changers.
- * @param midiManager      Used to open the input and output MIDI devices named by the spec.
+ * @param midiManager      Used to open the input and output MIDI devices named by the spec, and to release them when
+ *                         the track is closed.
  * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
  *                         tuning change.
  * @param initMidiMessages MIDI messages sent into the pipeline right after it is built, typically to initialize the
@@ -86,14 +88,37 @@ class Track(val spec: TrackSpec,
    */
   def transmitter: ConcurrentMidiTransmitter = pipeline.transmitter
 
+  /**
+   * Closes the track. It:
+   *
+   *   1. unsubscribes from its input device, so that nothing the device still sends enters the track;
+   *   1. detaches its output device, which the tuner switches back to 12-EDO as it gets detached;
+   *   1. switches back to 12-EDO the tracks it feeds, which stay attached;
+   *   1. releases its devices through the [[MidiManager]].
+   *
+   * Each output gets the 12-EDO messages exactly once. The track detaches from its devices because a released handle
+   * whose device is still connected stays live, and a track built later for the same device gets that same handle: a
+   * closed track still attached to it would go on receiving from the input and sending to the output.
+   */
   override def close(): Unit = {
     logger.info(s"Closing track $id...")
 
+    inputDeviceHandle.foreach(_.transmitter.removeReceiver(receiver))
+
     logger.info(s"Switching back to 12-EDO for track $id...")
+    // Removing the output device receiver makes the TunerProcessor send it the 12-EDO messages, so tuning afterwards
+    // reaches only the receivers left, the tracks this one feeds.
+    outputDeviceHandle.foreach(handle => transmitter.removeReceiver(handle.receiver))
     tune(Tuning.Standard)
 
-    inputDeviceHandle.foreach(_.close())
-    outputDeviceHandle.foreach(_.close())
+    spec.input.foreach {
+      case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.closeInput(midiDeviceId)
+      case _ => // Not a device: nothing to release
+    }
+    spec.output.foreach {
+      case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.closeOutput(midiDeviceId)
+      case _ => // Not a device: nothing to release
+    }
   }
 
   /**
@@ -103,6 +128,43 @@ class Track(val spec: TrackSpec,
    */
   def tune(tuning: Tuning): Unit = {
     tunerProcessor.foreach(_.tune(tuning))
+  }
+
+  /**
+   * Resets the tuner of this track, if any, sending the messages that initialize the output instrument to the output
+   * of the track, e.g. after the output device (re)opened. The current tuning is not restored: the output plays in
+   * 12-EDO until the next tuning change.
+   */
+  def resetTuner(): Unit = {
+    tunerProcessor.foreach(_.reset())
+  }
+
+  /**
+   * Releases the output of this track after its input got disconnected, so that no note stays held on it. It:
+   *
+   *   1. releases the Hold (Sustain) and Sostenuto pedals, then sends All Notes Off, on each of the 16 MIDI channels
+   *      straight to the output of the track, bypassing the tuner, so that it reaches every channel the tuner may
+   *      have used, such as MPE Member Channels. The pedals go first because a latched one takes priority over All
+   *      Notes Off, so a note it holds would keep sounding otherwise;
+   *   1. resets the tuning changers, so that a trigger held when the input disappeared does not swallow the first
+   *      trigger after it comes back;
+   *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one.
+   *
+   * The track keeps no state of its own about held notes.
+   */
+  // TODO #316 A track this one feeds is not released: the messages below reach its pipeline input, where its tuner
+  //  discards what falls outside its input zone, and its own tuner and tuning changers are never reset, so its output
+  //  device can keep notes held.
+  def releaseInput(): Unit = {
+    val outputReceivers = transmitter.receivers
+    for (channel <- 0 until MidiChannelCount; outputReceiver <- outputReceivers) {
+      outputReceiver.send(CcMidiMsg(channel, MidiCc.SustainPedal, 0), -1)
+      outputReceiver.send(CcMidiMsg(channel, MidiCc.SostenutoPedal, 0), -1)
+      outputReceiver.send(AllNotesOffMidiMsg(channel), -1)
+    }
+
+    tuningChangeProcessor.foreach(_.reset())
+    resetTuner()
   }
 
   // TODO #297 These reach the tuner only when the pipeline already has output receivers, which a track that feeds

@@ -17,23 +17,30 @@
 package org.calinburloiu.music.scmidi
 
 /**
- * Tells whether a MIDI endpoint (like a device) support input and/or output.
+ * The direction a MIDI endpoint, like a device, works in: whether it supports input and/or output.
  *
- * @param name     Descriptive name of the MIDI endpoint type.
+ * A device may work in both directions, or in neither, so all four values describe one.
+ *
+ * @param name     Descriptive name of the direction.
  * @param isInput  Indicates whether the endpoint supports MIDI input.
  * @param isOutput Indicates whether the endpoint supports MIDI output.
  */
-enum MidiEndpointType(val name: String, isInput: Boolean, isOutput: Boolean) {
+enum MidiDirection(val name: String, val isInput: Boolean, val isOutput: Boolean) {
   override def toString: String = name
 
-  case None extends MidiEndpointType("none", isInput = false, isOutput = false)
-  case Input extends MidiEndpointType("input", isInput = true, isOutput = false)
-  case Output extends MidiEndpointType("output", isInput = false, isOutput = true)
-  case InputOutput extends MidiEndpointType("input/output", isInput = true, isOutput = true)
+  case None extends MidiDirection("none", isInput = false, isOutput = false)
+  case Input extends MidiDirection("input", isInput = true, isOutput = false)
+  case Output extends MidiDirection("output", isInput = false, isOutput = true)
+  case InputOutput extends MidiDirection("input/output", isInput = true, isOutput = true)
 }
 
-object MidiEndpointType {
-  def apply(isInput: Boolean, isOutput: Boolean): MidiEndpointType = (isInput, isOutput) match {
+object MidiDirection {
+  /**
+   * @param isInput  Whether the endpoint supports MIDI input.
+   * @param isOutput Whether the endpoint supports MIDI output.
+   * @return the direction that combines the two capabilities.
+   */
+  def apply(isInput: Boolean, isOutput: Boolean): MidiDirection = (isInput, isOutput) match {
     case (true, false) => Input
     case (false, true) => Output
     case (true, true) => InputOutput

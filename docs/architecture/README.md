@@ -6,8 +6,8 @@ architecture document so the relevant context loads on demand when an agent work
 
 Start with the cross-cutting overview below, then follow the module index into whichever module(s) a task touches. The
 three overview documents are the single source of truth for the basics; coding agents get them always-loaded because
-[`../agents/architecture.md`](../agents/architecture.md) (imported by the root [`CLAUDE.md`](../../CLAUDE.md) /
-[`AGENTS.md`](../../AGENTS.md)) `@import`s them and adds agent-specific guidance on top.
+the root [`AGENTS.md`](../../AGENTS.md) (which [`CLAUDE.md`](../../CLAUDE.md) is a symlink to) `@import`s all three in
+its *Architecture* section and adds agent-specific guidance on top.
 
 Some documents note that an area is *subject to change* under the GitHub
 [`Architecture`](https://github.com/calinburloiu/microtonalist/milestone/13) milestone (e.g. the Swing→JavaFX GUI
@@ -42,5 +42,7 @@ By build convention each module's SBT project ID equals its base directory name 
 
 ## Other architecture material
 
+- [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *connected*/*disconnected*, *open*/*closed* and
+  *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
 - [`tuner/mpe-spec.md`](tuner/mpe-spec.md) — MPE specification notes.
 - [`tuner/mpe-tuner-paper.md`](tuner/mpe-tuner-paper.md) — MPE tuner design paper.

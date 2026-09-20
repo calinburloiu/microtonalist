@@ -34,6 +34,14 @@ class FakeJavaMidiEnvironment extends JavaMidiEnvironment {
     entries :+= (device.getDeviceInfo -> (() => device))
   }
 
+  /**
+   * Makes a device described by `info` present in the environment, resolving to the instance `newDevice` returns on
+   * each lookup, as a JDK `Sequencer` or `Synthesizer` provider builds a new instance on every lookup.
+   */
+  def plugResolvingAfresh(info: MidiDevice.Info, newDevice: () => MidiDevice): Unit = {
+    entries :+= (info -> newDevice)
+  }
+
   /** Makes a device described by `info` present in the environment, but failing to resolve with `failure`. */
   def plugUnresolvable(info: MidiDevice.Info, failure: Exception): Unit = {
     entries :+= (info -> (() => throw failure))
@@ -50,7 +58,16 @@ class FakeJavaMidiEnvironment extends JavaMidiEnvironment {
   /** The number of handlers currently subscribed to environment changes. */
   def subscriberCount: Int = handlers.size
 
-  override def deviceInfos: Seq[MidiDevice.Info] = entries.map { case (info, _) => info }
+  /**
+   * Called at the start of every scan, i.e. of every [[deviceInfos]] call; a test may replace it, e.g. to observe
+   * whether two refreshes overlap.
+   */
+  var onScan: () => Unit = () => ()
+
+  override def deviceInfos: Seq[MidiDevice.Info] = {
+    onScan()
+    entries.map { case (info, _) => info }
+  }
 
   override def deviceOf(info: MidiDevice.Info): MidiDevice = {
     entries.find { case (entryInfo, _) => entryInfo eq info } match {

@@ -15,17 +15,37 @@ Conventionally, the tests for a given production class use the same package and 
 ## Behavior-driven style
 
 Tests use `scalatest` (ScalaTest 3) with `scalamock` for mocking / stubbing. Prefer the behavior-driven (BDD) style:
-test classes extend `org.scalatest.flatspec.AnyFlatSpec` and `org.scalatest.matchers.should.Matchers`, and group cases
-into `behavior of` sections. When adding a new test case to such a suite:
+test classes extend `org.scalatest.wordspec.AnyWordSpec` and `org.scalatest.matchers.should.Matchers`, and group cases
+into `"<subject>" should { … }` blocks:
+
+```scala
+class RatioIntervalTest extends AnyWordSpec with Matchers {
+
+  "a RatioInterval" should {
+    "normalize to the base octave" in {
+      // Given / When / Then
+    }
+  }
+}
+```
+
+`AnyWordSpec` also allows an extra `"…" when { "…" should { … } }` nesting level. It is optional: use it only when a
+group genuinely splits into distinct sub-scenarios or pre-conditions, otherwise keep the flat form above.
+
+Many suites still use the older `AnyFlatSpec` style (`behavior of "X"` followed by `it should "Y" in { … }`);
+[#299](https://github.com/calinburloiu/microtonalist/issues/299) migrates them. **Write every new suite with
+`AnyWordSpec`.** When adding a case to a suite that has not been migrated yet, follow that suite's existing style
+rather than mixing the two.
+
+When adding a new test case to a suite:
 
 * **Check the test class ScalaDoc first.** Some test classes carry a ScalaDoc comment that documents
   class-specific conventions — categories, subgroup structure, test-naming rules.
   When present, those conventions take precedence over the general guidance below.
-* Analyze the current behavior section in the test file.
-* Determine if there is an existing behavior section that is appropriate for the new test and if not create a new
-  behavior section.
-* Add the test in the determined section near a similar test. If there isn't a similar one, add it at the end of the
-  behavior section.
+* Analyze the current groups in the test file.
+* Determine if there is an existing group that is appropriate for the new test and if not create a new group.
+* Add the test in the determined group near a similar test. If there isn't a similar one, add it at the end of the
+  group.
 
 ## Use Given / When / Then comments in tests
 
@@ -35,31 +55,31 @@ two (e.g. `When / Then`).
 Wrong:
 
 ```scala
-  it should "map just Cireșar scale" in {
-  val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
-  val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
-  val tuning = mapper.mapScale(ciresar, cTuningReference)
+    "map just Cireșar scale" in {
+      val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
+      val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
+      val tuning = mapper.mapScale(ciresar, cTuningReference)
 
-  tuning.completedCount shouldEqual 8
-  tuning.eFlat shouldEqual 15.64
-}
+      tuning.completedCount shouldEqual 8
+      tuning.eFlat shouldEqual 15.64
+    }
 ```
 
 Correct:
 
 ```scala
-  it should "map just Cireșar scale" in {
-  // Given
-  val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
-  val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
+    "map just Cireșar scale" in {
+      // Given
+      val ciresar = RatiosScale("Cireșar", 1 /: 1, 9 /: 8, 6 /: 5, 9 /: 7, 3 /: 2, 8 /: 5, 9 /: 5, 27 /: 14, 9 /: 4)
+      val mapper = AutoTuningMapper(shouldMapQuarterTonesLow = false, quarterToneTolerance = 13)
 
-  // When
-  val tuning = mapper.mapScale(ciresar, cTuningReference)
+      // When
+      val tuning = mapper.mapScale(ciresar, cTuningReference)
 
-  // Then
-  tuning.completedCount shouldEqual 8
-  tuning.eFlat shouldEqual 15.64
-}
+      // Then
+      tuning.completedCount shouldEqual 8
+      tuning.eFlat shouldEqual 15.64
+    }
 ```
 
 ## Use fixtures to reduce duplication in test cases setup
@@ -94,14 +114,21 @@ variant, typically from a flag the fixture takes as a parameter, so nothing can 
 duplicating a fixture for the sake of one wiring step:
 
 ```scala
-abstract class Fixture(shouldConnect: Boolean = true) {
+abstract class Fixture(shouldAttach: Boolean = true) {
   val processor: TunerProcessor = TunerProcessor(tuner)
 
-  if (shouldConnect) {
+  if (shouldAttach) {
     processor.transmitter.addReceiver(receiver)
   }
 }
 ```
+
+## No sleeping in tests
+
+Never use `Thread.sleep`: a sleep is paid on every run of the suite. Synchronise with a `CountDownLatch` or a
+`CompletableFuture` rendezvous instead, arranged so that the failing case is detected at once and only the passing
+case waits. Where the test proves that something *cannot* happen, and so must wait a finite time for it, use a short
+`await` timeout with a named constant rather than a sleep.
 
 ## Shared test utilities
 

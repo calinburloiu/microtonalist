@@ -38,24 +38,24 @@ class MidiDeviceInfoTest extends AnyFlatSpec with Matchers with TableDrivenPrope
     info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
   }
 
-  behavior of "endpointType"
+  behavior of "direction"
 
   it should "derive the directions from the connection limits" in {
     // Given
-    val cases = Table[MidiConnectionLimit, MidiConnectionLimit, MidiEndpointType, Boolean, Boolean](
-      ("transmittersLimit", "receiversLimit", "endpointType", "isInputDevice", "isOutputDevice"),
-      (MidiConnectionLimit.Unlimited, MidiConnectionLimit.Limited(0), MidiEndpointType.Input, true, false),
-      (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(1), MidiEndpointType.Output, false, true),
-      (MidiConnectionLimit.Limited(2), MidiConnectionLimit.Unlimited, MidiEndpointType.InputOutput, true, true),
-      (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(0), MidiEndpointType.None, false, false)
+    val cases = Table[MidiConnectionLimit, MidiConnectionLimit, MidiDirection, Boolean, Boolean](
+      ("transmittersLimit", "receiversLimit", "direction", "isInputDevice", "isOutputDevice"),
+      (MidiConnectionLimit.Unlimited, MidiConnectionLimit.Limited(0), MidiDirection.Input, true, false),
+      (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(1), MidiDirection.Output, false, true),
+      (MidiConnectionLimit.Limited(2), MidiConnectionLimit.Unlimited, MidiDirection.InputOutput, true, true),
+      (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(0), MidiDirection.None, false, false)
     )
 
-    forAll(cases) { (transmittersLimit, receiversLimit, endpointType, isInputDevice, isOutputDevice) =>
+    forAll(cases) { (transmittersLimit, receiversLimit, direction, isInputDevice, isOutputDevice) =>
       // When
       val deviceInfo = info.copy(transmittersLimit = transmittersLimit, receiversLimit = receiversLimit)
 
       // Then
-      deviceInfo.endpointType shouldEqual endpointType
+      deviceInfo.direction shouldEqual direction
       deviceInfo.isInputDevice shouldBe isInputDevice
       deviceInfo.isOutputDevice shouldBe isOutputDevice
     }

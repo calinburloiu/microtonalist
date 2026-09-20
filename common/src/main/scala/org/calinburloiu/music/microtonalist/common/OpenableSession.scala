@@ -25,7 +25,7 @@ trait OpenableSession extends Closeable {
 
   override def close(): Unit
 
-  def isOpened: Boolean
+  def isOpen: Boolean
 
   def uri: Option[URI]
 }

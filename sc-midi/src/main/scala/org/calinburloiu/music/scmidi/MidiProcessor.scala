@@ -26,25 +26,29 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * forwarded to every receiver of the transmitter, in order. A processor whose transmitter has no receivers is not
  * processing: such a message is dropped without reaching [[process]].
  *
- * Whenever the receiver sequence changes, [[onDisconnect]] and [[onConnect]] fire for exactly the receivers the
- * change affects, not for the whole sequence, and [[onReceiversChanged]] fires last for the sequence as a whole:
+ * A receiver of the [[transmitter]] is said to be '''attached''' to the processor, and '''detached''' when it is
+ * removed. Those terms are deliberately not ''connected'' / ''disconnected'', which say whether a MIDI device is
+ * available to the system (see [[MidiDeviceHandle]]) and are independent of attachment. The architecture document
+ * `docs/architecture/midi-device-lifecycle.md` relates the two pairs and the ''open'' / ''closed'' one.
+ *
+ * Whenever the receiver sequence changes, [[onDetach]] and [[onAttach]] fire for exactly the receivers the change
+ * affects, not for the whole sequence, and [[onReceiversChanged]] fires last for the sequence as a whole:
  *
  *   1. the receivers being dropped — present in the current sequence but absent from the incoming one — are passed
- *      to [[onDisconnect]], with the old sequence still in place;
+ *      to [[onDetach]], with the old sequence still in place;
  *   1. the sequence is replaced;
  *   1. the receivers being added — absent from the old sequence but present in the incoming one — are passed to
- *      [[onConnect]];
+ *      [[onAttach]];
  *   1. the new sequence is passed to [[onReceiversChanged]].
  *
- * A receiver present on both sides of the change (e.g. adding one more receiver to an already-connected processor)
- * triggers neither of the first two hooks: it was already initialized and stays that way. Neither is ever called with
- * an empty sequence, whereas [[onReceiversChanged]] is called on every change — a reordering included, which the
- * other two cannot report. Setting the same sequence again calls none of the three. The hooks run inside the
- * transmitter's write lock, so the
- * receiver sequence cannot change under them and a send that has not yet read the receivers is held off; a fan-out
- * already in flight is not, since [[MidiProcessorReceiver.send]] holds the read lock only long enough to snapshot
- * the receivers. A hook may send downstream through `transmitter.receivers` (the lock is reentrant); it must not wait
- * for another thread.
+ * A receiver present on both sides of the change (e.g. adding one more receiver to a processor that already has one
+ * attached) triggers neither of the first two hooks: it was already initialized and stays that way. Neither is ever
+ * called with an empty sequence, whereas [[onReceiversChanged]] is called on every change — a reordering included,
+ * which the other two cannot report. Setting the same sequence again calls none of the three. The hooks run inside
+ * the transmitter's write lock, so the receiver sequence cannot change under them and a send that has not yet read
+ * the receivers is held off; a fan-out already in flight is not, since [[MidiProcessorReceiver.send]] holds the read
+ * lock only long enough to snapshot the receivers. A hook may send downstream through `transmitter.receivers` (the
+ * lock is reentrant); it must not wait for another thread.
  */
 trait MidiProcessor {
 
@@ -69,7 +73,7 @@ trait MidiProcessor {
   }
 
   /**
-   * The [[ConcurrentMidiTransmitter]] of a [[MidiProcessor]]: runs the connect / disconnect protocol described on
+   * The [[ConcurrentMidiTransmitter]] of a [[MidiProcessor]]: runs the attach / detach protocol described on
    * [[MidiProcessor]] around every change of its receivers, whether made through a modifier or by assignment.
    */
   class MidiProcessorTransmitter private[scmidi] extends ConcurrentMidiTransmitter() {
@@ -80,11 +84,11 @@ trait MidiProcessor {
         val removedReceivers = currentReceivers.filterNot(newReceivers.contains)
         val addedReceivers = newReceivers.filterNot(currentReceivers.contains)
         if (removedReceivers.nonEmpty) {
-          onDisconnect(removedReceivers)
+          onDetach(removedReceivers)
         }
         super.setReceivers(newReceivers)
         if (addedReceivers.nonEmpty) {
-          onConnect(addedReceivers)
+          onAttach(addedReceivers)
         }
         onReceiversChanged(newReceivers)
       }
@@ -113,35 +117,35 @@ trait MidiProcessor {
   protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg]
 
   /**
-   * Callback called after receivers are added to the transmitter, to let the processor configure the output it is
-   * now connected to.
+   * Callback called after receivers are attached to the transmitter, to let the processor configure the output they
+   * lead to.
    *
-   * @param receivers the receivers newly added; never empty, and disjoint from the receivers already connected
+   * @param receivers the receivers newly attached; never empty, and disjoint from the receivers already attached
    *                  before the change, which this callback is not invoked for.
    */
-  protected def onConnect(receivers: Seq[MidiReceiver]): Unit = {}
+  protected def onAttach(receivers: Seq[MidiReceiver]): Unit = {}
 
   /**
-   * Callback called before receivers are removed from the transmitter, to let the processor leave the output it was
-   * connected to in a consistent state.
+   * Callback called before receivers are detached from the transmitter, to let the processor leave the output they
+   * lead to in a consistent state.
    *
-   * The processor can't know what was the exact state of the output device before connecting the processor to it.
-   * Leaving it in a consistent state means setting the parameters (CCs, RPNs, NRPNs etc.) that were altered by the
-   * processor to some convenient/default values.
+   * The processor can't know what was the exact state of the output device before it attached to it. Leaving it in a
+   * consistent state means setting the parameters (CCs, RPNs, NRPNs etc.) that were altered by the processor to some
+   * convenient/default values.
    *
-   * @param receivers the receivers being removed; never empty, and disjoint from the receivers that remain connected
+   * @param receivers the receivers being detached; never empty, and disjoint from the receivers that remain attached
    *                  after the change, which this callback is not invoked for.
    */
-  protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {}
+  protected def onDetach(receivers: Seq[MidiReceiver]): Unit = {}
 
   /**
    * Callback called last on every change of the transmitter's receivers, once the new sequence is in place, whether
-   * or not [[onConnect]] and [[onDisconnect]] were called for it.
+   * or not [[onAttach]] and [[onDetach]] were called for it.
    *
    * This is the callback to override to keep something else in step with the whole sequence, as
    * [[MidiSerialProcessor]] does for the last processor of its chain; a change that only reorders the receivers, or
-   * that repeats one already connected, is reported here and nowhere else. To initialize or clean up an individual
-   * receiver, override [[onConnect]] / [[onDisconnect]] instead: they say which receivers the change affects, and
+   * that repeats one already attached, is reported here and nowhere else. To initialize or clean up an individual
+   * receiver, override [[onAttach]] / [[onDetach]] instead: they say which receivers the change affects, and
    * this one does not.
    *
    * @param receivers the receivers messages are forwarded to from now on, in order; may be empty.

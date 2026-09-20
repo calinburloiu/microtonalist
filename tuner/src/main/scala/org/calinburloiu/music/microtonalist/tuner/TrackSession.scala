@@ -78,7 +78,7 @@ class TrackSession(trackManager: TrackManager,
    *
    * @return True if the session is open, false otherwise.
    */
-  override def isOpened: Boolean = _uri.isDefined
+  override def isOpen: Boolean = _uri.isDefined
 
   /**
    * Retrieves the URI associated with the current track session, if any.

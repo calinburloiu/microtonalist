@@ -58,7 +58,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     trackSession.uri shouldBe empty
     trackSession.tracks.isEmpty shouldBe true
     trackSession.tracks.nonEmpty shouldBe false
-    trackSession.isOpened shouldBe false
+    trackSession.isOpen shouldBe false
   }
 
   "open" should "load tracks from the given URI" in new Fixture {
@@ -77,7 +77,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     trackSession.uri should contain(uri)
     trackRepo.readTracksAsync.verify(uri).once()
 
-    trackSession.isOpened shouldBe true
+    trackSession.isOpen shouldBe true
   }
 
   "close" should "unload tracks and clear the state" in new Fixture {
@@ -102,7 +102,7 @@ class TrackSessionTest extends AnyFlatSpec with Matchers with MockFactory {
     // Then
     trackSession.uri shouldBe empty
     trackSession.tracks.tracks shouldBe empty
-    trackSession.isOpened shouldBe false
+    trackSession.isOpen shouldBe false
 
     // Expect
     businessyncMock.publish.expects(TracksClosedEvent(None))

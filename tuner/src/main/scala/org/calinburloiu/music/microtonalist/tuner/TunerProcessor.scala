@@ -27,15 +27,18 @@ import javax.annotation.concurrent.NotThreadSafe
  *
  * This class extends [[MidiProcessor]] and facilitates the application of tunings to the output and to MIDI messages
  * sent through it. It encapsulates the logic for interacting with the provided [[Tuner]] instance
- * to perform tuning and processing operations, while ensuring proper connection and disconnection
+ * to perform tuning and processing operations, while ensuring proper attach and detach
  * handling through the lifecycle events of the processor.
  *
  * The primary responsibilities of this class include:
  * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receivers.
  * - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
- * - Properly resetting the tuner and sending initialization messages when connected.
- * - Restoring the default tuning and ensuring a clean state upon disconnection.
- * - Safeguarding message transmission to the MIDI receivers and handling any transmission errors.
+ * - Properly resetting the tuner and sending initialization messages to each receiver that attaches.
+ * - Resetting the tuner on request and sending the initialization messages to every receiver.
+ * - Restoring the default tuning and ensuring a clean state on each receiver that detaches.
+ *
+ * Sending is not guarded against exceptions here: a message that its device can no longer take should be dropped
+ * and addressed by [[org.calinburloiu.music.scmidi.MidiDeviceHandle]].
  *
  * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures
  * external synchronization.
@@ -58,46 +61,49 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     sendToReceivers(tuningMessages, -1)
   }
 
+  /**
+   * Resets the tuner and sends the messages that initialize the output to every receiver of the transmitter, as a
+   * newly attached receiver gets them, e.g. when the output device (re)opens after the processor attached to it.
+   *
+   * It does not apply any tuning: the output plays in the tuning the tuner is left in by its reset.
+   */
+  def reset(): Unit = {
+    val initMessages = tuner.reset()
+    sendToReceivers(initMessages, -1)
+  }
+
   override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = tuner.process(message)
 
-  override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = {
-    super.onConnect(receivers)
+  override protected def onAttach(receivers: Seq[MidiReceiver]): Unit = {
+    super.onAttach(receivers)
 
     // TODO #121 tuner.reset() mutates state shared by every receiver of this processor, not just the ones newly
-    //  connected here. Harmless today because a multi-receiver TunerProcessor is only ever torn down and rebuilt as
+    //  attached here. Harmless today because a multi-receiver TunerProcessor is only ever torn down and rebuilt as
     //  a whole (TrackManager.replaceAllTracks); revisit once a track can be rewired incrementally while running.
     val initMessages = tuner.reset()
     sendTo(receivers, initMessages, -1)
 
-    logger.info(s"Connected the processor for tuner $tuner to ${receivers.size} new receiver(s).")
+    logger.info(s"Attached the processor for tuner $tuner to ${receivers.size} new receiver(s).")
   }
 
-  override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {
-    super.onDisconnect(receivers)
+  override protected def onDetach(receivers: Seq[MidiReceiver]): Unit = {
+    super.onDetach(receivers)
 
     // TODO #121 tuner.tune(Tuning.Standard) mutates state shared by every receiver of this processor, so it would
-    //  also flip the tuning applied to the receivers that remain connected if this processor ever has more than one
-    //  receiver left after a partial disconnect. See the onConnect TODO above for the same caveat on the other side.
+    //  also flip the tuning applied to the receivers that remain attached if this processor ever has more than one
+    //  receiver left after a partial detach. See the onAttach TODO above for the same caveat on the other side.
     val standardTuningMessages = tuner.tune(Tuning.Standard)
     sendTo(receivers, standardTuningMessages, -1)
 
-    logger.info(s"Disconnected the processor for tuner $tuner from ${receivers.size} receiver(s).")
+    logger.info(s"Detached the processor for tuner $tuner from ${receivers.size} receiver(s).")
   }
 
   private def sendToReceivers(messages: Seq[MidiMsg], timeStamp: Long): Unit = sendTo(transmitter.receivers,
     messages, timeStamp)
 
   private def sendTo(receivers: Seq[MidiReceiver], messages: Seq[MidiMsg], timeStamp: Long): Unit = {
-    // TODO #97 Handle the try differently
-    try {
-      for (message <- messages; outputReceiver <- receivers) {
-        outputReceiver.send(message, timeStamp)
-      }
-    } catch {
-      case e: IllegalStateException => throw TunerException(e)
+    for (message <- messages; outputReceiver <- receivers) {
+      outputReceiver.send(message, timeStamp)
     }
   }
 }
-
-class TunerException(cause: Throwable) extends RuntimeException(
-  "Failed to send message to device! Did you disconnect the device?", cause)

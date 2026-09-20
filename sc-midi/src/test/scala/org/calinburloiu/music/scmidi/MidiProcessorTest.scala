@@ -42,12 +42,12 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
       Seq(message)
     }
 
-    override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = {
-      hookCalls += (("connect", receivers))
+    override protected def onAttach(receivers: Seq[MidiReceiver]): Unit = {
+      hookCalls += (("attach", receivers))
     }
 
-    override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {
-      hookCalls += (("disconnect", receivers))
+    override protected def onDetach(receivers: Seq[MidiReceiver]): Unit = {
+      hookCalls += (("detach", receivers))
     }
 
     override protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = {
@@ -61,26 +61,26 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
     override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message)
 
-    override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = hookNames += "connect"
+    override protected def onAttach(receivers: Seq[MidiReceiver]): Unit = hookNames += "attach"
 
-    override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = hookNames += "disconnect"
+    override protected def onDetach(receivers: Seq[MidiReceiver]): Unit = hookNames += "detach"
 
     override protected def onReceiversChanged(receivers: Seq[MidiReceiver]): Unit = hookNames += "changed"
   }
 
   /** Snapshots the transmitter's receivers as seen from inside each hook. */
   class SnapshottingMidiProcessor extends MidiProcessor {
-    var receiversOnDisconnect: Seq[MidiReceiver] = Seq.empty
-    var receiversOnConnect: Seq[MidiReceiver] = Seq.empty
+    var receiversOnDetach: Seq[MidiReceiver] = Seq.empty
+    var receiversOnAttach: Seq[MidiReceiver] = Seq.empty
 
     override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message)
 
-    override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = {
-      receiversOnConnect = transmitter.receivers
+    override protected def onAttach(receivers: Seq[MidiReceiver]): Unit = {
+      receiversOnAttach = transmitter.receivers
     }
 
-    override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = {
-      receiversOnDisconnect = transmitter.receivers
+    override protected def onDetach(receivers: Seq[MidiReceiver]): Unit = {
+      receiversOnDetach = transmitter.receivers
     }
   }
 
@@ -94,9 +94,9 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
     override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message)
 
-    override protected def onConnect(receivers: Seq[MidiReceiver]): Unit = probe()
+    override protected def onAttach(receivers: Seq[MidiReceiver]): Unit = probe()
 
-    override protected def onDisconnect(receivers: Seq[MidiReceiver]): Unit = probe()
+    override protected def onDetach(receivers: Seq[MidiReceiver]): Unit = probe()
 
     private def probe(): Unit = {
       val completed = AtomicBoolean(false)
@@ -162,15 +162,15 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
   behavior of "transmitter"
 
-  it should "call onConnect with the receiver when the first receiver is added" in new Fixture {
+  it should "call onAttach with the receiver when the first receiver is added" in new Fixture {
     // When
     processor.transmitter.addReceiver(receiver1)
 
     // Then
-    processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1)))
+    processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)))
   }
 
-  it should "call onDisconnect with the old receiver, then onConnect with the new one, when the receivers are " +
+  it should "call onDetach with the old receiver, then onAttach with the new one, when the receivers are " +
     "fully replaced" in new Fixture {
       // Given
       processor.transmitter.receivers = Seq(receiver1)
@@ -180,14 +180,14 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
       // Then
       processor.hookCalls.toSeq shouldEqual Seq(
-        ("connect", Seq(receiver1)),
-        ("disconnect", Seq(receiver1)),
-        ("connect", Seq(receiver2))
+        ("attach", Seq(receiver1)),
+        ("detach", Seq(receiver1)),
+        ("attach", Seq(receiver2))
       )
     }
 
-  it should "call only onConnect, with the receiver being added, when a receiver is added to a connected " +
-    "processor" in new Fixture {
+  it should "call only onAttach, with the receiver being added, when a receiver is added to a processor that " +
+    "already has one attached" in new Fixture {
       // Given
       processor.transmitter.addReceiver(receiver1)
 
@@ -195,11 +195,11 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
       processor.transmitter.addReceiver(receiver2)
 
       // Then
-      processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1)), ("connect", Seq(receiver2)))
+      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)), ("attach", Seq(receiver2)))
       processor.transmitter.receivers shouldEqual Seq(receiver1, receiver2)
     }
 
-  it should "call only onDisconnect, with the receiver being removed, when the last receiver is removed" in
+  it should "call only onDetach, with the receiver being removed, when the last receiver is removed" in
     new Fixture {
       // Given
       processor.transmitter.addReceiver(receiver1)
@@ -208,10 +208,10 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
       processor.transmitter.removeReceiver(receiver1)
 
       // Then
-      processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1)), ("disconnect", Seq(receiver1)))
+      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)), ("detach", Seq(receiver1)))
     }
 
-  it should "call only onDisconnect, with one receiver that remains untouched, when one of two receivers is " +
+  it should "call only onDetach, with one receiver that remains untouched, when one of two receivers is " +
     "removed" in new Fixture {
       // Given
       processor.transmitter.receivers = Seq(receiver1, receiver2)
@@ -220,10 +220,10 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
       processor.transmitter.removeReceiver(receiver1)
 
       // Then
-      processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1, receiver2)), ("disconnect", Seq(receiver1)))
+      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1, receiver2)), ("detach", Seq(receiver1)))
     }
 
-  it should "call only onDisconnect with every receiver when the receivers are cleared" in new Fixture {
+  it should "call only onDetach with every receiver when the receivers are cleared" in new Fixture {
     // Given
     processor.transmitter.receivers = Seq(receiver1, receiver2)
 
@@ -232,8 +232,8 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
 
     // Then
     processor.hookCalls.toSeq shouldEqual Seq(
-      ("connect", Seq(receiver1, receiver2)),
-      ("disconnect", Seq(receiver1, receiver2))
+      ("attach", Seq(receiver1, receiver2)),
+      ("detach", Seq(receiver1, receiver2))
     )
   }
 
@@ -245,7 +245,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
     processor.transmitter.receivers = Seq(receiver1)
 
     // Then
-    processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1)))
+    processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)))
   }
 
   it should "call no hook when an empty transmitter is cleared" in new Fixture {
@@ -281,11 +281,11 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
     processor.transmitter.receivers = Seq(receiver2, receiver1)
 
     // Then
-    processor.hookCalls.toSeq shouldEqual Seq(("connect", Seq(receiver1, receiver2)))
+    processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1, receiver2)))
     processor.receiversChangedCalls.toSeq shouldEqual Seq(Seq(receiver1, receiver2), Seq(receiver2, receiver1))
   }
 
-  it should "call onReceiversChanged after onDisconnect and onConnect" in new Fixture {
+  it should "call onReceiversChanged after onDetach and onAttach" in new Fixture {
     // Given
     val ordering: OrderingMidiProcessor = OrderingMidiProcessor()
     ordering.transmitter.receivers = Seq(receiver1)
@@ -294,10 +294,10 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
     ordering.transmitter.receivers = Seq(receiver2)
 
     // Then
-    ordering.hookNames.toSeq shouldEqual Seq("connect", "changed", "disconnect", "connect", "changed")
+    ordering.hookNames.toSeq shouldEqual Seq("attach", "changed", "detach", "attach", "changed")
   }
 
-  it should "still expose the old receivers during onDisconnect and the new ones during onConnect" in new Fixture {
+  it should "still expose the old receivers during onDetach and the new ones during onAttach" in new Fixture {
     // Given
     val snapshotting: SnapshottingMidiProcessor = SnapshottingMidiProcessor()
     snapshotting.transmitter.receivers = Seq(receiver1)
@@ -306,8 +306,8 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
     snapshotting.transmitter.receivers = Seq(receiver2)
 
     // Then
-    snapshotting.receiversOnDisconnect shouldEqual Seq(receiver1)
-    snapshotting.receiversOnConnect shouldEqual Seq(receiver2)
+    snapshotting.receiversOnDetach shouldEqual Seq(receiver1)
+    snapshotting.receiversOnAttach shouldEqual Seq(receiver2)
   }
 
   it should "run the hooks while holding the write lock, through a modifier and through a direct assignment" in
@@ -319,7 +319,7 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
       probing.transmitter.addReceiver(receiver1)
       probing.transmitter.receivers = Seq(receiver2)
 
-      // Then: connect; disconnect, connect
+      // Then: attach; detach, attach
       probing.readCompletedDuringHook.toSeq shouldEqual Seq(false, false, false)
     }
 }

@@ -46,6 +46,14 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
     this(Seq(tuningChanger), tuningService)
   }
 
+  /**
+   * Resets every [[TuningChanger]], e.g. so that a trigger held when the input device disappeared does not swallow the
+   * first trigger after the device comes back.
+   */
+  def reset(): Unit = {
+    tuningChangers.foreach(_.reset())
+  }
+
   override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = {
     val (tuningChange, effectiveTuningChanger) = TuningChangeProcessor.computeTuningChange(
       message, tuningChangers.toList)
