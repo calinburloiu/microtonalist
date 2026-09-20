@@ -28,7 +28,14 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
 
   private val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
 
-  private val allNotesOff: Seq[MidiMsg] = (0 until MidiChannelCount).map(AllNotesOffMidiMsg(_))
+  /**
+   * What releasing the input of a track sends straight to its output, on each of the 16 channels: the pedals
+   * released first, then All Notes Off.
+   */
+  private val inputRelease: Seq[MidiMsg] = (0 until MidiChannelCount).flatMap { channel =>
+    Seq(CcMidiMsg(channel, MidiCc.SustainPedal, 0), CcMidiMsg(channel, MidiCc.SostenutoPedal, 0),
+      AllNotesOffMidiMsg(channel))
+  }
 
   private val keyboardId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Seaboard", "ROLI")
   private val pianoId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
@@ -130,7 +137,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Input))
 
       // Then
-      deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
+      deviceReceivers(pianoId).messages shouldEqual inputRelease :+ initMessage
       deviceReceivers(synthId).messages shouldBe empty
     }
 
@@ -148,8 +155,8 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Input))
 
       // Then
-      deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
-      deviceReceivers(synthId).messages shouldEqual allNotesOff :+ initMessage
+      deviceReceivers(pianoId).messages shouldEqual inputRelease :+ initMessage
+      deviceReceivers(synthId).messages shouldEqual inputRelease :+ initMessage
     }
 
     "release the output of the tracks whose input device failed to disconnect" in new Fixture {
@@ -158,7 +165,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
         MidiDeviceFailedToDisconnectEvent(keyboardId, MidiDirection.Input, IllegalStateException("Cannot close")))
 
       // Then
-      deviceReceivers(pianoId).messages shouldEqual allNotesOff :+ initMessage
+      deviceReceivers(pianoId).messages shouldEqual inputRelease :+ initMessage
       deviceReceivers(synthId).messages shouldBe empty
     }
 
@@ -185,12 +192,19 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
   "replaceAllTracks" should {
     "not deliver an event published while it builds the new tracks to the tracks it closed" in new Fixture {
       // Given
+      // A receiver on the output of the track about to be closed. Track.close() detaches only the output device
+      // receiver, so this one stays attached and records what a tuner reset reaching the closed track would send —
+      // which the device receiver, detached by then, could not show.
+      val closedTrackOutput: RecordingMidiReceiver = RecordingMidiReceiver()
+      trackManager.tracks.head.transmitter.addReceiver(closedTrackOutput)
+      closedTrackOutput.clear()
       onOpenOutput = deviceId => businessync.publish(MidiDeviceOpenedEvent(deviceId, MidiDirection.Output))
 
       // When
       trackManager.replaceAllTracks(trackSpecs)
 
       // Then
+      closedTrackOutput.messages shouldBe empty
       // Only the new track, connecting its device receiver when it is built, resets the tuner
       deviceReceivers(pianoId).messages shouldEqual Seq(initMessage)
       deviceReceivers(synthId).messages shouldEqual Seq(initMessage)

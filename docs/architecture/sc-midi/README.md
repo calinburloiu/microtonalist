@@ -110,10 +110,16 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
     the `Real Time Sequencer`. Their providers build a new instance on every lookup, so without it every refresh (any
     MIDI plug anywhere) would close and reopen them. While the held instance is still open, the handle keeps it and
     its info, and reports nothing.
-- **Locking and publishing.** A manager-wide `ReentrantLock` serialises `refresh()`, the open/close operations,
-  `close()` and the registry reads (lock order: manager, then handle). Resolution happens before taking the lock. The
-  events an operation collects are published in order only after the lock is released, because Guava delivers them
-  synchronously and `TrackManager`'s handler sends MIDI.
+- **Locking and publishing.** Two `ReentrantLock`s, in this order: a refresh lock held for the whole of a refresh,
+  and a manager-wide lock serialising the open/close operations, `close()` and the registry reads (full lock order:
+  refresh, manager, then handle). The refresh lock keeps two refreshes from interleaving, which would otherwise let
+  the one that scanned first reconcile last and win with a stale snapshot. Resolution happens inside the refresh lock
+  but before the manager lock, so a blocking Java Sound call neither holds off the readers nor runs while holding the
+  lock its own environment callbacks need. The events an operation collects are published in order only after the
+  locks are released, because Guava delivers them synchronously and `TrackManager`'s handler sends MIDI.
+- **Construction.** `JavaMidiManager.apply` builds the instance and only then starts it — the first scan and the
+  environment subscription happen outside the constructor, so it neither publishes events nor hands out a reference
+  to a half-built manager.
 
 `JavaMidiDeviceHandle` is the `@ThreadSafe` handle over a `javax.sound.midi.MidiDevice` for the one direction it is
 requested for, its `requestedDirection`, which its events carry — not its inherited `direction`, which tells the

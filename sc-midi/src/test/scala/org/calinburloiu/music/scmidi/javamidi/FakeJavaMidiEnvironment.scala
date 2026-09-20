@@ -58,7 +58,16 @@ class FakeJavaMidiEnvironment extends JavaMidiEnvironment {
   /** The number of handlers currently subscribed to environment changes. */
   def subscriberCount: Int = handlers.size
 
-  override def javaDeviceInfos: Seq[MidiDevice.Info] = entries.map { case (info, _) => info }
+  /**
+   * Called at the start of every scan, i.e. of every [[javaDeviceInfos]] call; a test may replace it, e.g. to observe
+   * whether two refreshes overlap.
+   */
+  var onScan: () => Unit = () => ()
+
+  override def javaDeviceInfos: Seq[MidiDevice.Info] = {
+    onScan()
+    entries.map { case (info, _) => info }
+  }
 
   override def javaDeviceOf(javaInfo: MidiDevice.Info): MidiDevice = {
     entries.find { case (entryInfo, _) => entryInfo eq javaInfo } match {

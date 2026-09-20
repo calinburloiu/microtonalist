@@ -189,8 +189,8 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
 
   behavior of "releaseInput"
 
-  it should "send All Notes Off on every channel straight to the output, then reset the tuning changers and tuner" in
-    new DeviceFixture {
+  it should "release the pedals and send All Notes Off on every channel straight to the output, then reset the " +
+    "tuning changers and tuner" in new DeviceFixture {
       // Given
       outputReceiver.clear()
 
@@ -198,7 +198,13 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
       track.releaseInput()
 
       // Then
-      outputReceiver.messages shouldEqual (0 until 16).map(AllNotesOffMidiMsg(_)) :+ initMessage
+      // The pedals are released first: a latched Hold or Sostenuto takes priority over All Notes Off, so a note held
+      // by one would keep sounding otherwise.
+      val expectedRelease: Seq[MidiMsg] = (0 until 16).flatMap { channel =>
+        Seq(CcMidiMsg(channel, MidiCc.SustainPedal, 0), CcMidiMsg(channel, MidiCc.SostenutoPedal, 0),
+          AllNotesOffMidiMsg(channel))
+      }
+      outputReceiver.messages shouldEqual expectedRelease :+ initMessage
       tuner.process.verify(*).never()
       (() => tuningChanger.reset()).verify().once()
     }

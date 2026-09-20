@@ -232,7 +232,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
           if (wasOpen) {
             logger.info(s"Successfully closed $requestedDirection device $id.")
           }
-          logger.warn(s"${requestedDirection.toString.capitalize} device $id was disconnected.")
+          logDisconnected(wasOpen)
           val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, requestedDirection)) else Seq.empty
           closedEvents :+ MidiDeviceDisconnectedEvent(id, requestedDirection)
         } catch {
@@ -310,17 +310,24 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   }
 
   /**
-   * Opens `javaDevice`, obtaining the receiver of an output and subscribing to the transmitter of an input, and only
-   * then moves to [[State.Open]]. On any failure, it closes the device as far as it can and rolls back to
-   * [[State.Connected]] with no reference held, so that the handle is no longer requested to open.
+   * Opens `javaDevice`, obtaining its receiver when the handle is requested for output and subscribing to its
+   * transmitter when it is requested for input, and only then moves to [[State.Open]]. On any failure, it closes the
+   * device as far as it can and rolls back to [[State.Connected]] with no reference held, so that the handle is no
+   * longer requested to open.
    */
   private def doOpen(javaDevice: MidiDevice): Seq[MidiEvent] = {
     try {
+      // TODO #315 A device working in both directions has one handle per direction over the same MidiDevice
+      //  instance, and each opens and closes it on its own. Java Sound closes it outright on the first close, so
+      //  either handle can close it under the other, which goes on reporting State.Open over a dead device.
       javaDevice.open()
-      if (isOutputDevice) {
+      // Keyed on what the handle is for, not on what the device can do: a device that works in both directions has
+      // one handle per direction, and an input handle taking a receiver would spend one of the device's, which are
+      // limited on some of them.
+      if (requestedDirection.isOutput) {
         deviceReceiver = Some(javaDevice.getReceiver)
       }
-      if (isInputDevice) {
+      if (requestedDirection.isInput) {
         javaDevice.getTransmitter.setReceiver(inboundReceiver)
       }
 
@@ -374,6 +381,23 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       logger.warn(warnMessage)
     } else {
       logger.debug(debugMessage)
+    }
+  }
+
+  /**
+   * Reports that the device got disconnected: at warn level if the handle had it open, at debug level otherwise.
+   *
+   * Losing a device that was open interrupts what it was playing, which the user needs to know about. A device nobody
+   * opened is merely one that stopped being available, so it is reported at the level of the connection that made it
+   * so.
+   */
+  private def logDisconnected(wasOpen: Boolean): Unit = {
+    def message: String = s"${requestedDirection.toString.capitalize} device $id was disconnected."
+
+    if (wasOpen) {
+      logger.warn(message)
+    } else {
+      logger.debug(message)
     }
   }
 

@@ -25,7 +25,7 @@ package org.calinburloiu.music.scmidi
  * @param isInput  Indicates whether the endpoint supports MIDI input.
  * @param isOutput Indicates whether the endpoint supports MIDI output.
  */
-enum MidiDirection(val name: String, isInput: Boolean, isOutput: Boolean) {
+enum MidiDirection(val name: String, val isInput: Boolean, val isOutput: Boolean) {
   override def toString: String = name
 
   case None extends MidiDirection("none", isInput = false, isOutput = false)
@@ -35,6 +35,11 @@ enum MidiDirection(val name: String, isInput: Boolean, isOutput: Boolean) {
 }
 
 object MidiDirection {
+  /**
+   * @param isInput  Whether the endpoint supports MIDI input.
+   * @param isOutput Whether the endpoint supports MIDI output.
+   * @return the direction that combines the two capabilities.
+   */
   def apply(isInput: Boolean, isOutput: Boolean): MidiDirection = (isInput, isOutput) match {
     case (true, false) => Input
     case (false, true) => Output

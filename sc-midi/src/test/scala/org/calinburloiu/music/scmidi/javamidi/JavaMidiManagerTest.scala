@@ -28,7 +28,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.concurrent.{CompletableFuture, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
 import javax.sound.midi.MidiUnavailableException
 import scala.collection.mutable
 
@@ -42,6 +43,15 @@ import scala.collection.mutable
 class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks with Stubs {
 
   private val deviceName: String = "CoreMIDI4J - FP-90"
+
+  /** How long a test waits for something that should happen at once; only a broken manager ever reaches it. */
+  private val AwaitTimeoutMillis: Long = 5000
+
+  /**
+   * How long a scan stays open for another to join it. Only a manager that lets refreshes overlap fills it; a
+   * correct one pays it once, so it is kept short.
+   */
+  private val ScanOverlapWindowMillis: Long = 25
 
   /** The Java Sound information of a device that a test plugs in without a device behind it. */
   private val javaDeviceInfo: TestDeviceInfo = TestDeviceInfo(deviceName, "Roland", "Digital piano", "1.0")
@@ -168,6 +178,27 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       businessync.publish.calls shouldEqual
         Seq(MidiDeviceConnectedEvent(id, direction), MidiDeviceOpenedEvent(id, direction))
     }
+
+    "report a device that fails to open, keeping its handle live and requested to open by nobody" in
+      new EndpointFixture {
+        // Given
+        val failure: Exception = MidiUnavailableException("The device is busy")
+        device.openFailure = Some(failure)
+
+        // When
+        val handle: MidiDeviceHandle = manager.openDevice(id, direction)
+
+        // Then
+        handle.state shouldEqual State.Connected
+        handle.isOpenRequested shouldBe false
+        device.isOpen shouldBe false
+        manager.openDevicesFor(direction) shouldBe empty
+        manager.devicesRequestedToOpenFor(direction) shouldBe empty
+        // The handle stays live and listed, the device being still connected, so opening it again can retry
+        manager.deviceOf(id, direction) shouldEqual Some(handle)
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceConnectedEvent(id, direction), MidiDeviceFailedToOpenEvent(id, direction, failure))
+      }
 
     "return the same handle when a device is opened again" in new EndpointFixture {
       // Given
@@ -473,6 +504,39 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   }
 
   "refresh" should {
+    "serialise concurrent refreshes, so that one never scans the environment while another is refreshing" in
+      new Fixture {
+        // Given
+        val manager: JavaMidiManager = newManager()
+        val scansInFlight: AtomicInteger = AtomicInteger()
+        val mostScansInFlight: AtomicInteger = AtomicInteger()
+        val otherRefreshRunning: CountDownLatch = CountDownLatch(1)
+        val bothScanning: CountDownLatch = CountDownLatch(2)
+
+        environment.onScan = () => {
+          mostScansInFlight.accumulateAndGet(scansInFlight.incrementAndGet(), Math.max)
+          bothScanning.countDown()
+          // Hold this scan open only until a second one joins it, which a refresh allowed to run alongside does at
+          // once, releasing both. Serialised, no second scan starts, so this one waits out the window below and the
+          // other, running afterwards, finds the latch already at zero and returns immediately. The window opens
+          // only once the other refresh is known to be running, so it measures the lock and not the thread start.
+          otherRefreshRunning.await(AwaitTimeoutMillis, TimeUnit.MILLISECONDS)
+          bothScanning.await(ScanOverlapWindowMillis, TimeUnit.MILLISECONDS)
+          scansInFlight.decrementAndGet()
+        }
+
+        // When
+        val firstRefresh: CompletableFuture[Void] = CompletableFuture.runAsync(() => manager.refresh())
+        val secondRefresh: CompletableFuture[Void] = CompletableFuture.runAsync { () =>
+          otherRefreshRunning.countDown()
+          manager.refresh()
+        }
+
+        // Then
+        Seq(firstRefresh, secondRefresh).foreach(_.get(AwaitTimeoutMillis, TimeUnit.MILLISECONDS))
+        mostScansInFlight.get shouldEqual 1
+      }
+
     "list each device in the directions its connection limits allow" in {
       // Given
       val cases = Table(

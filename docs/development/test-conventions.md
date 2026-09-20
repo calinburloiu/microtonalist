@@ -123,6 +123,13 @@ abstract class Fixture(shouldAttach: Boolean = true) {
 }
 ```
 
+## No sleeping in tests
+
+Never use `Thread.sleep`: a sleep is paid on every run of the suite. Synchronise with a `CountDownLatch` or a
+`CompletableFuture` rendezvous instead, arranged so that the failing case is detected at once and only the passing
+case waits. Where the test proves that something *cannot* happen, and so must wait a finite time for it, use a short
+`await` timeout with a named constant rather than a sleep.
+
 ## Shared test utilities
 
 When a test helper is needed across multiple modules, do **not** use sbt's `test->test` configuration dependencies —
