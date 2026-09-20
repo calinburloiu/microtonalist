@@ -228,6 +228,27 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       businessync.publish.calls shouldEqual Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceOpenedEvent(id, et))
     }
 
+    "report a device that fails to open, keeping its handle live and requested to open by nobody" in
+      new EndpointFixture {
+        // Given
+        val failure: Exception = MidiUnavailableException("The device is busy")
+        device.openFailure = Some(failure)
+
+        // When
+        val handle: MidiDeviceHandle = endpoint.open(manager, id)
+
+        // Then
+        handle.state shouldEqual State.Connected
+        handle.isOpenRequested shouldBe false
+        device.isOpen shouldBe false
+        endpoint.openDevices(manager) shouldBe empty
+        endpoint.devicesRequestedToOpen(manager) shouldBe empty
+        // The handle stays live and listed, the device being still connected, so opening it again can retry
+        endpoint.deviceHandleOf(manager, id) shouldEqual Some(handle)
+        businessync.publish.calls shouldEqual
+          Seq(MidiDeviceConnectedEvent(id, et), MidiDeviceFailedToOpenEvent(id, et, failure))
+      }
+
     "return the same handle when a device is opened again" in new EndpointFixture {
       // Given
       val handle: MidiDeviceHandle = endpoint.open(manager, id)

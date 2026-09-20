@@ -86,7 +86,14 @@ class JavaMidiManager(businessync: Businessync,
 
   override def refresh(): Unit = refreshAfter(Seq.empty)
 
-  /** Refreshes, publishing `leadingEvents` before the events of the refresh. */
+  /**
+   * Refreshes, publishing `leadingEvents` before the events of the refresh.
+   *
+   * The environment is scanned before the lock is taken, so that resolving the devices — which calls into Java Sound
+   * and can block — does not hold off the readers. Refreshes must therefore not overlap, as [[refresh]] states: the
+   * one that scanned first can reconcile last and win with a stale snapshot. Nothing serialises them here, since
+   * CoreMIDI4J delivers its environment callbacks one at a time and [[init]] is the only other caller.
+   */
   private def refreshAfter(leadingEvents: Seq[MidiEvent]): Unit = {
     val resolutionEvents = mutable.Buffer.from(leadingEvents)
     val devices = environment.deviceInfos.flatMap { javaInfo =>

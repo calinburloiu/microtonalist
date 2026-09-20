@@ -42,7 +42,8 @@ class TestDeviceInfo(name: String, vendor: String, description: String, version:
  * @param vendor          Vendor of the device.
  * @param maxTransmitters What `getMaxTransmitters` reports.
  * @param maxReceivers    What `getMaxReceivers` reports; with `0`, `getReceiver` throws `MidiUnavailableException`.
- * @param openFailure     Thrown by `open` when defined, leaving the device closed.
+ * @param openFailure     Thrown by `open` when defined, leaving the device closed; a test may set it at any
+ *                        time, e.g. to make only a later `open` call fail.
  * @param closeFailure    Thrown by `close` when defined, leaving the device in its current state; a test may set it at
  *                        any time, e.g. to make closing fail only once the device is already closed.
  * @param receiverFailure Thrown by `getReceiver` when defined, instead of creating a receiver; a test may set it at any
@@ -52,7 +53,7 @@ class FakeMidiDevice(name: String,
                      vendor: String = "Roland",
                      maxTransmitters: Int = -1,
                      maxReceivers: Int = -1,
-                     openFailure: Option[Exception] = None,
+                     var openFailure: Option[Exception] = None,
                      var closeFailure: Option[Exception] = None,
                      var receiverFailure: Option[Exception] = None) extends MidiDevice {
 

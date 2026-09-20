@@ -37,8 +37,8 @@ the handle waits for it.
 out through `handle.receiver` or come in through `handle.transmitter`.
 
 - Requested through `MidiManager.openInput` / `openOutput` and released through `closeInput` / `closeOutput`, which
-  return and act on the handle of a `MidiDeviceId`. Attaching an input or output is what triggers the request and
-  detaching it what triggers the release — see [How the three relate](#how-the-three-relate).
+  return and act on the handle of a `MidiDeviceId`. A track requests what it attaches and releases what it detaches —
+  today by making both calls itself — see [How the three relate](#how-the-three-relate).
 - **Both are reference-counted.** `openInput` / `openOutput` take one reference; `closeInput` / `closeOutput` release
   one. The device is really closed only when the last reference goes, because several tracks may share one device —
   releasing one of them must not silence the others.
@@ -79,7 +79,7 @@ on each receiver that detaches, which [#305](#subject-to-change-305) moves onto 
 
 The pairs are not independent. The wiring drives the device requests, and the platform drives the rest:
 
-> **Attaching requests opening; detaching requests closing.**
+> **What a track attaches, it requests open; what it detaches, it releases.**
 
 A track attaches an input or output whether or not its device is connected, and that attach is what asks the
 `MidiManager` for the device with `openInput` / `openOutput`; detaching is what asks for its release with
@@ -100,9 +100,10 @@ What this does *not* mean is that a request is its effect:
 
 Two situations are therefore errors rather than states to design for:
 
-- **Attached to a `Closed` handle.** Attaching is what takes a handle out of `Closed`, so an input or output that is
-  attached is always at least requested to open: `WaitingToOpen` while its device is not connected, `Open` once it
-  is. Attaching to a closed device is meaningless, not merely inert.
+- **Attached to a `Closed` handle.** A track requests its handle open, so an input or output it attached is always
+  at least requested to open: `WaitingToOpen` while its device is not connected, `Open` once it is. The wiring itself
+  is inert on a handle that is not open — `MidiDeviceHandle` supports it and simply carries nothing — so this is a
+  sign of a wiring bug rather than an error the handle rejects.
 - **Closed while still attached.** A device must be detached before it is released; closing one a track is still
   attached to should be logged as an error. Nothing checks this today — `Track.close()` simply observes the rule,
   detaching from both devices before it calls `closeInput` / `closeOutput`.

@@ -36,6 +36,11 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
   private val requestedDirection: MidiDirection = MidiDirection.Output
 
+  /**
+   * The failure the fixtures inject into the device. Being shared, it must not be used where the production code
+   * calls `addSuppressed` on it, which mutates it for good: the case that needs an open failure and a close failure
+   * at once builds its own instances for that reason.
+   */
   private val failure: Exception = MidiUnavailableException("The device is busy")
 
   private val connected: MidiEvent = MidiDeviceConnectedEvent(deviceId, requestedDirection)
@@ -355,6 +360,28 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       events shouldEqual Seq(connected, opened)
       handle.state shouldEqual State.Open
       repluggedDevice.isOpen shouldBe true
+    }
+
+    "keep both references of a handle held twice when its device is replugged" in new Fixture {
+      // Given
+      val repluggedDevice: FakeMidiDevice = newDevice()
+      connect()
+      handle.open()
+      handle.open()
+      handle.disconnect()
+
+      // When
+      connect(repluggedDevice)
+
+      // Then
+      // Disconnecting leaves the reference count untouched, so the replugged device still takes two closes to close,
+      // as two tracks sharing it expect
+      handle.state shouldEqual State.Open
+      handle.close() shouldBe empty
+      handle.state shouldEqual State.Open
+      handle.close() shouldEqual Seq(closed)
+      handle.state shouldEqual State.Connected
+      repluggedDevice.closeCount shouldEqual 1
     }
 
     "change nothing on a handle that is not connected" in new Fixture {
