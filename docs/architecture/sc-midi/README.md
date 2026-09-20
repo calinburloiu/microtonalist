@@ -38,8 +38,9 @@ provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display 
 per-direction API mirrored for input and output (availability, id/info enumeration as `MidiDeviceInfo`,
 `open*`/`close*`, handle lookup, and two listings of live handles — `input`/`outputOpenDevices` for the ones that are
 open, `input`/`outputDevicesRequestedToOpen` for those plus the ones waiting for their device), because a platform may
-expose a physical bidirectional device as two endpoints that nonetheless share one `MidiDeviceId`. `refresh()` rescans the environment; an implementation also refreshes when the
-platform reports a change, emitting the device events described in
+expose a physical bidirectional device as two endpoints that nonetheless share one `MidiDeviceId`. `refresh()`
+rescans the environment; an implementation also refreshes when the platform reports a change, emitting the device
+events described in
 [Device lifecycle and events](#device-lifecycle-and-events) as it reconciles state.
 
 **`MidiDeviceHandle`** is the read-only trait for a handle to a single device identified by a `MidiDeviceId`.
