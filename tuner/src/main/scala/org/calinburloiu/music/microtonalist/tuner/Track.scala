@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
-import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, MidiMsg}
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
 import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiManager,
   MidiReceiver}
 
@@ -142,8 +142,10 @@ class Track(val spec: TrackSpec,
   /**
    * Releases the output of this track after its input got disconnected, so that no note stays held on it. It:
    *
-   *   1. sends All Notes Off on each of the 16 MIDI channels straight to the output of the track, bypassing the tuner,
-   *      so that it reaches every channel the tuner may have used, such as MPE Member Channels;
+   *   1. releases the Hold (Sustain) and Sostenuto pedals, then sends All Notes Off, on each of the 16 MIDI channels
+   *      straight to the output of the track, bypassing the tuner, so that it reaches every channel the tuner may
+   *      have used, such as MPE Member Channels. The pedals go first because a latched one takes priority over All
+   *      Notes Off, so a note it holds would keep sounding otherwise;
    *   1. resets the tuning changers, so that a trigger held when the input disappeared does not swallow the first
    *      trigger after it comes back;
    *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one.
@@ -153,6 +155,8 @@ class Track(val spec: TrackSpec,
   def releaseInput(): Unit = {
     val outputReceivers = transmitter.receivers
     for (channel <- 0 until MidiChannelCount; outputReceiver <- outputReceivers) {
+      outputReceiver.send(CcMidiMsg(channel, MidiCc.SustainPedal, 0), -1)
+      outputReceiver.send(CcMidiMsg(channel, MidiCc.SostenutoPedal, 0), -1)
       outputReceiver.send(AllNotesOffMidiMsg(channel), -1)
     }
 

@@ -205,7 +205,8 @@ MidiDeviceOpenedEvent(id, Output)             (an output device (re)opened)
 MidiDeviceDisconnectedEvent(id, Input) or MidiDeviceFailedToDisconnectEvent(id, Input, _)
   → TrackManager.onMidiEvent
   → Track.releaseInput() for every track whose input is DeviceTrackInputSpec(id)
-  → All Notes Off on channels 0–15, straight to the track's output (bypassing the tuner)
+  → Hold and Sostenuto released, then All Notes Off, on channels 0–15, straight to the track's output
+    (bypassing the tuner)
   → TuningChangeProcessor.reset() → Track.resetTuner()
 ```
 
