@@ -232,7 +232,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
           if (wasOpen) {
             logger.info(s"Successfully closed $requestedDirection device $id.")
           }
-          logger.warn(s"${requestedDirection.toString.capitalize} device $id was disconnected.")
+          logDisconnected(wasOpen)
           val closedEvents = if (wasOpen) Seq(MidiDeviceClosedEvent(id, requestedDirection)) else Seq.empty
           closedEvents :+ MidiDeviceDisconnectedEvent(id, requestedDirection)
         } catch {
@@ -374,6 +374,23 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       logger.warn(warnMessage)
     } else {
       logger.debug(debugMessage)
+    }
+  }
+
+  /**
+   * Reports that the device got disconnected: at warn level if the handle had it open, at debug level otherwise.
+   *
+   * Losing a device that was open interrupts what it was playing, which the user needs to know about. A device nobody
+   * opened is merely one that stopped being available, so it is reported at the level of the connection that made it
+   * so.
+   */
+  private def logDisconnected(wasOpen: Boolean): Unit = {
+    def message: String = s"${requestedDirection.toString.capitalize} device $id was disconnected."
+
+    if (wasOpen) {
+      logger.warn(message)
+    } else {
+      logger.debug(message)
     }
   }
 

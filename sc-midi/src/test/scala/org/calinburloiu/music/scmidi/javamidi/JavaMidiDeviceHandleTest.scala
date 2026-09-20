@@ -776,7 +776,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       )
     }
 
-    "report the disconnection of the device at warn level" in new Fixture {
+    "report the disconnection of a device that was not open at debug level" in new Fixture {
       // Given
       connect()
 
@@ -786,7 +786,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       }
 
       // Then
-      events.messagesAt(Level.WARN) shouldEqual Seq("""Output device "CoreMIDI4J - FP-90" (Roland) was disconnected.""")
+      events.messagesAt(Level.DEBUG) shouldEqual Seq(
+        """Output device "CoreMIDI4J - FP-90" (Roland) was disconnected.""")
+      events.messagesAt(Level.WARN) shouldBe empty
     }
 
     "report the closing of an open device at info level, then its disconnection at warn level" in new Fixture {
