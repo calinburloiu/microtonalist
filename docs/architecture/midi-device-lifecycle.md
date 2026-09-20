@@ -36,12 +36,12 @@ the handle waits for it.
 **Open** means *the application reserved the device for I/O*: Java Sound holds it open, and messages can actually go
 out through `handle.receiver` or come in through `handle.transmitter`.
 
-- Requested through `MidiManager.openInput` / `openOutput` and released through `closeInput` / `closeOutput`, which
-  return and act on the handle of a `MidiDeviceId`. A track requests what it attaches and releases what it detaches —
-  today by making both calls itself — see [How the three relate](#how-the-three-relate).
-- **Both are reference-counted.** `openInput` / `openOutput` take one reference; `closeInput` / `closeOutput` release
-  one. The device is really closed only when the last reference goes, because several tracks may share one device —
-  releasing one of them must not silence the others.
+- Requested through `MidiManager.openDevice` and released through `closeDevice`, which return and act on the handle
+  of a `MidiDeviceId` for the use their `MidiDirection` requests. A track requests what it attaches and releases what
+  it detaches — today by making both calls itself — see [How the three relate](#how-the-three-relate).
+- **Both are reference-counted.** `openDevice` takes one reference; `closeDevice` releases one. The device is really
+  closed only when the last reference goes, because several tracks may share one device — releasing one of them must
+  not silence the others.
 - A request for a device that is not connected does not fail: the handle moves to `WaitingToOpen` and opens by itself
   once the device gets connected.
 - Reported as `MidiDeviceOpenedEvent` / `MidiDeviceClosedEvent`, or `MidiDeviceFailedToOpenEvent` /
@@ -82,9 +82,9 @@ The pairs are not independent. The wiring drives the device requests, and the pl
 > **What a track attaches, it requests open; what it detaches, it releases.**
 
 A track attaches an input or output whether or not its device is connected, and that attach is what asks the
-`MidiManager` for the device with `openInput` / `openOutput`; detaching is what asks for its release with
-`closeInput` / `closeOutput`. Today `Track` makes the two calls by hand — opening in its constructor, releasing at
-the end of `close()` — and [#305](#subject-to-change-305) makes the attach and the detach initiate them.
+`MidiManager` for the device with `openDevice`; detaching is what asks for its release with `closeDevice`. Today
+`Track` makes the two calls by hand — opening in its constructor, releasing at the end of `close()` — and
+[#305](#subject-to-change-305) makes the attach and the detach initiate them.
 
 What this does *not* mean is that a request is its effect:
 
@@ -106,7 +106,7 @@ Two situations are therefore errors rather than states to design for:
   sign of a wiring bug rather than an error the handle rejects.
 - **Closed while still attached.** A device must be detached before it is released; closing one a track is still
   attached to should be logged as an error. Nothing checks this today — `Track.close()` simply observes the rule,
-  detaching from both devices before it calls `closeInput` / `closeOutput`.
+  detaching from both devices before it calls `closeDevice` for each.
 
 A track must detach on close, and not merely release its devices: a released handle whose device is still connected
 stays live, and a track built later for the same device gets that same handle. A closed track left attached would go

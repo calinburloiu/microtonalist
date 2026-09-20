@@ -19,9 +19,17 @@ package org.calinburloiu.music.scmidi
 /**
  * Manages connections to MIDI devices and gives information about them.
  *
- * The trait has separate sets of methods for inputs and outputs, because a platform may expose two endpoints (two
- * [[MidiDeviceHandle]]s) for the same physical device, one for input and the other for output. Note that in this
- * case, there is a single [[MidiDeviceId]].
+ * The `direction` a method takes tells how the caller wants to use a device: as an input ([[MidiDirection.Input]]),
+ * as an output ([[MidiDirection.Output]]) or as both ([[MidiDirection.InputOutput]]). It is a request: the `direction`
+ * of a [[MidiDeviceHandle]] or of a [[MidiDeviceInfo]] tells instead what the device itself is capable of, and a caller
+ * may request less than that. A MIDI 2.0 implementation, for instance, would let it request only the input of a device
+ * that works in both directions, and so a projection of that device.
+ *
+ * [[MidiDirection.None]] requests no use of a device and always throws an `IllegalArgumentException`. Of the other
+ * three values, an implementation accepts only those it can serve, throws an `IllegalArgumentException` for the rest,
+ * and documents which values it accepts. Every implementation today, including
+ * [[org.calinburloiu.music.scmidi.javamidi.JavaMidiManager]], accepts [[MidiDirection.Input]] and
+ * [[MidiDirection.Output]] and rejects [[MidiDirection.InputOutput]].
  *
  * An implementation scans the environment on [[refresh]] and typically also when the platform reports a change, and
  * publishes [[MidiEvent]]s about what it finds. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiManager]] is the
@@ -43,101 +51,77 @@ trait MidiManager extends AutoCloseable {
    */
   def refresh(): Unit
 
-  /** @return whether the input device with the given identifier is currently connected. */
-  def isInputAvailable(deviceId: MidiDeviceId): Boolean
-
-  /** @return the information of the input device with the given identifier, if it is currently connected. */
-  def inputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo]
-
-  /** @return the identifiers of the input devices currently connected. */
-  def inputDeviceIds: Seq[MidiDeviceId]
-
-  /** @return the information of the input devices currently connected. */
-  def inputDevicesInfo: Seq[MidiDeviceInfo]
+  /**
+   * @param deviceId  Unique identifier of the device.
+   * @param direction How the caller wants to use the device (see [[MidiManager]]).
+   * @return whether the device with the given identifier is currently connected.
+   */
+  def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean
 
   /**
-   * Takes one reference to the input device with the given identifier and returns its live handle, creating one if
-   * there is none.
+   * @param deviceId  Unique identifier of the device.
+   * @param direction How the caller wants to use the device (see [[MidiManager]]).
+   * @return the information of the device with the given identifier, if it is currently connected.
+   */
+  def deviceInfoOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceInfo]
+
+  /**
+   * @param direction How the caller wants to use the devices (see [[MidiManager]]).
+   * @return the identifiers of the devices currently connected.
+   */
+  def deviceIdsFor(direction: MidiDirection): Seq[MidiDeviceId]
+
+  /**
+   * @param direction How the caller wants to use the devices (see [[MidiManager]]).
+   * @return the information of the devices currently connected.
+   */
+  def devicesInfoFor(direction: MidiDirection): Seq[MidiDeviceInfo]
+
+  /**
+   * Takes one reference to the device with the given identifier and returns its live handle, creating one if there is
+   * none.
    *
    * The device is not required to be connected. The handle is [[MidiDeviceHandle.State.Open]] if the device is
    * connected and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not connected, in which case it opens once
    * the device gets connected, and [[MidiDeviceHandle.State.Connected]] if the device fails to open.
    *
-   * @param deviceId Unique identifier of the device.
+   * @param deviceId  Unique identifier of the device.
+   * @param direction How the caller wants to use the device (see [[MidiManager]]).
    * @return the live handle of the device.
    */
-  def openInput(deviceId: MidiDeviceId): MidiDeviceHandle
+  def openDevice(deviceId: MidiDeviceId, direction: MidiDirection): MidiDeviceHandle
 
   /**
-   * @return the live handle of the input device with the given identifier: requested to open, connected, or both. A
+   * @param deviceId  Unique identifier of the device.
+   * @param direction How the caller wants to use the device (see [[MidiManager]]).
+   * @return the live handle of the device with the given identifier: requested to open, connected, or both. A
    *         connected device nobody opened has one, in [[MidiDeviceHandle.State.Connected]].
    */
-  def inputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
-
-  /** @return the live handles of the input devices that are open, i.e. connected and requested to open. */
-  def inputOpenDevices: Seq[MidiDeviceHandle]
+  def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle]
 
   /**
-   * @return the live handles of the input devices requested to open, whether or not their device is connected: the
-   *         open ones, and those waiting to open once their device gets connected.
+   * @param direction How the caller wants to use the devices (see [[MidiManager]]).
+   * @return the live handles of the devices that are open, i.e. connected and requested to open.
    */
-  def inputDevicesRequestedToOpen: Seq[MidiDeviceHandle]
+  def openDevicesFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
   /**
-   * Releases one reference to the input device with the given identifier. It does nothing when the device has no live
-   * handle requested to open. When the last reference is released, the handle moves to
-   * [[MidiDeviceHandle.State.Connected]], where it stays live, or, if its device is not connected, to
-   * [[MidiDeviceHandle.State.Closed]], where it is forgotten.
+   * @param direction How the caller wants to use the devices (see [[MidiManager]]).
+   * @return the live handles of the devices requested to open, whether or not their device is connected: the open
+   *         ones, and those waiting to open once their device gets connected.
    */
-  def closeInput(deviceId: MidiDeviceId): Unit
-
-  /** @return whether the output device with the given identifier is currently connected. */
-  def isOutputAvailable(deviceId: MidiDeviceId): Boolean
-
-  /** @return the information of the output device with the given identifier, if it is currently connected. */
-  def outputDeviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo]
-
-  /** @return the identifiers of the output devices currently connected. */
-  def outputDeviceIds: Seq[MidiDeviceId]
-
-  /** @return the information of the output devices currently connected. */
-  def outputDevicesInfo: Seq[MidiDeviceInfo]
+  def devicesRequestedToOpenFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
   /**
-   * Takes one reference to the output device with the given identifier and returns its live handle, creating one if
-   * there is none.
+   * Releases one reference to the device with the given identifier. It does nothing when the device has no live handle
+   * requested to open. When the last reference is released, the handle moves to [[MidiDeviceHandle.State.Connected]],
+   * where it stays live, or, if its device is not connected, to [[MidiDeviceHandle.State.Closed]], where it is
+   * forgotten.
    *
-   * The device is not required to be connected. The handle is [[MidiDeviceHandle.State.Open]] if the device is
-   * connected and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not connected, in which case it opens once
-   * the device gets connected, and [[MidiDeviceHandle.State.Connected]] if the device fails to open.
-   *
-   * @param deviceId Unique identifier of the device.
-   * @return the live handle of the device.
+   * @param deviceId  Unique identifier of the device.
+   * @param direction The direction the device was opened for with [[openDevice]] (see [[MidiManager]]).
    */
-  def openOutput(deviceId: MidiDeviceId): MidiDeviceHandle
-
-  /**
-   * @return the live handle of the output device with the given identifier: requested to open, connected, or both. A
-   *         connected device nobody opened has one, in [[MidiDeviceHandle.State.Connected]].
-   */
-  def outputDeviceHandleOf(deviceId: MidiDeviceId): Option[MidiDeviceHandle]
-
-  /** @return the live handles of the output devices that are open, i.e. connected and requested to open. */
-  def outputOpenDevices: Seq[MidiDeviceHandle]
-
-  /**
-   * @return the live handles of the output devices requested to open, whether or not their device is connected: the
-   *         open ones, and those waiting to open once their device gets connected.
-   */
-  def outputDevicesRequestedToOpen: Seq[MidiDeviceHandle]
-
-  /**
-   * Releases one reference to the output device with the given identifier. It does nothing when the device has no
-   * live handle requested to open. When the last reference is released, the handle moves to
-   * [[MidiDeviceHandle.State.Connected]], where it stays live, or, if its device is not connected, to
-   * [[MidiDeviceHandle.State.Closed]], where it is forgotten.
-   */
-  def closeOutput(deviceId: MidiDeviceId): Unit
+  def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit
 
   /**
    * Releases every reference held through this manager, so that every device it opened ends up closed, and stops

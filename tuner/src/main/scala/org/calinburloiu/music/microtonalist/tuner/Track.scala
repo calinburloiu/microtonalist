@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
-import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiManager,
-  MidiReceiver}
+import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiDirection,
+  MidiManager, MidiReceiver}
 
 import javax.annotation.concurrent.ThreadSafe
 
@@ -48,7 +48,7 @@ class Track(val spec: TrackSpec,
             initMidiMessages: Seq[MidiMsg] = Seq.empty) extends Runnable, AutoCloseable, StrictLogging {
 
   private val inputDeviceHandle: Option[MidiDeviceHandle] = spec.input.collect {
-    case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.openInput(midiDeviceId)
+    case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.openDevice(midiDeviceId, MidiDirection.Input)
   }
   private val tuningChangeProcessor: Option[TuningChangeProcessor] = if (spec.tuningChangers.nonEmpty) {
     Some(TuningChangeProcessor(spec.tuningChangers, tuningService))
@@ -57,7 +57,7 @@ class Track(val spec: TrackSpec,
   }
   private val tunerProcessor: Option[TunerProcessor] = spec.tuner.map { tuner => TunerProcessor(tuner) }
   private val outputDeviceHandle: Option[MidiDeviceHandle] = spec.output.collect {
-    case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.openOutput(midiDeviceId)
+    case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.openDevice(midiDeviceId, MidiDirection.Output)
   }
 
   private val pipeline: MidiSerialProcessor = MidiSerialProcessor(
@@ -112,11 +112,11 @@ class Track(val spec: TrackSpec,
     tune(Tuning.Standard)
 
     spec.input.foreach {
-      case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.closeInput(midiDeviceId)
+      case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.closeDevice(midiDeviceId, MidiDirection.Input)
       case _ => // Not a device: nothing to release
     }
     spec.output.foreach {
-      case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.closeOutput(midiDeviceId)
+      case DeviceTrackOutputSpec(midiDeviceId, _) => midiManager.closeDevice(midiDeviceId, MidiDirection.Output)
       case _ => // Not a device: nothing to release
     }
   }

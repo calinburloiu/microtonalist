@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg,
   PitchBendMidiMsg}
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiManager, MidiNote, MidiReceiver, MidiSplitter}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiDirection, MidiManager, MidiNote, MidiReceiver, MidiSplitter}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -59,8 +59,9 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     val inputHandle: FakeMidiDeviceHandle = FakeMidiDeviceHandle(inputDeviceId)
     val outputReceiver: RecordingMidiReceiver = RecordingMidiReceiver()
     val midiManager: MidiManager = stub[MidiManager]
-    midiManager.openInput.when(inputDeviceId).returns(inputHandle)
-    midiManager.openOutput.when(outputDeviceId).returns(FakeMidiDeviceHandle(outputDeviceId, outputReceiver))
+    midiManager.openDevice.when(inputDeviceId, MidiDirection.Input).returns(inputHandle)
+    midiManager.openDevice.when(outputDeviceId, MidiDirection.Output)
+      .returns(FakeMidiDeviceHandle(outputDeviceId, outputReceiver))
 
     val tuningChanger: TuningChanger = stub[TuningChanger]
     tuningChanger.decide.when(*).returns(NoTuningChange)
@@ -100,8 +101,8 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     track.close()
 
     // Then
-    midiManager.closeInput.verify(inputDeviceId).once()
-    midiManager.closeOutput.verify(outputDeviceId).once()
+    midiManager.closeDevice.verify(inputDeviceId, MidiDirection.Input).once()
+    midiManager.closeDevice.verify(outputDeviceId, MidiDirection.Output).once()
   }
 
   it should "stop forwarding the messages of its input device to its output" in new DeviceFixture {
@@ -156,8 +157,7 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     track.close()
 
     // Then
-    midiManager.closeInput.verify(*).never()
-    midiManager.closeOutput.verify(*).never()
+    midiManager.closeDevice.verify(*, *).never()
   }
 
   it should "release nothing through the MIDI manager when its input and output are other tracks" in new Fixture {
@@ -171,8 +171,7 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     trackWithTrackIO.close()
 
     // Then
-    midiManager.closeInput.verify(*).never()
-    midiManager.closeOutput.verify(*).never()
+    midiManager.closeDevice.verify(*, *).never()
   }
 
   behavior of "resetTuner"

@@ -72,13 +72,14 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
     var onOpenOutput: MidiDeviceId => Unit = _ => ()
 
     val midiManager: Stub[MidiManager] = stub[MidiManager]
-    midiManager.openInput.returns(deviceId => FakeMidiDeviceHandle(deviceId, deviceReceivers(deviceId)))
-    midiManager.openOutput.returns { deviceId =>
-      onOpenOutput(deviceId)
+    midiManager.openDevice.returns { (deviceId, direction) =>
+      if (direction == MidiDirection.Output) {
+        onOpenOutput(deviceId)
+      }
+
       FakeMidiDeviceHandle(deviceId, deviceReceivers(deviceId))
     }
-    midiManager.closeInput.returns(_ => ())
-    midiManager.closeOutput.returns(_ => ())
+    midiManager.closeDevice.returns(_ => ())
 
     val trackSpecs: TrackSpecs = TrackSpecs(Seq(
       TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
