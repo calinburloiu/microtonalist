@@ -12,8 +12,8 @@ question, and knowing one tells you nothing about the other two.
 
 Use exactly these words in code, ScalaDocs, log messages and documentation, and avoid *connect* / *disconnect*
 altogether for all three: *connected* is not distinguishable from *open* without reading this document, and it reads
-just as naturally for a receiver that was wired up. In particular, never say *connected* for a receiver that was
-wired up, and never say *attached* for a device the platform reports as present.
+just as naturally for a receiver that was wired up. Likewise, never say *attached* for a device the platform reports
+as present.
 
 ## Available / unavailable
 

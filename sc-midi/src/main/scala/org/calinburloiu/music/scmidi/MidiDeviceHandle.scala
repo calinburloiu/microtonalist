@@ -147,16 +147,17 @@ object MidiDeviceHandle {
    * }}}
    *
    * The diagram is a square over the two properties of a state: [[isAvailable]] is false on the left and true on the
-   * right, and [[isOpenRequested]] is false at the bottom and true at the top. Hence, `become available` and `become
-   * unavailable` move horizontally, while `open` and `close` move vertically. The four states cover every combination
-   * of the two, so the device is open for use only in [[Open]], where it is both available and requested to open.
+   * right, and [[isOpenRequested]] is false at the bottom and true at the top. Hence, `become available` and
+   * `become unavailable` move horizontally, while `open` and `close` move vertically. The four states cover every
+   * combination of the two, so the device is open for use only in [[Open]], where it is both available and requested
+   * to open.
    *
    * Each transition either succeeds or fails, and a failure sets to false the property it concerns, so that the handle
-   * never relies on a device that failed: a failure of the availability leaves the handle unavailable, and a failure to
-   * open or close the device leaves it not requested to open. Hence, an [[Available]] handle whose device fails to open
-   * stays [[Available]], an [[Open]] handle whose device fails to close moves to [[Available]] anyway, and an
-   * [[Available]] handle whose device fails to close as it becomes unavailable moves to [[Closed]] anyway, where a
-   * later request to open the device waits for it to become available again.
+   * never relies on a device that failed: a failure to become available or unavailable leaves the handle unavailable,
+   * and a failure to open or close the device leaves it not requested to open. Hence, an [[Available]] handle whose
+   * device fails to open stays [[Available]], an [[Open]] handle whose device fails to close moves to [[Available]]
+   * anyway, and an [[Available]] handle whose device fails to close as it becomes unavailable moves to [[Closed]]
+   * anyway, where a later request to open the device waits for it to become available again.
    *
    * @param isAvailable     Indicates whether the device is available in the system.
    * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an `open` transition

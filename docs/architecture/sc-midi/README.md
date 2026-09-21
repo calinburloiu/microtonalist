@@ -69,9 +69,9 @@ reconciles state.
   `direction` derive from it. A request made while the device is not available moves the handle to
   `WaitingToOpen`, and the handle opens once the device becomes available.
 - **States.** The `State` enum in the companion captures the Closed/Available/WaitingToOpen/Open transitions, drawn in
-  its ScalaDoc. A failed transition sets to false the property it concerns: a failure of the availability leaves the
-  handle unavailable, and a failure to open or close the device leaves it not requested to open. `isAvailable`,
-  `isOpen` (true only in `Open`) and `isOpenRequested` all derive from `state`, so they cannot disagree.
+  its ScalaDoc. A failed transition sets to false the property it concerns: a failure to become available or
+  unavailable leaves the handle unavailable, and a failure to open or close the device leaves it not requested to open.
+  `isAvailable`, `isOpen` (true only in `Open`) and `isOpenRequested` all derive from `state`, so they cannot disagree.
 - **Liveness.** A handle is **live** while its manager holds it, which is exactly while its state is not `Closed`. A
   handle that reaches `Closed` is forgotten and stays `Closed`; a later request for the same id returns a new handle.
 - **I/O.** Callers **send** to an output via `handle.receiver: MidiReceiver` and **subscribe** to an input via
@@ -176,10 +176,9 @@ on the bus.
 - The rest come as success/failure pairs for each lifecycle transition (available/unavailable/opened/closed), each
   failure event (`…FailedTo…Event`) carrying the cause.
 - All carry the `MidiDeviceId`. All but `MidiDeviceFailedToBecomeAvailableEvent`, which is published before resolution
-  tells
-  the direction, also carry a `direction`: the use of the device the event concerns, the same value a caller passes to
-  `MidiManager`'s methods to request that use. `JavaMidiManager`, which accepts only `Input` and `Output`, therefore
-  publishes only those.
+  tells the direction, also carry a `direction`: the use of the device the event concerns, the same value a caller
+  passes to `MidiManager`'s methods to request that use. `JavaMidiManager`, which accepts only `Input` and `Output`,
+  therefore publishes only those.
 
 Note that "available" means *present in the system*, not *opened by the application*: they are distinct,
 separately evented states, and both differ again from a receiver being *attached* to a transmitter. See
@@ -329,7 +328,7 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
 5. `closeDevice(deviceId, direction)` (reference-counted) releases a device. The handle is read-only and has no
    `close()`; `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and
    then releases every reference held through the manager, so every device it opened ends up closed — in that order,
-   so that a change reported meanwhile cannot make available again or reopen a handle after it was closed.
+   so that a change reported meanwhile cannot make a handle available again, or reopen it, after it was closed.
 
 ## Device lifecycle and events
 

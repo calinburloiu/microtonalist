@@ -215,7 +215,7 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
 
   override def close(): Unit = {
     // Stop watching the environment before closing the devices, so that a change reported meanwhile cannot refresh
-    // the registries — and make available again or reopen a handle — after they were closed.
+    // the registries — and make a handle available again or reopen it — after they were closed.
     environmentSubscription.foreach(_.close())
 
     logger.info(s"Closing MIDI devices...")

@@ -44,7 +44,7 @@ abstract sealed class MidiEvent extends BusinessyncEvent
 case object MidiEnvironmentChangedEvent extends MidiEvent
 
 /**
- * Event emitted when a MIDI device becomes available (added) to the system.
+ * Event emitted when a MIDI device becomes available in the system (it was added).
  *
  * Note that this event does not tell that the device was also opened by the application.
  *
@@ -66,7 +66,7 @@ case class MidiDeviceAvailableEvent(deviceId: MidiDeviceId, direction: MidiDirec
 case class MidiDeviceFailedToBecomeAvailableEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent
 
 /**
- * Event emitted when an existing MIDI device becomes unavailable (removed) from the system.
+ * Event emitted when an existing MIDI device becomes unavailable (it was removed from the system).
  *
  * @param deviceId  Identifier of the MIDI device that was removed.
  * @param direction The use of the device by the handle that made the transition (see [[MidiEvent]]).

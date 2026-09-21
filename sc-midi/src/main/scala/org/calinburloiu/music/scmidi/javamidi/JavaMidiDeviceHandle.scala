@@ -209,7 +209,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         Seq.empty
       case (_, None) =>
         // Cannot occur: State.Available and State.Open, the states left, both imply a held device.
-        logger.error(s"Ignoring the availability of $requestedDirection device $id: its handle is ${_state} while " +
+        logger.error(s"Ignoring that $requestedDirection device $id became available: its handle is ${_state} while " +
           "holding no device, which should never happen!")
         Seq.empty
     }
@@ -443,7 +443,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    * Reports that the device became unavailable: at warn level if the handle had it open, at debug level otherwise.
    *
    * Losing a device that was open interrupts what it was playing, which the user needs to know about. A device nobody
-   * opened is merely one that stopped being available, so it is reported at the level of the use that was made of it.
+   * opened merely left the system, so it is reported at debug level, as its becoming available was.
    */
   private def logUnavailable(wasOpen: Boolean): Unit = {
     def message: String = s"${requestedDirection.toString.capitalize} device $id became unavailable."
