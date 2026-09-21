@@ -25,9 +25,9 @@ instantiating `JavaMidiManager`. Inside `javamidi`, messages cross to and from J
 
 Package: `org.calinburloiu.music.scmidi` is the pure Scala API, with a `message` sub-package holding the message model
 and its constants. The `javamidi` sub-package is the Java Sound implementation: `JavaMidiManager`,
-`JavaMidiDeviceHandle`, the `JavaMidiEnvironment` seam with its `CoreMidi4JEnvironment` production implementation, and
-`JavaMidiConverters`. The two live in the same sbt module; the isolation is enforced by convention and review, not by
-the build (#278, D1). Inside `javamidi`, an identifier holding a Java Sound device or its `MidiDevice.Info` says so with
+`JavaMidiDeviceHandle` with the `JavaMidiDeviceReferenceCounter` its handles share, the `JavaMidiEnvironment` seam
+with its `CoreMidi4JEnvironment` production implementation, and `JavaMidiConverters`. The two live in the same sbt
+module; the isolation is enforced by convention and review, not by the build (#278, D1). Inside `javamidi`, an identifier holding a Java Sound device or its `MidiDevice.Info` says so with
 a `java` prefix (`javaDevice`, `javaInfo`, `javaDeviceOf`), so that it never reads like the module's own
 `MidiDeviceInfo` or `MidiManager.deviceOf`. macOS support comes from **CoreMIDI4J**, which replaces the default Java
 Sound MIDI device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
@@ -112,11 +112,12 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
     its info, and reports nothing.
 - **Locking and publishing.** Two `ReentrantLock`s, in this order: a refresh lock held for the whole of a refresh,
   and a manager-wide lock serialising the open/close operations, `close()` and the registry reads (full lock order:
-  refresh, manager, then handle). The refresh lock keeps two refreshes from interleaving, which would otherwise let
-  the one that scanned first reconcile last and win with a stale snapshot. Resolution happens inside the refresh lock
-  but before the manager lock, so a blocking Java Sound call neither holds off the readers nor runs while holding the
-  lock its own environment callbacks need. The events an operation collects are published in order only after the
-  locks are released, because Guava delivers them synchronously and `TrackManager`'s handler sends MIDI.
+  refresh, manager, handle, then the device reference counter). The refresh lock keeps two refreshes from
+  interleaving, which would otherwise let the one that scanned first reconcile last and win with a stale snapshot.
+  Resolution happens inside the refresh lock but before the manager lock, so a blocking Java Sound call neither holds
+  off the readers nor runs while holding the lock its own environment callbacks need. The events an operation collects
+  are published in order only after the locks are released, because Guava delivers them synchronously and
+  `TrackManager`'s handler sends MIDI.
 - **Construction.** `JavaMidiManager.apply` builds the instance and only then starts it — the first scan and the
   environment subscription happen outside the constructor, so it neither publishes events nor hands out a reference
   to a half-built manager.
@@ -128,9 +129,18 @@ directions the device itself works in. The device is reachable only through its
 
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
   called only by the manager and return the `MidiEvent`s of their transitions instead of publishing them.
-- **Transactional transitions.** A failed open closes the device as far as it can and rolls back to `Connected` with
-  no reference held. A failed close still moves to `Connected`. A failed disconnect still leaves the handle
-  disconnected.
+- **Shared devices (#315).** A refresh resolves one `MidiDevice` per device and hands that same instance to both
+  endpoints, so a device that works in both directions — a digital piano, or the JDK `Real Time Sequencer` — has an
+  input and an output handle over one instance. Java Sound's `MidiDevice.close()` closes a device outright, however
+  many times it was opened, so a handle never opens or closes its device itself: it takes and releases its reference
+  through the `JavaMidiDeviceReferenceCounter` that the manager shares among all its handles, which opens an instance
+  on the first reference and closes it on the release of the last. What a handle obtains from the device for its own
+  direction — the Java `Receiver` of an output, the Java `Transmitter` of an input — it closes itself on leaving
+  `Open`, since the device may stay open for the other handle. A disconnected handle that held no reference closes
+  the device only if no other handle holds it.
+- **Transactional transitions.** A failed open closes the device as far as it is up to the handle and rolls back to
+  `Connected` with no reference held. A failed close still moves to `Connected`, its reference released. A failed
+  disconnect still leaves the handle disconnected.
 - **Java Sound boundary, outbound.** Its receiver converts each `Midi1Msg` with `asJava` and sends it to the open
   device; a `Midi2Msg` is dropped, since Java Sound speaks MIDI 1.0 only — reported once per handle at warn level and
     at debug level from then on, the device never gaining the ability to speak MIDI 2.0.

@@ -23,6 +23,7 @@ import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
+import org.calinburloiu.music.scmidi.message.NoteOnMidiMsg
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -726,6 +727,60 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       manager.isDeviceAvailable(device.id, MidiDirection.Input) shouldBe true
       businessync.publish.calls shouldEqual
         Seq(MidiEnvironmentChangedEvent, MidiDeviceConnectedEvent(device.id, MidiDirection.Input))
+    }
+  }
+
+  "A device that works in both directions" should {
+    /** A manager over [[device]], a device working in both directions, open both as an input and as an output. */
+    abstract class BidirectionalFixture extends Fixture {
+      val device: FakeMidiDevice = FakeMidiDevice(deviceName, maxTransmitters = -1, maxReceivers = -1)
+      environment.plug(device)
+      val manager: JavaMidiManager = newManager()
+      val inputHandle: MidiDeviceHandle = manager.openDevice(device.id, MidiDirection.Input)
+      val outputHandle: MidiDeviceHandle = manager.openDevice(device.id, MidiDirection.Output)
+    }
+
+    "stay open as an output when closed as an input, and the other way around" in {
+      val directions = Table(("closed", "remaining"),
+        (MidiDirection.Input, MidiDirection.Output),
+        (MidiDirection.Output, MidiDirection.Input))
+
+      forAll(directions) { (closed, remaining) =>
+        new BidirectionalFixture {
+          // When
+          manager.closeDevice(device.id, closed)
+
+          // Then
+          device.isOpen shouldBe true
+          manager.deviceOf(device.id, remaining).map(_.state) shouldEqual Some(State.Open)
+
+          // When
+          manager.closeDevice(device.id, remaining)
+
+          // Then
+          device.isOpen shouldBe false
+          device.closeCount shouldEqual 1
+        }
+      }
+    }
+
+    "keep sending to the device as an output after it is closed as an input" in new BidirectionalFixture {
+      // When
+      manager.closeDevice(device.id, MidiDirection.Input)
+      outputHandle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 1L)
+
+      // Then
+      device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+        Seq(NoteOnMidiMsg(2, MidiNote.C4, 100) -> 1L)
+    }
+
+    "be closed by closing the manager" in new BidirectionalFixture {
+      // When
+      manager.close()
+
+      // Then
+      device.isOpen shouldBe false
+      Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Connected, State.Connected)
     }
   }
 

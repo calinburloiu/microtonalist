@@ -68,7 +68,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
                                  closeFailure: Option[Exception] = None,
                                  receiverFailure: Option[Exception] = None,
                                  direction: MidiDirection = requestedDirection) {
-    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, direction)
+    val javaDeviceReferences: JavaMidiDeviceReferenceCounter = JavaMidiDeviceReferenceCounter()
+    val handle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, direction, javaDeviceReferences)
     val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters,
       maxReceivers = maxReceivers, openFailure = openFailure, closeFailure = closeFailure,
       receiverFailure = receiverFailure)
@@ -104,7 +105,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
       forAll(directions) { direction =>
         // When / Then
-        an[IllegalArgumentException] should be thrownBy JavaMidiDeviceHandle(deviceId, direction)
+        an[IllegalArgumentException] should be thrownBy
+          JavaMidiDeviceHandle(deviceId, direction, JavaMidiDeviceReferenceCounter())
       }
     }
   }
@@ -810,6 +812,138 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       }
   }
 
+  "Two handles over one device that works in both directions" should {
+    /**
+     * An input and an output handle over the same instance of [[device]], as [[JavaMidiManager]] creates them for a
+     * device that works in both directions, sharing its reference counter. Both are connected.
+     */
+    abstract class SharedDeviceFixture(receiverFailure: Option[Exception] = None) {
+      val javaDeviceReferences: JavaMidiDeviceReferenceCounter = JavaMidiDeviceReferenceCounter()
+      val inputHandle: JavaMidiDeviceHandle = JavaMidiDeviceHandle(deviceId, MidiDirection.Input, javaDeviceReferences)
+      val outputHandle: JavaMidiDeviceHandle =
+        JavaMidiDeviceHandle(deviceId, MidiDirection.Output, javaDeviceReferences)
+      val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, receiverFailure = receiverFailure)
+
+      Seq(inputHandle, outputHandle).foreach(_.connect(device.asMidiDeviceInfo, device))
+    }
+
+    "open the device once, for the first of them to open" in new SharedDeviceFixture {
+      // When
+      inputHandle.open()
+      outputHandle.open()
+
+      // Then
+      device.openCount shouldEqual 1
+      Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
+    }
+
+    "keep the device open for the other when one of them closes, closing it only when both did" in
+      new SharedDeviceFixture {
+        // Given
+        inputHandle.open()
+        outputHandle.open()
+
+        // When
+        val inputEvents: Seq[MidiEvent] = inputHandle.close()
+
+        // Then
+        inputEvents shouldEqual Seq(MidiDeviceClosedEvent(deviceId, MidiDirection.Input))
+        device.isOpen shouldBe true
+        device.closeCount shouldEqual 0
+
+        // When
+        outputHandle.receiver.send(noteOn, 1L)
+
+        // Then
+        device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+          Seq(noteOn -> 1L)
+
+        // When
+        val outputEvents: Seq[MidiEvent] = outputHandle.close()
+
+        // Then
+        outputEvents shouldEqual Seq(MidiDeviceClosedEvent(deviceId, MidiDirection.Output))
+        device.isOpen shouldBe false
+        device.closeCount shouldEqual 1
+      }
+
+    "stop forwarding the messages of the device through the input handle once it closes, while the other stays open" in
+      new SharedDeviceFixture {
+        // Given
+        inputHandle.open()
+        outputHandle.open()
+
+        // When
+        inputHandle.close()
+
+        // Then
+        device.transmitter.closeCount shouldEqual 1
+        Option(device.transmitter.getReceiver) shouldBe empty
+      }
+
+    "give back the receiver of the output handle once it closes, while the other stays open" in
+      new SharedDeviceFixture {
+        // Given
+        inputHandle.open()
+        outputHandle.open()
+
+        // When
+        outputHandle.close()
+
+        // Then
+        device.isOpen shouldBe true
+        device.getReceivers shouldBe empty
+      }
+
+    "leave the device open for the other when one of them fails to open" in
+      new SharedDeviceFixture(receiverFailure = Some(failure)) {
+        // Given
+        inputHandle.open()
+
+        // When
+        val events: Seq[MidiEvent] = outputHandle.open()
+
+        // Then
+        events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, MidiDirection.Output, failure))
+        device.isOpen shouldBe true
+        device.closeCount shouldEqual 0
+        inputHandle.state shouldEqual State.Open
+      }
+
+    "leave the device open for the other when one that did not open it gets disconnected" in
+      new SharedDeviceFixture {
+        // Given
+        outputHandle.open()
+
+        // When
+        val events: Seq[MidiEvent] = inputHandle.disconnect()
+
+        // Then
+        events shouldEqual Seq(MidiDeviceDisconnectedEvent(deviceId, MidiDirection.Input))
+        device.isOpen shouldBe true
+        device.closeCount shouldEqual 0
+      }
+
+    "close the device once both of them got disconnected" in new SharedDeviceFixture {
+      // Given
+      inputHandle.open()
+      outputHandle.open()
+
+      // When
+      inputHandle.disconnect()
+
+      // Then
+      device.isOpen shouldBe true
+
+      // When
+      outputHandle.disconnect()
+
+      // Then
+      device.isOpen shouldBe false
+      device.closeCount shouldEqual 1
+    }
+  }
+
   "Logging" should {
     val loggerName = classOf[JavaMidiDeviceHandle].getName
 
@@ -817,8 +951,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Given
       val inputDevice = FakeMidiDevice("CoreMIDI4J - Seaboard", "ROLI", maxTransmitters = 2, maxReceivers = 0)
       val outputDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = 0, maxReceivers = -1)
-      val inputHandle = JavaMidiDeviceHandle(inputDevice.id, MidiDirection.Input)
-      val outputHandle = JavaMidiDeviceHandle(outputDevice.id, MidiDirection.Output)
+      val inputHandle = JavaMidiDeviceHandle(inputDevice.id, MidiDirection.Input, JavaMidiDeviceReferenceCounter())
+      val outputHandle = JavaMidiDeviceHandle(outputDevice.id, MidiDirection.Output, JavaMidiDeviceReferenceCounter())
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {

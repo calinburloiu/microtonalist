@@ -50,7 +50,8 @@ import scala.collection.mutable
  *   1. a refresh lock, held for the whole of a refresh, so that two refreshes cannot interleave and the one that
  *      scanned first cannot reconcile last and win with a stale snapshot;
  *   1. a manager-wide lock, which serialises the operations and the registry reads. The lock of a handle is only ever
- *      taken inside it. One exclusive lock is enough here, rather than a read-write one: the reads are a handful of
+ *      taken inside it, and that of the [[JavaMidiDeviceReferenceCounter]] the handles share only inside the lock of a
+ *      handle. One exclusive lock is enough here, rather than a read-write one: the reads are a handful of
  *      handle lookups made by the UI and the composition root, never on the MIDI path, and each of them takes the
  *      lock of every handle it inspects anyway, so there is no read contention for a read-write lock to relieve —
  *      only its higher uncontended cost and its read lock that cannot be upgraded.
@@ -81,8 +82,14 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
    */
   private val refreshLock: Lock = ReentrantLock()
 
-  private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Input)
-  private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Output)
+  /**
+   * Counts the references the handles of both endpoints hold to each Java Sound device, which the two endpoints may
+   * share: a device that works in both directions has one handle in each over the same instance.
+   */
+  private val javaDeviceReferences: JavaMidiDeviceReferenceCounter = JavaMidiDeviceReferenceCounter()
+
+  private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Input, javaDeviceReferences)
+  private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Output, javaDeviceReferences)
 
   @volatile private var environmentSubscription: Option[AutoCloseable] = None
 
@@ -262,10 +269,12 @@ object JavaMidiManager {
    * It is not thread-safe: [[JavaMidiManager]] uses it only under its lock. Each operation returns the events of the
    * transitions it made, for the manager to publish.
    *
-   * @param direction whether the devices managed are input or output devices.
+   * @param direction            whether the devices managed are input or output devices.
+   * @param javaDeviceReferences the reference counter of the Java Sound devices, shared with the other endpoint.
    */
   @NotThreadSafe
-  private class MidiEndpoint(val direction: MidiDirection) extends StrictLogging {
+  private class MidiEndpoint(val direction: MidiDirection, javaDeviceReferences: JavaMidiDeviceReferenceCounter)
+    extends StrictLogging {
 
     /** The live handles, which are connected, requested to open, or both, in the order they were created. */
     private val handles: mutable.LinkedHashMap[MidiDeviceId, JavaMidiDeviceHandle] = mutable.LinkedHashMap()
@@ -340,7 +349,7 @@ object JavaMidiManager {
     private def connectedHandles: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isConnected).toSeq
 
     private def handleOf(deviceId: MidiDeviceId): JavaMidiDeviceHandle =
-      handles.getOrElseUpdate(deviceId, JavaMidiDeviceHandle(deviceId, direction))
+      handles.getOrElseUpdate(deviceId, JavaMidiDeviceHandle(deviceId, direction, javaDeviceReferences))
 
     /** Runs `command`, a command of `handle`, then forgets the handle if the command left it closed. */
     private def forgettingIfClosed(handle: JavaMidiDeviceHandle)(command: => Seq[MidiEvent]): Seq[MidiEvent] = {

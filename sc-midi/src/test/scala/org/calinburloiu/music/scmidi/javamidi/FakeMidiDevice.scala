@@ -146,9 +146,16 @@ class FakeMidiDevice(name: String,
   }
 }
 
-/** A Java Sound [[Transmitter]] that only holds the receiver it is given, `null` until then. */
+/**
+ * A Java Sound [[Transmitter]] that only holds the receiver it is given, `null` until then. Closing it lets go of that
+ * receiver, as a Java Sound transmitter stops delivering once closed.
+ */
 class FakeTransmitter extends Transmitter {
   private var _receiver: Receiver = null
+  private var _closeCount: Int = 0
+
+  /** How many times `close` was called on the transmitter. */
+  def closeCount: Int = _closeCount
 
   override def setReceiver(receiver: Receiver): Unit = {
     _receiver = receiver
@@ -156,5 +163,8 @@ class FakeTransmitter extends Transmitter {
 
   override def getReceiver: Receiver = _receiver
 
-  override def close(): Unit = {}
+  override def close(): Unit = {
+    _closeCount += 1
+    _receiver = null
+  }
 }
