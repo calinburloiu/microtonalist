@@ -27,7 +27,7 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  * processing: such a message is dropped without reaching [[process]].
  *
  * A receiver of the [[transmitter]] is said to be '''attached''' to the processor, and '''detached''' when it is
- * removed. Those terms are deliberately not ''connected'' / ''disconnected'', which say whether a MIDI device is
+ * removed. Those terms are deliberately not ''available'' / ''unavailable'', which say whether a MIDI device is
  * available to the system (see [[MidiDeviceHandle]]) and are independent of attachment. The architecture document
  * `docs/architecture/midi-device-lifecycle.md` relates the two pairs and the ''open'' / ''closed'' one.
  *

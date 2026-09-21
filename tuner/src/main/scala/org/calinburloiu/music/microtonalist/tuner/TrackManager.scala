@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.calinburloiu.music.scmidi.{MidiDeviceDisconnectedEvent, MidiDeviceFailedToDisconnectEvent, MidiDeviceId,
-  MidiDeviceOpenedEvent, MidiDirection, MidiEvent, MidiManager}
+import org.calinburloiu.music.scmidi.{MidiDeviceFailedToBecomeUnavailableEvent, MidiDeviceId, MidiDeviceOpenedEvent,
+  MidiDeviceUnavailableEvent, MidiDirection, MidiEvent, MidiManager}
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
@@ -30,7 +30,7 @@ import scala.collection.immutable.VectorMap
 /**
  * Manages a collection of MIDI tracks and updates them based on external events: it re-tunes every track when the
  * tuning changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks
- * whose input device gets disconnected.
+ * whose input device becomes unavailable.
  */
 @NotThreadSafe
 class TrackManager(private val midiManager: MidiManager,
@@ -68,7 +68,7 @@ class TrackManager(private val midiManager: MidiManager,
         !spec.muted
       }.map { spec => Track(spec, midiManager, tuningService) }
 
-    // Wire inter-track connections
+    // Wire the inter-track attachments
     // TODO #296 The two branches below wire each direction independently, so a spec pair declaring the same link
     //  from both ends — A.output = ToTrack(B) and B.input = FromTrack(A) — adds B.receiver to A's transmitter twice
     //  and B then processes every message twice. The duplicate add fires no onAttach, so it is silent.
@@ -136,8 +136,8 @@ class TrackManager(private val midiManager: MidiManager,
    *
    *   - when an output device opens, it resets the tuner of every track whose output is that device, since the device
    *     may have (re)opened after the track was built;
-   *   - when an input device gets disconnected, or fails to, it releases the input of every track whose input is that
-   *     device, so that no note stays held on its output.
+   *   - when an input device becomes unavailable, or fails to, it releases the input of every track whose input is
+   *     that device, so that no note stays held on its output.
    *
    * @param event The MIDI event published by the [[MidiManager]].
    */
@@ -171,17 +171,18 @@ class TrackManager(private val midiManager: MidiManager,
 object TrackManager extends LazyLogging {
 
   /**
-   * Matches the [[MidiEvent]]s that tell an input device is gone, whatever came of disconnecting it: a
-   * [[MidiDeviceDisconnectedEvent]] and the [[MidiDeviceFailedToDisconnectEvent]] that replaces it when releasing the
-   * device throws, which leaves the device just as gone.
+   * Matches the [[MidiEvent]]s that tell an input device is gone, whatever came of making it unavailable: a
+   * [[MidiDeviceUnavailableEvent]] and the [[MidiDeviceFailedToBecomeUnavailableEvent]] that replaces it when
+   * releasing the device throws, which leaves the device just as gone.
    *
    * The two share a handler, and Scala forbids binding a variable in a pattern alternative, so they are matched by
-   * name here instead of by `MidiDeviceDisconnectedEvent(deviceId, _) | MidiDeviceFailedToDisconnectEvent(…)`.
+   * name here instead of by
+   * `MidiDeviceUnavailableEvent(deviceId, _) | MidiDeviceFailedToBecomeUnavailableEvent(…)`.
    */
   private object InputDeviceGone {
     def unapply(event: MidiEvent): Option[MidiDeviceId] = event match {
-      case MidiDeviceDisconnectedEvent(deviceId, MidiDirection.Input) => Some(deviceId)
-      case MidiDeviceFailedToDisconnectEvent(deviceId, MidiDirection.Input, _) => Some(deviceId)
+      case MidiDeviceUnavailableEvent(deviceId, MidiDirection.Input) => Some(deviceId)
+      case MidiDeviceFailedToBecomeUnavailableEvent(deviceId, MidiDirection.Input, _) => Some(deviceId)
       case _ => None
     }
   }

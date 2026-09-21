@@ -7,7 +7,7 @@ Microtonalist desktop application (`app`). It is not loaded by, nor part of, the
 run on its own (as the `microtonalist-cli` fat JAR).
 
 Its purpose is developer/operator utilities that need the local MIDI subsystem without launching the full app. Currently
-it offers a single subcommand that **lists the MIDI devices connected to the computer**, printing each input and output
+it offers a single subcommand that **lists the MIDI devices available on the computer**, printing each input and output
 device with its metadata (name, vendor, version, description) and its maximum transmitter/receiver count — useful for
 discovering device names to reference in compositions and track configurations.
 

@@ -21,11 +21,12 @@ import org.calinburloiu.businessync.BusinessyncEvent
 /**
  * Base class for all MIDI events emitted by a [[MidiManager]] implementation.
  *
- * A device event identifies its device by [[MidiDeviceId]] and, except for [[MidiDeviceFailedToConnectEvent]], tells
- * in its `direction` the use of the device it concerns — the same value a caller passes to [[MidiManager]]'s methods
- * to request that use, and so one of those the publishing implementation accepts. An implementation that accepts only
- * [[MidiDirection.Input]] and [[MidiDirection.Output]] publishes only those, so a device that works in both directions
- * is reported once for each of them, by two events that differ in their `direction`.
+ * A device event identifies its device by [[MidiDeviceId]] and, except for
+ * [[MidiDeviceFailedToBecomeAvailableEvent]], tells in its `direction` the use of the device it concerns — the same
+ * value a caller passes to [[MidiManager]]'s methods to request that use, and so one of those the publishing
+ * implementation accepts. An implementation that accepts only [[MidiDirection.Input]] and [[MidiDirection.Output]]
+ * publishes only those, so a device that works in both directions is reported once for each of them, by two events
+ * that differ in their `direction`.
  *
  * Each event reports one transition of one handle, and a failure event replaces its success event.
  */
@@ -43,46 +44,46 @@ abstract sealed class MidiEvent extends BusinessyncEvent
 case object MidiEnvironmentChangedEvent extends MidiEvent
 
 /**
- * Event emitted when a new MIDI device is connected (added) to the system.
+ * Event emitted when a MIDI device becomes available (added) to the system.
  *
  * Note that this event does not tell that the device was also opened by the application.
  *
  * @param deviceId  Unique identifier of the newly added MIDI device.
  * @param direction The use of the device by the handle that made the transition (see [[MidiEvent]]).
- * @see [[MidiDeviceFailedToConnectEvent]], the failing pair of this event.
+ * @see [[MidiDeviceFailedToBecomeAvailableEvent]], the failing pair of this event.
  */
-case class MidiDeviceConnectedEvent(deviceId: MidiDeviceId, direction: MidiDirection) extends MidiEvent
+case class MidiDeviceAvailableEvent(deviceId: MidiDeviceId, direction: MidiDirection) extends MidiEvent
 
 /**
- * Event emitted when a MIDI device fails to connect.
+ * Event emitted when a MIDI device fails to become available.
  *
  * It carries no direction: it is published when resolving the device fails, before its direction is known.
  *
- * @param deviceId Unique identifier of the MIDI device that failed to connect.
+ * @param deviceId Unique identifier of the MIDI device that failed to become available.
  * @param cause    Exception that describes the cause of the failure.
- * @see [[MidiDeviceConnectedEvent]], the successful pair of this event.
+ * @see [[MidiDeviceAvailableEvent]], the successful pair of this event.
  */
-case class MidiDeviceFailedToConnectEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent
+case class MidiDeviceFailedToBecomeAvailableEvent(deviceId: MidiDeviceId, cause: Exception) extends MidiEvent
 
 /**
- * Event emitted when an existing MIDI device is disconnected (removed) from the system.
+ * Event emitted when an existing MIDI device becomes unavailable (removed) from the system.
  *
  * @param deviceId  Identifier of the MIDI device that was removed.
  * @param direction The use of the device by the handle that made the transition (see [[MidiEvent]]).
- * @see [[MidiDeviceFailedToDisconnectEvent]], the failing pair of this event.
+ * @see [[MidiDeviceFailedToBecomeUnavailableEvent]], the failing pair of this event.
  */
-case class MidiDeviceDisconnectedEvent(deviceId: MidiDeviceId, direction: MidiDirection) extends MidiEvent
+case class MidiDeviceUnavailableEvent(deviceId: MidiDeviceId, direction: MidiDirection) extends MidiEvent
 
 /**
- * Event emitted when a MIDI device fails to disconnect.
+ * Event emitted when a MIDI device fails to become unavailable.
  *
- * @param deviceId  Unique identifier of the MIDI device that failed to disconnect.
+ * @param deviceId  Unique identifier of the MIDI device that failed to become unavailable.
  * @param direction The use of the device by the handle that made the transition (see [[MidiEvent]]).
- * @param cause     Exception that caused the failure to disconnect the device.
- * @see [[MidiDeviceDisconnectedEvent]], the successful pair of this event.
+ * @param cause     Exception that caused the failure to make the device unavailable.
+ * @see [[MidiDeviceUnavailableEvent]], the successful pair of this event.
  */
-case class MidiDeviceFailedToDisconnectEvent(deviceId: MidiDeviceId, direction: MidiDirection,
-                                             cause: Exception) extends MidiEvent
+case class MidiDeviceFailedToBecomeUnavailableEvent(deviceId: MidiDeviceId, direction: MidiDirection,
+                                                    cause: Exception) extends MidiEvent
 
 /**
  * Event emitted when a MIDI device is opened.

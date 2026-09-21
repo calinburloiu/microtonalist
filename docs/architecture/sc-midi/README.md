@@ -7,7 +7,7 @@ The `sc-midi` module (SBT project `sc-midi`, directory `sc-midi/`, `build.sbt` `
 Java Sound MIDI API is verbose, mutable, byte-oriented, and awkward on macOS; this module hides it behind traits and
 typed messages to give the rest of Microtonalist:
 
-- **Device handling** — enumeration, connection tracking, and reference-counted opening/closing of MIDI devices,
+- **Device handling** — enumeration, availability tracking, and reference-counted opening/closing of MIDI devices,
   publishing device lifecycle events on the [Businessync](../businessync/README.md) bus.
 - **An immutable, typed message model** — a sealed `MidiMsg` hierarchy of `case class`es with validated, named
   fields, plus bidirectional converters to/from Java's `MidiMessage`.
@@ -64,18 +64,19 @@ reconciles state.
 - **Ownership.** The manager creates the handle and is the only one to change its state. A consumer requests a device
   with `openDevice` and releases it with `closeDevice`, both reference-counted; otherwise it only inspects the handle
   and uses it for I/O.
-- **Disconnected devices.** A handle can exist for a device that is **not currently connected**:
-  `info: Option[MidiDeviceInfo]` is defined only while it is connected, and `isInputDevice` / `isOutputDevice` /
-  `direction` derive from it. A request made while the device is not connected moves the handle to
-  `WaitingToOpen`, and the handle opens once the device gets connected.
-- **States.** The `State` enum in the companion captures the Closed/Connected/WaitingToOpen/Open transitions, drawn in
-  its ScalaDoc. A failed transition sets to false the property it concerns: a failure of the connection leaves the
-  handle not connected, and a failure to open or close the device leaves it not requested to open. `isConnected`,
+- **Unavailable devices.** A handle can exist for a device that is **not currently available**:
+  `info: Option[MidiDeviceInfo]` is defined only while it is available, and `isInputDevice` / `isOutputDevice` /
+  `direction` derive from it. A request made while the device is not available moves the handle to
+  `WaitingToOpen`, and the handle opens once the device becomes available.
+- **States.** The `State` enum in the companion captures the Closed/Available/WaitingToOpen/Open transitions, drawn in
+  its ScalaDoc. A failed transition sets to false the property it concerns: a failure of the availability leaves the
+  handle unavailable, and a failure to open or close the device leaves it not requested to open. `isAvailable`,
   `isOpen` (true only in `Open`) and `isOpenRequested` all derive from `state`, so they cannot disagree.
 - **Liveness.** A handle is **live** while its manager holds it, which is exactly while its state is not `Closed`. A
   handle that reaches `Closed` is forgotten and stays `Closed`; a later request for the same id returns a new handle.
 - **I/O.** Callers **send** to an output via `handle.receiver: MidiReceiver` and **subscribe** to an input via
-  `handle.transmitter: ConcurrentMidiTransmitter`. Both survive disconnect/reconnect without re-wiring.
+  `handle.transmitter: ConcurrentMidiTransmitter`. Both survive a device going away and coming back without
+  re-wiring.
 
 Supporting value types: `MidiDeviceInfo` (`case class(name, vendor, description, version, transmittersLimit,
 receiversLimit)` with a derived `id: MidiDeviceId` and `direction`), `MidiConnectionLimit` (an `enum` of
@@ -86,12 +87,13 @@ in; a device may work in both or in neither).
 
 **The Java Sound implementation** (`javamidi`). `JavaMidiManager(businessync, environment = CoreMidi4JEnvironment)`
 keeps two internal endpoints, one for inputs and one for outputs. Each is a registry of its **live handles**: one
-`JavaMidiDeviceHandle` for every device that is connected, requested to open, or both.
+`JavaMidiDeviceHandle` for every device that is available, requested to open, or both.
 
 - **Refresh.** Each `refresh()` resolves every `MidiDevice` once and builds its `MidiDeviceInfo` through
   `JavaMidiConverters.asMidiDeviceInfo` (Java Sound's `-1` becomes `Unlimited`). It then reconciles each registry with
-  the result: a found device is handed to the handle of its id (created if there is none) with `connect`, and a
-  connected handle whose device was not found gets `disconnect` and is forgotten if that leaves it `Closed`.
+  the result: a found device is handed to the handle of its id (created if there is none) with `becomeAvailable`, and
+  an available handle whose device was not found gets `becomeUnavailable` and is forgotten if that leaves it
+  `Closed`.
 - **Two devices under one id (#306).** A `MidiDeviceId` is a name and a vendor, and two units of the same model
   plugged in at once match on both — CoreMIDI4J derives them from the endpoint's CoreMIDI properties and appends no
   counter. Only one of them can have the handle of that id, so the reconciliation keeps the device **resolved last**
@@ -102,10 +104,10 @@ keeps two internal endpoints, one for inputs and one for outputs. Each is a regi
 - **Replugged and swapped devices.** The device **resolved last** for an id wins, and a handle compares device
   instances. CoreMIDI4J keeps one `MidiDevice` per endpoint while the endpoint stays present, creates a new one when
   it reappears, and closes the instance of a vanished endpoint before it reports the change. Another instance under a
-  still-present id therefore means the device was replugged or swapped between two refreshes: a `Connected` handle
+  still-present id therefore means the device was replugged or swapped between two refreshes: an `Available` handle
   swaps it silently. An `Open` handle counts it as a swap only if the instance it holds is no longer open; it then
-  closes the old device and opens the new one, reporting *closed* and *opened* but not *disconnected* and
-  *connected*.
+  closes the old device and opens the new one, reporting *closed* and *opened* but not *unavailable* and
+  *available*.
   - The check exists for the JDK software devices CoreMIDI4J passes through, such as the Gervill `Synthesizer` and
     the `Real Time Sequencer`. Their providers build a new instance on every lookup, so without it every refresh (any
     MIDI plug anywhere) would close and reopen them. While the held instance is still open, the handle keeps it and
@@ -127,8 +129,9 @@ requested for, its `requestedDirection`, which its events carry — not its inhe
 directions the device itself works in. The device is reachable only through its
 `private[javamidi] javaDevice: Option[MidiDevice]`.
 
-- **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
-  called only by the manager and return the `MidiEvent`s of their transitions instead of publishing them.
+- **Commands.** Its five `private[javamidi]` commands (`becomeAvailable`, `becomeUnavailable`, `open`, `close` and
+  `closeAll`) are called only by the manager and return the `MidiEvent`s of their transitions instead of publishing
+  them.
 - **Shared devices (#315).** A refresh resolves one `MidiDevice` per device and hands that same instance to both
   endpoints, so a device that works in both directions — a digital piano, or the JDK `Real Time Sequencer` — has an
   input and an output handle over one instance. Java Sound's `MidiDevice.close()` closes a device outright, however
@@ -136,11 +139,11 @@ directions the device itself works in. The device is reachable only through its
   through the `JavaMidiDeviceReferenceCounter` that the manager shares among all its handles, which opens an instance
   on the first reference and closes it on the release of the last. What a handle obtains from the device for its own
   direction — the Java `Receiver` of an output, the Java `Transmitter` of an input — it closes itself on leaving
-  `Open`, since the device may stay open for the other handle. A disconnected handle that held no reference closes
-  the device only if no other handle holds it.
+  `Open`, since the device may stay open for the other handle. A handle that became unavailable while holding no
+  reference closes the device only if no other handle holds it.
 - **Transactional transitions.** A failed open closes the device as far as it is up to the handle and rolls back to
-  `Connected` with no reference held. A failed close still moves to `Connected`, its reference released. A failed
-  disconnect still leaves the handle disconnected.
+  `Available` with no reference held. A failed close still moves to `Available`, its reference released. A failed
+  `becomeUnavailable` still leaves the handle unavailable.
 - **Java Sound boundary, outbound.** Its receiver converts each `Midi1Msg` with `asJava` and sends it to the open
   device; a `Midi2Msg` is dropped, since Java Sound speaks MIDI 1.0 only — reported once per handle at warn level and
     at debug level from then on, the device never gaining the ability to speak MIDI 2.0.
@@ -163,14 +166,15 @@ only file that calls the CoreMIDI4J and `MidiSystem` statics, which is why `buil
 on the bus.
 
 - `MidiEnvironmentChangedEvent` signals a change to the environment.
-- The rest come as success/failure pairs for each lifecycle transition (connected/disconnected/opened/closed), each
+- The rest come as success/failure pairs for each lifecycle transition (available/unavailable/opened/closed), each
   failure event (`…FailedTo…Event`) carrying the cause.
-- All carry the `MidiDeviceId`. All but `MidiDeviceFailedToConnectEvent`, which is published before resolution tells
+- All carry the `MidiDeviceId`. All but `MidiDeviceFailedToBecomeAvailableEvent`, which is published before resolution
+  tells
   the direction, also carry a `direction`: the use of the device the event concerns, the same value a caller passes to
   `MidiManager`'s methods to request that use. `JavaMidiManager`, which accepts only `Input` and `Output`, therefore
   publishes only those.
 
-Note that "connected" means *available to the system*, not *opened by the application*: they are distinct,
+Note that "available" means *present in the system*, not *opened by the application*: they are distinct,
 separately evented states, and both differ again from a receiver being *attached* to a transmitter. See
 [`midi-device-lifecycle.md`](../midi-device-lifecycle.md) for the three pairs of terms and how they relate.
 
@@ -241,7 +245,7 @@ These are the composable pieces `tuner` builds its tuning pipeline from:
   `onAttach(added)` after every change of its receiver set — with exactly the receivers the change drops/adds, never
   for a receiver present on both sides of the change, and never with an empty sequence — and then
   `onReceiversChanged(newReceivers)` with the whole sequence. *Attached* / *detached* is deliberately not
-  *connected* / *disconnected*, which is about a device being available to the system
+  *available* / *unavailable*, which is about a device being present in the system
   ([`midi-device-lifecycle.md`](../midi-device-lifecycle.md)).
   The membership hooks are what a processor overrides to initialise or clean up an individual receiver; the sequence
   hook is what it overrides to keep something else in step with the sequence as a whole, and it is the only one that
@@ -313,30 +317,31 @@ the pair — LSB before MSB — is decided in one place for every sequence the a
    gives a UI-friendly name.
 3. Open a device with `openDevice(deviceId, direction)`, which returns a `MidiDeviceHandle`.
 4. Use the handle: send `MidiMsg` values via `handle.receiver` (outputs), subscribe `MidiReceiver`s via
-   `handle.transmitter.addReceiver` (inputs). The wiring survives disconnect/reconnect cycles: the manager hands the
-   replugged device to the same live handle.
+   `handle.transmitter.addReceiver` (inputs). The wiring survives a device going away and coming back: the manager
+   hands the replugged device to the same live handle.
 5. `closeDevice(deviceId, direction)` (reference-counted) releases a device. The handle is read-only and has no
    `close()`; `Track.close()` releases its devices this way. `MidiManager.close()` stops watching the environment and
    then releases every reference held through the manager, so every device it opened ends up closed — in that order,
-   so that a change reported meanwhile cannot reconnect or reopen a handle after it was closed.
+   so that a change reported meanwhile cannot make available again or reopen a handle after it was closed.
 
 ## Device lifecycle and events
 
 `JavaMidiManager`'s endpoints reconcile the scanned device set against their live handles on every `refresh()`. Each
 [`MidiEvent`](#device-handling) reports one transition of one handle, and a failure event replaces its success event:
 
-- *connected* / *disconnected* on `connect` / `disconnect`; `…FailedToDisconnect` replaces *disconnected* when releasing
-  the device throws, and the handle ends up disconnected either way. Only the first refresh that sees an id reports it
-  connected.
-- *opened* on every entry into `Open`, or `…FailedToOpen`. This includes a `WaitingToOpen` handle whose device gets
-  connected, and a device swap.
-- *closed* on every exit from `Open`, or `…FailedToClose`: releasing the last reference, a disconnection, or a swap. An
-  open handle whose device gets unplugged reports *closed*, then *disconnected* (or only `…FailedToDisconnect`).
+- *available* / *unavailable* on `becomeAvailable` / `becomeUnavailable`; `…FailedToBecomeUnavailable` replaces
+  *unavailable* when releasing the device throws, and the handle ends up unavailable either way. Only the first
+  refresh that sees an id reports it available.
+- *opened* on every entry into `Open`, or `…FailedToOpen`. This includes a `WaitingToOpen` handle whose device becomes
+  available, and a device swap.
+- *closed* on every exit from `Open`, or `…FailedToClose`: releasing the last reference, a device becoming
+  unavailable, or a swap. An open handle whose device gets unplugged reports *closed*, then *unavailable* (or only
+  `…FailedToBecomeUnavailable`).
 
 Other events around a refresh:
 
 - A refresh triggered by the platform is preceded by `MidiEnvironmentChangedEvent`.
-- A device that fails to resolve for an unexpected reason is reported by `MidiDeviceFailedToConnectEvent`.
+- A device that fails to resolve for an unexpected reason is reported by `MidiDeviceFailedToBecomeAvailableEvent`.
 - A device working in both directions is reported once per direction, by two events that differ in their
   `direction`.
 
@@ -345,7 +350,7 @@ Delivery and subscribers:
 - The events are published after the manager releases its lock, synchronously on the publishing thread. For a
   platform change, that is CoreMIDI4J's notification thread.
 - `TrackManager` (in `tuner`) is the first subscriber. It resets the tuner of the tracks whose output device opens and
-  releases the output of the tracks whose input device disconnects (see
+  releases the output of the tracks whose input device becomes unavailable (see
   [`tuner`](../tuner/README.md#device-changes)).
 - It subscribes through Guava's `@Subscribe`, since `Businessync.subscribe` is still a stub (#90).
 
@@ -367,15 +372,15 @@ thread-safe device/transmitter/processor classes), plus the external **CoreMIDI4
 logging/test stack.
 
 **Depended on by** `tuner` (builds `MidiProcessor`-based pipelines and uses the `MidiManager` it is given for device
-I/O), `cli` (lists connected devices) and `app` (instantiates `JavaMidiManager` and injects it into `TunerModule`);
+I/O), `cli` (lists available devices) and `app` (instantiates `JavaMidiManager` and injects it into `TunerModule`);
 `composition`, `format`, and `ui` reach it transitively through `tuner`.
 
 ## Notes / subject to change
 
-- Two identical devices connected at once collapse into one handle, the one resolved last, with a warning; see the
+- Two identical devices plugged in at once collapse into one handle, the one resolved last, with a warning; see the
   reconciliation bullet above and #306.
 - A vanished device is noticed only when CoreMIDI4J reports the change: until then a send to it is dropped. A handle
-  whose device failed to open stays `Connected` with no reference held, and so unusable by the track that requested
+  whose device failed to open stays `Available` with no reference held, and so unusable by the track that requested
   it, until the tracks are rebuilt (#302).
 - The `MidiMsg` model is broad (it covers the full set of SMF meta events) even though Microtonalist does not yet
   exercise every one; treat the typed model as the supported surface and `UnsupportedMidiMsg` as the lossless

@@ -43,8 +43,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
    */
   private val failure: Exception = MidiUnavailableException("The device is busy")
 
-  private val connected: MidiEvent = MidiDeviceConnectedEvent(deviceId, requestedDirection)
-  private val disconnected: MidiEvent = MidiDeviceDisconnectedEvent(deviceId, requestedDirection)
+  private val available: MidiEvent = MidiDeviceAvailableEvent(deviceId, requestedDirection)
+  private val unavailable: MidiEvent = MidiDeviceUnavailableEvent(deviceId, requestedDirection)
   private val opened: MidiEvent = MidiDeviceOpenedEvent(deviceId, requestedDirection)
   private val closed: MidiEvent = MidiDeviceClosedEvent(deviceId, requestedDirection)
 
@@ -60,7 +60,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   private val sustainOff: CcMidiMsg = CcMidiMsg(3, 64, 0)
 
   /**
-   * An output handle over [[device]], which is not yet connected to it. The parameters configure the device.
+   * An output handle over [[device]], which does not hold it yet. The parameters configure the device.
    */
   private abstract class Fixture(maxTransmitters: Int = -1,
                                  maxReceivers: Int = -1,
@@ -74,9 +74,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       maxReceivers = maxReceivers, openFailure = openFailure, closeFailure = closeFailure,
       receiverFailure = receiverFailure)
 
-    /** Informs the handle that `connectedDevice` got connected, as [[JavaMidiManager]] does. */
-    def connect(connectedDevice: FakeMidiDevice = device): Seq[MidiEvent] =
-      handle.connect(connectedDevice.asMidiDeviceInfo, connectedDevice)
+    /** Informs the handle that `availableDevice` became available, as [[JavaMidiManager]] does. */
+    def becomeAvailable(availableDevice: FakeMidiDevice = device): Seq[MidiEvent] =
+      handle.becomeAvailable(availableDevice.asMidiDeviceInfo, availableDevice)
 
     /**
      * Another instance of the device, as CoreMIDI4J creates one when the device is replugged or swapped. The
@@ -87,12 +87,12 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   }
 
   "A new JavaMidiDeviceHandle" should {
-    "be closed and disconnected, with no device and no info" in new Fixture {
+    "be closed and unavailable, with no device and no info" in new Fixture {
       // Then
       handle.id shouldEqual deviceId
       handle.requestedDirection shouldEqual requestedDirection
       handle.state shouldEqual State.Closed
-      handle.isConnected shouldBe false
+      handle.isAvailable shouldBe false
       handle.isOpen shouldBe false
       handle.isOpenRequested shouldBe false
       handle.javaDevice shouldBe empty
@@ -111,14 +111,14 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     }
   }
 
-  "connect" should {
-    "move a closed handle to Connected, exposing the device and its info without opening it" in new Fixture {
+  "becomeAvailable" should {
+    "move a closed handle to Available, exposing the device and its info without opening it" in new Fixture {
       // When
-      val events: Seq[MidiEvent] = connect()
+      val events: Seq[MidiEvent] = becomeAvailable()
 
       // Then
-      events shouldEqual Seq(connected)
-      handle.state shouldEqual State.Connected
+      events shouldEqual Seq(available)
+      handle.state shouldEqual State.Available
       handle.javaDevice shouldEqual Some(device)
       handle.info shouldEqual Some(device.asMidiDeviceInfo)
       device.openCount shouldEqual 0
@@ -129,49 +129,49 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.open()
 
       // When
-      val events: Seq[MidiEvent] = connect()
+      val events: Seq[MidiEvent] = becomeAvailable()
 
       // Then
-      events shouldEqual Seq(connected, opened)
+      events shouldEqual Seq(available, opened)
       handle.state shouldEqual State.Open
       device.isOpen shouldBe true
     }
 
-    "roll a handle waiting to open back to Connected, with no reference held, when its device fails to open" in
+    "roll a handle waiting to open back to Available, with no reference held, when its device fails to open" in
       new Fixture(openFailure = Some(failure)) {
         // Given
         handle.open()
 
         // When
-        val events: Seq[MidiEvent] = connect()
+        val events: Seq[MidiEvent] = becomeAvailable()
 
         // Then
-        events shouldEqual Seq(connected, MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
-        handle.state shouldEqual State.Connected
+        events shouldEqual Seq(available, MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
+        handle.state shouldEqual State.Available
         handle.isOpenRequested shouldBe false
         handle.close() shouldBe empty
       }
 
-    "change nothing when a connected handle is given the same device again" in new Fixture {
+    "change nothing when an available handle is given the same device again" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
-      val events: Seq[MidiEvent] = connect()
+      val events: Seq[MidiEvent] = becomeAvailable()
 
       // Then
       events shouldBe empty
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
       device.closeCount shouldEqual 0
     }
 
     "change nothing when an open handle is given the same device again" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
-      val events: Seq[MidiEvent] = connect()
+      val events: Seq[MidiEvent] = becomeAvailable()
 
       // Then
       events shouldBe empty
@@ -181,17 +181,17 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       device.closeCount shouldEqual 0
     }
 
-    "swap the device of a connected handle silently" in new Fixture {
+    "swap the device of an available handle silently" in new Fixture {
       // Given
       val swappedDevice: FakeMidiDevice = newDevice()
-      connect()
+      becomeAvailable()
 
       // When
-      val events: Seq[MidiEvent] = connect(swappedDevice)
+      val events: Seq[MidiEvent] = becomeAvailable(swappedDevice)
 
       // Then
       events shouldBe empty
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
       handle.javaDevice shouldEqual Some(swappedDevice)
       device.closeCount shouldEqual 0
     }
@@ -199,13 +199,13 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "close the device of an open handle and open the one it is swapped for, obtaining a new receiver" in new Fixture {
       // Given
       val swappedDevice: FakeMidiDevice = newDevice()
-      connect()
+      becomeAvailable()
       handle.open()
       // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
       device.close()
 
       // When
-      val events: Seq[MidiEvent] = connect(swappedDevice)
+      val events: Seq[MidiEvent] = becomeAvailable(swappedDevice)
       handle.receiver.send(noteOn, 42L)
 
       // Then
@@ -221,14 +221,14 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "report a failure to close the device an open handle is swapped from, and still open the new one" in new Fixture {
       // Given
       val swappedDevice: FakeMidiDevice = newDevice()
-      connect()
+      becomeAvailable()
       handle.open()
       // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
       device.close()
       device.closeFailure = Some(failure)
 
       // When
-      val events: Seq[MidiEvent] = connect(swappedDevice)
+      val events: Seq[MidiEvent] = becomeAvailable(swappedDevice)
 
       // Then
       events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, failure), opened)
@@ -237,21 +237,21 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       swappedDevice.isOpen shouldBe true
     }
 
-    "roll an open handle back to Connected, with no reference held, when the device it is swapped for fails to open" in
+    "roll an open handle back to Available, with no reference held, when the device it is swapped for fails to open" in
       new Fixture {
         // Given
         val swappedDevice: FakeMidiDevice = newDevice(openFailure = Some(failure))
-        connect()
+        becomeAvailable()
         handle.open()
         // CoreMIDI4J closes the instance of a vanished endpoint before it notifies the change
         device.close()
 
         // When
-        val events: Seq[MidiEvent] = connect(swappedDevice)
+        val events: Seq[MidiEvent] = becomeAvailable(swappedDevice)
 
         // Then
         events shouldEqual Seq(closed, MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
-        handle.state shouldEqual State.Connected
+        handle.state shouldEqual State.Available
         handle.isOpenRequested shouldBe false
         handle.javaDevice shouldEqual Some(swappedDevice)
         handle.close() shouldBe empty
@@ -262,11 +262,11 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         // Given
         // A JDK Sequencer or Synthesizer provider builds a new instance on every lookup, leaving the held one open
         val anotherInstance: FakeMidiDevice = newDevice(maxTransmitters = 3)
-        connect()
+        becomeAvailable()
         handle.open()
 
         // When
-        val events: Seq[MidiEvent] = connect(anotherInstance)
+        val events: Seq[MidiEvent] = becomeAvailable(anotherInstance)
 
         // Then
         events shouldBe empty
@@ -283,23 +283,23 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       val otherDevice: FakeMidiDevice = FakeMidiDevice("CoreMIDI4J - Seaboard", "ROLI")
 
       // When / Then
-      an[IllegalArgumentException] should be thrownBy handle.connect(otherDevice.asMidiDeviceInfo, otherDevice)
+      an[IllegalArgumentException] should be thrownBy handle.becomeAvailable(otherDevice.asMidiDeviceInfo, otherDevice)
       handle.state shouldEqual State.Closed
-      handle.isConnected shouldBe false
+      handle.isAvailable shouldBe false
     }
   }
 
-  "disconnect" should {
+  "becomeUnavailable" should {
     "close the device of an open handle and forget it along with its info, waiting to open it again" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
-      val events: Seq[MidiEvent] = handle.disconnect()
+      val events: Seq[MidiEvent] = handle.becomeUnavailable()
 
       // Then
-      events shouldEqual Seq(closed, disconnected)
+      events shouldEqual Seq(closed, unavailable)
       device.isOpen shouldBe false
       handle.state shouldEqual State.WaitingToOpen
       handle.isOpenRequested shouldBe true
@@ -307,60 +307,62 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.info shouldBe empty
     }
 
-    "move a connected handle to Closed, closing the device it did not open" in new Fixture {
+    "move an available handle to Closed, closing the device it did not open" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
-      val events: Seq[MidiEvent] = handle.disconnect()
+      val events: Seq[MidiEvent] = handle.becomeUnavailable()
 
       // Then
-      events shouldEqual Seq(disconnected)
+      events shouldEqual Seq(unavailable)
       handle.state shouldEqual State.Closed
       handle.javaDevice shouldBe empty
       device.closeCount shouldEqual 1
     }
 
-    "report only a failure to disconnect a connected handle whose device fails to close, and still close it" in
+    "report only a failure to become unavailable for an available handle whose device fails to close, and still " +
+      "close it" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
-        connect()
+        becomeAvailable()
 
         // When
-        val events: Seq[MidiEvent] = handle.disconnect()
+        val events: Seq[MidiEvent] = handle.becomeUnavailable()
 
         // Then
-        events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, requestedDirection, failure))
+        events shouldEqual Seq(MidiDeviceFailedToBecomeUnavailableEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.Closed
         handle.javaDevice shouldBe empty
       }
 
-    "report only a failure to disconnect an open handle whose device fails to close, and still make it wait" in
+    "report only a failure to become unavailable for an open handle whose device fails to close, and still make " +
+      "it wait" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
-        connect()
+        becomeAvailable()
         handle.open()
 
         // When
-        val events: Seq[MidiEvent] = handle.disconnect()
+        val events: Seq[MidiEvent] = handle.becomeUnavailable()
 
         // Then
-        events shouldEqual Seq(MidiDeviceFailedToDisconnectEvent(deviceId, requestedDirection, failure))
+        events shouldEqual Seq(MidiDeviceFailedToBecomeUnavailableEvent(deviceId, requestedDirection, failure))
         handle.state shouldEqual State.WaitingToOpen
       }
 
-    "make an open handle open the device it gets when it reconnects" in new Fixture {
+    "make an open handle open the device it gets when it becomes available again" in new Fixture {
       // Given
       val repluggedDevice: FakeMidiDevice = newDevice()
-      connect()
+      becomeAvailable()
       handle.open()
-      handle.disconnect()
+      handle.becomeUnavailable()
 
       // When
-      val events: Seq[MidiEvent] = connect(repluggedDevice)
+      val events: Seq[MidiEvent] = becomeAvailable(repluggedDevice)
 
       // Then
-      events shouldEqual Seq(connected, opened)
+      events shouldEqual Seq(available, opened)
       handle.state shouldEqual State.Open
       repluggedDevice.isOpen shouldBe true
     }
@@ -368,31 +370,31 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "keep both references of a handle held twice when its device is replugged" in new Fixture {
       // Given
       val repluggedDevice: FakeMidiDevice = newDevice()
-      connect()
+      becomeAvailable()
       handle.open()
       handle.open()
-      handle.disconnect()
+      handle.becomeUnavailable()
 
       // When
-      connect(repluggedDevice)
+      becomeAvailable(repluggedDevice)
 
       // Then
-      // Disconnecting leaves the reference count untouched, so the replugged device still takes two closes to close,
+      // Becoming unavailable leaves the reference count untouched, so the replugged device still takes two closes,
       // as two tracks sharing it expect
       handle.state shouldEqual State.Open
       handle.close() shouldBe empty
       handle.state shouldEqual State.Open
       handle.close() shouldEqual Seq(closed)
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
       repluggedDevice.closeCount shouldEqual 1
     }
 
-    "change nothing on a handle that is not connected" in new Fixture {
+    "change nothing on a handle that is not available" in new Fixture {
       // Given
       handle.open()
 
       // When
-      val events: Seq[MidiEvent] = handle.disconnect()
+      val events: Seq[MidiEvent] = handle.becomeUnavailable()
 
       // Then
       events shouldBe empty
@@ -401,7 +403,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   }
 
   "open" should {
-    "make a disconnected handle wait to open, without opening anything" in new Fixture {
+    "make an unavailable handle wait to open, without opening anything" in new Fixture {
       // When
       val events: Seq[MidiEvent] = handle.open()
 
@@ -412,9 +414,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       device.openCount shouldEqual 0
     }
 
-    "open the device of a connected handle" in new Fixture {
+    "open the device of an available handle" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       val events: Seq[MidiEvent] = handle.open()
@@ -427,7 +429,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "open the device only on the first of several calls" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
@@ -442,7 +444,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "subscribe to the device's transmitter when the handle is requested for input" in
       new Fixture(direction = MidiDirection.Input) {
         // Given
-        connect()
+        becomeAvailable()
 
         // When
         handle.open()
@@ -453,7 +455,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "not subscribe to the device's transmitter when the handle is requested for output" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       handle.open()
@@ -467,7 +469,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "obtain a receiver from the device when the handle is requested for output" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       handle.open()
@@ -479,7 +481,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "obtain no receiver from the device when the handle is requested for input" in
       new Fixture(direction = MidiDirection.Input) {
         // Given
-        connect()
+        becomeAvailable()
 
         // When
         handle.open()
@@ -490,33 +492,33 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         device.receiverCount shouldEqual 0
       }
 
-    "roll back to Connected, closing the device, with no reference held, when the device fails to open" in
+    "roll back to Available, closing the device, with no reference held, when the device fails to open" in
       new Fixture(openFailure = Some(failure)) {
         // Given
-        connect()
+        becomeAvailable()
 
         // When
         val events: Seq[MidiEvent] = handle.open()
 
         // Then
         events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
-        handle.state shouldEqual State.Connected
+        handle.state shouldEqual State.Available
         handle.isOpenRequested shouldBe false
         device.closeCount shouldEqual 1
         handle.close() shouldBe empty
       }
 
-    "roll back to Connected when the device fails to provide a receiver, dropping the messages sent" in
+    "roll back to Available when the device fails to provide a receiver, dropping the messages sent" in
       new Fixture(receiverFailure = Some(failure)) {
         // Given
-        connect()
+        becomeAvailable()
 
         // When
         val events: Seq[MidiEvent] = handle.open()
 
         // Then
         events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, failure))
-        handle.state shouldEqual State.Connected
+        handle.state shouldEqual State.Available
         device.isOpen shouldBe false
 
         // When / Then
@@ -531,23 +533,23 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val closeFailure = IllegalStateException("Cannot close")
 
         new Fixture(openFailure = Some(openFailure), closeFailure = Some(closeFailure)) {
-          connect()
+          becomeAvailable()
 
           // When
           val events: Seq[MidiEvent] = handle.open()
 
           // Then
           events shouldEqual Seq(MidiDeviceFailedToOpenEvent(deviceId, requestedDirection, openFailure))
-          handle.state shouldEqual State.Connected
+          handle.state shouldEqual State.Available
           openFailure.getSuppressed shouldEqual Array(closeFailure)
         }
       }
   }
 
   "close" should {
-    "close the device on the last of several closes only, returning the handle to Connected" in new Fixture {
+    "close the device on the last of several closes only, returning the handle to Available" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       handle.open()
 
@@ -565,31 +567,32 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       lastEvents shouldEqual Seq(closed)
       device.isOpen shouldBe false
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
     }
 
-    "return a handle waiting to open to Closed, so that connecting the device no longer opens it" in new Fixture {
+    "return a handle waiting to open to Closed, so that the device becoming available no longer opens it" in
+      new Fixture {
+        // Given
+        handle.open()
+
+        // When
+        val events: Seq[MidiEvent] = handle.close()
+
+        // Then
+        events shouldBe empty
+        handle.state shouldEqual State.Closed
+
+        // When
+        val availableEvents: Seq[MidiEvent] = becomeAvailable()
+
+        // Then
+        availableEvents shouldEqual Seq(available)
+        device.openCount shouldEqual 0
+      }
+
+    "report a failure to close the device, and still move to Available" in new Fixture(closeFailure = Some(failure)) {
       // Given
-      handle.open()
-
-      // When
-      val events: Seq[MidiEvent] = handle.close()
-
-      // Then
-      events shouldBe empty
-      handle.state shouldEqual State.Closed
-
-      // When
-      val connectionEvents: Seq[MidiEvent] = connect()
-
-      // Then
-      connectionEvents shouldEqual Seq(connected)
-      device.openCount shouldEqual 0
-    }
-
-    "report a failure to close the device, and still move to Connected" in new Fixture(closeFailure = Some(failure)) {
-      // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
@@ -597,19 +600,19 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
       // Then
       events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, failure))
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
     }
 
     "do nothing when no reference is held" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       val events: Seq[MidiEvent] = handle.close()
 
       // Then
       events shouldBe empty
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
       device.closeCount shouldEqual 0
     }
   }
@@ -617,7 +620,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   "closeAll" should {
     "release every reference, closing the device" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       handle.open()
 
@@ -626,7 +629,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
       // Then
       events shouldEqual Seq(closed)
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
       device.isOpen shouldBe false
       handle.close() shouldBe empty
     }
@@ -646,18 +649,18 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "do nothing when no reference is held" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When / Then
       handle.closeAll() shouldBe empty
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
     }
   }
 
   "receiver" should {
     "convert each message to Java Sound and send it to the open device, with its time stamp" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
@@ -670,7 +673,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "obtain a single receiver from the device for all the messages it sends while the device is open" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
@@ -684,7 +687,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "send to the open device again after the device was closed and opened again" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       handle.receiver.send(noteOn, 42L)
       handle.close()
@@ -698,9 +701,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         Seq((noteOn, 42L), (secondNoteOn, 43L))
     }
 
-    "drop the messages sent while the device is connected but not open" in new Fixture {
+    "drop the messages sent while the device is available but not open" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       handle.receiver.send(noteOn, 42L)
@@ -709,13 +712,13 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       device.receivedMessages shouldBe empty
     }
 
-    "drop the messages sent before the device is connected, instead of delivering them once it opens" in new Fixture {
+    "drop the messages sent before the device is available, instead of delivering them once it opens" in new Fixture {
       // Given
       handle.open()
 
       // When
       handle.receiver.send(noteOn, 42L)
-      connect()
+      becomeAvailable()
 
       // Then
       handle.state shouldEqual State.Open
@@ -725,7 +728,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "not ask a device that is not an output for a receiver" in new Fixture(maxReceivers = 0) {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When / Then
@@ -735,7 +738,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "drop the messages sent after the device was closed" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       handle.close()
 
@@ -746,7 +749,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "drop the messages when the device opened again fails to provide a receiver" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       handle.close()
       device.receiverFailure = Some(failure)
@@ -755,14 +758,14 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.open()
 
       // Then
-      handle.state shouldEqual State.Connected
+      handle.state shouldEqual State.Available
       noException should be thrownBy handle.receiver.send(noteOn, 42L)
       device.receivedMessages shouldBe empty
     }
 
     "drop a message that reaches a receiver Java Sound already closed, without throwing" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       // Java Sound closes the device, and its receivers, before the manager learns that the device is gone
       device.close()
@@ -782,7 +785,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         Seq(receiver1, receiver2).foreach(_.send.returns(_ => ()))
         handle.transmitter.addReceiver(receiver1)
         handle.transmitter.addReceiver(receiver2)
-        connect()
+        becomeAvailable()
         handle.open()
 
         // When
@@ -799,7 +802,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         val receiver: Stub[MidiReceiver] = stub[MidiReceiver]
         receiver.send.returns(_ => ())
         handle.transmitter.addReceiver(receiver)
-        connect()
+        becomeAvailable()
         handle.open()
         val inboundReceiver = device.transmitter.getReceiver
 
@@ -815,7 +818,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   "Two handles over one device that works in both directions" should {
     /**
      * An input and an output handle over the same instance of [[device]], as [[JavaMidiManager]] creates them for a
-     * device that works in both directions, sharing its reference counter. Both are connected.
+     * device that works in both directions, sharing its reference counter. Both are available.
      */
     abstract class SharedDeviceFixture(receiverFailure: Option[Exception] = None) {
       val javaDeviceReferences: JavaMidiDeviceReferenceCounter = JavaMidiDeviceReferenceCounter()
@@ -824,7 +827,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         JavaMidiDeviceHandle(deviceId, MidiDirection.Output, javaDeviceReferences)
       val device: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, receiverFailure = receiverFailure)
 
-      Seq(inputHandle, outputHandle).foreach(_.connect(device.asMidiDeviceInfo, device))
+      Seq(inputHandle, outputHandle).foreach(_.becomeAvailable(device.asMidiDeviceInfo, device))
     }
 
     "open the device once, for the first of them to open" in new SharedDeviceFixture {
@@ -910,33 +913,33 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         inputHandle.state shouldEqual State.Open
       }
 
-    "leave the device open for the other when one that did not open it gets disconnected" in
+    "leave the device open for the other when one that did not open it becomes unavailable" in
       new SharedDeviceFixture {
         // Given
         outputHandle.open()
 
         // When
-        val events: Seq[MidiEvent] = inputHandle.disconnect()
+        val events: Seq[MidiEvent] = inputHandle.becomeUnavailable()
 
         // Then
-        events shouldEqual Seq(MidiDeviceDisconnectedEvent(deviceId, MidiDirection.Input))
+        events shouldEqual Seq(MidiDeviceUnavailableEvent(deviceId, MidiDirection.Input))
         device.isOpen shouldBe true
         device.closeCount shouldEqual 0
       }
 
-    "close the device once both of them got disconnected" in new SharedDeviceFixture {
+    "close the device once both of them became unavailable" in new SharedDeviceFixture {
       // Given
       inputHandle.open()
       outputHandle.open()
 
       // When
-      inputHandle.disconnect()
+      inputHandle.becomeUnavailable()
 
       // Then
       device.isOpen shouldBe true
 
       // When
-      outputHandle.disconnect()
+      outputHandle.becomeUnavailable()
 
       // Then
       device.isOpen shouldBe false
@@ -947,7 +950,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   "Logging" should {
     val loggerName = classOf[JavaMidiDeviceHandle].getName
 
-    "report the connection of the device at debug level, with the connection limit of its direction" in {
+    "report the device becoming available at debug level, with the connection limit of its direction" in {
       // Given
       val inputDevice = FakeMidiDevice("CoreMIDI4J - Seaboard", "ROLI", maxTransmitters = 2, maxReceivers = 0)
       val outputDevice = FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = 0, maxReceivers = -1)
@@ -956,53 +959,53 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
-        inputHandle.connect(inputDevice.asMidiDeviceInfo, inputDevice)
-        outputHandle.connect(outputDevice.asMidiDeviceInfo, outputDevice)
+        inputHandle.becomeAvailable(inputDevice.asMidiDeviceInfo, inputDevice)
+        outputHandle.becomeAvailable(outputDevice.asMidiDeviceInfo, outputDevice)
       }
 
       // Then
       events.messagesAt(Level.DEBUG) shouldEqual Seq(
-        """Input device "CoreMIDI4J - Seaboard" (ROLI) with 2 transmitters was connected.""",
-        """Output device "CoreMIDI4J - FP-90" (Roland) with unlimited receivers was connected."""
+        """Input device "CoreMIDI4J - Seaboard" (ROLI) with 2 transmitters became available.""",
+        """Output device "CoreMIDI4J - FP-90" (Roland) with unlimited receivers became available."""
       )
     }
 
-    "report the disconnection of a device that was not open at debug level" in new Fixture {
+    "report a device that was not open becoming unavailable at debug level" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
-        handle.disconnect()
+        handle.becomeUnavailable()
       }
 
       // Then
       events.messagesAt(Level.DEBUG) shouldEqual Seq(
-        """Output device "CoreMIDI4J - FP-90" (Roland) was disconnected.""")
+        """Output device "CoreMIDI4J - FP-90" (Roland) became unavailable.""")
       events.messagesAt(Level.WARN) shouldBe empty
     }
 
-    "report the closing of an open device at info level, then its disconnection at warn level" in new Fixture {
+    "report the closing of an open device at info level, then its unavailability at warn level" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
-        handle.disconnect()
+        handle.becomeUnavailable()
       }
 
       // Then
       events.filter(event => Set(Level.INFO, Level.WARN).contains(event.getLevel))
         .map(event => (event.getLevel, event.getFormattedMessage)) shouldEqual Seq(
           (Level.INFO, """Successfully closed output device "CoreMIDI4J - FP-90" (Roland)."""),
-          (Level.WARN, """Output device "CoreMIDI4J - FP-90" (Roland) was disconnected.""")
+          (Level.WARN, """Output device "CoreMIDI4J - FP-90" (Roland) became unavailable.""")
         )
     }
 
     "report the opening and the closing of the device at info level" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
@@ -1019,7 +1022,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
     "report a failure to open the device at error level, with its cause" in new Fixture(openFailure = Some(failure)) {
       // Given
-      connect()
+      becomeAvailable()
 
       // When
       val (_, events) = LogCapture.capturing(loggerName) {
@@ -1034,7 +1037,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
     "report a failure to close the device at error level, with its cause" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
-        connect()
+        becomeAvailable()
         handle.open()
 
         // When
@@ -1047,26 +1050,26 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
           Seq(("""Failed to close output device "CoreMIDI4J - FP-90" (Roland)!""", Some(failure.getMessage)))
       }
 
-    "report a failure to disconnect from the device at error level, with its cause" in
+    "report a failure to make the device unavailable at error level, with its cause" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
-        connect()
+        becomeAvailable()
 
         // When
         val (_, events) = LogCapture.capturing(loggerName) {
-          handle.disconnect()
+          handle.becomeUnavailable()
         }
 
         // Then
         events.failuresAt(Level.ERROR) shouldEqual Seq((
-          """Failed to disconnect from output device "CoreMIDI4J - FP-90" (Roland)!""",
+          """Failed to make output device "CoreMIDI4J - FP-90" (Roland) unavailable!""",
           Some(failure.getMessage)
         ))
       }
 
     "warn of the first message dropped after each open and report the following ones at debug level" in new Fixture {
       // Given
-      connect()
+      becomeAvailable()
       handle.open()
       device.close()
 

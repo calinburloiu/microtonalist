@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi
 
 /**
- * Manages connections to MIDI devices and gives information about them.
+ * Manages access to MIDI devices and gives information about them.
  *
  * The `direction` a method takes tells how the caller wants to use a device: as an input ([[MidiDirection.Input]]),
  * as an output ([[MidiDirection.Output]]) or as both ([[MidiDirection.InputOutput]]). It is a request: the `direction`
@@ -37,7 +37,7 @@ package org.calinburloiu.music.scmidi
  *
  * A handle is live while the manager holds it, which is exactly while its state is not
  * [[MidiDeviceHandle.State.Closed]] (see [[MidiDeviceHandle]]). The manager holds a handle for every device that is
- * connected, requested to open, or both, and it forgets a handle once it reaches `Closed`.
+ * available, requested to open, or both, and it forgets a handle once it reaches `Closed`.
  */
 trait MidiManager extends AutoCloseable {
 
@@ -54,26 +54,26 @@ trait MidiManager extends AutoCloseable {
   /**
    * @param deviceId  Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
-   * @return whether the device with the given identifier is currently connected.
+   * @return whether the device with the given identifier is currently available.
    */
   def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean
 
   /**
    * @param deviceId  Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
-   * @return the information of the device with the given identifier, if it is currently connected.
+   * @return the information of the device with the given identifier, if it is currently available.
    */
   def deviceInfoOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceInfo]
 
   /**
    * @param direction How the caller wants to use the devices (see [[MidiManager]]).
-   * @return the identifiers of the devices currently connected.
+   * @return the identifiers of the devices currently available.
    */
   def deviceIdsFor(direction: MidiDirection): Seq[MidiDeviceId]
 
   /**
    * @param direction How the caller wants to use the devices (see [[MidiManager]]).
-   * @return the information of the devices currently connected.
+   * @return the information of the devices currently available.
    */
   def devicesInfoFor(direction: MidiDirection): Seq[MidiDeviceInfo]
 
@@ -81,9 +81,9 @@ trait MidiManager extends AutoCloseable {
    * Takes one reference to the device with the given identifier and returns its live handle, creating one if there is
    * none.
    *
-   * The device is not required to be connected. The handle is [[MidiDeviceHandle.State.Open]] if the device is
-   * connected and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not connected, in which case it opens once
-   * the device gets connected, and [[MidiDeviceHandle.State.Connected]] if the device fails to open.
+   * The device is not required to be available. The handle is [[MidiDeviceHandle.State.Open]] if the device is
+   * available and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not available, in which case it opens once
+   * the device becomes available, and [[MidiDeviceHandle.State.Available]] if the device fails to open.
    *
    * @param deviceId  Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
@@ -94,28 +94,28 @@ trait MidiManager extends AutoCloseable {
   /**
    * @param deviceId  Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
-   * @return the live handle of the device with the given identifier: requested to open, connected, or both. A
-   *         connected device nobody opened has one, in [[MidiDeviceHandle.State.Connected]].
+   * @return the live handle of the device with the given identifier: requested to open, available, or both. An
+   *         available device nobody opened has one, in [[MidiDeviceHandle.State.Available]].
    */
   def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle]
 
   /**
    * @param direction How the caller wants to use the devices (see [[MidiManager]]).
-   * @return the live handles of the devices that are open, i.e. connected and requested to open.
+   * @return the live handles of the devices that are open, i.e. available and requested to open.
    */
   def openDevicesFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
   /**
    * @param direction How the caller wants to use the devices (see [[MidiManager]]).
-   * @return the live handles of the devices requested to open, whether or not their device is connected: the open
-   *         ones, and those waiting to open once their device gets connected.
+   * @return the live handles of the devices requested to open, whether or not their device is available: the open
+   *         ones, and those waiting to open once their device becomes available.
    */
   def devicesRequestedToOpenFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
   /**
    * Releases one reference to the device with the given identifier. It does nothing when the device has no live handle
-   * requested to open. When the last reference is released, the handle moves to [[MidiDeviceHandle.State.Connected]],
-   * where it stays live, or, if its device is not connected, to [[MidiDeviceHandle.State.Closed]], where it is
+   * requested to open. When the last reference is released, the handle moves to [[MidiDeviceHandle.State.Available]],
+   * where it stays live, or, if its device is not available, to [[MidiDeviceHandle.State.Closed]], where it is
    * forgotten.
    *
    * @param deviceId  Unique identifier of the device.

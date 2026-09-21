@@ -38,10 +38,10 @@ import scala.collection.mutable
  * [[MidiDirection.None]] and [[MidiDirection.InputOutput]] throw an `IllegalArgumentException` (see [[MidiManager]]).
  *
  * Each of the two endpoints, one for inputs and one for outputs, keeps a registry of its live
- * [[JavaMidiDeviceHandle]]s: one for every device that is connected, requested to open, or both.
+ * [[JavaMidiDeviceHandle]]s: one for every device that is available, requested to open, or both.
  *
  * Each [[refresh]] resolves every device once through the [[JavaMidiEnvironment]] and reconciles each registry with
- * what it found (the device resolved last for an id wins). It hands each connected device to its handle and tells the
+ * what it found (the device resolved last for an id wins). It hands each available device to its handle and tells the
  * handles whose device is gone. A handle that ends up [[MidiDeviceHandle.State.Closed]] is forgotten. The manager also
  * refreshes whenever the environment reports a change, until it is closed.
  *
@@ -130,7 +130,7 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
       val resolutionEvents = mutable.Buffer.from(leadingEvents)
       val devices = environment.javaDeviceInfos.flatMap { javaInfo =>
         resolveJavaDevice(javaInfo, resolutionEvents)
-          .map(javaDevice => ConnectedDevice(javaDevice.asMidiDeviceInfo, javaDevice))
+          .map(javaDevice => AvailableDevice(javaDevice.asMidiDeviceInfo, javaDevice))
       }
 
       withLock {
@@ -146,8 +146,8 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
   /**
    * Resolves the Java Sound device described by `javaInfo`, or `None` if it cannot be. A `MidiUnavailableException`
    * or an `IllegalArgumentException` drops the device silently. Any other exception is logged and collected into
-   * `events` as a [[MidiDeviceFailedToConnectEvent]], to be published with the events of the refresh, before the
-   * device is dropped.
+   * `events` as a [[MidiDeviceFailedToBecomeAvailableEvent]], to be published with the events of the refresh,
+   * before the device is dropped.
    *
    * Both exceptions dropped silently mean that the device listed a moment earlier is not usable right now, which is
    * routine while devices are plugged in and unplugged, and which every [[refresh]] would report again:
@@ -166,8 +166,8 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
       case _: IllegalArgumentException => None
       case exception: Exception =>
         val id = javaInfo.asMidiDeviceId
-        logger.error(s"Failed to connect to device $id!", exception)
-        events += MidiDeviceFailedToConnectEvent(id, exception)
+        logger.error(s"Failed to make device $id available!", exception)
+        events += MidiDeviceFailedToBecomeAvailableEvent(id, exception)
         None
     }
   }
@@ -186,14 +186,14 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
 
   override def close(): Unit = {
     // Stop watching the environment before closing the devices, so that a change reported meanwhile cannot refresh
-    // the registries — and reconnect or reopen a handle — after they were closed.
+    // the registries — and make available again or reopen a handle — after they were closed.
     environmentSubscription.foreach(_.close())
 
-    logger.info(s"Closing MIDI connections...")
+    logger.info(s"Closing MIDI devices...")
     withLockThenPublish {
       ((), inputEndpoint.closeAll() ++ outputEndpoint.closeAll())
     }
-    logger.info(s"Finished closing MIDI connections.")
+    logger.info(s"Finished closing MIDI devices.")
   }
 
   override def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean = withLock {
@@ -258,7 +258,7 @@ object JavaMidiManager {
   }
 
   /** A device present in the environment: its API-level information and the resolved Java Sound device. */
-  private case class ConnectedDevice(info: MidiDeviceInfo, javaDevice: MidiDevice) {
+  private case class AvailableDevice(info: MidiDeviceInfo, javaDevice: MidiDevice) {
     def id: MidiDeviceId = info.id
   }
 
@@ -276,20 +276,20 @@ object JavaMidiManager {
   private class MidiEndpoint(val direction: MidiDirection, javaDeviceReferences: JavaMidiDeviceReferenceCounter)
     extends StrictLogging {
 
-    /** The live handles, which are connected, requested to open, or both, in the order they were created. */
+    /** The live handles, which are available, requested to open, or both, in the order they were created. */
     private val handles: mutable.LinkedHashMap[MidiDeviceId, JavaMidiDeviceHandle] = mutable.LinkedHashMap()
 
     /**
      * Reconciles the live handles with the devices of this direction that a refresh found: each device is handed to
-     * the handle of its id, created if there is none, and each connected handle whose device was not found is
-     * disconnected, and forgotten if that leaves it closed.
+     * the handle of its id, created if there is none, and each available handle whose device was not found is
+     * made unavailable, and forgotten if that leaves it closed.
      */
-    def reconcile(devices: Seq[ConnectedDevice]): Seq[MidiEvent] = {
+    def reconcile(devices: Seq[AvailableDevice]): Seq[MidiEvent] = {
       // Two devices of this direction can share an id, a MidiDeviceId being a name and a vendor: two identical
       // devices of the same model plugged in at once are told apart by nothing else. Only one can have the handle of
       // that id, and the device resolved last for it wins.
       // TODO #306 Give each of them a handle, keying the registry on a platform key instead of the MidiDeviceId.
-      val devicesById = devices.foldLeft(VectorMap.empty[MidiDeviceId, ConnectedDevice]) { (devicesById, device) =>
+      val devicesById = devices.foldLeft(VectorMap.empty[MidiDeviceId, AvailableDevice]) { (devicesById, device) =>
         if (devicesById.contains(device.id)) {
           logger.warn(s"Found more than one $direction device with id ${device.id}; only the last one resolved is " +
             "used and the others are ignored. Rename one of them in the MIDI setup of the operating system to tell " +
@@ -299,31 +299,31 @@ object JavaMidiManager {
         devicesById.updated(device.id, device)
       }
 
-      val connectionEvents = devicesById.values.flatMap { connectedDevice =>
-        handleOf(connectedDevice.id).connect(connectedDevice.info, connectedDevice.javaDevice)
+      val availableEvents = devicesById.values.flatMap { availableDevice =>
+        handleOf(availableDevice.id).becomeAvailable(availableDevice.info, availableDevice.javaDevice)
       }
-      val disconnectionEvents = handles.values
-        .filter(handle => handle.isConnected && !devicesById.contains(handle.id))
-        .flatMap(handle => forgettingIfClosed(handle)(handle.disconnect()))
+      val unavailableEvents = handles.values
+        .filter(handle => handle.isAvailable && !devicesById.contains(handle.id))
+        .flatMap(handle => forgettingIfClosed(handle)(handle.becomeUnavailable()))
 
-      Seq.from(connectionEvents ++ disconnectionEvents)
+      Seq.from(availableEvents ++ unavailableEvents)
     }
 
-    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = handles.get(deviceId).exists(_.isConnected)
+    def isDeviceAvailable(deviceId: MidiDeviceId): Boolean = handles.get(deviceId).exists(_.isAvailable)
 
     def deviceInfoOf(deviceId: MidiDeviceId): Option[MidiDeviceInfo] = handles.get(deviceId).flatMap(_.info)
 
-    def deviceIds: Seq[MidiDeviceId] = connectedHandles.map(_.id)
+    def deviceIds: Seq[MidiDeviceId] = availableHandles.map(_.id)
 
-    def devicesInfo: Seq[MidiDeviceInfo] = connectedHandles.flatMap(_.info)
+    def devicesInfo: Seq[MidiDeviceInfo] = availableHandles.flatMap(_.info)
 
     /** Takes one reference to the device, through its live handle, created if there is none. */
     def openDevice(deviceId: MidiDeviceId): (JavaMidiDeviceHandle, Seq[MidiEvent]) = {
       val handle = handleOf(deviceId)
       val events = handle.open()
       if (handle.state == State.WaitingToOpen) {
-        logger.warn(s"${direction.toString.capitalize} device $deviceId is not connected; it will be opened once it " +
-          "gets connected.")
+        logger.warn(s"${direction.toString.capitalize} device $deviceId is not available; it will be opened once " +
+          "it becomes available.")
       }
 
       (handle, events)
@@ -346,7 +346,7 @@ object JavaMidiManager {
       forgettingIfClosed(handle)(handle.closeAll())
     }.toSeq
 
-    private def connectedHandles: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isConnected).toSeq
+    private def availableHandles: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isAvailable).toSeq
 
     private def handleOf(deviceId: MidiDeviceId): JavaMidiDeviceHandle =
       handles.getOrElseUpdate(deviceId, JavaMidiDeviceHandle(deviceId, direction, javaDeviceReferences))

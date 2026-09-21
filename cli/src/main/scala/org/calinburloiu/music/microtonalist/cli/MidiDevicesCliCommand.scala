@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.cli
 import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiDirection, MidiManager}
 
 /**
- * The `midi-devices` command of the `microtonalist-cli` tool, which lists the MIDI devices connected to the computer.
+ * The `midi-devices` command of the `microtonalist-cli` tool, which lists the MIDI devices available on the computer.
  *
  * @param midiManager Lists the devices. The caller owns it and closes it after running the command.
  */
