@@ -195,7 +195,7 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
       case _: IllegalArgumentException => None
       case exception: Exception =>
         val id = javaInfo.asMidiDeviceId
-        logger.error(s"Failed to make device $id available!", exception)
+        logger.error(s"Failed to resolve device $id!", exception)
         events += MidiDeviceFailedToBecomeAvailableEvent(id, exception)
         None
     }

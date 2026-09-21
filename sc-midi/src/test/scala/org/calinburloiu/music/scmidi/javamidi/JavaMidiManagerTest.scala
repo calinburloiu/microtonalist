@@ -991,7 +991,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       events.failuresAt(Level.ERROR) shouldEqual
-        Seq(("""Failed to make device "CoreMIDI4J - FP-90" (Roland) available!""", Some("CoreMIDI failure")))
+        Seq(("""Failed to resolve device "CoreMIDI4J - FP-90" (Roland)!""", Some("CoreMIDI failure")))
     }
 
     "warn that two devices of a direction share an id, only the last resolved being used" in new Fixture {

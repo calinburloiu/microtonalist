@@ -1227,7 +1227,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
           Seq(("""Failed to close output device "CoreMIDI4J - FP-90" (Roland)!""", Some(failure.getMessage)))
       }
 
-    "report a failure to make the device unavailable at error level, with its cause" in
+    "report a failure to close the device as it becomes unavailable at error level, with its cause" in
       new Fixture(closeFailure = Some(failure)) {
         // Given
         becomeAvailable()
@@ -1239,7 +1239,7 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
 
         // Then
         events.failuresAt(Level.ERROR) shouldEqual Seq((
-          """Failed to make output device "CoreMIDI4J - FP-90" (Roland) unavailable!""",
+          """Failed to close output device "CoreMIDI4J - FP-90" (Roland) as it became unavailable!""",
           Some(failure.getMessage)
         ))
       }

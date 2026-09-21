@@ -258,7 +258,7 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
           closedEvents :+ MidiDeviceUnavailableEvent(id, requestedDirection)
         } catch {
           case exception: Exception =>
-            logger.error(s"Failed to make $requestedDirection device $id unavailable!", exception)
+            logger.error(s"Failed to close $requestedDirection device $id as it became unavailable!", exception)
             Seq(MidiDeviceFailedToBecomeUnavailableEvent(id, requestedDirection, exception))
         }
       case None =>
