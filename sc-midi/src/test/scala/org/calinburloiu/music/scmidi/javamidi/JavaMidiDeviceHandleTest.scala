@@ -837,6 +837,75 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
     }
 
+    "keep the state of each of them independent, although the device they share is one" in new SharedDeviceFixture {
+      // Then
+      Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Connected, State.Connected)
+
+      // When
+      inputHandle.open()
+
+      // Then
+      inputHandle.state shouldEqual State.Open
+      inputHandle.isOpen shouldBe true
+      inputHandle.isOpenRequested shouldBe true
+      outputHandle.state shouldEqual State.Connected
+      outputHandle.isOpen shouldBe false
+      outputHandle.isOpenRequested shouldBe false
+      device.isOpen shouldBe true
+
+      // When
+      outputHandle.open()
+      inputHandle.close()
+
+      // Then
+      inputHandle.state shouldEqual State.Connected
+      outputHandle.state shouldEqual State.Open
+
+      // When
+      outputHandle.disconnect()
+
+      // Then
+      outputHandle.state shouldEqual State.WaitingToOpen
+      outputHandle.isConnected shouldBe false
+      outputHandle.javaDevice shouldBe empty
+      outputHandle.info shouldBe empty
+      inputHandle.state shouldEqual State.Connected
+      inputHandle.isConnected shouldBe true
+      inputHandle.javaDevice should contain(device)
+      inputHandle.info should not be empty
+    }
+
+    "count the open references of each of them separately" in new SharedDeviceFixture {
+      // Given
+      inputHandle.open()
+      inputHandle.open()
+      outputHandle.open()
+
+      // When
+      outputHandle.close()
+
+      // Then
+      outputHandle.state shouldEqual State.Connected
+      inputHandle.state shouldEqual State.Open
+      device.isOpen shouldBe true
+
+      // When
+      inputHandle.close()
+
+      // Then
+      inputHandle.state shouldEqual State.Open
+      device.isOpen shouldBe true
+      device.closeCount shouldEqual 0
+
+      // When
+      inputHandle.close()
+
+      // Then
+      inputHandle.state shouldEqual State.Connected
+      device.isOpen shouldBe false
+      device.closeCount shouldEqual 1
+    }
+
     "keep the device open for the other when one of them closes, closing it only when both did" in
       new SharedDeviceFixture {
         // Given
