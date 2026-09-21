@@ -764,6 +764,44 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       }
     }
 
+    "stay open as an output when closed as an input after a refresh, although it resolves to a new instance on every " +
+      "lookup" in new Fixture {
+        // Given
+        // The JDK Real Time Sequencer, whose provider builds on every lookup a new instance working in both directions
+        val instances: mutable.Buffer[FakeMidiDevice] = mutable.ArrayBuffer()
+        environment.plugResolvingAfresh(javaDeviceInfo, () => {
+          val instance = FakeMidiDevice(deviceName, maxTransmitters = -1, maxReceivers = -1)
+          instances += instance
+          instance
+        })
+        val manager: JavaMidiManager = newManager()
+        val id: MidiDeviceId = instances.head.id
+        manager.openDevice(id, MidiDirection.Input)
+        val outputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Output)
+        val heldInstance: FakeMidiDevice = instances.head
+        manager.refresh()
+
+        // When
+        manager.closeDevice(id, MidiDirection.Input)
+        outputHandle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 1L)
+
+        // Then
+        instances should have size 2
+        instances.last.openCount shouldEqual 0
+        heldInstance.openCount shouldEqual 1
+        heldInstance.isOpen shouldBe true
+        outputHandle.state shouldEqual State.Open
+        heldInstance.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+          Seq(NoteOnMidiMsg(2, MidiNote.C4, 100) -> 1L)
+
+        // When
+        manager.closeDevice(id, MidiDirection.Output)
+
+        // Then
+        heldInstance.isOpen shouldBe false
+        heldInstance.closeCount shouldEqual 1
+      }
+
     "keep sending to the device as an output after it is closed as an input" in new BidirectionalFixture {
       // When
       manager.closeDevice(device.id, MidiDirection.Input)

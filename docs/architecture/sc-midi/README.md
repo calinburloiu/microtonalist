@@ -27,11 +27,11 @@ Package: `org.calinburloiu.music.scmidi` is the pure Scala API, with a `message`
 and its constants. The `javamidi` sub-package is the Java Sound implementation: `JavaMidiManager`,
 `JavaMidiDeviceHandle` with the `JavaMidiDeviceReferenceCounter` its handles share, the `JavaMidiEnvironment` seam
 with its `CoreMidi4JEnvironment` production implementation, and `JavaMidiConverters`. The two live in the same sbt
-module; the isolation is enforced by convention and review, not by the build (#278, D1). Inside `javamidi`, an identifier holding a Java Sound device or its `MidiDevice.Info` says so with
-a `java` prefix (`javaDevice`, `javaInfo`, `javaDeviceOf`), so that it never reads like the module's own
-`MidiDeviceInfo` or `MidiManager.deviceOf`. macOS support comes from **CoreMIDI4J**, which replaces the default Java
-Sound MIDI device provider and prefixes device names with `"CoreMIDI4J - "` (stripped for display by
-`MidiDeviceId.sanitizedName`).
+module; the isolation is enforced by convention and review, not by the build (#278, D1). Inside `javamidi`, an
+identifier holding a Java Sound device or its `MidiDevice.Info` says so with a `java` prefix (`javaDevice`,
+`javaInfo`, `javaDeviceOf`), so that it never reads like the module's own `MidiDeviceInfo` or `MidiManager.deviceOf`.
+macOS support comes from **CoreMIDI4J**, which replaces the default Java Sound MIDI device provider and prefixes device
+names with `"CoreMIDI4J - "` (stripped for display by `MidiDeviceId.sanitizedName`).
 
 ## Key types
 
@@ -130,14 +130,16 @@ directions the device itself works in. The device is reachable only through its
 - **Commands.** Its five `private[javamidi]` commands (`connect`, `disconnect`, `open`, `close` and `closeAll`) are
   called only by the manager and return the `MidiEvent`s of their transitions instead of publishing them.
 - **Shared devices (#315).** A refresh resolves one `MidiDevice` per device and hands that same instance to both
-  endpoints, so a device that works in both directions — a digital piano, or the JDK `Real Time Sequencer` — has an
-  input and an output handle over one instance. Java Sound's `MidiDevice.close()` closes a device outright, however
-  many times it was opened, so a handle never opens or closes its device itself: it takes and releases its reference
-  through the `JavaMidiDeviceReferenceCounter` that the manager shares among all its handles, which opens an instance
-  on the first reference and closes it on the release of the last. What a handle obtains from the device for its own
-  direction — the Java `Receiver` of an output, the Java `Transmitter` of an input — it closes itself on leaving
-  `Open`, since the device may stay open for the other handle. A disconnected handle that held no reference closes
-  the device only if no other handle holds it.
+  endpoints, so a `MidiDevice` that works in both directions has an input and an output handle over one instance. In
+  practice that is the JDK `Real Time Sequencer`: CoreMIDI4J, like the JDK's own providers, exposes a hardware device
+  that works in both directions, such as a digital piano, as two instances, a source and a destination, which land in
+  different endpoints. Java Sound's `MidiDevice.close()` closes a device outright, however many times it was opened,
+  so a handle never opens or closes its device itself: it takes and releases its reference through the
+  `JavaMidiDeviceReferenceCounter` that the manager shares among all its handles, which opens an instance on the first
+  reference and closes it on the release of the last. What a handle obtains from the device for its own direction —
+  the Java `Receiver` of an output, the Java `Transmitter` of an input — it closes itself on leaving `Open`, since
+  the device may stay open for the other handle. A disconnected handle that held no reference closes the device only
+  if no other handle holds it.
 - **Transactional transitions.** A failed open closes the device as far as it is up to the handle and rolls back to
   `Connected` with no reference held. A failed close still moves to `Connected`, its reference released. A failed
   disconnect still leaves the handle disconnected.

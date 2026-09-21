@@ -27,11 +27,12 @@ import javax.sound.midi.MidiDevice
  * Counts the references held to each Java Sound [[MidiDevice]] instance, opening it on the first and closing it on the
  * release of the last.
  *
- * Several [[JavaMidiDeviceHandle]]s may hold the same instance: [[JavaMidiManager]] gives a device that works in both
- * directions one handle per direction, and resolves a single instance for both. Java Sound's `MidiDevice.close()`
- * closes a device outright, however many times it was opened, so a handle closing the device on its own would close it
- * under the other one. The handles of a manager therefore share one counter, which alone opens and closes their
- * devices.
+ * Several [[JavaMidiDeviceHandle]]s may hold the same instance: [[JavaMidiManager]] gives a [[MidiDevice]] that works
+ * in both directions one handle per direction, and resolves a single instance for both. In practice that is the JDK
+ * `Real Time Sequencer`: CoreMIDI4J exposes a hardware device that works in both directions as two instances, a source
+ * and a destination, each held only by the handle of its own direction. Java Sound's `MidiDevice.close()` closes a
+ * device outright, however many times it was opened, so a handle closing the device on its own would close it under
+ * the other one. The handles of a manager therefore share one counter, which alone opens and closes their devices.
  *
  * Instances are told apart by identity, not by equality. The lock of the counter is the last in the lock order of the
  * manager (refresh, manager, handle, then this one): it is only ever taken inside the lock of a handle.
