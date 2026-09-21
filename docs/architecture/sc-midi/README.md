@@ -140,6 +140,11 @@ directions the device itself works in. The device is reachable only through its
   the Java `Receiver` of an output, the Java `Transmitter` of an input — it closes itself on leaving `Open`, since
   the device may stay open for the other handle. A disconnected handle that held no reference closes the device only
   if no other handle holds it.
+  - The sequencer's provider builds a new instance on every lookup (see *Replugged and swapped devices* above), and a
+    `Connected` handle takes it while an `Open` one keeps the instance it holds, so the two handles would drift apart
+    and opening the second would open a second sequencer (#320). The manager therefore hands both handles of a device
+    that works in both directions the instance either of them holds open, if any, rather than the one just resolved;
+    an instance that got closed does not count, so both handles then move to the new one together.
 - **Transactional transitions.** A failed open closes the device as far as it is up to the handle and rolls back to
   `Connected` with no reference held. A failed close still moves to `Connected`, its reference released. A failed
   disconnect still leaves the handle disconnected.
