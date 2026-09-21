@@ -42,15 +42,18 @@ import scala.collection.mutable
  *
  * Each [[refresh]] resolves every device once through the [[JavaMidiEnvironment]] and reconciles each registry with
  * what it found (the device resolved last for an id wins). It hands each connected device to its handle and tells the
- * handles whose device is gone. A handle that ends up [[MidiDeviceHandle.State.Closed]] is forgotten. The manager also
- * refreshes whenever the environment reports a change, until it is closed.
+ * handles whose device is gone. A device that works in both directions is handed to both of its handles over one
+ * instance: the one either of them holds open, if any, rather than the one just resolved. A handle that ends up
+ * [[MidiDeviceHandle.State.Closed]] is forgotten. The manager also refreshes whenever the environment reports a change,
+ * until it is closed.
  *
  * There are two locks, always taken in this order and never the other way around:
  *
  *   1. a refresh lock, held for the whole of a refresh, so that two refreshes cannot interleave and the one that
  *      scanned first cannot reconcile last and win with a stale snapshot;
  *   1. a manager-wide lock, which serialises the operations and the registry reads. The lock of a handle is only ever
- *      taken inside it. One exclusive lock is enough here, rather than a read-write one: the reads are a handful of
+ *      taken inside it, and that of the [[JavaMidiDeviceReferenceCounter]] the handles share only inside the lock of a
+ *      handle. One exclusive lock is enough here, rather than a read-write one: the reads are a handful of
  *      handle lookups made by the UI and the composition root, never on the MIDI path, and each of them takes the
  *      lock of every handle it inspects anyway, so there is no read contention for a read-write lock to relieve —
  *      only its higher uncontended cost and its read lock that cannot be upgraded.
@@ -81,8 +84,14 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
    */
   private val refreshLock: Lock = ReentrantLock()
 
-  private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Input)
-  private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Output)
+  /**
+   * Counts the references the handles of both endpoints hold to each Java Sound device, which the two endpoints may
+   * share: a device that works in both directions has one handle in each over the same instance.
+   */
+  private val javaDeviceReferences: JavaMidiDeviceReferenceCounter = JavaMidiDeviceReferenceCounter()
+
+  private val inputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Input, javaDeviceReferences)
+  private val outputEndpoint: MidiEndpoint = MidiEndpoint(MidiDirection.Output, javaDeviceReferences)
 
   @volatile private var environmentSubscription: Option[AutoCloseable] = None
 
@@ -127,13 +136,40 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
       }
 
       withLock {
-        val reconciliationEvents = inputEndpoint.reconcile(devices.filter(_.info.isInputDevice)) ++
-          outputEndpoint.reconcile(devices.filter(_.info.isOutputDevice))
+        val sharedDevices = devices.map(withInstanceHeldOpen)
+        val reconciliationEvents = inputEndpoint.reconcile(sharedDevices.filter(_.info.isInputDevice)) ++
+          outputEndpoint.reconcile(sharedDevices.filter(_.info.isOutputDevice))
         resolutionEvents.toSeq ++ reconciliationEvents
       }(lock)
     }(refreshLock)
 
     events.foreach(businessync.publish)
+  }
+
+  /**
+   * Returns `device`, found by a refresh, over the instance that a handle of its id holds open, instead of the one just
+   * resolved, if the device works in both directions and such a handle exists.
+   *
+   * A device that works in both directions has a handle in each endpoint, which must share one instance for the
+   * [[JavaMidiDeviceReferenceCounter]] to count their references together. A provider that builds a new instance on
+   * every lookup, as that of the JDK `Real Time Sequencer` does, would split them otherwise: an [[State.Open]] handle
+   * keeps the instance it holds while that is still open, but a [[State.Connected]] one takes the new instance, and
+   * opening it later would open a second device. The check is the one the handle makes: an instance that got closed,
+   * as CoreMIDI4J closes that of a vanished endpoint, is not held open, and both handles move to the new one.
+   *
+   * A device that works in one direction only is returned unchanged: a hardware device that works in both is exposed as
+   * a source and a destination sharing its id, each of which belongs to one endpoint only.
+   */
+  private def withInstanceHeldOpen(device: ConnectedDevice): ConnectedDevice = {
+    if (device.info.direction == MidiDirection.InputOutput) {
+      val instanceHeldOpen = Seq(inputEndpoint, outputEndpoint).iterator
+        .flatMap(_.deviceOf(device.id))
+        .flatMap(_.javaDevice)
+        .find(_.isOpen)
+      instanceHeldOpen.fold(device)(javaDevice => device.copy(javaDevice = javaDevice))
+    } else {
+      device
+    }
   }
 
   /**
@@ -262,10 +298,12 @@ object JavaMidiManager {
    * It is not thread-safe: [[JavaMidiManager]] uses it only under its lock. Each operation returns the events of the
    * transitions it made, for the manager to publish.
    *
-   * @param direction whether the devices managed are input or output devices.
+   * @param direction            whether the devices managed are input or output devices.
+   * @param javaDeviceReferences the reference counter of the Java Sound devices, shared with the other endpoint.
    */
   @NotThreadSafe
-  private class MidiEndpoint(val direction: MidiDirection) extends StrictLogging {
+  private class MidiEndpoint(val direction: MidiDirection, javaDeviceReferences: JavaMidiDeviceReferenceCounter)
+    extends StrictLogging {
 
     /** The live handles, which are connected, requested to open, or both, in the order they were created. */
     private val handles: mutable.LinkedHashMap[MidiDeviceId, JavaMidiDeviceHandle] = mutable.LinkedHashMap()
@@ -340,7 +378,7 @@ object JavaMidiManager {
     private def connectedHandles: Seq[JavaMidiDeviceHandle] = handles.values.filter(_.isConnected).toSeq
 
     private def handleOf(deviceId: MidiDeviceId): JavaMidiDeviceHandle =
-      handles.getOrElseUpdate(deviceId, JavaMidiDeviceHandle(deviceId, direction))
+      handles.getOrElseUpdate(deviceId, JavaMidiDeviceHandle(deviceId, direction, javaDeviceReferences))
 
     /** Runs `command`, a command of `handle`, then forgets the handle if the command left it closed. */
     private def forgettingIfClosed(handle: JavaMidiDeviceHandle)(command: => Seq[MidiEvent]): Seq[MidiEvent] = {

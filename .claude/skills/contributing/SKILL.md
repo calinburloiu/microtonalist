@@ -118,7 +118,9 @@ When creating a new issue (`microtonalist-gh issue` does all of this):
 When creating a new pull request (`microtonalist-gh pr` does all of this):
 
 - **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`);
-  for a sub-issue use `[#<parent>/#<child>]` (see Sub-issues).
+  for a sub-issue use `[#<parent>/#<child>]` (see Sub-issues). A PR resolving several issues that are not parent and
+  child puts each in its own brackets, e.g. `[#315][#320]`, with a `Resolves #<n>` line for each; the `pr` script
+  links only one, so add the others by editing the PR.
 - **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
 - **Draft state:** Always open new PRs as **draft**.
 - **Assignee:** Assign the PR to the current user (`@me`).

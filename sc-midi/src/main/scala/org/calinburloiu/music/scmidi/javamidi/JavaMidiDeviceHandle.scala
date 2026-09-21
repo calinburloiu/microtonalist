@@ -26,7 +26,7 @@ import org.calinburloiu.music.scmidi.message.{Midi1Msg, Midi2Msg, MidiMsg}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 import javax.annotation.concurrent.ThreadSafe
-import javax.sound.midi.{MidiDevice, MidiMessage, Receiver}
+import javax.sound.midi.{MidiDevice, MidiMessage, Receiver, Transmitter}
 import scala.util.Try
 
 /**
@@ -42,6 +42,13 @@ import scala.util.Try
  *
  * Only while the device is connected are the [[MidiDevice]], via the [[javaDevice]] accessor, and the
  * [[MidiDeviceInfo]], via the [[info]] accessor, defined on the instance.
+ *
+ * A [[MidiDevice]] instance that works in both directions, such as the JDK `Real Time Sequencer`, has one handle per
+ * direction over it. The handle therefore never opens or closes the device itself, but takes and releases its
+ * reference through the [[JavaMidiDeviceReferenceCounter]] it shares with the other handles of its manager, so that
+ * the device stays open for as long as any of them holds it (#315). What the handle obtains from the device for its
+ * own direction — a receiver for an output, a transmitter for an input — it closes itself on leaving
+ * [[State.Open]].
  *
  * A command publishes nothing: it returns the [[MidiEvent]]s of the transitions it made, in order, for the manager to
  * publish once it released its lock. A transition that fails still completes, setting to false the property it
@@ -65,10 +72,13 @@ import scala.util.Try
  *                           events of the handle carry as their `direction`. It is not [[direction]], which tells the
  *                           directions the device itself works in and so takes any of the four values,
  *                           [[MidiDirection.InputOutput]] and [[MidiDirection.None]] included.
+ * @param javaDeviceReferences The reference counter through which the handle opens and closes its device, shared by
+ *                             all the handles of the manager that owns it.
  */
 @ThreadSafe
 class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
-                                             private[javamidi] val requestedDirection: MidiDirection)
+                                             private[javamidi] val requestedDirection: MidiDirection,
+                                             javaDeviceReferences: JavaMidiDeviceReferenceCounter)
   extends MidiDeviceHandle, Locking, LazyLogging {
   require(requestedDirection == MidiDirection.Input || requestedDirection == MidiDirection.Output,
     s"The requested direction of a JavaMidiDeviceHandle must be input or output; got $requestedDirection!")
@@ -80,10 +90,17 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   /**
    * The receiver obtained from the device when it was last opened, if it is an output. A Java Sound device creates a
    * new receiver on each `getReceiver` call and keeps it until it is closed, so the handle obtains a single one per
-   * open; closing the device closes it. It is defined only while the handle is open, which is what [[receiver]]
-   * relies on to send without taking the lock.
+   * open and closes it on leaving [[State.Open]], since the device may stay open for another handle. It is defined
+   * only while the handle is open, which is what [[receiver]] relies on to send without taking the lock.
    */
   @volatile private var deviceReceiver: Option[Receiver] = None
+
+  /**
+   * The transmitter obtained from the device when it was last opened, if it is an input, to which the handle
+   * subscribed [[inboundReceiver]]. It is defined only while the handle is open; the handle closes it on leaving
+   * [[State.Open]], since the device may stay open for another handle.
+   */
+  private var deviceTransmitter: Option[Transmitter] = None
 
   /** Whether a message dropped since the device last opened was already reported at warn level. */
   private val hasWarnedOfDroppedMessage: AtomicBoolean = AtomicBoolean(false)
@@ -153,8 +170,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    * two scans, and a [[State.Connected]] handle swaps it silently.
    *
    * A [[State.Open]] handle takes another instance for a swap only when the one it holds is no longer open: it then
-   * closes the device it held and opens the new one. CoreMIDI4J closes the instance of an endpoint that vanished before
-   * it reports the change, so a replugged or swapped device always passes that check. A JDK `Sequencer` or
+   * releases the device it held and opens the new one. CoreMIDI4J closes the instance of an endpoint that vanished
+   * before it reports the change, so a replugged or swapped device always passes that check. A JDK `Sequencer` or
    * `Synthesizer`, which CoreMIDI4J passes through, resolves to a new instance on every lookup instead, while the one
    * the handle opened stays open: the handle then keeps the device it holds and its info, and reports nothing.
    *
@@ -207,8 +224,9 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   /**
    * Informs the handle that its device got disconnected from the system.
    *
-   * The handle closes the device, whether or not it opened it, since closing a Java Sound device that is not open, or
-   * that CoreMIDI4J already closed, is harmless. It then forgets the device and its info:
+   * The handle releases its reference to the device if it holds one; otherwise, it closes the device unless another
+   * handle holds it, since closing a Java Sound device that is not open, or that CoreMIDI4J already closed, is
+   * harmless. It then forgets the device and its info:
    *
    *   - an [[State.Open]] handle moves to [[State.WaitingToOpen]], keeping its references;
    *   - a [[State.Connected]] handle moves to [[State.Closed]];
@@ -223,12 +241,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       case Some(javaDevice) =>
         val wasOpen = _state == State.Open
         _state = if (wasOpen) State.WaitingToOpen else State.Closed
-        deviceReceiver = None
         _javaDevice = None
         _info = None
 
         try {
-          javaDevice.close()
+          if (wasOpen) {
+            releaseJavaDevice(javaDevice)
+          } else {
+            javaDeviceReferences.closeIfUnreferenced(javaDevice)
+          }
           if (wasOpen) {
             logger.info(s"Successfully closed $requestedDirection device $id.")
           }
@@ -252,7 +273,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    *
    * @return the event of the transition made: [[MidiDeviceOpenedEvent]], or [[MidiDeviceFailedToOpenEvent]] if the
    *         device fails to open; nothing if the device is not connected or if a reference was already held.
-   * @see `MidiDevice.open()` from the Java MIDI API, which is called by this method to open the device.
+   * @see `MidiDevice.open()` from the Java MIDI API, which the [[JavaMidiDeviceReferenceCounter]] calls to open the
+   *      device only if no other handle holds it already.
    */
   private[javamidi] def open(): Seq[MidiEvent] = withLock {
     openRefCount += 1
@@ -274,7 +296,8 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
    * describes. With no reference held, it does nothing.
    *
    * @return the events of the transition made, as for [[closeAll]].
-   * @see `MidiDevice.close()` from the Java MIDI API, which is called by this method to close the device.
+   * @see `MidiDevice.close()` from the Java MIDI API, which the [[JavaMidiDeviceReferenceCounter]] calls to close the
+   *      device only once no handle holds it any more.
    */
   private[javamidi] def close(): Seq[MidiEvent] = withLock {
     if (openRefCount > 1) {
@@ -286,9 +309,10 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
   }
 
   /**
-   * Releases every reference held to the device: an [[State.Open]] handle closes the device and moves to
-   * [[State.Connected]], and a [[State.WaitingToOpen]] handle moves to [[State.Closed]]. With no reference held, it
-   * does nothing.
+   * Releases every reference held to the device: an [[State.Open]] handle closes what it obtained from the device,
+   * releases its reference to the device, which closes it unless another handle holds it, and moves to
+   * [[State.Connected]]; a [[State.WaitingToOpen]] handle moves to [[State.Closed]]. With no reference held, it does
+   * nothing.
    *
    * @return the event of the transition made: [[MidiDeviceClosedEvent]], or [[MidiDeviceFailedToCloseEvent]] if the
    *         device fails to close, in which case the handle still moves to [[State.Connected]]; nothing otherwise.
@@ -311,16 +335,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
 
   /**
    * Opens `javaDevice`, obtaining its receiver when the handle is requested for output and subscribing to its
-   * transmitter when it is requested for input, and only then moves to [[State.Open]]. On any failure, it closes the
-   * device as far as it can and rolls back to [[State.Connected]] with no reference held, so that the handle is no
-   * longer requested to open.
+   * transmitter when it is requested for input, and only then moves to [[State.Open]]. The device itself is opened
+   * only if no other handle holds it already. On any failure, it closes the device as far as it is up to the handle
+   * and rolls back to [[State.Connected]] with no reference held, so that the handle is no longer requested to open.
    */
   private def doOpen(javaDevice: MidiDevice): Seq[MidiEvent] = {
+    var hasAcquired = false
     try {
-      // TODO #315 A device working in both directions has one handle per direction over the same MidiDevice
-      //  instance, and each opens and closes it on its own. Java Sound closes it outright on the first close, so
-      //  either handle can close it under the other, which goes on reporting State.Open over a dead device.
-      javaDevice.open()
+      javaDeviceReferences.acquire(javaDevice)
+      hasAcquired = true
       // Keyed on what the handle is for, not on what the device can do: a device that works in both directions has
       // one handle per direction, and an input handle taking a receiver would spend one of the device's, which are
       // limited on some of them.
@@ -328,7 +351,9 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         deviceReceiver = Some(javaDevice.getReceiver)
       }
       if (requestedDirection.isInput) {
-        javaDevice.getTransmitter.setReceiver(inboundReceiver)
+        val transmitter = javaDevice.getTransmitter
+        deviceTransmitter = Some(transmitter)
+        transmitter.setReceiver(inboundReceiver)
       }
 
       hasWarnedOfDroppedMessage.set(false)
@@ -337,10 +362,15 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
       Seq(MidiDeviceOpenedEvent(id, requestedDirection))
     } catch {
       case exception: Exception =>
-        deviceReceiver = None
         // The failure to report is the one to open: a failure to close the device on the way back is attached to it
         // as a suppressed exception instead, so the error log's stack trace and the event's cause still carry it.
-        Try(javaDevice.close()).failed.foreach(exception.addSuppressed)
+        Try {
+          if (hasAcquired) {
+            releaseJavaDevice(javaDevice)
+          } else {
+            javaDeviceReferences.closeIfUnreferenced(javaDevice)
+          }
+        }.failed.foreach(exception.addSuppressed)
         _state = State.Connected
         openRefCount = 0
 
@@ -349,11 +379,13 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
     }
   }
 
-  /** Closes the open `javaDevice` as the handle leaves [[State.Open]], leaving the state to the caller. */
+  /**
+   * Releases the open `javaDevice` as the handle leaves [[State.Open]], closing it unless another handle holds it, and
+   * leaves the state to the caller.
+   */
   private def closeOpenDevice(javaDevice: MidiDevice): Seq[MidiEvent] = {
-    deviceReceiver = None
     try {
-      javaDevice.close()
+      releaseJavaDevice(javaDevice)
       logger.info(s"Successfully closed $requestedDirection device $id.")
       Seq(MidiDeviceClosedEvent(id, requestedDirection))
     } catch {
@@ -361,6 +393,29 @@ class JavaMidiDeviceHandle private[javamidi](override val id: MidiDeviceId,
         logger.error(s"Failed to close $requestedDirection device $id!", exception)
         Seq(MidiDeviceFailedToCloseEvent(id, requestedDirection, exception))
     }
+  }
+
+  /**
+   * Closes what the handle obtained from `javaDevice` for its own direction, then releases its reference to the
+   * device, which closes it unless another handle holds it. The reference is released even if closing the former
+   * fails, in which case that failure is the one thrown, and a failure to release the reference as well is attached to
+   * it as a suppressed exception.
+   */
+  private def releaseJavaDevice(javaDevice: MidiDevice): Unit = {
+    val receiver = deviceReceiver
+    val transmitter = deviceTransmitter
+    deviceReceiver = None
+    deviceTransmitter = None
+
+    try {
+      receiver.foreach(_.close())
+      transmitter.foreach(_.close())
+    } catch {
+      case exception: Exception =>
+        Try(javaDeviceReferences.release(javaDevice)).failed.foreach(exception.addSuppressed)
+        throw exception
+    }
+    javaDeviceReferences.release(javaDevice)
   }
 
   private def logDroppedMessage(message: Midi1Msg): Unit = logDropped(hasWarnedOfDroppedMessage,

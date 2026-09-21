@@ -38,16 +38,19 @@ class TestDeviceInfo(name: String, vendor: String, description: String, version:
  * receiver, which stays attached to the device until it is closed, a receiver rejects messages once it is closed or
  * while the device is not open, and closing the device closes all of its receivers.
  *
- * @param name            Name of the device.
- * @param vendor          Vendor of the device.
- * @param maxTransmitters What `getMaxTransmitters` reports.
- * @param maxReceivers    What `getMaxReceivers` reports; with `0`, `getReceiver` throws `MidiUnavailableException`.
- * @param openFailure     Thrown by `open` when defined, leaving the device closed; a test may set it at any
- *                        time, e.g. to make only a later `open` call fail.
- * @param closeFailure    Thrown by `close` when defined, leaving the device in its current state; a test may set it at
- *                        any time, e.g. to make closing fail only once the device is already closed.
- * @param receiverFailure Thrown by `getReceiver` when defined, instead of creating a receiver; a test may set it at any
- *                        time, e.g. to make only a later `getReceiver` call fail.
+ * @param name                 Name of the device.
+ * @param vendor               Vendor of the device.
+ * @param maxTransmitters      What `getMaxTransmitters` reports.
+ * @param maxReceivers         What `getMaxReceivers` reports; with `0`, `getReceiver` throws
+ *                             `MidiUnavailableException`.
+ * @param openFailure          Thrown by `open` when defined, leaving the device closed; a test may set it at any
+ *                             time, e.g. to make only a later `open` call fail.
+ * @param closeFailure         Thrown by `close` when defined, leaving the device in its current state; a test may set
+ *                             it at any time, e.g. to make closing fail only once the device is already closed.
+ * @param receiverFailure      Thrown by `getReceiver` when defined, instead of creating a receiver; a test may set it
+ *                             at any time, e.g. to make only a later `getReceiver` call fail.
+ * @param receiverCloseFailure Thrown by the `close` of any of its receivers when defined, leaving that receiver
+ *                             attached; closing the device still closes all of them. A test may set it at any time.
  */
 class FakeMidiDevice(name: String,
                      vendor: String = "Roland",
@@ -55,7 +58,8 @@ class FakeMidiDevice(name: String,
                      maxReceivers: Int = -1,
                      var openFailure: Option[Exception] = None,
                      var closeFailure: Option[Exception] = None,
-                     var receiverFailure: Option[Exception] = None) extends MidiDevice {
+                     var receiverFailure: Option[Exception] = None,
+                     var receiverCloseFailure: Option[Exception] = None) extends MidiDevice {
 
   private val info: MidiDevice.Info = TestDeviceInfo(name, vendor, "Fake MIDI device", "1.0")
 
@@ -63,7 +67,7 @@ class FakeMidiDevice(name: String,
   private var _openCount: Int = 0
   private var _closeCount: Int = 0
   private var _receiverCount: Int = 0
-  private val openReceivers: mutable.Buffer[Receiver] = mutable.ArrayBuffer()
+  private val openReceivers: mutable.Buffer[FakeReceiver] = mutable.ArrayBuffer()
   private val _receivedMessages: mutable.Buffer[(MidiMessage, Long)] = mutable.ArrayBuffer()
 
   /** The messages sent to any receiver of the device so far, in order, each with its time stamp. */
@@ -96,7 +100,7 @@ class FakeMidiDevice(name: String,
     _closeCount += 1
     closeFailure.foreach(failure => throw failure)
     _isOpen = false
-    openReceivers.toSeq.foreach(_.close())
+    openReceivers.toSeq.foreach(_.detach())
   }
 
   override def isOpen: Boolean = _isOpen
@@ -119,7 +123,7 @@ class FakeMidiDevice(name: String,
     receiver
   }
 
-  override def getReceivers: util.List[Receiver] = util.List.copyOf(openReceivers.asJava)
+  override def getReceivers: util.List[Receiver] = util.List.copyOf[Receiver](openReceivers.asJava)
 
   override def getTransmitter: Transmitter = transmitter
 
@@ -140,15 +144,28 @@ class FakeMidiDevice(name: String,
     }
 
     override def close(): Unit = {
+      receiverCloseFailure.foreach(failure => throw failure)
+      detach()
+    }
+
+    /** Closes the receiver as closing the device does, which never fails. */
+    def detach(): Unit = {
       isClosed = true
       openReceivers -= this
     }
   }
 }
 
-/** A Java Sound [[Transmitter]] that only holds the receiver it is given, `null` until then. */
+/**
+ * A Java Sound [[Transmitter]] that only holds the receiver it is given, `null` until then. Closing it lets go of that
+ * receiver, as a Java Sound transmitter stops delivering once closed.
+ */
 class FakeTransmitter extends Transmitter {
   private var _receiver: Receiver = null
+  private var _closeCount: Int = 0
+
+  /** How many times `close` was called on the transmitter. */
+  def closeCount: Int = _closeCount
 
   override def setReceiver(receiver: Receiver): Unit = {
     _receiver = receiver
@@ -156,5 +173,8 @@ class FakeTransmitter extends Transmitter {
 
   override def getReceiver: Receiver = _receiver
 
-  override def close(): Unit = {}
+  override def close(): Unit = {
+    _closeCount += 1
+    _receiver = null
+  }
 }
