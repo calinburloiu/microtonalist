@@ -38,7 +38,7 @@ trait JavaMidiEnvironment {
    * as long as the device keeps its name and vendor between the listing and the resolution:
    * `MidiSystem.getMidiDevice(javaInfo)` returns the device `javaInfo` describes, but that device reports its current
    * info, which CoreMIDI4J replaces when the device is renamed. A fake implementation of this trait must keep the two
-   * consistent, or a device's id will diverge between the failure event and the connected set.
+   * consistent, or a device's id will diverge between the failure event and the available set.
    *
    * @throws javax.sound.midi.MidiUnavailableException if the device cannot be resolved because of a resource
    *                                                    restriction.

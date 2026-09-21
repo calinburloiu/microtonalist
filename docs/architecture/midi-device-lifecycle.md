@@ -1,34 +1,37 @@
-# MIDI device lifecycle: connected/disconnected, open/closed, attached/detached
+# MIDI device lifecycle: available/unavailable, open/closed, attached/detached
 
 Three pairs of terms describe where a MIDI device stands at any moment, and plain English uses *connect* for all
-three. This document fixes the vocabulary: each pair answers a different question, and knowing one tells you nothing
-about the other two.
+three — which is why none of them is called that. This document fixes the vocabulary: each pair answers a different
+question, and knowing one tells you nothing about the other two.
 
 | Pair | Question it answers | Applies to | Owned by |
 | ---- | ------------------- | ---------- | -------- |
-| **connected** / **disconnected** | Is the device present in the system? | a MIDI device only | `MidiDeviceHandle` (`sc-midi`) |
+| **available** / **unavailable** | Is the device present in the system? | a MIDI device only | `MidiDeviceHandle` (`sc-midi`) |
 | **open** / **closed** | Does the application hold the device reserved for I/O? | a MIDI device only | `MidiManager` (`sc-midi`) |
 | **attached** / **detached** | Is a receiver wired to a transmitter, so messages flow? | a track input/output: a device **or** another track | `MidiProcessor` (`sc-midi`) |
 
-Use exactly these words in code, ScalaDocs, log messages and documentation. In particular, never say *connected* for
-a receiver that was wired up, and never say *attached* for a device the platform reports as present.
+Use exactly these words in code, ScalaDocs, log messages and documentation, and avoid *connect* / *disconnect*
+altogether for all three: *connected* is not distinguishable from *open* without reading this document, and it reads
+just as naturally for a receiver that was wired up. Likewise, never say *attached* for a device the platform reports
+as present.
 
-## Connected / disconnected
+## Available / unavailable
 
-**Connected** means *available to the system*: the platform reports the device, so it can be resolved and opened. It
+**Available** means *present in the system*: the platform reports the device, so it can be resolved and opened. It
 says nothing about whether Microtonalist is using it.
 
 - A `MidiManager` implementation discovers this on `refresh()` — invoked explicitly and whenever the platform reports
   an environment change — by reconciling the devices it scans against the handles it holds.
-- It is the manager, never a consumer, that connects and disconnects a `MidiDeviceHandle`; a consumer only reads
-  `isConnected`. `MidiDeviceHandle.info` is defined exactly while the handle is connected, which is why
-  `isInputDevice` / `isOutputDevice` / `direction` are unknown (`false` / `None`) while it is not.
-- Reported on the [Businessync](businessync/README.md) bus as `MidiDeviceConnectedEvent` /
-  `MidiDeviceDisconnectedEvent`, with `MidiDeviceFailedToConnectEvent` / `MidiDeviceFailedToDisconnectEvent` in their
-  place on failure.
+- It is the manager, never a consumer, that makes a `MidiDeviceHandle` available or unavailable (`becomeAvailable` /
+  `becomeUnavailable`); a consumer only reads `isAvailable`. `MidiDeviceHandle.info` is defined exactly while the
+  handle is available, which is why `isInputDevice` / `isOutputDevice` / `direction` are unknown (`false` / `None`)
+  while it is not.
+- Reported on the [Businessync](businessync/README.md) bus as `MidiDeviceAvailableEvent` /
+  `MidiDeviceUnavailableEvent`, with `MidiDeviceFailedToBecomeAvailableEvent` /
+  `MidiDeviceFailedToBecomeUnavailableEvent` in their place on failure.
 - Unplugging a cable, a virtual port disappearing, or a device being replugged are all changes of *this* pair.
 
-A handle can exist for a device that is not connected: a track can ask for a device that is not plugged in yet, and
+A handle can exist for a device that is not available: a track can ask for a device that is not plugged in yet, and
 the handle waits for it.
 
 ## Open / closed
@@ -42,13 +45,13 @@ out through `handle.receiver` or come in through `handle.transmitter`.
 - **Both are reference-counted.** `openDevice` takes one reference; `closeDevice` releases one. The device is really
   closed only when the last reference goes, because several tracks may share one device — releasing one of them must
   not silence the others.
-- A request for a device that is not connected does not fail: the handle moves to `WaitingToOpen` and opens by itself
-  once the device gets connected.
+- A request for a device that is not available does not fail: the handle moves to `WaitingToOpen` and opens by itself
+  once the device becomes available.
 - Reported as `MidiDeviceOpenedEvent` / `MidiDeviceClosedEvent`, or `MidiDeviceFailedToOpenEvent` /
   `MidiDeviceFailedToCloseEvent`.
 
 The two pairs above are the two axes of `MidiDeviceHandle.State`, whose four cases are every combination of them
-(`isConnected` × `isOpenRequested`): `Closed`, `Connected`, `WaitingToOpen` and `Open`. The device is usable only in
+(`isAvailable` × `isOpenRequested`): `Closed`, `Available`, `WaitingToOpen` and `Open`. The device is usable only in
 `Open`. See the state diagram in the `MidiDeviceHandle.State` ScalaDoc and
 [Device handling](sc-midi/README.md#device-handling).
 
@@ -57,7 +60,7 @@ The two pairs above are the two axes of `MidiDeviceHandle.State`, whose four cas
 **Attached** means *wired into the MIDI graph*: a `MidiReceiver` is among the receivers of a transmitter, so messages
 flow to it. Detaching removes it. This is the only pair that also applies to a track input or output that is **not a
 device** — a track fed by another track (`FromTrackInputSpec` / `ToTrackOutputSpec`) attaches and detaches like any
-other, with nothing to connect or open.
+other, with nothing to make available or open.
 
 For a `Track` the two directions are wired in opposite senses:
 
@@ -81,34 +84,35 @@ The pairs are not independent. The wiring drives the device requests, and the pl
 
 > **What a track attaches, it requests open; what it detaches, it releases.**
 
-A track attaches an input or output whether or not its device is connected, and that attach is what asks the
+A track attaches an input or output whether or not its device is available, and that attach is what asks the
 `MidiManager` for the device with `openDevice`; detaching is what asks for its release with `closeDevice`. Today
 `Track` makes the two calls by hand — opening in its constructor, releasing at the end of `close()` — and
 [#305](#subject-to-change-305) makes the attach and the detach initiate them.
 
 What this does *not* mean is that a request is its effect:
 
-- **An open request does not necessarily open now.** If the device is not connected, the handle waits in
-  `WaitingToOpen` and opens by itself once the device gets connected. This is what lets a track be wired to a device
+- **An open request does not necessarily open now.** If the device is not available, the handle waits in
+  `WaitingToOpen` and opens by itself once the device becomes available. This is what lets a track be wired to a device
   that is not plugged in yet, and lets it survive one being unplugged and plugged back in — the wiring keeps
   working, with no re-attach.
 - **A close request does not necessarily close.** It releases one reference; the device closes only when the last one
   goes, so another track sharing it keeps it open.
-- **Neither ever connects or disconnects anything.** Only the platform decides that pair, and `refresh()` reports it.
-- **Disconnecting does not detach.** When a device vanishes, its handle reports *closed* and then *disconnected*
+- **Neither ever makes anything available or unavailable.** Only the platform decides that pair, and `refresh()`
+  reports it.
+- **Becoming unavailable does not detach.** When a device vanishes, its handle reports *closed* and then *unavailable*
   while every receiver stays attached, ready for the device to come back.
 
 Two situations are therefore errors rather than states to design for:
 
 - **Attached to a `Closed` handle.** A track requests its handle open, so an input or output it attached is always
-  at least requested to open: `WaitingToOpen` while its device is not connected, `Open` once it is. The wiring itself
+  at least requested to open: `WaitingToOpen` while its device is not available, `Open` once it is. The wiring itself
   is inert on a handle that is not open — `MidiDeviceHandle` supports it and simply carries nothing — so this is a
   sign of a wiring bug rather than an error the handle rejects.
 - **Closed while still attached.** A device must be detached before it is released; closing one a track is still
   attached to should be logged as an error. Nothing checks this today — `Track.close()` simply observes the rule,
   detaching from both devices before it calls `closeDevice` for each.
 
-A track must detach on close, and not merely release its devices: a released handle whose device is still connected
+A track must detach on close, and not merely release its devices: a released handle whose device is still available
 stays live, and a track built later for the same device gets that same handle. A closed track left attached would go
 on receiving from the input and sending to the output next to its replacement.
 
@@ -127,9 +131,9 @@ it is today.
   [How the three relate](#how-the-three-relate)), but `Track` implements it by hand today, opening in its
   constructor and releasing at the end of `close()`; it will no longer open and attach as two separate steps.
 - **Reactions key off what happened to the device, not off the wiring alone:**
-    - An input that gets **attached or connected** needs no handling.
-    - An input that gets **detached or disconnected** is released, the two cases handled identically: All Notes Off
-      to every output, then the `Tuner` and the `TuningChanger` are reset.
+    - An input that gets **attached, or becomes available**, needs no handling.
+    - An input that gets **detached, or becomes unavailable**, is released, the two cases handled identically: All
+      Notes Off to every output, then the `Tuner` and the `TuningChanger` are reset.
     - An output that gets **attached while open** triggers a reset, so it learns the current configuration and the
       current tuning.
     - An output that gets **detached and thereby becomes closed** triggers a reset *and* gets the courtesy 12-EDO

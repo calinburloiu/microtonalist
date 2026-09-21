@@ -132,16 +132,16 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       deviceReceivers.values.flatMap(_.messages) shouldBe empty
     }
 
-    "release the output of the tracks whose input device got disconnected, and of no other track" in new Fixture {
+    "release the output of the tracks whose input device became unavailable, and of no other track" in new Fixture {
       // When
-      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Input))
+      businessync.publish(MidiDeviceUnavailableEvent(keyboardId, MidiDirection.Input))
 
       // Then
       deviceReceivers(pianoId).messages shouldEqual inputRelease :+ initMessage
       deviceReceivers(synthId).messages shouldBe empty
     }
 
-    "release the output of every track whose input device got disconnected, when two tracks share it" in new Fixture {
+    "release the output of every track whose input device became unavailable, when two tracks share it" in new Fixture {
       // Given
       trackManager.replaceAllTracks(TrackSpecs(Seq(
         TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
@@ -152,27 +152,27 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       deviceReceivers.values.foreach(_.clear())
 
       // When
-      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Input))
+      businessync.publish(MidiDeviceUnavailableEvent(keyboardId, MidiDirection.Input))
 
       // Then
       deviceReceivers(pianoId).messages shouldEqual inputRelease :+ initMessage
       deviceReceivers(synthId).messages shouldEqual inputRelease :+ initMessage
     }
 
-    "release the output of the tracks whose input device failed to disconnect" in new Fixture {
+    "release the output of the tracks whose input device failed to become unavailable" in new Fixture {
       // When
-      businessync.publish(
-        MidiDeviceFailedToDisconnectEvent(keyboardId, MidiDirection.Input, IllegalStateException("Cannot close")))
+      businessync.publish(MidiDeviceFailedToBecomeUnavailableEvent(
+        keyboardId, MidiDirection.Input, IllegalStateException("Cannot close")))
 
       // Then
       deviceReceivers(pianoId).messages shouldEqual inputRelease :+ initMessage
       deviceReceivers(synthId).messages shouldBe empty
     }
 
-    "ignore the disconnection of an output device" in new Fixture {
+    "ignore an output device becoming unavailable" in new Fixture {
       // When
-      businessync.publish(MidiDeviceDisconnectedEvent(keyboardId, MidiDirection.Output))
-      businessync.publish(MidiDeviceDisconnectedEvent(pianoId, MidiDirection.Output))
+      businessync.publish(MidiDeviceUnavailableEvent(keyboardId, MidiDirection.Output))
+      businessync.publish(MidiDeviceUnavailableEvent(pianoId, MidiDirection.Output))
 
       // Then
       deviceReceivers.values.flatMap(_.messages) shouldBe empty
@@ -181,7 +181,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
     "ignore the other MIDI events" in new Fixture {
       // When
       businessync.publish(MidiEnvironmentChangedEvent)
-      businessync.publish(MidiDeviceConnectedEvent(pianoId, MidiDirection.Output))
+      businessync.publish(MidiDeviceAvailableEvent(pianoId, MidiDirection.Output))
       businessync.publish(MidiDeviceClosedEvent(keyboardId, MidiDirection.Input))
 
       // Then
@@ -205,7 +205,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
 
       // Then
       closedTrackOutput.messages shouldBe empty
-      // Only the new track, connecting its device receiver when it is built, resets the tuner
+      // Only the new track, attaching its device receiver when it is built, resets the tuner
       deviceReceivers(pianoId).messages shouldEqual Seq(initMessage)
       deviceReceivers(synthId).messages shouldEqual Seq(initMessage)
     }

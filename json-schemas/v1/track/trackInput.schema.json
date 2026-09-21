@@ -42,7 +42,7 @@
                 "trackId": {
                     "type": "string",
                     "title": "Input Track ID",
-                    "description": "Identifier of the track that this input is connected to."
+                    "description": "Identifier of the track that this input is attached to."
                 },
                 "channel": { "$ref": "#/$defs/channel" }
             }

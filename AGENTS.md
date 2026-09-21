@@ -74,7 +74,7 @@ that module's classpath.
 
 Built with **SBT 1, Scala 3, and Java 23**. The repo is split into multiple SBT projects (we call them modules), all in
 the repo root: `root` aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g.
-listing connected MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
+listing available MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 

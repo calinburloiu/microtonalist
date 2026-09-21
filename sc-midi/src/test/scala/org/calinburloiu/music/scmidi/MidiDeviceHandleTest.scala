@@ -39,7 +39,7 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   behavior of "direction"
 
-  it should "derive the directions from the info while connected and report none while disconnected" in {
+  it should "derive the directions from the info while available and report none while unavailable" in {
     // Given
     val cases = Table[Option[MidiDeviceInfo], MidiDirection, Boolean, Boolean](
       ("info", "direction", "isInputDevice", "isOutputDevice"),
@@ -60,24 +60,24 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
     }
   }
 
-  behavior of "isConnected, isOpen and isOpenRequested"
+  behavior of "isAvailable, isOpen and isOpenRequested"
 
   it should "derive from the state, the device being open for use only in Open" in {
     // Given
     val cases = Table[MidiDeviceHandle.State, Boolean, Boolean, Boolean](
-      ("state", "isConnected", "isOpen", "isOpenRequested"),
+      ("state", "isAvailable", "isOpen", "isOpenRequested"),
       (MidiDeviceHandle.State.Closed, false, false, false),
-      (MidiDeviceHandle.State.Connected, true, false, false),
+      (MidiDeviceHandle.State.Available, true, false, false),
       (MidiDeviceHandle.State.WaitingToOpen, false, false, true),
       (MidiDeviceHandle.State.Open, true, true, true)
     )
 
-    forAll(cases) { (state, isConnected, isOpen, isOpenRequested) =>
+    forAll(cases) { (state, isAvailable, isOpen, isOpenRequested) =>
       // When
       val handle = TestHandle(state = state)
 
       // Then
-      handle.isConnected shouldBe isConnected
+      handle.isAvailable shouldBe isAvailable
       handle.isOpen shouldBe isOpen
       handle.isOpenRequested shouldBe isOpenRequested
     }
@@ -85,22 +85,22 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
 
   behavior of "State"
 
-  it should "cover every combination of being connected and being requested to open with exactly one state" in {
+  it should "cover every combination of being available and being requested to open with exactly one state" in {
     // Given
     val cases = Table[MidiDeviceHandle.State, Boolean, Boolean](
-      ("state", "isConnected", "isOpenRequested"),
+      ("state", "isAvailable", "isOpenRequested"),
       (MidiDeviceHandle.State.Closed, false, false),
-      (MidiDeviceHandle.State.Connected, true, false),
+      (MidiDeviceHandle.State.Available, true, false),
       (MidiDeviceHandle.State.WaitingToOpen, false, true),
       (MidiDeviceHandle.State.Open, true, true)
     )
 
-    forAll(cases) { (state, isConnected, isOpenRequested) =>
+    forAll(cases) { (state, isAvailable, isOpenRequested) =>
       // When / Then
-      state.isConnected shouldBe isConnected
+      state.isAvailable shouldBe isAvailable
       state.isOpenRequested shouldBe isOpenRequested
     }
     // Then
-    MidiDeviceHandle.State.values.map(state => (state.isConnected, state.isOpenRequested)).distinct should have size 4
+    MidiDeviceHandle.State.values.map(state => (state.isAvailable, state.isOpenRequested)).distinct should have size 4
   }
 }

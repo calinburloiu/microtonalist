@@ -97,7 +97,7 @@ class Track(val spec: TrackSpec,
    *   1. releases its devices through the [[MidiManager]].
    *
    * Each output gets the 12-EDO messages exactly once. The track detaches from its devices because a released handle
-   * whose device is still connected stays live, and a track built later for the same device gets that same handle: a
+   * whose device is still available stays live, and a track built later for the same device gets that same handle: a
    * closed track still attached to it would go on receiving from the input and sending to the output.
    */
   override def close(): Unit = {
@@ -140,7 +140,7 @@ class Track(val spec: TrackSpec,
   }
 
   /**
-   * Releases the output of this track after its input got disconnected, so that no note stays held on it. It:
+   * Releases the output of this track after its input became unavailable, so that no note stays held on it. It:
    *
    *   1. releases the Hold (Sustain) and Sostenuto pedals, then sends All Notes Off, on each of the 16 MIDI channels
    *      straight to the output of the track, bypassing the tuner, so that it reaches every channel the tuner may

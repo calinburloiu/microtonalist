@@ -23,10 +23,10 @@ package org.calinburloiu.music.scmidi
  * [[MidiManager.openDevice]], which returns its handle, and releases it with [[MidiManager.closeDevice]]; both are
  * reference-counted. The consumer only inspects the handle and uses it for MIDI I/O.
  *
- * The device is not required to be connected to the system when it is requested: the manager informs the handle when
- * the device gets connected or disconnected, and [[info]] is defined only while the device is connected. A handle
- * requested while its device is not connected waits in [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the
- * device gets connected.
+ * The device is not required to be available in the system when it is requested: the manager informs the handle when
+ * the device becomes available or unavailable, and [[info]] is defined only while the device is available. A handle
+ * requested while its device is unavailable waits in [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the
+ * device becomes available.
  *
  * A handle is live while its manager holds it, which is exactly while its [[state]] is not
  * [[MidiDeviceHandle.State.Closed]]. A handle that reaches `Closed` is forgotten by its manager and stays `Closed` for
@@ -34,7 +34,7 @@ package org.calinburloiu.music.scmidi
  * its references to it.
  *
  * A handle exposes a [[MidiReceiver]] and a [[ConcurrentMidiTransmitter]] via [[receiver]] and [[transmitter]]. They
- * can be wired while the device is disconnected or closed, in which case they do nothing; once the device becomes
+ * can be wired while the device is unavailable or closed, in which case they do nothing; once the device becomes
  * usable, the wiring works without any change.
  *
  * [[state]] tells the current state of the handle and of its device; see [[MidiDeviceHandle.State]] for the
@@ -48,7 +48,7 @@ trait MidiDeviceHandle {
   /**
    * Retrieves the information about the MIDI device.
    *
-   * @return The MIDI device information while the device is connected; otherwise, None.
+   * @return The MIDI device information while the device is available; otherwise, None.
    */
   def info: Option[MidiDeviceInfo]
 
@@ -56,7 +56,7 @@ trait MidiDeviceHandle {
    * Determines if the associated MIDI device is an input device. If it is, this handle's [[transmitter]] can be used
    * to subscribe to the messages the device sends; otherwise it never emits anything.
    *
-   * @return True if the MIDI device supports input, false otherwise — including while it is disconnected, when its
+   * @return True if the MIDI device supports input, false otherwise — including while it is unavailable, when its
    *         capabilities are not known.
    */
   def isInputDevice: Boolean = info.exists(_.isInputDevice)
@@ -65,7 +65,7 @@ trait MidiDeviceHandle {
    * Determines if the associated MIDI device is an output device. If it is, this handle's [[receiver]] can be used to
    * send messages to the device.
    *
-   * @return True if the MIDI device supports output, false otherwise — including while it is disconnected, when its
+   * @return True if the MIDI device supports output, false otherwise — including while it is unavailable, when its
    *         capabilities are not known.
    */
   def isOutputDevice: Boolean = info.exists(_.isOutputDevice)
@@ -74,7 +74,7 @@ trait MidiDeviceHandle {
    * Tells whether the device supports input and/or output.
    *
    * @return A [[MidiDirection]] indicating the input/output capabilities of the device; [[MidiDirection.None]]
-   *         while it is disconnected.
+   *         while it is unavailable.
    */
   def direction: MidiDirection = MidiDirection(isInputDevice, isOutputDevice)
 
@@ -84,12 +84,12 @@ trait MidiDeviceHandle {
   def state: MidiDeviceHandle.State
 
   /**
-   * Checks whether the MIDI device is currently connected to the system.
+   * Checks whether the MIDI device is currently available in the system.
    *
-   * @return True if the device is connected, i.e. the [[state]] is [[MidiDeviceHandle.State.Connected]] or
+   * @return True if the device is available, i.e. the [[state]] is [[MidiDeviceHandle.State.Available]] or
    *         [[MidiDeviceHandle.State.Open]]; false otherwise.
    */
-  def isConnected: Boolean = state.isConnected
+  def isAvailable: Boolean = state.isAvailable
 
   /**
    * Determines if the MIDI device is currently open for use.
@@ -100,8 +100,8 @@ trait MidiDeviceHandle {
 
   /**
    * Determines if the MIDI device has been requested to open, i.e. an `open` transition succeeded and no `close`
-   * transition has happened since, whether or not the device is connected. Unlike [[isOpen]], it is also true while
-   * the handle waits for the device to get connected in order to open it.
+   * transition has happened since, whether or not the device is available. Unlike [[isOpen]], it is also true while
+   * the handle waits for the device to become available in order to open it.
    *
    * @return True if the device has been requested to open, false otherwise.
    * @see [[MidiDeviceHandle.State.isOpenRequested]], which this mirrors for the current [[state]].
@@ -118,7 +118,7 @@ trait MidiDeviceHandle {
 
   /**
    * Retrieves the transmitter of the device, which can be used to subscribe to the MIDI messages it sends. Receivers
-   * may be added before the device is connected or open; they start getting messages when it is.
+   * may be added before the device is available or open; they start getting messages when it is.
    *
    * @return The transmitter instance.
    */
@@ -128,47 +128,48 @@ trait MidiDeviceHandle {
 object MidiDeviceHandle {
 
   /**
-   * Represents the state of a MIDI device's connection and openness.
+   * Represents the state of a MIDI device's availability and openness.
    *
    * {{{
-   *    ┌─────────────┐     connect      ┌─────────────┐
-   *    │             ├──────────────────►             │
-   *    │WaitingToOpen│                  │    Open     │
-   *    │             ◄──────────────────┤             │
-   *    └───▲─────┬───┘    disconnect    └───▲─────┬───┘
-   *        │     │                          │     │
-   *    open│     │close                 open│     │close
-   *        │     │                          │     │
-   *    ┌───┴─────▼───┐     connect      ┌───┴─────▼───┐
-   *    │             ├──────────────────►             │
-   *    │   Closed    │                  │  Connected  │
-   *    │             ◄──────────────────┤             │
-   *    └─────────────┘    disconnect    └─────────────┘
+   *    ┌─────────────┐   become available   ┌─────────────┐
+   *    │             ├──────────────────────►             │
+   *    │WaitingToOpen│                      │    Open     │
+   *    │             ◄──────────────────────┤             │
+   *    └───▲─────┬───┘  become unavailable  └───▲─────┬───┘
+   *        │     │                              │     │
+   *    open│     │close                     open│     │close
+   *        │     │                              │     │
+   *    ┌───┴─────▼───┐   become available   ┌───┴─────▼───┐
+   *    │             ├──────────────────────►             │
+   *    │   Closed    │                      │  Available  │
+   *    │             ◄──────────────────────┤             │
+   *    └─────────────┘  become unavailable  └─────────────┘
    * }}}
    *
-   * The diagram is a square over the two properties of a state: [[isConnected]] is false on the left and true on the
-   * right, and [[isOpenRequested]] is false at the bottom and true at the top. Hence, `connect` and `disconnect` move
-   * horizontally, while `open` and `close` move vertically. The four states cover every combination of the two, so the
-   * device is open for use only in [[Open]], where it is both connected and requested to open.
+   * The diagram is a square over the two properties of a state: [[isAvailable]] is false on the left and true on the
+   * right, and [[isOpenRequested]] is false at the bottom and true at the top. Hence, `become available` and
+   * `become unavailable` move horizontally, while `open` and `close` move vertically. The four states cover every
+   * combination of the two, so the device is open for use only in [[Open]], where it is both available and requested
+   * to open.
    *
    * Each transition either succeeds or fails, and a failure sets to false the property it concerns, so that the handle
-   * never relies on a device that failed: a failure of the connection leaves the handle not connected, and a failure to
-   * open or close the device leaves it not requested to open. Hence, a [[Connected]] handle whose device fails to open
-   * stays [[Connected]], an [[Open]] handle whose device fails to close moves to [[Connected]] anyway, and a
-   * [[Connected]] handle whose device fails to close as it gets disconnected moves to [[Closed]] anyway, where a later
-   * request to open the device waits for it to get connected again.
+   * never relies on a device that failed: a failure to become available or unavailable leaves the handle unavailable,
+   * and a failure to open or close the device leaves it not requested to open. Hence, an [[Available]] handle whose
+   * device fails to open stays [[Available]], an [[Open]] handle whose device fails to close moves to [[Available]]
+   * anyway, and an [[Available]] handle whose device fails to close as it becomes unavailable moves to [[Closed]]
+   * anyway, where a later request to open the device waits for it to become available again.
    *
-   * @param isConnected     Indicates whether the device is connected.
+   * @param isAvailable     Indicates whether the device is available in the system.
    * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an `open` transition
    *                        succeeded and no `close` transition has happened since, whether or not the device is
-   *                        connected.
+   *                        available.
    */
   //@formatter:off
-  enum State(val isConnected: Boolean, val isOpenRequested: Boolean) {
-    case Closed        extends State(isConnected = false, isOpenRequested = false)
-    case Connected     extends State(isConnected = true,  isOpenRequested = false)
-    case WaitingToOpen extends State(isConnected = false, isOpenRequested = true)
-    case Open          extends State(isConnected = true,  isOpenRequested = true)
+  enum State(val isAvailable: Boolean, val isOpenRequested: Boolean) {
+    case Closed        extends State(isAvailable = false, isOpenRequested = false)
+    case Available     extends State(isAvailable = true,  isOpenRequested = false)
+    case WaitingToOpen extends State(isAvailable = false, isOpenRequested = true)
+    case Open          extends State(isAvailable = true,  isOpenRequested = true)
   }
   //@formatter:on
 }

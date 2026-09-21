@@ -2447,7 +2447,7 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
     tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
 
-    // When the Tuner is reset — on connect, where the receiver may be a device whose selected parameter the Tuner
+    // When the Tuner is reset — on attach, where the receiver may be a device whose selected parameter the Tuner
     // knows nothing about
     tuner.reset()
     tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))

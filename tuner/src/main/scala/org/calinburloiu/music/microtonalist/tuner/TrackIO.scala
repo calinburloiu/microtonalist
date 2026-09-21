@@ -66,12 +66,12 @@ trait TrackDeviceIOSupport extends TrackChannelIOSupport {
 }
 
 /**
- * A trait extending [[TrackChannelIOSupport]] that provides support for connecting a track's input or output with
+ * A trait extending [[TrackChannelIOSupport]] that provides support for attaching a track's input or output to
  * another track, providing inter-track communication.
  */
 trait InterTrackIOSupport extends TrackChannelIOSupport {
   /**
-   * Identifier of another track that should be connected to a given track.
+   * Identifier of another track that should be attached to a given track.
    */
   val trackId: TrackSpec.Id
 }
@@ -127,7 +127,7 @@ object DeviceTrackInputSpec {
 /**
  * Plugin that allows configuring another track's output as the input of this track.
  *
- * @param trackId Identifier of the track that this input is connected to.
+ * @param trackId Identifier of the track that this input is attached to.
  * @param channel Optional MIDI channel to be used for this track input. If the channel is defined, it marks a
  *                ''filtering'' of all incoming MIDI messages that have that channel number. If it's not
  *                defined, all messages will pass.
@@ -162,7 +162,7 @@ object DeviceTrackOutputSpec {
 /**
  * Plugin that allows configuring this track's output as the input of another track.
  *
- * @param trackId Identifier of the track that this output is connected to.
+ * @param trackId Identifier of the track that this output is attached to.
  * @param channel Optional MIDI channel to be used for this track output. If the channel is defined, it marks a
  *                ''mapping'' of all outgoing MIDI messages such that all are transformed to have that channel
  *                number. If it's not defined, message pass without modification.
