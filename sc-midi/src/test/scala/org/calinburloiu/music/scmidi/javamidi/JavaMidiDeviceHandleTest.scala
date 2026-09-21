@@ -603,6 +603,44 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.state shouldEqual State.Available
     }
 
+    "report a failure to close the receiver it obtained, still closing the device" in new Fixture {
+      // Given
+      becomeAvailable()
+      handle.open()
+      device.receiverCloseFailure = Some(failure)
+
+      // When
+      val events: Seq[MidiEvent] = handle.close()
+
+      // Then
+      events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, failure))
+      handle.state shouldEqual State.Available
+      device.isOpen shouldBe false
+      javaDeviceReferences.referenceCountOf(device) shouldEqual 0
+    }
+
+    "report the failure to close the receiver it obtained when closing the device fails too, keeping the latter as a " +
+      "suppressed exception" in {
+        // Given
+        val receiverCloseFailure = IllegalStateException("Cannot close the receiver")
+        val closeFailure = MidiUnavailableException("Cannot close the device")
+
+        new Fixture(closeFailure = Some(closeFailure)) {
+          becomeAvailable()
+          handle.open()
+          device.receiverCloseFailure = Some(receiverCloseFailure)
+
+          // When
+          val events: Seq[MidiEvent] = handle.close()
+
+          // Then
+          events shouldEqual Seq(MidiDeviceFailedToCloseEvent(deviceId, requestedDirection, receiverCloseFailure))
+          receiverCloseFailure.getSuppressed shouldEqual Array(closeFailure)
+          handle.state shouldEqual State.Available
+          javaDeviceReferences.referenceCountOf(device) shouldEqual 0
+        }
+      }
+
     "do nothing when no reference is held" in new Fixture {
       // Given
       becomeAvailable()
@@ -840,6 +878,78 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
     }
 
+    "keep the state of each of them independent, although the device they share is one" in new SharedDeviceFixture {
+      // Then
+      Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Available, State.Available)
+
+      // When
+      inputHandle.open()
+
+      // Then
+      inputHandle.state shouldEqual State.Open
+      inputHandle.isOpen shouldBe true
+      inputHandle.isOpenRequested shouldBe true
+      outputHandle.state shouldEqual State.Available
+      outputHandle.isOpen shouldBe false
+      outputHandle.isOpenRequested shouldBe false
+      device.isOpen shouldBe true
+
+      // When
+      outputHandle.open()
+      inputHandle.close()
+
+      // Then
+      inputHandle.state shouldEqual State.Available
+      outputHandle.state shouldEqual State.Open
+
+      // When: the device becomes unavailable, which the manager tells both of them, as it does in a single refresh
+      inputHandle.becomeUnavailable()
+      outputHandle.becomeUnavailable()
+
+      // Then
+      inputHandle.state shouldEqual State.Closed
+      inputHandle.isOpenRequested shouldBe false
+      outputHandle.state shouldEqual State.WaitingToOpen
+      outputHandle.isOpenRequested shouldBe true
+      for (handle <- Seq(inputHandle, outputHandle)) {
+        handle.isAvailable shouldBe false
+        handle.javaDevice shouldBe empty
+        handle.info shouldBe empty
+      }
+      device.isOpen shouldBe false
+    }
+
+    "count the open references of each of them separately" in new SharedDeviceFixture {
+      // Given
+      inputHandle.open()
+      inputHandle.open()
+      outputHandle.open()
+
+      // When
+      outputHandle.close()
+
+      // Then
+      outputHandle.state shouldEqual State.Available
+      inputHandle.state shouldEqual State.Open
+      device.isOpen shouldBe true
+
+      // When
+      inputHandle.close()
+
+      // Then
+      inputHandle.state shouldEqual State.Open
+      device.isOpen shouldBe true
+      device.closeCount shouldEqual 0
+
+      // When
+      inputHandle.close()
+
+      // Then
+      inputHandle.state shouldEqual State.Available
+      device.isOpen shouldBe false
+      device.closeCount shouldEqual 1
+    }
+
     "keep the device open for the other when one of them closes, closing it only when both did" in
       new SharedDeviceFixture {
         // Given
@@ -882,6 +992,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         // Then
         device.transmitter.closeCount shouldEqual 1
         Option(device.transmitter.getReceiver) shouldBe empty
+        device.isOpen shouldBe true
+        outputHandle.state shouldEqual State.Open
       }
 
     "give back the receiver of the output handle once it closes, while the other stays open" in
@@ -896,6 +1008,71 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
         // Then
         device.isOpen shouldBe true
         device.getReceivers shouldBe empty
+      }
+
+    "reopen the output handle over the device the other keeps open without opening it again, sending through a new " +
+      "receiver" in new SharedDeviceFixture {
+        // Given
+        inputHandle.open()
+        outputHandle.open()
+        outputHandle.close()
+
+        // When
+        val events: Seq[MidiEvent] = outputHandle.open()
+        outputHandle.receiver.send(noteOn, 1L)
+
+        // Then
+        events shouldEqual Seq(MidiDeviceOpenedEvent(deviceId, MidiDirection.Output))
+        device.openCount shouldEqual 1
+        device.receiverCount shouldEqual 2
+        device.getReceivers should have size 1
+        device.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+          Seq(noteOn -> 1L)
+      }
+
+    "reopen the input handle over the device the other keeps open without opening it again, forwarding again" in
+      new SharedDeviceFixture {
+        // Given
+        val receiver: Stub[MidiReceiver] = stub[MidiReceiver]
+        receiver.send.returns(_ => ())
+        inputHandle.transmitter.addReceiver(receiver)
+        inputHandle.open()
+        outputHandle.open()
+        inputHandle.close()
+
+        // When
+        val events: Seq[MidiEvent] = inputHandle.open()
+        device.transmitter.getReceiver.send(ShortMessage(ShortMessage.CONTROL_CHANGE, 3, 64, 127), 7L)
+
+        // Then
+        events shouldEqual Seq(MidiDeviceOpenedEvent(deviceId, MidiDirection.Input))
+        device.openCount shouldEqual 1
+        receiver.send.calls shouldEqual Seq((sustainOn, 7L))
+      }
+
+    "move both of them to a new instance once the one they share got closed, opening it once" in
+      new SharedDeviceFixture {
+        // Given
+        inputHandle.open()
+        outputHandle.open()
+        // Closed from outside the handles, as CoreMIDI4J closes the instance of an endpoint that vanished
+        device.close()
+        val newDevice: FakeMidiDevice = FakeMidiDevice(deviceId.name, deviceId.vendor)
+
+        // When
+        val inputEvents: Seq[MidiEvent] = inputHandle.becomeAvailable(newDevice.asMidiDeviceInfo, newDevice)
+        val outputEvents: Seq[MidiEvent] = outputHandle.becomeAvailable(newDevice.asMidiDeviceInfo, newDevice)
+
+        // Then
+        inputEvents shouldEqual Seq(MidiDeviceClosedEvent(deviceId, MidiDirection.Input),
+          MidiDeviceOpenedEvent(deviceId, MidiDirection.Input))
+        outputEvents shouldEqual Seq(MidiDeviceClosedEvent(deviceId, MidiDirection.Output),
+          MidiDeviceOpenedEvent(deviceId, MidiDirection.Output))
+        Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
+        Seq(inputHandle, outputHandle).map(_.javaDevice) shouldEqual Seq(Some(newDevice), Some(newDevice))
+        newDevice.openCount shouldEqual 1
+        javaDeviceReferences.referenceCountOf(device) shouldEqual 0
+        javaDeviceReferences.referenceCountOf(newDevice) shouldEqual 2
       }
 
     "leave the device open for the other when one of them fails to open" in

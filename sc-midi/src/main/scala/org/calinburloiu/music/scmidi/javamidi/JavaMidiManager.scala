@@ -42,8 +42,10 @@ import scala.collection.mutable
  *
  * Each [[refresh]] resolves every device once through the [[JavaMidiEnvironment]] and reconciles each registry with
  * what it found (the device resolved last for an id wins). It hands each available device to its handle and tells the
- * handles whose device is gone. A handle that ends up [[MidiDeviceHandle.State.Closed]] is forgotten. The manager also
- * refreshes whenever the environment reports a change, until it is closed.
+ * handles whose device is gone. A device that works in both directions is handed to both of its handles over one
+ * instance: the one either of them holds open, if any, rather than the one just resolved. A handle that ends up
+ * [[MidiDeviceHandle.State.Closed]] is forgotten. The manager also refreshes whenever the environment reports a change,
+ * until it is closed.
  *
  * There are two locks, always taken in this order and never the other way around:
  *
@@ -134,13 +136,40 @@ class JavaMidiManager private(businessync: Businessync, environment: JavaMidiEnv
       }
 
       withLock {
-        val reconciliationEvents = inputEndpoint.reconcile(devices.filter(_.info.isInputDevice)) ++
-          outputEndpoint.reconcile(devices.filter(_.info.isOutputDevice))
+        val sharedDevices = devices.map(withInstanceHeldOpen)
+        val reconciliationEvents = inputEndpoint.reconcile(sharedDevices.filter(_.info.isInputDevice)) ++
+          outputEndpoint.reconcile(sharedDevices.filter(_.info.isOutputDevice))
         resolutionEvents.toSeq ++ reconciliationEvents
       }(lock)
     }(refreshLock)
 
     events.foreach(businessync.publish)
+  }
+
+  /**
+   * Returns `device`, found by a refresh, over the instance that a handle of its id holds open, instead of the one just
+   * resolved, if the device works in both directions and such a handle exists.
+   *
+   * A device that works in both directions has a handle in each endpoint, which must share one instance for the
+   * [[JavaMidiDeviceReferenceCounter]] to count their references together. A provider that builds a new instance on
+   * every lookup, as that of the JDK `Real Time Sequencer` does, would split them otherwise: an [[State.Open]] handle
+   * keeps the instance it holds while that is still open, but an [[State.Available]] one takes the new instance, and
+   * opening it later would open a second device. The check is the one the handle makes: an instance that got closed,
+   * as CoreMIDI4J closes that of a vanished endpoint, is not held open, and both handles move to the new one.
+   *
+   * A device that works in one direction only is returned unchanged: a hardware device that works in both is exposed as
+   * a source and a destination sharing its id, each of which belongs to one endpoint only.
+   */
+  private def withInstanceHeldOpen(device: AvailableDevice): AvailableDevice = {
+    if (device.info.direction == MidiDirection.InputOutput) {
+      val instanceHeldOpen = Seq(inputEndpoint, outputEndpoint).iterator
+        .flatMap(_.deviceOf(device.id))
+        .flatMap(_.javaDevice)
+        .find(_.isOpen)
+      instanceHeldOpen.fold(device)(javaDevice => device.copy(javaDevice = javaDevice))
+    } else {
+      device
+    }
   }
 
   /**

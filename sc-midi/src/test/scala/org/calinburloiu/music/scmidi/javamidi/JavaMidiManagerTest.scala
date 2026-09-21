@@ -742,6 +742,21 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       val outputHandle: MidiDeviceHandle = manager.openDevice(device.id, MidiDirection.Output)
     }
 
+    /**
+     * A manager over the JDK Real Time Sequencer, whose provider builds on every lookup a new instance working in both
+     * directions; [[instances]] holds them in the order they were resolved.
+     */
+    abstract class SequencerFixture extends Fixture {
+      val instances: mutable.Buffer[FakeMidiDevice] = mutable.ArrayBuffer()
+      environment.plugResolvingAfresh(javaDeviceInfo, () => {
+        val instance = FakeMidiDevice(deviceName, maxTransmitters = -1, maxReceivers = -1)
+        instances += instance
+        instance
+      })
+      val manager: JavaMidiManager = newManager()
+      val id: MidiDeviceId = instances.head.id
+    }
+
     "stay open as an output when closed as an input, and the other way around" in {
       val directions = Table(("closed", "remaining"),
         (MidiDirection.Input, MidiDirection.Output),
@@ -764,6 +779,104 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
           device.closeCount shouldEqual 1
         }
       }
+    }
+
+    "stay open as an output when closed as an input after a refresh, although it resolves to a new instance on every " +
+      "lookup" in new SequencerFixture {
+        // Given
+        manager.openDevice(id, MidiDirection.Input)
+        val outputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Output)
+        val heldInstance: FakeMidiDevice = instances.head
+        manager.refresh()
+
+        // When
+        manager.closeDevice(id, MidiDirection.Input)
+        outputHandle.receiver.send(NoteOnMidiMsg(2, MidiNote.C4, 100), 1L)
+
+        // Then
+        instances should have size 2
+        instances.last.openCount shouldEqual 0
+        heldInstance.openCount shouldEqual 1
+        heldInstance.isOpen shouldBe true
+        outputHandle.state shouldEqual State.Open
+        heldInstance.receivedMessages.map { case (message, timeStamp) => (message.asScala, timeStamp) } shouldEqual
+          Seq(NoteOnMidiMsg(2, MidiNote.C4, 100) -> 1L)
+
+        // When
+        manager.closeDevice(id, MidiDirection.Output)
+
+        // Then
+        heldInstance.isOpen shouldBe false
+        heldInstance.closeCount shouldEqual 1
+      }
+
+    "be opened in the other direction on the instance it is open on in one, after a refresh, although it resolves to " +
+      "a new instance on every lookup" in {
+      val directions = Table(("openedFirst", "openedLater"),
+        (MidiDirection.Input, MidiDirection.Output),
+        (MidiDirection.Output, MidiDirection.Input))
+
+      forAll(directions) { (openedFirst, openedLater) =>
+        new SequencerFixture {
+          // Given
+          manager.openDevice(id, openedFirst)
+          val heldInstance: FakeMidiDevice = instances.last
+          manager.refresh()
+
+          // When
+          manager.openDevice(id, openedLater)
+
+          // Then
+          instances should have size 2
+          instances.last.openCount shouldEqual 0
+          heldInstance.openCount shouldEqual 1
+
+          // When
+          manager.closeDevice(id, openedFirst)
+
+          // Then
+          heldInstance.isOpen shouldBe true
+          manager.deviceOf(id, openedLater).map(_.state) shouldEqual Some(State.Open)
+        }
+      }
+    }
+
+    "move to a new instance in both directions on a refresh once the instance it is open on got closed, although it " +
+      "resolves to a new instance on every lookup" in new SequencerFixture {
+      // Given
+      val inputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Input)
+      instances.last.close()
+      manager.refresh()
+
+      // When
+      val outputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Output)
+
+      // Then
+      instances should have size 2
+      instances.last.isOpen shouldBe true
+      instances.last.openCount shouldEqual 1
+      Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
+    }
+
+    "be opened on its source as an input and on its destination as an output, after a refresh, when exposed as two " +
+      "instances sharing its id" in new Fixture {
+      // Given
+      // A hardware device, which CoreMIDI4J exposes as a source and a destination
+      val source: FakeMidiDevice = Input.newDevice(deviceName)
+      val destination: FakeMidiDevice = Output.newDevice(deviceName)
+      environment.plug(source)
+      environment.plug(destination)
+      val manager: JavaMidiManager = newManager()
+      manager.openDevice(source.id, MidiDirection.Input)
+      manager.refresh()
+
+      // When
+      val outputHandle: MidiDeviceHandle = manager.openDevice(destination.id, MidiDirection.Output)
+
+      // Then
+      source.openCount shouldEqual 1
+      destination.isOpen shouldBe true
+      outputHandle.state shouldEqual State.Open
     }
 
     "keep sending to the device as an output after it is closed as an input" in new BidirectionalFixture {
