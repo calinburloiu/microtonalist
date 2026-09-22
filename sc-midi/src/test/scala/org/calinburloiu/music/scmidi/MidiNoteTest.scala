@@ -17,88 +17,92 @@
 package org.calinburloiu.music.scmidi
 
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class MidiNoteTest extends AnyFlatSpec with Matchers {
+class MidiNoteTest extends AnyWordSpec with Matchers {
   private val testTolerance: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(testTolerance)
 
-  "MidiNote" can "be constructed from a pitch class and octave number" in {
-    MidiNote(PitchClass.C, -1).number shouldEqual 0
-    MidiNote(PitchClass.E, 0).number shouldEqual 16
-    MidiNote(PitchClass.C, 3).number shouldEqual 48
-    MidiNote(PitchClass.C, 4).number shouldEqual MidiNote.C4.number
-    MidiNote(PitchClass.GSharp, 4).number shouldEqual MidiNote.GSharp4.number
-    MidiNote(PitchClass.C, 5).number shouldEqual MidiNote.C5.number
-    MidiNote(PitchClass.C, 9).number shouldEqual 120
-    MidiNote(PitchClass.G, 9).number shouldEqual 127
+  "MidiNote" can {
+    "be constructed from a pitch class and octave number" in {
+      MidiNote(PitchClass.C, -1).number shouldEqual 0
+      MidiNote(PitchClass.E, 0).number shouldEqual 16
+      MidiNote(PitchClass.C, 3).number shouldEqual 48
+      MidiNote(PitchClass.C, 4).number shouldEqual MidiNote.C4.number
+      MidiNote(PitchClass.GSharp, 4).number shouldEqual MidiNote.GSharp4.number
+      MidiNote(PitchClass.C, 5).number shouldEqual MidiNote.C5.number
+      MidiNote(PitchClass.C, 9).number shouldEqual 120
+      MidiNote(PitchClass.G, 9).number shouldEqual 127
 
-    assertThrows[IllegalArgumentException] {
-      MidiNote(PitchClass.fromNumber(-1), 4)
-    }
-    assertThrows[IllegalArgumentException] {
-      MidiNote(PitchClass.fromNumber(12), 4)
-    }
-    assertThrows[IllegalArgumentException] {
-      MidiNote(PitchClass.D, -2)
-    }
-    assertThrows[IllegalArgumentException] {
-      MidiNote(PitchClass.GSharp, 9)
-    }
-    assertThrows[IllegalArgumentException] {
-      MidiNote(PitchClass.B, 9)
-    }
-    assertThrows[IllegalArgumentException] {
-      MidiNote(PitchClass.C, 10)
-    }
-  }
-
-  it should "assert if it's invalid" in {
-    assertThrows[IllegalArgumentException] {
-      MidiNote(-1).assertValid()
-    }
-    assertThrows[IllegalArgumentException] {
-      MidiNote(128).assertValid()
+      assertThrows[IllegalArgumentException] {
+        MidiNote(PitchClass.fromNumber(-1), 4)
+      }
+      assertThrows[IllegalArgumentException] {
+        MidiNote(PitchClass.fromNumber(12), 4)
+      }
+      assertThrows[IllegalArgumentException] {
+        MidiNote(PitchClass.D, -2)
+      }
+      assertThrows[IllegalArgumentException] {
+        MidiNote(PitchClass.GSharp, 9)
+      }
+      assertThrows[IllegalArgumentException] {
+        MidiNote(PitchClass.B, 9)
+      }
+      assertThrows[IllegalArgumentException] {
+        MidiNote(PitchClass.C, 10)
+      }
     }
   }
 
-  it should "tell its pitch class" in {
-    MidiNote.C4.pitchClass shouldEqual PitchClass.C
-    MidiNote.FSharp4.pitchClass shouldEqual PitchClass.FSharp
-    MidiNote(PitchClass.BFlat, 3).pitchClass shouldEqual PitchClass.ASharp
-    MidiNote(PitchClass.A, 7).pitchClass shouldEqual PitchClass.A
+  "MidiNote" should {
+    "assert if it's invalid" in {
+      assertThrows[IllegalArgumentException] {
+        MidiNote(-1).assertValid()
+      }
+      assertThrows[IllegalArgumentException] {
+        MidiNote(128).assertValid()
+      }
+    }
 
-    MidiNote(0).pitchClass shouldEqual PitchClass.C
-    MidiNote(127).pitchClass shouldEqual PitchClass.G
-  }
+    "tell its pitch class" in {
+      MidiNote.C4.pitchClass shouldEqual PitchClass.C
+      MidiNote.FSharp4.pitchClass shouldEqual PitchClass.FSharp
+      MidiNote(PitchClass.BFlat, 3).pitchClass shouldEqual PitchClass.ASharp
+      MidiNote(PitchClass.A, 7).pitchClass shouldEqual PitchClass.A
 
-  it should "tell its octave" in {
-    MidiNote.C4.octave shouldEqual 4
-    MidiNote.FSharp4.octave shouldEqual 4
-    MidiNote(PitchClass.BFlat, 3).octave shouldEqual 3
-    MidiNote(PitchClass.A, 7).octave shouldEqual 7
+      MidiNote(0).pitchClass shouldEqual PitchClass.C
+      MidiNote(127).pitchClass shouldEqual PitchClass.G
+    }
 
-    MidiNote(0).octave shouldEqual -1
-    MidiNote(6).octave shouldEqual -1
-    MidiNote(12).octave shouldEqual 0
-    MidiNote(19).octave shouldEqual 0
-    MidiNote(24).octave shouldEqual 1
-    MidiNote(35).octave shouldEqual 1
-    MidiNote(127).octave shouldEqual 9
-  }
+    "tell its octave" in {
+      MidiNote.C4.octave shouldEqual 4
+      MidiNote.FSharp4.octave shouldEqual 4
+      MidiNote(PitchClass.BFlat, 3).octave shouldEqual 3
+      MidiNote(PitchClass.A, 7).octave shouldEqual 7
 
-  it should "tell its frequency in 12-EDO" in {
-    MidiNote.ConcertPitch.freq shouldEqual 440.0
-    MidiNote.A4.freq shouldEqual 440.0
+      MidiNote(0).octave shouldEqual -1
+      MidiNote(6).octave shouldEqual -1
+      MidiNote(12).octave shouldEqual 0
+      MidiNote(19).octave shouldEqual 0
+      MidiNote(24).octave shouldEqual 1
+      MidiNote(35).octave shouldEqual 1
+      MidiNote(127).octave shouldEqual 9
+    }
 
-    MidiNote(PitchClass.GSharp, 3).freq shouldEqual 207.65
-    MidiNote(PitchClass.AFlat, 3).freq shouldEqual 207.65
-    MidiNote.C4.freq shouldEqual 261.63
-    MidiNote(PitchClass.B, 6).freq shouldEqual 1975.53
+    "tell its frequency in 12-EDO" in {
+      MidiNote.ConcertPitch.freq shouldEqual 440.0
+      MidiNote.A4.freq shouldEqual 440.0
 
-    MidiNote(0).freq shouldEqual 8.18
-    MidiNote(16).freq shouldEqual 20.6
-    MidiNote(127).freq shouldEqual 12543.85
+      MidiNote(PitchClass.GSharp, 3).freq shouldEqual 207.65
+      MidiNote(PitchClass.AFlat, 3).freq shouldEqual 207.65
+      MidiNote.C4.freq shouldEqual 261.63
+      MidiNote(PitchClass.B, 6).freq shouldEqual 1975.53
+
+      MidiNote(0).freq shouldEqual 8.18
+      MidiNote(16).freq shouldEqual 20.6
+      MidiNote(127).freq shouldEqual 12543.85
+    }
   }
 }

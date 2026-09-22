@@ -20,10 +20,10 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalamock.scalatest.AbstractMockFactory
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFactory {
+class DefaultScaleRepoTest extends AnyWordSpec with Matchers with AbstractMockFactory {
   private lazy val scaleRepo: DefaultScaleRepo = {
     val businessyncStub = stub[Businessync]
     val scaleContextConverter = new ScaleContextConverter(businessyncStub)
@@ -51,81 +51,83 @@ class DefaultScaleRepoTest extends AnyFlatSpec with Matchers with AbstractMockFa
   private val edo72Context = Some(ScaleFormatContext(intonationStandard = Some(EdoIntonationStandard(72))))
   private val edo31Context = Some(ScaleFormatContext(intonationStandard = Some(EdoIntonationStandard(31))))
 
-  "read" should "read a JSON Scale file in cents intonation standard and convert it according to the context" in {
-    // No context
-    var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, None)
-    result `almostEquals` minorScaleCents shouldBe true
-    result.intonationStandard should contain(CentsIntonationStandard)
+  "read" should {
+    "read a JSON Scale file in cents intonation standard and convert it according to the context" in {
+      // No context
+      var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, None)
+      result `almostEquals` minorScaleCents shouldBe true
+      result.intonationStandard should contain(CentsIntonationStandard)
 
-    // Cents context
-    result = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, centsContext)
-    result `almostEquals` minorScaleCents shouldBe true
-    result.intonationStandard should contain(CentsIntonationStandard)
+      // Cents context
+      result = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, centsContext)
+      result `almostEquals` minorScaleCents shouldBe true
+      result.intonationStandard should contain(CentsIntonationStandard)
 
-    // Just intonation context
-    assertThrows[IncompatibleIntervalsScaleFormatException] {
-      FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, justIntonationContext)
+      // Just intonation context
+      assertThrows[IncompatibleIntervalsScaleFormatException] {
+        FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, justIntonationContext)
+      }
+
+      // 72-EDO context
+      result = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, edo72Context)
+      result shouldEqual minorScale72Edo
+      result.intonationStandard should contain(EdoIntonationStandard(72))
     }
 
-    // 72-EDO context
-    result = FormatTestUtils.readScaleFromResources(minorScaleCentsPath, scaleRepo, edo72Context)
-    result shouldEqual minorScale72Edo
-    result.intonationStandard should contain(EdoIntonationStandard(72))
-  }
+    "read a JSON Scale file in just intonation standard and convert it according to the context" in {
+      // No context
+      var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, None)
+      result shouldEqual minorScaleJust
+      result.intonationStandard should contain(JustIntonationStandard)
 
-  it should "read a JSON Scale file in just intonation standard and convert it according to the context" in {
-    // No context
-    var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, None)
-    result shouldEqual minorScaleJust
-    result.intonationStandard should contain(JustIntonationStandard)
+      // Cents context
+      result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, centsContext)
+      result `almostEquals` minorScaleCents shouldBe true
+      result.intonationStandard should contain(CentsIntonationStandard)
 
-    // Cents context
-    result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, centsContext)
-    result `almostEquals` minorScaleCents shouldBe true
-    result.intonationStandard should contain(CentsIntonationStandard)
+      // Just intonation context
+      result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, justIntonationContext)
+      result shouldEqual minorScaleJust
+      result.intonationStandard should contain(JustIntonationStandard)
 
-    // Just intonation context
-    result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, justIntonationContext)
-    result shouldEqual minorScaleJust
-    result.intonationStandard should contain(JustIntonationStandard)
-
-    // 72-EDO context
-    result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, edo72Context)
-    result shouldEqual minorScale72Edo
-    result.intonationStandard should contain(EdoIntonationStandard(72))
-  }
-
-  it should "read a JSON Scale file in 72-EDO intonation standard and convert it according to the context" in {
-    // No context
-    var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, None)
-    result shouldEqual minorScale72Edo
-    result.intonationStandard should contain(EdoIntonationStandard(72))
-
-    // Cents context
-    val expectedResult = CentsScale("Natural Minor", 0.0, 200.00, 316.67, 500.00, 700.00, 816.67, 1016.67, 1200.00)
-    result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, centsContext)
-    result `almostEquals` expectedResult shouldBe true
-    result.intonationStandard should contain(CentsIntonationStandard)
-
-    // Just intonation context
-    assertThrows[IncompatibleIntervalsScaleFormatException] {
-      FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, justIntonationContext)
+      // 72-EDO context
+      result = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, edo72Context)
+      result shouldEqual minorScale72Edo
+      result.intonationStandard should contain(EdoIntonationStandard(72))
     }
 
-    // 72-EDO context
-    result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, edo72Context)
-    result shouldEqual minorScale72Edo
-    result.intonationStandard should contain(EdoIntonationStandard(72))
+    "read a JSON Scale file in 72-EDO intonation standard and convert it according to the context" in {
+      // No context
+      var result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, None)
+      result shouldEqual minorScale72Edo
+      result.intonationStandard should contain(EdoIntonationStandard(72))
 
-    // 72-EDO context
-    result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, edo31Context)
-    result shouldEqual minorScale31Edo
-    result.intonationStandard should contain(EdoIntonationStandard(31))
-  }
+      // Cents context
+      val expectedResult = CentsScale("Natural Minor", 0.0, 200.00, 316.67, 500.00, 700.00, 816.67, 1016.67, 1200.00)
+      result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, centsContext)
+      result `almostEquals` expectedResult shouldBe true
+      result.intonationStandard should contain(CentsIntonationStandard)
 
-  it should "override the name read from the file with the one from the context" in {
-    val context = Some(ScaleFormatContext(name = Some("minor")))
-    val result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, context)
-    result shouldEqual RatiosScale("minor", minorScaleJust.intervals)
+      // Just intonation context
+      assertThrows[IncompatibleIntervalsScaleFormatException] {
+        FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, justIntonationContext)
+      }
+
+      // 72-EDO context
+      result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, edo72Context)
+      result shouldEqual minorScale72Edo
+      result.intonationStandard should contain(EdoIntonationStandard(72))
+
+      // 72-EDO context
+      result = FormatTestUtils.readScaleFromResources(minorScale72EdoPath, scaleRepo, edo31Context)
+      result shouldEqual minorScale31Edo
+      result.intonationStandard should contain(EdoIntonationStandard(31))
+    }
+
+    "override the name read from the file with the one from the context" in {
+      val context = Some(ScaleFormatContext(name = Some("minor")))
+      val result: Scale[Interval] = FormatTestUtils.readScaleFromResources(minorScaleJustPath, scaleRepo, context)
+      result shouldEqual RatiosScale("minor", minorScaleJust.intervals)
+    }
   }
 }

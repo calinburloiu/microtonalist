@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
@@ -25,7 +25,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
 
-class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableMidiTransmitterBehaviors {
+class ConcurrentMidiTransmitterTest extends AnyWordSpec with Matchers with MutableMidiTransmitterBehaviors {
 
   /**
    * Records, for every call of `setReceivers`, whether the calling thread held the write lock at that moment. A
@@ -181,116 +181,116 @@ class ConcurrentMidiTransmitterTest extends AnyFlatSpec with Matchers with Mutab
     }
   }
 
-  behavior of "ConcurrentMidiTransmitter"
+  "ConcurrentMidiTransmitter" should {
+    behave like mutableMidiTransmitter(initialReceivers => ConcurrentMidiTransmitter(initialReceivers))
 
-  it should behave like mutableMidiTransmitter(initialReceivers => ConcurrentMidiTransmitter(initialReceivers))
+    "not call setReceivers from its constructor" in {
+      // Given
+      val receiver = NoOpMidiReceiver()
 
-  it should "not call setReceivers from its constructor" in {
-    // Given
-    val receiver = NoOpMidiReceiver()
-
-    // When
-    val probe = WriteLockProbingTransmitter(Seq(receiver))
-
-    // Then
-    probe.writeLockHeldOnSet shouldBe empty
-    probe.receivers shouldEqual Seq(receiver)
-  }
-
-  it should "reach setReceivers from every modifier while holding the write lock" in new ProbeFixture {
-    // When
-    probe.addReceiver(receiver1)
-    probe.addReceivers(Seq(receiver2))
-    probe.removeReceiver(receiver1)
-    probe.clearReceivers()
-
-    // Then
-    probe.writeLockHeldOnSet.toSeq shouldEqual Seq(true, true, true, true)
-    probe.receivers shouldBe empty
-  }
-
-  it should "reach setReceivers while holding the write lock on a direct assignment too" in new ProbeFixture {
-    // When
-    probe.receivers = Seq(receiver1)
-
-    // Then
-    probe.writeLockHeldOnSet.toSeq shouldEqual Seq(true)
-    probe.receivers shouldEqual Seq(receiver1)
-  }
-
-  it should "release the write lock after a modifier returns" in new ProbeFixture {
-    // When
-    probe.addReceiver(receiver1)
-
-    // Then
-    probe.lockIsWriteLocked shouldBe false
-  }
-
-  it should "release the read lock after a read returns" in new ProbeFixture {
-    // Given
-    probe.addReceiver(receiver1)
-
-    // When
-    probe.receivers shouldEqual Seq(receiver1)
-
-    // Then
-    probe.lockReadLockCount shouldEqual 0
-  }
-
-  it should "block a read while another thread holds the write lock" in new ProbeFixture {
-    // Given
-    probe.addReceiver(receiver1)
-    val readDone: CountDownLatch = CountDownLatch(1)
-    val readReceivers: AtomicReference[Seq[MidiReceiver]] = AtomicReference(Seq.empty)
-    val reader: Thread = Thread(() => {
-      readReceivers.set(probe.receivers)
-      readDone.countDown()
-    })
-    reader.setDaemon(true)
-
-    // When
-    // The reader parks in the lock's queue rather than returning, which is what pins that `receivers` takes the read
-    // lock: without it the read would complete straight away and never queue.
-    val blockedOnTheLock: Boolean = probe.holdingWriteLock {
-      reader.start()
-      awaitCondition(probe.lockHasQueuedThreads) && readDone.getCount == 1
-    }
-
-    // Then
-    blockedOnTheLock shouldBe true
-    readDone.await(30000L, TimeUnit.MILLISECONDS) shouldBe true
-    readReceivers.get() shouldEqual Seq(receiver1)
-  }
-
-  it should "let a setReceivers override read the current receivers from inside the change guard" in {
-    // Given
-    val receiver1 = NoOpMidiReceiver()
-    val receiver2 = NoOpMidiReceiver()
-    val transmitter = ComparingTransmitter(Seq(receiver1))
-
-    // When
-    transmitter.addReceiver(receiver2)
-    transmitter.receivers = Seq(receiver2)
-
-    // Then
-    transmitter.changes.toSeq shouldEqual Seq(
-      (Seq(receiver1), Seq(receiver1, receiver2)),
-      (Seq(receiver1, receiver2), Seq(receiver2)),
-    )
-  }
-
-  it should "not lose updates when several threads add and remove receivers while others read" in
-    new ConcurrencyFixture {
       // When
-      runAll()
+      val probe = WriteLockProbingTransmitter(Seq(receiver))
 
       // Then
-      failures.asScala shouldBe empty
-      allReadersRead.get() shouldBe true
-      writers.map(_.isAlive) should contain only false
-      readers.map(_.isAlive) should contain only false
-      // The size check comes first so that a lost update fails with a readable count, not a dump of 1000 receivers.
-      transmitter.receivers should have size expectedFinalReceivers.size
-      transmitter.receivers should contain theSameElementsAs expectedFinalReceivers
+      probe.writeLockHeldOnSet shouldBe empty
+      probe.receivers shouldEqual Seq(receiver)
     }
+
+    "reach setReceivers from every modifier while holding the write lock" in new ProbeFixture {
+      // When
+      probe.addReceiver(receiver1)
+      probe.addReceivers(Seq(receiver2))
+      probe.removeReceiver(receiver1)
+      probe.clearReceivers()
+
+      // Then
+      probe.writeLockHeldOnSet.toSeq shouldEqual Seq(true, true, true, true)
+      probe.receivers shouldBe empty
+    }
+
+    "reach setReceivers while holding the write lock on a direct assignment too" in new ProbeFixture {
+      // When
+      probe.receivers = Seq(receiver1)
+
+      // Then
+      probe.writeLockHeldOnSet.toSeq shouldEqual Seq(true)
+      probe.receivers shouldEqual Seq(receiver1)
+    }
+
+    "release the write lock after a modifier returns" in new ProbeFixture {
+      // When
+      probe.addReceiver(receiver1)
+
+      // Then
+      probe.lockIsWriteLocked shouldBe false
+    }
+
+    "release the read lock after a read returns" in new ProbeFixture {
+      // Given
+      probe.addReceiver(receiver1)
+
+      // When
+      probe.receivers shouldEqual Seq(receiver1)
+
+      // Then
+      probe.lockReadLockCount shouldEqual 0
+    }
+
+    "block a read while another thread holds the write lock" in new ProbeFixture {
+      // Given
+      probe.addReceiver(receiver1)
+      val readDone: CountDownLatch = CountDownLatch(1)
+      val readReceivers: AtomicReference[Seq[MidiReceiver]] = AtomicReference(Seq.empty)
+      val reader: Thread = Thread(() => {
+        readReceivers.set(probe.receivers)
+        readDone.countDown()
+      })
+      reader.setDaemon(true)
+
+      // When
+      // The reader parks in the lock's queue rather than returning, which is what pins that `receivers` takes the read
+      // lock: without it the read would complete straight away and never queue.
+      val blockedOnTheLock: Boolean = probe.holdingWriteLock {
+        reader.start()
+        awaitCondition(probe.lockHasQueuedThreads) && readDone.getCount == 1
+      }
+
+      // Then
+      blockedOnTheLock shouldBe true
+      readDone.await(30000L, TimeUnit.MILLISECONDS) shouldBe true
+      readReceivers.get() shouldEqual Seq(receiver1)
+    }
+
+    "let a setReceivers override read the current receivers from inside the change guard" in {
+      // Given
+      val receiver1 = NoOpMidiReceiver()
+      val receiver2 = NoOpMidiReceiver()
+      val transmitter = ComparingTransmitter(Seq(receiver1))
+
+      // When
+      transmitter.addReceiver(receiver2)
+      transmitter.receivers = Seq(receiver2)
+
+      // Then
+      transmitter.changes.toSeq shouldEqual Seq(
+        (Seq(receiver1), Seq(receiver1, receiver2)),
+        (Seq(receiver1, receiver2), Seq(receiver2)),
+      )
+    }
+
+    "not lose updates when several threads add and remove receivers while others read" in
+      new ConcurrencyFixture {
+        // When
+        runAll()
+
+        // Then
+        failures.asScala shouldBe empty
+        allReadersRead.get() shouldBe true
+        writers.map(_.isAlive) should contain only false
+        readers.map(_.isAlive) should contain only false
+        // The size check comes first so that a lost update fails with a readable count, not a dump of 1000 receivers.
+        transmitter.receivers should have size expectedFinalReceivers.size
+        transmitter.receivers should contain theSameElementsAs expectedFinalReceivers
+      }
+  }
 }

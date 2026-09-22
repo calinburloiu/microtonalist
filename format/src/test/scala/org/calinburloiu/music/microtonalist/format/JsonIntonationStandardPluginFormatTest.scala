@@ -23,29 +23,33 @@ class JsonIntonationStandardPluginFormatTest extends JsonFormatTestUtils {
   val jsonPluginFormat: JsonPluginFormat[IntonationStandard] = JsonIntonationStandardPluginFormat
   val format: Format[IntonationStandard] = jsonPluginFormat.format
 
-  "reads" should "deserialize a cents plugin" in {
-    assertReads(format, JsString("cents"), CentsIntonationStandard)
-    assertReads(format, Json.obj("type" -> "cents"), CentsIntonationStandard)
+  "reads" should {
+    "deserialize a cents plugin" in {
+      assertReads(format, JsString("cents"), CentsIntonationStandard)
+      assertReads(format, Json.obj("type" -> "cents"), CentsIntonationStandard)
+    }
+
+    "deserialize a justIntonation plugin" in {
+      assertReads(format, JsString("justIntonation"), JustIntonationStandard)
+      assertReads(format, Json.obj("type" -> "justIntonation"), JustIntonationStandard)
+    }
+
+    "deserialize an edo plugin" in {
+      assertReads(format, Json.obj("type" -> "edo", "countPerOctave" -> 31), EdoIntonationStandard(31))
+    }
   }
 
-  it should "deserialize a justIntonation plugin" in {
-    assertReads(format, JsString("justIntonation"), JustIntonationStandard)
-    assertReads(format, Json.obj("type" -> "justIntonation"), JustIntonationStandard)
-  }
+  "writes" should {
+    "serialize a cents plugin" in {
+      format.writes(CentsIntonationStandard) shouldEqual JsString("cents")
+    }
 
-  it should "deserialize an edo plugin" in {
-    assertReads(format, Json.obj("type" -> "edo", "countPerOctave" -> 31), EdoIntonationStandard(31))
-  }
+    "serialize a justIntonation plugin" in {
+      format.writes(JustIntonationStandard) shouldEqual JsString("justIntonation")
+    }
 
-  "writes" should "serialize a cents plugin" in {
-    format.writes(CentsIntonationStandard) shouldEqual JsString("cents")
-  }
-
-  it should "serialize a justIntonation plugin" in {
-    format.writes(JustIntonationStandard) shouldEqual JsString("justIntonation")
-  }
-
-  it should "serialize an edo plugin" in {
-    format.writes(EdoIntonationStandard(72)) shouldEqual Json.obj("type" -> "edo", "countPerOctave" -> 72)
+    "serialize an edo plugin" in {
+      format.writes(EdoIntonationStandard(72)) shouldEqual Json.obj("type" -> "edo", "countPerOctave" -> 72)
+    }
   }
 }

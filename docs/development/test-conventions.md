@@ -32,10 +32,10 @@ class RatioIntervalTest extends AnyWordSpec with Matchers {
 `AnyWordSpec` also allows an extra `"…" when { "…" should { … } }` nesting level. It is optional: use it only when a
 group genuinely splits into distinct sub-scenarios or pre-conditions, otherwise keep the flat form above.
 
-Many suites still use the older `AnyFlatSpec` style (`behavior of "X"` followed by `it should "Y" in { … }`);
-[#299](https://github.com/calinburloiu/microtonalist/issues/299) migrates them. **Write every new suite with
-`AnyWordSpec`.** When adding a case to a suite that has not been migrated yet, follow that suite's existing style
-rather than mixing the two.
+Do not use the `AnyFlatSpec` style (`behavior of "X"` followed by `it should "Y" in { … }`): it has no block per group,
+so IDEs cannot fold a group. Asynchronous suites use `AsyncWordSpec` the same way, and shared behaviors are run with
+`behave like …` inside the subject's `should` block. Keep class-level members (fixtures, helpers, `private val`s)
+outside the `should` blocks, since a block's body is local to it.
 
 When adding a new test case to a suite:
 

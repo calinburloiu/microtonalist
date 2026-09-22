@@ -24,33 +24,33 @@ class JsonSoftChromaticGenusMappingPluginFormatTest extends JsonFormatTestUtils 
   private val jsonPluginFormat = JsonSoftChromaticGenusMappingPluginFormat
   private val reads: Reads[SoftChromaticGenusMapping] = jsonPluginFormat.reads
 
-  behavior of "SoftChromaticGenusMapping.Off JSON plugin format"
+  "SoftChromaticGenusMapping.Off JSON plugin format" should {
+    "deserialize SoftChromaticGenusMapping.Off" in {
+      assertReads(reads, JsString("off"), SoftChromaticGenusMapping.Off)
+    }
 
-  it should "deserialize SoftChromaticGenusMapping.Off" in {
-    assertReads(reads, JsString("off"), SoftChromaticGenusMapping.Off)
+    "serialize SoftChromaticGenusMapping.Off" in {
+      jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.Off) shouldEqual JsString("off")
+    }
   }
 
-  it should "serialize SoftChromaticGenusMapping.Off" in {
-    jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.Off) shouldEqual JsString("off")
+  "SoftChromaticGenusMapping.Strict JSON plugin format" should {
+    "deserialize SoftChromaticGenusMapping.Strict" in {
+      assertReads(reads, JsString("strict"), SoftChromaticGenusMapping.Strict)
+    }
+
+    "serialize SoftChromaticGenusMapping.Strict" in {
+      jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.Strict) shouldEqual JsString("strict")
+    }
   }
 
-  behavior of "SoftChromaticGenusMapping.Strict JSON plugin format"
+  "SoftChromaticGenusMapping.PseudoChromatic JSON plugin format" should {
+    "deserialize SoftChromaticGenusMapping.PseudoChromatic" in {
+      assertReads(reads, JsString("pseudoChromatic"), SoftChromaticGenusMapping.PseudoChromatic)
+    }
 
-  it should "deserialize SoftChromaticGenusMapping.Strict" in {
-    assertReads(reads, JsString("strict"), SoftChromaticGenusMapping.Strict)
-  }
-
-  it should "serialize SoftChromaticGenusMapping.Strict" in {
-    jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.Strict) shouldEqual JsString("strict")
-  }
-
-  behavior of "SoftChromaticGenusMapping.PseudoChromatic JSON plugin format"
-
-  it should "deserialize SoftChromaticGenusMapping.PseudoChromatic" in {
-    assertReads(reads, JsString("pseudoChromatic"), SoftChromaticGenusMapping.PseudoChromatic)
-  }
-
-  it should "serialize SoftChromaticGenusMapping.PseudoChromatic" in {
-    jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.PseudoChromatic) shouldEqual JsString("pseudoChromatic")
+    "serialize SoftChromaticGenusMapping.PseudoChromatic" in {
+      jsonPluginFormat.writes.writes(SoftChromaticGenusMapping.PseudoChromatic) shouldEqual JsString("pseudoChromatic")
+    }
   }
 }

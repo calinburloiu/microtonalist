@@ -20,10 +20,10 @@ import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, Mid
   PitchBendMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiDirection, MidiManager, MidiNote, MidiReceiver, MidiSplitter}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
+class TrackTest extends AnyWordSpec with Matchers with MockFactory {
 
   val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
   val inputMessage: MidiMsg = NoteOnMidiMsg(0, MidiNote.C4, 64)
@@ -73,139 +73,139 @@ class TrackTest extends AnyFlatSpec with Matchers with MockFactory {
     val track: Track = Track(spec = spec, midiManager = midiManager, tuningService = tuningService)
   }
 
-  behavior of "transmitter"
+  "transmitter" should {
+    "deliver the tuner's reset messages to a receiver added after the track was built" in new Fixture {
+      // When
+      track.transmitter.addReceiver(receiver)
 
-  it should "deliver the tuner's reset messages to a receiver added after the track was built" in new Fixture {
-    // When
-    track.transmitter.addReceiver(receiver)
+      // Then
+      receiver.send.verify(initMessage, -1L).once()
+    }
 
-    // Then
-    receiver.send.verify(initMessage, -1L).once()
+    "forward the tuner's output for a message sent to the track's receiver" in new Fixture {
+      // Given
+      track.transmitter.addReceiver(receiver)
+
+      // When
+      track.receiver.send(inputMessage, 7L)
+
+      // Then
+      receiver.send.verify(outputMessage, *).once()
+    }
   }
 
-  it should "forward the tuner's output for a message sent to the track's receiver" in new Fixture {
-    // Given
-    track.transmitter.addReceiver(receiver)
+  "close" should {
+    "release its input and output devices through the MIDI manager" in new DeviceFixture {
+      // When
+      track.close()
 
-    // When
-    track.receiver.send(inputMessage, 7L)
+      // Then
+      midiManager.closeDevice.verify(inputDeviceId, MidiDirection.Input).once()
+      midiManager.closeDevice.verify(outputDeviceId, MidiDirection.Output).once()
+    }
 
-    // Then
-    receiver.send.verify(outputMessage, *).once()
-  }
+    "stop forwarding the messages of its input device to its output" in new DeviceFixture {
+      // Given
+      track.close()
+      outputReceiver.clear()
 
-  behavior of "close"
+      // When
+      MidiSplitter(inputHandle.transmitter).send(inputMessage, 7L)
 
-  it should "release its input and output devices through the MIDI manager" in new DeviceFixture {
-    // When
-    track.close()
+      // Then
+      inputHandle.transmitter.receivers shouldBe empty
+      outputReceiver.messages shouldBe empty
+    }
 
-    // Then
-    midiManager.closeDevice.verify(inputDeviceId, MidiDirection.Input).once()
-    midiManager.closeDevice.verify(outputDeviceId, MidiDirection.Output).once()
-  }
+    "stop sending the messages it receives to its output device" in new DeviceFixture {
+      // Given
+      track.close()
+      outputReceiver.clear()
 
-  it should "stop forwarding the messages of its input device to its output" in new DeviceFixture {
-    // Given
-    track.close()
-    outputReceiver.clear()
+      // When
+      track.receiver.send(inputMessage, 7L)
 
-    // When
-    MidiSplitter(inputHandle.transmitter).send(inputMessage, 7L)
+      // Then
+      outputReceiver.messages shouldBe empty
+    }
 
-    // Then
-    inputHandle.transmitter.receivers shouldBe empty
-    outputReceiver.messages shouldBe empty
-  }
-
-  it should "stop sending the messages it receives to its output device" in new DeviceFixture {
-    // Given
-    track.close()
-    outputReceiver.clear()
-
-    // When
-    track.receiver.send(inputMessage, 7L)
-
-    // Then
-    outputReceiver.messages shouldBe empty
-  }
-
-  it should "switch its output device back to 12-EDO exactly once" in new DeviceFixture {
-    // Given
-    outputReceiver.clear()
-
-    // When
-    track.close()
-
-    // Then
-    outputReceiver.messages shouldEqual Seq(standardTuningMessage)
-  }
-
-  it should "switch the tracks it feeds back to 12-EDO exactly once" in new Fixture {
-    // Given
-    track.transmitter.addReceiver(receiver)
-
-    // When
-    track.close()
-
-    // Then
-    receiver.send.verify(standardTuningMessage, -1L).once()
-  }
-
-  it should "release nothing through the MIDI manager when it has no device" in new Fixture {
-    // When
-    track.close()
-
-    // Then
-    midiManager.closeDevice.verify(*, *).never()
-  }
-
-  it should "release nothing through the MIDI manager when its input and output are other tracks" in new Fixture {
-    // Given
-    val trackSpecWithTrackIO: TrackSpec = spec.copy(
-      input = Some(FromTrackInputSpec("upstream", None)), output = Some(ToTrackOutputSpec("downstream", None)))
-    val trackWithTrackIO: Track = Track(spec = trackSpecWithTrackIO, midiManager = midiManager,
-      tuningService = tuningService)
-
-    // When
-    trackWithTrackIO.close()
-
-    // Then
-    midiManager.closeDevice.verify(*, *).never()
-  }
-
-  behavior of "resetTuner"
-
-  it should "send the tuner's reset messages to the output" in new DeviceFixture {
-    // Given
-    outputReceiver.clear()
-
-    // When
-    track.resetTuner()
-
-    // Then
-    outputReceiver.messages shouldEqual Seq(initMessage)
-  }
-
-  behavior of "releaseInput"
-
-  it should "release the pedals and send All Notes Off on every channel straight to the output, then reset the " +
-    "tuning changers and tuner" in new DeviceFixture {
+    "switch its output device back to 12-EDO exactly once" in new DeviceFixture {
       // Given
       outputReceiver.clear()
 
       // When
-      track.releaseInput()
+      track.close()
 
       // Then
-      // The pedals are released first: a latched Hold or Sostenuto takes priority over All Notes Off, so a note held
-      // by one would keep sounding otherwise.
-      val expectedRelease: Seq[MidiMsg] = (0 until 16).flatMap { channel =>
-        Seq(CcMidiMsg(channel, MidiCc.SustainPedal, 0), CcMidiMsg(channel, MidiCc.SostenutoPedal, 0),
-          AllNotesOffMidiMsg(channel))
-      }
-      outputReceiver.messages shouldEqual expectedRelease :+ initMessage
-      tuner.process.verify(*).never()
-      (() => tuningChanger.reset()).verify().once()
+      outputReceiver.messages shouldEqual Seq(standardTuningMessage)
     }
+
+    "switch the tracks it feeds back to 12-EDO exactly once" in new Fixture {
+      // Given
+      track.transmitter.addReceiver(receiver)
+
+      // When
+      track.close()
+
+      // Then
+      receiver.send.verify(standardTuningMessage, -1L).once()
+    }
+
+    "release nothing through the MIDI manager when it has no device" in new Fixture {
+      // When
+      track.close()
+
+      // Then
+      midiManager.closeDevice.verify(*, *).never()
+    }
+
+    "release nothing through the MIDI manager when its input and output are other tracks" in new Fixture {
+      // Given
+      val trackSpecWithTrackIO: TrackSpec = spec.copy(
+        input = Some(FromTrackInputSpec("upstream", None)), output = Some(ToTrackOutputSpec("downstream", None)))
+      val trackWithTrackIO: Track = Track(spec = trackSpecWithTrackIO, midiManager = midiManager,
+        tuningService = tuningService)
+
+      // When
+      trackWithTrackIO.close()
+
+      // Then
+      midiManager.closeDevice.verify(*, *).never()
+    }
+  }
+
+  "resetTuner" should {
+    "send the tuner's reset messages to the output" in new DeviceFixture {
+      // Given
+      outputReceiver.clear()
+
+      // When
+      track.resetTuner()
+
+      // Then
+      outputReceiver.messages shouldEqual Seq(initMessage)
+    }
+  }
+
+  "releaseInput" should {
+    "release the pedals and send All Notes Off on every channel straight to the output, then reset the " +
+      "tuning changers and tuner" in new DeviceFixture {
+        // Given
+        outputReceiver.clear()
+
+        // When
+        track.releaseInput()
+
+        // Then
+        // The pedals are released first: a latched Hold or Sostenuto takes priority over All Notes Off, so a note held
+        // by one would keep sounding otherwise.
+        val expectedRelease: Seq[MidiMsg] = (0 until 16).flatMap { channel =>
+          Seq(CcMidiMsg(channel, MidiCc.SustainPedal, 0), CcMidiMsg(channel, MidiCc.SostenutoPedal, 0),
+            AllNotesOffMidiMsg(channel))
+        }
+        outputReceiver.messages shouldEqual expectedRelease :+ initMessage
+        tuner.process.verify(*).never()
+        (() => tuningChanger.reset()).verify().once()
+      }
+  }
 }

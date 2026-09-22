@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class MidiDeviceInfoTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class MidiDeviceInfoTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 
   private val info: MidiDeviceInfo = MidiDeviceInfo(
     name = "CoreMIDI4J - FP-90",
@@ -31,33 +31,33 @@ class MidiDeviceInfoTest extends AnyFlatSpec with Matchers with TableDrivenPrope
     receiversLimit = MidiConnectionLimit.Limited(1)
   )
 
-  behavior of "id"
-
-  it should "be derived from the name and vendor" in {
-    // When / Then
-    info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+  "id" should {
+    "be derived from the name and vendor" in {
+      // When / Then
+      info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+    }
   }
 
-  behavior of "direction"
+  "direction" should {
+    "derive the directions from the connection limits" in {
+      // Given
+      val cases = Table[MidiConnectionLimit, MidiConnectionLimit, MidiDirection, Boolean, Boolean](
+        ("transmittersLimit", "receiversLimit", "direction", "isInputDevice", "isOutputDevice"),
+        (MidiConnectionLimit.Unlimited, MidiConnectionLimit.Limited(0), MidiDirection.Input, true, false),
+        (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(1), MidiDirection.Output, false, true),
+        (MidiConnectionLimit.Limited(2), MidiConnectionLimit.Unlimited, MidiDirection.InputOutput, true, true),
+        (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(0), MidiDirection.None, false, false)
+      )
 
-  it should "derive the directions from the connection limits" in {
-    // Given
-    val cases = Table[MidiConnectionLimit, MidiConnectionLimit, MidiDirection, Boolean, Boolean](
-      ("transmittersLimit", "receiversLimit", "direction", "isInputDevice", "isOutputDevice"),
-      (MidiConnectionLimit.Unlimited, MidiConnectionLimit.Limited(0), MidiDirection.Input, true, false),
-      (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(1), MidiDirection.Output, false, true),
-      (MidiConnectionLimit.Limited(2), MidiConnectionLimit.Unlimited, MidiDirection.InputOutput, true, true),
-      (MidiConnectionLimit.Limited(0), MidiConnectionLimit.Limited(0), MidiDirection.None, false, false)
-    )
+      forAll(cases) { (transmittersLimit, receiversLimit, direction, isInputDevice, isOutputDevice) =>
+        // When
+        val deviceInfo = info.copy(transmittersLimit = transmittersLimit, receiversLimit = receiversLimit)
 
-    forAll(cases) { (transmittersLimit, receiversLimit, direction, isInputDevice, isOutputDevice) =>
-      // When
-      val deviceInfo = info.copy(transmittersLimit = transmittersLimit, receiversLimit = receiversLimit)
-
-      // Then
-      deviceInfo.direction shouldEqual direction
-      deviceInfo.isInputDevice shouldBe isInputDevice
-      deviceInfo.isOutputDevice shouldBe isOutputDevice
+        // Then
+        deviceInfo.direction shouldEqual direction
+        deviceInfo.isInputDevice shouldBe isInputDevice
+        deviceInfo.isOutputDevice shouldBe isOutputDevice
+      }
     }
   }
 }

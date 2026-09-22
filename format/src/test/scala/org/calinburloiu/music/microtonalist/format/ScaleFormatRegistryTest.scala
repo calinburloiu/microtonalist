@@ -17,12 +17,12 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.net.MediaType
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
-class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
+class ScaleFormatRegistryTest extends AnyWordSpec with Matchers {
   val huygensFokkerScalaScaleFormat: ScaleFormat = new HuygensFokkerScalaScaleFormat
   val jsonScaleFormat: ScaleFormat = new JsonScaleFormat(NoJsonPreprocessor)
   val registry: ScaleFormatRegistry = new ScaleFormatRegistry(Seq(huygensFokkerScalaScaleFormat, jsonScaleFormat))
@@ -32,36 +32,42 @@ class ScaleFormatRegistryTest extends AnyFlatSpec with Matchers {
     actualResult.get shouldBe theSameInstanceAs(expectedResult)
   }
 
-  "getByExtension" should "return the ScaleFormat by file extension" in {
-    assertResult(registry.getByExtension("scl"), huygensFokkerScalaScaleFormat)
-    assertResult(registry.getByExtension("jscl"), jsonScaleFormat)
-    assertResult(registry.getByExtension("json"), jsonScaleFormat)
+  "getByExtension" should {
+    "return the ScaleFormat by file extension" in {
+      assertResult(registry.getByExtension("scl"), huygensFokkerScalaScaleFormat)
+      assertResult(registry.getByExtension("jscl"), jsonScaleFormat)
+      assertResult(registry.getByExtension("json"), jsonScaleFormat)
 
-    registry.getByExtension("txt") shouldBe empty
+      registry.getByExtension("txt") shouldBe empty
+    }
   }
 
-  "getByMediaType" should "return the ScaleFormat by media type" in {
-    assertResult(registry.getByMediaType(JsonScaleFormat.JsonScaleMediaType), jsonScaleFormat)
-    assertResult(registry.getByMediaType(MediaType.JSON_UTF_8), jsonScaleFormat)
+  "getByMediaType" should {
+    "return the ScaleFormat by media type" in {
+      assertResult(registry.getByMediaType(JsonScaleFormat.JsonScaleMediaType), jsonScaleFormat)
+      assertResult(registry.getByMediaType(MediaType.JSON_UTF_8), jsonScaleFormat)
 
-    registry.getByMediaType(MediaType.parse("text/html")) shouldBe empty
-    registry.getByMediaType(MediaType.create("application", "*")) shouldBe empty
+      registry.getByMediaType(MediaType.parse("text/html")) shouldBe empty
+      registry.getByMediaType(MediaType.create("application", "*")) shouldBe empty
+    }
   }
 
-  "get" should "return the ScaleFormat by URI and media type" in {
-    assertResult(registry.get(new URI("https://example.org/dorian.scl"), None), huygensFokkerScalaScaleFormat)
-    assertResult(registry.get(new URI("https://example.org/dorian.jscl"), None), jsonScaleFormat)
-    assertResult(registry.get(new URI("https://example.org/dorian.json"), None), jsonScaleFormat)
-    registry.get(new URI("https://example.org/dorian"), None) shouldBe empty
+  "get" should {
+    "return the ScaleFormat by URI and media type" in {
+      assertResult(registry.get(new URI("https://example.org/dorian.scl"), None), huygensFokkerScalaScaleFormat)
+      assertResult(registry.get(new URI("https://example.org/dorian.jscl"), None), jsonScaleFormat)
+      assertResult(registry.get(new URI("https://example.org/dorian.json"), None), jsonScaleFormat)
+      registry.get(new URI("https://example.org/dorian"), None) shouldBe empty
 
-    assertResult(registry.get(new URI("https://example.org/dorian"), Some(JsonScaleFormat.JsonScaleMediaType)),
-      jsonScaleFormat)
-    assertResult(registry.get(new URI("https://example.org/dorian"), Some(MediaType.JSON_UTF_8)),
-      jsonScaleFormat)
-    registry.get(new URI("https://example.org/dorian"), Some(MediaType.parse("text/html"))) shouldBe empty
+      assertResult(registry.get(new URI("https://example.org/dorian"), Some(JsonScaleFormat.JsonScaleMediaType)),
+        jsonScaleFormat)
+      assertResult(registry.get(new URI("https://example.org/dorian"), Some(MediaType.JSON_UTF_8)),
+        jsonScaleFormat)
+      registry.get(new URI("https://example.org/dorian"), Some(MediaType.parse("text/html"))) shouldBe empty
 
-    // Media type takes precedence
-    assertResult(registry.get(new URI("https://example.org/dorian.scl"), Some(JsonScaleFormat.JsonScaleMediaType)),
-      jsonScaleFormat)
+      // Media type takes precedence
+      assertResult(registry.get(new URI("https://example.org/dorian.scl"), Some(JsonScaleFormat.JsonScaleMediaType)),
+        jsonScaleFormat)
+    }
   }
 }

@@ -24,44 +24,48 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
     gSharpOrAFlat = Some(11), b = Some(12))
   private val sampleDenseJsonKeyboardMapping = Json.arr(0, JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12)
 
-  "reads" should "deserialize a dense KeyboardMapping" in {
-    assertReads(
-      KeyboardMappingFormat.reads,
-      sampleDenseJsonKeyboardMapping,
-      sampleKeyboardMapping
-    )
-  }
-
-  it should "deserialize a sparse KeyboardMapping" in {
-    assertReads(
-      KeyboardMappingFormat.format,
-      Json.obj("C" -> 0, "d" -> 3, "4" -> 4, "F" -> 6, "G" -> 9, "Ab" -> 11, "11" -> 12),
-      sampleKeyboardMapping
-    )
-  }
-
-  it should "fail to deserialize an invalid KeyboardMapping" in {
-    val invalidInputs = Seq(
-      JsArray.empty, Json.arr(0, 1),
-      Json.arr("0", JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12),
-      Json.obj("X#" -> 2),
-      Json.obj("9" -> -2),
-      Json.obj("C#" -> "5"),
-      JsNumber(4),
-      JsString("foo"),
-      JsNull
-    )
-
-    for (invalidInput <- invalidInputs) {
-      assertReadsSingleFailure(
+  "reads" should {
+    "deserialize a dense KeyboardMapping" in {
+      assertReads(
         KeyboardMappingFormat.reads,
-        invalidInput,
-        KeyboardMappingFormat.InvalidKeyboardMapping
+        sampleDenseJsonKeyboardMapping,
+        sampleKeyboardMapping
       )
+    }
+
+    "deserialize a sparse KeyboardMapping" in {
+      assertReads(
+        KeyboardMappingFormat.format,
+        Json.obj("C" -> 0, "d" -> 3, "4" -> 4, "F" -> 6, "G" -> 9, "Ab" -> 11, "11" -> 12),
+        sampleKeyboardMapping
+      )
+    }
+
+    "fail to deserialize an invalid KeyboardMapping" in {
+      val invalidInputs = Seq(
+        JsArray.empty, Json.arr(0, 1),
+        Json.arr("0", JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12),
+        Json.obj("X#" -> 2),
+        Json.obj("9" -> -2),
+        Json.obj("C#" -> "5"),
+        JsNumber(4),
+        JsString("foo"),
+        JsNull
+      )
+
+      for (invalidInput <- invalidInputs) {
+        assertReadsSingleFailure(
+          KeyboardMappingFormat.reads,
+          invalidInput,
+          KeyboardMappingFormat.InvalidKeyboardMapping
+        )
+      }
     }
   }
 
-  "writes" should "serialize a KeyboardMapper in sparse format" in {
-    KeyboardMappingFormat.writes.writes(sampleKeyboardMapping) shouldEqual sampleDenseJsonKeyboardMapping
+  "writes" should {
+    "serialize a KeyboardMapper in sparse format" in {
+      KeyboardMappingFormat.writes.writes(sampleKeyboardMapping) shouldEqual sampleDenseJsonKeyboardMapping
+    }
   }
 }

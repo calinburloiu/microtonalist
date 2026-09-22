@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.scalatest.Inside
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import play.api.libs.json.*
@@ -26,7 +26,7 @@ import play.api.libs.json.*
  * Convenience trait that can be mixed in tests for various utilities like easily asserting reading JSON with the
  * play-json library.
  */
-trait JsonFormatTestUtils extends AnyFlatSpec with Matchers with Inside with TableDrivenPropertyChecks {
+trait JsonFormatTestUtils extends AnyWordSpec with Matchers with Inside with TableDrivenPropertyChecks {
 
   import JsonFormatTestUtils.*
 

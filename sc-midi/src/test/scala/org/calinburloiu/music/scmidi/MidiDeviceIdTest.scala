@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class MidiDeviceIdTest extends AnyFlatSpec with Matchers {
+class MidiDeviceIdTest extends AnyWordSpec with Matchers {
 
   private val info: MidiDeviceInfo = MidiDeviceInfo(
     name = "CoreMIDI4J - FP-90",
@@ -30,40 +30,40 @@ class MidiDeviceIdTest extends AnyFlatSpec with Matchers {
     receiversLimit = MidiConnectionLimit.Limited(1)
   )
 
-  behavior of "correspondsToInfo"
+  "correspondsToInfo" should {
+    "be true for the info the id was derived from" in {
+      // When / Then
+      MidiDeviceId("CoreMIDI4J - FP-90", "Roland").correspondsToInfo(info) shouldBe true
+    }
 
-  it should "be true for the info the id was derived from" in {
-    // When / Then
-    MidiDeviceId("CoreMIDI4J - FP-90", "Roland").correspondsToInfo(info) shouldBe true
+    "be false for an info with another name or another vendor" in {
+      // When / Then
+      MidiDeviceId("CoreMIDI4J - FP-30", "Roland").correspondsToInfo(info) shouldBe false
+      MidiDeviceId("CoreMIDI4J - FP-90", "Yamaha").correspondsToInfo(info) shouldBe false
+    }
   }
 
-  it should "be false for an info with another name or another vendor" in {
-    // When / Then
-    MidiDeviceId("CoreMIDI4J - FP-30", "Roland").correspondsToInfo(info) shouldBe false
-    MidiDeviceId("CoreMIDI4J - FP-90", "Yamaha").correspondsToInfo(info) shouldBe false
+  "sanitizedName" should {
+    "strip the CoreMIDI4J prefix" in {
+      // When / Then
+      MidiDeviceId("CoreMIDI4J - FP-90", "Roland").sanitizedName shouldEqual "FP-90"
+    }
+
+    "leave a name without the prefix untouched" in {
+      // When / Then
+      MidiDeviceId("FP-90", "Roland").sanitizedName shouldEqual "FP-90"
+    }
   }
 
-  behavior of "sanitizedName"
+  "toString" should {
+    "quote the name and append the vendor in parentheses" in {
+      // When / Then
+      MidiDeviceId("FP-90", "Roland").toString shouldEqual "\"FP-90\" (Roland)"
+    }
 
-  it should "strip the CoreMIDI4J prefix" in {
-    // When / Then
-    MidiDeviceId("CoreMIDI4J - FP-90", "Roland").sanitizedName shouldEqual "FP-90"
-  }
-
-  it should "leave a name without the prefix untouched" in {
-    // When / Then
-    MidiDeviceId("FP-90", "Roland").sanitizedName shouldEqual "FP-90"
-  }
-
-  behavior of "toString"
-
-  it should "quote the name and append the vendor in parentheses" in {
-    // When / Then
-    MidiDeviceId("FP-90", "Roland").toString shouldEqual "\"FP-90\" (Roland)"
-  }
-
-  it should "omit the parentheses for a blank vendor" in {
-    // When / Then
-    MidiDeviceId("IAC 1", " ").toString shouldEqual "\"IAC 1\""
+    "omit the parentheses for a blank vendor" in {
+      // When / Then
+      MidiDeviceId("IAC 1", " ").toString shouldEqual "\"IAC 1\""
+    }
   }
 }

@@ -20,71 +20,69 @@ import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.{CentsInterval, RealInterval}
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningReferenceTest extends AnyFlatSpec with Matchers {
+class TuningReferenceTest extends AnyWordSpec with Matchers {
 
   private val testTolerance: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(testTolerance)
 
-  behavior of classOf[StandardTuningReference]
-    .getSimpleName
+  classOf[StandardTuningReference].getSimpleName should {
+    "always return a baseOffset of 0" in {
+      StandardTuningReference(PitchClass.C).baseOffset shouldEqual 0.0
+      StandardTuningReference(PitchClass.FSharp).baseOffset shouldEqual 0.0
+    }
 
-  it should "always return a baseOffset of 0" in {
-    StandardTuningReference(PitchClass.C).baseOffset shouldEqual 0.0
-    StandardTuningReference(PitchClass.FSharp).baseOffset shouldEqual 0.0
+    "return baseTuningPitches of 12-EDO" in {
+      StandardTuningReference(PitchClass.D).baseTuningPitch shouldEqual TuningPitch(PitchClass.D, 0.0)
+      StandardTuningReference(PitchClass.AFlat).baseTuningPitch shouldEqual TuningPitch(PitchClass.AFlat, 0.0)
+    }
   }
 
-  it should "return baseTuningPitches of 12-EDO" in {
-    StandardTuningReference(PitchClass.D).baseTuningPitch shouldEqual TuningPitch(PitchClass.D, 0.0)
-    StandardTuningReference(PitchClass.AFlat).baseTuningPitch shouldEqual TuningPitch(PitchClass.AFlat, 0.0)
-  }
+  classOf[ConcertPitchTuningReference].getSimpleName should {
+    "default the concert pitch frequency to the standard 440 Hz" in {
+      ConcertPitchTuningReference(CentsInterval(333.33), MidiNote.C5).concertPitchFreq shouldEqual 440.0
+    }
 
-  behavior of classOf[ConcertPitchTuningReference]
-    .getSimpleName
+    "tune a base MIDI note of A4 relative to standard concert pitch of 440 Hz of A4" in {
+      val tuningReference = ConcertPitchTuningReference(
+        concertPitchToBaseInterval = RealInterval.Unison, baseMidiNote = MidiNote.A4)
+      tuningReference.baseOffset shouldEqual 0.0
+      tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.A
+      tuningReference.baseTuningPitch.offset shouldEqual 0.0
+    }
 
-  it should "default the concert pitch frequency to the standard 440 Hz" in {
-    ConcertPitchTuningReference(CentsInterval(333.33), MidiNote.C5).concertPitchFreq shouldEqual 440.0
-  }
+    "tune a base MIDI note relative to standard concert pitch" in {
+      val tuningReference = ConcertPitchTuningReference(
+        concertPitchToBaseInterval = 32 /: 27, baseMidiNote = MidiNote.C5)
+      tuningReference.baseOffset shouldEqual -5.87
+      tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.C
+      tuningReference.baseTuningPitch.offset shouldEqual -5.87
+    }
 
-  it should "tune a base MIDI note of A4 relative to standard concert pitch of 440 Hz of A4" in {
-    val tuningReference = ConcertPitchTuningReference(
-      concertPitchToBaseInterval = RealInterval.Unison, baseMidiNote = MidiNote.A4)
-    tuningReference.baseOffset shouldEqual 0.0
-    tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.A
-    tuningReference.baseTuningPitch.offset shouldEqual 0.0
-  }
+    "tune a base MIDI note of A4 relative to 432 Hz concert pitch of A4" in {
+      val tuningReference = ConcertPitchTuningReference(
+        concertPitchToBaseInterval = RealInterval.Unison, baseMidiNote = MidiNote.A4, concertPitchFreq = 432.0)
+      tuningReference.baseOffset shouldEqual -31.77
+      tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.A
+      tuningReference.baseTuningPitch.offset shouldEqual -31.77
+    }
 
-  it should "tune a base MIDI note relative to standard concert pitch" in {
-    val tuningReference = ConcertPitchTuningReference(
-      concertPitchToBaseInterval = 32 /: 27, baseMidiNote = MidiNote.C5)
-    tuningReference.baseOffset shouldEqual -5.87
-    tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.C
-    tuningReference.baseTuningPitch.offset shouldEqual -5.87
-  }
+    "tune a base MIDI note relative to 432 Hz concert pitch of A4" in {
+      val tuningReference = ConcertPitchTuningReference(
+        concertPitchToBaseInterval = 32 /: 27, baseMidiNote = MidiNote.C5, concertPitchFreq = 432.0)
+      tuningReference.baseOffset shouldEqual -(5.87 + 31.77)
+      tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.C
+      tuningReference.baseTuningPitch.offset shouldEqual -(5.87 + 31.77)
+    }
 
-  it should "tune a base MIDI note of A4 relative to 432 Hz concert pitch of A4" in {
-    val tuningReference = ConcertPitchTuningReference(
-      concertPitchToBaseInterval = RealInterval.Unison, baseMidiNote = MidiNote.A4, concertPitchFreq = 432.0)
-    tuningReference.baseOffset shouldEqual -31.77
-    tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.A
-    tuningReference.baseTuningPitch.offset shouldEqual -31.77
-  }
-
-  it should "tune a base MIDI note relative to 432 Hz concert pitch of A4" in {
-    val tuningReference = ConcertPitchTuningReference(
-      concertPitchToBaseInterval = 32 /: 27, baseMidiNote = MidiNote.C5, concertPitchFreq = 432.0)
-    tuningReference.baseOffset shouldEqual -(5.87 + 31.77)
-    tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.C
-    tuningReference.baseTuningPitch.offset shouldEqual -(5.87 + 31.77)
-  }
-
-  it should "tune a base MIDI note relative to a custom concert pitch far from A4" in {
-    val tuningReference = ConcertPitchTuningReference(concertPitchFreq = 260.0,
-      baseMidiNote = MidiNote.E4, concertPitchToBaseInterval = CentsInterval(350.0))
-    tuningReference.baseOffset shouldEqual -60.79
-    tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.E
-    tuningReference.baseTuningPitch.offset shouldEqual -60.79
+    "tune a base MIDI note relative to a custom concert pitch far from A4" in {
+      val tuningReference = ConcertPitchTuningReference(concertPitchFreq = 260.0,
+        baseMidiNote = MidiNote.E4, concertPitchToBaseInterval = CentsInterval(350.0))
+      tuningReference.baseOffset shouldEqual -60.79
+      tuningReference.baseTuningPitch.pitchClass shouldEqual PitchClass.E
+      tuningReference.baseTuningPitch.offset shouldEqual -60.79
+    }
   }
 }

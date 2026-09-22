@@ -17,50 +17,56 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.scmidi.PitchClass
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningPitchTest extends AnyFlatSpec with Matchers {
-  "TuningPitch" should "should provide implicit conversions" in {
-    withClue("fromPitchClass") {
-      val tuningPitch: TuningPitch = PitchClass.B
-      tuningPitch shouldEqual TuningPitch(PitchClass.B, 0)
-    }
-    withClue("toPitchClass") {
-      val pitchClass: PitchClass = TuningPitch(PitchClass.F, -33.33)
-      pitchClass shouldEqual PitchClass.F
-    }
-    withClue("toInt") {
-      val n: Int = TuningPitch(PitchClass.A, 50.0)
-      n shouldEqual 9
+class TuningPitchTest extends AnyWordSpec with Matchers {
+  "TuningPitch" should {
+    "should provide implicit conversions" in {
+      withClue("fromPitchClass") {
+        val tuningPitch: TuningPitch = PitchClass.B
+        tuningPitch shouldEqual TuningPitch(PitchClass.B, 0)
+      }
+      withClue("toPitchClass") {
+        val pitchClass: PitchClass = TuningPitch(PitchClass.F, -33.33)
+        pitchClass shouldEqual PitchClass.F
+      }
+      withClue("toInt") {
+        val n: Int = TuningPitch(PitchClass.A, 50.0)
+        n shouldEqual 9
+      }
     }
   }
 
-  "isOverflowing" should "return false if offset absolute value is less than 100" in {
-    TuningPitch(PitchClass.EFlat, 0).isOverflowing shouldBe false
-    TuningPitch(PitchClass.EFlat, 34.2).isOverflowing shouldBe false
-    TuningPitch(PitchClass.EFlat, 99.99).isOverflowing shouldBe false
-    TuningPitch(PitchClass.EFlat, -73.8).isOverflowing shouldBe false
-    TuningPitch(PitchClass.EFlat, -99.99).isOverflowing shouldBe false
+  "isOverflowing" should {
+    "return false if offset absolute value is less than 100" in {
+      TuningPitch(PitchClass.EFlat, 0).isOverflowing shouldBe false
+      TuningPitch(PitchClass.EFlat, 34.2).isOverflowing shouldBe false
+      TuningPitch(PitchClass.EFlat, 99.99).isOverflowing shouldBe false
+      TuningPitch(PitchClass.EFlat, -73.8).isOverflowing shouldBe false
+      TuningPitch(PitchClass.EFlat, -99.99).isOverflowing shouldBe false
+    }
+
+    "return true if offset absolute value is 100 or more" in {
+      TuningPitch(PitchClass.EFlat, 100.0).isOverflowing shouldBe true
+      TuningPitch(PitchClass.EFlat, -100.0).isOverflowing shouldBe true
+      TuningPitch(PitchClass.EFlat, 103.2).isOverflowing shouldBe true
+      TuningPitch(PitchClass.EFlat, -157.9).isOverflowing shouldBe true
+    }
   }
 
-  it should "return true if offset absolute value is 100 or more" in {
-    TuningPitch(PitchClass.EFlat, 100.0).isOverflowing shouldBe true
-    TuningPitch(PitchClass.EFlat, -100.0).isOverflowing shouldBe true
-    TuningPitch(PitchClass.EFlat, 103.2).isOverflowing shouldBe true
-    TuningPitch(PitchClass.EFlat, -157.9).isOverflowing shouldBe true
-  }
+  "isQuarterTone" should {
+    "tell if a TuningPitch almost between two adjacent TuningPitches with no offset" in {
+      TuningPitch(PitchClass.B, 0).isQuarterTone() shouldBe false
+      TuningPitch(PitchClass.C, -30).isQuarterTone() shouldBe false
+      TuningPitch(PitchClass.C, 25).isQuarterTone() shouldBe false
+      TuningPitch(PitchClass.C, 49).isQuarterTone(0.5) shouldBe false
+      TuningPitch(PitchClass.AFlat, 59).isQuarterTone(8.0) shouldBe false
 
-  "isQuarterTone" should "tell if a TuningPitch almost between two adjacent TuningPitches with no offset" in {
-    TuningPitch(PitchClass.B, 0).isQuarterTone() shouldBe false
-    TuningPitch(PitchClass.C, -30).isQuarterTone() shouldBe false
-    TuningPitch(PitchClass.C, 25).isQuarterTone() shouldBe false
-    TuningPitch(PitchClass.C, 49).isQuarterTone(0.5) shouldBe false
-    TuningPitch(PitchClass.AFlat, 59).isQuarterTone(8.0) shouldBe false
-
-    TuningPitch(PitchClass.D, -50).isQuarterTone() shouldBe true
-    TuningPitch(PitchClass.E, 50).isQuarterTone() shouldBe true
-    TuningPitch(PitchClass.FSharp, -40).isQuarterTone() shouldBe true
-    TuningPitch(PitchClass.AFlat, 59).isQuarterTone() shouldBe true
+      TuningPitch(PitchClass.D, -50).isQuarterTone() shouldBe true
+      TuningPitch(PitchClass.E, 50).isQuarterTone() shouldBe true
+      TuningPitch(PitchClass.FSharp, -40).isQuarterTone() shouldBe true
+      TuningPitch(PitchClass.AFlat, 59).isQuarterTone() shouldBe true
+    }
   }
 }

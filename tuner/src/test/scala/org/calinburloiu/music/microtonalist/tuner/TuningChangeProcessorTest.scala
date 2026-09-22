@@ -19,10 +19,10 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFactory {
+class TuningChangeProcessorTest extends AnyWordSpec with Matchers with MockFactory {
 
   val noteTriggerMessage: MidiMsg = NoteOnMidiMsg(1, MidiNote.C4, 64)
   val ccTriggerMessage: MidiMsg = CcMidiMsg(1, MidiCc.SostenutoPedal, 32)
@@ -51,60 +51,62 @@ class TuningChangeProcessorTest extends AnyFlatSpec with Matchers with MockFacto
     processor.transmitter.addReceiver(receiverStub)
   }
 
-  it should "inform the TuningService about the tuning decision taken" in new Fixture {
-    // When
-    processor.process(ccTriggerMessage, 1)
-    processor.process(noteTriggerMessage, 2)
-    processor.process(nonTriggerMessage2, 3)
-    processor.process(nonTriggerMessage1, 4)
+  "TuningChangeProcessor" should {
+    "inform the TuningService about the tuning decision taken" in new Fixture {
+      // When
+      processor.process(ccTriggerMessage, 1)
+      processor.process(noteTriggerMessage, 2)
+      processor.process(nonTriggerMessage2, 3)
+      processor.process(nonTriggerMessage1, 4)
 
-    // Then
-    tuningServiceStub.changeTuning.verify(IndexTuningChange(2))
-    tuningServiceStub.changeTuning.verify(NextTuningChange)
+      // Then
+      tuningServiceStub.changeTuning.verify(IndexTuningChange(2))
+      tuningServiceStub.changeTuning.verify(NextTuningChange)
+    }
+
+    "forward MIDI messages that are not tuning change triggers " +
+      "when triggersThru is true" in new Fixture(triggersThru = true) {
+      // When
+      processor.receiver.send(nonTriggerMessage1, 1)
+      // Then
+      receiverStub.send.verify(nonTriggerMessage1, 1).once()
+    }
+
+    "forward MIDI messages that are not tuning change triggers " +
+      "when triggersThru is false" in new Fixture(triggersThru = false) {
+      // When
+      processor.receiver.send(nonTriggerMessage1, 1)
+      // Then
+      receiverStub.send.verify(nonTriggerMessage1, 1).once()
+    }
+
+    "forward MIDI messages that are tuning change triggers " +
+      "when triggersThru is true" in new Fixture(triggersThru = true) {
+      // When
+      processor.receiver.send(ccTriggerMessage, 1)
+      processor.receiver.send(ccTriggerMessage, 2)
+      // Then
+      receiverStub.send.verify(ccTriggerMessage, *).repeated(2)
+    }
+
+    "not forward MIDI messages that are tuning change triggers " +
+      "when triggersThru is false" in new Fixture(triggersThru = false) {
+      // When
+      processor.receiver.send(ccTriggerMessage, 1)
+      processor.receiver.send(ccTriggerMessage, 2)
+      // Then
+      receiverStub.send.verify(*, *).never()
+    }
   }
 
-  it should "forward MIDI messages that are not tuning change triggers " +
-    "when triggersThru is true" in new Fixture(triggersThru = true) {
-    // When
-    processor.receiver.send(nonTriggerMessage1, 1)
-    // Then
-    receiverStub.send.verify(nonTriggerMessage1, 1).once()
-  }
+  "reset" should {
+    "reset every tuning changer" in new Fixture {
+      // When
+      processor.reset()
 
-  it should "forward MIDI messages that are not tuning change triggers " +
-    "when triggersThru is false" in new Fixture(triggersThru = false) {
-    // When
-    processor.receiver.send(nonTriggerMessage1, 1)
-    // Then
-    receiverStub.send.verify(nonTriggerMessage1, 1).once()
-  }
-
-  it should "forward MIDI messages that are tuning change triggers " +
-    "when triggersThru is true" in new Fixture(triggersThru = true) {
-    // When
-    processor.receiver.send(ccTriggerMessage, 1)
-    processor.receiver.send(ccTriggerMessage, 2)
-    // Then
-    receiverStub.send.verify(ccTriggerMessage, *).repeated(2)
-  }
-
-  it should "not forward MIDI messages that are tuning change triggers " +
-    "when triggersThru is false" in new Fixture(triggersThru = false) {
-    // When
-    processor.receiver.send(ccTriggerMessage, 1)
-    processor.receiver.send(ccTriggerMessage, 2)
-    // Then
-    receiverStub.send.verify(*, *).never()
-  }
-
-  behavior of "reset"
-
-  it should "reset every tuning changer" in new Fixture {
-    // When
-    processor.reset()
-
-    // Then
-    (() => noteTuningChangerStub.reset()).verify().once()
-    (() => ccTuningChangerStub.reset()).verify().once()
+      // Then
+      (() => noteTuningChangerStub.reset()).verify().once()
+      (() => ccTuningChangerStub.reset()).verify().once()
+    }
   }
 }

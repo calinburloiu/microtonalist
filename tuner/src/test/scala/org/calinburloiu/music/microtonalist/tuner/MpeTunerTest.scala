@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.shouldEqual
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -34,23 +34,23 @@ import org.scalatest.{Inside, OptionValues}
  * `reset()`, `tune()`, `process() - Basic`, `process() - Expression`, `process() - Note Dropping`,
  * `process() - Zone-level Messages`, `MCM Processing`, and `PBS Processing`.
  *
- * Each category is further split by input mode into one or two `behavior of` blocks whose headings
+ * Each category is further split by input mode into one or two `should` blocks whose subjects
  * follow the pattern `"MpeTuner - <category> - <Non-MPE Input | MPE Input>"`. When both modes have
  * tests, the Non-MPE Input block comes first.
  *
- * Inside each `behavior of` block, tests are grouped into named subgroups separated by
+ * Inside each `should` block, tests are grouped into named subgroups separated by
  * `// ---- <subgroup name> ----` comment lines. Within a subgroup, tests are ordered by similarity,
  * from simplest to most complex: general cases before special cases, happy path before edge cases.
  *
  * When a Non-MPE and an MPE test cover the same behavior, they share the same (or a near-matching)
- * name — the input mode is already captured in the `behavior of` heading and need not appear in the
+ * name — the input mode is already captured in the `should` block's subject and need not appear in the
  * test name itself.
  *
- * When adding a test, pick the `behavior of` block that matches the category and input mode of the
+ * When adding a test, pick the `should` block that matches the category and input mode of the
  * behavior under test, then place it in the most fitting subgroup (creating a new one at the end of
  * the block if none fits).
  */
-class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValues with TableDrivenPropertyChecks {
+class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValues with TableDrivenPropertyChecks {
 
   private implicit val defaultPbs: PitchBendSensitivity = MpeZone.DefaultMemberPitchBendSensitivity
   private val masterPbs: PitchBendSensitivity = MpeZone.DefaultMasterPitchBendSensitivity
@@ -285,1786 +285,1708 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
     tuner.process(CcMidiMsg(channel, MidiCc.DataEntryLsb, cents))
   }
 
-  behavior of "MpeTuner - reset() - Non-MPE Input"
+  "MpeTuner - reset() - Non-MPE Input" should {
+    // ---- RPN 0 emission on reset ----
 
-  // ---- RPN 0 emission on reset ----
-
-  it should "output Pitch Bend Sensitivity on all channels" in new Fixture(tuner7) {
-    // When
-    private val output = tuner.reset()
-    // Then
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
-    )
-    (1 to 7).foreach { ch =>
-      ccs should contain inOrder(
-        CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(ch, MidiCc.DataEntryMsb, 48)
-      )
-    }
-  }
-
-  // ---- State teardown ----
-
-  it should "clear internal state after reset" in new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-    // Given
-    // Play a note
-    noteOn(nonMpeInputChannel, C4)
-    // When
-    // Reset should clear everything
-    tuner.reset()
-    // Then
-    // tune() with no active notes should produce no pitch bend messages
-    private val output = tuner.tune(pythagoreanTuning)
-    extractPitchBends(output) shouldBe empty
-  }
-
-  // ---- Note Off emission ----
-
-  it should "emit Note Off for every active Member Channel note before resetting state" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // Given
-      private val out1 = noteOn(nonMpeInputChannel, C4)
-      private val out2 = noteOn(nonMpeInputChannel, E4)
-      private val ch1 = extractNoteOns(out1).head.channel
-      private val ch2 = extractNoteOns(out2).head.channel
+    "output Pitch Bend Sensitivity on all channels" in new Fixture(tuner7) {
       // When
-      private val resetOutput = tuner.reset()
+      private val output = tuner.reset()
       // Then
-      private val noteOffs = extractNoteOffs(resetOutput)
-      noteOffs should contain(NoteOffMidiMsg(ch1, C4))
-      noteOffs should contain(NoteOffMidiMsg(ch2, E4))
-    }
-
-  it should "not emit Note Off messages on reset when no notes are active" in new Fixture {
-    // When
-    private val resetOutput = tuner.reset()
-    // Then
-    extractNoteOffs(resetOutput) shouldBe empty
-  }
-
-  behavior of "MpeTuner - reset() - MPE Input"
-
-  // ---- RPN 0 emission on reset ----
-
-  it should "output Pitch Bend Sensitivity on all channels" in new Fixture(tuner7) {
-    // When
-    private val output = tuner.reset()
-    // Then
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
-    )
-    (1 to 7).foreach { ch =>
+      private val ccs = extractCc(output)
       ccs should contain inOrder(
-        CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(ch, MidiCc.DataEntryMsb, 48)
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
       )
+      (1 to 7).foreach { ch =>
+        ccs should contain inOrder(
+          CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(ch, MidiCc.DataEntryMsb, 48)
+        )
+      }
     }
-  }
 
-  // ---- State teardown ----
+    // ---- State teardown ----
 
-  it should "clear internal state after reset" in
-    new Fixture(mpeTunerMpeInput, initialTuning = Some(quarterCommaMeantone)) {
+    "clear internal state after reset" in new Fixture(initialTuning = Some(quarterCommaMeantone)) {
       // Given
-      // Play a note carrying expression, and leave a CC #74 on another input channel.
-      noteOn(1, C4, pbCents = Some(50.0), pressure = Some(32))
-      slide(2, 64)
-
+      // Play a note
+      noteOn(nonMpeInputChannel, C4)
       // When
       // Reset should clear everything
       tuner.reset()
-
       // Then
       // tune() with no active notes should produce no pitch bend messages
-      private var output = tuner.tune(pythagoreanTuning)
+      private val output = tuner.tune(pythagoreanTuning)
       extractPitchBends(output) shouldBe empty
-
-      // The retained Expression Values are back to their defaults: the note carries no expression bend,
-      // and neither Channel Pressure nor CC #74 is emitted because both already hold their default.
-      output = noteOn(1, C4)
-      extractPitchBendsWithCents(output) should contain((1, 0))
-      extractChannelPressures(output) shouldBe empty
-      extractSlides(output) shouldBe empty
-
-      private val output2 = noteOn(2, D4)
-      extractSlides(output2) shouldBe empty
     }
 
-  it should "emit Note Off for all channel notes before resetting state" in
-    new Fixture(mpeTunerMpeInput) {
-      // Given
-      private val out0 = noteOn(0, C4)
-      private val out1 = noteOn(1, E4)
-      private val out2 = noteOn(2, G4)
-      private val ch0 = extractNoteOns(out0).head.channel
-      private val ch1 = extractNoteOns(out1).head.channel
-      private val ch2 = extractNoteOns(out2).head.channel
+    // ---- Note Off emission ----
+
+    "emit Note Off for every active Member Channel note before resetting state" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // Given
+        private val out1 = noteOn(nonMpeInputChannel, C4)
+        private val out2 = noteOn(nonMpeInputChannel, E4)
+        private val ch1 = extractNoteOns(out1).head.channel
+        private val ch2 = extractNoteOns(out2).head.channel
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        private val noteOffs = extractNoteOffs(resetOutput)
+        noteOffs should contain(NoteOffMidiMsg(ch1, C4))
+        noteOffs should contain(NoteOffMidiMsg(ch2, E4))
+      }
+
+    "not emit Note Off messages on reset when no notes are active" in new Fixture {
       // When
       private val resetOutput = tuner.reset()
       // Then
-      private val noteOffs = extractNoteOffs(resetOutput)
-      noteOffs should contain(NoteOffMidiMsg(ch0, C4))
-      noteOffs should contain(NoteOffMidiMsg(ch1, E4))
-      noteOffs should contain(NoteOffMidiMsg(ch2, G4))
+      extractNoteOffs(resetOutput) shouldBe empty
     }
-
-  it should "emit one Note Off per forwarded Note On for a duplicated note on reset" in
-    new Fixture(mpeTunerMpeInput) {
-      // Given
-      // Two Note Ons for the same Note Identity, so it holds a reference count of 2 and two Note Ons were
-      // forwarded for it.
-      private val out1 = noteOn(1, C4)
-      noteOn(1, C4)
-      private val channel = extractNoteOns(out1).head.channel
-      // When
-      private val resetOutput = tuner.reset()
-      // Then
-      extractNoteOffs(resetOutput).count(_ == NoteOffMidiMsg(channel, C4)) shouldBe 2
-    }
-
-  it should "not emit Note Off messages on reset when no notes are active" in new Fixture {
-    // When
-    private val resetOutput = tuner.reset()
-    // Then
-    extractNoteOffs(resetOutput) shouldBe empty
   }
 
-  behavior of "MpeTuner - tune() - Non-MPE Input"
+  "MpeTuner - reset() - MPE Input" should {
+    // ---- RPN 0 emission on reset ----
 
-  // ---- Output messages when idle ----
-
-  it should "store tuning but output no messages when no active notes" in new Fixture {
-    // When
-    private val output = tuner.tune(quarterCommaMeantone)
-    // Then
-    tuner.tuning shouldEqual quarterCommaMeantone
-    extractPitchBends(output) shouldBe empty
-  }
-
-  // ---- Retune of active notes ----
-
-  it should "output updated Pitch Bend on each occupied member channel" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // Given
-      private val out1 = noteOn(nonMpeInputChannel, C4)
-      private val noteOnChannel = extractNoteOns(out1).head.channel
-      private val out2 = noteOn(nonMpeInputChannel, E4)
-      private val noteOnChannel2 = extractNoteOns(out2).head.channel
+    "output Pitch Bend Sensitivity on all channels" in new Fixture(tuner7) {
       // When
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
+      private val output = tuner.reset()
       // Then
-      private val pitchBends = extractPitchBends(tuneOutput)
-      // Every occupied member channel must receive a pitch bend
-      pitchBends.map(_.channel).toSet should contain allOf(noteOnChannel, noteOnChannel2)
-      // C and E should have different pitch bends reflecting pythagorean tuning offsets
-      pitchBends.size shouldEqual 2
-      pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
-    }
-
-  // ---- Released-channel behavior ----
-
-  it should "not update released channel's pitch bend on tuning changes" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // Given
-      // E has -14.0 cents offset; pythagorean E has 8.0 cents — non-zero in both tunings
-      private val noteOutputE = noteOn(nonMpeInputChannel, E4)
-      private val releasedChannel = extractNoteOns(noteOutputE).head.channel
-
-      // G stays active as a control
-      private val noteOutputG = noteOn(nonMpeInputChannel, G4)
-      private val activeChannel = extractNoteOns(noteOutputG).head.channel
-
-      // Release E4
-      noteOff(nonMpeInputChannel, E4)
-
-      // When
-      // Retune — only the active channel (G) should get a pitch bend update
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      // Then
-      private val pitchBends = extractPitchBends(tuneOutput)
-      pitchBends should have size 1
-      pitchBends.head.channel shouldBe activeChannel
-      pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
-    }
-
-  // ---- Paper worked examples ----
-
-  it should "reproduce paper section \"Tuning change during performance\"" in
-    new Fixture(tuner7, Some(quarterCommaMeantone)) {
-      // Given
-      private val chC = extractNoteOns(noteOn(nonMpeInputChannel, C4)).head.channel
-      private val chE = extractNoteOns(noteOn(nonMpeInputChannel, E4)).head.channel
-      private val chG = extractNoteOns(noteOn(nonMpeInputChannel, G4)).head.channel
-      private val chC5 = extractNoteOns(noteOn(nonMpeInputChannel, C5)).head.channel
-
-      // When
-      // Switch to Pythagorean tuning
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      // Then
-      private val pitchBends = extractPitchBends(tuneOutput)
-
-      // Should have pitch bend updates for all 4 occupied channels
-      pitchBends should have size 4
-
-      // Pythagorean offsets: C = 0.0, E = 8.0, G = 2.0
-      private val pbByChannel = pitchBends.map(pb => pb.channel -> pb.cents.round.toInt).toMap
-      pbByChannel(chC) shouldBe 0
-      pbByChannel(chE) shouldBe 8
-      pbByChannel(chG) shouldBe 2
-      // C5 shares pitch class C, so same offset
-      pbByChannel(chC5) shouldBe 0
-    }
-
-  behavior of "MpeTuner - tune() - MPE Input"
-
-  // ---- Output messages when idle ----
-
-  it should "store tuning but output no messages when no active notes" in new Fixture(tuner7MpeInput) {
-    // When
-    private val output = tuner.tune(quarterCommaMeantone)
-    // Then
-    tuner.tuning shouldEqual quarterCommaMeantone
-    extractPitchBends(output) shouldBe empty
-  }
-
-  // ---- Member-channel retune ----
-
-  it should "output updated Pitch Bend on each occupied member channel" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val out1 = noteOn(1, C4)
-      private val noteOnChannel = extractNoteOns(out1).head.channel
-      private val out2 = noteOn(2, E4)
-      private val noteOnChannel2 = extractNoteOns(out2).head.channel
-      // When
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      // Then
-      private val pitchBends = extractPitchBends(tuneOutput)
-      pitchBends.map(_.channel).toSet should contain allOf(noteOnChannel, noteOnChannel2)
-      // C and E should reflect pythagorean tuning offsets (0.0, 8.0)
-      pitchBends.size shouldEqual 2
-      pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
-    }
-
-  // ---- Expression PB interaction ----
-
-  it should "recompute pitch bend = new tuning offset + current expression pitch bend on each occupied channel" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // E has -14.0 in quarter-comma meantone, +8.0 in pythagorean
-      private val eExprCents = 20.0
-      private val noteOutE = noteOn(1, E4, pbCents = Some(eExprCents))
-      private val chE = extractNoteOns(noteOutE).head.channel
-      private val noteOutG = noteOn(2, G4)
-      private val chG = extractNoteOns(noteOutG).head.channel
-
-      // Apply small expression pitch bends (under the high-bend threshold) per note in MPE mode
-      private val gExprCents = -30.0
-      pitchBend(2, gExprCents)
-
-      // When
-      // Switch tuning — output PB on each channel must combine new tuning offset + expression bend.
-      // Compare on MIDI values (not cents) to avoid resolution noise from the cents↔value roundtrip.
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      // Then
-      private val pbByChannel = extractPitchBends(tuneOutput).map(pb => pb.channel -> pb.value).toMap
-      private val expectedE = PitchBendMidiMsg.convertCentsToValue(8.0 + eExprCents, defaultPbs)
-      private val expectedG = PitchBendMidiMsg.convertCentsToValue(2.0 + gExprCents, defaultPbs)
-      pbByChannel(chE) shouldBe expectedE
-      pbByChannel(chG) shouldBe expectedG
-    }
-
-  // ---- Master-channel notes immunity ----
-
-  it should "not retune Master Channel notes on tune() call" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      noteOn(0, C4)
-      // When
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      // Then
-      extractPitchBends(tuneOutput).filter(_.channel == 0) shouldBe empty
-    }
-
-  // ---- Released-channel behavior ----
-
-  it should "not update released channel's pitch bend on tuning changes" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // E has -14.0 cents offset; pythagorean E has 8.0 cents — non-zero in both tunings
-      private val noteOutputE = noteOn(1, E4)
-      private val releasedChannel = extractNoteOns(noteOutputE).head.channel
-
-      // G stays active as a control
-      private val noteOutputG = noteOn(2, G4)
-      private val activeChannel = extractNoteOns(noteOutputG).head.channel
-
-      // Release E4
-      noteOff(1, E4)
-
-      // When
-      // Retune — only the active channel (G) should get a pitch bend update
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      // Then
-      private val pitchBends = extractPitchBends(tuneOutput)
-      pitchBends should have size 1
-      pitchBends.head.channel shouldBe activeChannel
-      pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
-    }
-
-  behavior of "MpeTuner - process() - Basic - Non-MPE Input"
-
-  // ---- Note On output stream ----
-
-  it should "output Pitch Bend, then Note On for single Note On" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // When
-      private val output = noteOn(nonMpeInputChannel, C4, 100)
-      // Then
-      private val noteChannel = extractNoteOns(output).head.channel
-
-      // Pitch Bend carries the tuning offset; CC #74 never appears on a Member Channel in this mode and
-      // Channel Pressure already holds its default, so both are omitted.
-      output should contain inOrder(
-        PitchBendMidiMsg(noteChannel, 0),
-        NoteOnMidiMsg(noteChannel, C4, 100)
+      private val ccs = extractCc(output)
+      ccs should contain inOrder(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
       )
-      extractSlides(output) shouldBe empty
-      extractChannelPressures(output) shouldBe empty
+      (1 to 7).foreach { ch =>
+        ccs should contain inOrder(
+          CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(ch, MidiCc.DataEntryMsb, 48)
+        )
+      }
     }
 
-  it should "preserve Note On velocity" in new Fixture {
-    // When
-    private val output = noteOn(nonMpeInputChannel, C4, 87)
-    // Then
-    extractNoteOns(output).head.velocity shouldBe 87
+    // ---- State teardown ----
+
+    "clear internal state after reset" in
+      new Fixture(mpeTunerMpeInput, initialTuning = Some(quarterCommaMeantone)) {
+        // Given
+        // Play a note carrying expression, and leave a CC #74 on another input channel.
+        noteOn(1, C4, pbCents = Some(50.0), pressure = Some(32))
+        slide(2, 64)
+
+        // When
+        // Reset should clear everything
+        tuner.reset()
+
+        // Then
+        // tune() with no active notes should produce no pitch bend messages
+        private var output = tuner.tune(pythagoreanTuning)
+        extractPitchBends(output) shouldBe empty
+
+        // The retained Expression Values are back to their defaults: the note carries no expression bend,
+        // and neither Channel Pressure nor CC #74 is emitted because both already hold their default.
+        output = noteOn(1, C4)
+        extractPitchBendsWithCents(output) should contain((1, 0))
+        extractChannelPressures(output) shouldBe empty
+        extractSlides(output) shouldBe empty
+
+        private val output2 = noteOn(2, D4)
+        extractSlides(output2) shouldBe empty
+      }
+
+    "emit Note Off for all channel notes before resetting state" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        private val out0 = noteOn(0, C4)
+        private val out1 = noteOn(1, E4)
+        private val out2 = noteOn(2, G4)
+        private val ch0 = extractNoteOns(out0).head.channel
+        private val ch1 = extractNoteOns(out1).head.channel
+        private val ch2 = extractNoteOns(out2).head.channel
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        private val noteOffs = extractNoteOffs(resetOutput)
+        noteOffs should contain(NoteOffMidiMsg(ch0, C4))
+        noteOffs should contain(NoteOffMidiMsg(ch1, E4))
+        noteOffs should contain(NoteOffMidiMsg(ch2, G4))
+      }
+
+    "emit one Note Off per forwarded Note On for a duplicated note on reset" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        // Two Note Ons for the same Note Identity, so it holds a reference count of 2 and two Note Ons were
+        // forwarded for it.
+        private val out1 = noteOn(1, C4)
+        noteOn(1, C4)
+        private val channel = extractNoteOns(out1).head.channel
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractNoteOffs(resetOutput).count(_ == NoteOffMidiMsg(channel, C4)) shouldBe 2
+      }
+
+    "not emit Note Off messages on reset when no notes are active" in new Fixture {
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractNoteOffs(resetOutput) shouldBe empty
+    }
   }
 
-  // ---- Note Off behavior ----
+  "MpeTuner - tune() - Non-MPE Input" should {
+    // ---- Output messages when idle ----
 
-  it should "output Note Off on the correct member channel" in new Fixture {
-    // Given
-    private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
-    private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
-    // When
-    private val noteOffOutput = noteOff(nonMpeInputChannel, C4)
-    // Then
-    private val noteOffsChannel = extractNoteOffs(noteOffOutput).head.channel
-    noteOffsChannel shouldEqual noteOnChannel
+    "store tuning but output no messages when no active notes" in new Fixture {
+      // When
+      private val output = tuner.tune(quarterCommaMeantone)
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      extractPitchBends(output) shouldBe empty
+    }
+
+    // ---- Retune of active notes ----
+
+    "output updated Pitch Bend on each occupied member channel" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // Given
+        private val out1 = noteOn(nonMpeInputChannel, C4)
+        private val noteOnChannel = extractNoteOns(out1).head.channel
+        private val out2 = noteOn(nonMpeInputChannel, E4)
+        private val noteOnChannel2 = extractNoteOns(out2).head.channel
+        // When
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val pitchBends = extractPitchBends(tuneOutput)
+        // Every occupied member channel must receive a pitch bend
+        pitchBends.map(_.channel).toSet should contain allOf(noteOnChannel, noteOnChannel2)
+        // C and E should have different pitch bends reflecting pythagorean tuning offsets
+        pitchBends.size shouldEqual 2
+        pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
+      }
+
+    // ---- Released-channel behavior ----
+
+    "not update released channel's pitch bend on tuning changes" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // Given
+        // E has -14.0 cents offset; pythagorean E has 8.0 cents — non-zero in both tunings
+        private val noteOutputE = noteOn(nonMpeInputChannel, E4)
+        private val releasedChannel = extractNoteOns(noteOutputE).head.channel
+
+        // G stays active as a control
+        private val noteOutputG = noteOn(nonMpeInputChannel, G4)
+        private val activeChannel = extractNoteOns(noteOutputG).head.channel
+
+        // Release E4
+        noteOff(nonMpeInputChannel, E4)
+
+        // When
+        // Retune — only the active channel (G) should get a pitch bend update
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val pitchBends = extractPitchBends(tuneOutput)
+        pitchBends should have size 1
+        pitchBends.head.channel shouldBe activeChannel
+        pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
+      }
+
+    // ---- Paper worked examples ----
+
+    "reproduce paper section \"Tuning change during performance\"" in
+      new Fixture(tuner7, Some(quarterCommaMeantone)) {
+        // Given
+        private val chC = extractNoteOns(noteOn(nonMpeInputChannel, C4)).head.channel
+        private val chE = extractNoteOns(noteOn(nonMpeInputChannel, E4)).head.channel
+        private val chG = extractNoteOns(noteOn(nonMpeInputChannel, G4)).head.channel
+        private val chC5 = extractNoteOns(noteOn(nonMpeInputChannel, C5)).head.channel
+
+        // When
+        // Switch to Pythagorean tuning
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val pitchBends = extractPitchBends(tuneOutput)
+
+        // Should have pitch bend updates for all 4 occupied channels
+        pitchBends should have size 4
+
+        // Pythagorean offsets: C = 0.0, E = 8.0, G = 2.0
+        private val pbByChannel = pitchBends.map(pb => pb.channel -> pb.cents.round.toInt).toMap
+        pbByChannel(chC) shouldBe 0
+        pbByChannel(chE) shouldBe 8
+        pbByChannel(chG) shouldBe 2
+        // C5 shares pitch class C, so same offset
+        pbByChannel(chC5) shouldBe 0
+      }
   }
 
-  it should "preserve Note Off velocity" in new Fixture {
-    // Given
-    private val noteOnOutput = noteOn(nonMpeInputChannel, C4, 100)
-    private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
-    // When
-    private val noteOffOutput = noteOff(nonMpeInputChannel, C4, 73)
-    // Then
-    extractNoteOffs(noteOffOutput).head.velocity shouldBe 73
+  "MpeTuner - tune() - MPE Input" should {
+    // ---- Output messages when idle ----
+
+    "store tuning but output no messages when no active notes" in new Fixture(tuner7MpeInput) {
+      // When
+      private val output = tuner.tune(quarterCommaMeantone)
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      extractPitchBends(output) shouldBe empty
+    }
+
+    // ---- Member-channel retune ----
+
+    "output updated Pitch Bend on each occupied member channel" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val out1 = noteOn(1, C4)
+        private val noteOnChannel = extractNoteOns(out1).head.channel
+        private val out2 = noteOn(2, E4)
+        private val noteOnChannel2 = extractNoteOns(out2).head.channel
+        // When
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val pitchBends = extractPitchBends(tuneOutput)
+        pitchBends.map(_.channel).toSet should contain allOf(noteOnChannel, noteOnChannel2)
+        // C and E should reflect pythagorean tuning offsets (0.0, 8.0)
+        pitchBends.size shouldEqual 2
+        pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
+      }
+
+    // ---- Expression PB interaction ----
+
+    "recompute pitch bend = new tuning offset + current expression pitch bend on each occupied channel" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // E has -14.0 in quarter-comma meantone, +8.0 in pythagorean
+        private val eExprCents = 20.0
+        private val noteOutE = noteOn(1, E4, pbCents = Some(eExprCents))
+        private val chE = extractNoteOns(noteOutE).head.channel
+        private val noteOutG = noteOn(2, G4)
+        private val chG = extractNoteOns(noteOutG).head.channel
+
+        // Apply small expression pitch bends (under the high-bend threshold) per note in MPE mode
+        private val gExprCents = -30.0
+        pitchBend(2, gExprCents)
+
+        // When
+        // Switch tuning — output PB on each channel must combine new tuning offset + expression bend.
+        // Compare on MIDI values (not cents) to avoid resolution noise from the cents↔value roundtrip.
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val pbByChannel = extractPitchBends(tuneOutput).map(pb => pb.channel -> pb.value).toMap
+        private val expectedE = PitchBendMidiMsg.convertCentsToValue(8.0 + eExprCents, defaultPbs)
+        private val expectedG = PitchBendMidiMsg.convertCentsToValue(2.0 + gExprCents, defaultPbs)
+        pbByChannel(chE) shouldBe expectedE
+        pbByChannel(chG) shouldBe expectedG
+      }
+
+    // ---- Master-channel notes immunity ----
+
+    "not retune Master Channel notes on tune() call" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        noteOn(0, C4)
+        // When
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        extractPitchBends(tuneOutput).filter(_.channel == 0) shouldBe empty
+      }
+
+    // ---- Released-channel behavior ----
+
+    "not update released channel's pitch bend on tuning changes" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // E has -14.0 cents offset; pythagorean E has 8.0 cents — non-zero in both tunings
+        private val noteOutputE = noteOn(1, E4)
+        private val releasedChannel = extractNoteOns(noteOutputE).head.channel
+
+        // G stays active as a control
+        private val noteOutputG = noteOn(2, G4)
+        private val activeChannel = extractNoteOns(noteOutputG).head.channel
+
+        // Release E4
+        noteOff(1, E4)
+
+        // When
+        // Retune — only the active channel (G) should get a pitch bend update
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val pitchBends = extractPitchBends(tuneOutput)
+        pitchBends should have size 1
+        pitchBends.head.channel shouldBe activeChannel
+        pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
+      }
   }
 
-  it should "treat Note On with velocity 0 as Note Off" in new Fixture {
-    // Given
-    private val noteOnOutput = noteOn(nonMpeInputChannel, C4, 100)
-    private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
-    // When
-    private val noteOffOutput = noteOn(nonMpeInputChannel, C4, 0)
-    // Then
-    extractNoteOffs(noteOffOutput) should contain(NoteOffMidiMsg(noteOnChannel, C4))
-  }
+  "MpeTuner - process() - Basic - Non-MPE Input" should {
+    // ---- Note On output stream ----
 
-  it should "reset Channel Pressure before the Note Off when the released note was the last on its channel" in
-    new Fixture(tuner7) {
+    "output Pitch Bend, then Note On for single Note On" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // When
+        private val output = noteOn(nonMpeInputChannel, C4, 100)
+        // Then
+        private val noteChannel = extractNoteOns(output).head.channel
+
+        // Pitch Bend carries the tuning offset; CC #74 never appears on a Member Channel in this mode and
+        // Channel Pressure already holds its default, so both are omitted.
+        output should contain inOrder(
+          PitchBendMidiMsg(noteChannel, 0),
+          NoteOnMidiMsg(noteChannel, C4, 100)
+        )
+        extractSlides(output) shouldBe empty
+        extractChannelPressures(output) shouldBe empty
+      }
+
+    "preserve Note On velocity" in new Fixture {
+      // When
+      private val output = noteOn(nonMpeInputChannel, C4, 87)
+      // Then
+      extractNoteOns(output).head.velocity shouldBe 87
+    }
+
+    // ---- Note Off behavior ----
+
+    "output Note Off on the correct member channel" in new Fixture {
       // Given
       private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
-      private val channel = extractNoteOns(noteOnOutput).head.channel
-      tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
       // When
-      private val output = noteOff(nonMpeInputChannel, C4)
+      private val noteOffOutput = noteOff(nonMpeInputChannel, C4)
       // Then
-      // In this mode the Tuner is the controller that synthesized the Channel Pressure, so it zeroes it
-      // itself — the one control message emitted before the Note Off.
-      output.collect {
-        case _: ChannelPressureMidiMsg => "pressure"
-        case _: NoteOffMidiMsg => "noteOff"
-      } shouldEqual Seq("pressure", "noteOff")
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(channel, 0))
+      private val noteOffsChannel = extractNoteOffs(noteOffOutput).head.channel
+      noteOffsChannel shouldEqual noteOnChannel
     }
 
-  it should "emit the reduced Channel Pressure average after the Note Off when other notes remain" in
-    new Fixture(tuner2) {
+    "preserve Note Off velocity" in new Fixture {
       // Given
-      // PCG=1, EG=1: C4 and C5 take the two channels and C3 shares C4's, the oldest by onset.
-      private val out1 = noteOn(nonMpeInputChannel, C4)
-      private val sharedChannel = extractNoteOns(out1).head.channel
-      noteOn(nonMpeInputChannel, C5)
-      extractNoteOns(noteOn(nonMpeInputChannel, C3)).head.channel shouldBe sharedChannel
-      tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
-      tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C3, 20))
+      private val noteOnOutput = noteOn(nonMpeInputChannel, C4, 100)
+      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
       // When
-      private val output = noteOff(nonMpeInputChannel, C4)
+      private val noteOffOutput = noteOff(nonMpeInputChannel, C4, 73)
       // Then
-      // The channel keeps a note, so the withdrawal reduces the average rather than zeroing it, and the
-      // recomputed value follows the Note Off.
-      output.collect {
-        case _: ChannelPressureMidiMsg => "pressure"
-        case _: NoteOffMidiMsg => "noteOff"
-      } shouldEqual Seq("noteOff", "pressure")
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(sharedChannel, 20))
+      extractNoteOffs(noteOffOutput).head.velocity shouldBe 73
     }
 
-  it should "not emit a Channel Pressure reset when the channel already holds the default" in new Fixture(tuner7) {
-    // Given
-    private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
-    extractNoteOns(noteOnOutput) should have size 1
-    // When
-    // No Polyphonic Key Pressure ever arrived, so the retained value is already 0.
-    private val output = noteOff(nonMpeInputChannel, C4)
-    // Then
-    extractChannelPressures(output) shouldBe empty
-  }
-
-  // ---- Member-channel control-dimension initialization ----
-
-  it should "initialize member channel Pitch Bend to default 0 even after sending a non-0 Pitch Bend on that channel" in
-    new Fixture {
+    "treat Note On with velocity 0 as Note Off" in new Fixture {
       // Given
-      pitchBend(nonMpeInputChannel, -33.3)
+      private val noteOnOutput = noteOn(nonMpeInputChannel, C4, 100)
+      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
+      // When
+      private val noteOffOutput = noteOn(nonMpeInputChannel, C4, 0)
+      // Then
+      extractNoteOffs(noteOffOutput) should contain(NoteOffMidiMsg(noteOnChannel, C4))
+    }
+
+    "reset Channel Pressure before the Note Off when the released note was the last on its channel" in
+      new Fixture(tuner7) {
+        // Given
+        private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
+        private val channel = extractNoteOns(noteOnOutput).head.channel
+        tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+        // When
+        private val output = noteOff(nonMpeInputChannel, C4)
+        // Then
+        // In this mode the Tuner is the controller that synthesized the Channel Pressure, so it zeroes it
+        // itself — the one control message emitted before the Note Off.
+        output.collect {
+          case _: ChannelPressureMidiMsg => "pressure"
+          case _: NoteOffMidiMsg => "noteOff"
+        } shouldEqual Seq("pressure", "noteOff")
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(channel, 0))
+      }
+
+    "emit the reduced Channel Pressure average after the Note Off when other notes remain" in
+      new Fixture(tuner2) {
+        // Given
+        // PCG=1, EG=1: C4 and C5 take the two channels and C3 shares C4's, the oldest by onset.
+        private val out1 = noteOn(nonMpeInputChannel, C4)
+        private val sharedChannel = extractNoteOns(out1).head.channel
+        noteOn(nonMpeInputChannel, C5)
+        extractNoteOns(noteOn(nonMpeInputChannel, C3)).head.channel shouldBe sharedChannel
+        tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+        tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C3, 20))
+        // When
+        private val output = noteOff(nonMpeInputChannel, C4)
+        // Then
+        // The channel keeps a note, so the withdrawal reduces the average rather than zeroing it, and the
+        // recomputed value follows the Note Off.
+        output.collect {
+          case _: ChannelPressureMidiMsg => "pressure"
+          case _: NoteOffMidiMsg => "noteOff"
+        } shouldEqual Seq("noteOff", "pressure")
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(sharedChannel, 20))
+      }
+
+    "not emit a Channel Pressure reset when the channel already holds the default" in new Fixture(tuner7) {
+      // Given
+      private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
+      extractNoteOns(noteOnOutput) should have size 1
+      // When
+      // No Polyphonic Key Pressure ever arrived, so the retained value is already 0.
+      private val output = noteOff(nonMpeInputChannel, C4)
+      // Then
+      extractChannelPressures(output) shouldBe empty
+    }
+
+    // ---- Member-channel control-dimension initialization ----
+
+    "initialize member channel Pitch Bend to default 0 even after sending a non-0 Pitch Bend on that channel" in
+      new Fixture {
+        // Given
+        pitchBend(nonMpeInputChannel, -33.3)
+        // When
+        private val output = noteOn(nonMpeInputChannel, C4)
+        // Then
+        private val noteChannel = extractNoteOns(output).head.channel
+        extractPitchBendsWithCents(output) should contain((noteChannel, 0))
+      }
+
+    "never send CC #74 on a Member Channel" in new Fixture {
+      // Given
+      // The sender's CC #74 is redirected to the Master Channel, never seeding a Member Channel.
+      slide(nonMpeInputChannel, 120)
+      // When
+      private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
+      private val polyPressureOutput = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+      private val noteOffOutput = noteOff(nonMpeInputChannel, C4)
+      // Then
+      extractSlides(noteOnOutput) shouldBe empty
+      extractSlides(polyPressureOutput) shouldBe empty
+      extractSlides(noteOffOutput) shouldBe empty
+    }
+
+    "not send Channel Pressure on a Member Channel at Note On" in new Fixture {
+      // Given
+      // The sender's Channel Pressure is redirected to the Master Channel.
+      pressure(nonMpeInputChannel, 100)
       // When
       private val output = noteOn(nonMpeInputChannel, C4)
       // Then
-      private val noteChannel = extractNoteOns(output).head.channel
-      extractPitchBendsWithCents(output) should contain((noteChannel, 0))
-    }
-
-  it should "never send CC #74 on a Member Channel" in new Fixture {
-    // Given
-    // The sender's CC #74 is redirected to the Master Channel, never seeding a Member Channel.
-    slide(nonMpeInputChannel, 120)
-    // When
-    private val noteOnOutput = noteOn(nonMpeInputChannel, C4)
-    private val polyPressureOutput = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
-    private val noteOffOutput = noteOff(nonMpeInputChannel, C4)
-    // Then
-    extractSlides(noteOnOutput) shouldBe empty
-    extractSlides(polyPressureOutput) shouldBe empty
-    extractSlides(noteOffOutput) shouldBe empty
-  }
-
-  it should "not send Channel Pressure on a Member Channel at Note On" in new Fixture {
-    // Given
-    // The sender's Channel Pressure is redirected to the Master Channel.
-    pressure(nonMpeInputChannel, 100)
-    // When
-    private val output = noteOn(nonMpeInputChannel, C4)
-    // Then
-    // The Member Channel's Channel Pressure already holds its default of 0, so no message is needed.
-    extractChannelPressures(output) shouldBe empty
-  }
-
-  // ---- Channel allocation across pitch classes ----
-
-  it should "allocate multiple notes with distinct pitch classes to separate member channels" in new Fixture {
-    // When
-    private val out1 = noteOn(nonMpeInputChannel, C4)
-    private val out2 = noteOn(nonMpeInputChannel, E4)
-    private val out3 = noteOn(nonMpeInputChannel, G4)
-    // Then
-    private val channels = Seq(out1, out2, out3).flatMap(extractNoteOns).map(_.channel)
-    channels.distinct.size shouldBe 3
-  }
-
-  it should "correctly allocate notes from any input channel" in new Fixture {
-    // When
-    private val out1 = noteOn(0, C4)
-    private val out2 = noteOn(5, E4)
-    // Then
-    extractNoteOns(out1).map(_.channel) should contain(1)
-    extractNoteOns(out2).map(_.channel) should contain(2)
-  }
-
-  it should "allocate second note with same pitch class to Expression Group" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // When
-      // E has -14.0 cents offset in quarter-comma meantone
-      private val out1 = noteOn(nonMpeInputChannel, E4)
-      private val ch1 = extractNoteOns(out1).head.channel
-      private val pb1 = extractPitchBends(out1).head
-
-      private val out2 = noteOn(nonMpeInputChannel, E5)
-      private val ch2 = extractNoteOns(out2).head.channel
-      private val pb2 = extractPitchBends(out2).head
-
-      // Then
-      // Notes should be on different channels
-      ch1 should not equal ch2
-
-      // Both should have pitch bends reflecting the -14.0 cents tuning offset for E
-      pb1.channel shouldBe ch1
-      pb1.cents shouldEqual -14.0
-      pb2.channel shouldBe ch2
-      pb2.cents shouldEqual -14.0
-    }
-
-  it should "route notes to the Lower Zone when both Zones are enabled" in new Fixture(dualZoneTuner) {
-    // When
-    private val out1 = noteOn(nonMpeInputChannel, C4)
-    private val out2 = noteOn(nonMpeInputChannel, E4)
-    // Then
-    // Non-MPE input is routed to a single Zone and the Lower Zone takes precedence when both are enabled,
-    // so the Upper Zone's Member Channels (8..14) are ignored and wasted — the configuration the Tuner
-    // warns about at construction and on reset().
-    Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
-      channel should (be >= 1 and be <= 7)
-    }
-  }
-
-  it should "route notes to the Upper Zone when it is the only Zone enabled" in new Fixture(upperZoneOnlyTuner) {
-    // When
-    private val out1 = noteOn(nonMpeInputChannel, C4)
-    private val out2 = noteOn(nonMpeInputChannel, E4)
-    // Then
-    // With no Lower Zone to take precedence, the single Zone non-MPE input is routed to is the Upper one,
-    // so its Member Channels (8..14) carry the notes.
-    Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
-      channel should (be >= 8 and be <= 14)
-    }
-  }
-
-  // ---- Channel reuse after Note Off ----
-
-  it should "make channel available for reuse after Note Off" in new Fixture(tuner3) {
-    // Given
-    // Fill all 3 member channels
-    noteOn(nonMpeInputChannel, C4)
-    private val out = noteOn(nonMpeInputChannel, E4)
-    private val ch = extractNoteOns(out).head.channel
-    noteOn(nonMpeInputChannel, G4)
-
-    // When
-    // Release the second note
-    noteOff(nonMpeInputChannel, E4)
-
-    // Then
-    // New note should reuse the released channel
-    private val output = noteOn(nonMpeInputChannel, D4)
-    extractNoteOns(output).head.channel shouldBe ch
-  }
-
-  // ---- Pitch bend computation ----
-
-  it should "compute output Pitch Bend equal to tuning offset for each pitch class" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // C has 0.0 cents offset
-      private val outC = noteOn(nonMpeInputChannel, C4)
-      extractPitchBends(outC).head.cents shouldEqual 0.0
-
-      // E has -14.0 cents offset
-      private val outE = noteOn(nonMpeInputChannel, E4)
-      extractPitchBends(outE).head.cents shouldEqual -14.0
-
-      // D has -7.0 cents offset
-      private val outD = noteOn(nonMpeInputChannel, D4)
-      extractPitchBends(outD).head.cents shouldEqual -7.0
-
-      // G has -3.0 cents offset
-      private val outG = noteOn(nonMpeInputChannel, G4)
-      extractPitchBends(outG).head.cents shouldEqual -3.0
-    }
-
-  it should "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
-    // Use a small PBS (2 semitones = 200 cents) so that a large tuning offset exceeds the range
-    val smallPbs = PitchBendSensitivity(2)
-    val smallPbsTuner = MpeTuner(
-      initialZones = MpeZones(
-        MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = smallPbs),
-        MpeZone(MpeZoneType.Upper, 0)
-      )
-    )
-    new Fixture(smallPbsTuner) {
-      // B: exceeds ±200 cents PBS range
-      private val extremeTuning = Tuning("extreme", b = Some(500.0))
-      tuner.tune(extremeTuning)
-
-      // B should be clamped to max pitch bend value
-      private val outB = noteOn(nonMpeInputChannel, MidiNote.B4)
-      private val pbB = extractPitchBends(outB).head
-      pbB.value shouldBe PitchBendMidiMsg.MaxValue
-      pbB.centsFor(smallPbs) shouldEqual smallPbs.totalCents.toDouble
-
-      // C has 0.0 offset, should not be clamped
-      private val outC = noteOn(nonMpeInputChannel, C4)
-      extractPitchBends(outC).head.value shouldBe 0
-    }
-  }
-
-  behavior of "MpeTuner - process() - Basic - MPE Input"
-
-  // ---- Note On output stream ----
-
-  it should "output Pitch Bend, CC #74, Channel Pressure, then Note On for single Note On" in
-    new Fixture(tuner7MpeInput, initialTuning = Some(quarterCommaMeantone)) {
-      // When
-      // The input channel carries a bend, a pressure and a CC #74 that all differ from the output
-      // channel's retained defaults, so all three setup messages are emitted.
-      private val output = noteOn(mpeInputChannel, C4, 100,
-        pbCents = Some(20.0), pressure = Some(90), slide = Some(100))
-      // Then
-      private val noteChannel = extractNoteOns(output).head.channel
-      private val pitchBend = extractPitchBends(output).head
-
-      output should contain inOrder(
-        pitchBend,
-        CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100),
-        ChannelPressureMidiMsg(noteChannel, 90),
-        NoteOnMidiMsg(noteChannel, C4, 100)
-      )
-      // C has a 0.0 cents offset in quarter-comma meantone, so the Pitch Bend is the expression component.
-      pitchBend.channel shouldBe noteChannel
-      pitchBend.cents shouldEqual 20.0
-    }
-
-  it should "preserve Note On velocity" in new Fixture(tuner7MpeInput) {
-    // When
-    private val output = noteOn(mpeInputChannel, C4, 87)
-    // Then
-    extractNoteOns(output).head.velocity shouldBe 87
-  }
-
-  // ---- Note Off behavior ----
-
-  it should "output Note Off on the correct member channel" in new Fixture(tuner7MpeInput) {
-    // Given
-    private val noteOnOutput = noteOn(mpeInputChannel, C4)
-    private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
-    // When
-    private val noteOffOutput = noteOff(mpeInputChannel, C4)
-    // Then
-    private val noteOffsChannel = extractNoteOffs(noteOffOutput).head.channel
-    noteOffsChannel shouldEqual noteOnChannel
-  }
-
-  it should "preserve Note Off velocity" in new Fixture(tuner7MpeInput) {
-    // Given
-    private val noteOnOutput = noteOn(mpeInputChannel, C4, 100)
-    private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
-    // When
-    private val noteOffOutput = noteOff(mpeInputChannel, C4, 73)
-    // Then
-    extractNoteOffs(noteOffOutput).head.velocity shouldBe 73
-  }
-
-  it should "treat Note On with velocity 0 as Note Off" in new Fixture(tuner7MpeInput) {
-    // Given
-    private val noteOnOutput = noteOn(mpeInputChannel, C4, 100)
-    private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
-    // When
-    private val noteOffOutput = noteOn(mpeInputChannel, C4, 0)
-    // Then
-    extractNoteOffs(noteOffOutput) should contain(NoteOffMidiMsg(noteOnChannel, C4))
-  }
-
-  it should "emit the Expression Values recomputed over the remaining notes after the Note Off" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // PCG=2, EG=2: E1 takes a Pitch Class Group channel, E3 and E4 fill the Expression Group, and E2
-      // shares E1's channel (criterion (c): the oldest onset).
-      private val e1Output = noteOn(1, E1, pbCents = Some(10.0), pressure = Some(32), slide = Some(48))
-      private val sharedChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3)
-      noteOn(4, E4)
-      noteOn(2, E2, pbCents = Some(30.0), pressure = Some(96), slide = Some(96))
-
-      // When
-      private val output = noteOff(1, E1)
-
-      // Then
-      // The Note Off is emitted first, then the values recomputed over E2 alone, in the order
-      // Pitch Bend, CC #74, Channel Pressure.
-      output.collect {
-        case _: NoteOffMidiMsg => "noteOff"
-        case _: PitchBendMidiMsg => "pitchBend"
-        case cc: CcMidiMsg if cc.number == MidiCc.MpeSlide => "slide"
-        case _: ChannelPressureMidiMsg => "pressure"
-      } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
-
-      extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(sharedChannel, E1))
-      extractPitchBends(output).head.cents shouldEqual (quarterCommaMeantone.e + 30.0)
-      extractSlides(output) shouldEqual Seq(CcMidiMsg(sharedChannel, MidiCc.MpeSlide, 96))
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(sharedChannel, 96))
-    }
-
-  it should "emit the Note Off alone when the released note was the last on its channel" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val noteOnOutput = noteOn(1, E4, pbCents = Some(30.0), pressure = Some(96), slide = Some(96))
-      private val channel = extractNoteOns(noteOnOutput).head.channel
-      // When
-      private val output = noteOff(1, E4)
-      // Then
-      // Averaging no longer applies and the channel retains its latest Expression Values, so none of the
-      // three changes and none is emitted. In MPE Input Mode the Tuner emits no Channel Pressure reset of
-      // its own either: that dimension passes through from the sender.
-      extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(channel, E4))
-      extractPitchBends(output) shouldBe empty
-      extractSlides(output) shouldBe empty
+      // The Member Channel's Channel Pressure already holds its default of 0, so no message is needed.
       extractChannelPressures(output) shouldBe empty
     }
 
-  // ---- Pitch bend computation ----
+    // ---- Channel allocation across pitch classes ----
 
-  it should "compute output Pitch Bend equal to tuning offset for each pitch class" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // C has 0.0 cents offset
-      private val outC = noteOn(1, C4)
-      extractPitchBends(outC).head.cents shouldEqual 0.0
-
-      // E has -14.0 cents offset
-      private val outE = noteOn(2, E4)
-      extractPitchBends(outE).head.cents shouldEqual -14.0
-
-      // D has -7.0 cents offset
-      private val outD = noteOn(3, D4)
-      extractPitchBends(outD).head.cents shouldEqual -7.0
-
-      // G has -3.0 cents offset
-      private val outG = noteOn(4, G4)
-      extractPitchBends(outG).head.cents shouldEqual -3.0
-    }
-
-  it should "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
-    val smallPbs = PitchBendSensitivity(2)
-    val smallPbsTuner = MpeTuner(
-      initialZones = MpeZones(
-        MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = smallPbs),
-        MpeZone(MpeZoneType.Upper, 0)
-      ),
-      initialInputMode = MpeInputMode.Mpe
-    )
-    new Fixture(smallPbsTuner) {
-      private val extremeTuning = Tuning("extreme", b = Some(500.0))
-      tuner.tune(extremeTuning)
-
-      private val outB = noteOn(1, MidiNote.B4)
-      private val pbB = extractPitchBends(outB).head
-      pbB.value shouldBe PitchBendMidiMsg.MaxValue
-      pbB.centsFor(smallPbs) shouldEqual smallPbs.totalCents.toDouble
-
-      private val outC = noteOn(2, C4)
-      extractPitchBends(outC).head.value shouldBe 0
-    }
-  }
-
-  // ---- Channel allocation & splitting ----
-
-  it should "split notes with different pitch classes from the same MPE input channel onto different output channels" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      // C4 on input ch 2 — allocator honors the input channel hint, places C4 on output ch 2.
-      private val out1 = noteOn(2, C4)
-      private val ch1 = extractNoteOns(out1).head.channel
-
+    "allocate multiple notes with distinct pitch classes to separate member channels" in new Fixture {
       // When
-      // E4 on the same input ch 2 — different pitch class, so the pitch-class invariant prevents
-      // sharing output ch 2 with C4. The allocator must split E4 onto a different output channel.
-      private val out2 = noteOn(2, E4)
-      private val ch2 = extractNoteOns(out2).head.channel
-
+      private val out1 = noteOn(nonMpeInputChannel, C4)
+      private val out2 = noteOn(nonMpeInputChannel, E4)
+      private val out3 = noteOn(nonMpeInputChannel, G4)
       // Then
-      ch1 shouldBe 2
-      ch2 should not be ch1
-      ch2 should (be >= 1 and be <= 7)
+      private val channels = Seq(out1, out2, out3).flatMap(extractNoteOns).map(_.channel)
+      channels.distinct.size shouldBe 3
     }
 
-  it should "correctly allocate notes from any input member channel" in new Fixture(tuner7MpeInput) {
-    // When
-    private val out1 = noteOn(2, C4)
-    private val out2 = noteOn(5, E4)
-    // Then
-    extractNoteOns(out1).map(_.channel) should contain(2)
-    extractNoteOns(out2).map(_.channel) should contain(5)
-  }
-
-  it should "leave Pitch Class Group channel unaffected when bending Expression Group channel of same pitch class" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // E4 -> PCG channel (E enters Pitch Class Group)
-      private val outE4 = noteOn(1, E4)
-      private val pcgChannel = extractNoteOns(outE4).head.channel
-      private val pcgPitchBends = extractPitchBends(outE4)
-
-      // E5 (same pitch class) -> Expression Group channel (PCG slot for E is already taken)
-      private val outE5 = noteOn(2, E5)
-      private val egChannel = extractNoteOns(outE5).head.channel
-      egChannel should not equal pcgChannel
-
+    "correctly allocate notes from any input channel" in new Fixture {
       // When
-      // Send a non-high expression pitch bend on the EG input channel
-      private val eExprCents = 30.0
-      private val bendOutput = pitchBend(2, eExprCents)
+      private val out1 = noteOn(0, C4)
+      private val out2 = noteOn(5, E4)
       // Then
-      private val egPitchBends = extractPitchBends(bendOutput)
-
-      // Only the EG channel should receive an updated pitch bend; the PCG channel must not.
-      egPitchBends.size shouldBe 1
-      egPitchBends.head.channel shouldEqual egChannel
-      egPitchBends.head.cents shouldEqual (-14.0 + eExprCents)
-
-      pcgPitchBends.size shouldBe 1
-      pcgPitchBends.head.channel shouldEqual pcgChannel
-      pcgPitchBends.head.cents shouldEqual -14.0
+      extractNoteOns(out1).map(_.channel) should contain(1)
+      extractNoteOns(out2).map(_.channel) should contain(2)
     }
 
-  // ---- Master-Channel note forwarding (Lower / Upper zone) ----
-
-  it should "forward Note On/Off on Master Channels without emitting member-channel setup messages" in
-    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
-      private val table = Table(
-        "Master Channel",
-        0,
-        15
-      )
-
-      forAll(table) { masterChannel =>
+    "allocate second note with same pitch class to Expression Group" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
         // When
-        val onOutput = noteOn(masterChannel, C4, 100)
-        // Then
-        // (a) Note On is forwarded on the Master Channel with the original velocity
-        val noteOns = extractNoteOns(onOutput)
-        noteOns should have size 1
-        noteOns.head shouldEqual NoteOnMidiMsg(masterChannel, C4, 100)
-        // (b) No Pitch Bend / CC #74 / Channel Pressure setup messages on any member channel
-        extractPitchBends(onOutput) shouldBe empty
-        extractCc(onOutput).filter(_.number == MidiCc.MpeSlide) shouldBe empty
-        extractChannelPressures(onOutput) shouldBe empty
+        // E has -14.0 cents offset in quarter-comma meantone
+        private val out1 = noteOn(nonMpeInputChannel, E4)
+        private val ch1 = extractNoteOns(out1).head.channel
+        private val pb1 = extractPitchBends(out1).head
 
-        // When
-        val offOutput = noteOff(masterChannel, C4)
+        private val out2 = noteOn(nonMpeInputChannel, E5)
+        private val ch2 = extractNoteOns(out2).head.channel
+        private val pb2 = extractPitchBends(out2).head
+
         // Then
-        // (c) Note Off is forwarded on the Master Channel
-        extractNoteOffs(offOutput) should contain(NoteOffMidiMsg(masterChannel, C4))
+        // Notes should be on different channels
+        ch1 should not equal ch2
+
+        // Both should have pitch bends reflecting the -14.0 cents tuning offset for E
+        pb1.channel shouldBe ch1
+        pb1.cents shouldEqual -14.0
+        pb2.channel shouldBe ch2
+        pb2.cents shouldEqual -14.0
+      }
+
+    "route notes to the Lower Zone when both Zones are enabled" in new Fixture(dualZoneTuner) {
+      // When
+      private val out1 = noteOn(nonMpeInputChannel, C4)
+      private val out2 = noteOn(nonMpeInputChannel, E4)
+      // Then
+      // Non-MPE input is routed to a single Zone and the Lower Zone takes precedence when both are enabled,
+      // so the Upper Zone's Member Channels (8..14) are ignored and wasted — the configuration the Tuner
+      // warns about at construction and on reset().
+      Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
+        channel should (be >= 1 and be <= 7)
       }
     }
 
-  it should "allow multiple active notes on Master Channels concurrently" in
-    new Fixture(dualZoneTunerMpeInput) {
-      private val table = Table(
-        "Master Channel",
-        0,
-        15
-      )
-
-      forAll(table) { masterChannel =>
-        // When
-        val out1 = noteOn(0, C4, 100)
-        val out2 = noteOn(0, E4, 100)
-        // Then
-        extractNoteOns(out1).map(n => (n.channel, n.midiNote)) should contain((0, C4))
-        extractNoteOns(out2).map(n => (n.channel, n.midiNote)) should contain((0, E4))
-
-        // When
-        val offOutput = noteOff(0, C4)
-        // Then
-        extractNoteOffs(offOutput) should contain(NoteOffMidiMsg(0, C4))
-        // E4 should still be tracked as active
-        // When
-        val offOutput2 = noteOff(0, E4)
-        // Then
-        extractNoteOffs(offOutput2) should contain(NoteOffMidiMsg(0, E4))
+    "route notes to the Upper Zone when it is the only Zone enabled" in new Fixture(upperZoneOnlyTuner) {
+      // When
+      private val out1 = noteOn(nonMpeInputChannel, C4)
+      private val out2 = noteOn(nonMpeInputChannel, E4)
+      // Then
+      // With no Lower Zone to take precedence, the single Zone non-MPE input is routed to is the Upper one,
+      // so its Member Channels (8..14) carry the notes.
+      Seq(out1, out2).flatMap(extractNoteOns).map(_.channel).foreach { channel =>
+        channel should (be >= 8 and be <= 14)
       }
     }
 
-  // ---- Master/Member separation ----
+    // ---- Channel reuse after Note Off ----
 
-  it should "not consume Member Channel slots for Master Channel notes" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+    "make channel available for reuse after Note Off" in new Fixture(tuner3) {
       // Given
-      // Master Channel note should not occupy a Member Channel
-      noteOn(0, C4)
-      // When
-      // Subsequent Member Channel note gets the first Member Channel
-      private val out = noteOn(mpeInputChannel, E4)
-      // Then
-      private val noteOns = extractNoteOns(out)
-      noteOns should have size 1
-      noteOns.head.channel shouldBe 1
-    }
-
-  it should "route member channel notes to their own zone in dual-zone" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // When
-      // Lower zone: master 0, members 1..7. Upper zone: master 15, members 8..14.
-      private val lowerOut = noteOn(1, C4)
-      private val lowerChannel = extractNoteOns(lowerOut).head.channel
-      // Then
-      lowerChannel should (be >= 1 and be <= 7)
-
-      // When
-      private val upperOut = noteOn(8, C4)
-      private val upperChannel = extractNoteOns(upperOut).head.channel
-      // Then
-      upperChannel should (be >= 8 and be <= 14)
-    }
-
-  // ---- Member-channel control-dimension seeding ----
-
-  it should "seed Member Channel Pitch Bend from the per-input-channel value at Note On" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = noteOn(mpeInputChannel, C4, pbCents = Some(-20.0))
-      // Then
-      private val noteChannel = extractNoteOns(output).head.channel
-      extractPitchBendsWithCents(output) should contain((noteChannel, -20))
-    }
-
-  it should "seed Member Channel CC #74 from the per-input-channel value at Note On" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = noteOn(mpeInputChannel, C4, slide = Some(100))
-      // Then
-      private val noteChannel = extractNoteOns(output).head.channel
-      extractCc(output) should contain(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100))
-    }
-
-  it should "seed Member Channel Channel Pressure from the per-input-channel value at Note On" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = noteOn(mpeInputChannel, C4, pressure = Some(90))
-      // Then
-      private val noteChannel = extractNoteOns(output).head.channel
-      extractChannelPressures(output) should contain(ChannelPressureMidiMsg(noteChannel, 90))
-    }
-
-  // ---- Channel reuse after Note Off ----
-
-  it should "make channel available for reuse after Note Off" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      noteOn(1, C4)
-      private val out = noteOn(2, E4)
+      // Fill all 3 member channels
+      noteOn(nonMpeInputChannel, C4)
+      private val out = noteOn(nonMpeInputChannel, E4)
       private val ch = extractNoteOns(out).head.channel
-      noteOn(3, G4)
+      noteOn(nonMpeInputChannel, G4)
 
       // When
       // Release the second note
-      noteOff(2, E4)
+      noteOff(nonMpeInputChannel, E4)
 
       // Then
-      // New note arriving on a different input channel should reuse the released channel
-      private val output = noteOn(1, D4)
+      // New note should reuse the released channel
+      private val output = noteOn(nonMpeInputChannel, D4)
       extractNoteOns(output).head.channel shouldBe ch
     }
 
-  // ---- Paper worked examples ----
+    // ---- Pitch bend computation ----
 
-  it should "reproduce paper section \"Basic allocation in quarter-comma meantone\"" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // 1. Note C4 arrives on input ch 1 -> Pitch Class Group; C has 0.0 cents offset
-      private val out1 = noteOn(1, C4)
-      private val ch1 = extractNoteOns(out1).head.channel
-      extractPitchBends(out1).head.cents shouldEqual 0.0
+    "compute output Pitch Bend equal to tuning offset for each pitch class" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // C has 0.0 cents offset
+        private val outC = noteOn(nonMpeInputChannel, C4)
+        extractPitchBends(outC).head.cents shouldEqual 0.0
 
-      // 2. Note E4 arrives on input ch 2 -> Pitch Class Group; E has -14.0 cents offset
-      private val out2 = noteOn(2, E4)
-      private val ch2 = extractNoteOns(out2).head.channel
-      ch2 should not equal ch1
-      extractPitchBends(out2).head.cents shouldEqual -14.0
+        // E has -14.0 cents offset
+        private val outE = noteOn(nonMpeInputChannel, E4)
+        extractPitchBends(outE).head.cents shouldEqual -14.0
 
-      // 3. Note G4 arrives on input ch 3 -> Pitch Class Group; G has -3.0 cents offset
-      private val out3 = noteOn(3, G4)
-      private val ch3 = extractNoteOns(out3).head.channel
-      ch3 should not equal ch2
-      extractPitchBends(out3).head.cents shouldEqual -3.0
+        // D has -7.0 cents offset
+        private val outD = noteOn(nonMpeInputChannel, D4)
+        extractPitchBends(outD).head.cents shouldEqual -7.0
 
-      // 4. Second C (C5) arrives on input ch 4 -> Expression Group; C has 0.0 cents offset
-      private val out4 = noteOn(4, C5)
-      private val ch4 = extractNoteOns(out4).head.channel
-      ch4 should not equal ch1
-      extractPitchBends(out4).head.cents shouldEqual 0.0
+        // G has -3.0 cents offset
+        private val outG = noteOn(nonMpeInputChannel, G4)
+        extractPitchBends(outG).head.cents shouldEqual -3.0
+      }
 
-      // 5. Performer bends C5 on input ch 4 — only ch4's pitch bend is affected
-      private val cExprCents = 586.0
-      private val bendOut = pitchBend(4, cExprCents)
-      private val pitchBends = extractPitchBends(bendOut)
-      pitchBends should have size 1
-      pitchBends.head.channel shouldBe ch4
-      pitchBends.head.cents shouldEqual (0.0 + cExprCents)
+    "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
+      // Use a small PBS (2 semitones = 200 cents) so that a large tuning offset exceeds the range
+      val smallPbs = PitchBendSensitivity(2)
+      val smallPbsTuner = MpeTuner(
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = smallPbs),
+          MpeZone(MpeZoneType.Upper, 0)
+        )
+      )
+      new Fixture(smallPbsTuner) {
+        // B: exceeds ±200 cents PBS range
+        private val extremeTuning = Tuning("extreme", b = Some(500.0))
+        tuner.tune(extremeTuning)
+
+        // B should be clamped to max pitch bend value
+        private val outB = noteOn(nonMpeInputChannel, MidiNote.B4)
+        private val pbB = extractPitchBends(outB).head
+        pbB.value shouldBe PitchBendMidiMsg.MaxValue
+        pbB.centsFor(smallPbs) shouldEqual smallPbs.totalCents.toDouble
+
+        // C has 0.0 offset, should not be clamped
+        private val outC = noteOn(nonMpeInputChannel, C4)
+        extractPitchBends(outC).head.value shouldBe 0
+      }
     }
-
-  it should "reproduce paper section \"Duplicate Note On messages\" part 1 — the same input channel" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // 1. Note On E4 on input Channel 1: the reference count goes 0 -> 1, so allocation runs and the
-      //    tuning Pitch Bend is emitted for the allocating Note On.
-      private val out1 = noteOn(1, E4)
-      private val channel = extractNoteOns(out1).head.channel
-      extractPitchBends(out1).head.cents shouldEqual quarterCommaMeantone.e
-
-      // 2. Channel Pressure 80 on input Channel 1: the channel holds one identity, so its average is 80.
-      private val out2 = pressure(1, 80)
-      extractChannelPressures(out2) shouldEqual Seq(ChannelPressureMidiMsg(channel, 80))
-
-      // 3. A second Note On for E4 on input Channel 1, the first still active: the identity is unchanged,
-      //    so the count goes 1 -> 2, allocation is bypassed, and overriding the note's Expression Values
-      //    with the input channel's current state moves no average — the Note On is emitted alone.
-      private val out3 = noteOn(1, E4)
-      extractNoteOns(out3) shouldEqual Seq(NoteOnMidiMsg(channel, E4))
-      out3 should have size 1
-
-      // 4. Note Off E4: the count goes 2 -> 1; the identity stays active and stays in the channel's
-      //    averages, so nothing follows the Note Off.
-      private val out4 = noteOff(1, E4)
-      extractNoteOffs(out4) shouldEqual Seq(NoteOffMidiMsg(channel, E4))
-      out4 should have size 1
-
-      // 5. Note Off E4: the count goes 1 -> 0 and the identity leaves the averages, emptying the channel;
-      //    retention leaves all three values unchanged, so the Note Off is again emitted alone.
-      private val out5 = noteOff(1, E4)
-      extractNoteOffs(out5) shouldEqual Seq(NoteOffMidiMsg(channel, E4))
-      out5 should have size 1
-
-      // Two Note Ons entered and two were forwarded, two Note Offs entered and two were forwarded.
-      // A third Note Off finds no count and every message for it is discarded entirely.
-      noteOff(1, E4) shouldBe empty
-    }
-
-  it should "reproduce paper section \"Duplicate Note On messages\" part 2 — different input channels" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // PCG=2, EG=2. Input Channel 1 carries an Expression Pitch Bend of +10 cents and input Channel 2
-      // one of −20 cents; neither channel has an active note yet, so nothing is emitted for them.
-      extractPitchBends(pitchBend(1, 10.0)) shouldBe empty
-      extractPitchBends(pitchBend(2, -20.0)) shouldBe empty
-
-      // 1. Note On E4 on input Channel 1 -> identity (1, E4), Step 1 assigns output Channel 1.
-      private val out1 = noteOn(1, E4)
-      private val chE = extractNoteOns(out1).head.channel
-      chE shouldBe 1
-      extractPitchBends(out1).head.cents shouldEqual (quarterCommaMeantone.e + 10.0)
-
-      // 2. Note On G4 on input Channel 1 -> identity (1, G4): the same input channel, a different note
-      //    number and hence a different identity, filling the Pitch Class Group.
-      private val out2 = noteOn(1, G4)
-      private val chG = extractNoteOns(out2).head.channel
-      chG should not be chE
-      extractPitchBends(out2).head.cents shouldEqual (quarterCommaMeantone.g + 10.0)
-
-      // 3. C4 and A4 fill the Expression Group; all four Member Channels are now occupied.
-      noteOn(3, C4)
-      noteOn(4, A4)
-
-      // 4. Note On E4 on input Channel 2 -> identity (2, E4), distinct from (1, E4). Steps 1 and 2 fail,
-      //    so Step 3 assigns the channel already holding pitch class E, and its Expression Pitch Bend
-      //    becomes the average of the two identities.
-      private val out4 = noteOn(2, E4)
-      extractNoteOns(out4).head.channel shouldBe chE
-      extractPitchBends(out4).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
-
-      // The fan-out that accompanies this fan-in: a Pitch Bend on input Channel 1 reaches both output
-      // channels its notes were placed on, and only its own note's contribution moves on the shared one.
-      private val bendOutput = pitchBend(1, 20.0)
-      private val bends = extractPitchBends(bendOutput).map(pb => pb.channel -> pb.cents).toMap
-      bends.keySet shouldEqual Set(chE, chG)
-      bends(chE) shouldEqual (quarterCommaMeantone.e + (20.0 - 20.0) / 2)
-      bends(chG) shouldEqual (quarterCommaMeantone.g + 20.0)
-
-      // Both reference counts remain 1: no merging occurred, so each identity is released by its own
-      // Note Off and both are forwarded on the shared channel.
-      extractNoteOffs(noteOff(1, E4)) shouldEqual Seq(NoteOffMidiMsg(chE, E4))
-      extractNoteOffs(noteOff(2, E4)) shouldEqual Seq(NoteOffMidiMsg(chE, E4))
-    }
-
-  behavior of "MpeTuner - process() - Expression - Non-MPE Input"
-
-  // ---- Zone-level redirection from Pitch Bend ----
-
-  it should "redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend" in new Fixture {
-    // When
-    private var output = pitchBend(nonMpeInputChannel, 50.0)
-    // Then
-    private var pitchBends = extractPitchBendsWithCents(output)
-    pitchBends should contain theSameElementsAs Seq((0, 50))
-
-    // When
-    noteOn(nonMpeInputChannel, E4)
-    output = pitchBend(nonMpeInputChannel, 25.0)
-    // Then
-    pitchBends = extractPitchBendsWithCents(output)
-    pitchBends should contain theSameElementsAs Seq((0, 25))
   }
 
-  it should "not bleed master channel pitch bend into member channel tuning on retune" in
-    new Fixture(initialTuning = Some(quarterCommaMeantone)) {
-      // Given
-      // E has -14.0 cents offset in quarter-comma meantone
-      private val noteOutput = noteOn(nonMpeInputChannel, E4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      extractPitchBends(noteOutput).head.cents shouldEqual -14.0
+  "MpeTuner - process() - Basic - MPE Input" should {
+    // ---- Note On output stream ----
 
-      // In NonMpe mode, pitch bend goes to the master channel as zone-level expression
-      tuner.process(PitchBendMidiMsg(nonMpeInputChannel, 500))
+    "output Pitch Bend, CC #74, Channel Pressure, then Note On for single Note On" in
+      new Fixture(tuner7MpeInput, initialTuning = Some(quarterCommaMeantone)) {
+        // When
+        // The input channel carries a bend, a pressure and a CC #74 that all differ from the output
+        // channel's retained defaults, so all three setup messages are emitted.
+        private val output = noteOn(mpeInputChannel, C4, 100,
+          pbCents = Some(20.0), pressure = Some(90), slide = Some(100))
+        // Then
+        private val noteChannel = extractNoteOns(output).head.channel
+        private val pitchBend = extractPitchBends(output).head
 
+        output should contain inOrder(
+          pitchBend,
+          CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100),
+          ChannelPressureMidiMsg(noteChannel, 90),
+          NoteOnMidiMsg(noteChannel, C4, 100)
+        )
+        // C has a 0.0 cents offset in quarter-comma meantone, so the Pitch Bend is the expression component.
+        pitchBend.channel shouldBe noteChannel
+        pitchBend.cents shouldEqual 20.0
+      }
+
+    "preserve Note On velocity" in new Fixture(tuner7MpeInput) {
       // When
-      // Retune — member channel pitch bend should only reflect tuning, not master expression
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
+      private val output = noteOn(mpeInputChannel, C4, 87)
       // Then
-      private val memberPb = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
-      memberPb should have size 1
-      // Pythagorean E offset is 8.0 cents — no contamination from the master pitch bend
-      memberPb.head.cents.round.toInt shouldBe 8
+      extractNoteOns(output).head.velocity shouldBe 87
     }
 
-  // ---- Zone-level redirection from Channel Pressure / Slide ----
+    // ---- Note Off behavior ----
 
-  it should "redirect input Channel Pressure to Master Channel as Zone-level Channel Pressure" in new Fixture {
-    // When
-    private var output = pressure(nonMpeInputChannel, 32)
-    // Then
-    private var channelPressures = extractChannelPressures(output)
-    channelPressures should contain theSameElementsAs Seq(ChannelPressureMidiMsg(0, 32))
-
-    // When
-    noteOn(nonMpeInputChannel, E4)
-    output = pressure(nonMpeInputChannel, 25)
-    // Then
-    channelPressures = extractChannelPressures(output)
-    channelPressures should contain theSameElementsAs Seq(ChannelPressureMidiMsg(0, 25))
-  }
-
-  it should "redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74" in new Fixture {
-    // When
-    private var output = slide(nonMpeInputChannel, 72)
-    // Then
-    private var slides = extractSlides(output)
-    slides should contain theSameElementsAs Seq(CcMidiMsg(0, MidiCc.MpeSlide, 72))
-
-    // When
-    noteOn(nonMpeInputChannel, E4)
-    output = slide(nonMpeInputChannel, 96)
-    // Then
-    slides = extractSlides(output)
-    slides should contain theSameElementsAs Seq(CcMidiMsg(0, MidiCc.MpeSlide, 96))
-  }
-
-  // ---- PolyPressure → Channel Pressure conversion ----
-
-  it should "convert Polyphonic Key Pressure to Channel Pressure on member channel" in new Fixture {
-    // Given
-    private val noteOutput = noteOn(nonMpeInputChannel, C4)
-    private val noteChannel = extractNoteOns(noteOutput).head.channel
-    // When
-    private val output = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
-    // Then
-    extractChannelPressures(output) should contain(ChannelPressureMidiMsg(noteChannel, 80))
-    extractPolyPressures(output) shouldBe empty
-  }
-
-  it should "ignore Polyphonic Key Pressure for non-active notes" in new Fixture {
-    // Given
-    private val noteOutput = noteOn(nonMpeInputChannel, C4)
-    private val noteChannel = extractNoteOns(noteOutput).head.channel
-    // When
-    private val output = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, D4, 80))
-    // Then
-    extractChannelPressures(output) shouldBe empty
-    extractPolyPressures(output) shouldBe empty
-  }
-
-  behavior of "MpeTuner - process() - Expression - MPE Input"
-
-  // ---- Per-note PB (combined with tuning offset) ----
-
-  it should "treat per-note pitch bend as expression pitch bend combined with tuning offset" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+    "output Note Off on the correct member channel" in new Fixture(tuner7MpeInput) {
       // Given
-      // E has -14.0 cents offset in quarter-comma meantone
-      private val noteOutput = noteOn(1, E4, 100)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-
-      private val eExprCents = 290.0
+      private val noteOnOutput = noteOn(mpeInputChannel, C4)
+      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
       // When
-      private val output = pitchBend(1, eExprCents)
+      private val noteOffOutput = noteOff(mpeInputChannel, C4)
       // Then
-      private val pitchBendMessage = extractPitchBends(output).filter(_.channel == noteChannel).head
-
-      // Output pitch bend should combine tuning offset for E (-14.0) + expression bend
-      pitchBendMessage.cents shouldEqual (-14.0 + eExprCents)
+      private val noteOffsChannel = extractNoteOffs(noteOffOutput).head.channel
+      noteOffsChannel shouldEqual noteOnChannel
     }
 
-  // ---- Fan-out across split notes (PB / CC #74 / CP) ----
-
-  it should "fan out expression Pitch Bend to all output channels for split notes from same MPE input channel" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+    "preserve Note Off velocity" in new Fixture(tuner7MpeInput) {
       // Given
+      private val noteOnOutput = noteOn(mpeInputChannel, C4, 100)
+      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
+      // When
+      private val noteOffOutput = noteOff(mpeInputChannel, C4, 73)
+      // Then
+      extractNoteOffs(noteOffOutput).head.velocity shouldBe 73
+    }
+
+    "treat Note On with velocity 0 as Note Off" in new Fixture(tuner7MpeInput) {
+      // Given
+      private val noteOnOutput = noteOn(mpeInputChannel, C4, 100)
+      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
+      // When
+      private val noteOffOutput = noteOn(mpeInputChannel, C4, 0)
+      // Then
+      extractNoteOffs(noteOffOutput) should contain(NoteOffMidiMsg(noteOnChannel, C4))
+    }
+
+    "emit the Expression Values recomputed over the remaining notes after the Note Off" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // PCG=2, EG=2: E1 takes a Pitch Class Group channel, E3 and E4 fill the Expression Group, and E2
+        // shares E1's channel (criterion (c): the oldest onset).
+        private val e1Output = noteOn(1, E1, pbCents = Some(10.0), pressure = Some(32), slide = Some(48))
+        private val sharedChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3)
+        noteOn(4, E4)
+        noteOn(2, E2, pbCents = Some(30.0), pressure = Some(96), slide = Some(96))
+
+        // When
+        private val output = noteOff(1, E1)
+
+        // Then
+        // The Note Off is emitted first, then the values recomputed over E2 alone, in the order
+        // Pitch Bend, CC #74, Channel Pressure.
+        output.collect {
+          case _: NoteOffMidiMsg => "noteOff"
+          case _: PitchBendMidiMsg => "pitchBend"
+          case cc: CcMidiMsg if cc.number == MidiCc.MpeSlide => "slide"
+          case _: ChannelPressureMidiMsg => "pressure"
+        } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
+
+        extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(sharedChannel, E1))
+        extractPitchBends(output).head.cents shouldEqual (quarterCommaMeantone.e + 30.0)
+        extractSlides(output) shouldEqual Seq(CcMidiMsg(sharedChannel, MidiCc.MpeSlide, 96))
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(sharedChannel, 96))
+      }
+
+    "emit the Note Off alone when the released note was the last on its channel" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val noteOnOutput = noteOn(1, E4, pbCents = Some(30.0), pressure = Some(96), slide = Some(96))
+        private val channel = extractNoteOns(noteOnOutput).head.channel
+        // When
+        private val output = noteOff(1, E4)
+        // Then
+        // Averaging no longer applies and the channel retains its latest Expression Values, so none of the
+        // three changes and none is emitted. In MPE Input Mode the Tuner emits no Channel Pressure reset of
+        // its own either: that dimension passes through from the sender.
+        extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(channel, E4))
+        extractPitchBends(output) shouldBe empty
+        extractSlides(output) shouldBe empty
+        extractChannelPressures(output) shouldBe empty
+      }
+
+    // ---- Pitch bend computation ----
+
+    "compute output Pitch Bend equal to tuning offset for each pitch class" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // C has 0.0 cents offset
+        private val outC = noteOn(1, C4)
+        extractPitchBends(outC).head.cents shouldEqual 0.0
+
+        // E has -14.0 cents offset
+        private val outE = noteOn(2, E4)
+        extractPitchBends(outE).head.cents shouldEqual -14.0
+
+        // D has -7.0 cents offset
+        private val outD = noteOn(3, D4)
+        extractPitchBends(outD).head.cents shouldEqual -7.0
+
+        // G has -3.0 cents offset
+        private val outG = noteOn(4, G4)
+        extractPitchBends(outG).head.cents shouldEqual -3.0
+      }
+
+    "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
+      val smallPbs = PitchBendSensitivity(2)
+      val smallPbsTuner = MpeTuner(
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = smallPbs),
+          MpeZone(MpeZoneType.Upper, 0)
+        ),
+        initialInputMode = MpeInputMode.Mpe
+      )
+      new Fixture(smallPbsTuner) {
+        private val extremeTuning = Tuning("extreme", b = Some(500.0))
+        tuner.tune(extremeTuning)
+
+        private val outB = noteOn(1, MidiNote.B4)
+        private val pbB = extractPitchBends(outB).head
+        pbB.value shouldBe PitchBendMidiMsg.MaxValue
+        pbB.centsFor(smallPbs) shouldEqual smallPbs.totalCents.toDouble
+
+        private val outC = noteOn(2, C4)
+        extractPitchBends(outC).head.value shouldBe 0
+      }
+    }
+
+    // ---- Channel allocation & splitting ----
+
+    "split notes with different pitch classes from the same MPE input channel onto different output channels" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        // C4 on input ch 2 — allocator honors the input channel hint, places C4 on output ch 2.
+        private val out1 = noteOn(2, C4)
+        private val ch1 = extractNoteOns(out1).head.channel
+
+        // When
+        // E4 on the same input ch 2 — different pitch class, so the pitch-class invariant prevents
+        // sharing output ch 2 with C4. The allocator must split E4 onto a different output channel.
+        private val out2 = noteOn(2, E4)
+        private val ch2 = extractNoteOns(out2).head.channel
+
+        // Then
+        ch1 shouldBe 2
+        ch2 should not be ch1
+        ch2 should (be >= 1 and be <= 7)
+      }
+
+    "correctly allocate notes from any input member channel" in new Fixture(tuner7MpeInput) {
+      // When
       private val out1 = noteOn(2, C4)
-      private val ch1 = extractNoteOns(out1).head.channel
-      private val out2 = noteOn(2, E4)
-      private val ch2 = extractNoteOns(out2).head.channel
-
-      private val exprCents = 30.0
-      // When
-      private val output = pitchBend(2, exprCents)
-
+      private val out2 = noteOn(5, E4)
       // Then
-      // Both output channels must receive the expression bend on top of their tuning offset.
-      // C: 0.0 cents, E: -14.0 cents in quarter-comma meantone.
-      private val pbs = extractPitchBends(output)
-      private val ch1Pb = pbs.find(_.channel == ch1).value
-      private val ch2Pb = pbs.find(_.channel == ch2).value
-      ch1Pb.cents shouldEqual (0.0 + exprCents)
-      ch2Pb.cents shouldEqual (-14.0 + exprCents)
+      extractNoteOns(out1).map(_.channel) should contain(2)
+      extractNoteOns(out2).map(_.channel) should contain(5)
     }
 
-  it should "fan out CC #74 to all output channels for split notes from same MPE input channel" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      private val out1 = noteOn(2, C4)
-      private val ch1 = extractNoteOns(out1).head.channel
-      private val out2 = noteOn(2, E4)
-      private val ch2 = extractNoteOns(out2).head.channel
+    "leave Pitch Class Group channel unaffected when bending Expression Group channel of same pitch class" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // E4 -> PCG channel (E enters Pitch Class Group)
+        private val outE4 = noteOn(1, E4)
+        private val pcgChannel = extractNoteOns(outE4).head.channel
+        private val pcgPitchBends = extractPitchBends(outE4)
 
-      // When
-      private val output = slide(2, 100)
+        // E5 (same pitch class) -> Expression Group channel (PCG slot for E is already taken)
+        private val outE5 = noteOn(2, E5)
+        private val egChannel = extractNoteOns(outE5).head.channel
+        egChannel should not equal pcgChannel
 
-      // Then
-      private val slides = extractSlides(output).map(cc => (cc.channel, cc.value)).toSet
-      slides should contain((ch1, 100))
-      slides should contain((ch2, 100))
-    }
+        // When
+        // Send a non-high expression pitch bend on the EG input channel
+        private val eExprCents = 30.0
+        private val bendOutput = pitchBend(2, eExprCents)
+        // Then
+        private val egPitchBends = extractPitchBends(bendOutput)
 
-  it should "fan out Channel Pressure to all output channels for split notes from same MPE input channel" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      private val out1 = noteOn(2, C4)
-      private val ch1 = extractNoteOns(out1).head.channel
-      private val out2 = noteOn(2, E4)
-      private val ch2 = extractNoteOns(out2).head.channel
+        // Only the EG channel should receive an updated pitch bend; the PCG channel must not.
+        egPitchBends.size shouldBe 1
+        egPitchBends.head.channel shouldEqual egChannel
+        egPitchBends.head.cents shouldEqual (-14.0 + eExprCents)
 
-      // When
-      private val output = pressure(2, 90)
+        pcgPitchBends.size shouldBe 1
+        pcgPitchBends.head.channel shouldEqual pcgChannel
+        pcgPitchBends.head.cents shouldEqual -14.0
+      }
 
-      // Then
-      private val cps = extractChannelPressures(output).map(cp => (cp.channel, cp.value)).toSet
-      cps should contain((ch1, 90))
-      cps should contain((ch2, 90))
-    }
+    // ---- Master-Channel note forwarding (Lower / Upper zone) ----
 
-  // ---- Forward to allocated Member Channel when an active note exists ----
+    "forward Note On/Off on Master Channels without emitting member-channel setup messages" in
+      new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+        private val table = Table(
+          "Master Channel",
+          0,
+          15
+        )
 
-  it should "forward CC #74 to the allocated Member Channel when an active note exists on MPE input channel" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      private val noteOutput = noteOn(mpeInputChannel, C4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When
-      private val output = slide(mpeInputChannel, 100)
-      // Then
-      extractCc(output) should contain(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100))
-    }
+        forAll(table) { masterChannel =>
+          // When
+          val onOutput = noteOn(masterChannel, C4, 100)
+          // Then
+          // (a) Note On is forwarded on the Master Channel with the original velocity
+          val noteOns = extractNoteOns(onOutput)
+          noteOns should have size 1
+          noteOns.head shouldEqual NoteOnMidiMsg(masterChannel, C4, 100)
+          // (b) No Pitch Bend / CC #74 / Channel Pressure setup messages on any member channel
+          extractPitchBends(onOutput) shouldBe empty
+          extractCc(onOutput).filter(_.number == MidiCc.MpeSlide) shouldBe empty
+          extractChannelPressures(onOutput) shouldBe empty
 
-  it should "forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      private val noteOutput = noteOn(mpeInputChannel, C4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When
-      private val output = pressure(mpeInputChannel, 90)
-      // Then
-      extractChannelPressures(output) should contain(ChannelPressureMidiMsg(noteChannel, 90))
-    }
+          // When
+          val offOutput = noteOff(masterChannel, C4)
+          // Then
+          // (c) Note Off is forwarded on the Master Channel
+          extractNoteOffs(offOutput) should contain(NoteOffMidiMsg(masterChannel, C4))
+        }
+      }
 
-  // ---- Gating: no active note on input channel ----
+    "allow multiple active notes on Master Channels concurrently" in
+      new Fixture(dualZoneTunerMpeInput) {
+        private val table = Table(
+          "Master Channel",
+          0,
+          15
+        )
 
-  it should "not forward Pitch Bend on an MPE input member channel with no active note" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      // Send Pitch Bend on a member channel that has no active note
-      private val output = pitchBend(mpeInputChannel, 16.67)
-      // Then
-      extractPitchBends(output) shouldBe empty
-    }
+        forAll(table) { masterChannel =>
+          // When
+          val out1 = noteOn(0, C4, 100)
+          val out2 = noteOn(0, E4, 100)
+          // Then
+          extractNoteOns(out1).map(n => (n.channel, n.midiNote)) should contain((0, C4))
+          extractNoteOns(out2).map(n => (n.channel, n.midiNote)) should contain((0, E4))
 
-  it should "not forward CC #74 on an MPE input channel with no active note" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      // Send CC #74 on a member channel that has no active note
-      private val output = slide(mpeInputChannel, 100)
-      // Then
-      extractCc(output) shouldBe empty
-    }
+          // When
+          val offOutput = noteOff(0, C4)
+          // Then
+          extractNoteOffs(offOutput) should contain(NoteOffMidiMsg(0, C4))
+          // E4 should still be tracked as active
+          // When
+          val offOutput2 = noteOff(0, E4)
+          // Then
+          extractNoteOffs(offOutput2) should contain(NoteOffMidiMsg(0, E4))
+        }
+      }
 
-  it should "not forward Channel Pressure on an MPE input channel with no active note" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      // Send Channel Pressure on a member channel that has no active note
-      private val output = pressure(mpeInputChannel, 90)
-      // Then
-      extractChannelPressures(output) shouldBe empty
-    }
+    // ---- Master/Member separation ----
 
-  // ---- Expression after Note Off ----
+    "not consume Member Channel slots for Master Channel notes" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Master Channel note should not occupy a Member Channel
+        noteOn(0, C4)
+        // When
+        // Subsequent Member Channel note gets the first Member Channel
+        private val out = noteOn(mpeInputChannel, E4)
+        // Then
+        private val noteOns = extractNoteOns(out)
+        noteOns should have size 1
+        noteOns.head.channel shouldBe 1
+      }
 
-  it should "not forward control dimensions from an input channel after its notes have been released" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      // Note On routes mpeInputChannel -> some output channel
-      noteOn(mpeInputChannel, C4)
-      noteOff(mpeInputChannel, C4)
+    "route member channel notes to their own zone in dual-zone" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // When
+        // Lower zone: master 0, members 1..7. Upper zone: master 15, members 8..14.
+        private val lowerOut = noteOn(1, C4)
+        private val lowerChannel = extractNoteOns(lowerOut).head.channel
+        // Then
+        lowerChannel should (be >= 1 and be <= 7)
 
-      // When / Then
-      // After Note Off, no input->output mapping should exist for mpeInputChannel — expression
-      // CC #74 / Channel Pressure / Pitch Bend on this input channel must NOT be forwarded to a
-      // (now stale) member channel.
-      private val ccOutput = slide(mpeInputChannel, 100)
-      extractCc(ccOutput) shouldBe empty
+        // When
+        private val upperOut = noteOn(8, C4)
+        private val upperChannel = extractNoteOns(upperOut).head.channel
+        // Then
+        upperChannel should (be >= 8 and be <= 14)
+      }
 
-      private val cpOutput = pressure(mpeInputChannel, 90)
-      extractChannelPressures(cpOutput) shouldBe empty
+    // ---- Member-channel control-dimension seeding ----
 
-      private val pbOutput = pitchBend(mpeInputChannel, 33.33)
-      extractPitchBends(pbOutput) shouldBe empty
-    }
+    "seed Member Channel Pitch Bend from the per-input-channel value at Note On" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        private val output = noteOn(mpeInputChannel, C4, pbCents = Some(-20.0))
+        // Then
+        private val noteChannel = extractNoteOns(output).head.channel
+        extractPitchBendsWithCents(output) should contain((noteChannel, -20))
+      }
 
-  // ---- Master-channel PB forwarding ----
+    "seed Member Channel CC #74 from the per-input-channel value at Note On" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        private val output = noteOn(mpeInputChannel, C4, slide = Some(100))
+        // Then
+        private val noteChannel = extractNoteOns(output).head.channel
+        extractCc(output) should contain(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100))
+      }
 
-  it should "forward Master Channel pitch bend without modification" in new Fixture(mpeTunerMpeInput) {
-    // When
-    private val output = tuner.process(PitchBendMidiMsg(0, 1000))
-    // Then
-    extractPitchBends(output) should contain(PitchBendMidiMsg(0, 1000))
+    "seed Member Channel Channel Pressure from the per-input-channel value at Note On" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        private val output = noteOn(mpeInputChannel, C4, pressure = Some(90))
+        // Then
+        private val noteChannel = extractNoteOns(output).head.channel
+        extractChannelPressures(output) should contain(ChannelPressureMidiMsg(noteChannel, 90))
+      }
+
+    // ---- Channel reuse after Note Off ----
+
+    "make channel available for reuse after Note Off" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        noteOn(1, C4)
+        private val out = noteOn(2, E4)
+        private val ch = extractNoteOns(out).head.channel
+        noteOn(3, G4)
+
+        // When
+        // Release the second note
+        noteOff(2, E4)
+
+        // Then
+        // New note arriving on a different input channel should reuse the released channel
+        private val output = noteOn(1, D4)
+        extractNoteOns(output).head.channel shouldBe ch
+      }
+
+    // ---- Paper worked examples ----
+
+    "reproduce paper section \"Basic allocation in quarter-comma meantone\"" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // 1. Note C4 arrives on input ch 1 -> Pitch Class Group; C has 0.0 cents offset
+        private val out1 = noteOn(1, C4)
+        private val ch1 = extractNoteOns(out1).head.channel
+        extractPitchBends(out1).head.cents shouldEqual 0.0
+
+        // 2. Note E4 arrives on input ch 2 -> Pitch Class Group; E has -14.0 cents offset
+        private val out2 = noteOn(2, E4)
+        private val ch2 = extractNoteOns(out2).head.channel
+        ch2 should not equal ch1
+        extractPitchBends(out2).head.cents shouldEqual -14.0
+
+        // 3. Note G4 arrives on input ch 3 -> Pitch Class Group; G has -3.0 cents offset
+        private val out3 = noteOn(3, G4)
+        private val ch3 = extractNoteOns(out3).head.channel
+        ch3 should not equal ch2
+        extractPitchBends(out3).head.cents shouldEqual -3.0
+
+        // 4. Second C (C5) arrives on input ch 4 -> Expression Group; C has 0.0 cents offset
+        private val out4 = noteOn(4, C5)
+        private val ch4 = extractNoteOns(out4).head.channel
+        ch4 should not equal ch1
+        extractPitchBends(out4).head.cents shouldEqual 0.0
+
+        // 5. Performer bends C5 on input ch 4 — only ch4's pitch bend is affected
+        private val cExprCents = 586.0
+        private val bendOut = pitchBend(4, cExprCents)
+        private val pitchBends = extractPitchBends(bendOut)
+        pitchBends should have size 1
+        pitchBends.head.channel shouldBe ch4
+        pitchBends.head.cents shouldEqual (0.0 + cExprCents)
+      }
+
+    "reproduce paper section \"Duplicate Note On messages\" part 1 — the same input channel" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // 1. Note On E4 on input Channel 1: the reference count goes 0 -> 1, so allocation runs and the
+        //    tuning Pitch Bend is emitted for the allocating Note On.
+        private val out1 = noteOn(1, E4)
+        private val channel = extractNoteOns(out1).head.channel
+        extractPitchBends(out1).head.cents shouldEqual quarterCommaMeantone.e
+
+        // 2. Channel Pressure 80 on input Channel 1: the channel holds one identity, so its average is 80.
+        private val out2 = pressure(1, 80)
+        extractChannelPressures(out2) shouldEqual Seq(ChannelPressureMidiMsg(channel, 80))
+
+        // 3. A second Note On for E4 on input Channel 1, the first still active: the identity is unchanged,
+        //    so the count goes 1 -> 2, allocation is bypassed, and overriding the note's Expression Values
+        //    with the input channel's current state moves no average — the Note On is emitted alone.
+        private val out3 = noteOn(1, E4)
+        extractNoteOns(out3) shouldEqual Seq(NoteOnMidiMsg(channel, E4))
+        out3 should have size 1
+
+        // 4. Note Off E4: the count goes 2 -> 1; the identity stays active and stays in the channel's
+        //    averages, so nothing follows the Note Off.
+        private val out4 = noteOff(1, E4)
+        extractNoteOffs(out4) shouldEqual Seq(NoteOffMidiMsg(channel, E4))
+        out4 should have size 1
+
+        // 5. Note Off E4: the count goes 1 -> 0 and the identity leaves the averages, emptying the channel;
+        //    retention leaves all three values unchanged, so the Note Off is again emitted alone.
+        private val out5 = noteOff(1, E4)
+        extractNoteOffs(out5) shouldEqual Seq(NoteOffMidiMsg(channel, E4))
+        out5 should have size 1
+
+        // Two Note Ons entered and two were forwarded, two Note Offs entered and two were forwarded.
+        // A third Note Off finds no count and every message for it is discarded entirely.
+        noteOff(1, E4) shouldBe empty
+      }
+
+    "reproduce paper section \"Duplicate Note On messages\" part 2 — different input channels" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // PCG=2, EG=2. Input Channel 1 carries an Expression Pitch Bend of +10 cents and input Channel 2
+        // one of −20 cents; neither channel has an active note yet, so nothing is emitted for them.
+        extractPitchBends(pitchBend(1, 10.0)) shouldBe empty
+        extractPitchBends(pitchBend(2, -20.0)) shouldBe empty
+
+        // 1. Note On E4 on input Channel 1 -> identity (1, E4), Step 1 assigns output Channel 1.
+        private val out1 = noteOn(1, E4)
+        private val chE = extractNoteOns(out1).head.channel
+        chE shouldBe 1
+        extractPitchBends(out1).head.cents shouldEqual (quarterCommaMeantone.e + 10.0)
+
+        // 2. Note On G4 on input Channel 1 -> identity (1, G4): the same input channel, a different note
+        //    number and hence a different identity, filling the Pitch Class Group.
+        private val out2 = noteOn(1, G4)
+        private val chG = extractNoteOns(out2).head.channel
+        chG should not be chE
+        extractPitchBends(out2).head.cents shouldEqual (quarterCommaMeantone.g + 10.0)
+
+        // 3. C4 and A4 fill the Expression Group; all four Member Channels are now occupied.
+        noteOn(3, C4)
+        noteOn(4, A4)
+
+        // 4. Note On E4 on input Channel 2 -> identity (2, E4), distinct from (1, E4). Steps 1 and 2 fail,
+        //    so Step 3 assigns the channel already holding pitch class E, and its Expression Pitch Bend
+        //    becomes the average of the two identities.
+        private val out4 = noteOn(2, E4)
+        extractNoteOns(out4).head.channel shouldBe chE
+        extractPitchBends(out4).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
+
+        // The fan-out that accompanies this fan-in: a Pitch Bend on input Channel 1 reaches both output
+        // channels its notes were placed on, and only its own note's contribution moves on the shared one.
+        private val bendOutput = pitchBend(1, 20.0)
+        private val bends = extractPitchBends(bendOutput).map(pb => pb.channel -> pb.cents).toMap
+        bends.keySet shouldEqual Set(chE, chG)
+        bends(chE) shouldEqual (quarterCommaMeantone.e + (20.0 - 20.0) / 2)
+        bends(chG) shouldEqual (quarterCommaMeantone.g + 20.0)
+
+        // Both reference counts remain 1: no merging occurred, so each identity is released by its own
+        // Note Off and both are forwarded on the shared channel.
+        extractNoteOffs(noteOff(1, E4)) shouldEqual Seq(NoteOffMidiMsg(chE, E4))
+        extractNoteOffs(noteOff(2, E4)) shouldEqual Seq(NoteOffMidiMsg(chE, E4))
+      }
   }
 
-  // ---- Master/Member-channel PolyPressure handling ----
+  "MpeTuner - process() - Expression - Non-MPE Input" should {
+    // ---- Zone-level redirection from Pitch Bend ----
 
-  it should "forward Polyphonic Key Pressure as-is for Master Channel notes" in
-    new Fixture(mpeTunerMpeInput) {
-      // Given
-      noteOn(0, C4, 100)
+    "redirect input Pitch Bend to Master Channel as Zone-level Pitch Bend" in new Fixture {
       // When
-      private val output = tuner.process(PolyPressureMidiMsg(0, C4, 80))
+      private var output = pitchBend(nonMpeInputChannel, 50.0)
       // Then
-      extractPolyPressures(output) should contain(PolyPressureMidiMsg(0, C4, 80))
-      extractChannelPressures(output) shouldBe empty
+      private var pitchBends = extractPitchBendsWithCents(output)
+      pitchBends should contain theSameElementsAs Seq((0, 50))
+
+      // When
+      noteOn(nonMpeInputChannel, E4)
+      output = pitchBend(nonMpeInputChannel, 25.0)
+      // Then
+      pitchBends = extractPitchBendsWithCents(output)
+      pitchBends should contain theSameElementsAs Seq((0, 25))
     }
 
-  it should "drop Polyphonic Key Pressure received on a Member Channel" in
-    new Fixture(mpeTunerMpeInput) {
-      // Given
-      noteOn(mpeInputChannel, C4, 100)
+    "not bleed master channel pitch bend into member channel tuning on retune" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // Given
+        // E has -14.0 cents offset in quarter-comma meantone
+        private val noteOutput = noteOn(nonMpeInputChannel, E4)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+        extractPitchBends(noteOutput).head.cents shouldEqual -14.0
+
+        // In NonMpe mode, pitch bend goes to the master channel as zone-level expression
+        tuner.process(PitchBendMidiMsg(nonMpeInputChannel, 500))
+
+        // When
+        // Retune — member channel pitch bend should only reflect tuning, not master expression
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        // Then
+        private val memberPb = extractPitchBends(tuneOutput).filter(_.channel == noteChannel)
+        memberPb should have size 1
+        // Pythagorean E offset is 8.0 cents — no contamination from the master pitch bend
+        memberPb.head.cents.round.toInt shouldBe 8
+      }
+
+    // ---- Zone-level redirection from Channel Pressure / Slide ----
+
+    "redirect input Channel Pressure to Master Channel as Zone-level Channel Pressure" in new Fixture {
       // When
-      private val output = tuner.process(PolyPressureMidiMsg(mpeInputChannel, C4, 80))
+      private var output = pressure(nonMpeInputChannel, 32)
       // Then
+      private var channelPressures = extractChannelPressures(output)
+      channelPressures should contain theSameElementsAs Seq(ChannelPressureMidiMsg(0, 32))
+
+      // When
+      noteOn(nonMpeInputChannel, E4)
+      output = pressure(nonMpeInputChannel, 25)
+      // Then
+      channelPressures = extractChannelPressures(output)
+      channelPressures should contain theSameElementsAs Seq(ChannelPressureMidiMsg(0, 25))
+    }
+
+    "redirect input Slide CC #74 to Master Channel as Zone-level Slide CC #74" in new Fixture {
+      // When
+      private var output = slide(nonMpeInputChannel, 72)
+      // Then
+      private var slides = extractSlides(output)
+      slides should contain theSameElementsAs Seq(CcMidiMsg(0, MidiCc.MpeSlide, 72))
+
+      // When
+      noteOn(nonMpeInputChannel, E4)
+      output = slide(nonMpeInputChannel, 96)
+      // Then
+      slides = extractSlides(output)
+      slides should contain theSameElementsAs Seq(CcMidiMsg(0, MidiCc.MpeSlide, 96))
+    }
+
+    // ---- PolyPressure → Channel Pressure conversion ----
+
+    "convert Polyphonic Key Pressure to Channel Pressure on member channel" in new Fixture {
+      // Given
+      private val noteOutput = noteOn(nonMpeInputChannel, C4)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+      // When
+      private val output = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+      // Then
+      extractChannelPressures(output) should contain(ChannelPressureMidiMsg(noteChannel, 80))
       extractPolyPressures(output) shouldBe empty
-      extractChannelPressures(output) shouldBe empty
     }
 
-  // ---- Averaging across active notes on member channel ----
-
-  it should "average the expression pitch bend value of all active notes on a member channel" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given: PCG=2, EG=2
-      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3)
-      noteOn(4, E4)
-
-      // When: 1 PCG free, but cannot be used for E => new E2 will share channel with E1
-      private var output = noteOn(2, E2, pbCents = Some(-20.0))
-      // Then
-      private var outputPitchBends = extractPitchBends(output)
-      outputPitchBends should have size 1
-      outputPitchBends.head.channel shouldEqual e1OutputChannel
-      outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
-
-      // When
-      output = pitchBend(2, 30.0)
-      // Then
-      outputPitchBends = extractPitchBends(output)
-      outputPitchBends.head.channel shouldEqual e1OutputChannel
-      outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 30.0) / 2)
-    }
-
-  it should "average the channel pressure value of all active notes on a member channel" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given: PCG=2, EG=2
-      private val e1Output = noteOn(1, E1, pressure = Some(32))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3)
-      noteOn(4, E4)
-
-      // When: 1 PCG free, but cannot be used for E => new E2 will share channel with E1
-      private var output = noteOn(2, E2, pressure = Some(96))
-      // Then
-      private var outputPressures = extractChannelPressures(output)
-      outputPressures should have size 1
-      outputPressures.head.channel shouldEqual e1OutputChannel
-      outputPressures.head.value shouldEqual (32 + 96) / 2
-
-      // When
-      output = pressure(2, 16)
-      // Then
-      outputPressures = extractChannelPressures(output)
-      outputPressures should have size 1
-      outputPressures.head.channel shouldEqual e1OutputChannel
-      outputPressures.head.value shouldEqual (32 + 16) / 2
-    }
-
-  it should "average the MPE slide (CC #74) value of all active notes on a member channel" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given: PCG=2, EG=2
-      private val e1Output = noteOn(1, E1, slide = Some(48))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3)
-      noteOn(4, E4)
-
-      // When: 1 PCG free, but cannot be used for E => new E2 will share channel with E1
-      private var output = noteOn(2, E2, slide = Some(16))
-      // Then
-      private var outputSlides = extractSlides(output)
-      outputSlides should have size 1
-      outputSlides.head.channel shouldEqual e1OutputChannel
-      outputSlides.head.value shouldEqual (48 + 16) / 2
-
-      // When
-      output = slide(2, 96)
-      // Then
-      outputSlides = extractSlides(output)
-      outputSlides should have size 1
-      outputSlides.head.channel shouldEqual e1OutputChannel
-      outputSlides.head.value shouldEqual (48 + 96) / 2
-    }
-
-  // ---- Distributing across input channel ----
-
-  it should "distribute the pitch bend values of the input channel" in new DistributeFixture {
-    // When
-    private val pitchBends1 = extractPitchBends(pitchBend(1, 10.0))
-    private val pitchBends3 = extractPitchBends(pitchBend(3, 30.0))
-
-    // Then
-    // Input channel 1 feeds output channels 1 and 2. Output channel 1 also holds D5, which arrived on
-    // input channel 3 and still carries no bend, so its Expression Pitch Bend is the average of the two.
-    pitchBends1.map(_.channel) shouldEqual Seq(output1Channel, output2Channel)
-    pitchBends1.head.cents shouldEqual (quarterCommaMeantone.d + (10.0 + 0.0) / 2)
-    pitchBends1(1).cents shouldEqual (quarterCommaMeantone.e + 10.0)
-
-    pitchBends3.map(_.channel) shouldEqual Seq(output3Channel, output4Channel, output1Channel)
-    pitchBends3.head.cents shouldEqual (quarterCommaMeantone.f + 30.0)
-    pitchBends3(1).cents shouldEqual (quarterCommaMeantone.g + 30.0)
-    pitchBends3(2).cents shouldEqual (quarterCommaMeantone.d + (10.0 + 30.0) / 2)
-  }
-
-  it should "distribute the channel pressure values of the input channel" in new DistributeFixture {
-    // When
-    private val channelPressures1 = extractChannelPressures(pressure(1, 10))
-    private val channelPressures3 = extractChannelPressures(pressure(3, 30))
-
-    // Then
-    // Output channel 1 also holds D5, which arrived on input channel 3 and still carries pressure 0, so
-    // the channel emits the average of the two notes.
-    channelPressures1 should contain theSameElementsAs Seq(
-      ChannelPressureMidiMsg(output1Channel, (10 + 0) / 2),
-      ChannelPressureMidiMsg(output2Channel, 10)
-    )
-    channelPressures3 should contain theSameElementsAs Seq(
-      ChannelPressureMidiMsg(output3Channel, 30),
-      ChannelPressureMidiMsg(output4Channel, 30),
-      ChannelPressureMidiMsg(output1Channel, (10 + 30) / 2)
-    )
-  }
-
-  it should "distribute the slide values of the input channel" in new DistributeFixture {
-    // When
-    private val slides1 = extractSlides(slide(1, 10))
-    private val slides3 = extractSlides(slide(3, 30))
-
-    // Then
-    // Output channel 1 also holds D5, which arrived on input channel 3 and still carries the default CC #74
-    // of 64, so the channel emits the average of the two notes.
-    slides1 should contain theSameElementsAs Seq(
-      CcMidiMsg(output1Channel, MidiCc.MpeSlide, (10 + 64) / 2),
-      CcMidiMsg(output2Channel, MidiCc.MpeSlide, 10)
-    )
-    slides3 should contain theSameElementsAs Seq(
-      CcMidiMsg(output3Channel, MidiCc.MpeSlide, 30),
-      CcMidiMsg(output4Channel, MidiCc.MpeSlide, 30),
-      CcMidiMsg(output1Channel, MidiCc.MpeSlide, (10 + 30) / 2)
-    )
-  }
-
-  // ---- Paper worked examples ----
-
-  it should "reproduce paper section \"Averaging Expression Values\"" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // 1. E1 arrives on input Channel 1, which carries Pitch Bend +10 cents, Channel Pressure 32 and
-      //    CC #74 48 — remembered from before the note and used to initialize its Expression Values.
-      //    Step 1 assigns output Channel 1.
-      private val out1 = noteOn(1, E1, pbCents = Some(10.0), pressure = Some(32), slide = Some(48))
-      private val ch = extractNoteOns(out1).head.channel
-      ch shouldBe 1
-      extractPitchBends(out1).head.cents shouldEqual (quarterCommaMeantone.e + 10.0)
-      extractSlides(out1) shouldEqual Seq(CcMidiMsg(ch, MidiCc.MpeSlide, 48))
-      extractChannelPressures(out1) shouldEqual Seq(ChannelPressureMidiMsg(ch, 32))
-
-      // 2. E3 and E4 arrive on input Channels 3 and 4, both at default expression: pitch class E is
-      //    already in the Pitch Class Group, so Step 2 places them in the Expression Group, which is now
-      //    at full capacity. Each emits only its tuning Pitch Bend.
-      private val out2 = noteOn(3, E3)
-      private val out3 = noteOn(4, E4)
-      extractPitchBends(out2).head.cents shouldEqual quarterCommaMeantone.e
-      extractSlides(out2) shouldBe empty
-      extractChannelPressures(out2) shouldBe empty
-      extractPitchBends(out3).head.cents shouldEqual quarterCommaMeantone.e
-      extractSlides(out3) shouldBe empty
-      extractChannelPressures(out3) shouldBe empty
-
-      // 3. E2 arrives on input Channel 2 carrying Pitch Bend −20 cents, Channel Pressure 96 and CC #74 96.
-      //    Both groups are unavailable for it, so Step 3 shares the oldest E channel and all three
-      //    Expression Values become averages.
-      private val out4 = noteOn(2, E2, pbCents = Some(-20.0), pressure = Some(96), slide = Some(96))
-      extractNoteOns(out4).head.channel shouldBe ch
-      extractPitchBends(out4).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
-      extractSlides(out4) shouldEqual Seq(CcMidiMsg(ch, MidiCc.MpeSlide, (48 + 96) / 2))
-      extractChannelPressures(out4) shouldEqual Seq(ChannelPressureMidiMsg(ch, (32 + 96) / 2))
-
-      // 4. The performer bends E2 to +31 cents: the channel's Expression Pitch Bend becomes +20.5 — the
-      //    half-amplitude attenuation of a shared channel — and no note is dropped. The threshold is
-      //    compared against a note's own bend in absolute value, and +31 stays below it even though the
-      //    51-cent excursion from E2's initial −20 exceeds it. Only the Pitch Bend dimension moves.
-      private val out5 = pitchBend(2, 31.0)
-      extractPitchBends(out5) should have size 1
-      extractPitchBends(out5).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 31.0) / 2)
-      extractNoteOffs(out5) shouldBe empty
-      extractSlides(out5) shouldBe empty
-      extractChannelPressures(out5) shouldBe empty
-
-      // 5. Note Off for E1: the Note Off is emitted first and the values recomputed without it follow.
-      //    The Channel Pressure becomes the surviving note's own value rather than 0: in MPE Input Mode
-      //    the dimension passes through from the sender.
-      private val out6 = noteOff(1, E1)
-      out6.collect {
-        case _: NoteOffMidiMsg => "noteOff"
-        case _: PitchBendMidiMsg => "pitchBend"
-        case cc: CcMidiMsg if cc.number == MidiCc.MpeSlide => "slide"
-        case _: ChannelPressureMidiMsg => "pressure"
-      } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
-      extractPitchBends(out6).head.cents shouldEqual (quarterCommaMeantone.e + 31.0)
-      extractSlides(out6) shouldEqual Seq(CcMidiMsg(ch, MidiCc.MpeSlide, 96))
-      extractChannelPressures(out6) shouldEqual Seq(ChannelPressureMidiMsg(ch, 96))
-
-      // 6. Note Off for E2, the channel's last active note: removal empties the channel, so averaging no
-      //    longer applies and retention fixes what it keeps. None of the three values changes, so the
-      //    Note Off is emitted alone — the Channel Pressure in particular is not zeroed.
-      private val out7 = noteOff(2, E2)
-      extractNoteOffs(out7) shouldEqual Seq(NoteOffMidiMsg(ch, E2))
-      extractPitchBends(out7) shouldBe empty
-      extractSlides(out7) shouldBe empty
-      extractChannelPressures(out7) shouldBe empty
-    }
-
-  behavior of "MpeTuner - process() - Note Dropping - Non-MPE Input"
-
-  // ---- Single-channel edge case ----
-
-  it should "free a single channel during exhaustion dropping when there is a single member channel" in
-    new Fixture(tuner1) {
+    "ignore Polyphonic Key Pressure for non-active notes" in new Fixture {
       // Given
-      noteOn(nonMpeInputChannel, C4)
+      private val noteOutput = noteOn(nonMpeInputChannel, C4)
+      private val noteChannel = extractNoteOns(noteOutput).head.channel
+      // When
+      private val output = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, D4, 80))
+      // Then
+      extractChannelPressures(output) shouldBe empty
+      extractPolyPressures(output) shouldBe empty
+    }
+  }
+
+  "MpeTuner - process() - Expression - MPE Input" should {
+    // ---- Per-note PB (combined with tuning offset) ----
+
+    "treat per-note pitch bend as expression pitch bend combined with tuning offset" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // E has -14.0 cents offset in quarter-comma meantone
+        private val noteOutput = noteOn(1, E4, 100)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+
+        private val eExprCents = 290.0
+        // When
+        private val output = pitchBend(1, eExprCents)
+        // Then
+        private val pitchBendMessage = extractPitchBends(output).filter(_.channel == noteChannel).head
+
+        // Output pitch bend should combine tuning offset for E (-14.0) + expression bend
+        pitchBendMessage.cents shouldEqual (-14.0 + eExprCents)
+      }
+
+    // ---- Fan-out across split notes (PB / CC #74 / CP) ----
+
+    "fan out expression Pitch Bend to all output channels for split notes from same MPE input channel" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val out1 = noteOn(2, C4)
+        private val ch1 = extractNoteOns(out1).head.channel
+        private val out2 = noteOn(2, E4)
+        private val ch2 = extractNoteOns(out2).head.channel
+
+        private val exprCents = 30.0
+        // When
+        private val output = pitchBend(2, exprCents)
+
+        // Then
+        // Both output channels must receive the expression bend on top of their tuning offset.
+        // C: 0.0 cents, E: -14.0 cents in quarter-comma meantone.
+        private val pbs = extractPitchBends(output)
+        private val ch1Pb = pbs.find(_.channel == ch1).value
+        private val ch2Pb = pbs.find(_.channel == ch2).value
+        ch1Pb.cents shouldEqual (0.0 + exprCents)
+        ch2Pb.cents shouldEqual (-14.0 + exprCents)
+      }
+
+    "fan out CC #74 to all output channels for split notes from same MPE input channel" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val out1 = noteOn(2, C4)
+        private val ch1 = extractNoteOns(out1).head.channel
+        private val out2 = noteOn(2, E4)
+        private val ch2 = extractNoteOns(out2).head.channel
+
+        // When
+        private val output = slide(2, 100)
+
+        // Then
+        private val slides = extractSlides(output).map(cc => (cc.channel, cc.value)).toSet
+        slides should contain((ch1, 100))
+        slides should contain((ch2, 100))
+      }
+
+    "fan out Channel Pressure to all output channels for split notes from same MPE input channel" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val out1 = noteOn(2, C4)
+        private val ch1 = extractNoteOns(out1).head.channel
+        private val out2 = noteOn(2, E4)
+        private val ch2 = extractNoteOns(out2).head.channel
+
+        // When
+        private val output = pressure(2, 90)
+
+        // Then
+        private val cps = extractChannelPressures(output).map(cp => (cp.channel, cp.value)).toSet
+        cps should contain((ch1, 90))
+        cps should contain((ch2, 90))
+      }
+
+    // ---- Forward to allocated Member Channel when an active note exists ----
+
+    "forward CC #74 to the allocated Member Channel when an active note exists on MPE input channel" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val noteOutput = noteOn(mpeInputChannel, C4)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+        // When
+        private val output = slide(mpeInputChannel, 100)
+        // Then
+        extractCc(output) should contain(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100))
+      }
+
+    "forward Channel Pressure to allocated Member Channel when active note exists on MPE input channel" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val noteOutput = noteOn(mpeInputChannel, C4)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+        // When
+        private val output = pressure(mpeInputChannel, 90)
+        // Then
+        extractChannelPressures(output) should contain(ChannelPressureMidiMsg(noteChannel, 90))
+      }
+
+    // ---- Gating: no active note on input channel ----
+
+    "not forward Pitch Bend on an MPE input member channel with no active note" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        // Send Pitch Bend on a member channel that has no active note
+        private val output = pitchBend(mpeInputChannel, 16.67)
+        // Then
+        extractPitchBends(output) shouldBe empty
+      }
+
+    "not forward CC #74 on an MPE input channel with no active note" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        // Send CC #74 on a member channel that has no active note
+        private val output = slide(mpeInputChannel, 100)
+        // Then
+        extractCc(output) shouldBe empty
+      }
+
+    "not forward Channel Pressure on an MPE input channel with no active note" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        // Send Channel Pressure on a member channel that has no active note
+        private val output = pressure(mpeInputChannel, 90)
+        // Then
+        extractChannelPressures(output) shouldBe empty
+      }
+
+    // ---- Expression after Note Off ----
+
+    "not forward control dimensions from an input channel after its notes have been released" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        // Note On routes mpeInputChannel -> some output channel
+        noteOn(mpeInputChannel, C4)
+        noteOff(mpeInputChannel, C4)
+
+        // When / Then
+        // After Note Off, no input->output mapping should exist for mpeInputChannel — expression
+        // CC #74 / Channel Pressure / Pitch Bend on this input channel must NOT be forwarded to a
+        // (now stale) member channel.
+        private val ccOutput = slide(mpeInputChannel, 100)
+        extractCc(ccOutput) shouldBe empty
+
+        private val cpOutput = pressure(mpeInputChannel, 90)
+        extractChannelPressures(cpOutput) shouldBe empty
+
+        private val pbOutput = pitchBend(mpeInputChannel, 33.33)
+        extractPitchBends(pbOutput) shouldBe empty
+      }
+
+    // ---- Master-channel PB forwarding ----
+
+    "forward Master Channel pitch bend without modification" in new Fixture(mpeTunerMpeInput) {
+      // When
+      private val output = tuner.process(PitchBendMidiMsg(0, 1000))
+      // Then
+      extractPitchBends(output) should contain(PitchBendMidiMsg(0, 1000))
+    }
+
+    // ---- Master/Member-channel PolyPressure handling ----
+
+    "forward Polyphonic Key Pressure as-is for Master Channel notes" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        noteOn(0, C4, 100)
+        // When
+        private val output = tuner.process(PolyPressureMidiMsg(0, C4, 80))
+        // Then
+        extractPolyPressures(output) should contain(PolyPressureMidiMsg(0, C4, 80))
+        extractChannelPressures(output) shouldBe empty
+      }
+
+    "drop Polyphonic Key Pressure received on a Member Channel" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        noteOn(mpeInputChannel, C4, 100)
+        // When
+        private val output = tuner.process(PolyPressureMidiMsg(mpeInputChannel, C4, 80))
+        // Then
+        extractPolyPressures(output) shouldBe empty
+        extractChannelPressures(output) shouldBe empty
+      }
+
+    // ---- Averaging across active notes on member channel ----
+
+    "average the expression pitch bend value of all active notes on a member channel" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given: PCG=2, EG=2
+        private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3)
+        noteOn(4, E4)
+
+        // When: 1 PCG free, but cannot be used for E => new E2 will share channel with E1
+        private var output = noteOn(2, E2, pbCents = Some(-20.0))
+        // Then
+        private var outputPitchBends = extractPitchBends(output)
+        outputPitchBends should have size 1
+        outputPitchBends.head.channel shouldEqual e1OutputChannel
+        outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
+
+        // When
+        output = pitchBend(2, 30.0)
+        // Then
+        outputPitchBends = extractPitchBends(output)
+        outputPitchBends.head.channel shouldEqual e1OutputChannel
+        outputPitchBends.head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 30.0) / 2)
+      }
+
+    "average the channel pressure value of all active notes on a member channel" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given: PCG=2, EG=2
+        private val e1Output = noteOn(1, E1, pressure = Some(32))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3)
+        noteOn(4, E4)
+
+        // When: 1 PCG free, but cannot be used for E => new E2 will share channel with E1
+        private var output = noteOn(2, E2, pressure = Some(96))
+        // Then
+        private var outputPressures = extractChannelPressures(output)
+        outputPressures should have size 1
+        outputPressures.head.channel shouldEqual e1OutputChannel
+        outputPressures.head.value shouldEqual (32 + 96) / 2
+
+        // When
+        output = pressure(2, 16)
+        // Then
+        outputPressures = extractChannelPressures(output)
+        outputPressures should have size 1
+        outputPressures.head.channel shouldEqual e1OutputChannel
+        outputPressures.head.value shouldEqual (32 + 16) / 2
+      }
+
+    "average the MPE slide (CC #74) value of all active notes on a member channel" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given: PCG=2, EG=2
+        private val e1Output = noteOn(1, E1, slide = Some(48))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3)
+        noteOn(4, E4)
+
+        // When: 1 PCG free, but cannot be used for E => new E2 will share channel with E1
+        private var output = noteOn(2, E2, slide = Some(16))
+        // Then
+        private var outputSlides = extractSlides(output)
+        outputSlides should have size 1
+        outputSlides.head.channel shouldEqual e1OutputChannel
+        outputSlides.head.value shouldEqual (48 + 16) / 2
+
+        // When
+        output = slide(2, 96)
+        // Then
+        outputSlides = extractSlides(output)
+        outputSlides should have size 1
+        outputSlides.head.channel shouldEqual e1OutputChannel
+        outputSlides.head.value shouldEqual (48 + 96) / 2
+      }
+
+    // ---- Distributing across input channel ----
+
+    "distribute the pitch bend values of the input channel" in new DistributeFixture {
+      // When
+      private val pitchBends1 = extractPitchBends(pitchBend(1, 10.0))
+      private val pitchBends3 = extractPitchBends(pitchBend(3, 30.0))
+
+      // Then
+      // Input channel 1 feeds output channels 1 and 2. Output channel 1 also holds D5, which arrived on
+      // input channel 3 and still carries no bend, so its Expression Pitch Bend is the average of the two.
+      pitchBends1.map(_.channel) shouldEqual Seq(output1Channel, output2Channel)
+      pitchBends1.head.cents shouldEqual (quarterCommaMeantone.d + (10.0 + 0.0) / 2)
+      pitchBends1(1).cents shouldEqual (quarterCommaMeantone.e + 10.0)
+
+      pitchBends3.map(_.channel) shouldEqual Seq(output3Channel, output4Channel, output1Channel)
+      pitchBends3.head.cents shouldEqual (quarterCommaMeantone.f + 30.0)
+      pitchBends3(1).cents shouldEqual (quarterCommaMeantone.g + 30.0)
+      pitchBends3(2).cents shouldEqual (quarterCommaMeantone.d + (10.0 + 30.0) / 2)
+    }
+
+    "distribute the channel pressure values of the input channel" in new DistributeFixture {
+      // When
+      private val channelPressures1 = extractChannelPressures(pressure(1, 10))
+      private val channelPressures3 = extractChannelPressures(pressure(3, 30))
+
+      // Then
+      // Output channel 1 also holds D5, which arrived on input channel 3 and still carries pressure 0, so
+      // the channel emits the average of the two notes.
+      channelPressures1 should contain theSameElementsAs Seq(
+        ChannelPressureMidiMsg(output1Channel, (10 + 0) / 2),
+        ChannelPressureMidiMsg(output2Channel, 10)
+      )
+      channelPressures3 should contain theSameElementsAs Seq(
+        ChannelPressureMidiMsg(output3Channel, 30),
+        ChannelPressureMidiMsg(output4Channel, 30),
+        ChannelPressureMidiMsg(output1Channel, (10 + 30) / 2)
+      )
+    }
+
+    "distribute the slide values of the input channel" in new DistributeFixture {
+      // When
+      private val slides1 = extractSlides(slide(1, 10))
+      private val slides3 = extractSlides(slide(3, 30))
+
+      // Then
+      // Output channel 1 also holds D5, which arrived on input channel 3 and still carries the default CC #74
+      // of 64, so the channel emits the average of the two notes.
+      slides1 should contain theSameElementsAs Seq(
+        CcMidiMsg(output1Channel, MidiCc.MpeSlide, (10 + 64) / 2),
+        CcMidiMsg(output2Channel, MidiCc.MpeSlide, 10)
+      )
+      slides3 should contain theSameElementsAs Seq(
+        CcMidiMsg(output3Channel, MidiCc.MpeSlide, 30),
+        CcMidiMsg(output4Channel, MidiCc.MpeSlide, 30),
+        CcMidiMsg(output1Channel, MidiCc.MpeSlide, (10 + 30) / 2)
+      )
+    }
+
+    // ---- Paper worked examples ----
+
+    "reproduce paper section \"Averaging Expression Values\"" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // 1. E1 arrives on input Channel 1, which carries Pitch Bend +10 cents, Channel Pressure 32 and
+        //    CC #74 48 — remembered from before the note and used to initialize its Expression Values.
+        //    Step 1 assigns output Channel 1.
+        private val out1 = noteOn(1, E1, pbCents = Some(10.0), pressure = Some(32), slide = Some(48))
+        private val ch = extractNoteOns(out1).head.channel
+        ch shouldBe 1
+        extractPitchBends(out1).head.cents shouldEqual (quarterCommaMeantone.e + 10.0)
+        extractSlides(out1) shouldEqual Seq(CcMidiMsg(ch, MidiCc.MpeSlide, 48))
+        extractChannelPressures(out1) shouldEqual Seq(ChannelPressureMidiMsg(ch, 32))
+
+        // 2. E3 and E4 arrive on input Channels 3 and 4, both at default expression: pitch class E is
+        //    already in the Pitch Class Group, so Step 2 places them in the Expression Group, which is now
+        //    at full capacity. Each emits only its tuning Pitch Bend.
+        private val out2 = noteOn(3, E3)
+        private val out3 = noteOn(4, E4)
+        extractPitchBends(out2).head.cents shouldEqual quarterCommaMeantone.e
+        extractSlides(out2) shouldBe empty
+        extractChannelPressures(out2) shouldBe empty
+        extractPitchBends(out3).head.cents shouldEqual quarterCommaMeantone.e
+        extractSlides(out3) shouldBe empty
+        extractChannelPressures(out3) shouldBe empty
+
+        // 3. E2 arrives on input Channel 2 carrying Pitch Bend −20 cents, Channel Pressure 96 and CC #74 96.
+        //    Both groups are unavailable for it, so Step 3 shares the oldest E channel and all three
+        //    Expression Values become averages.
+        private val out4 = noteOn(2, E2, pbCents = Some(-20.0), pressure = Some(96), slide = Some(96))
+        extractNoteOns(out4).head.channel shouldBe ch
+        extractPitchBends(out4).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 - 20.0) / 2)
+        extractSlides(out4) shouldEqual Seq(CcMidiMsg(ch, MidiCc.MpeSlide, (48 + 96) / 2))
+        extractChannelPressures(out4) shouldEqual Seq(ChannelPressureMidiMsg(ch, (32 + 96) / 2))
+
+        // 4. The performer bends E2 to +31 cents: the channel's Expression Pitch Bend becomes +20.5 — the
+        //    half-amplitude attenuation of a shared channel — and no note is dropped. The threshold is
+        //    compared against a note's own bend in absolute value, and +31 stays below it even though the
+        //    51-cent excursion from E2's initial −20 exceeds it. Only the Pitch Bend dimension moves.
+        private val out5 = pitchBend(2, 31.0)
+        extractPitchBends(out5) should have size 1
+        extractPitchBends(out5).head.cents shouldEqual (quarterCommaMeantone.e + (10.0 + 31.0) / 2)
+        extractNoteOffs(out5) shouldBe empty
+        extractSlides(out5) shouldBe empty
+        extractChannelPressures(out5) shouldBe empty
+
+        // 5. Note Off for E1: the Note Off is emitted first and the values recomputed without it follow.
+        //    The Channel Pressure becomes the surviving note's own value rather than 0: in MPE Input Mode
+        //    the dimension passes through from the sender.
+        private val out6 = noteOff(1, E1)
+        out6.collect {
+          case _: NoteOffMidiMsg => "noteOff"
+          case _: PitchBendMidiMsg => "pitchBend"
+          case cc: CcMidiMsg if cc.number == MidiCc.MpeSlide => "slide"
+          case _: ChannelPressureMidiMsg => "pressure"
+        } shouldEqual Seq("noteOff", "pitchBend", "slide", "pressure")
+        extractPitchBends(out6).head.cents shouldEqual (quarterCommaMeantone.e + 31.0)
+        extractSlides(out6) shouldEqual Seq(CcMidiMsg(ch, MidiCc.MpeSlide, 96))
+        extractChannelPressures(out6) shouldEqual Seq(ChannelPressureMidiMsg(ch, 96))
+
+        // 6. Note Off for E2, the channel's last active note: removal empties the channel, so averaging no
+        //    longer applies and retention fixes what it keeps. None of the three values changes, so the
+        //    Note Off is emitted alone — the Channel Pressure in particular is not zeroed.
+        private val out7 = noteOff(2, E2)
+        extractNoteOffs(out7) shouldEqual Seq(NoteOffMidiMsg(ch, E2))
+        extractPitchBends(out7) shouldBe empty
+        extractSlides(out7) shouldBe empty
+        extractChannelPressures(out7) shouldBe empty
+      }
+  }
+
+  "MpeTuner - process() - Note Dropping - Non-MPE Input" should {
+    // ---- Single-channel edge case ----
+
+    "free a single channel during exhaustion dropping when there is a single member channel" in
+      new Fixture(tuner1) {
+        // Given
+        noteOn(nonMpeInputChannel, C4)
+        // When
+        private val output = noteOn(nonMpeInputChannel, E4)
+        // Then
+        private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+        droppedNotes should contain(C4)
+      }
+
+    // ---- Channel exhaustion dropping (with Note Off output) ----
+
+    "trigger note dropping with Note Off output for dropped notes on channel exhaustion" in
+      new Fixture(tuner3) {
+        // Given
+        noteOn(nonMpeInputChannel, C4)
+        noteOn(nonMpeInputChannel, E4)
+        noteOn(nonMpeInputChannel, G4)
+        // When
+        private val output = noteOn(nonMpeInputChannel, A4)
+        // Then
+        private val noteOffs = extractNoteOffs(output)
+        noteOffs should have size 1
+      }
+
+    // ---- Drop policy: preserve highest / lowest ----
+
+    "preserve the lowest note during channel exhaustion dropping" in new Fixture(tuner3) {
+      // Given
+      noteOn(nonMpeInputChannel, C4) // lowest
+      noteOn(nonMpeInputChannel, E4) // middle
+      noteOn(nonMpeInputChannel, G4) // highest
+      // When
+      private val output = noteOn(nonMpeInputChannel, A4)
+      // Then
+      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+      droppedNotes should not contain C4
+    }
+
+    "preserve the highest note during channel exhaustion dropping" in new Fixture(tuner3) {
+      // Given
+      // Oldest note, but will not be dropped since it's the highest.
+      noteOn(nonMpeInputChannel, G4) // highest
+      noteOn(nonMpeInputChannel, C4) // lowest
+      noteOn(nonMpeInputChannel, E4) // middle
+      // When
+      private val output = noteOn(nonMpeInputChannel, A4)
+      // Then
+      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+      droppedNotes should not contain G4
+    }
+
+    "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+      " 2 candidate channels" in new Fixture(tuner2) {
+      // Given
+      noteOn(nonMpeInputChannel, G4) // highest
+      noteOn(nonMpeInputChannel, C4) // lowest
       // When
       private val output = noteOn(nonMpeInputChannel, E4)
       // Then
       private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
       droppedNotes should contain(C4)
     }
-
-  // ---- Channel exhaustion dropping (with Note Off output) ----
-
-  it should "trigger note dropping with Note Off output for dropped notes on channel exhaustion" in
-    new Fixture(tuner3) {
-      // Given
-      noteOn(nonMpeInputChannel, C4)
-      noteOn(nonMpeInputChannel, E4)
-      noteOn(nonMpeInputChannel, G4)
-      // When
-      private val output = noteOn(nonMpeInputChannel, A4)
-      // Then
-      private val noteOffs = extractNoteOffs(output)
-      noteOffs should have size 1
-    }
-
-  // ---- Drop policy: preserve highest / lowest ----
-
-  it should "preserve the lowest note during channel exhaustion dropping" in new Fixture(tuner3) {
-    // Given
-    noteOn(nonMpeInputChannel, C4) // lowest
-    noteOn(nonMpeInputChannel, E4) // middle
-    noteOn(nonMpeInputChannel, G4) // highest
-    // When
-    private val output = noteOn(nonMpeInputChannel, A4)
-    // Then
-    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-    droppedNotes should not contain C4
   }
 
-  it should "preserve the highest note during channel exhaustion dropping" in new Fixture(tuner3) {
-    // Given
-    // Oldest note, but will not be dropped since it's the highest.
-    noteOn(nonMpeInputChannel, G4) // highest
-    noteOn(nonMpeInputChannel, C4) // lowest
-    noteOn(nonMpeInputChannel, E4) // middle
-    // When
-    private val output = noteOn(nonMpeInputChannel, A4)
-    // Then
-    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-    droppedNotes should not contain G4
-  }
+  "MpeTuner - process() - Note Dropping - MPE Input" should {
+    // ---- Channel exhaustion dropping (mirrors Non-MPE) ----
 
-  it should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
-    " 2 candidate channels" in new Fixture(tuner2) {
-    // Given
-    noteOn(nonMpeInputChannel, G4) // highest
-    noteOn(nonMpeInputChannel, C4) // lowest
-    // When
-    private val output = noteOn(nonMpeInputChannel, E4)
-    // Then
-    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-    droppedNotes should contain(C4)
-  }
+    "trigger note dropping with Note Off output for dropped notes on channel exhaustion" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        noteOn(1, C4)
+        noteOn(2, E4)
+        noteOn(3, G4)
+        // When
+        private val output = noteOn(1, A4)
+        // Then
+        private val noteOffs = extractNoteOffs(output)
+        noteOffs should have size 1
+      }
 
-  behavior of "MpeTuner - process() - Note Dropping - MPE Input"
+    "preserve the lowest note during channel exhaustion dropping" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        noteOn(1, C4) // lowest
+        noteOn(2, E4) // middle
+        noteOn(3, G4) // highest
+        // When
+        private val output = noteOn(1, A4)
+        // Then
+        private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+        droppedNotes should not contain C4
+      }
 
-  // ---- Channel exhaustion dropping (mirrors Non-MPE) ----
+    "preserve the highest note during channel exhaustion dropping" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        // Oldest note, but will not be dropped since it's the highest.
+        noteOn(3, G4) // highest
+        noteOn(1, C4) // lowest
+        noteOn(2, E4) // middle
+        // When
+        private val output = noteOn(1, A4)
+        // Then
+        private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+        droppedNotes should not contain G4
+      }
 
-  it should "trigger note dropping with Note Off output for dropped notes on channel exhaustion" in
-    new Fixture(tuner3MpeInput) {
+    "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
+      " 2 candidate channels" in new Fixture(tuner2MpeInput) {
       // Given
-      noteOn(1, C4)
-      noteOn(2, E4)
-      noteOn(3, G4)
-      // When
-      private val output = noteOn(1, A4)
-      // Then
-      private val noteOffs = extractNoteOffs(output)
-      noteOffs should have size 1
-    }
-
-  it should "preserve the lowest note during channel exhaustion dropping" in
-    new Fixture(tuner3MpeInput) {
-      // Given
+      noteOn(2, G4) // highest
       noteOn(1, C4) // lowest
-      noteOn(2, E4) // middle
-      noteOn(3, G4) // highest
-      // When
-      private val output = noteOn(1, A4)
-      // Then
-      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-      droppedNotes should not contain C4
-    }
-
-  it should "preserve the highest note during channel exhaustion dropping" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      // Oldest note, but will not be dropped since it's the highest.
-      noteOn(3, G4) // highest
-      noteOn(1, C4) // lowest
-      noteOn(2, E4) // middle
-      // When
-      private val output = noteOn(1, A4)
-      // Then
-      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-      droppedNotes should not contain G4
-    }
-
-  it should "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
-    " 2 candidate channels" in new Fixture(tuner2MpeInput) {
-    // Given
-    noteOn(2, G4) // highest
-    noteOn(1, C4) // lowest
-    // When
-    private val output = noteOn(1, E4)
-    // Then
-    private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-    droppedNotes should contain(C4)
-  }
-
-  it should "emit a dropped note's Note Off before the incoming note's own setup messages" in
-    new Fixture(tuner1MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // A single Member Channel, so the incoming note reuses the very channel it frees. Emitting the setup
-      // messages first would retune C4 on its way out.
-      private val c4Output = noteOn(1, C4)
-      private val channel = extractNoteOns(c4Output).head.channel
-
-      // When
-      private val output = noteOn(1, E4)
-
-      // Then
-      output.collect {
-        case _: NoteOffMidiMsg => "noteOff"
-        case _: PitchBendMidiMsg => "pitchBend"
-        case _: NoteOnMidiMsg => "noteOn"
-      } shouldEqual Seq("noteOff", "pitchBend", "noteOn")
-
-      extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(channel, C4))
-      extractPitchBends(output).head.cents shouldEqual quarterCommaMeantone.e
-    }
-
-  it should "emit one Note Off per forwarded Note On when a duplicated note is dropped" in
-    new Fixture(tuner1MpeInput) {
-      // Given
-      // A single Member Channel and two Note Ons for the same identity, so the Tuner has forwarded two Note
-      // Ons and owes two Note Offs for it.
-      private val c4Output = noteOn(1, C4)
-      private val channel = extractNoteOns(c4Output).head.channel
-      noteOn(1, C4)
-
-      // When
-      // E4 needs the only channel, dropping the duplicated C4.
-      private val output = noteOn(1, E4)
-
-      // Then
-      extractNoteOffs(output) shouldEqual Seq(
-        NoteOffMidiMsg(channel, C4),
-        NoteOffMidiMsg(channel, C4)
-      )
-    }
-
-  it should "discard the Note Off of a note the Tuner has dropped" in new Fixture(tuner3MpeInput) {
-    // Given
-    // PCG=1, EG=2: C4, E4 and G4 fill the three Member Channels; A4 then forces a channel to be freed and
-    // the middle note E4 is the only non-boundary candidate.
-    noteOn(1, C4)
-    private val e4Output = noteOn(2, E4)
-    private val e4Channel = extractNoteOns(e4Output).head.channel
-    noteOn(3, G4)
-    private val dropOutput = noteOn(1, A4)
-    extractNoteOffs(dropOutput) shouldEqual Seq(NoteOffMidiMsg(e4Channel, E4))
-
-    // When
-    // The performer eventually releases the note the Tuner had already dropped.
-    private val output = noteOff(2, E4)
-
-    // Then
-    // No second Note Off downstream: the Tuner has already discharged this note's obligation.
-    extractNoteOffs(output) shouldBe empty
-    // And no stale binding steers a later Expression Value update at the dropped note's former channel.
-    extractPitchBends(pitchBend(2, 20.0)) shouldBe empty
-  }
-
-  // ---- Single-channel edge case ----
-
-  it should "free a single channel during exhaustion dropping when there is a single member channel" in
-    new Fixture(tuner1MpeInput) {
-      // Given
-      noteOn(1, C4)
       // When
       private val output = noteOn(1, E4)
       // Then
@@ -2072,774 +1994,373 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       droppedNotes should contain(C4)
     }
 
-  // ---- High-expression-PB dropping — incoming-note triggered (future-work truth table) ----
+    "emit a dropped note's Note Off before the incoming note's own setup messages" in
+      new Fixture(tuner1MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // A single Member Channel, so the incoming note reuses the very channel it frees. Emitting the setup
+        // messages first would retune C4 on its way out.
+        private val c4Output = noteOn(1, C4)
+        private val channel = extractNoteOns(c4Output).head.channel
 
-  it should "drop a channel with high expression PB to make room for an incoming note with low expression PB" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // When
+        private val output = noteOn(1, E4)
+
+        // Then
+        output.collect {
+          case _: NoteOffMidiMsg => "noteOff"
+          case _: PitchBendMidiMsg => "pitchBend"
+          case _: NoteOnMidiMsg => "noteOn"
+        } shouldEqual Seq("noteOff", "pitchBend", "noteOn")
+
+        extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(channel, C4))
+        extractPitchBends(output).head.cents shouldEqual quarterCommaMeantone.e
+      }
+
+    "emit one Note Off per forwarded Note On when a duplicated note is dropped" in
+      new Fixture(tuner1MpeInput) {
+        // Given
+        // A single Member Channel and two Note Ons for the same identity, so the Tuner has forwarded two Note
+        // Ons and owes two Note Offs for it.
+        private val c4Output = noteOn(1, C4)
+        private val channel = extractNoteOns(c4Output).head.channel
+        noteOn(1, C4)
+
+        // When
+        // E4 needs the only channel, dropping the duplicated C4.
+        private val output = noteOn(1, E4)
+
+        // Then
+        extractNoteOffs(output) shouldEqual Seq(
+          NoteOffMidiMsg(channel, C4),
+          NoteOffMidiMsg(channel, C4)
+        )
+      }
+
+    "discard the Note Off of a note the Tuner has dropped" in new Fixture(tuner3MpeInput) {
       // Given
-      private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3, pbCents = Some(130.0))
-      noteOn(4, E4, pbCents = Some(140.0))
+      // PCG=1, EG=2: C4, E4 and G4 fill the three Member Channels; A4 then forces a channel to be freed and
+      // the middle note E4 is the only non-boundary candidate.
+      noteOn(1, C4)
+      private val e4Output = noteOn(2, E4)
+      private val e4Channel = extractNoteOns(e4Output).head.channel
+      noteOn(3, G4)
+      private val dropOutput = noteOn(1, A4)
+      extractNoteOffs(dropOutput) shouldEqual Seq(NoteOffMidiMsg(e4Channel, E4))
 
       // When
-      private val output = noteOn(2, E2, pbCents = Some(20.0))
+      // The performer eventually releases the note the Tuner had already dropped.
+      private val output = noteOff(2, E4)
 
       // Then
-      extractNoteOffs(output) shouldEqual Seq(
-        NoteOffMidiMsg(e1OutputChannel, E1)
-      )
-    }
-
-  it should "drop a channel with high expression PB to make room for an incoming note with high expression PB" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3, pbCents = Some(130.0))
-      noteOn(4, E4, pbCents = Some(140.0))
-
-      // When
-      private val output = noteOn(2, E2, pbCents = Some(120.0))
-
-      // Then
-      extractNoteOffs(output) shouldEqual Seq(
-        NoteOffMidiMsg(e1OutputChannel, E1)
-      )
-    }
-
-  it should "drop a channel with low expression PB to make room for an incoming note with high expression PB" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3, pbCents = Some(30.0))
-      noteOn(4, E4, pbCents = Some(40.0))
-
-      // When
-      private val output = noteOn(2, E2, pbCents = Some(120.0))
-
-      // Then
-      extractNoteOffs(output) shouldEqual Seq(
-        NoteOffMidiMsg(e1OutputChannel, E1)
-      )
-    }
-
-  it should "prefer to drop a channel with low expression PB to make room for an incoming note with high " +
-    "expression PB" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      noteOn(1, E1, pbCents = Some(110.0))
-      private val e3Output = noteOn(3, E3, pbCents = Some(30.0))
-      private val e3OutputChannel = extractNoteOns(e3Output).head.channel
-      noteOn(4, E4, pbCents = Some(40.0))
-
-      // When
-      private val output = noteOn(2, E2, pbCents = Some(120.0))
-
-      // Then
-      extractNoteOffs(output) shouldEqual Seq(
-        NoteOffMidiMsg(e3OutputChannel, E3)
-      )
-    }
-
-  // ---- High-expression-PB dropping — runtime developed ----
-
-  it should "drop other notes on a shared channel when one note develops a high expression pitch bend" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3, pbCents = Some(30.0))
-      noteOn(4, E4, pbCents = Some(40.0))
-
-      // Will share
-      private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
-      private val e2OutputChannel = extractNoteOns(e2Output).head.channel
-      e1OutputChannel shouldEqual e2OutputChannel
-
-      // When
-      private val output = pitchBend(1, 101.0)
-
-      // Then
-      extractNoteOffs(output) shouldEqual Seq(
-        NoteOffMidiMsg(e1OutputChannel, E2)
-      )
-    }
-
-  it should "not drop other notes on a shared channel when one note develops a low expression pitch bend" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
-      private val e1OutputChannel = extractNoteOns(e1Output).head.channel
-      noteOn(3, E3, pbCents = Some(30.0))
-      noteOn(4, E4, pbCents = Some(40.0))
-
-      // Will share
-      private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
-      private val e2OutputChannel = extractNoteOns(e2Output).head.channel
-      e1OutputChannel shouldEqual e2OutputChannel
-
-      // When
-      private val output = pitchBend(1, 49.0)
-
-      // Then
+      // No second Note Off downstream: the Tuner has already discharged this note's obligation.
       extractNoteOffs(output) shouldBe empty
+      // And no stale binding steers a later Expression Value update at the dropped note's former channel.
+      extractPitchBends(pitchBend(2, 20.0)) shouldBe empty
     }
 
-  // ---- Shared-channel dropping with common input channel ----
+    // ---- Single-channel edge case ----
 
-  it should "keep the most recently sounded note on a shared channel with a common input channel when a high " +
-    "expression pitch bend is received on it" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      // tuner3 in MPE input: PCG=1, EG=2. Input channels are 1..3.
-      // Share E4 + E5 on the same output channel by sending E5 on E4's input channel.
-      private val outE4 = noteOn(1, E4)
-      private val sharedChannel = extractNoteOns(outE4).head.channel
-      noteOn(2, G4)
-      noteOn(3, C4)
-      noteOn(1, E5)
+    "free a single channel during exhaustion dropping when there is a single member channel" in
+      new Fixture(tuner1MpeInput) {
+        // Given
+        noteOn(1, C4)
+        // When
+        private val output = noteOn(1, E4)
+        // Then
+        private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+        droppedNotes should contain(C4)
+      }
 
-      // When
-      // One Pitch Bend message gives both notes a High Expression Pitch Bend (> 50 cents), so the
-      // divergence rule keeps the most recently sounded (E5) and drops the other.
-      private val output = pitchBend(1, 100.0)
-      // Then
-      private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
-      noteOffs should contain theSameElementsAs Seq((sharedChannel, E4))
-    }
+    // ---- High-expression-PB dropping — incoming-note triggered (future-work truth table) ----
 
-  // ---- Paper worked examples ----
+    "drop a channel with high expression PB to make room for an incoming note with low expression PB" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3, pbCents = Some(130.0))
+        noteOn(4, E4, pbCents = Some(140.0))
 
-  it should "reproduce paper section \"Note dropping under High Expression Pitch Bend\"" in
-    new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // The state reached at step 4 of "Averaging Expression Values": E1 (input Channel 1, +10 cents) and
-      // E2 (input Channel 2, +31 cents) share an output channel, averaging to +20.5.
-      private val out1 = noteOn(1, E1, pbCents = Some(10.0))
-      private val ch = extractNoteOns(out1).head.channel
-      noteOn(3, E3)
-      noteOn(4, E4)
-      extractNoteOns(noteOn(2, E2, pbCents = Some(31.0))).head.channel shouldBe ch
+        // When
+        private val output = noteOn(2, E2, pbCents = Some(20.0))
 
-      // When
-      // The performer sends Pitch Bend +101 cents on input Channel 1: the value belongs to E1, which
-      // thereby acquires a High Expression Pitch Bend.
-      private val output = pitchBend(1, 101.0)
+        // Then
+        extractNoteOffs(output) shouldEqual Seq(
+          NoteOffMidiMsg(e1OutputChannel, E1)
+        )
+      }
 
-      // Then
-      // E1 shares its channel, so the divergence rule drops E2 — whose own bend is well below the
-      // threshold. The Note Off comes first, carrying the neutral release velocity 64 that any note ended
-      // by the Tuner's decision receives, and the recomputed Pitch Bend follows: emitting it first would
-      // sweep E2 to E1's bend on its way out.
-      output.collect {
-        case _: NoteOffMidiMsg => "noteOff"
-        case _: PitchBendMidiMsg => "pitchBend"
-      } shouldEqual Seq("noteOff", "pitchBend")
-      extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(ch, E2, 64))
-      extractPitchBends(output) should have size 1
-      extractPitchBends(output).head.channel shouldBe ch
-      extractPitchBends(output).head.cents shouldEqual (quarterCommaMeantone.e + 101.0)
-    }
+    "drop a channel with high expression PB to make room for an incoming note with high expression PB" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val e1Output = noteOn(1, E1, pbCents = Some(110.0))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3, pbCents = Some(130.0))
+        noteOn(4, E4, pbCents = Some(140.0))
 
-  behavior of "MpeTuner - process() - Zone-level Messages - Non-MPE Input"
+        // When
+        private val output = noteOn(2, E2, pbCents = Some(120.0))
 
-  // ---- Zone-level CCs forwarded to Master Channel ----
+        // Then
+        extractNoteOffs(output) shouldEqual Seq(
+          NoteOffMidiMsg(e1OutputChannel, E1)
+        )
+      }
 
-  it should "forward CCs on Master Channel" in new Fixture {
-    private val ccs = Table(
-      ("ccName", "ccNumber", "ccValue"),
-      ("Bank Select MSB", MidiCc.BankSelectMsb, 1),
-      ("Bank Select LSB", MidiCc.BankSelectLsb, 0),
-      ("Modulation", MidiCc.ModulationMsb, 64),
-      ("Sostenuto Pedal", MidiCc.SostenutoPedal, 127),
-      ("Soft Pedal", MidiCc.SoftPedal, 127)
-    )
-    forAll(ccs) { (_, ccNumber, ccValue) =>
-      // When
-      val output = tuner.process(CcMidiMsg(nonMpeInputChannel, ccNumber, ccValue))
-      // Then
-      extractCc(output) should contain(CcMidiMsg(0, ccNumber, ccValue))
-    }
+    "drop a channel with low expression PB to make room for an incoming note with high expression PB" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3, pbCents = Some(30.0))
+        noteOn(4, E4, pbCents = Some(40.0))
+
+        // When
+        private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+        // Then
+        extractNoteOffs(output) shouldEqual Seq(
+          NoteOffMidiMsg(e1OutputChannel, E1)
+        )
+      }
+
+    "prefer to drop a channel with low expression PB to make room for an incoming note with high " +
+      "expression PB" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        noteOn(1, E1, pbCents = Some(110.0))
+        private val e3Output = noteOn(3, E3, pbCents = Some(30.0))
+        private val e3OutputChannel = extractNoteOns(e3Output).head.channel
+        noteOn(4, E4, pbCents = Some(40.0))
+
+        // When
+        private val output = noteOn(2, E2, pbCents = Some(120.0))
+
+        // Then
+        extractNoteOffs(output) shouldEqual Seq(
+          NoteOffMidiMsg(e3OutputChannel, E3)
+        )
+      }
+
+    // ---- High-expression-PB dropping — runtime developed ----
+
+    "drop other notes on a shared channel when one note develops a high expression pitch bend" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3, pbCents = Some(30.0))
+        noteOn(4, E4, pbCents = Some(40.0))
+
+        // Will share
+        private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
+        private val e2OutputChannel = extractNoteOns(e2Output).head.channel
+        e1OutputChannel shouldEqual e2OutputChannel
+
+        // When
+        private val output = pitchBend(1, 101.0)
+
+        // Then
+        extractNoteOffs(output) shouldEqual Seq(
+          NoteOffMidiMsg(e1OutputChannel, E2)
+        )
+      }
+
+    "not drop other notes on a shared channel when one note develops a low expression pitch bend" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val e1Output = noteOn(1, E1, pbCents = Some(10.0))
+        private val e1OutputChannel = extractNoteOns(e1Output).head.channel
+        noteOn(3, E3, pbCents = Some(30.0))
+        noteOn(4, E4, pbCents = Some(40.0))
+
+        // Will share
+        private val e2Output = noteOn(2, E2, pbCents = Some(12.0))
+        private val e2OutputChannel = extractNoteOns(e2Output).head.channel
+        e1OutputChannel shouldEqual e2OutputChannel
+
+        // When
+        private val output = pitchBend(1, 49.0)
+
+        // Then
+        extractNoteOffs(output) shouldBe empty
+      }
+
+    // ---- Shared-channel dropping with common input channel ----
+
+    "keep the most recently sounded note on a shared channel with a common input channel when a high " +
+      "expression pitch bend is received on it" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        // tuner3 in MPE input: PCG=1, EG=2. Input channels are 1..3.
+        // Share E4 + E5 on the same output channel by sending E5 on E4's input channel.
+        private val outE4 = noteOn(1, E4)
+        private val sharedChannel = extractNoteOns(outE4).head.channel
+        noteOn(2, G4)
+        noteOn(3, C4)
+        noteOn(1, E5)
+
+        // When
+        // One Pitch Bend message gives both notes a High Expression Pitch Bend (> 50 cents), so the
+        // divergence rule keeps the most recently sounded (E5) and drops the other.
+        private val output = pitchBend(1, 100.0)
+        // Then
+        private val noteOffs = extractNoteOffs(output).map(n => (n.channel, n.midiNote))
+        noteOffs should contain theSameElementsAs Seq((sharedChannel, E4))
+      }
+
+    // ---- Paper worked examples ----
+
+    "reproduce paper section \"Note dropping under High Expression Pitch Bend\"" in
+      new Fixture(tuner4MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // The state reached at step 4 of "Averaging Expression Values": E1 (input Channel 1, +10 cents) and
+        // E2 (input Channel 2, +31 cents) share an output channel, averaging to +20.5.
+        private val out1 = noteOn(1, E1, pbCents = Some(10.0))
+        private val ch = extractNoteOns(out1).head.channel
+        noteOn(3, E3)
+        noteOn(4, E4)
+        extractNoteOns(noteOn(2, E2, pbCents = Some(31.0))).head.channel shouldBe ch
+
+        // When
+        // The performer sends Pitch Bend +101 cents on input Channel 1: the value belongs to E1, which
+        // thereby acquires a High Expression Pitch Bend.
+        private val output = pitchBend(1, 101.0)
+
+        // Then
+        // E1 shares its channel, so the divergence rule drops E2 — whose own bend is well below the
+        // threshold. The Note Off comes first, carrying the neutral release velocity 64 that any note ended
+        // by the Tuner's decision receives, and the recomputed Pitch Bend follows: emitting it first would
+        // sweep E2 to E1's bend on its way out.
+        output.collect {
+          case _: NoteOffMidiMsg => "noteOff"
+          case _: PitchBendMidiMsg => "pitchBend"
+        } shouldEqual Seq("noteOff", "pitchBend")
+        extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(ch, E2, 64))
+        extractPitchBends(output) should have size 1
+        extractPitchBends(output).head.channel shouldBe ch
+        extractPitchBends(output).head.cents shouldEqual (quarterCommaMeantone.e + 101.0)
+      }
   }
 
-  it should "forward Sustain Pedal (CC #64) on Master Channel" in new Fixture {
-    // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
-    // Then
-    extractCc(output) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 127))
-  }
+  "MpeTuner - process() - Zone-level Messages - Non-MPE Input" should {
+    // ---- Zone-level CCs forwarded to Master Channel ----
 
-  // ---- Other zone-level messages forwarded to Master Channel ----
-
-  it should "forward Program Change on Master Channel" in new Fixture {
-    // When
-    private val output = tuner.process(ProgramChangeMidiMsg(nonMpeInputChannel, 5))
-    // Then
-    private val programChanges = output.collect { case m: ProgramChangeMidiMsg => m }
-    programChanges should contain(ProgramChangeMidiMsg(0, 5))
-  }
-
-  it should "forward the Channel Mode messages 120-123 on Master Channel" in new Fixture {
-    // Given
-    private val messages = Table(
-      ("description", "message", "expected"),
-      ("All Sound Off", AllSoundOffMidiMsg(nonMpeInputChannel), AllSoundOffMidiMsg(0)),
-      ("Reset All Controllers", ResetAllControllersMidiMsg(nonMpeInputChannel), ResetAllControllersMidiMsg(0)),
-      ("Local Control", LocalControlMidiMsg(nonMpeInputChannel, isOn = false), LocalControlMidiMsg(0, isOn = false)),
-      ("All Notes Off", AllNotesOffMidiMsg(nonMpeInputChannel), AllNotesOffMidiMsg(0))
-    )
-    forAll(messages) { (_, message, expected) =>
-      // When
-      val output = tuner.process(message)
-
-      // Then
-      extractChannelModes(output) should contain(expected)
-    }
-  }
-
-  // ---- MIDI Mode messages ----
-
-  it should "discard the MIDI Mode messages 124-127" in new Fixture {
-    // Given
-    private val messages = Table("message",
-      OmniModeOffMidiMsg(nonMpeInputChannel),
-      OmniModeOnMidiMsg(nonMpeInputChannel),
-      MonoModeOnMidiMsg(nonMpeInputChannel, channelCount = 1),
-      PolyModeOnMidiMsg(nonMpeInputChannel))
-    forAll(messages) { message =>
-      // When / Then
-      tuner.process(message) shouldBe empty
-    }
-  }
-
-  // ---- No Zone enabled ----
-
-  it should "discard every Channel Voice and Channel Mode message when no Zone is enabled" in {
-    // Given
-    val tuner = MpeTuner(initialZones = noZones)
-    val channels = Table("channel", 0, 5, 15)
-    forAll(channels) { channel =>
-      // When / Then
-      tuner.process(NoteOnMidiMsg(channel, C4, 100)) shouldBe empty
-      tuner.process(NoteOffMidiMsg(channel, C4)) shouldBe empty
-      tuner.process(PitchBendMidiMsg(channel, 1000)) shouldBe empty
-      tuner.process(ChannelPressureMidiMsg(channel, 90)) shouldBe empty
-      tuner.process(PolyPressureMidiMsg(channel, C4, 80)) shouldBe empty
-      tuner.process(CcMidiMsg(channel, MidiCc.MpeSlide, 100)) shouldBe empty
-      tuner.process(CcMidiMsg(channel, MidiCc.SustainPedal, 127)) shouldBe empty
-      tuner.process(ProgramChangeMidiMsg(channel, 5)) shouldBe empty
-      tuner.process(AllNotesOffMidiMsg(channel)) shouldBe empty
-    }
-  }
-
-  it should "still act on a valid MCM when no Zone is enabled" in {
-    // Given
-    val tuner = MpeTuner(initialZones = noZones)
-    // When
-    val output = sendMcm(tuner, channel = 0, memberCount = 7)
-    // Then
-    tuner.zones.lower.memberCount shouldEqual 7
-    tuner.inputMode shouldBe MpeInputMode.Mpe
-    // The MCM the Tuner emits downstream is addressed to the Master Channel of the Zone it just configured
-    extractCc(output) should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
-    )
-  }
-
-  // ---- Uninterpreted RPN/NRPN sequences ----
-
-  it should "hold back an uninterpreted RPN selector and re-emit it ahead of the Data Entry" in new Fixture(tuner7) {
-    // Given
-    private val selectorOutput =
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.RpnMsb, MidiRpn.FineTuningMsb)) ++
-        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.RpnLsb, MidiRpn.FineTuningLsb))
-    // Then
-    selectorOutput shouldBe empty
-
-    // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-    // Then
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 70)
-    )
-  }
-
-  it should "emit the selector once for a run of value messages of the same parameter" in new Fixture(tuner7) {
-    // Given
-    private val selectorOutput =
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12)) ++
-        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    // Then
-    selectorOutput shouldBe empty
-
-    // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70)) ++
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryLsb, 5))
-    // Then the second value message rides the selection the first left on the output channel, which is the shape
-    // the sender itself sent.
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
-      CcMidiMsg(0, MidiCc.DataEntryLsb, 5)
-    )
-  }
-
-  it should "keep two interleaved input sequences apart on the output Master Channel" in new Fixture(tuner7) {
-    // Given
-    // Two senders on different input channels select different parameters, then interleave their Data Entries.
-    private val selectorOutput =
-      tuner.process(CcMidiMsg(2, MidiCc.RpnMsb, MidiRpn.FineTuningMsb)) ++
-        tuner.process(CcMidiMsg(2, MidiCc.RpnLsb, MidiRpn.FineTuningLsb)) ++
-        tuner.process(CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.CoarseTuningMsb)) ++
-        tuner.process(CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.CoarseTuningLsb))
-    // Then
-    selectorOutput shouldBe empty
-
-    // When
-    private val output = tuner.process(CcMidiMsg(2, MidiCc.DataEntryMsb, 70)) ++
-      tuner.process(CcMidiMsg(3, MidiCc.DataEntryMsb, 60))
-    // Then
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.CoarseTuningLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.CoarseTuningMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 60)
-    )
-  }
-
-  it should "re-emit the selector after its own Pitch Bend Sensitivity sequence has deselected it" in
-    new Fixture(tuner7) {
-      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
-      private val firstOutput =
-        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12)) ++
-          tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34)) ++
-          tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-      // Then
-      extractCc(firstOutput) should contain(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
-
-      // When a Pitch Bend Sensitivity sequence goes out on that same Master Channel, closing with an RPN Null, and
-      // the sender selects the NRPN again
-      sendPbsMsb(tuner, nonMpeInputChannel, 3)
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
-      // Then the selector goes out again: the Null deselected the parameter on the receiver, so riding the earlier
-      // selection would apply this value to the Null parameter instead.
-      extractCc(output) shouldEqual Seq(
-        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-        CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
+    "forward CCs on Master Channel" in new Fixture {
+      private val ccs = Table(
+        ("ccName", "ccNumber", "ccValue"),
+        ("Bank Select MSB", MidiCc.BankSelectMsb, 1),
+        ("Bank Select LSB", MidiCc.BankSelectLsb, 0),
+        ("Modulation", MidiCc.ModulationMsb, 64),
+        ("Sostenuto Pedal", MidiCc.SostenutoPedal, 127),
+        ("Soft Pedal", MidiCc.SoftPedal, 127)
       )
-    }
-
-  it should "re-emit the selector after reset()" in new Fixture(tuner7) {
-    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-
-    // When the Tuner is reset — on attach, where the receiver may be a device whose selected parameter the Tuner
-    // knows nothing about
-    tuner.reset()
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
-    // Then
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
-    )
-  }
-
-  it should "re-emit the selector after a forwarded Reset All Controllers" in new Fixture(tuner7) {
-    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-
-    // When a Reset All Controllers is redirected onto that same Master Channel
-    private val resetOutput = tuner.process(ResetAllControllersMidiMsg(nonMpeInputChannel))
-    // Then it reaches the receiver, which deselects its parameter in response
-    extractChannelModes(resetOutput) shouldEqual Seq(ResetAllControllersMidiMsg(0))
-
-    // When the sender selects the NRPN again and sends another value
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
-    // Then the selector goes out again: the Tuner relayed the message that cleared the selection, so riding the
-    // earlier one would leave this value with no parameter to apply to.
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
-    )
-  }
-
-  it should "re-emit the selector after a relayed System Reset" in new Fixture(tuner7) {
-    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-
-    // When a System Reset passes through to the receiver, which returns to its power-up state
-    tuner.process(SystemResetMidiMsg)
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
-    // Then the selector goes out again, on every output channel the Tuner had a selection recorded for.
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
-    )
-  }
-
-  it should "keep the selector latched across a System Real-Time message that does not deselect" in
-    new Fixture(tuner7) {
-      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-
-      // When an Active Sensing passes through, which leaves the receiver's parameter selection alone
-      private val passThroughOutput = tuner.process(ActiveSensingMidiMsg)
-      // Then
-      passThroughOutput shouldEqual Seq(ActiveSensingMidiMsg)
-
-      // When the sender sends another value of the same parameter
-      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryLsb, 5))
-      // Then it rides the latched selection: only a message that deselects at the receiver spends a new selector.
-      extractCc(output) shouldEqual Seq(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
-    }
-
-  it should "re-emit a sequence for an NRPN whose LSB is 127" in new Fixture(tuner7) {
-    // Given — NRPN 0C/7F, an ordinary parameter whose LSB happens to be the Null value
-    private val selectorOutput =
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12)) ++
-        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, MidiNrpn.NullLsb))
-    // Then
-    selectorOutput shouldBe empty
-
-    // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-    // Then the whole sequence goes out: a 127 half is a parameter number like any other, not a half that has yet
-    // to arrive.
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, MidiNrpn.NullLsb),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 70)
-    )
-  }
-
-  it should "discard a value message received with no parameter selected" in new Fixture(tuner7) {
-    // Given
-    // No selector has been sent on this channel, so a Data Entry has no parameter to apply to. Forwarding one would
-    // let a stray CC #6 rewrite whatever parameter the receiver happens to hold selected — Pitch Bend Sensitivity
-    // among them.
-    private val ccNumbers =
-      Table("ccNumber", MidiCc.DataEntryMsb, MidiCc.DataEntryLsb, MidiCc.DataIncrement, MidiCc.DataDecrement)
-    forAll(ccNumbers) { ccNumber =>
-      // When
-      val output = tuner.process(CcMidiMsg(nonMpeInputChannel, ccNumber, 70))
-      // Then
-      output shouldBe empty
-    }
-  }
-
-  it should "discard a value message received with a half-set selector" in new Fixture(tuner7) {
-    // Given
-    private val selectorOutput =
-      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
-    // Then
-    selectorOutput shouldBe empty
-
-    // When
-    private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
-    // Then
-    output shouldBe empty
-  }
-
-  behavior of "MpeTuner - process() - Zone-level Messages - MPE Input"
-
-  // ---- Discarding Zone-level messages received on a Member Channel ----
-
-  it should "discard zone-level CCs received on a Member Channel" in new Fixture(tuner7MpeInput) {
-    // Given
-    private val zoneLevelCcs = Table(
-      ("ccName", "ccNumber", "ccValue"),
-      ("Bank Select MSB", MidiCc.BankSelectMsb, 1),
-      ("Bank Select LSB", MidiCc.BankSelectLsb, 0),
-      ("Modulation", MidiCc.ModulationMsb, 64),
-      ("Sostenuto Pedal", MidiCc.SostenutoPedal, 127),
-      ("Soft Pedal", MidiCc.SoftPedal, 127),
-      ("Sustain Pedal", MidiCc.SustainPedal, 127)
-    )
-    forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
-      // When
-      val output = tuner.process(CcMidiMsg(mpeInputChannel, ccNumber, ccValue))
-      // Then
-      output shouldBe empty
-    }
-  }
-
-  it should "discard the Channel Mode messages 120-123 received on a Member Channel" in new Fixture(tuner7MpeInput) {
-    // Given
-    private val messages = Table("message",
-      AllSoundOffMidiMsg(mpeInputChannel),
-      ResetAllControllersMidiMsg(mpeInputChannel),
-      LocalControlMidiMsg(mpeInputChannel, isOn = false),
-      AllNotesOffMidiMsg(mpeInputChannel))
-    forAll(messages) { message =>
-      // When / Then
-      tuner.process(message) shouldBe empty
-    }
-  }
-
-  it should "discard Program Change received on a Member Channel" in new Fixture(tuner7MpeInput) {
-    // When
-    private val output = tuner.process(ProgramChangeMidiMsg(mpeInputChannel, 5))
-    // Then
-    output shouldBe empty
-  }
-
-  it should "discard uninterpreted RPN/NRPN selector CCs received on a Member Channel" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      // Parameter number 5 selects neither the MPE Configuration Message (0, 6) nor Pitch Bend Sensitivity (0, 0),
-      // so the selector stays uninterpreted and its CCs remain ordinary Zone-level traffic at Member level.
-      private val uninterpretedParameterNumber = 5
-      private val selectorCcs = Table("ccNumber",
-        MidiCc.RpnMsb, MidiCc.RpnLsb, MidiCc.NrpnMsb, MidiCc.NrpnLsb)
-      forAll(selectorCcs) { ccNumber =>
+      forAll(ccs) { (_, ccNumber, ccValue) =>
         // When
-        val output = tuner.process(CcMidiMsg(mpeInputChannel, ccNumber, uninterpretedParameterNumber))
+        val output = tuner.process(CcMidiMsg(nonMpeInputChannel, ccNumber, ccValue))
         // Then
-        output shouldBe empty
+        extractCc(output) should contain(CcMidiMsg(0, ccNumber, ccValue))
       }
     }
 
-  it should "discard an uninterpreted RPN sequence received on a Member Channel" in new Fixture(tuner7MpeInput) {
-    // Given / When
-    private val output =
-      tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.RpnMsb, MidiRpn.FineTuningMsb)) ++
-        tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.RpnLsb, MidiRpn.FineTuningLsb)) ++
-        tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.DataEntryMsb, 70))
-    // Then
-    output shouldBe empty
-  }
-
-  // ---- Forwarding Zone-level messages received on a Master Channel ----
-
-  it should "forward zone-level CCs received on a Master Channel unmodified" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // Given
-      private val masterChannels = Table("masterChannel", 0, 15)
-      forAll(masterChannels) { masterChannel =>
-        // When
-        val output = tuner.process(CcMidiMsg(masterChannel, MidiCc.SustainPedal, 72))
-        // Then
-        extractCc(output) shouldEqual Seq(CcMidiMsg(masterChannel, MidiCc.SustainPedal, 72))
-      }
-    }
-
-  it should "forward Program Change received on a Master Channel unmodified" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // Given
-      private val masterChannels = Table("masterChannel", 0, 15)
-      forAll(masterChannels) { masterChannel =>
-        // When
-        val output = tuner.process(ProgramChangeMidiMsg(masterChannel, 6))
-        // Then
-        output shouldEqual Seq(ProgramChangeMidiMsg(masterChannel, 6))
-      }
-    }
-
-  // ---- Uninterpreted RPN/NRPN sequences ----
-
-  it should "emit the selector once for a run of value messages of the same parameter" in
-    new Fixture(tuner7MpeInput) {
-      // Given a parameter selected at Zone level, on the Master Channel
-      private val selectorOutput =
-        tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12)) ++
-          tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
-      // Then
-      selectorOutput shouldBe empty
-
+    "forward Sustain Pedal (CC #64) on Master Channel" in new Fixture {
       // When
-      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70)) ++
-        tuner.process(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
       // Then
-      extractCc(output) shouldEqual Seq(
-        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-        CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
-        CcMidiMsg(0, MidiCc.DataEntryLsb, 5)
+      extractCc(output) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 127))
+    }
+
+    // ---- Other zone-level messages forwarded to Master Channel ----
+
+    "forward Program Change on Master Channel" in new Fixture {
+      // When
+      private val output = tuner.process(ProgramChangeMidiMsg(nonMpeInputChannel, 5))
+      // Then
+      private val programChanges = output.collect { case m: ProgramChangeMidiMsg => m }
+      programChanges should contain(ProgramChangeMidiMsg(0, 5))
+    }
+
+    "forward the Channel Mode messages 120-123 on Master Channel" in new Fixture {
+      // Given
+      private val messages = Table(
+        ("description", "message", "expected"),
+        ("All Sound Off", AllSoundOffMidiMsg(nonMpeInputChannel), AllSoundOffMidiMsg(0)),
+        ("Reset All Controllers", ResetAllControllersMidiMsg(nonMpeInputChannel), ResetAllControllersMidiMsg(0)),
+        ("Local Control", LocalControlMidiMsg(nonMpeInputChannel, isOn = false), LocalControlMidiMsg(0, isOn = false)),
+        ("All Notes Off", AllNotesOffMidiMsg(nonMpeInputChannel), AllNotesOffMidiMsg(0))
       )
-    }
-
-  it should "re-emit the selector after a Zone reconfiguration" in new Fixture(tuner7MpeInput) {
-    // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
-    tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
-    tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70))
-
-    // When an MCM reconfigures the Lower Zone, and the sender selects the NRPN again
-    sendMcm(tuner, 0, 4)
-    tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
-    private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 71))
-    // Then
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
-    )
-  }
-
-  it should "latch a selector per output Master Channel" in new Fixture(dualZoneTunerMpeInput) {
-    // Given a different parameter selected at Zone level on each Zone's Master Channel
-    tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
-    tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
-    tuner.process(CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.FineTuningMsb))
-    tuner.process(CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.FineTuningLsb))
-
-    // When the two Zones alternate value messages
-    private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70)) ++
-      tuner.process(CcMidiMsg(15, MidiCc.DataEntryMsb, 60)) ++
-      tuner.process(CcMidiMsg(0, MidiCc.DataEntryLsb, 5)) ++
-      tuner.process(CcMidiMsg(15, MidiCc.DataEntryLsb, 6))
-    // Then each Master Channel spends its selector once and keeps it: the latch is per output channel, so neither
-    // Zone's sequence displaces the other's.
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.NrpnLsb, 34),
-      CcMidiMsg(0, MidiCc.NrpnMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
-      CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
-      CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
-      CcMidiMsg(15, MidiCc.DataEntryMsb, 60),
-      CcMidiMsg(0, MidiCc.DataEntryLsb, 5),
-      CcMidiMsg(15, MidiCc.DataEntryLsb, 6)
-    )
-  }
-
-  // ---- Out-of-zone traffic ----
-
-  it should "discard zone-level messages received on a channel outside every enabled Zone" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      // tuner7MpeInput: Lower Zone master 0, members 1..7. Channels 8..15 are outside every Zone.
-      private val outsideChannels = Table("channel", 8, 12, 15)
-      forAll(outsideChannels) { channel =>
-        // When / Then
-        tuner.process(CcMidiMsg(channel, MidiCc.SustainPedal, 127)) shouldBe empty
-        tuner.process(ProgramChangeMidiMsg(channel, 5)) shouldBe empty
-        tuner.process(PitchBendMidiMsg(channel, 1000)) shouldBe empty
-        tuner.process(ChannelPressureMidiMsg(channel, 90)) shouldBe empty
-        tuner.process(CcMidiMsg(channel, MidiCc.MpeSlide, 100)) shouldBe empty
-      }
-    }
-
-  it should "neither forward nor allocate a note received on a channel outside every enabled Zone" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // When
-      private val onOutput = noteOn(10, C4)
-      // Then
-      onOutput shouldBe empty
-      // When
-      private val offOutput = noteOff(10, C4)
-      // Then
-      offOutput shouldBe empty
-    }
-
-  // ---- Master Channel Zone-level control dimensions ----
-
-  it should "forward Master Channel CC #74 unmodified" in new Fixture(dualZoneTunerMpeInput) {
-    // Given
-    private val masterChannels = Table("masterChannel", 0, 15)
-    forAll(masterChannels) { masterChannel =>
-      // When
-      val output = tuner.process(CcMidiMsg(masterChannel, MidiCc.MpeSlide, 100))
-      // Then
-      extractCc(output) shouldEqual Seq(CcMidiMsg(masterChannel, MidiCc.MpeSlide, 100))
-    }
-  }
-
-  it should "forward Master Channel Channel Pressure unmodified, with no note sounding" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // Given
-      private val masterChannels = Table("masterChannel", 0, 15)
-      forAll(masterChannels) { masterChannel =>
-        // When
-        val output = tuner.process(ChannelPressureMidiMsg(masterChannel, 90))
-        // Then
-        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(masterChannel, 90))
-      }
-    }
-
-  it should "not apply Master Channel CC #74 or Channel Pressure to Member Channel notes" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      private val noteOutput = noteOn(mpeInputChannel, C4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When
-      private val output = tuner.process(CcMidiMsg(0, MidiCc.MpeSlide, 100)) ++
-        tuner.process(ChannelPressureMidiMsg(0, 90))
-      // Then
-      extractCc(output).map(_.channel) should contain only 0
-      extractChannelPressures(output).map(_.channel) should contain only 0
-      extractCc(output).filter(_.channel == noteChannel) shouldBe empty
-    }
-
-  // ---- MIDI Mode messages ----
-
-  it should "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
-    // Given
-    private val channels = Table("channel", 0, mpeInputChannel, 10)
-    forAll(channels) { channel =>
-      // When / Then
-      tuner.process(OmniModeOffMidiMsg(channel)) shouldBe empty
-      tuner.process(OmniModeOnMidiMsg(channel)) shouldBe empty
-      tuner.process(MonoModeOnMidiMsg(channel, channelCount = 1)) shouldBe empty
-      tuner.process(PolyModeOnMidiMsg(channel)) shouldBe empty
-    }
-  }
-
-  it should "still forward the Channel Mode messages 120-123 received on a Master Channel" in
-    new Fixture(tuner7MpeInput) {
-      // Given
-      private val messages = Table("message",
-        AllSoundOffMidiMsg(0),
-        ResetAllControllersMidiMsg(0),
-        LocalControlMidiMsg(0, isOn = false),
-        AllNotesOffMidiMsg(0))
-      forAll(messages) { message =>
+      forAll(messages) { (_, message, expected) =>
         // When
         val output = tuner.process(message)
 
         // Then
-        extractChannelModes(output) shouldEqual Seq(message)
+        extractChannelModes(output) should contain(expected)
       }
     }
 
-  // ---- Uninterpreted RPN/NRPN sequences ----
+    // ---- MIDI Mode messages ----
 
-  it should "re-emit an uninterpreted RPN sequence on the Master Channel it arrived on" in
-    new Fixture(tuner7MpeInput) {
+    "discard the MIDI Mode messages 124-127" in new Fixture {
       // Given
-      tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb))
-      tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb))
+      private val messages = Table("message",
+        OmniModeOffMidiMsg(nonMpeInputChannel),
+        OmniModeOnMidiMsg(nonMpeInputChannel),
+        MonoModeOnMidiMsg(nonMpeInputChannel, channelCount = 1),
+        PolyModeOnMidiMsg(nonMpeInputChannel))
+      forAll(messages) { message =>
+        // When / Then
+        tuner.process(message) shouldBe empty
+      }
+    }
+
+    // ---- No Zone enabled ----
+
+    "discard every Channel Voice and Channel Mode message when no Zone is enabled" in {
+      // Given
+      val tuner = MpeTuner(initialZones = noZones)
+      val channels = Table("channel", 0, 5, 15)
+      forAll(channels) { channel =>
+        // When / Then
+        tuner.process(NoteOnMidiMsg(channel, C4, 100)) shouldBe empty
+        tuner.process(NoteOffMidiMsg(channel, C4)) shouldBe empty
+        tuner.process(PitchBendMidiMsg(channel, 1000)) shouldBe empty
+        tuner.process(ChannelPressureMidiMsg(channel, 90)) shouldBe empty
+        tuner.process(PolyPressureMidiMsg(channel, C4, 80)) shouldBe empty
+        tuner.process(CcMidiMsg(channel, MidiCc.MpeSlide, 100)) shouldBe empty
+        tuner.process(CcMidiMsg(channel, MidiCc.SustainPedal, 127)) shouldBe empty
+        tuner.process(ProgramChangeMidiMsg(channel, 5)) shouldBe empty
+        tuner.process(AllNotesOffMidiMsg(channel)) shouldBe empty
+      }
+    }
+
+    "still act on a valid MCM when no Zone is enabled" in {
+      // Given
+      val tuner = MpeTuner(initialZones = noZones)
       // When
-      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70))
+      val output = sendMcm(tuner, channel = 0, memberCount = 7)
+      // Then
+      tuner.zones.lower.memberCount shouldEqual 7
+      tuner.inputMode shouldBe MpeInputMode.Mpe
+      // The MCM the Tuner emits downstream is addressed to the Master Channel of the Zone it just configured
+      extractCc(output) should contain inOrder(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
+      )
+    }
+
+    // ---- Uninterpreted RPN/NRPN sequences ----
+
+    "hold back an uninterpreted RPN selector and re-emit it ahead of the Data Entry" in new Fixture(tuner7) {
+      // Given
+      private val selectorOutput =
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.RpnMsb, MidiRpn.FineTuningMsb)) ++
+          tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.RpnLsb, MidiRpn.FineTuningLsb))
+      // Then
+      selectorOutput shouldBe empty
+
+      // When
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
       // Then
       extractCc(output) shouldEqual Seq(
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
@@ -2848,1176 +2369,1655 @@ class MpeTunerTest extends AnyFlatSpec with Matchers with Inside with OptionValu
       )
     }
 
-  behavior of "MpeTuner - MCM Processing - Non-MPE Input"
+    "emit the selector once for a run of value messages of the same parameter" in new Fixture(tuner7) {
+      // Given
+      private val selectorOutput =
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12)) ++
+          tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      // Then
+      selectorOutput shouldBe empty
 
-  // ---- Mode switching ----
+      // When
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70)) ++
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryLsb, 5))
+      // Then the second value message rides the selection the first left on the output channel, which is the shape
+      // the sender itself sent.
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
+        CcMidiMsg(0, MidiCc.DataEntryLsb, 5)
+      )
+    }
 
-  it should "switch input mode to MPE automatically when an MCM is received" in new Fixture {
-    // Given
-    tuner.inputMode shouldBe MpeInputMode.NonMpe
+    "keep two interleaved input sequences apart on the output Master Channel" in new Fixture(tuner7) {
+      // Given
+      // Two senders on different input channels select different parameters, then interleave their Data Entries.
+      private val selectorOutput =
+        tuner.process(CcMidiMsg(2, MidiCc.RpnMsb, MidiRpn.FineTuningMsb)) ++
+          tuner.process(CcMidiMsg(2, MidiCc.RpnLsb, MidiRpn.FineTuningLsb)) ++
+          tuner.process(CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.CoarseTuningMsb)) ++
+          tuner.process(CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.CoarseTuningLsb))
+      // Then
+      selectorOutput shouldBe empty
 
-    // When
-    private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+      // When
+      private val output = tuner.process(CcMidiMsg(2, MidiCc.DataEntryMsb, 70)) ++
+        tuner.process(CcMidiMsg(3, MidiCc.DataEntryMsb, 60))
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.CoarseTuningLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.CoarseTuningMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 60)
+      )
+    }
 
-    // Then
-    tuner.inputMode shouldBe MpeInputMode.Mpe
+    "re-emit the selector after its own Pitch Bend Sensitivity sequence has deselected it" in
+      new Fixture(tuner7) {
+        // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+        private val firstOutput =
+          tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12)) ++
+            tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34)) ++
+            tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+        // Then
+        extractCc(firstOutput) should contain(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
 
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
-    )
-    tuner.zones.lower.memberCount shouldEqual 7
-    tuner.zones.upper.memberCount shouldEqual 0
+        // When a Pitch Bend Sensitivity sequence goes out on that same Master Channel, closing with an RPN Null, and
+        // the sender selects the NRPN again
+        sendPbsMsb(tuner, nonMpeInputChannel, 3)
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+        private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
+        // Then the selector goes out again: the Null deselected the parameter on the receiver, so riding the earlier
+        // selection would apply this value to the Null parameter instead.
+        extractCc(output) shouldEqual Seq(
+          CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+          CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+          CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
+        )
+      }
+
+    "re-emit the selector after reset()" in new Fixture(tuner7) {
+      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+
+      // When the Tuner is reset — on attach, where the receiver may be a device whose selected parameter the Tuner
+      // knows nothing about
+      tuner.reset()
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
+      )
+    }
+
+    "re-emit the selector after a forwarded Reset All Controllers" in new Fixture(tuner7) {
+      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+
+      // When a Reset All Controllers is redirected onto that same Master Channel
+      private val resetOutput = tuner.process(ResetAllControllersMidiMsg(nonMpeInputChannel))
+      // Then it reaches the receiver, which deselects its parameter in response
+      extractChannelModes(resetOutput) shouldEqual Seq(ResetAllControllersMidiMsg(0))
+
+      // When the sender selects the NRPN again and sends another value
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
+      // Then the selector goes out again: the Tuner relayed the message that cleared the selection, so riding the
+      // earlier one would leave this value with no parameter to apply to.
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
+      )
+    }
+
+    "re-emit the selector after a relayed System Reset" in new Fixture(tuner7) {
+      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+
+      // When a System Reset passes through to the receiver, which returns to its power-up state
+      tuner.process(SystemResetMidiMsg)
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 71))
+      // Then the selector goes out again, on every output channel the Tuner had a selection recorded for.
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
+      )
+    }
+
+    "keep the selector latched across a System Real-Time message that does not deselect" in
+      new Fixture(tuner7) {
+        // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, 34))
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+
+        // When an Active Sensing passes through, which leaves the receiver's parameter selection alone
+        private val passThroughOutput = tuner.process(ActiveSensingMidiMsg)
+        // Then
+        passThroughOutput shouldEqual Seq(ActiveSensingMidiMsg)
+
+        // When the sender sends another value of the same parameter
+        private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryLsb, 5))
+        // Then it rides the latched selection: only a message that deselects at the receiver spends a new selector.
+        extractCc(output) shouldEqual Seq(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
+      }
+
+    "re-emit a sequence for an NRPN whose LSB is 127" in new Fixture(tuner7) {
+      // Given — NRPN 0C/7F, an ordinary parameter whose LSB happens to be the Null value
+      private val selectorOutput =
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12)) ++
+          tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnLsb, MidiNrpn.NullLsb))
+      // Then
+      selectorOutput shouldBe empty
+
+      // When
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+      // Then the whole sequence goes out: a 127 half is a parameter number like any other, not a half that has yet
+      // to arrive.
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, MidiNrpn.NullLsb),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 70)
+      )
+    }
+
+    "discard a value message received with no parameter selected" in new Fixture(tuner7) {
+      // Given
+      // No selector has been sent on this channel, so a Data Entry has no parameter to apply to. Forwarding one would
+      // let a stray CC #6 rewrite whatever parameter the receiver happens to hold selected — Pitch Bend Sensitivity
+      // among them.
+      private val ccNumbers =
+        Table("ccNumber", MidiCc.DataEntryMsb, MidiCc.DataEntryLsb, MidiCc.DataIncrement, MidiCc.DataDecrement)
+      forAll(ccNumbers) { ccNumber =>
+        // When
+        val output = tuner.process(CcMidiMsg(nonMpeInputChannel, ccNumber, 70))
+        // Then
+        output shouldBe empty
+      }
+    }
+
+    "discard a value message received with a half-set selector" in new Fixture(tuner7) {
+      // Given
+      private val selectorOutput =
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.NrpnMsb, 12))
+      // Then
+      selectorOutput shouldBe empty
+
+      // When
+      private val output = tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.DataEntryMsb, 70))
+      // Then
+      output shouldBe empty
+    }
   }
 
-  // ---- Channel-of-receipt gating ----
+  "MpeTuner - process() - Zone-level Messages - MPE Input" should {
+    // ---- Discarding Zone-level messages received on a Member Channel ----
 
-  it should "ignore an MCM received on a channel other than 1 or 16, in its entirety" in new Fixture(tuner7) {
-    // When
-    private val output =
-      tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb)) ++
-        tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb)) ++
-        tuner.process(CcMidiMsg(5, MidiCc.DataEntryMsb, 3))
-    // Then
-    output shouldBe empty
-    tuner.inputMode shouldBe MpeInputMode.NonMpe
-    tuner.zones.lower.memberCount shouldEqual 7
+    "discard zone-level CCs received on a Member Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      private val zoneLevelCcs = Table(
+        ("ccName", "ccNumber", "ccValue"),
+        ("Bank Select MSB", MidiCc.BankSelectMsb, 1),
+        ("Bank Select LSB", MidiCc.BankSelectLsb, 0),
+        ("Modulation", MidiCc.ModulationMsb, 64),
+        ("Sostenuto Pedal", MidiCc.SostenutoPedal, 127),
+        ("Soft Pedal", MidiCc.SoftPedal, 127),
+        ("Sustain Pedal", MidiCc.SustainPedal, 127)
+      )
+      forAll(zoneLevelCcs) { (_, ccNumber, ccValue) =>
+        // When
+        val output = tuner.process(CcMidiMsg(mpeInputChannel, ccNumber, ccValue))
+        // Then
+        output shouldBe empty
+      }
+    }
+
+    "discard the Channel Mode messages 120-123 received on a Member Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      private val messages = Table("message",
+        AllSoundOffMidiMsg(mpeInputChannel),
+        ResetAllControllersMidiMsg(mpeInputChannel),
+        LocalControlMidiMsg(mpeInputChannel, isOn = false),
+        AllNotesOffMidiMsg(mpeInputChannel))
+      forAll(messages) { message =>
+        // When / Then
+        tuner.process(message) shouldBe empty
+      }
+    }
+
+    "discard Program Change received on a Member Channel" in new Fixture(tuner7MpeInput) {
+      // When
+      private val output = tuner.process(ProgramChangeMidiMsg(mpeInputChannel, 5))
+      // Then
+      output shouldBe empty
+    }
+
+    "discard uninterpreted RPN/NRPN selector CCs received on a Member Channel" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        // Parameter number 5 selects neither the MPE Configuration Message (0, 6) nor Pitch Bend Sensitivity (0, 0),
+        // so the selector stays uninterpreted and its CCs remain ordinary Zone-level traffic at Member level.
+        private val uninterpretedParameterNumber = 5
+        private val selectorCcs = Table("ccNumber",
+          MidiCc.RpnMsb, MidiCc.RpnLsb, MidiCc.NrpnMsb, MidiCc.NrpnLsb)
+        forAll(selectorCcs) { ccNumber =>
+          // When
+          val output = tuner.process(CcMidiMsg(mpeInputChannel, ccNumber, uninterpretedParameterNumber))
+          // Then
+          output shouldBe empty
+        }
+      }
+
+    "discard an uninterpreted RPN sequence received on a Member Channel" in new Fixture(tuner7MpeInput) {
+      // Given / When
+      private val output =
+        tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.RpnMsb, MidiRpn.FineTuningMsb)) ++
+          tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.RpnLsb, MidiRpn.FineTuningLsb)) ++
+          tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.DataEntryMsb, 70))
+      // Then
+      output shouldBe empty
+    }
+
+    // ---- Forwarding Zone-level messages received on a Master Channel ----
+
+    "forward zone-level CCs received on a Master Channel unmodified" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        private val masterChannels = Table("masterChannel", 0, 15)
+        forAll(masterChannels) { masterChannel =>
+          // When
+          val output = tuner.process(CcMidiMsg(masterChannel, MidiCc.SustainPedal, 72))
+          // Then
+          extractCc(output) shouldEqual Seq(CcMidiMsg(masterChannel, MidiCc.SustainPedal, 72))
+        }
+      }
+
+    "forward Program Change received on a Master Channel unmodified" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        private val masterChannels = Table("masterChannel", 0, 15)
+        forAll(masterChannels) { masterChannel =>
+          // When
+          val output = tuner.process(ProgramChangeMidiMsg(masterChannel, 6))
+          // Then
+          output shouldEqual Seq(ProgramChangeMidiMsg(masterChannel, 6))
+        }
+      }
+
+    // ---- Uninterpreted RPN/NRPN sequences ----
+
+    "emit the selector once for a run of value messages of the same parameter" in
+      new Fixture(tuner7MpeInput) {
+        // Given a parameter selected at Zone level, on the Master Channel
+        private val selectorOutput =
+          tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12)) ++
+            tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
+        // Then
+        selectorOutput shouldBe empty
+
+        // When
+        private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70)) ++
+          tuner.process(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
+        // Then
+        extractCc(output) shouldEqual Seq(
+          CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+          CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+          CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
+          CcMidiMsg(0, MidiCc.DataEntryLsb, 5)
+        )
+      }
+
+    "re-emit the selector after a Zone reconfiguration" in new Fixture(tuner7MpeInput) {
+      // Given a relayed sequence, which leaves the NRPN selected on the output Master Channel
+      tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
+      tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70))
+
+      // When an MCM reconfigures the Lower Zone, and the sender selects the NRPN again
+      sendMcm(tuner, 0, 4)
+      tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
+      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 71))
+      // Then
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 71)
+      )
+    }
+
+    "latch a selector per output Master Channel" in new Fixture(dualZoneTunerMpeInput) {
+      // Given a different parameter selected at Zone level on each Zone's Master Channel
+      tuner.process(CcMidiMsg(0, MidiCc.NrpnMsb, 12))
+      tuner.process(CcMidiMsg(0, MidiCc.NrpnLsb, 34))
+      tuner.process(CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.FineTuningMsb))
+      tuner.process(CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.FineTuningLsb))
+
+      // When the two Zones alternate value messages
+      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70)) ++
+        tuner.process(CcMidiMsg(15, MidiCc.DataEntryMsb, 60)) ++
+        tuner.process(CcMidiMsg(0, MidiCc.DataEntryLsb, 5)) ++
+        tuner.process(CcMidiMsg(15, MidiCc.DataEntryLsb, 6))
+      // Then each Master Channel spends its selector once and keeps it: the latch is per output channel, so neither
+      // Zone's sequence displaces the other's.
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.NrpnLsb, 34),
+        CcMidiMsg(0, MidiCc.NrpnMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 70),
+        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
+        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
+        CcMidiMsg(15, MidiCc.DataEntryMsb, 60),
+        CcMidiMsg(0, MidiCc.DataEntryLsb, 5),
+        CcMidiMsg(15, MidiCc.DataEntryLsb, 6)
+      )
+    }
+
+    // ---- Out-of-zone traffic ----
+
+    "discard zone-level messages received on a channel outside every enabled Zone" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        // tuner7MpeInput: Lower Zone master 0, members 1..7. Channels 8..15 are outside every Zone.
+        private val outsideChannels = Table("channel", 8, 12, 15)
+        forAll(outsideChannels) { channel =>
+          // When / Then
+          tuner.process(CcMidiMsg(channel, MidiCc.SustainPedal, 127)) shouldBe empty
+          tuner.process(ProgramChangeMidiMsg(channel, 5)) shouldBe empty
+          tuner.process(PitchBendMidiMsg(channel, 1000)) shouldBe empty
+          tuner.process(ChannelPressureMidiMsg(channel, 90)) shouldBe empty
+          tuner.process(CcMidiMsg(channel, MidiCc.MpeSlide, 100)) shouldBe empty
+        }
+      }
+
+    "neither forward nor allocate a note received on a channel outside every enabled Zone" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // When
+        private val onOutput = noteOn(10, C4)
+        // Then
+        onOutput shouldBe empty
+        // When
+        private val offOutput = noteOff(10, C4)
+        // Then
+        offOutput shouldBe empty
+      }
+
+    // ---- Master Channel Zone-level control dimensions ----
+
+    "forward Master Channel CC #74 unmodified" in new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      private val masterChannels = Table("masterChannel", 0, 15)
+      forAll(masterChannels) { masterChannel =>
+        // When
+        val output = tuner.process(CcMidiMsg(masterChannel, MidiCc.MpeSlide, 100))
+        // Then
+        extractCc(output) shouldEqual Seq(CcMidiMsg(masterChannel, MidiCc.MpeSlide, 100))
+      }
+    }
+
+    "forward Master Channel Channel Pressure unmodified, with no note sounding" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        private val masterChannels = Table("masterChannel", 0, 15)
+        forAll(masterChannels) { masterChannel =>
+          // When
+          val output = tuner.process(ChannelPressureMidiMsg(masterChannel, 90))
+          // Then
+          extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(masterChannel, 90))
+        }
+      }
+
+    "not apply Master Channel CC #74 or Channel Pressure to Member Channel notes" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        private val noteOutput = noteOn(mpeInputChannel, C4)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+        // When
+        private val output = tuner.process(CcMidiMsg(0, MidiCc.MpeSlide, 100)) ++
+          tuner.process(ChannelPressureMidiMsg(0, 90))
+        // Then
+        extractCc(output).map(_.channel) should contain only 0
+        extractChannelPressures(output).map(_.channel) should contain only 0
+        extractCc(output).filter(_.channel == noteChannel) shouldBe empty
+      }
+
+    // ---- MIDI Mode messages ----
+
+    "discard the MIDI Mode messages 124-127 at every level" in new Fixture(tuner7MpeInput) {
+      // Given
+      private val channels = Table("channel", 0, mpeInputChannel, 10)
+      forAll(channels) { channel =>
+        // When / Then
+        tuner.process(OmniModeOffMidiMsg(channel)) shouldBe empty
+        tuner.process(OmniModeOnMidiMsg(channel)) shouldBe empty
+        tuner.process(MonoModeOnMidiMsg(channel, channelCount = 1)) shouldBe empty
+        tuner.process(PolyModeOnMidiMsg(channel)) shouldBe empty
+      }
+    }
+
+    "still forward the Channel Mode messages 120-123 received on a Master Channel" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val messages = Table("message",
+          AllSoundOffMidiMsg(0),
+          ResetAllControllersMidiMsg(0),
+          LocalControlMidiMsg(0, isOn = false),
+          AllNotesOffMidiMsg(0))
+        forAll(messages) { message =>
+          // When
+          val output = tuner.process(message)
+
+          // Then
+          extractChannelModes(output) shouldEqual Seq(message)
+        }
+      }
+
+    // ---- Uninterpreted RPN/NRPN sequences ----
+
+    "re-emit an uninterpreted RPN sequence on the Master Channel it arrived on" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb))
+        tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb))
+        // When
+        private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 70))
+        // Then
+        extractCc(output) shouldEqual Seq(
+          CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.FineTuningLsb),
+          CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.FineTuningMsb),
+          CcMidiMsg(0, MidiCc.DataEntryMsb, 70)
+        )
+      }
   }
 
-  // ---- Member-count gating ----
+  "MpeTuner - MCM Processing - Non-MPE Input" should {
+    // ---- Mode switching ----
 
-  it should "ignore an MCM requesting more Member Channels than a Zone can hold, in its entirety" in
-    new Fixture(tuner7) {
+    "switch input mode to MPE automatically when an MCM is received" in new Fixture {
+      // Given
+      tuner.inputMode shouldBe MpeInputMode.NonMpe
+
+      // When
+      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+      // Then
+      tuner.inputMode shouldBe MpeInputMode.Mpe
+
+      private val ccs = extractCc(output)
+      ccs should contain inOrder(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
+      )
+      tuner.zones.lower.memberCount shouldEqual 7
+      tuner.zones.upper.memberCount shouldEqual 0
+    }
+
+    // ---- Channel-of-receipt gating ----
+
+    "ignore an MCM received on a channel other than 1 or 16, in its entirety" in new Fixture(tuner7) {
       // When
       private val output =
-        tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb)) ++
-          tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb)) ++
-          tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, MpeZone.MaxMemberCount + 1))
+        tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb)) ++
+          tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb)) ++
+          tuner.process(CcMidiMsg(5, MidiCc.DataEntryMsb, 3))
       // Then
       output shouldBe empty
       tuner.inputMode shouldBe MpeInputMode.NonMpe
       tuner.zones.lower.memberCount shouldEqual 7
     }
 
-  // ---- Effects on active notes ----
+    // ---- Member-count gating ----
 
-  it should "stop a note bound while still in Non-MPE Input Mode when the MCM that follows leaves that mode" in
-    new Fixture {
-      // Given
-      // In Non-MPE Input Mode channel 0 is an ordinary input channel: the note is bound in the allocator like
-      // any other. Only the MCM that follows reinterprets channel 0 as a Master Channel.
-      private val noteOutput = noteOn(0, C4)
-      private val outChannel = extractNoteOns(noteOutput).head.channel
+    "ignore an MCM requesting more Member Channels than a Zone can hold, in its entirety" in
+      new Fixture(tuner7) {
+        // When
+        private val output =
+          tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb)) ++
+            tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb)) ++
+            tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, MpeZone.MaxMemberCount + 1))
+        // Then
+        output shouldBe empty
+        tuner.inputMode shouldBe MpeInputMode.NonMpe
+        tuner.zones.lower.memberCount shouldEqual 7
+      }
 
-      // When
-      // This MCM does not even change a Zone boundary (the default zones already have 15 Lower members), yet
-      // leaving Non-MPE Input Mode still means every channel is now interpreted differently, so the note bound
-      // while still in Non-MPE Input Mode must be stopped regardless.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 15)
+    // ---- Effects on active notes ----
 
-      // Then
-      // Exactly one Note Off, and no other: a single Note On was forwarded, so a second Note Off for it — or one
-      // for a note that was never struck — would leave the receiver with an unmatched Note Off.
-      extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(outChannel, C4))
-    }
+    "stop a note bound while still in Non-MPE Input Mode when the MCM that follows leaves that mode" in
+      new Fixture {
+        // Given
+        // In Non-MPE Input Mode channel 0 is an ordinary input channel: the note is bound in the allocator like
+        // any other. Only the MCM that follows reinterprets channel 0 as a Master Channel.
+        private val noteOutput = noteOn(0, C4)
+        private val outChannel = extractNoteOns(noteOutput).head.channel
 
-  behavior of "MpeTuner - MCM Processing - MPE Input"
+        // When
+        // This MCM does not even change a Zone boundary (the default zones already have 15 Lower members), yet
+        // leaving Non-MPE Input Mode still means every channel is now interpreted differently, so the note bound
+        // while still in Non-MPE Input Mode must be stopped regardless.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 15)
 
-  // ---- MCM emission on reset ----
-
-  it should "output MPE Configuration Message (MCM) for the configured zone" in new Fixture(mpeTunerMpeInput) {
-    // When
-    private val output = tuner.reset()
-    // Then
-    private val ccs = extractCc(output)
-    // MCM: RPN LSB=6, RPN MSB=0, Data Entry MSB=memberCount on master channel 0
-    ccs should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 15)
-    )
+        // Then
+        // Exactly one Note Off, and no other: a single Note On was forwarded, so a second Note Off for it — or one
+        // for a note that was never struck — would leave the receiver with an unmatched Note Off.
+        extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(outChannel, C4))
+      }
   }
 
-  it should "emit the MCM RPN selector LSB before its MSB, closed by an RPN Null" in new Fixture(mpeTunerMpeInput) {
-    // When
-    private val output = tuner.reset()
-    // Then
-    // Pin the exact prefix rather than using `contain inOrder`: the MCM is the first thing emitted on the Master
-    // Channel, and the master PBS sequence that follows carries its own closing RPN Null, which would satisfy the
-    // Null expectations on the MCM's behalf.
-    private val ccs = extractCc(output).filter(_.channel == 0)
-    ccs.take(5) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 15),
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.NullLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.NullMsb)
-    )
-  }
+  "MpeTuner - MCM Processing - MPE Input" should {
+    // ---- MCM emission on reset ----
 
-  // ---- MCM-driven zone reconfiguration ----
-
-  it should "reconfigure lower zone on MCM received on channel 0" in new Fixture(dualZoneTunerMpeInput) {
-    // When
-    private val output = sendMcm(tuner, channel = 0, memberCount = 10)
-    // Then
-    // Should output MCM for the new lower zone with memberCount=10
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 10)
-    )
-    tuner.zones.lower.memberCount shouldEqual 10
-    tuner.zones.upper.memberCount shouldEqual 4
-  }
-
-  it should "reconfigure upper zone on MCM received on channel 15" in new Fixture(dualZoneTunerMpeInput) {
-    // When
-    private val output = sendMcm(tuner, channel = 15, memberCount = 10)
-    // Then
-    // Should output MCM for the new upper zone with memberCount=10
-    private val ccs = extractCc(output)
-    ccs should contain inOrder(
-      CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(15, MidiCc.DataEntryMsb, 10)
-    )
-    tuner.zones.lower.memberCount shouldEqual 4
-    tuner.zones.upper.memberCount shouldEqual 10
-  }
-
-  it should "disable zone when MCM with memberCount=0 is received" in new Fixture(dualZoneTunerMpeInput) {
-    // When
-    private val output = sendMcm(tuner, channel = 15, memberCount = 0)
-    // Then
-    private val ccs = extractCc(output)
-    // Upper zone MCM should be sent to the output even if the zone is disabled to inform the downstream device
-    ccs should contain(CcMidiMsg(15, MidiCc.DataEntryMsb, 0))
-    // Lower zone MCM should NOT be present because the lower zone was not affected
-    ccs should not contain CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
-  }
-
-  it should "shrink other zone when MCM causes overlap" in new Fixture(dualZoneTunerMpeInput) {
-    // dualZoneTunerMpeInput: lower=7, upper=7
-    // When - MCM on ch 0 with memberCount=10 -> upper must shrink to 4
-    private val output = sendMcm(tuner, channel = 0, memberCount = 10)
-    // Then
-    private val ccs = extractCc(output)
-    // Upper zone MCM should show memberCount=4
-    ccs should contain inOrder(
-      CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(15, MidiCc.DataEntryMsb, 4)
-    )
-    tuner.zones.lower.memberCount shouldEqual 10
-    tuner.zones.upper.memberCount shouldEqual 4
-  }
-
-  // ---- Effects on active notes / other state ----
-
-  it should "stop the notes of channels leaving MPE control when an MCM shrinks a Zone" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Default zones: Lower Zone master 0, members 1..15. Occupy a channel that will survive the shrink and one
-      // that will not, by sending each note on the input Member Channel it prefers.
-      private val keptOutput = noteOn(2, C4)
-      private val droppedOutput = noteOn(12, E4)
-      private val keptChannel = extractNoteOns(keptOutput).head.channel
-      private val droppedChannel = extractNoteOns(droppedOutput).head.channel
-      keptChannel shouldEqual 2
-      droppedChannel shouldEqual 12
-
+    "output MPE Configuration Message (MCM) for the configured zone" in new Fixture(mpeTunerMpeInput) {
       // When
-      // The Lower Zone shrinks to members 1..7, so channels 8..15 leave MPE control.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
-
+      private val output = tuner.reset()
       // Then
-      private val noteOffs = extractNoteOffs(output)
-      noteOffs should contain(NoteOffMidiMsg(droppedChannel, E4))
-      noteOffs.filter(_.channel == keptChannel) shouldBe empty
-      // The retained channel is retuned against the Zone's reset Pitch Bend Sensitivity.
-      extractPitchBends(output).map(_.channel) shouldEqual Seq(keptChannel)
-    }
-
-  it should "keep the notes of channels untouched by the reconfiguration sounding and tunable" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      noteOn(2, C4)
-      // When
-      private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 7)
-      // Then
-      // The retained channel is retuned by the MCM itself, the reset sensitivity re-encoding its Pitch Bend.
-      extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(2)
-      // The retained note is still known: retuning emits a Pitch Bend for its channel.
-      private val tuneOutput = tuner.tune(pythagoreanTuning)
-      extractPitchBends(tuneOutput).map(_.channel) should contain(2)
-      // And its Note Off is still honoured, on the same output channel.
-      extractNoteOffs(noteOff(2, C4)) should contain(NoteOffMidiMsg(2, C4))
-    }
-
-  it should "drop a note whose input channel leaves MPE control even when its output channel is retained" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Lower Zone master 0, members 1..7. A Member Channel note is allocated to its own input channel by
-      // preference, so occupy Member Channel 6 first; the note under test then arrives on the same input channel
-      // and is allocated elsewhere, on a channel the reconfiguration will keep.
-      noteOn(6, C4)
-      private val output = noteOn(6, D4)
-      private val outChannel = extractNoteOns(output).head.channel
-      outChannel should be <= 4
-
-      // When
-      // The Lower Zone shrinks to members 1..4: input channel 6 leaves MPE control while `outChannel` stays.
-      private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 4)
-
-      // Then
-      // The note is stopped on its retained output channel, and its stale Note Off then produces nothing at all.
-      extractNoteOffs(mcmOutput) should contain(NoteOffMidiMsg(outChannel, D4))
-      noteOff(6, D4) shouldBe empty
-      // Nothing is left occupied, so the retuning pass emits nothing.
-      extractPitchBends(mcmOutput) shouldBe empty
-    }
-
-  it should "keep an Upper Zone note when an MCM enables the Lower Zone, leaving the Upper Zone untouched" in
-    new Fixture(upperZoneOnlyTunerMpeInput) {
-      // Given
-      // Lower Zone disabled, Upper Zone master 15, members 8..14. Channel 3 lies outside every Zone, so the
-      // note it carries is discarded and binds nothing: enabling the Lower Zone cannot strand it.
-      noteOn(3, C4) shouldBe empty
-      private val output = noteOn(8, D4)
-      private val outChannel = extractNoteOns(output).head.channel
-
-      // When
-      // The Lower Zone becomes enabled with 2 Members (1..2), which no Upper Zone channel overlaps.
-      private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 2)
-
-      // Then
-      // No channel the note occupies changed its Zone assignment, so the note lives on and its Note Off is
-      // still honoured on the output channel it was allocated to.
-      extractNoteOffs(mcmOutput) shouldBe empty
-      extractNoteOffs(noteOff(8, D4)) should contain(NoteOffMidiMsg(outChannel, D4))
-      // The Upper Zone's retained channel is retuned all the same: the pass runs on both Zones' allocators.
-      extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(outChannel)
-    }
-
-  it should "stop a twice-struck Master Channel note with one Note Off per forwarded Note On" in
-    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Upper Zone master 15. C4 is struck twice there without an intervening release and E4 once; a Master Channel
-      // note bypasses the allocator and is forwarded on channel 15 unchanged, so three Note Ons went downstream.
-      noteOn(15, C4)
-      noteOn(15, C4)
-      noteOn(15, E4)
-
-      // When
-      // The Upper Zone is disabled, so channel 15 leaves MPE control and everything sounding on it must be stopped.
-      private val output = sendMcm(tuner, channel = 15, memberCount = 0)
-
-      // Then
-      // One Note Off per forwarded Note On: two for C4, one for E4.
-      private val noteOffs = extractNoteOffs(output).filter(_.channel == 15)
-      noteOffs.count(_.midiNote == C4) shouldEqual 2
-      noteOffs.count(_.midiNote == E4) shouldEqual 1
-    }
-
-  it should "reset the tracked control state of an affected channel only" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Seed the per-input-channel control state of a channel that survives and one that does not.
-      slide(2, 100)
-      slide(12, 100)
-      // When
-      sendMcm(tuner, channel = 0, memberCount = 7)
-      // Then
-      // A note on the surviving channel is seeded from the retained CC #74; the reconfigured channel is gone.
-      private val output = noteOn(2, C4)
-      extractSlides(output).map(_.value) should contain(100)
-    }
-
-  it should "clear the tracked control state of a channel that left and later re-entered MPE control" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Seed channel 12's control state, then shrink the Zone so it leaves MPE control.
-      slide(12, 100)
-      sendMcm(tuner, channel = 0, memberCount = 7)
-      // When
-      // Grow the Zone back so channel 12 re-enters MPE control.
-      sendMcm(tuner, channel = 0, memberCount = 15)
-      // Then
-      // The channel's tracked state was cleared, not merely left behind: a note on it now starts with no
-      // seeded Slide.
-      private val output = noteOn(12, C4)
-      extractSlides(output).map(_.value) should not contain 100
-    }
-
-  it should "reset the state of channels handed from one Zone to the other" in
-    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14.
-      private val output = noteOn(6, C4)
-      extractNoteOns(output).head.channel shouldEqual 6
-
-      // When
-      // An MCM enlarging the Upper Zone to 10 Members shrinks the Lower Zone to 4 by overlap resolution, so
-      // channels 5..7 pass from Lower Member to Upper Member: they leave and re-enter MPE control.
-      private val mcmOutput = sendMcm(tuner, channel = 15, memberCount = 10)
-
-      // Then
-      extractNoteOffs(mcmOutput) should contain(NoteOffMidiMsg(6, C4))
-      tuner.zones.lower.memberCount shouldEqual 4
-      tuner.zones.upper.memberCount shouldEqual 10
-    }
-
-  it should "reset PBS to defaults when MCM is received" in new Fixture(tuner7MpeInput) {
-    // Given - Set custom PBS on the lower zone
-    sendPbsMsb(tuner, channel = 0, semitones = 12)
-    sendPbsMsb(tuner, channel = 1, semitones = 24)
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
-    // When - Receive MCM on the same zone
-    sendMcm(tuner, channel = 0, memberCount = 7)
-    // Then - PBS should be reset to defaults per MPE spec Section 2.4
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-  }
-
-  it should "keep the Pitch Bend Sensitivity of the Zone shrunk by overlap resolution" in
-    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14. Custom sensitivities on the
-      // Upper Zone, which the MCM below does not address.
-      sendPbsMsb(tuner, channel = 15, semitones = 12)
-      sendPbsMsb(tuner, channel = 8, semitones = 24)
-      tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-      tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
-
-      // E4 sounding on Upper Member Channel 13, which the shrink below keeps, at its -14-cent offset encoded
-      // against the custom ±24 semitones: -14 / 2400 * 8192 rounds to -48.
-      rawPitchBend(-14.0, PitchBendSensitivity(24)) shouldEqual -48
-      private val keptPitchBend = PitchBendMidiMsg(13, rawPitchBend(-14.0, PitchBendSensitivity(24)))
-      private val noteOutput = noteOn(13, E4)
-      extractNoteOns(noteOutput).head.channel shouldEqual 13
-      extractPitchBends(noteOutput) shouldEqual Seq(keptPitchBend)
-
-      // When
-      // An MCM on the Lower Zone forces overlap resolution to shrink the Upper Zone to 4 Members, so the Tuner
-      // re-emits the Upper Zone's MCM. That MCM was not addressed to the Upper Zone, and the specification does
-      // not say whether a Zone shrunk this way loses its sensitivity, so the Tuner follows the prevailing
-      // implementation and keeps it.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 10)
-
-      // Then - The shrink moved the Zone's boundary and nothing else.
-      tuner.zones.upper.memberCount shouldEqual 4
-      tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-      tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
-      // And the retained channel's Pitch Bend still encodes -14 cents against the kept ±24 semitones: the
-      // retuning pass re-emits the value the channel already held rather than one rescaled to a reset default.
-      extractPitchBends(output) shouldEqual Seq(keptPitchBend)
-    }
-
-  it should "keep the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // Given
-      sendPbsMsb(tuner, channel = 8, semitones = 24)
-      // When
-      // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched, so no MCM is emitted for it
-      // and the sensitivity the Tuner holds for it stands.
-      sendMcm(tuner, channel = 0, memberCount = 4)
-      // Then
-      tuner.zones.upper.memberCount shouldEqual 7
-      tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
-    }
-
-  it should "re-emit the Pitch Bend of a retained note against the sensitivity the MCM reset" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Member PBS narrowed to ±24 semitones, then E4 sounding on output Member Channel 2 at its -14-cent offset.
-      sendPbsMsb(tuner, channel = 1, semitones = 24)
-      private val narrowedPbs = PitchBendSensitivity(24)
-      private val noteOutput = noteOn(2, E4)
-      extractNoteOns(noteOutput).head.channel shouldEqual 2
-      extractPitchBends(noteOutput) shouldEqual Seq(PitchBendMidiMsg(2, rawPitchBend(-14.0, narrowedPbs)))
-
-      // And the performer bending that note by 64 raw units, which the Tuner holds as received and sums into the
-      // tuning term. Under ±24 semitones those units mean 18.75 cents.
-      private val expressionPitchBend = 64
-      PitchBendMidiMsg(2, expressionPitchBend).centsFor(narrowedPbs) shouldEqual 18.75
-      private val bendOutput = pitchBendValue(2, expressionPitchBend)
-      extractPitchBends(bendOutput) shouldEqual Seq(
-        PitchBendMidiMsg(2, rawPitchBend(-14.0, narrowedPbs) + expressionPitchBend))
-
-      // When
-      // An MCM shrinks the Lower Zone to 7 Members. Channel 2 is retained, and the MCM resets the Zone's Pitch
-      // Bend Sensitivity to the ±48-semitone default at the receiver.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
-
-      // Then
-      // The retained channel is retuned, so its tuning term still means -14 cents under the reset sensitivity,
-      // while the held Expression Pitch Bend re-enters the sum at the same 64 raw units: the widened range
-      // reinterprets it as 37.5 cents rather than rescaling it to preserve the 18.75 cents it meant before.
-      PitchBendMidiMsg(2, expressionPitchBend).cents shouldEqual 37.5
-      private val retunedPitchBend = PitchBendMidiMsg(2, rawPitchBend(-14.0) + expressionPitchBend)
-      private val resetPbsDataEntry = CcMidiMsg(2, MidiCc.DataEntryMsb, defaultPbs.semitones)
-      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-      extractPitchBends(output) shouldEqual Seq(retunedPitchBend)
-      // And the receiver is told the sensitivity before it is given the Pitch Bend encoded against it, without
-      // which it would read that Pitch Bend against the range it still held.
-      output should contain(resetPbsDataEntry)
-      output.indexOf(resetPbsDataEntry) should be < output.indexOf(retunedPitchBend)
-    }
-
-  it should "drop the co-residents of a note the MCM's Pitch Bend Sensitivity reset reclassifies as high-bend" in
-    new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // At ±2 semitones the threshold is 2048 raw, so C4 and C5 coexist on output channel 1 with bends below it.
-      sendPbsMsb(tuner, channel = 1, semitones = 2)
-      noteOn(1, C4)
-      noteOn(2, E4)
-      noteOn(3, C3)
-      noteOn(2, C5)
-      pitchBendValue(1, 500)
-      pitchBendValue(2, 700)
-
-      // When
-      // An MCM that changes no Zone boundary still resets the Zone's Pitch Bend Sensitivity to ±48 semitones,
-      // lowering the threshold to 85 raw and carrying both notes on channel 1 past it.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 3)
-
-      // Then
-      // The latest-onset note survives, and its co-resident's Note Off follows the MCM rather than preceding it:
-      // the MCM's own reset is what caused the reclassification, unlike the reconfiguration's own drops.
-      private val droppedNoteOff = NoteOffMidiMsg(1, C4)
-      extractNoteOffs(output) shouldEqual Seq(droppedNoteOff)
-      output.indexOf(droppedNoteOff) should be > output.indexOf(CcMidiMsg(0, MidiCc.DataEntryMsb, 3))
-    }
-
-  it should "correct CC #74 and Channel Pressure on a retained channel a departed note's drop moved" in
-    new Fixture(tuner3MpeInput) {
-      // Given
-      // Output Member Channel 1 holds C4 from input channel 1 and C5 from input channel 3 — the pitch-class
-      // invariant having placed them together — each carrying its own input channel's CC #74 and Channel
-      // Pressure, so the channel's aggregate of each is the average of the two.
-      noteOn(1, C4, pressure = Some(40), slide = Some(20))
-      noteOn(1, D4)
-      noteOn(2, E4)
-      private val sharedOutput = noteOn(3, C5, pressure = Some(80), slide = Some(100))
-      extractNoteOns(sharedOutput).head.channel shouldEqual 1
-      extractSlides(sharedOutput) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 60))
-      extractChannelPressures(sharedOutput) shouldEqual Seq(ChannelPressureMidiMsg(1, 60))
-
-      // When
-      // Shrinking the Lower Zone to 2 Members takes Member Channel 3 out of MPE control. C5 arrived there, so it
-      // is dropped even though its output channel 1 is retained, leaving C4 alone on it.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 2)
-
-      // Then
-      // Channel 1's averages fall back to C4's own values. The receiver resets nothing on a channel the
-      // reconfiguration left alone (MPE Spec §2.1.4), so it still holds the two-note averages and has to be told.
-      extractNoteOffs(output) should contain(NoteOffMidiMsg(1, C5))
-      extractSlides(output) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 20))
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(1, 40))
-    }
-
-  it should "correct CC #74 and Channel Pressure on a channel the MCM's Pitch Bend Sensitivity reset emptied of " +
-    "co-residents" in new Fixture(tuner3MpeInput) {
-      // Given
-      // At ±2 semitones the threshold is 2048 raw. Output Member Channel 1 holds C4 from input channel 1 and C5
-      // from input channel 3 — the pitch-class invariant having placed them together — each carrying its own input
-      // channel's CC #74 and Channel Pressure, so the channel's aggregate of each is the average of the two.
-      sendPbsMsb(tuner, channel = 1, semitones = 2)
-      noteOn(1, C4, pressure = Some(40), slide = Some(20))
-      noteOn(2, D4)
-      noteOn(2, E4)
-      private val sharedOutput = noteOn(3, C5, pressure = Some(80), slide = Some(100))
-      extractNoteOns(sharedOutput).head.channel shouldEqual 1
-      extractSlides(sharedOutput) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 60))
-      extractChannelPressures(sharedOutput) shouldEqual Seq(ChannelPressureMidiMsg(1, 60))
-      // Both bends stay below the threshold, so the two notes coexist.
-      pitchBendValue(1, 500)
-      pitchBendValue(3, 700)
-
-      // When
-      // An MCM that changes no Zone boundary still resets the Zone's Pitch Bend Sensitivity to ±48 semitones,
-      // lowering the threshold to 85 raw and carrying both notes on channel 1 past it. The divergence rule keeps
-      // the latest-onset note, C5, and drops C4.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 3)
-
-      // Then
-      // Channel 1's averages fall to C5's own values. No channel entered or left MPE control, so the receiver
-      // reset nothing (MPE Spec §2.1.4) and still holds the two-note averages — the drop is what moves them, and
-      // it has to be reported even though the reconfiguration itself moved no channel.
-      extractNoteOffs(output) should contain(NoteOffMidiMsg(1, C4))
-      extractSlides(output) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 100))
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(1, 80))
-    }
-
-  it should "output the reconfigured Zone's Pitch Bend Sensitivity on its channels after its MCM" in
-    new Fixture(mpeTunerMpeInput) {
-      // When
-      // The Lower Zone goes from 15 Member Channels to 7, so afterwards its Master Channel is 0 and its Member
-      // Channels are 1..7.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 7)
-
-      // Then
-      // A conforming receiver performs this reset itself on the MCM, so restating it is idempotent there and
-      // corrective on a receiver that does not.
       private val ccs = extractCc(output)
+      // MCM: RPN LSB=6, RPN MSB=0, Data Entry MSB=memberCount on master channel 0
       ccs should contain inOrder(
-        CcMidiMsg(0, MidiCc.DataEntryMsb, 7),
-        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(0, MidiCc.DataEntryMsb, masterPbs.semitones),
-        CcMidiMsg(0, MidiCc.DataEntryLsb, masterPbs.cents)
-      )
-      (1 to 7).foreach { ch =>
-        ccs should contain inOrder(
-          CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-          CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-          CcMidiMsg(ch, MidiCc.DataEntryMsb, defaultPbs.semitones),
-          CcMidiMsg(ch, MidiCc.DataEntryLsb, defaultPbs.cents)
-        )
-      }
-      // And no Control Change reaches a channel the reconfiguration took out of the Zone.
-      (8 to 15).foreach { ch => ccs.filter(_.channel == ch) shouldBe empty }
-    }
-
-  it should "output the kept Pitch Bend Sensitivity of the Zone shrunk by overlap resolution on its channels" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // Given
-      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given custom sensitivities.
-      sendPbsMsb(tuner, channel = 15, semitones = 12)
-      sendPbsMsb(tuner, channel = 8, semitones = 24)
-
-      // When
-      // An MCM on the Lower Zone shrinks the Upper Zone to 4 Members: Master 15, Members 11..14.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 10)
-
-      // Then
-      // The Upper Zone kept its sensitivities, and the MCM that overlap resolution forces out restates them, so a
-      // receiver that did reset them on that MCM is brought back into step with the model.
-      private val ccs = extractCc(output)
-      ccs should contain inOrder(
-        CcMidiMsg(15, MidiCc.DataEntryMsb, 4),
-        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(15, MidiCc.DataEntryMsb, 12)
-      )
-      (11 to 14).foreach { ch =>
-        ccs should contain inOrder(
-          CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-          CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-          CcMidiMsg(ch, MidiCc.DataEntryMsb, 24)
-        )
-      }
-      // And the channels handed to the Lower Zone take that Zone's member default instead.
-      (8 to 10).foreach { ch =>
-        ccs should contain inOrder(
-          CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-          CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-          CcMidiMsg(ch, MidiCc.DataEntryMsb, defaultPbs.semitones)
-        )
-      }
-    }
-
-  it should "output the kept Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone on its channels" in
-    new Fixture(dualZoneTunerMpeInput) {
-      // Given
-      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given custom Master and
-      // Member sensitivities that the MCM below neither addresses nor changes.
-      sendPbsMsb(tuner, channel = 15, semitones = 12)
-      sendPbsMsb(tuner, channel = 8, semitones = 24)
-
-      // When
-      // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 4)
-
-      // Then
-      // The Upper Zone still restates what the Tuner holds for it on every one of its channels, matching the
-      // reach of the Pitch Bend the retuning pass re-emits on both Zones: a receiver that wrongly took the MCM's
-      // reset Zone-wide would otherwise read those Pitch Bends against a range the Tuner does not share.
-      private val ccs = extractCc(output)
-      ccs should contain inOrder(
-        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(15, MidiCc.DataEntryMsb, 12),
-        CcMidiMsg(15, MidiCc.DataEntryLsb, masterPbs.cents)
-      )
-      (8 to 14).foreach { ch =>
-        ccs should contain inOrder(
-          CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-          CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-          CcMidiMsg(ch, MidiCc.DataEntryMsb, 24),
-          CcMidiMsg(ch, MidiCc.DataEntryLsb, defaultPbs.cents)
-        )
-      }
-    }
-
-  it should "output no MCM for a Zone the reconfiguration leaves alone" in new Fixture(dualZoneTunerMpeInput) {
-    // When
-    // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched, so its Zone structure needs no
-    // restating — only its Pitch Bend Sensitivity does.
-    private val output = sendMcm(tuner, channel = 0, memberCount = 4)
-    // Then
-    // The Master Channel's Control Changes are pinned exactly rather than the MCM selector merely asserted
-    // absent: the MCM and the Pitch Bend Sensitivity selectors share their RPN MSB, so only the whole sequence
-    // tells the two apart.
-    extractCc(output).filter(_.channel == 15) shouldEqual Seq(
-      CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-      CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-      CcMidiMsg(15, MidiCc.DataEntryMsb, masterPbs.semitones),
-      CcMidiMsg(15, MidiCc.DataEntryLsb, masterPbs.cents),
-      CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.NullLsb),
-      CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.NullMsb)
-    )
-  }
-
-  it should "output the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone before its Pitch Bend" in
-    new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, with a custom member sensitivity
-      // of ±24 semitones. E4 sounds on Upper Member Channel 13 at its -14-cent offset encoded against it:
-      // -14 / 2400 * 8192 rounds to -48.
-      sendPbsMsb(tuner, channel = 8, semitones = 24)
-      rawPitchBend(-14.0, PitchBendSensitivity(24)) shouldEqual -48
-      private val keptPitchBend = PitchBendMidiMsg(13, rawPitchBend(-14.0, PitchBendSensitivity(24)))
-      extractPitchBends(noteOn(13, E4)) shouldEqual Seq(keptPitchBend)
-
-      // When
-      // Shrinking the Lower Zone to 4 Members leaves the Upper Zone untouched, yet the retuning pass still
-      // re-emits the Pitch Bend of its occupied channels.
-      private val output = sendMcm(tuner, channel = 0, memberCount = 4)
-
-      // Then
-      // The restated sensitivity precedes the Pitch Bend encoded against it, so a receiver that wrongly reset it
-      // on the MCM is back in step with the Tuner before the value that depends on it arrives.
-      output should contain inOrder(
-        CcMidiMsg(13, MidiCc.DataEntryMsb, 24),
-        keptPitchBend
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 15)
       )
     }
 
-  it should "output no Pitch Bend Sensitivity for a disabled Zone on an MCM" in new Fixture(tuner7MpeInput) {
-    // When
-    // The Upper Zone is disabled, so the reconfiguration of the Lower Zone leaves it nothing to state: it has
-    // neither a Master Channel nor Member Channels of its own.
-    private val output = sendMcm(tuner, channel = 0, memberCount = 4)
-    // Then
-    private val ccs = extractCc(output)
-    (5 to 15).foreach { ch => ccs.filter(_.channel == ch) shouldBe empty }
-  }
-
-  it should "keep the active Tuning when an MCM reconfigures the Zones" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      tuner.tuning shouldEqual quarterCommaMeantone
+    "emit the MCM RPN selector LSB before its MSB, closed by an RPN Null" in new Fixture(mpeTunerMpeInput) {
       // When
-      sendMcm(tuner, channel = 0, memberCount = 7)
+      private val output = tuner.reset()
       // Then
-      tuner.tuning shouldEqual quarterCommaMeantone
-      // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
-      private val output = noteOn(2, E4)
-      private val noteChannel = extractNoteOns(output).head.channel
-      extractPitchBendsWithCents(output) should contain((noteChannel, -14))
-    }
-
-  it should "restore the Standard Tuning on reset()" in
-    new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-      // When
-      tuner.reset()
-      // Then
-      tuner.tuning shouldEqual Tuning.Standard
-    }
-
-  // ---- RPN sequence validation gating ----
-
-  it should "not trigger MCM on incomplete RPN sequence" in new Fixture(mpeTunerMpeInput) {
-    // Given - Send only CC#101=0 and CC#6=10 without CC#100
-    tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb))
-    // When
-    private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 10))
-    // Then - Should NOT contain MCM output (no Note Offs, no MCM messages for reconfiguration)
-    extractNoteOffs(output) shouldBe empty
-    extractCc(output) should not contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 10)
-    )
-  }
-
-  it should "not trigger MCM for non-MCM RPN (e.g. PBS RPN)" in new Fixture(mpeTunerMpeInput) {
-    // When - Send PBS RPN (MSB=0, LSB=0) instead of MCM RPN (MSB=0, LSB=6)
-    tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
-    tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
-    private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 48))
-    // Then - Should NOT contain MCM reconfiguration output
-    private val ccs = extractCc(output)
-    ccs.filter(cc => cc.number == MidiCc.DataEntryMsb &&
-      cc.value == 15) shouldBe empty // no MCM with memberCount=15
-  }
-
-  // ---- Channel-of-receipt gating ----
-
-  // Regression guard: a Member Channel discards the whole sequence regardless of the MCM channel rule, which is
-  // why this case is a regression guard rather than a new behaviour.
-  it should "ignore an MCM received on a channel other than 1 or 16, in its entirety" in
-    new Fixture(mpeTunerMpeInput) {
-      // When
-      private val output =
-        tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb)) ++
-          tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb)) ++
-          tuner.process(CcMidiMsg(5, MidiCc.DataEntryMsb, 7))
-      // Then
-      output shouldBe empty
-      tuner.zones.lower.memberCount shouldEqual 15
-    }
-
-  it should "discard a Data Entry LSB received while an MCM is selected on a valid MCM channel" in
-    new Fixture(mpeTunerMpeInput) {
-      // Given
-      // The MPE Specification's MCM uses the Data Entry MSB alone; the LSB is not part of it, even on a channel
-      // (0, i.e. MIDI Channel 1) that is otherwise a valid MCM channel.
-      tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb))
-      tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb))
-      // When
-      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
-      // Then
-      output shouldBe empty
-    }
-
-  // ---- Revert on reset ----
-
-  it should "revert to initialZones on reset() after MCM" in new Fixture(dualZoneTunerMpeInput) {
-    // Given
-    sendMcm(tuner, channel = 0, memberCount = 10)
-    // When - Reset should restore initial configuration
-    private val resetOutput = tuner.reset()
-    // Then
-    private val ccs = extractCc(resetOutput)
-    // Lower zone should be back to 7 members
-    ccs should contain inOrder(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
-    )
-    // Upper zone should be back to 7 members
-    ccs should contain inOrder(
-      CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
-      CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
-      CcMidiMsg(15, MidiCc.DataEntryMsb, 7)
-    )
-  }
-
-  behavior of "MpeTuner - PBS Processing - Non-MPE Input"
-
-  // ---- Master-channel PBS update ----
-
-  it should "update master PBS and forward to lower zone master channel when PBS arrives on any input channel" in {
-    val inputChannels = Table("inputChannel", 0, 5, 10, 15)
-    forAll(inputChannels) { inputChannel =>
-      // Given
-      val tuner = tuner7
-      // When
-      val output = sendPbsMsb(tuner, channel = inputChannel, semitones = 12)
-      // Then
-      val ccs = extractCc(output)
-      ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 12))
-      ccs.map(_.channel) should contain only 0
-      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-    }
-  }
-
-  it should "update master PBS and forward to upper zone master channel when only upper zone is enabled" in {
-    // Given - Upper-zone-only tuner
-    val tuner = MpeTuner(
-      initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 7))
-    )
-    // When - PBS on an arbitrary input channel
-    val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
-    // Then
-    val ccs = extractCc(output)
-    ccs should contain(CcMidiMsg(15, MidiCc.DataEntryMsb, 12))
-    tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-  }
-
-  it should "route PBS to lower zone master in dual-zone setup regardless of input channel" in
-    new Fixture(dualZoneTuner) {
-      // When - PBS arrives on channel 12 (would be an upper zone member in MPE mode)
-      private var output = sendPbsMsb(tuner, channel = 4, semitones = 12)
-      output ++= sendPbsMsb(tuner, channel = 12, semitones = 2)
-      // Then - Non-MPE mode always routes to lower zone master (ch 0)
-      private val ccs = extractCc(output)
-      ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 12))
-      ccs should not contain CcMidiMsg(15, MidiCc.DataEntryMsb, 2)
-      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(2)
-      tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-    }
-
-  it should "forward a PBS update as a complete RPN sequence with both Data Entry bytes and a closing Null" in
-    new Fixture(tuner7) {
-      // When
-      private val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
-      // Then
-      extractCc(output) shouldEqual Seq(
-        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(0, MidiCc.DataEntryMsb, 12),
-        CcMidiMsg(0, MidiCc.DataEntryLsb, MpeZone.DefaultMasterPitchBendSensitivity.cents),
+      // Pin the exact prefix rather than using `contain inOrder`: the MCM is the first thing emitted on the Master
+      // Channel, and the master PBS sequence that follows carries its own closing RPN Null, which would satisfy the
+      // Null expectations on the MCM's behalf.
+      private val ccs = extractCc(output).filter(_.channel == 0)
+      ccs.take(5) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 15),
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.NullLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.NullMsb)
       )
     }
 
-  it should "carry the unchanged Data Entry half from the Tuner's own state" in new Fixture(tuner7) {
-    // Given - the sender sets the semitones half, which the Tuner records on the Zone
-    sendPbsMsb(tuner, channel = 5, semitones = 12)
-    // When - only the cents half is sent afterwards
-    private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
-    // Then - the semitones half is re-emitted from the recorded sensitivity, not from this message
-    extractCc(output) shouldEqual Seq(
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-      CcMidiMsg(0, MidiCc.DataEntryMsb, 12),
-      CcMidiMsg(0, MidiCc.DataEntryLsb, 50),
-      CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.NullLsb),
-      CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.NullMsb)
-    )
-  }
+    // ---- MCM-driven zone reconfiguration ----
 
-  // ---- LSB (cents) handling ----
-
-  it should "handle PBS LSB (cents) update by forwarding to master channel" in new Fixture(tuner7) {
-    // Given - Set RPN to PBS on a non-master channel
-    tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
-    tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
-    // When - Send LSB on the same non-master channel
-    private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
-    // Then - Should be forwarded to master channel (ch 0)
-    private val ccs = extractCc(output)
-    ccs should contain(CcMidiMsg(0, MidiCc.DataEntryLsb, 50))
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
-      MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
-  }
-
-  // ---- Zone isolation of PBS ----
-
-  it should "not update member PBS" in new Fixture(tuner7) {
-    // When - Send PBS on various channels
-    sendPbsMsb(tuner, channel = 1, semitones = 12)
-    sendPbsMsb(tuner, channel = 5, semitones = 24)
-    // Then - Member PBS should remain at default
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-  }
-
-  it should "not affect other zone's PBS" in new Fixture(dualZoneTuner) {
-    // When - Send PBS on any channel in non-MPE dual-zone mode
-    private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
-    // Then - Routed to lower zone master (ch 0); no PBS messages on upper zone channels
-    private val ccs = extractCc(output)
-    ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 24))
-    (8 to 15).foreach { ch =>
-      ccs.filter(cc => cc.channel == ch && cc.number == MidiCc.DataEntryMsb) shouldBe empty
-    }
-  }
-
-  // ---- Revert on reset ----
-
-  it should "revert PBS to initial values on reset()" in new Fixture(tuner7) {
-    // Given - Change master PBS (in non-MPE mode PBS always updates master)
-    sendPbsMsb(tuner, channel = 1, semitones = 24)
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-    // When
-    tuner.reset()
-    // Then - Member channels should have default PBS (48 semitones)
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
-  }
-
-  behavior of "MpeTuner - PBS Processing - MPE Input"
-
-  // ---- Master-channel PBS update ----
-
-  it should "update master PBS on master channel" in new Fixture(mpeTunerMpeInput) {
-    // When
-    private val output = sendPbsMsb(tuner, channel = 0, semitones = 12)
-    // Then
-    private val ccs = extractCc(output)
-    ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 12))
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
-  }
-
-  // ---- Member-channel PBS update & forwarding ----
-
-  it should "update member PBS and forward only on the received channel" in
-    new Fixture(tuner7MpeInput) {
+    "reconfigure lower zone on MCM received on channel 0" in new Fixture(dualZoneTunerMpeInput) {
       // When
-      private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      private val output = sendMcm(tuner, channel = 0, memberCount = 10)
+      // Then
+      // Should output MCM for the new lower zone with memberCount=10
+      private val ccs = extractCc(output)
+      ccs should contain inOrder(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 10)
+      )
+      tuner.zones.lower.memberCount shouldEqual 10
+      tuner.zones.upper.memberCount shouldEqual 4
+    }
+
+    "reconfigure upper zone on MCM received on channel 15" in new Fixture(dualZoneTunerMpeInput) {
+      // When
+      private val output = sendMcm(tuner, channel = 15, memberCount = 10)
+      // Then
+      // Should output MCM for the new upper zone with memberCount=10
+      private val ccs = extractCc(output)
+      ccs should contain inOrder(
+        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(15, MidiCc.DataEntryMsb, 10)
+      )
+      tuner.zones.lower.memberCount shouldEqual 4
+      tuner.zones.upper.memberCount shouldEqual 10
+    }
+
+    "disable zone when MCM with memberCount=0 is received" in new Fixture(dualZoneTunerMpeInput) {
+      // When
+      private val output = sendMcm(tuner, channel = 15, memberCount = 0)
       // Then
       private val ccs = extractCc(output)
-      ccs should contain(CcMidiMsg(1, MidiCc.DataEntryMsb, 24))
-      // Should NOT broadcast to other member channels
-      private val dataEntryCcs = ccs.filter(_.number == MidiCc.DataEntryMsb)
-      (2 to 7).foreach { ch =>
-        dataEntryCcs.filter(_.channel == ch) shouldBe empty
-      }
-      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      // Upper zone MCM should be sent to the output even if the zone is disabled to inform the downstream device
+      ccs should contain(CcMidiMsg(15, MidiCc.DataEntryMsb, 0))
+      // Lower zone MCM should NOT be present because the lower zone was not affected
+      ccs should not contain CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
     }
 
-  it should "forward PBS on each channel once when received on all member channels" in new Fixture(tuner7MpeInput) {
-    // When - Sender broadcasts PBS to all member channels 1-7; each should be forwarded 1:1
-    private var output: Seq[MidiMsg] = Seq.empty
-    for (ch <- 1 to 7) {
-      output ++= sendPbsMsb(tuner, channel = ch, semitones = 24)
-    }
-    // Then
-    private val dataEntryCcs = extractCc(output).filter(cc =>
-      cc.number == MidiCc.DataEntryMsb && cc.value == 24)
-    dataEntryCcs.size shouldEqual 7
-    dataEntryCcs.map(_.channel) should contain theSameElementsInOrderAs (1 to 7)
-  }
-
-  it should "handle PBS LSB (cents) update on master channel" in new Fixture(tuner7MpeInput) {
-    // Given
-    tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
-    tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
-    // When
-    private val output = sendPbsLsb(tuner, channel = 0, cents = 50)
-    // Then
-    private val ccs = extractCc(output)
-    ccs should contain(CcMidiMsg(0, MidiCc.DataEntryLsb, 50))
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
-      MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
-  }
-
-  it should "handle PBS LSB (cents) update on member channel" in new Fixture(tuner7MpeInput) {
-    // Given - Set RPN to PBS on a non-master channel
-    tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
-    tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
-    // When - Send LSB on the same non-master channel
-    private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
-    // Then - Should be forwarded to master channel (ch 0)
-    private val ccs = extractCc(output)
-    ccs should contain(CcMidiMsg(5, MidiCc.DataEntryLsb, 50))
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(
-      MpeZone.DefaultMemberPitchBendSensitivity.semitones, cents = 50)
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-  }
-
-  it should "forward a member PBS update as a complete RPN sequence on the receiving Member Channel" in
-    new Fixture(tuner7MpeInput) {
-      // When
-      private val output = sendPbsMsb(tuner, channel = 3, semitones = 24)
+    "shrink other zone when MCM causes overlap" in new Fixture(dualZoneTunerMpeInput) {
+      // dualZoneTunerMpeInput: lower=7, upper=7
+      // When - MCM on ch 0 with memberCount=10 -> upper must shrink to 4
+      private val output = sendMcm(tuner, channel = 0, memberCount = 10)
       // Then
-      extractCc(output).filter(_.channel == 3) shouldEqual Seq(
-        CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-        CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-        CcMidiMsg(3, MidiCc.DataEntryMsb, 24),
-        CcMidiMsg(3, MidiCc.DataEntryLsb, MpeZone.DefaultMemberPitchBendSensitivity.cents),
-        CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.NullLsb),
-        CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.NullMsb)
+      private val ccs = extractCc(output)
+      // Upper zone MCM should show memberCount=4
+      ccs should contain inOrder(
+        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(15, MidiCc.DataEntryMsb, 4)
+      )
+      tuner.zones.lower.memberCount shouldEqual 10
+      tuner.zones.upper.memberCount shouldEqual 4
+    }
+
+    // ---- Effects on active notes / other state ----
+
+    "stop the notes of channels leaving MPE control when an MCM shrinks a Zone" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Default zones: Lower Zone master 0, members 1..15. Occupy a channel that will survive the shrink and one
+        // that will not, by sending each note on the input Member Channel it prefers.
+        private val keptOutput = noteOn(2, C4)
+        private val droppedOutput = noteOn(12, E4)
+        private val keptChannel = extractNoteOns(keptOutput).head.channel
+        private val droppedChannel = extractNoteOns(droppedOutput).head.channel
+        keptChannel shouldEqual 2
+        droppedChannel shouldEqual 12
+
+        // When
+        // The Lower Zone shrinks to members 1..7, so channels 8..15 leave MPE control.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+        // Then
+        private val noteOffs = extractNoteOffs(output)
+        noteOffs should contain(NoteOffMidiMsg(droppedChannel, E4))
+        noteOffs.filter(_.channel == keptChannel) shouldBe empty
+        // The retained channel is retuned against the Zone's reset Pitch Bend Sensitivity.
+        extractPitchBends(output).map(_.channel) shouldEqual Seq(keptChannel)
+      }
+
+    "keep the notes of channels untouched by the reconfiguration sounding and tunable" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        noteOn(2, C4)
+        // When
+        private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 7)
+        // Then
+        // The retained channel is retuned by the MCM itself, the reset sensitivity re-encoding its Pitch Bend.
+        extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(2)
+        // The retained note is still known: retuning emits a Pitch Bend for its channel.
+        private val tuneOutput = tuner.tune(pythagoreanTuning)
+        extractPitchBends(tuneOutput).map(_.channel) should contain(2)
+        // And its Note Off is still honoured, on the same output channel.
+        extractNoteOffs(noteOff(2, C4)) should contain(NoteOffMidiMsg(2, C4))
+      }
+
+    "drop a note whose input channel leaves MPE control even when its output channel is retained" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Lower Zone master 0, members 1..7. A Member Channel note is allocated to its own input channel by
+        // preference, so occupy Member Channel 6 first; the note under test then arrives on the same input channel
+        // and is allocated elsewhere, on a channel the reconfiguration will keep.
+        noteOn(6, C4)
+        private val output = noteOn(6, D4)
+        private val outChannel = extractNoteOns(output).head.channel
+        outChannel should be <= 4
+
+        // When
+        // The Lower Zone shrinks to members 1..4: input channel 6 leaves MPE control while `outChannel` stays.
+        private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 4)
+
+        // Then
+        // The note is stopped on its retained output channel, and its stale Note Off then produces nothing at all.
+        extractNoteOffs(mcmOutput) should contain(NoteOffMidiMsg(outChannel, D4))
+        noteOff(6, D4) shouldBe empty
+        // Nothing is left occupied, so the retuning pass emits nothing.
+        extractPitchBends(mcmOutput) shouldBe empty
+      }
+
+    "keep an Upper Zone note when an MCM enables the Lower Zone, leaving the Upper Zone untouched" in
+      new Fixture(upperZoneOnlyTunerMpeInput) {
+        // Given
+        // Lower Zone disabled, Upper Zone master 15, members 8..14. Channel 3 lies outside every Zone, so the
+        // note it carries is discarded and binds nothing: enabling the Lower Zone cannot strand it.
+        noteOn(3, C4) shouldBe empty
+        private val output = noteOn(8, D4)
+        private val outChannel = extractNoteOns(output).head.channel
+
+        // When
+        // The Lower Zone becomes enabled with 2 Members (1..2), which no Upper Zone channel overlaps.
+        private val mcmOutput = sendMcm(tuner, channel = 0, memberCount = 2)
+
+        // Then
+        // No channel the note occupies changed its Zone assignment, so the note lives on and its Note Off is
+        // still honoured on the output channel it was allocated to.
+        extractNoteOffs(mcmOutput) shouldBe empty
+        extractNoteOffs(noteOff(8, D4)) should contain(NoteOffMidiMsg(outChannel, D4))
+        // The Upper Zone's retained channel is retuned all the same: the pass runs on both Zones' allocators.
+        extractPitchBends(mcmOutput).map(_.channel) shouldEqual Seq(outChannel)
+      }
+
+    "stop a twice-struck Master Channel note with one Note Off per forwarded Note On" in
+      new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Upper Zone master 15. C4 is struck twice there without an intervening release and E4 once; a Master Channel
+        // note bypasses the allocator and is forwarded on channel 15 unchanged, so three Note Ons went downstream.
+        noteOn(15, C4)
+        noteOn(15, C4)
+        noteOn(15, E4)
+
+        // When
+        // The Upper Zone is disabled, so channel 15 leaves MPE control and everything sounding on it must be stopped.
+        private val output = sendMcm(tuner, channel = 15, memberCount = 0)
+
+        // Then
+        // One Note Off per forwarded Note On: two for C4, one for E4.
+        private val noteOffs = extractNoteOffs(output).filter(_.channel == 15)
+        noteOffs.count(_.midiNote == C4) shouldEqual 2
+        noteOffs.count(_.midiNote == E4) shouldEqual 1
+      }
+
+    "reset the tracked control state of an affected channel only" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Seed the per-input-channel control state of a channel that survives and one that does not.
+        slide(2, 100)
+        slide(12, 100)
+        // When
+        sendMcm(tuner, channel = 0, memberCount = 7)
+        // Then
+        // A note on the surviving channel is seeded from the retained CC #74; the reconfigured channel is gone.
+        private val output = noteOn(2, C4)
+        extractSlides(output).map(_.value) should contain(100)
+      }
+
+    "clear the tracked control state of a channel that left and later re-entered MPE control" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Seed channel 12's control state, then shrink the Zone so it leaves MPE control.
+        slide(12, 100)
+        sendMcm(tuner, channel = 0, memberCount = 7)
+        // When
+        // Grow the Zone back so channel 12 re-enters MPE control.
+        sendMcm(tuner, channel = 0, memberCount = 15)
+        // Then
+        // The channel's tracked state was cleared, not merely left behind: a note on it now starts with no
+        // seeded Slide.
+        private val output = noteOn(12, C4)
+        extractSlides(output).map(_.value) should not contain 100
+      }
+
+    "reset the state of channels handed from one Zone to the other" in
+      new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14.
+        private val output = noteOn(6, C4)
+        extractNoteOns(output).head.channel shouldEqual 6
+
+        // When
+        // An MCM enlarging the Upper Zone to 10 Members shrinks the Lower Zone to 4 by overlap resolution, so
+        // channels 5..7 pass from Lower Member to Upper Member: they leave and re-enter MPE control.
+        private val mcmOutput = sendMcm(tuner, channel = 15, memberCount = 10)
+
+        // Then
+        extractNoteOffs(mcmOutput) should contain(NoteOffMidiMsg(6, C4))
+        tuner.zones.lower.memberCount shouldEqual 4
+        tuner.zones.upper.memberCount shouldEqual 10
+      }
+
+    "reset PBS to defaults when MCM is received" in new Fixture(tuner7MpeInput) {
+      // Given - Set custom PBS on the lower zone
+      sendPbsMsb(tuner, channel = 0, semitones = 12)
+      sendPbsMsb(tuner, channel = 1, semitones = 24)
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      // When - Receive MCM on the same zone
+      sendMcm(tuner, channel = 0, memberCount = 7)
+      // Then - PBS should be reset to defaults per MPE spec Section 2.4
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    }
+
+    "keep the Pitch Bend Sensitivity of the Zone shrunk by overlap resolution" in
+      new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14. Custom sensitivities on the
+        // Upper Zone, which the MCM below does not address.
+        sendPbsMsb(tuner, channel = 15, semitones = 12)
+        sendPbsMsb(tuner, channel = 8, semitones = 24)
+        tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+        tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+
+        // E4 sounding on Upper Member Channel 13, which the shrink below keeps, at its -14-cent offset encoded
+        // against the custom ±24 semitones: -14 / 2400 * 8192 rounds to -48.
+        rawPitchBend(-14.0, PitchBendSensitivity(24)) shouldEqual -48
+        private val keptPitchBend = PitchBendMidiMsg(13, rawPitchBend(-14.0, PitchBendSensitivity(24)))
+        private val noteOutput = noteOn(13, E4)
+        extractNoteOns(noteOutput).head.channel shouldEqual 13
+        extractPitchBends(noteOutput) shouldEqual Seq(keptPitchBend)
+
+        // When
+        // An MCM on the Lower Zone forces overlap resolution to shrink the Upper Zone to 4 Members, so the Tuner
+        // re-emits the Upper Zone's MCM. That MCM was not addressed to the Upper Zone, and the specification does
+        // not say whether a Zone shrunk this way loses its sensitivity, so the Tuner follows the prevailing
+        // implementation and keeps it.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 10)
+
+        // Then - The shrink moved the Zone's boundary and nothing else.
+        tuner.zones.upper.memberCount shouldEqual 4
+        tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+        tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+        // And the retained channel's Pitch Bend still encodes -14 cents against the kept ±24 semitones: the
+        // retuning pass re-emits the value the channel already held rather than one rescaled to a reset default.
+        extractPitchBends(output) shouldEqual Seq(keptPitchBend)
+      }
+
+    "keep the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        sendPbsMsb(tuner, channel = 8, semitones = 24)
+        // When
+        // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched, so no MCM is emitted for it
+        // and the sensitivity the Tuner holds for it stands.
+        sendMcm(tuner, channel = 0, memberCount = 4)
+        // Then
+        tuner.zones.upper.memberCount shouldEqual 7
+        tuner.zones.upper.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      }
+
+    "re-emit the Pitch Bend of a retained note against the sensitivity the MCM reset" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Member PBS narrowed to ±24 semitones, then E4 sounding on output Member Channel 2 at its -14-cent offset.
+        sendPbsMsb(tuner, channel = 1, semitones = 24)
+        private val narrowedPbs = PitchBendSensitivity(24)
+        private val noteOutput = noteOn(2, E4)
+        extractNoteOns(noteOutput).head.channel shouldEqual 2
+        extractPitchBends(noteOutput) shouldEqual Seq(PitchBendMidiMsg(2, rawPitchBend(-14.0, narrowedPbs)))
+
+        // And the performer bending that note by 64 raw units, which the Tuner holds as received and sums into the
+        // tuning term. Under ±24 semitones those units mean 18.75 cents.
+        private val expressionPitchBend = 64
+        PitchBendMidiMsg(2, expressionPitchBend).centsFor(narrowedPbs) shouldEqual 18.75
+        private val bendOutput = pitchBendValue(2, expressionPitchBend)
+        extractPitchBends(bendOutput) shouldEqual Seq(
+          PitchBendMidiMsg(2, rawPitchBend(-14.0, narrowedPbs) + expressionPitchBend))
+
+        // When
+        // An MCM shrinks the Lower Zone to 7 Members. Channel 2 is retained, and the MCM resets the Zone's Pitch
+        // Bend Sensitivity to the ±48-semitone default at the receiver.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+        // Then
+        // The retained channel is retuned, so its tuning term still means -14 cents under the reset sensitivity,
+        // while the held Expression Pitch Bend re-enters the sum at the same 64 raw units: the widened range
+        // reinterprets it as 37.5 cents rather than rescaling it to preserve the 18.75 cents it meant before.
+        PitchBendMidiMsg(2, expressionPitchBend).cents shouldEqual 37.5
+        private val retunedPitchBend = PitchBendMidiMsg(2, rawPitchBend(-14.0) + expressionPitchBend)
+        private val resetPbsDataEntry = CcMidiMsg(2, MidiCc.DataEntryMsb, defaultPbs.semitones)
+        tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+        extractPitchBends(output) shouldEqual Seq(retunedPitchBend)
+        // And the receiver is told the sensitivity before it is given the Pitch Bend encoded against it, without
+        // which it would read that Pitch Bend against the range it still held.
+        output should contain(resetPbsDataEntry)
+        output.indexOf(resetPbsDataEntry) should be < output.indexOf(retunedPitchBend)
+      }
+
+    "drop the co-residents of a note the MCM's Pitch Bend Sensitivity reset reclassifies as high-bend" in
+      new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // At ±2 semitones the threshold is 2048 raw, so C4 and C5 coexist on output channel 1 with bends below it.
+        sendPbsMsb(tuner, channel = 1, semitones = 2)
+        noteOn(1, C4)
+        noteOn(2, E4)
+        noteOn(3, C3)
+        noteOn(2, C5)
+        pitchBendValue(1, 500)
+        pitchBendValue(2, 700)
+
+        // When
+        // An MCM that changes no Zone boundary still resets the Zone's Pitch Bend Sensitivity to ±48 semitones,
+        // lowering the threshold to 85 raw and carrying both notes on channel 1 past it.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 3)
+
+        // Then
+        // The latest-onset note survives, and its co-resident's Note Off follows the MCM rather than preceding it:
+        // the MCM's own reset is what caused the reclassification, unlike the reconfiguration's own drops.
+        private val droppedNoteOff = NoteOffMidiMsg(1, C4)
+        extractNoteOffs(output) shouldEqual Seq(droppedNoteOff)
+        output.indexOf(droppedNoteOff) should be > output.indexOf(CcMidiMsg(0, MidiCc.DataEntryMsb, 3))
+      }
+
+    "correct CC #74 and Channel Pressure on a retained channel a departed note's drop moved" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        // Output Member Channel 1 holds C4 from input channel 1 and C5 from input channel 3 — the pitch-class
+        // invariant having placed them together — each carrying its own input channel's CC #74 and Channel
+        // Pressure, so the channel's aggregate of each is the average of the two.
+        noteOn(1, C4, pressure = Some(40), slide = Some(20))
+        noteOn(1, D4)
+        noteOn(2, E4)
+        private val sharedOutput = noteOn(3, C5, pressure = Some(80), slide = Some(100))
+        extractNoteOns(sharedOutput).head.channel shouldEqual 1
+        extractSlides(sharedOutput) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 60))
+        extractChannelPressures(sharedOutput) shouldEqual Seq(ChannelPressureMidiMsg(1, 60))
+
+        // When
+        // Shrinking the Lower Zone to 2 Members takes Member Channel 3 out of MPE control. C5 arrived there, so it
+        // is dropped even though its output channel 1 is retained, leaving C4 alone on it.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 2)
+
+        // Then
+        // Channel 1's averages fall back to C4's own values. The receiver resets nothing on a channel the
+        // reconfiguration left alone (MPE Spec §2.1.4), so it still holds the two-note averages and has to be told.
+        extractNoteOffs(output) should contain(NoteOffMidiMsg(1, C5))
+        extractSlides(output) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 20))
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(1, 40))
+      }
+
+    "correct CC #74 and Channel Pressure on a channel the MCM's Pitch Bend Sensitivity reset emptied of " +
+      "co-residents" in new Fixture(tuner3MpeInput) {
+        // Given
+        // At ±2 semitones the threshold is 2048 raw. Output Member Channel 1 holds C4 from input channel 1 and
+        // C5 from input channel 3 — the pitch-class invariant having placed them together — each carrying its own
+        // input channel's CC #74 and Channel Pressure, so the channel's aggregate of each is the average of the two.
+        sendPbsMsb(tuner, channel = 1, semitones = 2)
+        noteOn(1, C4, pressure = Some(40), slide = Some(20))
+        noteOn(2, D4)
+        noteOn(2, E4)
+        private val sharedOutput = noteOn(3, C5, pressure = Some(80), slide = Some(100))
+        extractNoteOns(sharedOutput).head.channel shouldEqual 1
+        extractSlides(sharedOutput) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 60))
+        extractChannelPressures(sharedOutput) shouldEqual Seq(ChannelPressureMidiMsg(1, 60))
+        // Both bends stay below the threshold, so the two notes coexist.
+        pitchBendValue(1, 500)
+        pitchBendValue(3, 700)
+
+        // When
+        // An MCM that changes no Zone boundary still resets the Zone's Pitch Bend Sensitivity to ±48 semitones,
+        // lowering the threshold to 85 raw and carrying both notes on channel 1 past it. The divergence rule keeps
+        // the latest-onset note, C5, and drops C4.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 3)
+
+        // Then
+        // Channel 1's averages fall to C5's own values. No channel entered or left MPE control, so the receiver
+        // reset nothing (MPE Spec §2.1.4) and still holds the two-note averages — the drop is what moves them, and
+        // it has to be reported even though the reconfiguration itself moved no channel.
+        extractNoteOffs(output) should contain(NoteOffMidiMsg(1, C4))
+        extractSlides(output) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 100))
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(1, 80))
+      }
+
+    "output the reconfigured Zone's Pitch Bend Sensitivity on its channels after its MCM" in
+      new Fixture(mpeTunerMpeInput) {
+        // When
+        // The Lower Zone goes from 15 Member Channels to 7, so afterwards its Master Channel is 0 and its Member
+        // Channels are 1..7.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 7)
+
+        // Then
+        // A conforming receiver performs this reset itself on the MCM, so restating it is idempotent there and
+        // corrective on a receiver that does not.
+        private val ccs = extractCc(output)
+        ccs should contain inOrder(
+          CcMidiMsg(0, MidiCc.DataEntryMsb, 7),
+          CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(0, MidiCc.DataEntryMsb, masterPbs.semitones),
+          CcMidiMsg(0, MidiCc.DataEntryLsb, masterPbs.cents)
+        )
+        (1 to 7).foreach { ch =>
+          ccs should contain inOrder(
+            CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+            CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+            CcMidiMsg(ch, MidiCc.DataEntryMsb, defaultPbs.semitones),
+            CcMidiMsg(ch, MidiCc.DataEntryLsb, defaultPbs.cents)
+          )
+        }
+        // And no Control Change reaches a channel the reconfiguration took out of the Zone.
+        (8 to 15).foreach { ch => ccs.filter(_.channel == ch) shouldBe empty }
+      }
+
+    "output the kept Pitch Bend Sensitivity of the Zone shrunk by overlap resolution on its channels" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given custom sensitivities.
+        sendPbsMsb(tuner, channel = 15, semitones = 12)
+        sendPbsMsb(tuner, channel = 8, semitones = 24)
+
+        // When
+        // An MCM on the Lower Zone shrinks the Upper Zone to 4 Members: Master 15, Members 11..14.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 10)
+
+        // Then
+        // The Upper Zone kept its sensitivities, and the MCM that overlap resolution forces out restates them, so a
+        // receiver that did reset them on that MCM is brought back into step with the model.
+        private val ccs = extractCc(output)
+        ccs should contain inOrder(
+          CcMidiMsg(15, MidiCc.DataEntryMsb, 4),
+          CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(15, MidiCc.DataEntryMsb, 12)
+        )
+        (11 to 14).foreach { ch =>
+          ccs should contain inOrder(
+            CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+            CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+            CcMidiMsg(ch, MidiCc.DataEntryMsb, 24)
+          )
+        }
+        // And the channels handed to the Lower Zone take that Zone's member default instead.
+        (8 to 10).foreach { ch =>
+          ccs should contain inOrder(
+            CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+            CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+            CcMidiMsg(ch, MidiCc.DataEntryMsb, defaultPbs.semitones)
+          )
+        }
+      }
+
+    "output the kept Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone on its channels" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, given custom Master and
+        // Member sensitivities that the MCM below neither addresses nor changes.
+        sendPbsMsb(tuner, channel = 15, semitones = 12)
+        sendPbsMsb(tuner, channel = 8, semitones = 24)
+
+        // When
+        // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 4)
+
+        // Then
+        // The Upper Zone still restates what the Tuner holds for it on every one of its channels, matching the
+        // reach of the Pitch Bend the retuning pass re-emits on both Zones: a receiver that wrongly took the MCM's
+        // reset Zone-wide would otherwise read those Pitch Bends against a range the Tuner does not share.
+        private val ccs = extractCc(output)
+        ccs should contain inOrder(
+          CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(15, MidiCc.DataEntryMsb, 12),
+          CcMidiMsg(15, MidiCc.DataEntryLsb, masterPbs.cents)
+        )
+        (8 to 14).foreach { ch =>
+          ccs should contain inOrder(
+            CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+            CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+            CcMidiMsg(ch, MidiCc.DataEntryMsb, 24),
+            CcMidiMsg(ch, MidiCc.DataEntryLsb, defaultPbs.cents)
+          )
+        }
+      }
+
+    "output no MCM for a Zone the reconfiguration leaves alone" in new Fixture(dualZoneTunerMpeInput) {
+      // When
+      // Shrinking the Lower Zone to 4 Members leaves the Upper Zone's 7 untouched, so its Zone structure needs no
+      // restating — only its Pitch Bend Sensitivity does.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 4)
+      // Then
+      // The Master Channel's Control Changes are pinned exactly rather than the MCM selector merely asserted
+      // absent: the MCM and the Pitch Bend Sensitivity selectors share their RPN MSB, so only the whole sequence
+      // tells the two apart.
+      extractCc(output).filter(_.channel == 15) shouldEqual Seq(
+        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+        CcMidiMsg(15, MidiCc.DataEntryMsb, masterPbs.semitones),
+        CcMidiMsg(15, MidiCc.DataEntryLsb, masterPbs.cents),
+        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.NullLsb),
+        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.NullMsb)
       )
     }
 
-  // ---- Pitch-bend recomputation after PBS change ----
+    "output the Pitch Bend Sensitivity of a Zone the reconfiguration leaves alone before its Pitch Bend" in
+      new Fixture(dualZoneTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Lower Zone master 0, members 1..7; Upper Zone master 15, members 8..14, with a custom member sensitivity
+        // of ±24 semitones. E4 sounds on Upper Member Channel 13 at its -14-cent offset encoded against it:
+        // -14 / 2400 * 8192 rounds to -48.
+        sendPbsMsb(tuner, channel = 8, semitones = 24)
+        rawPitchBend(-14.0, PitchBendSensitivity(24)) shouldEqual -48
+        private val keptPitchBend = PitchBendMidiMsg(13, rawPitchBend(-14.0, PitchBendSensitivity(24)))
+        extractPitchBends(noteOn(13, E4)) shouldEqual Seq(keptPitchBend)
 
-  it should "recompute pitch bends on occupied channels after member PBS change" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given - Play a note to occupy a channel
-      private val noteOutput = noteOn(2, E4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When - Change member PBS
-      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
-      // Then
-      private val pitchBends = extractPitchBends(pbsOutput)
-      pitchBends.map(_.channel) should contain(noteChannel)
-      pitchBends.size shouldEqual 1
-      pitchBends.head.centsFor(PitchBendSensitivity(24)).round.toInt shouldEqual -14
-    }
+        // When
+        // Shrinking the Lower Zone to 4 Members leaves the Upper Zone untouched, yet the retuning pass still
+        // re-emits the Pitch Bend of its occupied channels.
+        private val output = sendMcm(tuner, channel = 0, memberCount = 4)
 
-  it should "reinterpret the Expression Pitch Bend of an active note under the new PBS, preserving its tuning" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // E4 on input Member Channel 1 with an Expression Pitch Bend of 293 cents at the default ±48 semitones,
-      // which is raw 500. The tuning offset of E in quarter-comma meantone is -14 cents.
-      private val exprCents = 293.0
-      rawPitchBend(exprCents) shouldEqual 500
-      private val noteOutput = noteOn(1, E4, 100, pbCents = Some(exprCents))
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
+        // Then
+        // The restated sensitivity precedes the Pitch Bend encoded against it, so a receiver that wrongly reset it
+        // on the MCM is back in step with the Tuner before the value that depends on it arrives.
+        output should contain inOrder(
+          CcMidiMsg(13, MidiCc.DataEntryMsb, 24),
+          keptPitchBend
+        )
+      }
 
-      // When - The member PBS narrows from ±48 to ±24 semitones.
-      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
-
-      // Then
-      // The tuning term is re-encoded against the new sensitivity while the held raw bend carries over
-      // untouched: -14 cents is -48 raw at ±24, and the raw 500 now means 146.5 cents rather than 293. A
-      // sensitivity change reinterprets a held bend rather than conserving its deviation.
-      private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
-      pitchBends should have size 1
-      pitchBends.head.value shouldEqual rawPitchBend(-14.0, PitchBendSensitivity(24)) + 500
-      pitchBends.head.value shouldEqual 452
-    }
-
-  it should "seed a new note's Expression Pitch Bend with the same raw value an active note of its input " +
-    "channel carries, after a member PBS change" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // 25 cents at the default ±48 semitones is raw 43, and C has a zero tuning offset in quarter-comma
-      // meantone, so an emitted Pitch Bend on a C channel is exactly the raw expression value.
-      rawPitchBend(25.0) shouldEqual 43
-      pitchBend(1, 25.0)
-      private val firstOutput = noteOn(1, C4)
-      private val firstChannel = extractNoteOns(firstOutput).head.channel
-
+    "output no Pitch Bend Sensitivity for a disabled Zone on an MCM" in new Fixture(tuner7MpeInput) {
       // When
-      // The member PBS changes, then a second note arrives on the same input channel with no intervening Pitch
-      // Bend, so it is seeded from the raw value the tracker still holds.
-      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
-      private val secondOutput = noteOn(1, C5)
-      private val secondChannel = extractNoteOns(secondOutput).head.channel
-
+      // The Upper Zone is disabled, so the reconfiguration of the Lower Zone leaves it nothing to state: it has
+      // neither a Master Channel nor Member Channels of its own.
+      private val output = sendMcm(tuner, channel = 0, memberCount = 4)
       // Then
-      // The two paths agree, both being the tracker's raw value. Neither the old cents nor the new cents is
-      // privileged: agreement is the property under test.
-      secondChannel should not equal firstChannel
-      extractPitchBends(pbsOutput).filter(_.channel == firstChannel).map(_.value) shouldEqual Seq(43)
-      extractPitchBends(secondOutput).filter(_.channel == secondChannel).map(_.value) shouldEqual Seq(43)
+      private val ccs = extractCc(output)
+      (5 to 15).foreach { ch => ccs.filter(_.channel == ch) shouldBe empty }
     }
 
-  it should "emit a single recomputed pitch bend on each occupied channel after member PBS change, " +
-    "preserving intonation of an active note without expression pitch bend" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given - Play E4 on MPE member channel 2: tuning offset for E is -14.0 cents
-      private val noteOutput = noteOn(2, E4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
-      // When - Change member PBS from 48 to 24 semitones
-      private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
-      // Then - A single recomputed pitch bend on the occupied channel
-      private val pitchBends = extractPitchBends(pbsOutput)
-      pitchBends.size shouldEqual 1
-      pitchBends.map(_.channel) should contain(noteChannel)
-      // The output pitch bend should still represent -14.0 cents under the new PBS
-      pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
-    }
+    "keep the active Tuning when an MCM reconfigures the Zones" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        tuner.tuning shouldEqual quarterCommaMeantone
+        // When
+        sendMcm(tuner, channel = 0, memberCount = 7)
+        // Then
+        tuner.tuning shouldEqual quarterCommaMeantone
+        // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
+        private val output = noteOn(2, E4)
+        private val noteChannel = extractNoteOns(output).head.channel
+        extractPitchBendsWithCents(output) should contain((noteChannel, -14))
+      }
 
-  // ---- Reclassification after a member PBS change ----
+    "restore the Standard Tuning on reset()" in
+      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+        // When
+        tuner.reset()
+        // Then
+        tuner.tuning shouldEqual Tuning.Standard
+      }
 
-  it should "drop all but the latest-onset note when a member PBS change carries several notes on one channel " +
-    "past the threshold" in new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // Lower Zone with 3 Member Channels (PCG=1, EG=2). At ±2 semitones the threshold is 2048 raw. C4 takes the
-      // Pitch Class Group channel, C5 and C3 the Expression Group ones, and C6 then shares the oldest channel —
-      // channel 1 — with C4, from a different input channel.
-      sendPbsMsb(tuner, channel = 1, semitones = 2)
-      noteOn(1, C4)
-      noteOn(2, C5)
-      noteOn(3, C3)
-      noteOn(2, C6)
-      pitchBendValue(1, 500)
-      pitchBendValue(2, 700)
-      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(2)
+    // ---- RPN sequence validation gating ----
 
+    "not trigger MCM on incomplete RPN sequence" in new Fixture(mpeTunerMpeInput) {
+      // Given - Send only CC#101=0 and CC#6=10 without CC#100
+      tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb))
       // When
-      // Widening the range to ±48 semitones lowers the threshold to 85 raw, so both notes on channel 1 cross it
-      // at once — carrying different bends, having arrived on different input channels.
-      private val output = sendPbsMsb(tuner, channel = 1, semitones = 48)
-
-      // Then
-      // The latest-onset note survives and the rest of the channel is dropped.
-      private val droppedNoteOff = NoteOffMidiMsg(1, C4)
-      private val survivorPitchBend = PitchBendMidiMsg(1, 700)
-      extractNoteOffs(output) shouldEqual Seq(droppedNoteOff)
-      // One recomputed Pitch Bend per occupied Member Channel, C having a zero tuning offset in quarter-comma
-      // meantone: channel 1 now carries C6's bend alone.
-      extractPitchBends(output) shouldEqual Seq(
-        survivorPitchBend,
-        PitchBendMidiMsg(2, 700),
-        PitchBendMidiMsg(3, 0))
-      // And the Note Off precedes every Pitch Bend, the relative order the paper's "Message Ordering" section
-      // gives the control dimensions after a Note Off: the receiver is told the note ended before it is told
-      // the new value of the channel that carried it.
-      output.indexOf(droppedNoteOff) should be < output.indexOf(survivorPitchBend)
-    }
-
-  it should "emit no CC #74 or Channel Pressure from a member PBS change that drops nothing" in
-    new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
-      // Given - A single note carrying both other control dimensions.
-      noteOn(1, E4, pressure = Some(90), slide = Some(30))
-      // When
-      private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
-      // Then
-      // The sensitivity change moves neither dimension by itself, and no drop occurred, so only the recomputed
-      // Pitch Bend goes out.
-      extractSlides(output) shouldBe empty
-      extractChannelPressures(output) shouldBe empty
-      extractPitchBends(output) should have size 1
-    }
-
-  it should "emit the CC #74 and Channel Pressure a reclassification drop moved" in
-    new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // As above, but the two co-residents of channel 1 carry different values in the other two dimensions, so
-      // dropping one moves the channel's averages.
-      sendPbsMsb(tuner, channel = 1, semitones = 2)
-      noteOn(1, C4, pressure = Some(20), slide = Some(20))
-      noteOn(2, C5)
-      noteOn(3, C3)
-      noteOn(2, C6, pressure = Some(100), slide = Some(100))
-      pitchBendValue(1, 500)
-      pitchBendValue(2, 700)
-
-      // When
-      private val output = sendPbsMsb(tuner, channel = 1, semitones = 48)
-
-      // Then - Channel 1 keeps C6 alone, so both dimensions take its values.
-      extractSlides(output) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 100))
-      extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(1, 100))
-    }
-
-  it should "classify nothing as a High Expression Pitch Bend at a member PBS range no bend can exceed the " +
-    "threshold in" in new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
-      // Given
-      // At ±2 semitones the threshold is 2048 raw, so C4 and C5 coexist on channel 1 with bends below it. C#4
-      // occupies a channel of its own, its -24-cent offset exceeding the degenerate range set below.
-      sendPbsMsb(tuner, channel = 1, semitones = 2)
-      noteOn(1, C4)
-      noteOn(2, Cs4)
-      noteOn(3, C3)
-      noteOn(2, C5)
-      pitchBendValue(1, 500)
-      pitchBendValue(2, 700)
-
-      // When
-      // ±0 semitones 20 cents is a range in which no Pitch Bend value can deviate by more than the 50-cent
-      // threshold, so the threshold becomes unreachable rather than a value the conversion would reject.
-      sendPbsMsb(tuner, channel = 1, semitones = 0)
-      private val output = sendPbsLsb(tuner, channel = 1, cents = 20)
-
-      // Then
-      // Nothing is reclassified and nothing throws: the tuning term is clamped into the degenerate range before
-      // conversion, and the sum is clamped in raw units.
-      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(0, 20)
+      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 10))
+      // Then - Should NOT contain MCM output (no Note Offs, no MCM messages for reconfiguration)
       extractNoteOffs(output) shouldBe empty
-      extractPitchBends(output) shouldEqual Seq(
-        PitchBendMidiMsg(1, 600),
-        PitchBendMidiMsg(2, -7492),
-        PitchBendMidiMsg(3, 0))
+      extractCc(output) should not contain inOrder(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 10)
+      )
     }
 
-  // ---- Revert on reset ----
+    "not trigger MCM for non-MCM RPN (e.g. PBS RPN)" in new Fixture(mpeTunerMpeInput) {
+      // When - Send PBS RPN (MSB=0, LSB=0) instead of MCM RPN (MSB=0, LSB=6)
+      tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
+      tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
+      private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 48))
+      // Then - Should NOT contain MCM reconfiguration output
+      private val ccs = extractCc(output)
+      ccs.filter(cc => cc.number == MidiCc.DataEntryMsb &&
+        cc.value == 15) shouldBe empty // no MCM with memberCount=15
+    }
 
-  it should "revert PBS to initial values on reset()" in new Fixture(tuner7MpeInput) {
-    // Given
-    sendPbsMsb(tuner, channel = 0, semitones = 3)
-    sendPbsMsb(tuner, channel = 1, semitones = 24)
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(3)
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
-    // When
-    tuner.reset()
-    // Then
-    tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
-    tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    // ---- Channel-of-receipt gating ----
+
+    // Regression guard: a Member Channel discards the whole sequence regardless of the MCM channel rule, which is
+    // why this case is a regression guard rather than a new behaviour.
+    "ignore an MCM received on a channel other than 1 or 16, in its entirety" in
+      new Fixture(mpeTunerMpeInput) {
+        // When
+        private val output =
+          tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb)) ++
+            tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb)) ++
+            tuner.process(CcMidiMsg(5, MidiCc.DataEntryMsb, 7))
+        // Then
+        output shouldBe empty
+        tuner.zones.lower.memberCount shouldEqual 15
+      }
+
+    "discard a Data Entry LSB received while an MCM is selected on a valid MCM channel" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        // The MPE Specification's MCM uses the Data Entry MSB alone; the LSB is not part of it, even on a channel
+        // (0, i.e. MIDI Channel 1) that is otherwise a valid MCM channel.
+        tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb))
+        tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb))
+        // When
+        private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryLsb, 5))
+        // Then
+        output shouldBe empty
+      }
+
+    // ---- Revert on reset ----
+
+    "revert to initialZones on reset() after MCM" in new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      sendMcm(tuner, channel = 0, memberCount = 10)
+      // When - Reset should restore initial configuration
+      private val resetOutput = tuner.reset()
+      // Then
+      private val ccs = extractCc(resetOutput)
+      // Lower zone should be back to 7 members
+      ccs should contain inOrder(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
+      )
+      // Upper zone should be back to 7 members
+      ccs should contain inOrder(
+        CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
+        CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
+        CcMidiMsg(15, MidiCc.DataEntryMsb, 7)
+      )
+    }
+  }
+
+  "MpeTuner - PBS Processing - Non-MPE Input" should {
+    // ---- Master-channel PBS update ----
+
+    "update master PBS and forward to lower zone master channel when PBS arrives on any input channel" in {
+      val inputChannels = Table("inputChannel", 0, 5, 10, 15)
+      forAll(inputChannels) { inputChannel =>
+        // Given
+        val tuner = tuner7
+        // When
+        val output = sendPbsMsb(tuner, channel = inputChannel, semitones = 12)
+        // Then
+        val ccs = extractCc(output)
+        ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 12))
+        ccs.map(_.channel) should contain only 0
+        tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+      }
+    }
+
+    "update master PBS and forward to upper zone master channel when only upper zone is enabled" in {
+      // Given - Upper-zone-only tuner
+      val tuner = MpeTuner(
+        initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 7))
+      )
+      // When - PBS on an arbitrary input channel
+      val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
+      // Then
+      val ccs = extractCc(output)
+      ccs should contain(CcMidiMsg(15, MidiCc.DataEntryMsb, 12))
+      tuner.zones.upper.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+    }
+
+    "route PBS to lower zone master in dual-zone setup regardless of input channel" in
+      new Fixture(dualZoneTuner) {
+        // When - PBS arrives on channel 12 (would be an upper zone member in MPE mode)
+        private var output = sendPbsMsb(tuner, channel = 4, semitones = 12)
+        output ++= sendPbsMsb(tuner, channel = 12, semitones = 2)
+        // Then - Non-MPE mode always routes to lower zone master (ch 0)
+        private val ccs = extractCc(output)
+        ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 12))
+        ccs should not contain CcMidiMsg(15, MidiCc.DataEntryMsb, 2)
+        tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(2)
+        tuner.zones.upper.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+      }
+
+    "forward a PBS update as a complete RPN sequence with both Data Entry bytes and a closing Null" in
+      new Fixture(tuner7) {
+        // When
+        private val output = sendPbsMsb(tuner, channel = 5, semitones = 12)
+        // Then
+        extractCc(output) shouldEqual Seq(
+          CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(0, MidiCc.DataEntryMsb, 12),
+          CcMidiMsg(0, MidiCc.DataEntryLsb, MpeZone.DefaultMasterPitchBendSensitivity.cents),
+          CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.NullLsb),
+          CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.NullMsb)
+        )
+      }
+
+    "carry the unchanged Data Entry half from the Tuner's own state" in new Fixture(tuner7) {
+      // Given - the sender sets the semitones half, which the Tuner records on the Zone
+      sendPbsMsb(tuner, channel = 5, semitones = 12)
+      // When - only the cents half is sent afterwards
+      private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
+      // Then - the semitones half is re-emitted from the recorded sensitivity, not from this message
+      extractCc(output) shouldEqual Seq(
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+        CcMidiMsg(0, MidiCc.DataEntryMsb, 12),
+        CcMidiMsg(0, MidiCc.DataEntryLsb, 50),
+        CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.NullLsb),
+        CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.NullMsb)
+      )
+    }
+
+    // ---- LSB (cents) handling ----
+
+    "handle PBS LSB (cents) update by forwarding to master channel" in new Fixture(tuner7) {
+      // Given - Set RPN to PBS on a non-master channel
+      tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
+      tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
+      // When - Send LSB on the same non-master channel
+      private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
+      // Then - Should be forwarded to master channel (ch 0)
+      private val ccs = extractCc(output)
+      ccs should contain(CcMidiMsg(0, MidiCc.DataEntryLsb, 50))
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
+        MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
+    }
+
+    // ---- Zone isolation of PBS ----
+
+    "not update member PBS" in new Fixture(tuner7) {
+      // When - Send PBS on various channels
+      sendPbsMsb(tuner, channel = 1, semitones = 12)
+      sendPbsMsb(tuner, channel = 5, semitones = 24)
+      // Then - Member PBS should remain at default
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    }
+
+    "not affect other zone's PBS" in new Fixture(dualZoneTuner) {
+      // When - Send PBS on any channel in non-MPE dual-zone mode
+      private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+      // Then - Routed to lower zone master (ch 0); no PBS messages on upper zone channels
+      private val ccs = extractCc(output)
+      ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 24))
+      (8 to 15).foreach { ch =>
+        ccs.filter(cc => cc.channel == ch && cc.number == MidiCc.DataEntryMsb) shouldBe empty
+      }
+    }
+
+    // ---- Revert on reset ----
+
+    "revert PBS to initial values on reset()" in new Fixture(tuner7) {
+      // Given - Change master PBS (in non-MPE mode PBS always updates master)
+      sendPbsMsb(tuner, channel = 1, semitones = 24)
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+      // When
+      tuner.reset()
+      // Then - Member channels should have default PBS (48 semitones)
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    }
+  }
+
+  "MpeTuner - PBS Processing - MPE Input" should {
+    // ---- Master-channel PBS update ----
+
+    "update master PBS on master channel" in new Fixture(mpeTunerMpeInput) {
+      // When
+      private val output = sendPbsMsb(tuner, channel = 0, semitones = 12)
+      // Then
+      private val ccs = extractCc(output)
+      ccs should contain(CcMidiMsg(0, MidiCc.DataEntryMsb, 12))
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(12)
+    }
+
+    // ---- Member-channel PBS update & forwarding ----
+
+    "update member PBS and forward only on the received channel" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+        // Then
+        private val ccs = extractCc(output)
+        ccs should contain(CcMidiMsg(1, MidiCc.DataEntryMsb, 24))
+        // Should NOT broadcast to other member channels
+        private val dataEntryCcs = ccs.filter(_.number == MidiCc.DataEntryMsb)
+        (2 to 7).foreach { ch =>
+          dataEntryCcs.filter(_.channel == ch) shouldBe empty
+        }
+        tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      }
+
+    "forward PBS on each channel once when received on all member channels" in new Fixture(tuner7MpeInput) {
+      // When - Sender broadcasts PBS to all member channels 1-7; each should be forwarded 1:1
+      private var output: Seq[MidiMsg] = Seq.empty
+      for (ch <- 1 to 7) {
+        output ++= sendPbsMsb(tuner, channel = ch, semitones = 24)
+      }
+      // Then
+      private val dataEntryCcs = extractCc(output).filter(cc =>
+        cc.number == MidiCc.DataEntryMsb && cc.value == 24)
+      dataEntryCcs.size shouldEqual 7
+      dataEntryCcs.map(_.channel) should contain theSameElementsInOrderAs (1 to 7)
+    }
+
+    "handle PBS LSB (cents) update on master channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
+      tuner.process(CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
+      // When
+      private val output = sendPbsLsb(tuner, channel = 0, cents = 50)
+      // Then
+      private val ccs = extractCc(output)
+      ccs should contain(CcMidiMsg(0, MidiCc.DataEntryLsb, 50))
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(
+        MpeZone.DefaultMasterPitchBendSensitivity.semitones, cents = 50)
+    }
+
+    "handle PBS LSB (cents) update on member channel" in new Fixture(tuner7MpeInput) {
+      // Given - Set RPN to PBS on a non-master channel
+      tuner.process(CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb))
+      tuner.process(CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb))
+      // When - Send LSB on the same non-master channel
+      private val output = sendPbsLsb(tuner, channel = 5, cents = 50)
+      // Then - Should be forwarded to master channel (ch 0)
+      private val ccs = extractCc(output)
+      ccs should contain(CcMidiMsg(5, MidiCc.DataEntryLsb, 50))
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(
+        MpeZone.DefaultMemberPitchBendSensitivity.semitones, cents = 50)
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+    }
+
+    "forward a member PBS update as a complete RPN sequence on the receiving Member Channel" in
+      new Fixture(tuner7MpeInput) {
+        // When
+        private val output = sendPbsMsb(tuner, channel = 3, semitones = 24)
+        // Then
+        extractCc(output).filter(_.channel == 3) shouldEqual Seq(
+          CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+          CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+          CcMidiMsg(3, MidiCc.DataEntryMsb, 24),
+          CcMidiMsg(3, MidiCc.DataEntryLsb, MpeZone.DefaultMemberPitchBendSensitivity.cents),
+          CcMidiMsg(3, MidiCc.RpnLsb, MidiRpn.NullLsb),
+          CcMidiMsg(3, MidiCc.RpnMsb, MidiRpn.NullMsb)
+        )
+      }
+
+    // ---- Pitch-bend recomputation after PBS change ----
+
+    "recompute pitch bends on occupied channels after member PBS change" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given - Play a note to occupy a channel
+        private val noteOutput = noteOn(2, E4)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+        // When - Change member PBS
+        private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+        // Then
+        private val pitchBends = extractPitchBends(pbsOutput)
+        pitchBends.map(_.channel) should contain(noteChannel)
+        pitchBends.size shouldEqual 1
+        pitchBends.head.centsFor(PitchBendSensitivity(24)).round.toInt shouldEqual -14
+      }
+
+    "reinterpret the Expression Pitch Bend of an active note under the new PBS, preserving its tuning" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // E4 on input Member Channel 1 with an Expression Pitch Bend of 293 cents at the default ±48 semitones,
+        // which is raw 500. The tuning offset of E in quarter-comma meantone is -14 cents.
+        private val exprCents = 293.0
+        rawPitchBend(exprCents) shouldEqual 500
+        private val noteOutput = noteOn(1, E4, 100, pbCents = Some(exprCents))
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+
+        // When - The member PBS narrows from ±48 to ±24 semitones.
+        private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+
+        // Then
+        // The tuning term is re-encoded against the new sensitivity while the held raw bend carries over
+        // untouched: -14 cents is -48 raw at ±24, and the raw 500 now means 146.5 cents rather than 293. A
+        // sensitivity change reinterprets a held bend rather than conserving its deviation.
+        private val pitchBends = extractPitchBends(pbsOutput).filter(_.channel == noteChannel)
+        pitchBends should have size 1
+        pitchBends.head.value shouldEqual rawPitchBend(-14.0, PitchBendSensitivity(24)) + 500
+        pitchBends.head.value shouldEqual 452
+      }
+
+    "seed a new note's Expression Pitch Bend with the same raw value an active note of its input " +
+      "channel carries, after a member PBS change" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // 25 cents at the default ±48 semitones is raw 43, and C has a zero tuning offset in quarter-comma
+        // meantone, so an emitted Pitch Bend on a C channel is exactly the raw expression value.
+        rawPitchBend(25.0) shouldEqual 43
+        pitchBend(1, 25.0)
+        private val firstOutput = noteOn(1, C4)
+        private val firstChannel = extractNoteOns(firstOutput).head.channel
+
+        // When
+        // The member PBS changes, then a second note arrives on the same input channel with no intervening Pitch
+        // Bend, so it is seeded from the raw value the tracker still holds.
+        private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+        private val secondOutput = noteOn(1, C5)
+        private val secondChannel = extractNoteOns(secondOutput).head.channel
+
+        // Then
+        // The two paths agree, both being the tracker's raw value. Neither the old cents nor the new cents is
+        // privileged: agreement is the property under test.
+        secondChannel should not equal firstChannel
+        extractPitchBends(pbsOutput).filter(_.channel == firstChannel).map(_.value) shouldEqual Seq(43)
+        extractPitchBends(secondOutput).filter(_.channel == secondChannel).map(_.value) shouldEqual Seq(43)
+      }
+
+    "emit a single recomputed pitch bend on each occupied channel after member PBS change, " +
+      "preserving intonation of an active note without expression pitch bend" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given - Play E4 on MPE member channel 2: tuning offset for E is -14.0 cents
+        private val noteOutput = noteOn(2, E4)
+        private val noteChannel = extractNoteOns(noteOutput).head.channel
+        // When - Change member PBS from 48 to 24 semitones
+        private val pbsOutput = sendPbsMsb(tuner, channel = 1, semitones = 24)
+        // Then - A single recomputed pitch bend on the occupied channel
+        private val pitchBends = extractPitchBends(pbsOutput)
+        pitchBends.size shouldEqual 1
+        pitchBends.map(_.channel) should contain(noteChannel)
+        // The output pitch bend should still represent -14.0 cents under the new PBS
+        pitchBends.head.centsFor(PitchBendSensitivity(24)) shouldEqual -14.0
+      }
+
+    // ---- Reclassification after a member PBS change ----
+
+    "drop all but the latest-onset note when a member PBS change carries several notes on one channel " +
+      "past the threshold" in new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Lower Zone with 3 Member Channels (PCG=1, EG=2). At ±2 semitones the threshold is 2048 raw. C4 takes the
+        // Pitch Class Group channel, C5 and C3 the Expression Group ones, and C6 then shares the oldest channel —
+        // channel 1 — with C4, from a different input channel.
+        sendPbsMsb(tuner, channel = 1, semitones = 2)
+        noteOn(1, C4)
+        noteOn(2, C5)
+        noteOn(3, C3)
+        noteOn(2, C6)
+        pitchBendValue(1, 500)
+        pitchBendValue(2, 700)
+        tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(2)
+
+        // When
+        // Widening the range to ±48 semitones lowers the threshold to 85 raw, so both notes on channel 1 cross it
+        // at once — carrying different bends, having arrived on different input channels.
+        private val output = sendPbsMsb(tuner, channel = 1, semitones = 48)
+
+        // Then
+        // The latest-onset note survives and the rest of the channel is dropped.
+        private val droppedNoteOff = NoteOffMidiMsg(1, C4)
+        private val survivorPitchBend = PitchBendMidiMsg(1, 700)
+        extractNoteOffs(output) shouldEqual Seq(droppedNoteOff)
+        // One recomputed Pitch Bend per occupied Member Channel, C having a zero tuning offset in quarter-comma
+        // meantone: channel 1 now carries C6's bend alone.
+        extractPitchBends(output) shouldEqual Seq(
+          survivorPitchBend,
+          PitchBendMidiMsg(2, 700),
+          PitchBendMidiMsg(3, 0))
+        // And the Note Off precedes every Pitch Bend, the relative order the paper's "Message Ordering" section
+        // gives the control dimensions after a Note Off: the receiver is told the note ended before it is told
+        // the new value of the channel that carried it.
+        output.indexOf(droppedNoteOff) should be < output.indexOf(survivorPitchBend)
+      }
+
+    "emit no CC #74 or Channel Pressure from a member PBS change that drops nothing" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given - A single note carrying both other control dimensions.
+        noteOn(1, E4, pressure = Some(90), slide = Some(30))
+        // When
+        private val output = sendPbsMsb(tuner, channel = 1, semitones = 24)
+        // Then
+        // The sensitivity change moves neither dimension by itself, and no drop occurred, so only the recomputed
+        // Pitch Bend goes out.
+        extractSlides(output) shouldBe empty
+        extractChannelPressures(output) shouldBe empty
+        extractPitchBends(output) should have size 1
+      }
+
+    "emit the CC #74 and Channel Pressure a reclassification drop moved" in
+      new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // As above, but the two co-residents of channel 1 carry different values in the other two dimensions, so
+        // dropping one moves the channel's averages.
+        sendPbsMsb(tuner, channel = 1, semitones = 2)
+        noteOn(1, C4, pressure = Some(20), slide = Some(20))
+        noteOn(2, C5)
+        noteOn(3, C3)
+        noteOn(2, C6, pressure = Some(100), slide = Some(100))
+        pitchBendValue(1, 500)
+        pitchBendValue(2, 700)
+
+        // When
+        private val output = sendPbsMsb(tuner, channel = 1, semitones = 48)
+
+        // Then - Channel 1 keeps C6 alone, so both dimensions take its values.
+        extractSlides(output) shouldEqual Seq(CcMidiMsg(1, MidiCc.MpeSlide, 100))
+        extractChannelPressures(output) shouldEqual Seq(ChannelPressureMidiMsg(1, 100))
+      }
+
+    "classify nothing as a High Expression Pitch Bend at a member PBS range no bend can exceed the " +
+      "threshold in" in new Fixture(tuner3MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // At ±2 semitones the threshold is 2048 raw, so C4 and C5 coexist on channel 1 with bends below it. C#4
+        // occupies a channel of its own, its -24-cent offset exceeding the degenerate range set below.
+        sendPbsMsb(tuner, channel = 1, semitones = 2)
+        noteOn(1, C4)
+        noteOn(2, Cs4)
+        noteOn(3, C3)
+        noteOn(2, C5)
+        pitchBendValue(1, 500)
+        pitchBendValue(2, 700)
+
+        // When
+        // ±0 semitones 20 cents is a range in which no Pitch Bend value can deviate by more than the 50-cent
+        // threshold, so the threshold becomes unreachable rather than a value the conversion would reject.
+        sendPbsMsb(tuner, channel = 1, semitones = 0)
+        private val output = sendPbsLsb(tuner, channel = 1, cents = 20)
+
+        // Then
+        // Nothing is reclassified and nothing throws: the tuning term is clamped into the degenerate range before
+        // conversion, and the sum is clamped in raw units.
+        tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(0, 20)
+        extractNoteOffs(output) shouldBe empty
+        extractPitchBends(output) shouldEqual Seq(
+          PitchBendMidiMsg(1, 600),
+          PitchBendMidiMsg(2, -7492),
+          PitchBendMidiMsg(3, 0))
+      }
+
+    // ---- Revert on reset ----
+
+    "revert PBS to initial values on reset()" in new Fixture(tuner7MpeInput) {
+      // Given
+      sendPbsMsb(tuner, channel = 0, semitones = 3)
+      sendPbsMsb(tuner, channel = 1, semitones = 24)
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual PitchBendSensitivity(3)
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual PitchBendSensitivity(24)
+      // When
+      tuner.reset()
+      // Then
+      tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
+      tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
+    }
   }
 }

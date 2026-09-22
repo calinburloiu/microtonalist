@@ -17,42 +17,42 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRpn}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class PitchBendSensitivityTest extends AnyFlatSpec with Matchers {
+class PitchBendSensitivityTest extends AnyWordSpec with Matchers {
 
-  behavior of "PitchBendSensitivity"
+  "PitchBendSensitivity" should {
+    "compute the total range in cents" in {
+      // Given / When / Then
+      PitchBendSensitivity(2).totalCents shouldEqual 200
+      PitchBendSensitivity(3, 37).totalCents shouldEqual 337
+    }
 
-  it should "compute the total range in cents" in {
-    // Given / When / Then
-    PitchBendSensitivity(2).totalCents shouldEqual 200
-    PitchBendSensitivity(3, 37).totalCents shouldEqual 337
+    "reject values outside the 7-bit MIDI range" in {
+      // When / Then
+      an[IllegalArgumentException] should be thrownBy PitchBendSensitivity(128)
+      an[IllegalArgumentException] should be thrownBy PitchBendSensitivity(2, -1)
+    }
   }
 
-  it should "reject values outside the 7-bit MIDI range" in {
-    // When / Then
-    an[IllegalArgumentException] should be thrownBy PitchBendSensitivity(128)
-    an[IllegalArgumentException] should be thrownBy PitchBendSensitivity(2, -1)
-  }
+  "PitchBendSensitivityMessages" should {
+    "emit the RPN sequence with the selector LSB before its MSB, closed by an RPN Null" in {
+      // Given
+      val pbs = PitchBendSensitivity(3, 37)
 
-  behavior of "PitchBendSensitivityMessages"
+      // When
+      val messages = PitchBendSensitivityMessages.create(channel = 5, pbs)
 
-  it should "emit the RPN sequence with the selector LSB before its MSB, closed by an RPN Null" in {
-    // Given
-    val pbs = PitchBendSensitivity(3, 37)
-
-    // When
-    val messages = PitchBendSensitivityMessages.create(channel = 5, pbs)
-
-    // Then
-    messages shouldEqual Seq(
-      CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
-      CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
-      CcMidiMsg(5, MidiCc.DataEntryMsb, 3),
-      CcMidiMsg(5, MidiCc.DataEntryLsb, 37),
-      CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.NullLsb),
-      CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.NullMsb)
-    )
+      // Then
+      messages shouldEqual Seq(
+        CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
+        CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
+        CcMidiMsg(5, MidiCc.DataEntryMsb, 3),
+        CcMidiMsg(5, MidiCc.DataEntryLsb, 37),
+        CcMidiMsg(5, MidiCc.RpnLsb, MidiRpn.NullLsb),
+        CcMidiMsg(5, MidiCc.RpnMsb, MidiRpn.NullMsb)
+      )
+    }
   }
 }

@@ -19,10 +19,10 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
+class TuningServiceTest extends AnyWordSpec with Matchers with MockFactory {
 
   trait Fixture {
     val sessionStub: TuningSession = stub[TuningSession]
@@ -34,30 +34,34 @@ class TuningServiceTest extends AnyFlatSpec with Matchers with MockFactory {
     val tuningService = new TuningService(sessionStub, businessync)
   }
 
-  "tunings" should "return the sequence of tunings from the session" in new Fixture {
-    tuningService.tunings shouldEqual tunings
+  "tunings" should {
+    "return the sequence of tunings from the session" in new Fixture {
+      tuningService.tunings shouldEqual tunings
+    }
   }
 
-  "changeTuning" should "call previousTuning in the session when PreviousTuningChange is provided" in new Fixture {
-    // When
-    tuningService.changeTuning(PreviousTuningChange)
-    // Then
-    (() => sessionStub.previousTuning()).verify().once()
-  }
+  "changeTuning" should {
+    "call previousTuning in the session when PreviousTuningChange is provided" in new Fixture {
+      // When
+      tuningService.changeTuning(PreviousTuningChange)
+      // Then
+      (() => sessionStub.previousTuning()).verify().once()
+    }
 
-  it should "call nextTuning in the session when NextTuningChange is provided" in new Fixture {
-    // When
-    tuningService.changeTuning(NextTuningChange)
-    // Then
-    (() => sessionStub.nextTuning()).verify().once()
-  }
+    "call nextTuning in the session when NextTuningChange is provided" in new Fixture {
+      // When
+      tuningService.changeTuning(NextTuningChange)
+      // Then
+      (() => sessionStub.nextTuning()).verify().once()
+    }
 
-  it should "update tuning index in the session when IndexTuningChange is provided" in new Fixture {
-    // Given
-    val newIndex = 2
-    // When
-    tuningService.changeTuning(IndexTuningChange(newIndex))
-    // Then
-    sessionStub.tuningIndex_=.verify(newIndex).once()
+    "update tuning index in the session when IndexTuningChange is provided" in new Fixture {
+      // Given
+      val newIndex = 2
+      // When
+      tuningService.changeTuning(IndexTuningChange(newIndex))
+      // Then
+      sessionStub.tuningIndex_=.verify(newIndex).once()
+    }
   }
 }

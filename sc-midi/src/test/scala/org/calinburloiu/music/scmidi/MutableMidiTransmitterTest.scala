@@ -16,12 +16,12 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 
-class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableMidiTransmitterBehaviors {
+class MutableMidiTransmitterTest extends AnyWordSpec with Matchers with MutableMidiTransmitterBehaviors {
 
   /**
    * Records every sequence passed to `setReceivers`, to prove each modifier funnels through that one hook. Not
@@ -46,45 +46,45 @@ class MutableMidiTransmitterTest extends AnyFlatSpec with Matchers with MutableM
     val probe: SetterProbingTransmitter = SetterProbingTransmitter()
   }
 
-  behavior of "MutableMidiTransmitter"
+  "MutableMidiTransmitter" should {
+    behave like mutableMidiTransmitter(initialReceivers => MutableMidiTransmitter(initialReceivers))
 
-  it should behave like mutableMidiTransmitter(initialReceivers => MutableMidiTransmitter(initialReceivers))
+    "default to no receivers when constructed with no arguments" in {
+      // When
+      val transmitter = MutableMidiTransmitter()
 
-  it should "default to no receivers when constructed with no arguments" in {
-    // When
-    val transmitter = MutableMidiTransmitter()
+      // Then
+      transmitter.receivers shouldBe empty
+    }
 
-    // Then
-    transmitter.receivers shouldBe empty
-  }
+    "not call setReceivers from its constructor" in {
+      // Given
+      val receiver = NoOpMidiReceiver()
 
-  it should "not call setReceivers from its constructor" in {
-    // Given
-    val receiver = NoOpMidiReceiver()
+      // When
+      val probe = SetterProbingTransmitter(Seq(receiver))
 
-    // When
-    val probe = SetterProbingTransmitter(Seq(receiver))
+      // Then
+      probe.assignedSequences shouldBe empty
+      probe.receivers shouldEqual Seq(receiver)
+    }
 
-    // Then
-    probe.assignedSequences shouldBe empty
-    probe.receivers shouldEqual Seq(receiver)
-  }
+    "funnel every modifier and a direct assignment through setReceivers" in new ProbeFixture {
+      // When
+      probe.addReceiver(receiver1)
+      probe.addReceivers(Seq(receiver2, receiver1))
+      probe.removeReceiver(receiver1)
+      probe.clearReceivers()
+      probe.receivers = Seq(receiver2)
 
-  it should "funnel every modifier and a direct assignment through setReceivers" in new ProbeFixture {
-    // When
-    probe.addReceiver(receiver1)
-    probe.addReceivers(Seq(receiver2, receiver1))
-    probe.removeReceiver(receiver1)
-    probe.clearReceivers()
-    probe.receivers = Seq(receiver2)
-
-    // Then
-    probe.assignedSequences.toSeq shouldEqual Seq(
-      Seq(receiver1),
-      Seq(receiver1, receiver2, receiver1),
-      Seq(receiver2),
-      Seq.empty,
-      Seq(receiver2),
-    )
+      // Then
+      probe.assignedSequences.toSeq shouldEqual Seq(
+        Seq(receiver1),
+        Seq(receiver1, receiver2, receiver1),
+        Seq(receiver2),
+        Seq.empty,
+        Seq(receiver2),
+      )
+    }
   }
 }

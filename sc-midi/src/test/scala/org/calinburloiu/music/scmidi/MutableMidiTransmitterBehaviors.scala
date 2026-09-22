@@ -16,15 +16,16 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
  * Shared behaviours for the single-thread contract of [[MutableMidiTransmitter]], to be run by the test class of
- * each implementation (the class itself and [[ConcurrentMidiTransmitter]]) via `it should behave like`.
+ * each implementation (the class itself and [[ConcurrentMidiTransmitter]]) via `behave like` inside the `should` block
+ * of its subject.
  */
 trait MutableMidiTransmitterBehaviors {
-  this: AnyFlatSpec & Matchers =>
+  this: AnyWordSpec & Matchers =>
 
   /**
    * Runs the single-thread contract against transmitters built by `newTransmitter`.
@@ -40,12 +41,12 @@ trait MutableMidiTransmitterBehaviors {
       val transmitter: MutableMidiTransmitter = newTransmitter(Seq.empty)
     }
 
-    it should "start with no receivers when given an empty sequence" in new Fixture {
+    "start with no receivers when given an empty sequence" in new Fixture {
       // Then
       transmitter.receivers shouldBe empty
     }
 
-    it should "expose the initial receivers it was constructed with, in order" in new Fixture {
+    "expose the initial receivers it was constructed with, in order" in new Fixture {
       // When
       val initialised = newTransmitter(Seq(receiver1, receiver2))
 
@@ -53,7 +54,7 @@ trait MutableMidiTransmitterBehaviors {
       initialised.receivers shouldEqual Seq(receiver1, receiver2)
     }
 
-    it should "replace all receivers when receivers is assigned" in new Fixture {
+    "replace all receivers when receivers is assigned" in new Fixture {
       // Given
       transmitter.addReceiver(receiver3)
 
@@ -64,7 +65,7 @@ trait MutableMidiTransmitterBehaviors {
       transmitter.receivers shouldEqual Seq(receiver1, receiver2)
     }
 
-    it should "return a snapshot that later changes do not affect" in new Fixture {
+    "return a snapshot that later changes do not affect" in new Fixture {
       // Given
       transmitter.receivers = Seq(receiver1)
       val snapshot = transmitter.receivers
@@ -77,7 +78,7 @@ trait MutableMidiTransmitterBehaviors {
       transmitter.receivers shouldEqual Seq(receiver1, receiver2)
     }
 
-    it should "append a receiver with addReceiver, preserving order and allowing duplicates" in new Fixture {
+    "append a receiver with addReceiver, preserving order and allowing duplicates" in new Fixture {
       // When
       transmitter.addReceiver(receiver1)
       transmitter.addReceiver(receiver2)
@@ -87,7 +88,7 @@ trait MutableMidiTransmitterBehaviors {
       transmitter.receivers shouldEqual Seq(receiver1, receiver2, receiver1)
     }
 
-    it should "append a sequence of receivers with addReceivers, preserving order" in new Fixture {
+    "append a sequence of receivers with addReceivers, preserving order" in new Fixture {
       // Given
       transmitter.addReceiver(receiver1)
 
@@ -98,7 +99,7 @@ trait MutableMidiTransmitterBehaviors {
       transmitter.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
     }
 
-    it should "remove every occurrence of a receiver with removeReceiver" in new Fixture {
+    "remove every occurrence of a receiver with removeReceiver" in new Fixture {
       // Given
       transmitter.receivers = Seq(receiver1, receiver2, receiver1, receiver3)
 
@@ -109,7 +110,7 @@ trait MutableMidiTransmitterBehaviors {
       transmitter.receivers shouldEqual Seq(receiver2, receiver3)
     }
 
-    it should "leave the receivers unchanged when removeReceiver is given an absent receiver" in new Fixture {
+    "leave the receivers unchanged when removeReceiver is given an absent receiver" in new Fixture {
       // Given
       transmitter.receivers = Seq(receiver1, receiver2)
 
@@ -120,7 +121,7 @@ trait MutableMidiTransmitterBehaviors {
       transmitter.receivers shouldEqual Seq(receiver1, receiver2)
     }
 
-    it should "remove all receivers with clearReceivers" in new Fixture {
+    "remove all receivers with clearReceivers" in new Fixture {
       // Given
       transmitter.receivers = Seq(receiver1, receiver2)
 

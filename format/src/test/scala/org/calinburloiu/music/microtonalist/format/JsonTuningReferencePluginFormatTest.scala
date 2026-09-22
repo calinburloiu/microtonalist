@@ -28,8 +28,6 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
   private val jsonPluginFormat = JsonTuningReferencePluginFormat(CentsIntonationStandard)
   private val reads: Reads[TuningReference] = jsonPluginFormat.reads
 
-  behavior of "StandardTuningReference JSON plugin format"
-
   private val standardTypeJson = Json.obj(
     "basePitchClass" -> "Bb",
     "baseOffset" -> -5.0
@@ -48,27 +46,27 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
     (__ \ "baseOffset", DisallowedValues(JsNumber(51)), "error.max"),
   )
 
-  it should "deserialize a StandardTuningReference" in {
-    assertReads(reads, standardTypeJson, standardType)
-  }
+  "StandardTuningReference JSON plugin format" should {
+    "deserialize a StandardTuningReference" in {
+      assertReads(reads, standardTypeJson, standardType)
+    }
 
-  it should "fail to deserialize a StandardTuningReference without mandatory settings" in {
-    assertReadsFailure(reads, JsString("standard"), __ \ "basePitchClass", "error.path.missing")
-  }
+    "fail to deserialize a StandardTuningReference without mandatory settings" in {
+      assertReadsFailure(reads, JsString("standard"), __ \ "basePitchClass", "error.path.missing")
+    }
 
-  it should "fail to deserialize a StandardTuningReference from invalid JSON" in {
-    assertReadsFailureTable(reads, standardTypeJson, standardTypeFailureTable)
-  }
+    "fail to deserialize a StandardTuningReference from invalid JSON" in {
+      assertReadsFailureTable(reads, standardTypeJson, standardTypeFailureTable)
+    }
 
-  it should "serialize a StandardTuningReference" in {
-    jsonPluginFormat.writes.writes(standardType) shouldEqual Json.obj(
-      "type" -> "standard",
-      "basePitchClass" -> 10,
-      "baseOffset" -> -5.0
-    )
+    "serialize a StandardTuningReference" in {
+      jsonPluginFormat.writes.writes(standardType) shouldEqual Json.obj(
+        "type" -> "standard",
+        "basePitchClass" -> 10,
+        "baseOffset" -> -5.0
+      )
+    }
   }
-
-  behavior of "ConcertPitchTuningReference JSON plugin format"
 
   private val concertPitchTypeJson = Json.obj(
     "type" -> "concertPitch",
@@ -94,21 +92,23 @@ class JsonTuningReferencePluginFormatTest extends JsonFormatTestUtils {
     (__ \ "concertPitchFrequency", DisallowedValues(JsNumber(20000.1)), "error.max")
   )
 
-  it should "deserialize a ConcertPitchTuningReference" in {
-    val concertPitchTypeInCents = concertPitchType.copy(
-      concertPitchToBaseInterval = concertPitchType.concertPitchToBaseInterval.toCentsInterval)
-    assertReads(reads, concertPitchTypeJson, concertPitchTypeInCents)
-  }
+  "ConcertPitchTuningReference JSON plugin format" should {
+    "deserialize a ConcertPitchTuningReference" in {
+      val concertPitchTypeInCents = concertPitchType.copy(
+        concertPitchToBaseInterval = concertPitchType.concertPitchToBaseInterval.toCentsInterval)
+      assertReads(reads, concertPitchTypeJson, concertPitchTypeInCents)
+    }
 
-  it should "fail to deserialize a ConcertPitchTuningReference without mandatory settings" in {
-    assertReadsFailure(reads, JsString("concertPitch"), __ \ "concertPitchToBaseInterval", "error.path.missing")
-  }
+    "fail to deserialize a ConcertPitchTuningReference without mandatory settings" in {
+      assertReadsFailure(reads, JsString("concertPitch"), __ \ "concertPitchToBaseInterval", "error.path.missing")
+    }
 
-  it should "fail to deserialize a ConcertPitchTuningReference from invalid JSON" in {
-    assertReadsFailureTable(reads, concertPitchTypeJson, concertPitchTypeFailureTable)
-  }
+    "fail to deserialize a ConcertPitchTuningReference from invalid JSON" in {
+      assertReadsFailureTable(reads, concertPitchTypeJson, concertPitchTypeFailureTable)
+    }
 
-  it should "serialize a ConcertPitchTuningReference" in {
-    jsonPluginFormat.writes.writes(concertPitchType) shouldEqual concertPitchTypeJson
+    "serialize a ConcertPitchTuningReference" in {
+      jsonPluginFormat.writes.writes(concertPitchType) shouldEqual concertPitchTypeJson
+    }
   }
 }

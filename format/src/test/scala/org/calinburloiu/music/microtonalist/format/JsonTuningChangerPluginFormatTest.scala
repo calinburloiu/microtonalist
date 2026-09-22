@@ -27,8 +27,6 @@ class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
   private val jsonPluginFormat = JsonTuningChangerPluginFormat
   private val reads: Reads[TuningChanger] = jsonPluginFormat.reads
 
-  behavior of "PedalTuningChanger JSON plugin format"
-
   private val ccTriggers: TuningChangeTriggers[CcNumber] = TuningChangeTriggers(
     previous = Some(100),
     next = Some(101),
@@ -69,21 +67,23 @@ class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
     (__ \ "triggersThru", AllowedTypes(JsonBooleanType), "error.expected.jsboolean")
   )
 
-  it should "deserialize with default value" in {
-    val defaultPedalTuningChanger = PedalTuningChanger()
-    assertReads(reads, JsString("pedal"), defaultPedalTuningChanger)
-    assertReads(reads, Json.obj("type" -> "pedal"), defaultPedalTuningChanger)
-  }
+  "PedalTuningChanger JSON plugin format" should {
+    "deserialize with default value" in {
+      val defaultPedalTuningChanger = PedalTuningChanger()
+      assertReads(reads, JsString("pedal"), defaultPedalTuningChanger)
+      assertReads(reads, Json.obj("type" -> "pedal"), defaultPedalTuningChanger)
+    }
 
-  it should "deserialize" in {
-    assertReads(reads, pedalTuningChangerJson, pedalTuningChanger)
-  }
+    "deserialize" in {
+      assertReads(reads, pedalTuningChangerJson, pedalTuningChanger)
+    }
 
-  it should "fail to deserialize from invalid JSON" in {
-      assertReadsFailureTable(reads, pedalTuningChangerJson, pedalTuningChangerFailureTable)
-  }
+    "fail to deserialize from invalid JSON" in {
+        assertReadsFailureTable(reads, pedalTuningChangerJson, pedalTuningChangerFailureTable)
+    }
 
-  it should "serialize" in {
-    jsonPluginFormat.writes.writes(pedalTuningChanger) shouldEqual pedalTuningChangerJson
+    "serialize" in {
+      jsonPluginFormat.writes.writes(pedalTuningChanger) shouldEqual pedalTuningChangerJson
+    }
   }
 }
