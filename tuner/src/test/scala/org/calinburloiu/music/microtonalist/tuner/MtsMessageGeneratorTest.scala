@@ -57,19 +57,25 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
     }
   }
 
-  "MtsMessageGenerator" should {
+  "Octave1ByteNonRealTime" should {
     "generate a non-real-time Octave 1-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
     }
+  }
 
+  "Octave2ByteNonRealTime" should {
     "generate a non-real-time Octave 2-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
     }
+  }
 
+  "Octave1ByteRealTime" should {
     "generate a real-time Octave 1-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteOffsets)
     }
+  }
 
+  "Octave2ByteRealTime" should {
     "generate a real-time Octave 2-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave2ByteRealTime, tuning.offsets)
     }
