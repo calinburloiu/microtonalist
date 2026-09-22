@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.sun.media.sound.SoftTuning
 import org.calinburloiu.music.scmidi.message.SysExMidiMsg
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.language.implicitConversions
 
@@ -34,7 +34,7 @@ import scala.language.implicitConversions
  *
  * Note that the test is already configured in SBT via `.sbtopts` file in project root.
  */
-class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
+class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
 
   private val tuning = Tuning.fromOffsets("Just 12",
     Seq(0.1, 11.73, 3.91, 15.64, -13.69, -1.96, -17.49, 1.96, 13.69, -15.64, -31.18, -11.73))
@@ -57,19 +57,21 @@ class MtsMessageGeneratorTest extends AnyFunSuite with Matchers {
     }
   }
 
-  test("Octave1ByteNonRealTime") {
-    assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
-  }
+  "MtsMessageGenerator" should {
+    "generate a non-real-time Octave 1-byte tuning message" in {
+      assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
+    }
 
-  test("Octave2ByteNonRealTime") {
-    assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
-  }
+    "generate a non-real-time Octave 2-byte tuning message" in {
+      assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
+    }
 
-  test("Octave1ByteRealTime") {
-    assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteOffsets)
-  }
+    "generate a real-time Octave 1-byte tuning message" in {
+      assertTuning(MtsMessageGenerator.Octave1ByteRealTime, expected1ByteOffsets)
+    }
 
-  test("Octave2ByteRealTime") {
-    assertTuning(MtsMessageGenerator.Octave2ByteRealTime, tuning.offsets)
+    "generate a real-time Octave 2-byte tuning message" in {
+      assertTuning(MtsMessageGenerator.Octave2ByteRealTime, tuning.offsets)
+    }
   }
 }
