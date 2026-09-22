@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class ImmutableMidiTransmitterTest extends AnyFlatSpec with Matchers {
+class ImmutableMidiTransmitterTest extends AnyWordSpec with Matchers {
 
   trait Fixture {
     val receiver1: MidiReceiver = NoOpMidiReceiver()
@@ -29,107 +29,107 @@ class ImmutableMidiTransmitterTest extends AnyFlatSpec with Matchers {
     val transmitter: ImmutableMidiTransmitter = ImmutableMidiTransmitter(Seq(receiver1, receiver2))
   }
 
-  behavior of "constructor"
+  "constructor" should {
+    "default to no receivers" in {
+      // When
+      val transmitter = ImmutableMidiTransmitter()
 
-  it should "default to no receivers" in {
-    // When
-    val transmitter = ImmutableMidiTransmitter()
+      // Then
+      transmitter.receivers shouldBe empty
+    }
 
-    // Then
-    transmitter.receivers shouldBe empty
+    "expose the receivers it was given, in order" in new Fixture {
+      // Then
+      transmitter.receivers shouldEqual Seq(receiver1, receiver2)
+    }
   }
 
-  it should "expose the receivers it was given, in order" in new Fixture {
-    // Then
-    transmitter.receivers shouldEqual Seq(receiver1, receiver2)
+  "withReceiver" should {
+    "return a new transmitter with the receiver appended and leave the original unchanged" in new Fixture {
+      // When
+      val result = transmitter.withReceiver(receiver3)
+
+      // Then
+      result.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
+      transmitter.receivers shouldEqual Seq(receiver1, receiver2)
+    }
+
+    "allow the same receiver to be added twice" in new Fixture {
+      // When
+      val result = transmitter.withReceiver(receiver1)
+
+      // Then
+      result.receivers shouldEqual Seq(receiver1, receiver2, receiver1)
+    }
   }
 
-  behavior of "withReceiver"
+  "withReceivers" should {
+    "return a new transmitter with all the receivers appended, in order" in new Fixture {
+      // Given
+      val transmitterWithOne = ImmutableMidiTransmitter(Seq(receiver1))
 
-  it should "return a new transmitter with the receiver appended and leave the original unchanged" in new Fixture {
-    // When
-    val result = transmitter.withReceiver(receiver3)
+      // When
+      val result = transmitterWithOne.withReceivers(Seq(receiver2, receiver3))
 
-    // Then
-    result.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
-    transmitter.receivers shouldEqual Seq(receiver1, receiver2)
+      // Then
+      result.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
+      transmitterWithOne.receivers shouldEqual Seq(receiver1)
+    }
   }
 
-  it should "allow the same receiver to be added twice" in new Fixture {
-    // When
-    val result = transmitter.withReceiver(receiver1)
+  "withoutReceiver" should {
+    "return a new transmitter without the receiver and leave the original unchanged" in new Fixture {
+      // When
+      val result = transmitter.withoutReceiver(receiver1)
 
-    // Then
-    result.receivers shouldEqual Seq(receiver1, receiver2, receiver1)
+      // Then
+      result.receivers shouldEqual Seq(receiver2)
+      transmitter.receivers shouldEqual Seq(receiver1, receiver2)
+    }
+
+    "remove every occurrence of the receiver" in new Fixture {
+      // Given
+      val transmitterWithDuplicate = ImmutableMidiTransmitter(Seq(receiver1, receiver2, receiver1))
+
+      // When
+      val result = transmitterWithDuplicate.withoutReceiver(receiver1)
+
+      // Then
+      result.receivers shouldEqual Seq(receiver2)
+    }
+
+    "return an equal transmitter when the receiver is absent" in new Fixture {
+      // When
+      val result = transmitter.withoutReceiver(receiver3)
+
+      // Then
+      result.receivers shouldEqual Seq(receiver1, receiver2)
+      result shouldEqual transmitter
+    }
   }
 
-  behavior of "withReceivers"
+  "withoutReceivers" should {
+    "return a new transmitter without any of the given receivers" in new Fixture {
+      // Given
+      val transmitterWithThree = ImmutableMidiTransmitter(Seq(receiver1, receiver2, receiver3))
 
-  it should "return a new transmitter with all the receivers appended, in order" in new Fixture {
-    // Given
-    val transmitterWithOne = ImmutableMidiTransmitter(Seq(receiver1))
+      // When
+      val result = transmitterWithThree.withoutReceivers(Seq(receiver1, receiver3))
 
-    // When
-    val result = transmitterWithOne.withReceivers(Seq(receiver2, receiver3))
-
-    // Then
-    result.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
-    transmitterWithOne.receivers shouldEqual Seq(receiver1)
+      // Then
+      result.receivers shouldEqual Seq(receiver2)
+      transmitterWithThree.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
+    }
   }
 
-  behavior of "withoutReceiver"
+  "equality" should {
+    "hold between two transmitters with the same receivers" in new Fixture {
+      // When
+      val other = ImmutableMidiTransmitter(Seq(receiver1, receiver2))
 
-  it should "return a new transmitter without the receiver and leave the original unchanged" in new Fixture {
-    // When
-    val result = transmitter.withoutReceiver(receiver1)
-
-    // Then
-    result.receivers shouldEqual Seq(receiver2)
-    transmitter.receivers shouldEqual Seq(receiver1, receiver2)
-  }
-
-  it should "remove every occurrence of the receiver" in new Fixture {
-    // Given
-    val transmitterWithDuplicate = ImmutableMidiTransmitter(Seq(receiver1, receiver2, receiver1))
-
-    // When
-    val result = transmitterWithDuplicate.withoutReceiver(receiver1)
-
-    // Then
-    result.receivers shouldEqual Seq(receiver2)
-  }
-
-  it should "return an equal transmitter when the receiver is absent" in new Fixture {
-    // When
-    val result = transmitter.withoutReceiver(receiver3)
-
-    // Then
-    result.receivers shouldEqual Seq(receiver1, receiver2)
-    result shouldEqual transmitter
-  }
-
-  behavior of "withoutReceivers"
-
-  it should "return a new transmitter without any of the given receivers" in new Fixture {
-    // Given
-    val transmitterWithThree = ImmutableMidiTransmitter(Seq(receiver1, receiver2, receiver3))
-
-    // When
-    val result = transmitterWithThree.withoutReceivers(Seq(receiver1, receiver3))
-
-    // Then
-    result.receivers shouldEqual Seq(receiver2)
-    transmitterWithThree.receivers shouldEqual Seq(receiver1, receiver2, receiver3)
-  }
-
-  behavior of "equality"
-
-  it should "hold between two transmitters with the same receivers" in new Fixture {
-    // When
-    val other = ImmutableMidiTransmitter(Seq(receiver1, receiver2))
-
-    // Then
-    other shouldEqual transmitter
-    other.withReceiver(receiver3) should not equal transmitter
+      // Then
+      other shouldEqual transmitter
+      other.withReceiver(receiver3) should not equal transmitter
+    }
   }
 }

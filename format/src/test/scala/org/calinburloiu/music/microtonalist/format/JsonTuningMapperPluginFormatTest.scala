@@ -29,138 +29,138 @@ class JsonTuningMapperPluginFormatTest extends JsonFormatTestUtils {
   private val keyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
     gSharpOrAFlat = Some(11), b = Some(12))
 
-  behavior of "ManualTuningMapper JSON plugin format"
-
-  it should "deserialize a manual type plugin" in {
-    assertReads(
-      format,
-      Json.obj("type" -> "manual", "keyboardMapping" -> sparseJsonKeyboardMapping),
-      ManualTuningMapper(keyboardMapping)
-    )
-  }
-
-  it should "fail to deserialize a manual type plugin without mandatory settings" in {
-    assertReadsSingleFailure(format, JsString("manual"), "error.path.missing")
-  }
-
-  it should "serialize a ManualTuningMapper instance" in {
-    format.writes(ManualTuningMapper(keyboardMapping)) shouldEqual Json.obj(
-      "type" -> "manual",
-      "keyboardMapping" -> denseJsonKeyboardMapping
-    )
-  }
-
-  behavior of "AutoTuningMapper JSON plugin format"
-
-  it should "deserialize an auto type plugin without global settings" in {
-    assertReads(
-      format,
-      Json.obj(
-        "type" -> "auto",
-        "shouldMapQuarterTonesLow" -> true,
-        "quarterToneTolerance" -> 3.0,
-        "softChromaticGenusMapping" -> "pseudoChromatic",
-        "overrideKeyboardMapping" -> sparseJsonKeyboardMapping
-      ),
-      AutoTuningMapper(
-        shouldMapQuarterTonesLow = true,
-        quarterToneTolerance = 3.0,
-        softChromaticGenusMapping = SoftChromaticGenusMapping.PseudoChromatic,
-        overrideKeyboardMapping = keyboardMapping
+  "ManualTuningMapper JSON plugin format" should {
+    "deserialize a manual type plugin" in {
+      assertReads(
+        format,
+        Json.obj("type" -> "manual", "keyboardMapping" -> sparseJsonKeyboardMapping),
+        ManualTuningMapper(keyboardMapping)
       )
-    )
+    }
+
+    "fail to deserialize a manual type plugin without mandatory settings" in {
+      assertReadsSingleFailure(format, JsString("manual"), "error.path.missing")
+    }
+
+    "serialize a ManualTuningMapper instance" in {
+      format.writes(ManualTuningMapper(keyboardMapping)) shouldEqual Json.obj(
+        "type" -> "manual",
+        "keyboardMapping" -> denseJsonKeyboardMapping
+      )
+    }
   }
 
-  it should "deserialize an auto type plugin with some settings defined globally" in {
-    val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
-      "tuningMapper" -> Json.obj(
-        "auto" -> Json.obj(
+  "AutoTuningMapper JSON plugin format" should {
+    "deserialize an auto type plugin without global settings" in {
+      assertReads(
+        format,
+        Json.obj(
+          "type" -> "auto",
           "shouldMapQuarterTonesLow" -> true,
+          "quarterToneTolerance" -> 3.0,
+          "softChromaticGenusMapping" -> "pseudoChromatic",
+          "overrideKeyboardMapping" -> sparseJsonKeyboardMapping
+        ),
+        AutoTuningMapper(
+          shouldMapQuarterTonesLow = true,
+          quarterToneTolerance = 3.0,
+          softChromaticGenusMapping = SoftChromaticGenusMapping.PseudoChromatic,
+          overrideKeyboardMapping = keyboardMapping
+        )
+      )
+    }
+
+    "deserialize an auto type plugin with some settings defined globally" in {
+      val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
+        "tuningMapper" -> Json.obj(
+          "auto" -> Json.obj(
+            "shouldMapQuarterTonesLow" -> true,
+            // only defined here
+            "quarterToneTolerance" -> 4.0,
+          )
+        )
+      ))
+
+      assertReads(
+        formatWithGlobalSettings,
+        Json.obj(
+          "type" -> "auto",
+          // overrides global settings
+          "shouldMapQuarterTonesLow" -> false,
           // only defined here
-          "quarterToneTolerance" -> 4.0,
-        )
-      )
-    ))
-
-    assertReads(
-      formatWithGlobalSettings,
-      Json.obj(
-        "type" -> "auto",
-        // overrides global settings
-        "shouldMapQuarterTonesLow" -> false,
-        // only defined here
-        "softChromaticGenusMapping" -> "strict",
-      ),
-      AutoTuningMapper(
-        shouldMapQuarterTonesLow = false,
-        quarterToneTolerance = 4.0,
-        softChromaticGenusMapping = SoftChromaticGenusMapping.Strict
-      )
-    )
-  }
-
-  it should "fail to deserialize an auto type plugin when a setting defined globally is invalid" in {
-    val readsWithGlobalSettings = jsonPluginFormat.readsWithRootGlobalSettings(Json.obj(
-      "tuningMapper" -> Json.obj(
-        "auto" -> Json.obj(
-          "shouldMapQuarterTonesLow" -> true,
-          "quarterToneTolerance" -> 4.0,
-          // has typo
-          "softChromaticGenusMapping" -> "pseudoChromaticc"
-        )
-      )
-    ))
-
-    assertReadsFailure(
-      readsWithGlobalSettings,
-      JsString("auto"),
-      __ \ "softChromaticGenusMapping",
-      "error.plugin.type.unrecognized"
-    )
-  }
-
-  it should "deserialize an auto type plugin with all settings defined globally" in {
-    val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
-      "tuningMapper" -> Json.obj(
-        "auto" -> Json.obj(
-          "quarterToneTolerance" -> 5.0,
           "softChromaticGenusMapping" -> "strict",
+        ),
+        AutoTuningMapper(
+          shouldMapQuarterTonesLow = false,
+          quarterToneTolerance = 4.0,
+          softChromaticGenusMapping = SoftChromaticGenusMapping.Strict
         )
       )
-    ))
+    }
 
-    assertReads(
-      formatWithGlobalSettings,
-      JsString("auto"),
-      AutoTuningMapper(
-        shouldMapQuarterTonesLow = false,
-        quarterToneTolerance = 5.0,
-        softChromaticGenusMapping = SoftChromaticGenusMapping.Strict
+    "fail to deserialize an auto type plugin when a setting defined globally is invalid" in {
+      val readsWithGlobalSettings = jsonPluginFormat.readsWithRootGlobalSettings(Json.obj(
+        "tuningMapper" -> Json.obj(
+          "auto" -> Json.obj(
+            "shouldMapQuarterTonesLow" -> true,
+            "quarterToneTolerance" -> 4.0,
+            // has typo
+            "softChromaticGenusMapping" -> "pseudoChromaticc"
+          )
+        )
+      ))
+
+      assertReadsFailure(
+        readsWithGlobalSettings,
+        JsString("auto"),
+        __ \ "softChromaticGenusMapping",
+        "error.plugin.type.unrecognized"
       )
-    )
-  }
+    }
 
-  it should "use the default instance when deserializing an auto type plugin without any settings" in {
-    assertReads(format, JsString("auto"), AutoTuningMapper.Default)
-  }
+    "deserialize an auto type plugin with all settings defined globally" in {
+      val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
+        "tuningMapper" -> Json.obj(
+          "auto" -> Json.obj(
+            "quarterToneTolerance" -> 5.0,
+            "softChromaticGenusMapping" -> "strict",
+          )
+        )
+      ))
 
-  it should "fail to deserialize when some settings is invalid" in {
-    assertReadsSingleFailure(
-      format,
-      Json.obj(
-        "type" -> "auto",
-        "shouldMapQuarterTonesLow" -> "true"
-      ),
-      "error.expected.jsboolean"
-    )
-
-    val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
-      "tuningMapper" -> Json.obj(
-        "auto" -> Json.obj(
-          "quarterToneTolerance" -> "blah"
+      assertReads(
+        formatWithGlobalSettings,
+        JsString("auto"),
+        AutoTuningMapper(
+          shouldMapQuarterTonesLow = false,
+          quarterToneTolerance = 5.0,
+          softChromaticGenusMapping = SoftChromaticGenusMapping.Strict
         )
       )
-    ))
-    assertReadsSingleFailure(formatWithGlobalSettings, JsString("auto"), "error.expected.jsnumber")
+    }
+
+    "use the default instance when deserializing an auto type plugin without any settings" in {
+      assertReads(format, JsString("auto"), AutoTuningMapper.Default)
+    }
+
+    "fail to deserialize when some settings is invalid" in {
+      assertReadsSingleFailure(
+        format,
+        Json.obj(
+          "type" -> "auto",
+          "shouldMapQuarterTonesLow" -> "true"
+        ),
+        "error.expected.jsboolean"
+      )
+
+      val formatWithGlobalSettings = jsonPluginFormat.formatWithRootGlobalSettings(Json.obj(
+        "tuningMapper" -> Json.obj(
+          "auto" -> Json.obj(
+            "quarterToneTolerance" -> "blah"
+          )
+        )
+      ))
+      assertReadsSingleFailure(formatWithGlobalSettings, JsString("auto"), "error.expected.jsnumber")
+    }
   }
 }

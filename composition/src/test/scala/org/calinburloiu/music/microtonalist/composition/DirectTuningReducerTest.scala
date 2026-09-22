@@ -18,90 +18,92 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.microtonalist.composition.TestTunings.{bEvic, customGlobalFill, eSegah, justCMaj}
 import org.calinburloiu.music.microtonalist.tuner.Tuning
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class DirectTuningReducerTest extends AnyFlatSpec with Matchers {
+class DirectTuningReducerTest extends AnyWordSpec with Matchers {
   private val reducer: TuningReducer = DirectTuningReducer
 
-  it should "return an empty tuning list with no tunings" in {
-    val tuningList = reducer.reduceTunings(Seq.empty)
+  "DirectTuningReducer" should {
+    "return an empty tuning list with no tunings" in {
+      val tuningList = reducer.reduceTunings(Seq.empty)
 
-    tuningList.size shouldEqual 0
-    tuningList.tunings should have size 0
-  }
+      tuningList.size shouldEqual 0
+      tuningList.tunings should have size 0
+    }
 
-  it should "resolve a single tuning into a tuning list with a single tuning" in {
-    val tuningList = reducer.reduceTunings(Seq(justCMaj))
+    "resolve a single tuning into a tuning list with a single tuning" in {
+      val tuningList = reducer.reduceTunings(Seq(justCMaj))
 
-    tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual Tuning("Just C Major",
-      c = 0.0,
-      cSharpOrDFlat = 0.0,
-      d = 3.91,
-      dSharpOrEFlat = 0.0,
-      e = -13.69,
-      f = -1.96,
-      fSharpOrGFlat = 0.0,
-      g = 1.96,
-      gSharpOrAFlat = 0.0,
-      a = -15.64,
-      aSharpOrBFlat = 0.0,
-      b = -11.73
-    )
-  }
+      tuningList.size shouldEqual 1
+      tuningList.tunings.head shouldEqual Tuning("Just C Major",
+        c = 0.0,
+        cSharpOrDFlat = 0.0,
+        d = 3.91,
+        dSharpOrEFlat = 0.0,
+        e = -13.69,
+        f = -1.96,
+        fSharpOrGFlat = 0.0,
+        g = 1.96,
+        gSharpOrAFlat = 0.0,
+        a = -15.64,
+        aSharpOrBFlat = 0.0,
+        b = -11.73
+      )
+    }
 
-  it should "resolve a single tuning and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer.reduceTunings(Seq(justCMaj), customGlobalFill)
+    "resolve a single tuning and apply global fill into a tuning list with a single tuning" in {
+      val tuningList = reducer.reduceTunings(Seq(justCMaj), customGlobalFill)
 
-    tuningList.size shouldEqual 1
-    tuningList.tunings.head shouldEqual Tuning("Just C Major",
-      c = 0.0,
-      cSharpOrDFlat = 2.0,
-      d = 3.91,
-      dSharpOrEFlat = 4.0,
-      e = -13.69,
-      f = -1.96,
-      fSharpOrGFlat = 7.0,
-      g = 1.96,
-      gSharpOrAFlat = 9.0,
-      a = -15.64,
-      aSharpOrBFlat = 11.0,
-      b = -11.73
-    )
-  }
+      tuningList.size shouldEqual 1
+      tuningList.tunings.head shouldEqual Tuning("Just C Major",
+        c = 0.0,
+        cSharpOrDFlat = 2.0,
+        d = 3.91,
+        dSharpOrEFlat = 4.0,
+        e = -13.69,
+        f = -1.96,
+        fSharpOrGFlat = 7.0,
+        g = 1.96,
+        gSharpOrAFlat = 9.0,
+        a = -15.64,
+        aSharpOrBFlat = 11.0,
+        b = -11.73
+      )
+    }
 
-  it should "NOT merge two tunings and apply global fill into a tuning list with a single tuning" in {
-    val tuningList = reducer.reduceTunings(Seq(eSegah, bEvic), customGlobalFill)
+    "NOT merge two tunings and apply global fill into a tuning list with a single tuning" in {
+      val tuningList = reducer.reduceTunings(Seq(eSegah, bEvic), customGlobalFill)
 
-    tuningList.size shouldEqual 2
-    tuningList.tunings.head shouldEqual Tuning("Segah",
-      c = 0.0,
-      cSharpOrDFlat = 2.0,
-      d = 3.0,
-      dSharpOrEFlat = -33.33,
-      e = -16.67,
-      f = 0.0,
-      fSharpOrGFlat = 7.0,
-      g = 0.0,
-      gSharpOrAFlat = 9.0,
-      a = -16.67,
-      aSharpOrBFlat = 11.0,
-      b = -16.67
-    )
-    tuningList.tunings(1) shouldEqual Tuning("Evic",
-      c = 0.0,
-      cSharpOrDFlat = 2.0,
-      d = 0.0,
-      dSharpOrEFlat = 4.0,
-      e = -16.67,
-      f = 0.0,
-      fSharpOrGFlat = 7.0,
-      g = 0.0,
-      gSharpOrAFlat = 9.0,
-      a = 10.0,
-      aSharpOrBFlat = -33.33,
-      b = -16.67
-    )
+      tuningList.size shouldEqual 2
+      tuningList.tunings.head shouldEqual Tuning("Segah",
+        c = 0.0,
+        cSharpOrDFlat = 2.0,
+        d = 3.0,
+        dSharpOrEFlat = -33.33,
+        e = -16.67,
+        f = 0.0,
+        fSharpOrGFlat = 7.0,
+        g = 0.0,
+        gSharpOrAFlat = 9.0,
+        a = -16.67,
+        aSharpOrBFlat = 11.0,
+        b = -16.67
+      )
+      tuningList.tunings(1) shouldEqual Tuning("Evic",
+        c = 0.0,
+        cSharpOrDFlat = 2.0,
+        d = 0.0,
+        dSharpOrEFlat = 4.0,
+        e = -16.67,
+        f = 0.0,
+        fSharpOrGFlat = 7.0,
+        g = 0.0,
+        gSharpOrAFlat = 9.0,
+        a = 10.0,
+        aSharpOrBFlat = -33.33,
+        b = -16.67
+      )
+    }
   }
 }

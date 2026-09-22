@@ -16,111 +16,119 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{JsError, JsNumber, JsSuccess}
 
 import java.net.URI
 import java.nio.file.Paths
 
-class FormatPackageObjectTest extends AnyFlatSpec with Matchers {
+class FormatPackageObjectTest extends AnyWordSpec with Matchers {
 
-  "filePathOf" should "convert an absolute URL to a file system path" in {
-    filePathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual Paths
-      .get("/", "Users", "john", "Music", "phrygian.scl")
-  }
+  "filePathOf" should {
+    "convert an absolute URL to a file system path" in {
+      filePathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual Paths
+        .get("/", "Users", "john", "Music", "phrygian.scl")
+    }
 
-  it should "convert a relative URL to file system path" in {
-    filePathOf(new URI("Music/phrygian.scl")) shouldEqual Paths
-      .get("Music", "phrygian.scl")
-  }
+    "convert a relative URL to file system path" in {
+      filePathOf(new URI("Music/phrygian.scl")) shouldEqual Paths
+        .get("Music", "phrygian.scl")
+    }
 
-  it should "fail for a non file URL" in {
-    assertThrows[IllegalArgumentException] {
-      filePathOf(new URI("https://example.org/path/to/file.scl"))
+    "fail for a non file URL" in {
+      assertThrows[IllegalArgumentException] {
+        filePathOf(new URI("https://example.org/path/to/file.scl"))
+      }
+    }
+
+    "resolve an override base URL against an initial base URL" in {
+      def uri(str: String) = Some(new URI(str))
+
+      resolveBaseUriWithOverride(
+        uri("http://example.org/compositions/semai.mtlist"),
+        uri("scales/")
+      ) shouldEqual uri("http://example.org/compositions/scales/")
+
+      resolveBaseUriWithOverride(
+        uri("http://example.org/compositions/semai.mtlist"),
+        uri("files:///Users/john/Scales/")
+      ) shouldEqual uri("files:///Users/john/Scales/")
+
+      resolveBaseUriWithOverride(
+        uri("http://example.org/compositions/semai.mtlist"),
+        None
+      ) shouldEqual uri("http://example.org/compositions/semai.mtlist")
+
+      resolveBaseUriWithOverride(None, uri("scales/")) shouldEqual uri("scales/")
+
+      resolveBaseUriWithOverride(None, None) shouldEqual None
     }
   }
 
-  it should "resolve an override base URL against an initial base URL" in {
-    def uri(str: String) = Some(new URI(str))
+  "uint7Format" should {
+    "read an unsigned integer of 7 bits (between 0 and 127)" in {
+      uint7Format.reads(JsNumber(0)) shouldEqual JsSuccess(0)
+      uint7Format.reads(JsNumber(19)) shouldEqual JsSuccess(19)
+      uint7Format.reads(JsNumber(127)) shouldEqual JsSuccess(127)
+      uint7Format.reads(JsNumber(128)) shouldEqual JsError("error.expected.uint7")
+      uint7Format.reads(JsNumber(-1)) shouldEqual JsError("error.expected.uint7")
+    }
 
-    resolveBaseUriWithOverride(
-      uri("http://example.org/compositions/semai.mtlist"),
-      uri("scales/")
-    ) shouldEqual uri("http://example.org/compositions/scales/")
-
-    resolveBaseUriWithOverride(
-      uri("http://example.org/compositions/semai.mtlist"),
-      uri("files:///Users/john/Scales/")
-    ) shouldEqual uri("files:///Users/john/Scales/")
-
-    resolveBaseUriWithOverride(
-      uri("http://example.org/compositions/semai.mtlist"),
-      None
-    ) shouldEqual uri("http://example.org/compositions/semai.mtlist")
-
-    resolveBaseUriWithOverride(None, uri("scales/")) shouldEqual uri("scales/")
-
-    resolveBaseUriWithOverride(None, None) shouldEqual None
-  }
-
-  "uint7Format" should "read an unsigned integer of 7 bits (between 0 and 127)" in {
-    uint7Format.reads(JsNumber(0)) shouldEqual JsSuccess(0)
-    uint7Format.reads(JsNumber(19)) shouldEqual JsSuccess(19)
-    uint7Format.reads(JsNumber(127)) shouldEqual JsSuccess(127)
-    uint7Format.reads(JsNumber(128)) shouldEqual JsError("error.expected.uint7")
-    uint7Format.reads(JsNumber(-1)) shouldEqual JsError("error.expected.uint7")
-  }
-
-  it should "write an integer" in {
-    uint7Format.writes(0) shouldEqual JsNumber(0)
-    uint7Format.writes(19) shouldEqual JsNumber(19)
-    uint7Format.writes(127) shouldEqual JsNumber(127)
-    // No validation on write
-  }
-
-  "ccNumberFormat" should "read a Control Change controller number (between 0 and 119)" in {
-    ccNumberFormat.reads(JsNumber(0)) shouldEqual JsSuccess(0)
-    ccNumberFormat.reads(JsNumber(64)) shouldEqual JsSuccess(64)
-    ccNumberFormat.reads(JsNumber(119)) shouldEqual JsSuccess(119)
-    // 120-127 are Channel Mode messages, not controllers
-    ccNumberFormat.reads(JsNumber(120)) shouldEqual JsError("error.expected.ccNumber")
-    ccNumberFormat.reads(JsNumber(127)) shouldEqual JsError("error.expected.ccNumber")
-    ccNumberFormat.reads(JsNumber(128)) shouldEqual JsError("error.expected.ccNumber")
-    ccNumberFormat.reads(JsNumber(-1)) shouldEqual JsError("error.expected.ccNumber")
-  }
-
-  it should "write an integer" in {
-    ccNumberFormat.writes(0) shouldEqual JsNumber(0)
-    ccNumberFormat.writes(119) shouldEqual JsNumber(119)
-    // No validation on write
-  }
-
-  "resolveLibraryUrl" should "resolve an URL with microtonalist scheme" in {
-    val uri = URI("microtonalist:///scales/dorian.scl")
-
-    resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual URI(
-      "file:///Users/grey/Music/Library/scales/dorian.scl")
-    resolveLibraryUrl(uri, URI("https://microtonalist.org/library/grey/")) shouldEqual URI(
-      "https://microtonalist.org/library/grey/scales/dorian.scl")
-  }
-
-  it should "fail for a relative URL" in {
-    val uri = URI("scales/dorian.scl")
-
-    assertThrows[IllegalArgumentException] {
-      resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual uri
+    "write an integer" in {
+      uint7Format.writes(0) shouldEqual JsNumber(0)
+      uint7Format.writes(19) shouldEqual JsNumber(19)
+      uint7Format.writes(127) shouldEqual JsNumber(127)
+      // No validation on write
     }
   }
 
-  it should "fail for URLs that don't have a microtonalist scheme" in {
-    val libraryBaseUrl = URI("file:///Users/grey/Music/Library/")
-
-    assertThrows[IllegalArgumentException] {
-      resolveLibraryUrl(URI("file:///Users/grey/Music/Library/scales/dorian.scl"), libraryBaseUrl)
+  "ccNumberFormat" should {
+    "read a Control Change controller number (between 0 and 119)" in {
+      ccNumberFormat.reads(JsNumber(0)) shouldEqual JsSuccess(0)
+      ccNumberFormat.reads(JsNumber(64)) shouldEqual JsSuccess(64)
+      ccNumberFormat.reads(JsNumber(119)) shouldEqual JsSuccess(119)
+      // 120-127 are Channel Mode messages, not controllers
+      ccNumberFormat.reads(JsNumber(120)) shouldEqual JsError("error.expected.ccNumber")
+      ccNumberFormat.reads(JsNumber(127)) shouldEqual JsError("error.expected.ccNumber")
+      ccNumberFormat.reads(JsNumber(128)) shouldEqual JsError("error.expected.ccNumber")
+      ccNumberFormat.reads(JsNumber(-1)) shouldEqual JsError("error.expected.ccNumber")
     }
-    assertThrows[IllegalArgumentException] {
-      resolveLibraryUrl(URI("https://microtonalist.org/library/grey/scales/dorian.scl"), libraryBaseUrl)
+
+    "write an integer" in {
+      ccNumberFormat.writes(0) shouldEqual JsNumber(0)
+      ccNumberFormat.writes(119) shouldEqual JsNumber(119)
+      // No validation on write
+    }
+  }
+
+  "resolveLibraryUrl" should {
+    "resolve an URL with microtonalist scheme" in {
+      val uri = URI("microtonalist:///scales/dorian.scl")
+
+      resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual URI(
+        "file:///Users/grey/Music/Library/scales/dorian.scl")
+      resolveLibraryUrl(uri, URI("https://microtonalist.org/library/grey/")) shouldEqual URI(
+        "https://microtonalist.org/library/grey/scales/dorian.scl")
+    }
+
+    "fail for a relative URL" in {
+      val uri = URI("scales/dorian.scl")
+
+      assertThrows[IllegalArgumentException] {
+        resolveLibraryUrl(uri, URI("file:///Users/grey/Music/Library/")) shouldEqual uri
+      }
+    }
+
+    "fail for URLs that don't have a microtonalist scheme" in {
+      val libraryBaseUrl = URI("file:///Users/grey/Music/Library/")
+
+      assertThrows[IllegalArgumentException] {
+        resolveLibraryUrl(URI("file:///Users/grey/Music/Library/scales/dorian.scl"), libraryBaseUrl)
+      }
+      assertThrows[IllegalArgumentException] {
+        resolveLibraryUrl(URI("https://microtonalist.org/library/grey/scales/dorian.scl"), libraryBaseUrl)
+      }
     }
   }
 }

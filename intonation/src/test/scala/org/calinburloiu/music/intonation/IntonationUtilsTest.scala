@@ -17,11 +17,11 @@
 package org.calinburloiu.music.intonation
 
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.wordspec.AnyWordSpec
 
-class IntonationUtilsTest extends AnyFunSuite with TableDrivenPropertyChecks with Matchers {
+class IntonationUtilsTest extends AnyWordSpec with TableDrivenPropertyChecks with Matchers {
 
   private val epsilon: Double = 1e-2
   private implicit val doubleEquality: Equality[Double] =
@@ -39,83 +39,97 @@ class IntonationUtilsTest extends AnyFunSuite with TableDrivenPropertyChecks wit
   )
   //@formatter:on
 
-  test("common conversions between real values, cents and Hz") {
-    forAll(commonTable) { (realValue, cents, hz) =>
-      fromRealValueToCents(realValue) should equal(cents)
-      fromCentsToRealValue(cents) should equal(realValue)
-      fromCentsToHz(cents, 440) should equal(hz)
-      fromHzToCents(hz, 440) should equal(cents)
+  "the interval conversion functions" should {
+    "convert common values between real values, cents and Hz" in {
+      forAll(commonTable) { (realValue, cents, hz) =>
+        fromRealValueToCents(realValue) should equal(cents)
+        fromCentsToRealValue(cents) should equal(realValue)
+        fromCentsToHz(cents, 440) should equal(hz)
+        fromHzToCents(hz, 440) should equal(cents)
+      }
     }
   }
 
-  test("fromRealValueToCents fails") {
-    val table = Table("realValue", 0, -1)
-    forAll(table) { realValue =>
-      assertThrows[IllegalArgumentException](fromRealValueToCents(realValue))
+  "fromRealValueToCents" should {
+    "fail for a non-positive real value" in {
+      val table = Table("realValue", 0, -1)
+      forAll(table) { realValue =>
+        assertThrows[IllegalArgumentException](fromRealValueToCents(realValue))
+      }
     }
   }
 
-  test("fromRatioToCents succeeds") {
-    //@formatter:off
-    val table = Table(
-      ("numerator", "denominator",  "cents"),
-      (3,           4,              -498.04),
-      (1,           1,              0.0),
-      (5,           4,              386.31),
-      (3,           2,              701.96),
-      (2,           1,              1200.0),
-      (4,           1,              2400.0)
-    )
-    //@formatter:on
+  "fromRatioToCents" should {
+    "convert a ratio to cents" in {
+      //@formatter:off
+      val table = Table(
+        ("numerator", "denominator",  "cents"),
+        (3,           4,              -498.04),
+        (1,           1,              0.0),
+        (5,           4,              386.31),
+        (3,           2,              701.96),
+        (2,           1,              1200.0),
+        (4,           1,              2400.0)
+      )
+      //@formatter:on
 
-    forAll(table) { (numerator, denominator, cents) =>
-      fromRatioToCents(numerator, denominator) shouldEqual cents
+      forAll(table) { (numerator, denominator, cents) =>
+        fromRatioToCents(numerator, denominator) shouldEqual cents
+      }
+    }
+
+    "fail for a non-positive numerator or denominator" in {
+      //@formatter:off
+      val table = Table(
+        ("numerator", "denominator"),
+        (3,           0),
+        (1,           -1),
+        (0,           4),
+        (-3,           2),
+      )
+      //@formatter:on
+
+      forAll(table) { (numerator, denominator) =>
+        assertThrows[IllegalArgumentException](fromRatioToCents(numerator, denominator))
+      }
     }
   }
 
-  test("fromRatioToCents fails") {
-    //@formatter:off
-    val table = Table(
-      ("numerator", "denominator"),
-      (3,           0),
-      (1,           -1),
-      (0,           4),
-      (-3,           2),
-    )
-    //@formatter:on
-
-    forAll(table) { (numerator, denominator) =>
-      assertThrows[IllegalArgumentException](fromRatioToCents(numerator, denominator))
+  "fromCentsToHz" should {
+    "fail for a non-positive base frequency" in {
+      val table = Table("baseFreqHz", 0, -1)
+      forAll(table) { baseFreqHz =>
+        assertThrows[IllegalArgumentException](fromCentsToHz(100.0, baseFreqHz))
+      }
     }
   }
 
-  test("fromCentsToHz fails") {
-    val table = Table("baseFreqHz", 0, -1)
-    forAll(table) { baseFreqHz =>
-      assertThrows[IllegalArgumentException](fromCentsToHz(100.0, baseFreqHz))
+  "fromHzToCents" should {
+    "fail for a non-positive frequency or base frequency" in {
+      val table = Table("(base)FreqHz", 0, -1)
+      forAll(table) { value =>
+        assertThrows[IllegalArgumentException](fromHzToCents(100.0, value))
+        assertThrows[IllegalArgumentException](fromHzToCents(value, 100.0))
+      }
     }
   }
 
-  test("fromHzToCents fails") {
-    val table = Table("(base)FreqHz", 0, -1)
-    forAll(table) { value =>
-      assertThrows[IllegalArgumentException](fromHzToCents(100.0, value))
-      assertThrows[IllegalArgumentException](fromHzToCents(value, 100.0))
+  "gcd" should {
+    "compute the greatest common divisor, failing for an empty sequence" in {
+      assertThrows[IllegalArgumentException](gcd(Nil))
+      gcd(Seq(6)) shouldEqual 6
+      gcd(Seq(9, 12)) shouldEqual 3
+      gcd(Seq(36, 54)) shouldEqual 18
+      gcd(Seq(36, 54, 30)) shouldEqual 6
     }
   }
 
-  test("gcd") {
-    assertThrows[IllegalArgumentException](gcd(Nil))
-    gcd(Seq(6)) shouldEqual 6
-    gcd(Seq(9, 12)) shouldEqual 3
-    gcd(Seq(36, 54)) shouldEqual 18
-    gcd(Seq(36, 54, 30)) shouldEqual 6
-  }
-
-  test("lcm") {
-    assertThrows[IllegalArgumentException](lcm(Nil))
-    lcm(Seq(6)) shouldEqual 6
-    lcm(Seq(9, 12)) shouldEqual 36
-    lcm(Seq(20, 36, 18)) shouldEqual 180
+  "lcm" should {
+    "compute the least common multiple, failing for an empty sequence" in {
+      assertThrows[IllegalArgumentException](lcm(Nil))
+      lcm(Seq(6)) shouldEqual 6
+      lcm(Seq(9, 12)) shouldEqual 36
+      lcm(Seq(20, 36, 18)) shouldEqual 180
+    }
   }
 }

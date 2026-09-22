@@ -76,104 +76,110 @@ class JsonPluginFormatTest extends JsonFormatTestUtils {
       defaultTypeName
     )
 
-  "reading" should "parse a plugin with type property and all properties given" in {
-    val json = Json.obj(
-      "type" -> TypeNameForest,
-      "fox" -> "Lady",
-      "rabbit" -> "Snowy",
-      "squirrel" -> "Cheeks",
-      "wolf" -> "Jack"
-    )
-    assertReads(format, json, Forest("Lady", "Snowy", "Cheeks", "Jack"))
-  }
-
-  it should "parse a plugin without a type property and use the default type provided" in {
-    val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReads(format, json, Domestic("Mitzi", "Pamela"))
-  }
-
-  it should "fail to parse a plugin without a type property when the format does not provide a default type" in {
-    val format2 = createJsonPluginFormat(defaultTypeName = None).format
-    val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
-    assertReadsSingleFailure(format2, json, JsonPluginFormat.MissingTypeError)
-  }
-
-  it should "parse a plugin expressed as a type string when all settings have defaults" in {
-    assertReads(format, Json.toJson(TypeNameJungle), Jungle("King", "Monty"))
-  }
-
-  it should "fail to parse a plugin expressed as a type string when not all settings have defaults" in {
-    format.reads(Json.toJson(TypeNameDomestic)).isError shouldBe true
-  }
-
-  it should "fail to parse plugins with unknown type" in {
-    assertReadsSingleFailure(format, Json.toJson("foo"), JsonPluginFormat.UnrecognizedTypeError)
-    assertReadsSingleFailure(format, Json.obj("type" -> "bar", "x" -> 3), JsonPluginFormat.UnrecognizedTypeError)
-  }
-
-  it should "parse plugins whose missing settings are taken from defaults or global settings" in {
-    val domesticJson = Json.obj(
-      "type" -> TypeNameDomestic,
-      "cat" -> "Tom"
-    )
-    // dog is taken from global settings
-    assertReads(format, domesticJson, Domestic("Tom", "Scooby"))
-
-    val forestJson = Json.obj(
-      "type" -> TypeNameForest,
-      "fox" -> "Sebastian",
-      "rabbit" -> "Norris",
-      "squirrel" -> "Mark"
-    )
-    // wolf is taken from global settings
-    assertReads(format, forestJson, Forest("Sebastian", "Norris", "Mark", "Daos"))
-
-    val jungleJson = Json.obj(
-      "type" -> TypeNameJungle,
-      "lion" -> "Chris"
-    )
-    // snake is taken from defaults
-    assertReads(format, jungleJson, Jungle("Chris", "Monty"))
-  }
-
-  it should "fail to parse a plugin that is not a type name string or valid object" in {
-    assertReadsSingleFailure(format, Json.toJson(3), JsonPluginFormat.InvalidError)
-    assertReadsSingleFailure(format, JsNull, JsonPluginFormat.InvalidError)
-    assertReadsSingleFailure(format, Json.arr(1, 2), JsonPluginFormat.InvalidError)
-  }
-
-  it should "parse a plugin with no settings" in {
-    assertReads(format, JsString(TypeNameSea), Sea)
-    assertReads(format, Json.obj("type" -> TypeNameSea), Sea)
-  }
-
-  "writing" should "serialize as JSON Scala plugin objects" in {
-    val domestic = Domestic("Tom", "Scooby")
-    format.writes(domestic) shouldEqual Json.obj(
-      "type" -> TypeNameDomestic,
-      "cat" -> "Tom",
-      "dog" -> "Scooby"
-    )
-
-    format.writes(Sea) shouldEqual JsString(TypeNameSea)
-  }
-
-  "readDefaultPlugin" should "deserialize a default plugin from the global settings" in {
-    val defaultReads = Reads {
-      case jsObject: JsObject => jsonPluginFormat.readDefaultPlugin(jsObject)
-      case _ => fail("not a JSON object")
+  "reading" should {
+    "parse a plugin with type property and all properties given" in {
+      val json = Json.obj(
+        "type" -> TypeNameForest,
+        "fox" -> "Lady",
+        "rabbit" -> "Snowy",
+        "squirrel" -> "Cheeks",
+        "wolf" -> "Jack"
+      )
+      assertReads(format, json, Forest("Lady", "Snowy", "Cheeks", "Jack"))
     }
 
-    assertReadsFailure(defaultReads, rootGlobalSettings, __ \ "cat", "error.path.missing")
+    "parse a plugin without a type property and use the default type provided" in {
+      val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
+      assertReads(format, json, Domestic("Mitzi", "Pamela"))
+    }
 
-    val rootGlobalSettings2: JsObject = Json.obj(
-      "animals" -> Json.obj(
-        "domestic" -> Json.obj(
-          "cat" -> "Felix",
-          "dog" -> "Scrappy"
+    "fail to parse a plugin without a type property when the format does not provide a default type" in {
+      val format2 = createJsonPluginFormat(defaultTypeName = None).format
+      val json = Json.obj("cat" -> "Mitzi", "dog" -> "Pamela")
+      assertReadsSingleFailure(format2, json, JsonPluginFormat.MissingTypeError)
+    }
+
+    "parse a plugin expressed as a type string when all settings have defaults" in {
+      assertReads(format, Json.toJson(TypeNameJungle), Jungle("King", "Monty"))
+    }
+
+    "fail to parse a plugin expressed as a type string when not all settings have defaults" in {
+      format.reads(Json.toJson(TypeNameDomestic)).isError shouldBe true
+    }
+
+    "fail to parse plugins with unknown type" in {
+      assertReadsSingleFailure(format, Json.toJson("foo"), JsonPluginFormat.UnrecognizedTypeError)
+      assertReadsSingleFailure(format, Json.obj("type" -> "bar", "x" -> 3), JsonPluginFormat.UnrecognizedTypeError)
+    }
+
+    "parse plugins whose missing settings are taken from defaults or global settings" in {
+      val domesticJson = Json.obj(
+        "type" -> TypeNameDomestic,
+        "cat" -> "Tom"
+      )
+      // dog is taken from global settings
+      assertReads(format, domesticJson, Domestic("Tom", "Scooby"))
+
+      val forestJson = Json.obj(
+        "type" -> TypeNameForest,
+        "fox" -> "Sebastian",
+        "rabbit" -> "Norris",
+        "squirrel" -> "Mark"
+      )
+      // wolf is taken from global settings
+      assertReads(format, forestJson, Forest("Sebastian", "Norris", "Mark", "Daos"))
+
+      val jungleJson = Json.obj(
+        "type" -> TypeNameJungle,
+        "lion" -> "Chris"
+      )
+      // snake is taken from defaults
+      assertReads(format, jungleJson, Jungle("Chris", "Monty"))
+    }
+
+    "fail to parse a plugin that is not a type name string or valid object" in {
+      assertReadsSingleFailure(format, Json.toJson(3), JsonPluginFormat.InvalidError)
+      assertReadsSingleFailure(format, JsNull, JsonPluginFormat.InvalidError)
+      assertReadsSingleFailure(format, Json.arr(1, 2), JsonPluginFormat.InvalidError)
+    }
+
+    "parse a plugin with no settings" in {
+      assertReads(format, JsString(TypeNameSea), Sea)
+      assertReads(format, Json.obj("type" -> TypeNameSea), Sea)
+    }
+  }
+
+  "writing" should {
+    "serialize as JSON Scala plugin objects" in {
+      val domestic = Domestic("Tom", "Scooby")
+      format.writes(domestic) shouldEqual Json.obj(
+        "type" -> TypeNameDomestic,
+        "cat" -> "Tom",
+        "dog" -> "Scooby"
+      )
+
+      format.writes(Sea) shouldEqual JsString(TypeNameSea)
+    }
+  }
+
+  "readDefaultPlugin" should {
+    "deserialize a default plugin from the global settings" in {
+      val defaultReads = Reads {
+        case jsObject: JsObject => jsonPluginFormat.readDefaultPlugin(jsObject)
+        case _ => fail("not a JSON object")
+      }
+
+      assertReadsFailure(defaultReads, rootGlobalSettings, __ \ "cat", "error.path.missing")
+
+      val rootGlobalSettings2: JsObject = Json.obj(
+        "animals" -> Json.obj(
+          "domestic" -> Json.obj(
+            "cat" -> "Felix",
+            "dog" -> "Scrappy"
+          )
         )
       )
-    )
-    assertReads(defaultReads, rootGlobalSettings2, Domestic(cat = "Felix", dog = "Scrappy"))
+      assertReads(defaultReads, rootGlobalSettings2, Domestic(cat = "Felix", dog = "Scrappy"))
+    }
   }
 }

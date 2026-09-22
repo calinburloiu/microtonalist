@@ -17,11 +17,11 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.MidiConnectionLimit.{Limited, Unlimited}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class MidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 
   /** A handle that only knows its info and its state; the members under test derive from them. */
   private class TestHandle(override val info: Option[MidiDeviceInfo] = None,
@@ -37,70 +37,70 @@ class MidiDeviceHandleTest extends AnyFlatSpec with Matchers with TableDrivenPro
   private def info(transmittersLimit: MidiConnectionLimit, receiversLimit: MidiConnectionLimit): MidiDeviceInfo =
     MidiDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0", transmittersLimit, receiversLimit)
 
-  behavior of "direction"
+  "direction" should {
+    "derive the directions from the info while available and report none while unavailable" in {
+      // Given
+      val cases = Table[Option[MidiDeviceInfo], MidiDirection, Boolean, Boolean](
+        ("info", "direction", "isInputDevice", "isOutputDevice"),
+        (None, MidiDirection.None, false, false),
+        (Some(info(Unlimited, Limited(0))), MidiDirection.Input, true, false),
+        (Some(info(Limited(0), Limited(1))), MidiDirection.Output, false, true),
+        (Some(info(Limited(1), Unlimited)), MidiDirection.InputOutput, true, true)
+      )
 
-  it should "derive the directions from the info while available and report none while unavailable" in {
-    // Given
-    val cases = Table[Option[MidiDeviceInfo], MidiDirection, Boolean, Boolean](
-      ("info", "direction", "isInputDevice", "isOutputDevice"),
-      (None, MidiDirection.None, false, false),
-      (Some(info(Unlimited, Limited(0))), MidiDirection.Input, true, false),
-      (Some(info(Limited(0), Limited(1))), MidiDirection.Output, false, true),
-      (Some(info(Limited(1), Unlimited)), MidiDirection.InputOutput, true, true)
-    )
+      forAll(cases) { (info, direction, isInputDevice, isOutputDevice) =>
+        // When
+        val handle = TestHandle(info = info)
 
-    forAll(cases) { (info, direction, isInputDevice, isOutputDevice) =>
-      // When
-      val handle = TestHandle(info = info)
-
-      // Then
-      handle.direction shouldEqual direction
-      handle.isInputDevice shouldBe isInputDevice
-      handle.isOutputDevice shouldBe isOutputDevice
+        // Then
+        handle.direction shouldEqual direction
+        handle.isInputDevice shouldBe isInputDevice
+        handle.isOutputDevice shouldBe isOutputDevice
+      }
     }
   }
 
-  behavior of "isAvailable, isOpen and isOpenRequested"
+  "isAvailable, isOpen and isOpenRequested" should {
+    "derive from the state, the device being open for use only in Open" in {
+      // Given
+      val cases = Table[MidiDeviceHandle.State, Boolean, Boolean, Boolean](
+        ("state", "isAvailable", "isOpen", "isOpenRequested"),
+        (MidiDeviceHandle.State.Closed, false, false, false),
+        (MidiDeviceHandle.State.Available, true, false, false),
+        (MidiDeviceHandle.State.WaitingToOpen, false, false, true),
+        (MidiDeviceHandle.State.Open, true, true, true)
+      )
 
-  it should "derive from the state, the device being open for use only in Open" in {
-    // Given
-    val cases = Table[MidiDeviceHandle.State, Boolean, Boolean, Boolean](
-      ("state", "isAvailable", "isOpen", "isOpenRequested"),
-      (MidiDeviceHandle.State.Closed, false, false, false),
-      (MidiDeviceHandle.State.Available, true, false, false),
-      (MidiDeviceHandle.State.WaitingToOpen, false, false, true),
-      (MidiDeviceHandle.State.Open, true, true, true)
-    )
+      forAll(cases) { (state, isAvailable, isOpen, isOpenRequested) =>
+        // When
+        val handle = TestHandle(state = state)
 
-    forAll(cases) { (state, isAvailable, isOpen, isOpenRequested) =>
-      // When
-      val handle = TestHandle(state = state)
-
-      // Then
-      handle.isAvailable shouldBe isAvailable
-      handle.isOpen shouldBe isOpen
-      handle.isOpenRequested shouldBe isOpenRequested
+        // Then
+        handle.isAvailable shouldBe isAvailable
+        handle.isOpen shouldBe isOpen
+        handle.isOpenRequested shouldBe isOpenRequested
+      }
     }
   }
 
-  behavior of "State"
+  "State" should {
+    "cover every combination of being available and being requested to open with exactly one state" in {
+      // Given
+      val cases = Table[MidiDeviceHandle.State, Boolean, Boolean](
+        ("state", "isAvailable", "isOpenRequested"),
+        (MidiDeviceHandle.State.Closed, false, false),
+        (MidiDeviceHandle.State.Available, true, false),
+        (MidiDeviceHandle.State.WaitingToOpen, false, true),
+        (MidiDeviceHandle.State.Open, true, true)
+      )
 
-  it should "cover every combination of being available and being requested to open with exactly one state" in {
-    // Given
-    val cases = Table[MidiDeviceHandle.State, Boolean, Boolean](
-      ("state", "isAvailable", "isOpenRequested"),
-      (MidiDeviceHandle.State.Closed, false, false),
-      (MidiDeviceHandle.State.Available, true, false),
-      (MidiDeviceHandle.State.WaitingToOpen, false, true),
-      (MidiDeviceHandle.State.Open, true, true)
-    )
-
-    forAll(cases) { (state, isAvailable, isOpenRequested) =>
-      // When / Then
-      state.isAvailable shouldBe isAvailable
-      state.isOpenRequested shouldBe isOpenRequested
+      forAll(cases) { (state, isAvailable, isOpenRequested) =>
+        // When / Then
+        state.isAvailable shouldBe isAvailable
+        state.isOpenRequested shouldBe isOpenRequested
+      }
+      // Then
+      MidiDeviceHandle.State.values.map(state => (state.isAvailable, state.isOpenRequested)).distinct should have size 4
     }
-    // Then
-    MidiDeviceHandle.State.values.map(state => (state.isAvailable, state.isOpenRequested)).distinct should have size 4
   }
 }

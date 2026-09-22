@@ -21,7 +21,7 @@ import org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Inside
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -29,7 +29,7 @@ import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, Sys
 import scala.collection.immutable.ArraySeq
 import scala.compiletime.testing.typeChecks
 
-class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers with MockFactory
+class JavaMidiConvertersTest extends AnyWordSpec with TableDrivenPropertyChecks with Matchers with MockFactory
   with Inside {
 
   private def shortMessage(status: Int, data1: Int, data2: Int): ShortMessage =
@@ -127,197 +127,198 @@ class JavaMidiConvertersTest extends AnyFlatSpec with TableDrivenPropertyChecks 
     )
   )
 
-  behavior of "JavaMidiConverters.asJava"
+  "JavaMidiConverters.asJava" should {
+    "produce Java bytes equal to the expected Java MidiMessage for every MidiMsg subtype" in {
+      forAll(cases) { (scalaMessage, javaMessage) =>
+        // When
+        val actual = scalaMessage.asJava
 
-  it should "produce Java bytes equal to the expected Java MidiMessage for every MidiMsg subtype" in {
-    forAll(cases) { (scalaMessage, javaMessage) =>
-      // When
-      val actual = scalaMessage.asJava
-
-      // Then
-      actual.getMessage should equal(javaMessage.getMessage)
-    }
-  }
-
-  behavior of "JavaMidiConverters.asScala"
-
-  it should "produce the expected MidiMsg for every Java MidiMessage" in {
-    forAll(cases) { (scalaMessage, javaMessage) =>
-      // When
-      val actual = javaMessage.asScala
-
-      // Then
-      actual should equal(scalaMessage)
-    }
-  }
-
-  it should "reject a null MidiMessage" in {
-    // Given
-    val nullMessage: MidiMessage = null
-
-    // When / Then
-    an[IllegalArgumentException] should be thrownBy nullMessage.asScala
-  }
-
-  behavior of "JavaMidiConverters Channel Mode messages"
-
-  it should "decode a valueless Channel Mode message whatever data byte it carries" in {
-    // Given
-    val valuelessMessages = Table[Int, ChannelModeMidiMsg](
-      ("number", "message"),
-      (AllSoundOffMidiMsg.Number, AllSoundOffMidiMsg(2)),
-      (ResetAllControllersMidiMsg.Number, ResetAllControllersMidiMsg(2)),
-      (AllNotesOffMidiMsg.Number, AllNotesOffMidiMsg(2)),
-      (OmniModeOffMidiMsg.Number, OmniModeOffMidiMsg(2)),
-      (OmniModeOnMidiMsg.Number, OmniModeOnMidiMsg(2)),
-      (PolyModeOnMidiMsg.Number, PolyModeOnMidiMsg(2))
-    )
-    val dataBytes = Seq(0, 1, 64, 127)
-
-    forAll(valuelessMessages) { (number, message) =>
-      for (dataByte <- dataBytes) {
-        // When / Then
-        withClue(s"data byte $dataByte:") {
-          shortMsgC(ShortMessage.CONTROL_CHANGE, 2, number, dataByte).asScala shouldEqual message
-        }
+        // Then
+        actual.getMessage should equal(javaMessage.getMessage)
       }
     }
   }
 
-  it should "decode Local Control by the switch convention: 0-63 off, 64-127 on" in {
-    // Given
-    val dataBytes = Table(
-      ("dataByte", "isOn"),
-      (0, false),
-      (63, false),
-      (64, true),
-      (127, true)
-    )
+  "JavaMidiConverters.asScala" should {
+    "produce the expected MidiMsg for every Java MidiMessage" in {
+      forAll(cases) { (scalaMessage, javaMessage) =>
+        // When
+        val actual = javaMessage.asScala
 
-    forAll(dataBytes) { (dataByte, isOn) =>
+        // Then
+        actual should equal(scalaMessage)
+      }
+    }
+
+    "reject a null MidiMessage" in {
+      // Given
+      val nullMessage: MidiMessage = null
+
       // When / Then
-      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, LocalControlMidiMsg.Number, dataByte).asScala shouldEqual
-        LocalControlMidiMsg(2, isOn)
+      an[IllegalArgumentException] should be thrownBy nullMessage.asScala
     }
   }
 
-  it should "keep a Control Change below the Channel Mode range a CcMidiMsg" in {
-    // When / Then
-    shortMsgC(ShortMessage.CONTROL_CHANGE, 2, MidiRequirements.MaxControllerNumber, 100).asScala shouldEqual
-      CcMidiMsg(2, MidiRequirements.MaxControllerNumber, 100)
-  }
+  "JavaMidiConverters Channel Mode messages" should {
+    "decode a valueless Channel Mode message whatever data byte it carries" in {
+      // Given
+      val valuelessMessages = Table[Int, ChannelModeMidiMsg](
+        ("number", "message"),
+        (AllSoundOffMidiMsg.Number, AllSoundOffMidiMsg(2)),
+        (ResetAllControllersMidiMsg.Number, ResetAllControllersMidiMsg(2)),
+        (AllNotesOffMidiMsg.Number, AllNotesOffMidiMsg(2)),
+        (OmniModeOffMidiMsg.Number, OmniModeOffMidiMsg(2)),
+        (OmniModeOnMidiMsg.Number, OmniModeOnMidiMsg(2)),
+        (PolyModeOnMidiMsg.Number, PolyModeOnMidiMsg(2))
+      )
+      val dataBytes = Seq(0, 1, 64, 127)
 
-  it should "wrap a Mono Mode On carrying more channels than MIDI 1.0 allows in an UnsupportedMidiMsg" in {
-    // Given
-    val javaMessage = shortMsgC(ShortMessage.CONTROL_CHANGE, 2, MonoModeOnMidiMsg.Number, 17)
-
-    // When
-    val actual = javaMessage.asScala
-
-    // Then — asScala runs on the device's own thread, so a malformed message must not throw out of it
-    actual shouldEqual UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(javaMessage.getMessage))
-  }
-
-  behavior of "UnsupportedMidiMsg round-trip"
-
-  it should "round-trip a ShortMessage with an unknown command" in {
-    // Given: channel voice command that's not in FromShortMap — there is none; use a system common not recognized.
-    // All defined commands are registered, so craft a 2-byte status for a rarely seen value by using a short
-    // 1-byte status under 0xF0 won't work (handled as command). Use an unused real-time status: 0xF9 (undefined).
-    val msg = new ShortMessage()
-    msg.setMessage(0xF9)
-
-    // When / Then
-    inside(msg.asScala) {
-      case sc: UnsupportedMidiMsg =>
-        sc.asJava.getMessage should equal(msg.getMessage)
+      forAll(valuelessMessages) { (number, message) =>
+        for (dataByte <- dataBytes) {
+          // When / Then
+          withClue(s"data byte $dataByte:") {
+            shortMsgC(ShortMessage.CONTROL_CHANGE, 2, number, dataByte).asScala shouldEqual message
+          }
+        }
+      }
     }
-  }
 
-  it should "round-trip a MetaMessage with an unknown meta type" in {
-    // Given: meta type 0x60 is not registered
-    val payload = Array[Byte](0x01, 0x02, 0x03)
-    val msg = new MetaMessage()
-    msg.setMessage(0x60, payload, payload.length)
+    "decode Local Control by the switch convention: 0-63 off, 64-127 on" in {
+      // Given
+      val dataBytes = Table(
+        ("dataByte", "isOn"),
+        (0, false),
+        (63, false),
+        (64, true),
+        (127, true)
+      )
 
-    // When / Then
-    inside(msg.asScala) {
-      case sc: UnsupportedMidiMsg =>
-        sc.asJava.getMessage should equal(msg.getMessage)
+      forAll(dataBytes) { (dataByte, isOn) =>
+        // When / Then
+        shortMsgC(ShortMessage.CONTROL_CHANGE, 2, LocalControlMidiMsg.Number, dataByte).asScala shouldEqual
+          LocalControlMidiMsg(2, isOn)
+      }
     }
-  }
 
-  it should "round-trip a SysexMessage via UnsupportedMidiMsg constructed from raw bytes" in {
-    // Given
-    val unsupported = UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(sysexBytes))
-
-    // When
-    val javaMessage = unsupported.asJava
-
-    // Then
-    javaMessage shouldBe a[SysexMessage]
-    javaMessage.getMessage should equal(sysexBytes)
-  }
-
-  behavior of "JavaMidiConverters.connectionLimit"
-
-  it should "map Java Sound's -1 to Unlimited and any other count to Limited" in {
-    // Given
-    val cases = Table[Int, MidiConnectionLimit](
-      ("javaMaxConnections", "expected"),
-      (-1, MidiConnectionLimit.Unlimited),
-      (0, MidiConnectionLimit.Limited(0)),
-      (1, MidiConnectionLimit.Limited(1)),
-      (8, MidiConnectionLimit.Limited(8))
-    )
-
-    forAll(cases) { (javaMaxConnections, expected) =>
+    "keep a Control Change below the Channel Mode range a CcMidiMsg" in {
       // When / Then
-      JavaMidiConverters.connectionLimit(javaMaxConnections) shouldEqual expected
+      shortMsgC(ShortMessage.CONTROL_CHANGE, 2, MidiRequirements.MaxControllerNumber, 100).asScala shouldEqual
+        CcMidiMsg(2, MidiRequirements.MaxControllerNumber, 100)
+    }
+
+    "wrap a Mono Mode On carrying more channels than MIDI 1.0 allows in an UnsupportedMidiMsg" in {
+      // Given
+      val javaMessage = shortMsgC(ShortMessage.CONTROL_CHANGE, 2, MonoModeOnMidiMsg.Number, 17)
+
+      // When
+      val actual = javaMessage.asScala
+
+      // Then — asScala runs on the device's own thread, so a malformed message must not throw out of it
+      actual shouldEqual UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(javaMessage.getMessage))
     }
   }
 
-  behavior of "JavaMidiConverters.asMidiDeviceId"
+  "UnsupportedMidiMsg round-trip" should {
+    "round-trip a ShortMessage with an unknown command" in {
+      // Given: channel voice command that's not in FromShortMap — there is none; use a system common not recognized.
+      // All defined commands are registered, so craft a 2-byte status for a rarely seen value by using a short
+      // 1-byte status under 0xF0 won't work (handled as command). Use an unused real-time status: 0xF9 (undefined).
+      val msg = new ShortMessage()
+      msg.setMessage(0xF9)
 
-  it should "take the name and vendor of the Java Sound device info" in {
-    // Given
-    val javaInfo = TestDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0")
+      // When / Then
+      inside(msg.asScala) {
+        case sc: UnsupportedMidiMsg =>
+          sc.asJava.getMessage should equal(msg.getMessage)
+      }
+    }
 
-    // When / Then
-    javaInfo.asMidiDeviceId shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+    "round-trip a MetaMessage with an unknown meta type" in {
+      // Given: meta type 0x60 is not registered
+      val payload = Array[Byte](0x01, 0x02, 0x03)
+      val msg = new MetaMessage()
+      msg.setMessage(0x60, payload, payload.length)
+
+      // When / Then
+      inside(msg.asScala) {
+        case sc: UnsupportedMidiMsg =>
+          sc.asJava.getMessage should equal(msg.getMessage)
+      }
+    }
+
+    "round-trip a SysexMessage via UnsupportedMidiMsg constructed from raw bytes" in {
+      // Given
+      val unsupported = UnsupportedMidiMsg(ArraySeq.unsafeWrapArray(sysexBytes))
+
+      // When
+      val javaMessage = unsupported.asJava
+
+      // Then
+      javaMessage shouldBe a[SysexMessage]
+      javaMessage.getMessage should equal(sysexBytes)
+    }
   }
 
-  behavior of "JavaMidiConverters.asMidiDeviceInfo"
+  "JavaMidiConverters.connectionLimit" should {
+    "map Java Sound's -1 to Unlimited and any other count to Limited" in {
+      // Given
+      val cases = Table[Int, MidiConnectionLimit](
+        ("javaMaxConnections", "expected"),
+        (-1, MidiConnectionLimit.Unlimited),
+        (0, MidiConnectionLimit.Limited(0)),
+        (1, MidiConnectionLimit.Limited(1)),
+        (8, MidiConnectionLimit.Limited(8))
+      )
 
-  it should "copy the Java Sound device info fields and convert the connection limits" in {
-    // Given
-    val device = stub[MidiDevice]
-    (() => device.getDeviceInfo).when().returns(TestDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0"))
-    (() => device.getMaxTransmitters).when().returns(-1)
-    (() => device.getMaxReceivers).when().returns(1)
-
-    // When
-    val info = device.asMidiDeviceInfo
-
-    // Then
-    info shouldEqual MidiDeviceInfo(
-      name = "CoreMIDI4J - FP-90",
-      vendor = "Roland",
-      description = "Digital piano",
-      version = "1.0",
-      transmittersLimit = MidiConnectionLimit.Unlimited,
-      receiversLimit = MidiConnectionLimit.Limited(1)
-    )
-    info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+      forAll(cases) { (javaMaxConnections, expected) =>
+        // When / Then
+        JavaMidiConverters.connectionLimit(javaMaxConnections) shouldEqual expected
+      }
+    }
   }
 
-  behavior of "JavaMidiConverters.asJava availability"
+  "JavaMidiConverters.asMidiDeviceId" should {
+    "take the name and vendor of the Java Sound device info" in {
+      // Given
+      val javaInfo = TestDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0")
 
-  it should "be defined for Midi1Msg but not for Midi2Msg" in {
-    // When / Then
-    typeChecks("(??? : Midi1Msg).asJava") shouldBe true
-    typeChecks("(??? : Midi2Msg).asJava") shouldBe false
-    // Proves Midi2Msg resolves in this file, so the assertion above fails for the right reason.
-    typeChecks("val m: Midi2Msg = ???") shouldBe true
+      // When / Then
+      javaInfo.asMidiDeviceId shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+    }
+  }
+
+  "JavaMidiConverters.asMidiDeviceInfo" should {
+    "copy the Java Sound device info fields and convert the connection limits" in {
+      // Given
+      val device = stub[MidiDevice]
+      (() => device.getDeviceInfo).when()
+        .returns(TestDeviceInfo("CoreMIDI4J - FP-90", "Roland", "Digital piano", "1.0"))
+      (() => device.getMaxTransmitters).when().returns(-1)
+      (() => device.getMaxReceivers).when().returns(1)
+
+      // When
+      val info = device.asMidiDeviceInfo
+
+      // Then
+      info shouldEqual MidiDeviceInfo(
+        name = "CoreMIDI4J - FP-90",
+        vendor = "Roland",
+        description = "Digital piano",
+        version = "1.0",
+        transmittersLimit = MidiConnectionLimit.Unlimited,
+        receiversLimit = MidiConnectionLimit.Limited(1)
+      )
+      info.id shouldEqual MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
+    }
+  }
+
+  "JavaMidiConverters.asJava availability" should {
+    "be defined for Midi1Msg but not for Midi2Msg" in {
+      // When / Then
+      typeChecks("(??? : Midi1Msg).asJava") shouldBe true
+      typeChecks("(??? : Midi2Msg).asJava") shouldBe false
+      // Proves Midi2Msg resolves in this file, so the assertion above fails for the right reason.
+      typeChecks("val m: Midi2Msg = ???") shouldBe true
+    }
   }
 }

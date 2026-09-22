@@ -18,13 +18,13 @@ package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.message.{MidiMsg, NoteOffMidiMsg, NoteOnMidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
-class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
+class MidiProcessorTest extends AnyWordSpec with Matchers with Stubs {
 
   /**
    * Records what it processes and the receivers passed to each hook call, in order; forwards every message as is.
@@ -122,204 +122,204 @@ class MidiProcessorTest extends AnyFlatSpec with Matchers with Stubs {
     Seq(receiver1, receiver2).foreach(_.send.returns(_ => ()))
   }
 
-  behavior of "receiver"
-
-  it should "process a message once and forward the result to every receiver of the transmitter" in new Fixture {
-    // Given
-    processor.transmitter.receivers = Seq(receiver1, receiver2)
-
-    // When
-    processor.receiver.send(message, timeStamp)
-
-    // Then
-    processor.processedMessages.toSeq shouldEqual Seq((message, timeStamp))
-    receiver1.send.calls shouldEqual Seq((message, timeStamp))
-    receiver2.send.calls shouldEqual Seq((message, timeStamp))
-  }
-
-  it should "forward every message a processor returns, in order, with the input time-stamp" in new Fixture {
-    // Given
-    val noteOff: MidiMsg = NoteOffMidiMsg(1, 60, 0)
-    val echoingProcessor: MidiProcessor = new MidiProcessor {
-      override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message, noteOff)
-    }
-    echoingProcessor.transmitter.addReceiver(receiver1)
-
-    // When
-    echoingProcessor.receiver.send(message, timeStamp)
-
-    // Then
-    receiver1.send.calls shouldEqual Seq((message, timeStamp), (noteOff, timeStamp))
-  }
-
-  it should "not process a message while the transmitter has no receivers" in new Fixture {
-    // When
-    processor.receiver.send(message, timeStamp)
-
-    // Then
-    processor.processedMessages shouldBe empty
-  }
-
-  behavior of "transmitter"
-
-  it should "call onAttach with the receiver when the first receiver is added" in new Fixture {
-    // When
-    processor.transmitter.addReceiver(receiver1)
-
-    // Then
-    processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)))
-  }
-
-  it should "call onDetach with the old receiver, then onAttach with the new one, when the receivers are " +
-    "fully replaced" in new Fixture {
-      // Given
-      processor.transmitter.receivers = Seq(receiver1)
-
-      // When
-      processor.transmitter.receivers = Seq(receiver2)
-
-      // Then
-      processor.hookCalls.toSeq shouldEqual Seq(
-        ("attach", Seq(receiver1)),
-        ("detach", Seq(receiver1)),
-        ("attach", Seq(receiver2))
-      )
-    }
-
-  it should "call only onAttach, with the receiver being added, when a receiver is added to a processor that " +
-    "already has one attached" in new Fixture {
-      // Given
-      processor.transmitter.addReceiver(receiver1)
-
-      // When
-      processor.transmitter.addReceiver(receiver2)
-
-      // Then
-      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)), ("attach", Seq(receiver2)))
-      processor.transmitter.receivers shouldEqual Seq(receiver1, receiver2)
-    }
-
-  it should "call only onDetach, with the receiver being removed, when the last receiver is removed" in
-    new Fixture {
-      // Given
-      processor.transmitter.addReceiver(receiver1)
-
-      // When
-      processor.transmitter.removeReceiver(receiver1)
-
-      // Then
-      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)), ("detach", Seq(receiver1)))
-    }
-
-  it should "call only onDetach, with one receiver that remains untouched, when one of two receivers is " +
-    "removed" in new Fixture {
+  "receiver" should {
+    "process a message once and forward the result to every receiver of the transmitter" in new Fixture {
       // Given
       processor.transmitter.receivers = Seq(receiver1, receiver2)
 
       // When
-      processor.transmitter.removeReceiver(receiver1)
+      processor.receiver.send(message, timeStamp)
 
       // Then
-      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1, receiver2)), ("detach", Seq(receiver1)))
+      processor.processedMessages.toSeq shouldEqual Seq((message, timeStamp))
+      receiver1.send.calls shouldEqual Seq((message, timeStamp))
+      receiver2.send.calls shouldEqual Seq((message, timeStamp))
     }
 
-  it should "call only onDetach with every receiver when the receivers are cleared" in new Fixture {
-    // Given
-    processor.transmitter.receivers = Seq(receiver1, receiver2)
-
-    // When
-    processor.transmitter.clearReceivers()
-
-    // Then
-    processor.hookCalls.toSeq shouldEqual Seq(
-      ("attach", Seq(receiver1, receiver2)),
-      ("detach", Seq(receiver1, receiver2))
-    )
-  }
-
-  it should "call no hook when the same receivers are set again" in new Fixture {
-    // Given
-    processor.transmitter.receivers = Seq(receiver1)
-
-    // When
-    processor.transmitter.receivers = Seq(receiver1)
-
-    // Then
-    processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)))
-  }
-
-  it should "call no hook when an empty transmitter is cleared" in new Fixture {
-    // When
-    processor.transmitter.clearReceivers()
-
-    // Then
-    processor.hookCalls shouldBe empty
-    processor.receiversChangedCalls shouldBe empty
-  }
-
-  it should "call onReceiversChanged with the whole new sequence on every change" in new Fixture {
-    // When
-    processor.transmitter.addReceiver(receiver1)
-    processor.transmitter.addReceiver(receiver2)
-    processor.transmitter.removeReceiver(receiver1)
-    processor.transmitter.clearReceivers()
-
-    // Then
-    processor.receiversChangedCalls.toSeq shouldEqual Seq(
-      Seq(receiver1),
-      Seq(receiver1, receiver2),
-      Seq(receiver2),
-      Seq.empty
-    )
-  }
-
-  it should "call only onReceiversChanged when the receivers are reordered" in new Fixture {
-    // Given
-    processor.transmitter.receivers = Seq(receiver1, receiver2)
-
-    // When
-    processor.transmitter.receivers = Seq(receiver2, receiver1)
-
-    // Then
-    processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1, receiver2)))
-    processor.receiversChangedCalls.toSeq shouldEqual Seq(Seq(receiver1, receiver2), Seq(receiver2, receiver1))
-  }
-
-  it should "call onReceiversChanged after onDetach and onAttach" in new Fixture {
-    // Given
-    val ordering: OrderingMidiProcessor = OrderingMidiProcessor()
-    ordering.transmitter.receivers = Seq(receiver1)
-
-    // When
-    ordering.transmitter.receivers = Seq(receiver2)
-
-    // Then
-    ordering.hookNames.toSeq shouldEqual Seq("attach", "changed", "detach", "attach", "changed")
-  }
-
-  it should "still expose the old receivers during onDetach and the new ones during onAttach" in new Fixture {
-    // Given
-    val snapshotting: SnapshottingMidiProcessor = SnapshottingMidiProcessor()
-    snapshotting.transmitter.receivers = Seq(receiver1)
-
-    // When
-    snapshotting.transmitter.receivers = Seq(receiver2)
-
-    // Then
-    snapshotting.receiversOnDetach shouldEqual Seq(receiver1)
-    snapshotting.receiversOnAttach shouldEqual Seq(receiver2)
-  }
-
-  it should "run the hooks while holding the write lock, through a modifier and through a direct assignment" in
-    new Fixture {
+    "forward every message a processor returns, in order, with the input time-stamp" in new Fixture {
       // Given
-      val probing: LockProbingMidiProcessor = LockProbingMidiProcessor()
+      val noteOff: MidiMsg = NoteOffMidiMsg(1, 60, 0)
+      val echoingProcessor: MidiProcessor = new MidiProcessor {
+        override protected def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = Seq(message, noteOff)
+      }
+      echoingProcessor.transmitter.addReceiver(receiver1)
 
       // When
-      probing.transmitter.addReceiver(receiver1)
-      probing.transmitter.receivers = Seq(receiver2)
+      echoingProcessor.receiver.send(message, timeStamp)
 
-      // Then: attach; detach, attach
-      probing.readCompletedDuringHook.toSeq shouldEqual Seq(false, false, false)
+      // Then
+      receiver1.send.calls shouldEqual Seq((message, timeStamp), (noteOff, timeStamp))
     }
+
+    "not process a message while the transmitter has no receivers" in new Fixture {
+      // When
+      processor.receiver.send(message, timeStamp)
+
+      // Then
+      processor.processedMessages shouldBe empty
+    }
+  }
+
+  "transmitter" should {
+    "call onAttach with the receiver when the first receiver is added" in new Fixture {
+      // When
+      processor.transmitter.addReceiver(receiver1)
+
+      // Then
+      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)))
+    }
+
+    "call onDetach with the old receiver, then onAttach with the new one, when the receivers are " +
+      "fully replaced" in new Fixture {
+        // Given
+        processor.transmitter.receivers = Seq(receiver1)
+
+        // When
+        processor.transmitter.receivers = Seq(receiver2)
+
+        // Then
+        processor.hookCalls.toSeq shouldEqual Seq(
+          ("attach", Seq(receiver1)),
+          ("detach", Seq(receiver1)),
+          ("attach", Seq(receiver2))
+        )
+      }
+
+    "call only onAttach, with the receiver being added, when a receiver is added to a processor that " +
+      "already has one attached" in new Fixture {
+        // Given
+        processor.transmitter.addReceiver(receiver1)
+
+        // When
+        processor.transmitter.addReceiver(receiver2)
+
+        // Then
+        processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)), ("attach", Seq(receiver2)))
+        processor.transmitter.receivers shouldEqual Seq(receiver1, receiver2)
+      }
+
+    "call only onDetach, with the receiver being removed, when the last receiver is removed" in
+      new Fixture {
+        // Given
+        processor.transmitter.addReceiver(receiver1)
+
+        // When
+        processor.transmitter.removeReceiver(receiver1)
+
+        // Then
+        processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)), ("detach", Seq(receiver1)))
+      }
+
+    "call only onDetach, with one receiver that remains untouched, when one of two receivers is " +
+      "removed" in new Fixture {
+        // Given
+        processor.transmitter.receivers = Seq(receiver1, receiver2)
+
+        // When
+        processor.transmitter.removeReceiver(receiver1)
+
+        // Then
+        processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1, receiver2)), ("detach", Seq(receiver1)))
+      }
+
+    "call only onDetach with every receiver when the receivers are cleared" in new Fixture {
+      // Given
+      processor.transmitter.receivers = Seq(receiver1, receiver2)
+
+      // When
+      processor.transmitter.clearReceivers()
+
+      // Then
+      processor.hookCalls.toSeq shouldEqual Seq(
+        ("attach", Seq(receiver1, receiver2)),
+        ("detach", Seq(receiver1, receiver2))
+      )
+    }
+
+    "call no hook when the same receivers are set again" in new Fixture {
+      // Given
+      processor.transmitter.receivers = Seq(receiver1)
+
+      // When
+      processor.transmitter.receivers = Seq(receiver1)
+
+      // Then
+      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1)))
+    }
+
+    "call no hook when an empty transmitter is cleared" in new Fixture {
+      // When
+      processor.transmitter.clearReceivers()
+
+      // Then
+      processor.hookCalls shouldBe empty
+      processor.receiversChangedCalls shouldBe empty
+    }
+
+    "call onReceiversChanged with the whole new sequence on every change" in new Fixture {
+      // When
+      processor.transmitter.addReceiver(receiver1)
+      processor.transmitter.addReceiver(receiver2)
+      processor.transmitter.removeReceiver(receiver1)
+      processor.transmitter.clearReceivers()
+
+      // Then
+      processor.receiversChangedCalls.toSeq shouldEqual Seq(
+        Seq(receiver1),
+        Seq(receiver1, receiver2),
+        Seq(receiver2),
+        Seq.empty
+      )
+    }
+
+    "call only onReceiversChanged when the receivers are reordered" in new Fixture {
+      // Given
+      processor.transmitter.receivers = Seq(receiver1, receiver2)
+
+      // When
+      processor.transmitter.receivers = Seq(receiver2, receiver1)
+
+      // Then
+      processor.hookCalls.toSeq shouldEqual Seq(("attach", Seq(receiver1, receiver2)))
+      processor.receiversChangedCalls.toSeq shouldEqual Seq(Seq(receiver1, receiver2), Seq(receiver2, receiver1))
+    }
+
+    "call onReceiversChanged after onDetach and onAttach" in new Fixture {
+      // Given
+      val ordering: OrderingMidiProcessor = OrderingMidiProcessor()
+      ordering.transmitter.receivers = Seq(receiver1)
+
+      // When
+      ordering.transmitter.receivers = Seq(receiver2)
+
+      // Then
+      ordering.hookNames.toSeq shouldEqual Seq("attach", "changed", "detach", "attach", "changed")
+    }
+
+    "still expose the old receivers during onDetach and the new ones during onAttach" in new Fixture {
+      // Given
+      val snapshotting: SnapshottingMidiProcessor = SnapshottingMidiProcessor()
+      snapshotting.transmitter.receivers = Seq(receiver1)
+
+      // When
+      snapshotting.transmitter.receivers = Seq(receiver2)
+
+      // Then
+      snapshotting.receiversOnDetach shouldEqual Seq(receiver1)
+      snapshotting.receiversOnAttach shouldEqual Seq(receiver2)
+    }
+
+    "run the hooks while holding the write lock, through a modifier and through a direct assignment" in
+      new Fixture {
+        // Given
+        val probing: LockProbingMidiProcessor = LockProbingMidiProcessor()
+
+        // When
+        probing.transmitter.addReceiver(receiver1)
+        probing.transmitter.receivers = Seq(receiver2)
+
+        // Then: attach; detach, attach
+        probing.readCompletedDuringHook.toSeq shouldEqual Seq(false, false, false)
+      }
+  }
 }

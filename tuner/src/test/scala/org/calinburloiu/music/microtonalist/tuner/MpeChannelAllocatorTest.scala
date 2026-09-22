@@ -19,14 +19,14 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalatest.OptionValues
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
- * Keep tests organized in sections delimited by `behavior of`. Each section name starts with the name of the class.
- * When adding a new test, choose the most appropriate section and if required create a new section.
+ * Keep tests organized in sections, one `"<section>" should { … }` block each. Each section name starts with the name
+ * of the class. When adding a new test, choose the most appropriate section and if required create a new section.
  */
-class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValues {
+class MpeChannelAllocatorTest extends AnyWordSpec with Matchers with OptionValues {
 
   /**
    * The raw High Expression Pitch Bend threshold every allocator in this suite is built with. A plain round number
@@ -89,1391 +89,1392 @@ class MpeChannelAllocatorTest extends AnyFlatSpec with Matchers with OptionValue
     droppedNotes.get.notes.map(_.noteIdentity.midiNote) should contain theSameElementsAs expectedNotes
   }
 
-  behavior of "MpeChannelAllocator - Step 1: Allocate in Pitch Class Group"
-
-  it should "allocate first note to an unoccupied Pitch Class Group channel" in {
-    // Given
-    val alloc = allocator15
-    // When
-    val result = alloc.allocateNote(C4)
-    // Then
-    result.droppedNotes shouldBe empty
-    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(C4)
-  }
-
-  it should "allocate notes with distinct pitch classes to their own Pitch Class Group channels" in {
-    // Given
-    val alloc = allocator15
-    // When
-    val r1 = alloc.allocateNote(C4)
-    val r2 = alloc.allocateNote(D4)
-    val r3 = alloc.allocateNote(E4)
-    // Then
-    r1.channel should not equal r2.channel
-    r2.channel should not equal r3.channel
-    r1.channel should not equal r3.channel
-    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.PitchClass)
-  }
-
-  it should "fill all 12 Pitch Class Group channels with distinct pitch classes (zone with 15 members)" in {
-    // Given
-    val alloc = allocator15
-    // When
-    val channels = (0 until 12).map { pc =>
-      alloc.allocateNote(C4 + pc).channel
+  "MpeChannelAllocator - Step 1: Allocate in Pitch Class Group" should {
+    "allocate first note to an unoccupied Pitch Class Group channel" in {
+      // Given
+      val alloc = allocator15
+      // When
+      val result = alloc.allocateNote(C4)
+      // Then
+      result.droppedNotes shouldBe empty
+      alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(C4)
     }
-    // Then
-    channels.distinct.size shouldBe 12
-    channels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
-  }
 
-  it should "fill all Pitch Class Group channels with distinct pitch classes (zone with 7 members)" in {
-    // Given
-    val alloc = allocator7
-    // When
-    // PCG=5 for 7 members
-    val channels = (0 until 5).map { pc =>
-      alloc.allocateNote(C4 + pc).channel
+    "allocate notes with distinct pitch classes to their own Pitch Class Group channels" in {
+      // Given
+      val alloc = allocator15
+      // When
+      val r1 = alloc.allocateNote(C4)
+      val r2 = alloc.allocateNote(D4)
+      val r3 = alloc.allocateNote(E4)
+      // Then
+      r1.channel should not equal r2.channel
+      r2.channel should not equal r3.channel
+      r1.channel should not equal r3.channel
+      alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.PitchClass)
     }
-    // Then
-    channels.distinct.size shouldBe 5
-    channels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
-  }
-
-  it should "prefer unoccupied channel with oldest last Note Off" in {
-    // Given
-    val alloc = allocator15
-    val r1 = alloc.allocateNote(C4) // ch1
-    val r2 = alloc.allocateNote(D4) // ch2
-    val ch1 = r1.channel
-    val ch2 = r2.channel
-    alloc.releaseNote(C4) // older
-    alloc.releaseNote(D4) // newer
-
-    // Both are unoccupied and HAVE been used.
-    // We want it to pick ch1.
-    // But there are also ch3..ch12 which have NEVER been used (lastNoteOffTime=0).
-    // If we want it to pick ch1, we must ensure ch3..ch12 are NOT available.
-    // So let's fill them first.
-    // Each filler note gets its own input channel: C4 + 4 is E4, and reusing input channel 0 for it
-    // would make it the same Note Identity as the E4 allocated below, turning that into a duplicate
-    // Note On instead of the fresh allocation this test is about.
-    (3 to 15).foreach { i => alloc.allocateNote(C4 + i, inputChannel = i) }
-
-    // When
-    // Now ch1, ch2 are unoccupied. ch3..15 are occupied.
-    // r3 should pick ch1.
-    val r3 = alloc.allocateNote(E4)
-    // Then
-    r3.channel shouldBe ch1
-  }
-
-  it should "prefer unoccupied channel that was never used over used and released" in {
-    // Given
-    val alloc = allocator15
-    val r1 = alloc.allocateNote(C4)
-    val ch1 = r1.channel
-    alloc.releaseNote(C4)
-    // ch1 was used and released. Others never used.
-    // never used (lastNoteOffTime=0) should be preferred over used (lastNoteOffTime>0)
-    // When
-    val r2 = alloc.allocateNote(D4)
-    // Then
-    r2.channel should not be ch1
-  }
-
-  it should "break a tie by oldest last Note Off rather than the preferred input channel" in {
-    // Given
-    // Two previously-used channels are released, so both are unoccupied candidates for the Pitch Class
-    // Group; ch1 has the older last Note Off. The preferred (input) channel is ch2, but criterion (d)
-    // outranks the (e) input-channel default.
-    val alloc = allocator2
-    val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // t1: ch1
-    val r2 = alloc.allocateNote(D4, preferredChannel = Some(2)) // t2: ch2
-    r1.channel shouldBe 1
-    r2.channel shouldBe 2
-    alloc.releaseNote(C4) // t3: ch1 Note Off=3
-    alloc.releaseNote(D4) // t4: ch2 Note Off=4
-    alloc.isChannelOccupied(r1.channel) shouldBe false
-    alloc.isChannelOccupied(r2.channel) shouldBe false
-    // When
-    val result = alloc.allocateNote(E4, preferredChannel = Some(2)) // ch2 preferred, but ch1 idle longer
-    // Then
-    result.channel shouldBe r1.channel
-    result.droppedNotes shouldBe empty
-    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
-  }
-
-  it should "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
-    // Given
-    // Both candidates are unoccupied and previously used. Their original onset order (ch1<ch2) disagrees
-    // with their Note Off order (ch2<ch1), but releasing a channel clears its onset to 0, so both now
-    // carry onset 0 and criterion (c) cannot discriminate. The paper treats an unoccupied channel as
-    // having no onset, so criterion (d) governs and the older-Note-Off ch2 wins. (If onset were not
-    // cleared, criterion (c) would wrongly pick ch1 — this test guards that.)
-    val alloc = allocator2
-    val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
-    val r2 = alloc.allocateNote(D4, preferredChannel = Some(2)) // t2: ch2 onset=2
-    r1.channel shouldBe 1
-    r2.channel shouldBe 2
-    alloc.releaseNote(D4) // t3: ch2 Note Off=3
-    alloc.releaseNote(C4) // t4: ch1 Note Off=4
-    alloc.isChannelOccupied(r1.channel) shouldBe false
-    alloc.isChannelOccupied(r2.channel) shouldBe false
-    // When
-    val result = alloc.allocateNote(E4) // no preferred channel
-    // Then
-    result.channel shouldBe r2.channel
-    result.droppedNotes shouldBe empty
-    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(E4)
-  }
-
-  behavior of "MpeChannelAllocator - Step 2: Allocate in Expression Group"
-
-  it should "allocate second note with same pitch class to Expression Group" in {
-    // Given
-    val alloc = allocator15
-    val r1 = alloc.allocateNote(C4)
-    // When
-    val r2 = alloc.allocateNote(C5) // same pitch class C
-    // Then
-    r1.channel should not equal r2.channel
-    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
-  }
-
-  it should "share channel when Expression Group has only one member and third note with same pitch class arrives" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val r1 = alloc.allocateNote(C4)
-    val r2 = alloc.allocateNote(C5)
-    // When
-    // Both groups full for pitch class C, third note must share
-    val r3 = alloc.allocateNote(C3) // same pitch class
-    // Then
-    (r3.channel == r1.channel || r3.channel == r2.channel) shouldBe true
-    r1.channel should not equal r2.channel
-  }
-
-  it should "allocate third note with same pitch class to another Expression Group channel when available" in {
-    // Given
-    val alloc = allocator15 // EG=3
-    val r1 = alloc.allocateNote(C4)
-    val r2 = alloc.allocateNote(C5)
-    // When
-    val r3 = alloc.allocateNote(C3)
-    // Then
-    Set(r1.channel, r2.channel, r3.channel).size shouldBe 3
-    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
-  }
-
-  it should "allocate note with new pitch class to Expression Group when Pitch Class Group is full" in {
-    // Given
-    val alloc = allocator7 // PCG=5, EG=2
-    // Fill PCG with 5 distinct pitch classes
-    (0 until 5).foreach(pc => alloc.allocateNote(C4 + pc))
-    // When
-    // 6th distinct pitch class goes to EG
-    val r = alloc.allocateNote(C4 + 5)
-    // Then
-    alloc.channelGroupOf(r.channel) shouldBe Some(ChannelGroup.Expression)
-  }
-
-  it should "break a tie by oldest last Note Off rather than the preferred input channel" in {
-    // Given
-    // Pitch class C fills the single Pitch Class Group channel, so further C notes route to the
-    // Expression Group. Two Expression Group channels are released, so both are unoccupied candidates;
-    // ch2 has the older last Note Off. The preferred (input) channel is ch3, but criterion (d) outranks
-    // the (e) input-channel default.
-    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
-    val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // ch1, Pitch Class Group
-    val r2 = alloc.allocateNote(C5, preferredChannel = Some(2)) // ch2, Expression Group
-    val r3 = alloc.allocateNote(C3, preferredChannel = Some(3)) // ch3, Expression Group
-    r1.channel shouldBe 1
-    r2.channel shouldBe 2
-    r3.channel shouldBe 3
-    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.releaseNote(C5) // ch2 Note Off (older)
-    alloc.releaseNote(C3) // ch3 Note Off (newer)
-    // When
-    val result = alloc.allocateNote(C6, preferredChannel = Some(3)) // ch3 preferred, but ch2 idle longer
-    // Then
-    result.channel shouldBe r2.channel
-    result.droppedNotes shouldBe empty
-    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.Expression)
-  }
-
-  it should "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
-    // Given
-    // Pitch class C fills the single Pitch Class Group channel, so further C notes route to the
-    // Expression Group. The two Expression Group channels' onset order (ch2<ch3) disagrees with their
-    // Note Off order (ch3<ch2), but releasing a channel clears its onset to 0, so criterion (c) cannot
-    // discriminate and criterion (d) governs: the older-Note-Off ch3 wins. (If onset were not cleared,
-    // criterion (c) would wrongly pick ch2 — this test guards that.)
-    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
-    val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // ch1, Pitch Class Group
-    val r2 = alloc.allocateNote(C5, preferredChannel = Some(2)) // ch2, Expression Group, onset older
-    val r3 = alloc.allocateNote(C3, preferredChannel = Some(3)) // ch3, Expression Group, onset newer
-    r1.channel shouldBe 1
-    r2.channel shouldBe 2
-    r3.channel shouldBe 3
-    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.releaseNote(C3) // ch3 Note Off (older)
-    alloc.releaseNote(C5) // ch2 Note Off (newer)
-    // When
-    val result = alloc.allocateNote(C6) // no preferred channel
-    // Then
-    result.channel shouldBe r3.channel
-    result.droppedNotes shouldBe empty
-    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(C6)
-  }
-
-  behavior of "MpeChannelAllocator - Step 3: Share channel"
-
-  it should "share channel with same pitch class when both groups are full" in {
-    // Given
-    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
-    val r1 = alloc.allocateNote(C4)
-    val r2 = alloc.allocateNote(C5)
-    val r3 = alloc.allocateNote(C3)
-    // When
-    // All 3 channels occupied, 4th C note must share
-    val r4 = alloc.allocateNote(C6)
-    // Then
-    Set(r1.channel, r2.channel, r3.channel) should contain(r4.channel)
-  }
-
-  it should "prefer channel with lowest active note count when sharing" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val r1 = alloc.allocateNote(C4)
-    val r2 = alloc.allocateNote(C5)
-    val r3 = alloc.allocateNote(C3)
-    // When
-    // Add another note to r1's channel
-    alloc.allocateNote(C6) // goes to channel with fewest notes
-    // Then
-    alloc.activeChannelCount shouldBe 2
-    alloc.activeNotes(r1.channel).size shouldEqual 2
-    alloc.activeNotes(r2.channel).size shouldEqual 2
-  }
-
-  it should "prefer the oldest onset among occupied candidates when note counts are equal" in {
-    // Given
-    // Use preferredChannel to put the oldest onset on the highest channel number, breaking the
-    // correlation between onset order and channel number. All three channels then hold one pitch-class-C
-    // note with lastNoteOffTime=0, so criteria (a), (b), (d) tie and only onset (c) discriminates. The
-    // oldest onset is on ch3 (highest number); if criterion (c) were broken and fell through to the
-    // channel-number default (e), ch1 would be picked instead.
-    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
-    val r1 = alloc.allocateNote(C4, preferredChannel = Some(3)) // ch3, oldest onset
-    val r2 = alloc.allocateNote(C5, preferredChannel = Some(2)) // ch2
-    val r3 = alloc.allocateNote(C3, preferredChannel = Some(1)) // ch1, newest onset
-    r1.channel shouldBe 3
-    r2.channel shouldBe 2
-    r3.channel shouldBe 1
-    // When
-    val r4 = alloc.allocateNote(C6)
-    // Then
-    r4.channel shouldBe 3
-  }
-
-  it should "prefer the oldest onset over an older last Note Off among occupied candidates" in {
-    // Given
-    // Build two occupied pitch-class-C channels whose onset and last-Note-Off orderings DISAGREE:
-    //   ch1: onset = 3 (early), last Note Off = 6 (late)
-    //   ch2: onset = 5 (late),  last Note Off = 4 (early)
-    // Paper criterion (c) onset precedes (d) Note Off, so the older-onset ch1 must win.
-    val alloc = allocator2 // PCG=1, EG=1, channels 1..2
-    val rB = alloc.allocateNote(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
-    val rOther = alloc.allocateNote(C5, preferredChannel = Some(2)) // t2: ch2 onset=2
-    rB.channel shouldBe 1
-    rOther.channel shouldBe 2
-    val rShare = alloc.allocateNote(C6, preferredChannel = Some(1)) // t3: shares ch1 -> ch1 onset=3
-    rShare.channel shouldBe rB.channel
-    alloc.releaseNote(C5) // t4: ch2 empties, Note Off=4
-    val rReuse = alloc.allocateNote(C5, preferredChannel = Some(2)) // t5: ch2 onset=5
-    rReuse.channel shouldBe rOther.channel
-    alloc.releaseNote(C4) // t6: ch1 keeps C6, Note Off=6, onset stays 3
-    // When
-    val result = alloc.allocateNote(C7) // t7: must share by oldest onset
-    // Then
-    result.channel shouldBe rB.channel
-  }
-
-  it should "prefer channel without high expression pitch bend when sharing" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val r1 = alloc.allocateNote(C4, inputChannel = 1)
-    val r2 = alloc.allocateNote(C5, inputChannel = 2)
-    // Both notes are pitch class C on distinct channels; r1 then develops a high bend.
-    r1.channel should not equal r2.channel
-    alloc.channelPitchClass(r1.channel) shouldBe Some(PitchClass.C)
-    alloc.channelPitchClass(r2.channel) shouldBe Some(PitchClass.C)
-    alloc.updateExpressionPitchBend(1, highPitchBend)
-    // When
-    // The third C must share; it should avoid the high-bend r1 and share r2.
-    val r3 = alloc.allocateNote(C3, inputChannel = 3)
-    // Then
-    r3.channel shouldBe r2.channel
-  }
-
-  it should "share when Expression Group is full but PCG has same pitch class" in {
-    // Given
-    val alloc = allocator7 // PCG=5, EG=2
-    // C in the Pitch Class Group; two more C notes in the Expression Group.
-    val r1 = alloc.allocateNote(C4)
-    val r2 = alloc.allocateNote(C5)
-    val r3 = alloc.allocateNote(C3)
-    alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
-    // Fill the remaining Pitch Class Group channels with other pitch classes.
-    val rOthers = Seq(D4, E4, F4, G4).map(alloc.allocateNote(_).channel)
-    rOthers.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
-    // When
-    // Expression Group is full and the Pitch Class Group holds C on r1's channel; the new C must share.
-    val r4 = alloc.allocateNote(C6)
-    // Then
-    val cChannels = Set(r1.channel, r2.channel, r3.channel)
-    cChannels should contain(r4.channel)
-  }
-
-  it should "share in Expression Group when PCG doesn't have the pitch class" in {
-    // Given
-    val alloc = allocator7 // PCG=5, EG=2
-    // Fill the Pitch Class Group with 5 distinct pitch classes (not including A).
-    val pcgChannels = (0 until 5).map(pc => alloc.allocateNote(C4 + pc).channel)
-    pcgChannels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
-    // Put A in the Expression Group (the Pitch Class Group is full of other pitch classes).
-    val rA1 = alloc.allocateNote(A4)
-    val rA2 = alloc.allocateNote(MidiNote(A4 + 12)) // A5
-    alloc.channelGroupOf(rA1.channel) shouldBe Some(ChannelGroup.Expression)
-    alloc.channelGroupOf(rA2.channel) shouldBe Some(ChannelGroup.Expression)
-    // When
-    // All channels full. New A should share with existing A in the Expression Group.
-    val rA3 = alloc.allocateNote(MidiNote(A4 - 12)) // A3
-    // Then
-    Set(rA1.channel, rA2.channel) should contain(rA3.channel)
-  }
-
-  behavior of "MpeChannelAllocator - Step 4: Free a channel - Channel Exhaustion"
-
-  it should "free a channel when all channels occupied and new pitch class needs a channel" in {
-    // Given
-    val alloc = allocator3 // PCG=1, EG=2, 3 channels
-    alloc.allocateNote(C4) // ch1
-    alloc.allocateNote(E4) // ch2
-    alloc.allocateNote(G4) // ch3
-    // When
-    // All channels occupied with different pitch classes. New pitch class A needs a channel.
-    val result = alloc.allocateNote(A4)
-    // Then
-    result.droppedNotes should not be empty
-  }
-
-  it should "exclude highest-pitched and lowest-pitched note channels when freeing" in {
-    // Given
-    val alloc = allocator3 // 3 channels
-    alloc.allocateNote(C4) // lowest
-    alloc.allocateNote(E4) // middle
-    alloc.allocateNote(G4) // highest
-    // When
-    val result = alloc.allocateNote(A4)
-    // Then
-    // E4 channel should be freed (not C4 or G4)
-    assertDroppedNotes(result.droppedNotes, Seq(E4))
-  }
-
-  it should "select channel with oldest last onset among remaining candidates" in {
-    // Given
-    val alloc = allocator3
-    alloc.allocateNote(C4) // oldest onset
-    alloc.allocateNote(E4) // middle onset
-    alloc.allocateNote(B4) // newest onset, also highest
-    // When
-    // C4 is lowest, B4 is highest. E4 is the only candidate.
-    val result = alloc.allocateNote(A4)
-    // Then
-    assertDroppedNotes(result.droppedNotes, Seq(E4))
-  }
-
-  it should "assign the new note to the freed channel" in {
-    // Given
-    val alloc = allocator3
-    alloc.allocateNote(C4)
-    alloc.allocateNote(E4)
-    alloc.allocateNote(G4)
-    // When
-    val result = alloc.allocateNote(A4)
-    // Then
-    result.droppedNotes should not be empty
-    // The new note should be on the freed channel
-    alloc.activeMidiNotes(result.channel) should contain(A4)
-  }
-
-  it should "place only the new note on the freed channel and clear the old pitch class" in {
-    // Given
-    val alloc = allocator3 // PCG=1, EG=2
-    alloc.allocateNote(C4) // lowest
-    alloc.allocateNote(E4) // middle -> will be freed
-    alloc.allocateNote(G4) // highest
-    // When
-    val result = alloc.allocateNote(A4)
-    // Then
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(A4)
-    alloc.channelPitchClass(result.channel) shouldBe Some(A4.pitchClass)
-  }
-
-  it should "free the channel holding the lowest note when both candidates are boundary channels" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    alloc.allocateNote(G4) // highest
-    alloc.allocateNote(C4) // lowest
-    // When
-    val result = alloc.allocateNote(E4)
-    // Then
-    assertDroppedNotes(result.droppedNotes, Seq(C4))
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(E4)
-  }
-
-  it should "free the non-boundary channel when one channel holds both the highest and lowest notes" in {
-    // Given
-    // ch1 ends up holding C4 (lowest) and C6 (highest), both pitch class C; ch2 holds the middle E5.
-    val alloc = allocator2 // PCG=1, EG=1
-    val rLow = alloc.allocateNote(C4, preferredChannel = Some(1)) // ch1, pitch class C, Pitch Class Group
-    val rMid = alloc.allocateNote(E4 + 12, preferredChannel = Some(2)) // ch2, E5 (middle), Expression Group
-    val rHigh = alloc.allocateNote(C6, preferredChannel = Some(1)) // shares ch1 -> ch1 = {C4, C6}
-    rLow.channel shouldBe 1
-    rMid.channel shouldBe 2
-    alloc.channelGroupOf(rLow.channel) shouldBe Some(ChannelGroup.PitchClass)
-    alloc.channelGroupOf(rMid.channel) shouldBe Some(ChannelGroup.Expression)
-    rHigh.channel shouldBe rLow.channel
-    alloc.activeMidiNotes(rLow.channel) should contain theSameElementsAs Set(C4, C6)
-    // When
-    val result = alloc.allocateNote(A4) // new pitch class -> free a channel
-    // Then
-    assertDroppedNotes(result.droppedNotes, Seq(E4 + 12))
-  }
-
-  it should "free the channel without a high expression pitch bend among freeing candidates" in {
-    // Given
-    val alloc = allocator4 // PCG=2, EG=2, channels 1..4
-    alloc.allocateNote(C4, inputChannel = 1) // lowest (boundary)
-    alloc.allocateNote(E4, inputChannel = 2) // candidate, will get a high bend
-    alloc.allocateNote(G4, inputChannel = 3) // candidate, no bend
-    alloc.allocateNote(B4, inputChannel = 4) // highest (boundary)
-    alloc.updateExpressionPitchBend(2, highPitchBend) // E4's channel: high bend
-    // When
-    val result = alloc.allocateNote(A4, inputChannel = 5) // new pitch class -> free a channel
-    // Then
-    // Criterion (a): avoid freeing the high-bend channel (E4); free the no-bend channel (G4).
-    assertDroppedNotes(result.droppedNotes, Seq(G4))
-  }
-
-  it should "free the only occupied channel when the zone has a single member channel" in {
-    // Given
-    val alloc = allocator1 // single member channel
-    alloc.allocateNote(C4)
-    // When
-    val result = alloc.allocateNote(E4) // new pitch class -> must free the sole channel
-    // Then
-    assertDroppedNotes(result.droppedNotes, Seq(C4))
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(E4)
-  }
-
-  behavior of "MpeChannelAllocator - Free a channel - High Expression Pitch Bend"
-
-  it should "drop other notes when a note on a shared channel develops a high expression pitch bend" in {
-    // Given
-    val alloc = allocator3 // PCG=1, EG=2
-    alloc.allocateNote(C4, inputChannel = 1)
-    alloc.allocateNote(C5, inputChannel = 2)
-    alloc.allocateNote(C3, inputChannel = 3)
-    // All channels have C. Add another C to share.
-    val r4 = alloc.allocateNote(C6, inputChannel = 4)
-    val sharedChannel = r4.channel
-    // When
-    val result = alloc.updateExpressionPitchBend(4, highPitchBend)
-    // Then
-    result.droppedNotes should not be empty
-    alloc.activeMidiNotes(sharedChannel) should contain theSameElementsAs Set(C6)
-  }
-
-  it should "not drop notes when the expression pitch bend is below the threshold" in {
-    // Given
-    val alloc = allocator3
-    alloc.allocateNote(C4, inputChannel = 1)
-    alloc.allocateNote(C5, inputChannel = 2)
-    alloc.allocateNote(C3, inputChannel = 3)
-    alloc.allocateNote(C6, inputChannel = 4)
-    // When
-    val result = alloc.updateExpressionPitchBend(4, lowPitchBend)
-    // Then
-    result.droppedNotes shouldBe empty
-  }
-
-  it should "drop existing notes when new note with high expression pitch bend is assigned to occupied channel" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val r1 = alloc.allocateNote(C4)
-    alloc.allocateNote(C5)
-    // When
-    // Both channels occupied with C. Third C must share.
-    val result = alloc.allocateNote(C3, highPitchBend)
-    // Then
-    assertDroppedNotes(result.droppedNotes, Seq(C4))
-    result.channel shouldBe r1.channel
-    alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(C3)
-  }
-
-  it should "not drop notes when new note with low expression pitch bend is assigned to occupied channel" in {
-    // Given
-    val alloc = allocator2
-    alloc.allocateNote(C4)
-    alloc.allocateNote(C5)
-    // When
-    val result = alloc.allocateNote(C3, lowPitchBend)
-    // Then
-    result.droppedNotes shouldBe empty
-  }
-
-  it should "free channel when new note is assigned to channel with existing high-bend note" in {
-    // Given
-    val alloc = allocator2
-    val r1 = alloc.allocateNote(C4, highPitchBend)
-    alloc.allocateNote(D4)
-    // When
-    // Third C must share. r1 has high bend.
-    val result = alloc.allocateNote(C3)
-    // Then
-    result.channel shouldEqual r1.channel
-    assertDroppedNotes(result.droppedNotes, Seq(C4))
-  }
-
-  it should "not free channel when new note is assigned to channel with existing low-bend note" in {
-    // Given
-    val alloc = allocator2
-    alloc.allocateNote(C4, lowPitchBend)
-    alloc.allocateNote(C5)
-    // When
-    val result = alloc.allocateNote(C3)
-    // Then
-    result.droppedNotes shouldBe empty
-  }
-
-  it should "ensure a note with high expression pitch bend is always sole note on its channel" in {
-    // Given
-    val alloc = allocator3 // PCG=1, EG=2
-    alloc.allocateNote(C4, inputChannel = 1)
-    alloc.allocateNote(C5, inputChannel = 2)
-    alloc.allocateNote(C3, inputChannel = 3)
-    val r4 = alloc.allocateNote(C6, inputChannel = 4)
-    val sharedChannel = r4.channel
-    // When
-    alloc.updateExpressionPitchBend(4, highPitchBend)
-    // Then
-    alloc.activeMidiNotes(sharedChannel) should contain theSameElementsAs Set(C6)
-  }
-
-  behavior of "MpeChannelAllocator - Channel release"
-
-  it should "make channel available for reuse when all notes have ended" in {
-    // Given
-    val alloc = allocator2
-    val r1 = alloc.allocateNote(C4)
-    alloc.allocateNote(E4)
-    // When
-    alloc.releaseNote(C4)
-    // Then
-    alloc.isChannelOccupied(r1.channel) shouldBe false
-    // New note can reuse the channel
-    val r2 = alloc.allocateNote(D4)
-    r2.channel shouldBe r1.channel
-    r2.droppedNotes shouldBe empty
-  }
-
-  it should "keep channel occupied until all notes receive Note Off" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    alloc.allocateNote(C4)
-    alloc.allocateNote(C5) // goes to EG
-    val r2 = alloc.allocateNote(C3) // must share
-    val sharedChannel = r2.channel
-    alloc.activeNotes(sharedChannel).size should be > 1
-    // When
-    alloc.releaseNote(C3)
-    // Then
-    alloc.isChannelOccupied(sharedChannel) shouldBe true
-  }
-
-  behavior of "MpeChannelAllocator - MPE Input"
-
-  it should "preserve input channel assignment when it doesn't violate constraints" in {
-    // Given
-    val alloc = allocator15
-    // When
-    val result = alloc.allocateNote(C4, preferredChannel = Some(5))
-    // Then
-    result.channel shouldBe 5
-  }
-
-  it should "override input channel when it would violate pitch-class invariant" in {
-    // Given
-    val alloc = allocator15
-    alloc.allocateNote(D4, preferredChannel = Some(5)) // D on channel 5
-    // When
-    // Try to put C on channel 5 - violates pitch-class invariant
-    val result = alloc.allocateNote(C4, preferredChannel = Some(5))
-    // Then
-    result.channel should not be 5
-    // It should pick another channel (Pitch Class Group)
-    alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
-  }
-
-  it should "ensure unoccupied channels have no group" in {
-    // Given
-    val alloc = allocator15
-    // Then
-    (1 to 15).foreach { c => alloc.channelGroupOf(c) shouldBe None }
-
-    // When
-    val r1 = alloc.allocateNote(C4)
-    val ch = r1.channel
-    // Then
-    alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass)
-
-    // When
-    alloc.releaseNote(C4)
-    // Then
-    alloc.channelGroupOf(ch) shouldBe None
-  }
-
-  behavior of "MpeChannelAllocator - Reference counting"
-
-  it should "bypass allocation and report a duplicate for a Note On of an already active identity" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val r1 = alloc.allocate(identity)
-    // When
-    val r2 = alloc.allocate(identity)
-    // Then
-    r2.channel shouldBe r1.channel
-    r2.isDuplicate shouldBe true
-    r2.droppedNotes shouldBe empty
-    r2.update shouldBe MpeExpressionUpdate.Unchanged
-    alloc.activeNotes(r1.channel) should contain theSameElementsAs Set(identity)
-    alloc.referenceCountOf(identity) shouldBe 2
-    alloc.activeChannelCount shouldBe 1
-  }
-
-  it should "deallocate a note only when its reference count reaches zero" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity).channel
-    alloc.allocate(identity)
-    // When
-    val first = alloc.release(identity)
-    // Then
-    first.value.channel shouldBe channel
-    alloc.referenceCountOf(identity) shouldBe 1
-    alloc.isChannelOccupied(channel) shouldBe true
-    alloc.channelOf(identity) shouldBe Some(channel)
-    // When
-    val second = alloc.release(identity)
-    // Then
-    second.value.channel shouldBe channel
-    alloc.referenceCountOf(identity) shouldBe 0
-    alloc.isChannelOccupied(channel) shouldBe false
-    alloc.channelOf(identity) shouldBe None
-  }
-
-  it should "return None when releasing an identity that holds no active count" in {
-    // Given
-    val alloc = allocator15
-    // When / Then
-    alloc.release(MpeNoteIdentity(1, C4)) shouldBe None
-  }
-
-  it should "ignore the Expression Values given with a duplicate Note On" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
-    // When
-    val result = alloc.allocate(identity, Some(ImmutableMpeExpression(20, 64, 96)))
-    // Then
-    result.isDuplicate shouldBe true
-    result.update shouldBe MpeExpressionUpdate.Unchanged
-    alloc.expressionFor(identity) shouldBe ImmutableMpeExpression(10, 32, 48)
-    alloc.channelExpression(channel) shouldBe ImmutableMpeExpression(10, 32, 48)
-  }
-
-  it should "leave the Expression Values of a duplicate Note On untouched when none are given" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
-    // When
-    val result = alloc.allocate(identity)
-    // Then
-    result.update shouldBe MpeExpressionUpdate.Unchanged
-    alloc.channelExpression(channel).pressure shouldBe 32
-  }
-
-  it should "not drop notes when a duplicate Note On carries a High Expression Pitch Bend" in {
-    // Given
-    // first and third end up sharing a channel; second occupies a channel of its own.
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(2, C5)
-    val third = MpeNoteIdentity(3, C3)
-    val channel = alloc.allocate(first).channel
-    alloc.allocate(second)
-    alloc.allocate(third).channel shouldBe channel
-    // When
-    // A duplicate Note On for the shared note carries a High Expression Pitch Bend. Allocation is bypassed
-    // and the Expression Values are ignored, so the channel's set of active notes is unchanged and no
-    // divergence can arise: the note never acquires the high bend in the first place.
-    val result = alloc.allocate(third, Some(ImmutableMpeExpression(highPitchBend)))
-    // Then
-    result.isDuplicate shouldBe true
-    result.droppedNotes shouldBe empty
-    result.update shouldBe MpeExpressionUpdate.Unchanged
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, third)
-    alloc.channelOf(first) shouldBe Some(channel)
-  }
-
-  it should "count two identities sharing a note number as two active notes" in {
-    // Given
-    // Three C notes from three input channels occupy the three channels of the zone; a fourth shares the
-    // oldest, which then holds two identities of the same note number.
-    val alloc = allocator3 // PCG=1, EG=2, channels 1..3
-    val r1 = alloc.allocate(MpeNoteIdentity(1, C4))
-    val r2 = alloc.allocate(MpeNoteIdentity(2, C4))
-    val r3 = alloc.allocate(MpeNoteIdentity(3, C4))
-    Set(r1.channel, r2.channel, r3.channel) should have size 3
-    val r4 = alloc.allocate(MpeNoteIdentity(4, C4))
-    r4.channel shouldBe r1.channel
-    alloc.activeNotes(r1.channel) should contain theSameElementsAs
-      Set(MpeNoteIdentity(1, C4), MpeNoteIdentity(4, C4))
-    // When
-    // A fifth C must share; criterion (b) prefers the channel with the fewest active identities, which
-    // requires counting the two same-numbered identities on r1's channel as two.
-    val r5 = alloc.allocate(MpeNoteIdentity(5, C4))
-    // Then
-    r5.channel shouldBe r2.channel
-  }
-
-  behavior of "MpeChannelAllocator - Expression Value aggregation"
-
-  it should "report no Expression Pitch Bend change when releasing a note leaves the average unchanged" in {
-    // Given
-    // Three notes of the same pitch class share the single Member Channel, all with the same Expression Pitch
-    // Bend, so the channel's average is a sum of three equal terms divided by three.
-    val alloc = allocator1
-    val expression = Some(ImmutableMpeExpression(10))
-    alloc.allocate(MpeNoteIdentity(1, C4), expression)
-    alloc.allocate(MpeNoteIdentity(2, C4), expression)
-    val third = MpeNoteIdentity(3, C4)
-    alloc.allocate(third, expression)
-    // When
-    // Releasing one leaves two terms averaging to the same value.
-    val result = alloc.release(third).value
-    // Then
-    result.update.pitchBend shouldBe None
-  }
-
-  it should "average the Expression Values of the notes active on a channel" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
-    alloc.allocate(MpeNoteIdentity(2, C5))
-    // When
-    // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(-20, 96, 96)))
-    // Then
-    shared.channel shouldBe first.channel
-    val expression = alloc.channelExpression(shared.channel)
-    expression.pitchBend shouldBe -5
-    expression.pressure shouldBe 64
-    expression.slide shouldBe 72
-    shared.update shouldBe MpeExpressionUpdate(Some(-5), Some(64), Some(72))
-  }
-
-  it should "round a fractional average of the integer dimensions half up" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
-    alloc.allocate(MpeNoteIdentity(2, C5))
-    // When
-    // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    // All three dimensions average to exactly .5 above an even value, which truncation would round down and
-    // half-even would round down to as well. A negative half would pin nothing: at -4.5 truncation and half-even
-    // both give -4, exactly what rounding half up gives.
-    val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(11, 97, 97)))
-    // Then
-    shared.channel shouldBe first.channel
-    val expression = alloc.channelExpression(shared.channel)
-    expression.pitchBend shouldBe 11 // (10 + 11) / 2 = 10.5
-    expression.pressure shouldBe 65 // (32 + 97) / 2 = 64.5
-    expression.slide shouldBe 73 // (48 + 97) / 2 = 72.5
-  }
-
-  it should "return an Expression Values snapshot that does not track later mutations" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
-    val channelBefore = alloc.channelExpression(channel)
-    val noteBefore = alloc.expressionFor(identity)
-    // When
-    alloc.updateExpressionPitchBend(1, 30)
-    // Then
-    channelBefore.pitchBend shouldBe 10
-    noteBefore.pitchBend shouldBe 10
-    alloc.channelExpression(channel).pitchBend shouldBe 30
-    alloc.expressionFor(identity).pitchBend shouldBe 30
-  }
-
-  it should "return each note's own Expression Values, distinct from the channel's aggregate" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val firstIdentity = MpeNoteIdentity(1, C4)
-    val thirdIdentity = MpeNoteIdentity(3, C3)
-    val first = alloc.allocate(firstIdentity, Some(ImmutableMpeExpression(10, 32, 48)))
-    alloc.allocate(MpeNoteIdentity(2, C5))
-    // When
-    // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
-    val shared = alloc.allocate(thirdIdentity, Some(ImmutableMpeExpression(-20, 96, 96)))
-    // Then
-    shared.channel shouldBe first.channel
-    alloc.expressionFor(firstIdentity).pitchBend shouldBe 10
-    alloc.expressionFor(firstIdentity).pressure shouldBe 32
-    alloc.expressionFor(firstIdentity).slide shouldBe 48
-    alloc.expressionFor(thirdIdentity).pitchBend shouldBe -20
-    alloc.expressionFor(thirdIdentity).pressure shouldBe 96
-    alloc.expressionFor(thirdIdentity).slide shouldBe 96
-    // The channel's aggregate is the average of the two, not either note's own value.
-    alloc.channelExpression(shared.channel).pitchBend shouldBe -5
-  }
-
-  it should "retain the last Expression Values when the channel becomes unoccupied" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
-    // When
-    val result = alloc.release(identity)
-    // Then
-    result.value.update shouldBe MpeExpressionUpdate.Unchanged
-    alloc.isChannelOccupied(channel) shouldBe false
-    val retained = alloc.channelExpression(channel)
-    retained.pitchBend shouldBe 10
-    retained.pressure shouldBe 32
-    retained.slide shouldBe 48
-  }
-
-  it should "zero the retained Channel Pressure when the last note is released with resetPressureOnEmpty" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
-    // When
-    val result = alloc.release(identity, resetPressureOnEmpty = true).value
-    // Then
-    result.pressureWasReset shouldBe true
-    result.update.pressure shouldBe Some(0)
-    alloc.channelExpression(channel).pressure shouldBe 0
-    // The other two dimensions are retained.
-    alloc.channelExpression(channel).pitchBend shouldBe 10
-    alloc.channelExpression(channel).slide shouldBe 48
-  }
-
-  it should "not report a pressure reset when other notes remain on the channel" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(2, C5)
-    val third = MpeNoteIdentity(3, C3)
-    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(pressure = 80))).channel
-    alloc.allocate(second)
-    alloc.allocate(third, Some(ImmutableMpeExpression(pressure = 20))).channel shouldBe channel
-    // When
-    val result = alloc.release(first, resetPressureOnEmpty = true).value
-    // Then
-    result.pressureWasReset shouldBe false
-    result.update.pressure shouldBe Some(20)
-    alloc.channelExpression(channel).pressure shouldBe 20
-  }
-
-  it should "not report a pressure reset when the retained Channel Pressure is already zero" in {
-    // Given
-    val alloc = allocator15
-    val identity = MpeNoteIdentity(1, C4)
-    alloc.allocate(identity)
-    // When
-    val result = alloc.release(identity, resetPressureOnEmpty = true).value
-    // Then
-    result.pressureWasReset shouldBe false
-    result.update shouldBe MpeExpressionUpdate.Unchanged
-  }
-
-  behavior of "MpeChannelAllocator - Expression Value updates"
-
-  it should "fan an Expression Pitch Bend update out to every channel holding a note of the input channel" in {
-    // Given
-    val alloc = allocator15
-    val cChannel = alloc.allocate(MpeNoteIdentity(1, C4)).channel
-    val eChannel = alloc.allocate(MpeNoteIdentity(1, E4)).channel
-    val otherChannel = alloc.allocate(MpeNoteIdentity(2, G4)).channel
-    // When
-    val result = alloc.updateExpressionPitchBend(1, 30)
-    // Then
-    result.droppedNotes shouldBe empty
-    result.channelUpdates should contain theSameElementsAs Seq(
-      MpeChannelExpressionUpdate(cChannel, MpeExpressionUpdate(pitchBend = Some(30))),
-      MpeChannelExpressionUpdate(eChannel, MpeExpressionUpdate(pitchBend = Some(30)))
-    )
-    alloc.channelExpression(otherChannel).pitchBend shouldBe 0
-  }
-
-  it should "report no update for a channel whose average is unchanged" in {
-    // Given
-    val alloc = allocator15
-    alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(30)))
-    // When
-    val result = alloc.updateExpressionPitchBend(1, 30)
-    // Then
-    result.channelUpdates shouldBe empty
-  }
-
-  it should "ignore a Polyphonic Key Pressure update addressed to an inactive identity" in {
-    // Given
-    val alloc = allocator15
-    alloc.allocate(MpeNoteIdentity(1, C4))
-    // When / Then
-    alloc.updatePressure(MpeNoteIdentity(1, D4), 80) shouldBe MpeExpressionUpdateResult()
-  }
-
-  it should "update a single identity's Channel Pressure contribution" in {
-    // Given
-    // C4 and C5 both arrive on input channel 1 but land on different channels, and C3, from another input
-    // channel, shares C4's.
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val sibling = MpeNoteIdentity(1, C5)
-    val channel = alloc.allocate(first).channel
-    val siblingChannel = alloc.allocate(sibling).channel
-    siblingChannel should not equal channel
-    alloc.allocate(MpeNoteIdentity(3, C3)).channel shouldBe channel
-    // When
-    val result = alloc.updatePressure(first, 80)
-    // Then
-    // Only C4's own contribution changes: its channel averages 80 with C3's 0, and — unlike an input-channel
-    // update — nothing fans out to C5, which shares C4's input channel.
-    result.channelUpdates shouldEqual Seq(
-      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pressure = Some(40))))
-    alloc.channelExpression(siblingChannel).pressure shouldBe MpeExpression.DefaultPressure
-  }
-
-  it should "keep the most recently sounded note when several notes on a channel acquire a high bend at once" in {
-    // Given
-    // Two identities from the same input channel end up sharing a channel.
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(1, C5)
-    val channel = alloc.allocate(first).channel
-    alloc.allocate(MpeNoteIdentity(2, D4))
-    alloc.allocate(second).channel shouldBe channel
-    // When
-    // One Pitch Bend message gives both of them a High Expression Pitch Bend.
-    val result = alloc.updateExpressionPitchBend(1, highPitchBend)
-    // Then
-    result.droppedNotes should have size 1
-    result.droppedNotes.head.channel shouldBe channel
-    result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
-    alloc.channelOf(first) shouldBe None
-    result.channelUpdates shouldEqual Seq(
-      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(highPitchBend))))
-  }
-
-  it should "drop the co-resident note when an Expression Pitch Bend diverges downwards" in {
-    // Given
-    // A High Expression Pitch Bend exceeds the threshold in either direction, so a negative bend of the same
-    // magnitude must drop just as a positive one does.
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(2, C5)
-    val channel = alloc.allocate(first).channel
-    alloc.allocate(MpeNoteIdentity(3, D4))
-    alloc.allocate(second).channel shouldBe channel
-    // When
-    val result = alloc.updateExpressionPitchBend(2, -highPitchBend)
-    // Then
-    result.droppedNotes should have size 1
-    result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
-  }
-
-  it should "not drop a co-resident note for a bend exactly at the High Expression Pitch Bend threshold" in {
-    // Given
-    // The threshold is exclusive: a bend must exceed it, so a bend exactly at it leaves the channel shared.
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(2, C5)
-    val channel = alloc.allocate(first).channel
-    alloc.allocate(MpeNoteIdentity(3, D4))
-    alloc.allocate(second).channel shouldBe channel
-    // When
-    val result = alloc.updateExpressionPitchBend(2, threshold)
-    // Then
-    result.droppedNotes shouldBe empty
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
-  }
-
-  it should "report the reference count of each dropped note" in {
-    // Given
-    val alloc = allocator1 // a single member channel
-    val identity = MpeNoteIdentity(1, C4)
-    alloc.allocate(identity)
-    alloc.allocate(identity)
-    // When
-    val result = alloc.allocate(MpeNoteIdentity(2, E4))
-    // Then
-    result.droppedNotes.value.notes shouldEqual Seq(MpeDroppedNote(identity, 2))
-    alloc.channelOf(identity) shouldBe None
-  }
-
-  behavior of "MpeChannelAllocator.retaining"
-
-  // ---- Retained channels ----
-
-  it should "keep the notes, reference counts, Expression Values, pitch class and group of a retained channel" in {
-    // Given
-    val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone, threshold)
-    val identity = MpeNoteIdentity(1, MidiNote.C4)
-    val expression = ImmutableMpeExpression(pitchBend = 20, pressure = 70, slide = 100)
-    val channel = alloc.allocate(identity, Some(expression), preferredChannel = Some(1)).channel
-    alloc.allocate(identity)
-    channel shouldEqual 1
-    val group = alloc.channelGroupOf(channel)
-
-    // When
-    // Shrinking the Zone to 4 Members takes Member Channels 5..7 out of MPE control, leaving channel 1 untouched.
-    val shrunk = MpeZone(MpeZoneType.Lower, 4)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc,
-      affectedChannels = zone.memberChannels.toSet -- shrunk.memberChannels,
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    rebuilt.channelOf(identity) shouldEqual Some(channel)
-    rebuilt.referenceCountOf(identity) shouldEqual 2
-    rebuilt.channelExpression(channel).pitchBend shouldEqual 20
-    rebuilt.channelExpression(channel).pressure shouldEqual 70
-    rebuilt.channelExpression(channel).slide shouldEqual 100
-    rebuilt.channelPitchClass(channel) shouldEqual Some(MidiNote.C4.pitchClass)
-    rebuilt.channelGroupOf(channel) shouldEqual group
-  }
-
-  it should "drop the notes of a channel that is not retained" in {
-    // Given
-    val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone, threshold)
-    val kept = MpeNoteIdentity(1, MidiNote.C4)
-    val dropped = MpeNoteIdentity(2, MidiNote.E4)
-    val keptChannel = alloc.allocate(kept, preferredChannel = Some(1)).channel
-    // The second note is steered away from its own input channel, so that the reconfiguration below affects its
-    // output channel alone and its drop cannot be attributed to the input-channel rule.
-    val droppedChannel = alloc.allocate(dropped, preferredChannel = Some(7)).channel
-    keptChannel shouldEqual 1
-    droppedChannel shouldEqual 7
-
-    // When
-    // Shrinking the Zone to 6 Members takes Member Channel 7 out of MPE control, while input channel 2 stays.
-    val shrunk = MpeZone(MpeZoneType.Lower, 6)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(7),
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    rebuilt.channelOf(kept) shouldEqual Some(keptChannel)
-    rebuilt.channelOf(dropped) shouldEqual None
-    rebuilt.activeChannelCount shouldEqual 1
-  }
-
-  it should "drop a note whose input channel left MPE control even when its output channel is retained" in {
-    // Given
-    val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone, threshold)
-    val identity = MpeNoteIdentity(6, MidiNote.C4)
-    val channel = alloc.allocate(identity, preferredChannel = Some(1)).channel
-    channel shouldEqual 1
-
-    // When
-    // Shrinking the Zone to 5 Members takes Member Channels 6 and 7 out of MPE control — input channel 6 among
-    // them — while the note's output channel 1 stays.
-    val shrunk = MpeZone(MpeZoneType.Lower, 5)
-    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7),
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    rebuilt.channelOf(identity) shouldEqual None
-    rebuilt.isChannelOccupied(channel) shouldBe false
-    // The drop leaves the channel unoccupied, so it retains its aggregate rather than recomputing over an empty
-    // set: nothing the receiver holds has become wrong, and nothing is reported.
-    result shouldEqual MpeExpressionUpdateResult()
-  }
-
-  it should "report the aggregate a departed note's drop moved on a channel that keeps its other notes" in {
-    // Given
-    // Channel 1 holds two C notes from different input channels, so dropping one moves all three of the
-    // channel's averages.
-    val alloc = allocator3 // PCG=1, EG=2
-    val kept = MpeNoteIdentity(1, C4)
-    val departing = MpeNoteIdentity(3, C5)
-    val channel = alloc.allocate(kept, Some(ImmutableMpeExpression(pitchBend = 10, pressure = 40, slide = 20))).channel
-    alloc.allocate(MpeNoteIdentity(1, D4))
-    alloc.allocate(MpeNoteIdentity(1, E4))
-    alloc.allocate(departing, Some(ImmutableMpeExpression(pitchBend = 30, pressure = 80, slide = 100)))
-      .channel shouldEqual channel
-    alloc.channelExpression(channel).pitchBend shouldEqual 20
-    alloc.channelExpression(channel).pressure shouldEqual 60
-    alloc.channelExpression(channel).slide shouldEqual 60
-
-    // When
-    // Shrinking the Zone to 2 Members takes Member Channel 3 out of MPE control — the departing note's input
-    // channel — while its output channel 1 stays.
-    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
-      affectedChannels = Set(3), initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    rebuilt.activeNotes(channel) should contain theSameElementsAs Set(kept)
-    result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
-      MpeExpressionUpdate(pitchBend = Some(10), pressure = Some(40), slide = Some(20))))
-    // The departed notes' Note Offs are `MpeTuner`'s to emit, before the allocator is rebuilt, so the rebuild
-    // does not report them a second time.
-    result.droppedNotes shouldBe empty
-  }
-
-  it should "drop the departed notes before re-applying the divergence rule, and report only the latter" in {
-    // Given
-    // Three C notes share channel 1, none of them above the current threshold of 100. The one that will depart
-    // has both the largest bend and the latest onset, so it would win the divergence rule's survivor test if the
-    // two steps ran in the wrong order.
-    val alloc = allocator3 // PCG=1, EG=2
-    val dropped = MpeNoteIdentity(1, C4)
-    val survivor = MpeNoteIdentity(2, C5)
-    val departing = MpeNoteIdentity(3, C6)
-    val channel = alloc.allocate(dropped, Some(ImmutableMpeExpression(60, 40, 20))).channel
-    alloc.allocate(MpeNoteIdentity(1, D4))
-    alloc.allocate(MpeNoteIdentity(1, E4))
-    alloc.allocate(survivor, Some(ImmutableMpeExpression(90, 80, 100))).channel shouldEqual channel
-    alloc.allocate(departing, Some(ImmutableMpeExpression(70, 0, 60))).channel shouldEqual channel
-
-    // When
-    // Member Channel 3 leaves MPE control, and the new threshold of 50 carries every note left on channel 1
-    // past it.
-    val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
-      affectedChannels = Set(3), initialExpressionPitchBendThreshold = 50)
-
-    // Then
-    // The departed note is gone before the divergence rule looks at the channel, so the latest onset among the
-    // notes that remain survives.
-    rebuilt.activeNotes(channel) should contain theSameElementsAs Set(survivor)
-    result.droppedNotes.flatMap(_.notes.map(_.noteIdentity)) shouldEqual Seq(dropped)
-    // One report for both drops, measured against the three-note averages the receiver still holds.
-    result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
-      MpeExpressionUpdate(pitchBend = Some(90), pressure = Some(80), slide = Some(100))))
-  }
-
-  it should "start every channel of the new Zone empty when the reconfiguration affects them all" in {
-    // Given
-    // The Lower Zone MpeTuner runs in Non-MPE Input Mode, holding a note on channel 1 — a channel the
-    // reconfigured Zone below still has, so its loss can only come from the affected set.
-    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15), threshold)
-    alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
-    alloc.activeChannelCount shouldEqual 1
-
-    // When
-    // The first MCM leaves Non-MPE Input Mode, which MpeTuner treats as affecting every channel of the port.
-    // This is the only reconfiguration that affects every Member Channel of a Zone that held notes: a Zone
-    // enabled on both sides of an MCM keeps its anchor channel — 1 for a Lower Zone, 14 for an Upper one —
-    // under an unchanged assignment, and a Zone that was disabled before has no channel state to lose.
-    val configured = MpeZone(MpeZoneType.Lower, 7)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(configured, alloc,
-      affectedChannels = (0 until 16).toSet, initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    rebuilt.activeChannelCount shouldEqual 0
-    rebuilt.activeAllocations shouldBe empty
-  }
-
-  it should "start a Member Channel the previous Zone did not have empty" in {
-    // Given
-    val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4), threshold)
-    alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
-
-    // When
-    // Growing the Zone to 7 Members brings Member Channels 5..7 into MPE control; channels 1..4 are untouched.
-    val grown = MpeZone(MpeZoneType.Lower, 7)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = Set(5, 6, 7),
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    rebuilt.channelOf(MpeNoteIdentity(1, MidiNote.C4)) shouldEqual Some(1)
-    Seq(5, 6, 7).foreach(rebuilt.isChannelOccupied(_) shouldBe false)
-  }
-
-  it should "adopt the High Expression Pitch Bend threshold of the reconfigured Zone, not the previous one" in {
-    // Given
-    // The threshold is the one piece of state `retaining` does not carry over: only `MpeTuner` knows the Member
-    // Channel Pitch Bend Sensitivity the reconfigured Zone now holds, so it supplies the threshold that implies.
-    val zone = MpeZone(MpeZoneType.Lower, 7)
-    val alloc = MpeChannelAllocator(zone, threshold)
-    // When
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 4), alloc,
-      affectedChannels = Set(5, 6, 7), initialExpressionPitchBendThreshold = 2 * threshold)
-    // Then
-    rebuilt.expressionPitchBendThreshold shouldEqual 2 * threshold
-  }
-
-  // ---- At-capacity and over-subscribed groups ----
-
-  it should "keep working when a retained channel's group is filled to exact capacity in the smaller Zone" in {
-    // Given
-    // A 10-Member Zone has an Expression Group of 3; a 3-Member Zone has one of 2. Three notes of the same pitch
-    // class on different input channels cannot share the Pitch Class Group channel, so beyond the first they
-    // occupy Expression Group channels. Retaining channel 1 (Pitch Class Group) and channels 2-3 (Expression
-    // Group) fills both of the smaller Zone's groups to exactly their capacity — not beyond it.
-    val big = MpeZone(MpeZoneType.Lower, 10)
-    val alloc = MpeChannelAllocator(big, threshold)
-    val identities = Seq(
-      MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.C4), MpeNoteIdentity(3, MidiNote.C4))
-    val channels = identities.map(alloc.allocate(_).channel).toSet
-    channels shouldEqual Set(1, 2, 3)
-
-    // When
-    val small = MpeZone(MpeZoneType.Lower, 3)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    // Nothing throws, and a fresh note still lands on a Member Channel of the new Zone.
-    val result = rebuilt.allocate(MpeNoteIdentity(1, MidiNote.G4))
-    small.memberChannels.toSet should contain(result.channel)
-  }
-
-  it should "keep working when a retained channel's Pitch Class Group is over-subscribed in the smaller Zone" in {
-    // Given
-    // A 10-Member Zone has a Pitch Class Group of 7, room enough for three distinct pitch classes, so all three
-    // land there. A 3-Member Zone has a Pitch Class Group of only 1: retaining all three channels genuinely
-    // over-subscribes it (3 occupied Pitch Class Group channels against a capacity of 1), and — because the
-    // channel count is conserved — leaves the Expression Group nominally under capacity (0 against 2) even
-    // though the Zone is, in fact, fully occupied.
-    val big = MpeZone(MpeZoneType.Lower, 10)
-    val alloc = MpeChannelAllocator(big, threshold)
-    val identities = Seq(
-      MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.D4), MpeNoteIdentity(3, MidiNote.E4))
-    val channels = identities.map(alloc.allocate(_).channel).toSet
-    channels shouldEqual Set(1, 2, 3)
-
-    // When
-    val small = MpeZone(MpeZoneType.Lower, 3)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
-    // Zone, even though the Expression Group's nominal room check finds no actual unoccupied channel to grant.
-    val result = rebuilt.allocate(MpeNoteIdentity(4, MidiNote.G4))
-    small.memberChannels.toSet should contain(result.channel)
-  }
-
-  it should "keep working when a retained channel's Expression Group is over-subscribed in the smaller Zone" in {
-    // Given
-    // A 10-Member Zone has an Expression Group of 3. One note claims the Pitch Class Group (channel 10, via
-    // preferredChannel), arriving on an input channel the shrink drops; three more of the same pitch class each
-    // claim an Expression Group channel (1, 2, 3), arriving on input channels the shrink keeps. Retaining only
-    // channels 1-3 — the Expression Group ones — into a 3-Member Zone (Expression Group of 2) genuinely
-    // over-subscribes it (3 occupied against a capacity of 2), while leaving the Pitch Class Group nominally
-    // under capacity (0 against 1) even though the Zone is, in fact, fully occupied.
-    val big = MpeZone(MpeZoneType.Lower, 10)
-    val alloc = MpeChannelAllocator(big, threshold)
-    alloc.allocate(MpeNoteIdentity(4, MidiNote.C4), preferredChannel = Some(10))
-    val egChannels = Seq(1, 2, 3).map { inputChannel =>
-      alloc.allocate(MpeNoteIdentity(inputChannel, MidiNote.C4), preferredChannel = Some(inputChannel)).channel
-    }.toSet
-    egChannels shouldEqual Set(1, 2, 3)
-
-    // When
-    val small = MpeZone(MpeZoneType.Lower, 3)
-    val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
-      affectedChannels = big.memberChannels.toSet -- small.memberChannels,
-      initialExpressionPitchBendThreshold = threshold)
-
-    // Then
-    // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
-    // Zone, even though the Pitch Class Group's nominal room check finds no actual unoccupied channel to grant.
-    val result = rebuilt.allocate(MpeNoteIdentity(5, MidiNote.D4))
-    small.memberChannels.toSet should contain(result.channel)
-  }
-
-  behavior of "MpeChannelAllocator - High Expression Pitch Bend threshold"
-
-  it should "re-apply the divergence rule when a lowered threshold reclassifies a shared channel's notes" in {
-    // Given
-    // Two C notes from different input channels share the Pitch Class Group channel, with different bends, both
-    // below the current threshold of 100.
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(2, C5)
-    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
-    alloc.allocate(MpeNoteIdentity(3, D4))
-    alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
-    // When
-    // Both cross the new threshold at once, which the same-input-channel case never produces.
-    val result = alloc.setExpressionPitchBendThreshold(50)
-    // Then
-    // The latest onset survives, the rest of the channel goes, and the channel's aggregate is reported.
-    alloc.expressionPitchBendThreshold shouldEqual 50
-    result.droppedNotes should have size 1
-    result.droppedNotes.head.channel shouldBe channel
-    result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
-    result.channelUpdates shouldEqual Seq(
-      MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(90))))
-  }
 
-  it should "drop nothing when a raised threshold leaves every note below it" in {
-    // Given
-    val alloc = allocator2 // PCG=1, EG=1
-    val first = MpeNoteIdentity(1, C4)
-    val second = MpeNoteIdentity(2, C5)
-    val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
-    alloc.allocate(MpeNoteIdentity(3, D4))
-    alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
-    // When
-    val result = alloc.setExpressionPitchBendThreshold(150)
-    // Then
-    // The pass only ever drops: nothing is restored, because nothing was retained.
-    result shouldEqual MpeExpressionUpdateResult()
-    alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
+    "fill all 12 Pitch Class Group channels with distinct pitch classes (zone with 15 members)" in {
+      // Given
+      val alloc = allocator15
+      // When
+      val channels = (0 until 12).map { pc =>
+        alloc.allocateNote(C4 + pc).channel
+      }
+      // Then
+      channels.distinct.size shouldBe 12
+      channels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
+    }
+
+    "fill all Pitch Class Group channels with distinct pitch classes (zone with 7 members)" in {
+      // Given
+      val alloc = allocator7
+      // When
+      // PCG=5 for 7 members
+      val channels = (0 until 5).map { pc =>
+        alloc.allocateNote(C4 + pc).channel
+      }
+      // Then
+      channels.distinct.size shouldBe 5
+      channels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
+    }
+
+    "prefer unoccupied channel with oldest last Note Off" in {
+      // Given
+      val alloc = allocator15
+      val r1 = alloc.allocateNote(C4) // ch1
+      val r2 = alloc.allocateNote(D4) // ch2
+      val ch1 = r1.channel
+      val ch2 = r2.channel
+      alloc.releaseNote(C4) // older
+      alloc.releaseNote(D4) // newer
+
+      // Both are unoccupied and HAVE been used.
+      // We want it to pick ch1.
+      // But there are also ch3..ch12 which have NEVER been used (lastNoteOffTime=0).
+      // If we want it to pick ch1, we must ensure ch3..ch12 are NOT available.
+      // So let's fill them first.
+      // Each filler note gets its own input channel: C4 + 4 is E4, and reusing input channel 0 for it
+      // would make it the same Note Identity as the E4 allocated below, turning that into a duplicate
+      // Note On instead of the fresh allocation this test is about.
+      (3 to 15).foreach { i => alloc.allocateNote(C4 + i, inputChannel = i) }
+
+      // When
+      // Now ch1, ch2 are unoccupied. ch3..15 are occupied.
+      // r3 should pick ch1.
+      val r3 = alloc.allocateNote(E4)
+      // Then
+      r3.channel shouldBe ch1
+    }
+
+    "prefer unoccupied channel that was never used over used and released" in {
+      // Given
+      val alloc = allocator15
+      val r1 = alloc.allocateNote(C4)
+      val ch1 = r1.channel
+      alloc.releaseNote(C4)
+      // ch1 was used and released. Others never used.
+      // never used (lastNoteOffTime=0) should be preferred over used (lastNoteOffTime>0)
+      // When
+      val r2 = alloc.allocateNote(D4)
+      // Then
+      r2.channel should not be ch1
+    }
+
+    "break a tie by oldest last Note Off rather than the preferred input channel" in {
+      // Given
+      // Two previously-used channels are released, so both are unoccupied candidates for the Pitch Class
+      // Group; ch1 has the older last Note Off. The preferred (input) channel is ch2, but criterion (d)
+      // outranks the (e) input-channel default.
+      val alloc = allocator2
+      val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // t1: ch1
+      val r2 = alloc.allocateNote(D4, preferredChannel = Some(2)) // t2: ch2
+      r1.channel shouldBe 1
+      r2.channel shouldBe 2
+      alloc.releaseNote(C4) // t3: ch1 Note Off=3
+      alloc.releaseNote(D4) // t4: ch2 Note Off=4
+      alloc.isChannelOccupied(r1.channel) shouldBe false
+      alloc.isChannelOccupied(r2.channel) shouldBe false
+      // When
+      val result = alloc.allocateNote(E4, preferredChannel = Some(2)) // ch2 preferred, but ch1 idle longer
+      // Then
+      result.channel shouldBe r1.channel
+      result.droppedNotes shouldBe empty
+      alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
+    }
+
+    "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
+      // Given
+      // Both candidates are unoccupied and previously used. Their original onset order (ch1<ch2) disagrees
+      // with their Note Off order (ch2<ch1), but releasing a channel clears its onset to 0, so both now
+      // carry onset 0 and criterion (c) cannot discriminate. The paper treats an unoccupied channel as
+      // having no onset, so criterion (d) governs and the older-Note-Off ch2 wins. (If onset were not
+      // cleared, criterion (c) would wrongly pick ch1 — this test guards that.)
+      val alloc = allocator2
+      val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
+      val r2 = alloc.allocateNote(D4, preferredChannel = Some(2)) // t2: ch2 onset=2
+      r1.channel shouldBe 1
+      r2.channel shouldBe 2
+      alloc.releaseNote(D4) // t3: ch2 Note Off=3
+      alloc.releaseNote(C4) // t4: ch1 Note Off=4
+      alloc.isChannelOccupied(r1.channel) shouldBe false
+      alloc.isChannelOccupied(r2.channel) shouldBe false
+      // When
+      val result = alloc.allocateNote(E4) // no preferred channel
+      // Then
+      result.channel shouldBe r2.channel
+      result.droppedNotes shouldBe empty
+      alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(E4)
+    }
+  }
+
+  "MpeChannelAllocator - Step 2: Allocate in Expression Group" should {
+    "allocate second note with same pitch class to Expression Group" in {
+      // Given
+      val alloc = allocator15
+      val r1 = alloc.allocateNote(C4)
+      // When
+      val r2 = alloc.allocateNote(C5) // same pitch class C
+      // Then
+      r1.channel should not equal r2.channel
+      alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+    }
+
+    "share channel when Expression Group has only one member and third note with same pitch class arrives" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val r1 = alloc.allocateNote(C4)
+      val r2 = alloc.allocateNote(C5)
+      // When
+      // Both groups full for pitch class C, third note must share
+      val r3 = alloc.allocateNote(C3) // same pitch class
+      // Then
+      (r3.channel == r1.channel || r3.channel == r2.channel) shouldBe true
+      r1.channel should not equal r2.channel
+    }
+
+    "allocate third note with same pitch class to another Expression Group channel when available" in {
+      // Given
+      val alloc = allocator15 // EG=3
+      val r1 = alloc.allocateNote(C4)
+      val r2 = alloc.allocateNote(C5)
+      // When
+      val r3 = alloc.allocateNote(C3)
+      // Then
+      Set(r1.channel, r2.channel, r3.channel).size shouldBe 3
+      alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+    }
+
+    "allocate note with new pitch class to Expression Group when Pitch Class Group is full" in {
+      // Given
+      val alloc = allocator7 // PCG=5, EG=2
+      // Fill PCG with 5 distinct pitch classes
+      (0 until 5).foreach(pc => alloc.allocateNote(C4 + pc))
+      // When
+      // 6th distinct pitch class goes to EG
+      val r = alloc.allocateNote(C4 + 5)
+      // Then
+      alloc.channelGroupOf(r.channel) shouldBe Some(ChannelGroup.Expression)
+    }
+
+    "break a tie by oldest last Note Off rather than the preferred input channel" in {
+      // Given
+      // Pitch class C fills the single Pitch Class Group channel, so further C notes route to the
+      // Expression Group. Two Expression Group channels are released, so both are unoccupied candidates;
+      // ch2 has the older last Note Off. The preferred (input) channel is ch3, but criterion (d) outranks
+      // the (e) input-channel default.
+      val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+      val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // ch1, Pitch Class Group
+      val r2 = alloc.allocateNote(C5, preferredChannel = Some(2)) // ch2, Expression Group
+      val r3 = alloc.allocateNote(C3, preferredChannel = Some(3)) // ch3, Expression Group
+      r1.channel shouldBe 1
+      r2.channel shouldBe 2
+      r3.channel shouldBe 3
+      alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.releaseNote(C5) // ch2 Note Off (older)
+      alloc.releaseNote(C3) // ch3 Note Off (newer)
+      // When
+      val result = alloc.allocateNote(C6, preferredChannel = Some(3)) // ch3 preferred, but ch2 idle longer
+      // Then
+      result.channel shouldBe r2.channel
+      result.droppedNotes shouldBe empty
+      alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.Expression)
+    }
+
+    "ignore a released channel's stale onset and prefer the oldest last Note Off" in {
+      // Given
+      // Pitch class C fills the single Pitch Class Group channel, so further C notes route to the
+      // Expression Group. The two Expression Group channels' onset order (ch2<ch3) disagrees with their
+      // Note Off order (ch3<ch2), but releasing a channel clears its onset to 0, so criterion (c) cannot
+      // discriminate and criterion (d) governs: the older-Note-Off ch3 wins. (If onset were not cleared,
+      // criterion (c) would wrongly pick ch2 — this test guards that.)
+      val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+      val r1 = alloc.allocateNote(C4, preferredChannel = Some(1)) // ch1, Pitch Class Group
+      val r2 = alloc.allocateNote(C5, preferredChannel = Some(2)) // ch2, Expression Group, onset older
+      val r3 = alloc.allocateNote(C3, preferredChannel = Some(3)) // ch3, Expression Group, onset newer
+      r1.channel shouldBe 1
+      r2.channel shouldBe 2
+      r3.channel shouldBe 3
+      alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.releaseNote(C3) // ch3 Note Off (older)
+      alloc.releaseNote(C5) // ch2 Note Off (newer)
+      // When
+      val result = alloc.allocateNote(C6) // no preferred channel
+      // Then
+      result.channel shouldBe r3.channel
+      result.droppedNotes shouldBe empty
+      alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(C6)
+    }
+  }
+
+  "MpeChannelAllocator - Step 3: Share channel" should {
+    "share channel with same pitch class when both groups are full" in {
+      // Given
+      val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+      val r1 = alloc.allocateNote(C4)
+      val r2 = alloc.allocateNote(C5)
+      val r3 = alloc.allocateNote(C3)
+      // When
+      // All 3 channels occupied, 4th C note must share
+      val r4 = alloc.allocateNote(C6)
+      // Then
+      Set(r1.channel, r2.channel, r3.channel) should contain(r4.channel)
+    }
+
+    "prefer channel with lowest active note count when sharing" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val r1 = alloc.allocateNote(C4)
+      val r2 = alloc.allocateNote(C5)
+      val r3 = alloc.allocateNote(C3)
+      // When
+      // Add another note to r1's channel
+      alloc.allocateNote(C6) // goes to channel with fewest notes
+      // Then
+      alloc.activeChannelCount shouldBe 2
+      alloc.activeNotes(r1.channel).size shouldEqual 2
+      alloc.activeNotes(r2.channel).size shouldEqual 2
+    }
+
+    "prefer the oldest onset among occupied candidates when note counts are equal" in {
+      // Given
+      // Use preferredChannel to put the oldest onset on the highest channel number, breaking the
+      // correlation between onset order and channel number. All three channels then hold one pitch-class-C
+      // note with lastNoteOffTime=0, so criteria (a), (b), (d) tie and only onset (c) discriminates. The
+      // oldest onset is on ch3 (highest number); if criterion (c) were broken and fell through to the
+      // channel-number default (e), ch1 would be picked instead.
+      val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+      val r1 = alloc.allocateNote(C4, preferredChannel = Some(3)) // ch3, oldest onset
+      val r2 = alloc.allocateNote(C5, preferredChannel = Some(2)) // ch2
+      val r3 = alloc.allocateNote(C3, preferredChannel = Some(1)) // ch1, newest onset
+      r1.channel shouldBe 3
+      r2.channel shouldBe 2
+      r3.channel shouldBe 1
+      // When
+      val r4 = alloc.allocateNote(C6)
+      // Then
+      r4.channel shouldBe 3
+    }
+
+    "prefer the oldest onset over an older last Note Off among occupied candidates" in {
+      // Given
+      // Build two occupied pitch-class-C channels whose onset and last-Note-Off orderings DISAGREE:
+      //   ch1: onset = 3 (early), last Note Off = 6 (late)
+      //   ch2: onset = 5 (late),  last Note Off = 4 (early)
+      // Paper criterion (c) onset precedes (d) Note Off, so the older-onset ch1 must win.
+      val alloc = allocator2 // PCG=1, EG=1, channels 1..2
+      val rB = alloc.allocateNote(C4, preferredChannel = Some(1)) // t1: ch1 onset=1
+      val rOther = alloc.allocateNote(C5, preferredChannel = Some(2)) // t2: ch2 onset=2
+      rB.channel shouldBe 1
+      rOther.channel shouldBe 2
+      val rShare = alloc.allocateNote(C6, preferredChannel = Some(1)) // t3: shares ch1 -> ch1 onset=3
+      rShare.channel shouldBe rB.channel
+      alloc.releaseNote(C5) // t4: ch2 empties, Note Off=4
+      val rReuse = alloc.allocateNote(C5, preferredChannel = Some(2)) // t5: ch2 onset=5
+      rReuse.channel shouldBe rOther.channel
+      alloc.releaseNote(C4) // t6: ch1 keeps C6, Note Off=6, onset stays 3
+      // When
+      val result = alloc.allocateNote(C7) // t7: must share by oldest onset
+      // Then
+      result.channel shouldBe rB.channel
+    }
+
+    "prefer channel without high expression pitch bend when sharing" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val r1 = alloc.allocateNote(C4, inputChannel = 1)
+      val r2 = alloc.allocateNote(C5, inputChannel = 2)
+      // Both notes are pitch class C on distinct channels; r1 then develops a high bend.
+      r1.channel should not equal r2.channel
+      alloc.channelPitchClass(r1.channel) shouldBe Some(PitchClass.C)
+      alloc.channelPitchClass(r2.channel) shouldBe Some(PitchClass.C)
+      alloc.updateExpressionPitchBend(1, highPitchBend)
+      // When
+      // The third C must share; it should avoid the high-bend r1 and share r2.
+      val r3 = alloc.allocateNote(C3, inputChannel = 3)
+      // Then
+      r3.channel shouldBe r2.channel
+    }
+
+    "share when Expression Group is full but PCG has same pitch class" in {
+      // Given
+      val alloc = allocator7 // PCG=5, EG=2
+      // C in the Pitch Class Group; two more C notes in the Expression Group.
+      val r1 = alloc.allocateNote(C4)
+      val r2 = alloc.allocateNote(C5)
+      val r3 = alloc.allocateNote(C3)
+      alloc.channelGroupOf(r1.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(r2.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.channelGroupOf(r3.channel) shouldBe Some(ChannelGroup.Expression)
+      // Fill the remaining Pitch Class Group channels with other pitch classes.
+      val rOthers = Seq(D4, E4, F4, G4).map(alloc.allocateNote(_).channel)
+      rOthers.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
+      // When
+      // Expression Group is full and the Pitch Class Group holds C on r1's channel; the new C must share.
+      val r4 = alloc.allocateNote(C6)
+      // Then
+      val cChannels = Set(r1.channel, r2.channel, r3.channel)
+      cChannels should contain(r4.channel)
+    }
+
+    "share in Expression Group when PCG doesn't have the pitch class" in {
+      // Given
+      val alloc = allocator7 // PCG=5, EG=2
+      // Fill the Pitch Class Group with 5 distinct pitch classes (not including A).
+      val pcgChannels = (0 until 5).map(pc => alloc.allocateNote(C4 + pc).channel)
+      pcgChannels.foreach(ch => alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass))
+      // Put A in the Expression Group (the Pitch Class Group is full of other pitch classes).
+      val rA1 = alloc.allocateNote(A4)
+      val rA2 = alloc.allocateNote(MidiNote(A4 + 12)) // A5
+      alloc.channelGroupOf(rA1.channel) shouldBe Some(ChannelGroup.Expression)
+      alloc.channelGroupOf(rA2.channel) shouldBe Some(ChannelGroup.Expression)
+      // When
+      // All channels full. New A should share with existing A in the Expression Group.
+      val rA3 = alloc.allocateNote(MidiNote(A4 - 12)) // A3
+      // Then
+      Set(rA1.channel, rA2.channel) should contain(rA3.channel)
+    }
+  }
+
+  "MpeChannelAllocator - Step 4: Free a channel - Channel Exhaustion" should {
+    "free a channel when all channels occupied and new pitch class needs a channel" in {
+      // Given
+      val alloc = allocator3 // PCG=1, EG=2, 3 channels
+      alloc.allocateNote(C4) // ch1
+      alloc.allocateNote(E4) // ch2
+      alloc.allocateNote(G4) // ch3
+      // When
+      // All channels occupied with different pitch classes. New pitch class A needs a channel.
+      val result = alloc.allocateNote(A4)
+      // Then
+      result.droppedNotes should not be empty
+    }
+
+    "exclude highest-pitched and lowest-pitched note channels when freeing" in {
+      // Given
+      val alloc = allocator3 // 3 channels
+      alloc.allocateNote(C4) // lowest
+      alloc.allocateNote(E4) // middle
+      alloc.allocateNote(G4) // highest
+      // When
+      val result = alloc.allocateNote(A4)
+      // Then
+      // E4 channel should be freed (not C4 or G4)
+      assertDroppedNotes(result.droppedNotes, Seq(E4))
+    }
+
+    "select channel with oldest last onset among remaining candidates" in {
+      // Given
+      val alloc = allocator3
+      alloc.allocateNote(C4) // oldest onset
+      alloc.allocateNote(E4) // middle onset
+      alloc.allocateNote(B4) // newest onset, also highest
+      // When
+      // C4 is lowest, B4 is highest. E4 is the only candidate.
+      val result = alloc.allocateNote(A4)
+      // Then
+      assertDroppedNotes(result.droppedNotes, Seq(E4))
+    }
+
+    "assign the new note to the freed channel" in {
+      // Given
+      val alloc = allocator3
+      alloc.allocateNote(C4)
+      alloc.allocateNote(E4)
+      alloc.allocateNote(G4)
+      // When
+      val result = alloc.allocateNote(A4)
+      // Then
+      result.droppedNotes should not be empty
+      // The new note should be on the freed channel
+      alloc.activeMidiNotes(result.channel) should contain(A4)
+    }
+
+    "place only the new note on the freed channel and clear the old pitch class" in {
+      // Given
+      val alloc = allocator3 // PCG=1, EG=2
+      alloc.allocateNote(C4) // lowest
+      alloc.allocateNote(E4) // middle -> will be freed
+      alloc.allocateNote(G4) // highest
+      // When
+      val result = alloc.allocateNote(A4)
+      // Then
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(A4)
+      alloc.channelPitchClass(result.channel) shouldBe Some(A4.pitchClass)
+    }
+
+    "free the channel holding the lowest note when both candidates are boundary channels" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      alloc.allocateNote(G4) // highest
+      alloc.allocateNote(C4) // lowest
+      // When
+      val result = alloc.allocateNote(E4)
+      // Then
+      assertDroppedNotes(result.droppedNotes, Seq(C4))
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(E4)
+    }
+
+    "free the non-boundary channel when one channel holds both the highest and lowest notes" in {
+      // Given
+      // ch1 ends up holding C4 (lowest) and C6 (highest), both pitch class C; ch2 holds the middle E5.
+      val alloc = allocator2 // PCG=1, EG=1
+      val rLow = alloc.allocateNote(C4, preferredChannel = Some(1)) // ch1, pitch class C, Pitch Class Group
+      val rMid = alloc.allocateNote(E4 + 12, preferredChannel = Some(2)) // ch2, E5 (middle), Expression Group
+      val rHigh = alloc.allocateNote(C6, preferredChannel = Some(1)) // shares ch1 -> ch1 = {C4, C6}
+      rLow.channel shouldBe 1
+      rMid.channel shouldBe 2
+      alloc.channelGroupOf(rLow.channel) shouldBe Some(ChannelGroup.PitchClass)
+      alloc.channelGroupOf(rMid.channel) shouldBe Some(ChannelGroup.Expression)
+      rHigh.channel shouldBe rLow.channel
+      alloc.activeMidiNotes(rLow.channel) should contain theSameElementsAs Set(C4, C6)
+      // When
+      val result = alloc.allocateNote(A4) // new pitch class -> free a channel
+      // Then
+      assertDroppedNotes(result.droppedNotes, Seq(E4 + 12))
+    }
+
+    "free the channel without a high expression pitch bend among freeing candidates" in {
+      // Given
+      val alloc = allocator4 // PCG=2, EG=2, channels 1..4
+      alloc.allocateNote(C4, inputChannel = 1) // lowest (boundary)
+      alloc.allocateNote(E4, inputChannel = 2) // candidate, will get a high bend
+      alloc.allocateNote(G4, inputChannel = 3) // candidate, no bend
+      alloc.allocateNote(B4, inputChannel = 4) // highest (boundary)
+      alloc.updateExpressionPitchBend(2, highPitchBend) // E4's channel: high bend
+      // When
+      val result = alloc.allocateNote(A4, inputChannel = 5) // new pitch class -> free a channel
+      // Then
+      // Criterion (a): avoid freeing the high-bend channel (E4); free the no-bend channel (G4).
+      assertDroppedNotes(result.droppedNotes, Seq(G4))
+    }
+
+    "free the only occupied channel when the zone has a single member channel" in {
+      // Given
+      val alloc = allocator1 // single member channel
+      alloc.allocateNote(C4)
+      // When
+      val result = alloc.allocateNote(E4) // new pitch class -> must free the sole channel
+      // Then
+      assertDroppedNotes(result.droppedNotes, Seq(C4))
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(E4)
+    }
+  }
+
+  "MpeChannelAllocator - Free a channel - High Expression Pitch Bend" should {
+    "drop other notes when a note on a shared channel develops a high expression pitch bend" in {
+      // Given
+      val alloc = allocator3 // PCG=1, EG=2
+      alloc.allocateNote(C4, inputChannel = 1)
+      alloc.allocateNote(C5, inputChannel = 2)
+      alloc.allocateNote(C3, inputChannel = 3)
+      // All channels have C. Add another C to share.
+      val r4 = alloc.allocateNote(C6, inputChannel = 4)
+      val sharedChannel = r4.channel
+      // When
+      val result = alloc.updateExpressionPitchBend(4, highPitchBend)
+      // Then
+      result.droppedNotes should not be empty
+      alloc.activeMidiNotes(sharedChannel) should contain theSameElementsAs Set(C6)
+    }
+
+    "not drop notes when the expression pitch bend is below the threshold" in {
+      // Given
+      val alloc = allocator3
+      alloc.allocateNote(C4, inputChannel = 1)
+      alloc.allocateNote(C5, inputChannel = 2)
+      alloc.allocateNote(C3, inputChannel = 3)
+      alloc.allocateNote(C6, inputChannel = 4)
+      // When
+      val result = alloc.updateExpressionPitchBend(4, lowPitchBend)
+      // Then
+      result.droppedNotes shouldBe empty
+    }
+
+    "drop existing notes when new note with high expression pitch bend is assigned to occupied channel" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val r1 = alloc.allocateNote(C4)
+      alloc.allocateNote(C5)
+      // When
+      // Both channels occupied with C. Third C must share.
+      val result = alloc.allocateNote(C3, highPitchBend)
+      // Then
+      assertDroppedNotes(result.droppedNotes, Seq(C4))
+      result.channel shouldBe r1.channel
+      alloc.activeMidiNotes(result.channel) should contain theSameElementsAs Set(C3)
+    }
+
+    "not drop notes when new note with low expression pitch bend is assigned to occupied channel" in {
+      // Given
+      val alloc = allocator2
+      alloc.allocateNote(C4)
+      alloc.allocateNote(C5)
+      // When
+      val result = alloc.allocateNote(C3, lowPitchBend)
+      // Then
+      result.droppedNotes shouldBe empty
+    }
+
+    "free channel when new note is assigned to channel with existing high-bend note" in {
+      // Given
+      val alloc = allocator2
+      val r1 = alloc.allocateNote(C4, highPitchBend)
+      alloc.allocateNote(D4)
+      // When
+      // Third C must share. r1 has high bend.
+      val result = alloc.allocateNote(C3)
+      // Then
+      result.channel shouldEqual r1.channel
+      assertDroppedNotes(result.droppedNotes, Seq(C4))
+    }
+
+    "not free channel when new note is assigned to channel with existing low-bend note" in {
+      // Given
+      val alloc = allocator2
+      alloc.allocateNote(C4, lowPitchBend)
+      alloc.allocateNote(C5)
+      // When
+      val result = alloc.allocateNote(C3)
+      // Then
+      result.droppedNotes shouldBe empty
+    }
+
+    "ensure a note with high expression pitch bend is always sole note on its channel" in {
+      // Given
+      val alloc = allocator3 // PCG=1, EG=2
+      alloc.allocateNote(C4, inputChannel = 1)
+      alloc.allocateNote(C5, inputChannel = 2)
+      alloc.allocateNote(C3, inputChannel = 3)
+      val r4 = alloc.allocateNote(C6, inputChannel = 4)
+      val sharedChannel = r4.channel
+      // When
+      alloc.updateExpressionPitchBend(4, highPitchBend)
+      // Then
+      alloc.activeMidiNotes(sharedChannel) should contain theSameElementsAs Set(C6)
+    }
+  }
+
+  "MpeChannelAllocator - Channel release" should {
+    "make channel available for reuse when all notes have ended" in {
+      // Given
+      val alloc = allocator2
+      val r1 = alloc.allocateNote(C4)
+      alloc.allocateNote(E4)
+      // When
+      alloc.releaseNote(C4)
+      // Then
+      alloc.isChannelOccupied(r1.channel) shouldBe false
+      // New note can reuse the channel
+      val r2 = alloc.allocateNote(D4)
+      r2.channel shouldBe r1.channel
+      r2.droppedNotes shouldBe empty
+    }
+
+    "keep channel occupied until all notes receive Note Off" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      alloc.allocateNote(C4)
+      alloc.allocateNote(C5) // goes to EG
+      val r2 = alloc.allocateNote(C3) // must share
+      val sharedChannel = r2.channel
+      alloc.activeNotes(sharedChannel).size should be > 1
+      // When
+      alloc.releaseNote(C3)
+      // Then
+      alloc.isChannelOccupied(sharedChannel) shouldBe true
+    }
+  }
+
+  "MpeChannelAllocator - MPE Input" should {
+    "preserve input channel assignment when it doesn't violate constraints" in {
+      // Given
+      val alloc = allocator15
+      // When
+      val result = alloc.allocateNote(C4, preferredChannel = Some(5))
+      // Then
+      result.channel shouldBe 5
+    }
+
+    "override input channel when it would violate pitch-class invariant" in {
+      // Given
+      val alloc = allocator15
+      alloc.allocateNote(D4, preferredChannel = Some(5)) // D on channel 5
+      // When
+      // Try to put C on channel 5 - violates pitch-class invariant
+      val result = alloc.allocateNote(C4, preferredChannel = Some(5))
+      // Then
+      result.channel should not be 5
+      // It should pick another channel (Pitch Class Group)
+      alloc.channelGroupOf(result.channel) shouldBe Some(ChannelGroup.PitchClass)
+    }
+
+    "ensure unoccupied channels have no group" in {
+      // Given
+      val alloc = allocator15
+      // Then
+      (1 to 15).foreach { c => alloc.channelGroupOf(c) shouldBe None }
+
+      // When
+      val r1 = alloc.allocateNote(C4)
+      val ch = r1.channel
+      // Then
+      alloc.channelGroupOf(ch) shouldBe Some(ChannelGroup.PitchClass)
+
+      // When
+      alloc.releaseNote(C4)
+      // Then
+      alloc.channelGroupOf(ch) shouldBe None
+    }
+  }
+
+  "MpeChannelAllocator - Reference counting" should {
+    "bypass allocation and report a duplicate for a Note On of an already active identity" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val r1 = alloc.allocate(identity)
+      // When
+      val r2 = alloc.allocate(identity)
+      // Then
+      r2.channel shouldBe r1.channel
+      r2.isDuplicate shouldBe true
+      r2.droppedNotes shouldBe empty
+      r2.update shouldBe MpeExpressionUpdate.Unchanged
+      alloc.activeNotes(r1.channel) should contain theSameElementsAs Set(identity)
+      alloc.referenceCountOf(identity) shouldBe 2
+      alloc.activeChannelCount shouldBe 1
+    }
+
+    "deallocate a note only when its reference count reaches zero" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val channel = alloc.allocate(identity).channel
+      alloc.allocate(identity)
+      // When
+      val first = alloc.release(identity)
+      // Then
+      first.value.channel shouldBe channel
+      alloc.referenceCountOf(identity) shouldBe 1
+      alloc.isChannelOccupied(channel) shouldBe true
+      alloc.channelOf(identity) shouldBe Some(channel)
+      // When
+      val second = alloc.release(identity)
+      // Then
+      second.value.channel shouldBe channel
+      alloc.referenceCountOf(identity) shouldBe 0
+      alloc.isChannelOccupied(channel) shouldBe false
+      alloc.channelOf(identity) shouldBe None
+    }
+
+    "return None when releasing an identity that holds no active count" in {
+      // Given
+      val alloc = allocator15
+      // When / Then
+      alloc.release(MpeNoteIdentity(1, C4)) shouldBe None
+    }
+
+    "ignore the Expression Values given with a duplicate Note On" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
+      // When
+      val result = alloc.allocate(identity, Some(ImmutableMpeExpression(20, 64, 96)))
+      // Then
+      result.isDuplicate shouldBe true
+      result.update shouldBe MpeExpressionUpdate.Unchanged
+      alloc.expressionFor(identity) shouldBe ImmutableMpeExpression(10, 32, 48)
+      alloc.channelExpression(channel) shouldBe ImmutableMpeExpression(10, 32, 48)
+    }
+
+    "leave the Expression Values of a duplicate Note On untouched when none are given" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
+      // When
+      val result = alloc.allocate(identity)
+      // Then
+      result.update shouldBe MpeExpressionUpdate.Unchanged
+      alloc.channelExpression(channel).pressure shouldBe 32
+    }
+
+    "not drop notes when a duplicate Note On carries a High Expression Pitch Bend" in {
+      // Given
+      // first and third end up sharing a channel; second occupies a channel of its own.
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(2, C5)
+      val third = MpeNoteIdentity(3, C3)
+      val channel = alloc.allocate(first).channel
+      alloc.allocate(second)
+      alloc.allocate(third).channel shouldBe channel
+      // When
+      // A duplicate Note On for the shared note carries a High Expression Pitch Bend. Allocation is bypassed
+      // and the Expression Values are ignored, so the channel's set of active notes is unchanged and no
+      // divergence can arise: the note never acquires the high bend in the first place.
+      val result = alloc.allocate(third, Some(ImmutableMpeExpression(highPitchBend)))
+      // Then
+      result.isDuplicate shouldBe true
+      result.droppedNotes shouldBe empty
+      result.update shouldBe MpeExpressionUpdate.Unchanged
+      alloc.activeNotes(channel) should contain theSameElementsAs Set(first, third)
+      alloc.channelOf(first) shouldBe Some(channel)
+    }
+
+    "count two identities sharing a note number as two active notes" in {
+      // Given
+      // Three C notes from three input channels occupy the three channels of the zone; a fourth shares the
+      // oldest, which then holds two identities of the same note number.
+      val alloc = allocator3 // PCG=1, EG=2, channels 1..3
+      val r1 = alloc.allocate(MpeNoteIdentity(1, C4))
+      val r2 = alloc.allocate(MpeNoteIdentity(2, C4))
+      val r3 = alloc.allocate(MpeNoteIdentity(3, C4))
+      Set(r1.channel, r2.channel, r3.channel) should have size 3
+      val r4 = alloc.allocate(MpeNoteIdentity(4, C4))
+      r4.channel shouldBe r1.channel
+      alloc.activeNotes(r1.channel) should contain theSameElementsAs
+        Set(MpeNoteIdentity(1, C4), MpeNoteIdentity(4, C4))
+      // When
+      // A fifth C must share; criterion (b) prefers the channel with the fewest active identities, which
+      // requires counting the two same-numbered identities on r1's channel as two.
+      val r5 = alloc.allocate(MpeNoteIdentity(5, C4))
+      // Then
+      r5.channel shouldBe r2.channel
+    }
+  }
+
+  "MpeChannelAllocator - Expression Value aggregation" should {
+    "report no Expression Pitch Bend change when releasing a note leaves the average unchanged" in {
+      // Given
+      // Three notes of the same pitch class share the single Member Channel, all with the same Expression Pitch
+      // Bend, so the channel's average is a sum of three equal terms divided by three.
+      val alloc = allocator1
+      val expression = Some(ImmutableMpeExpression(10))
+      alloc.allocate(MpeNoteIdentity(1, C4), expression)
+      alloc.allocate(MpeNoteIdentity(2, C4), expression)
+      val third = MpeNoteIdentity(3, C4)
+      alloc.allocate(third, expression)
+      // When
+      // Releasing one leaves two terms averaging to the same value.
+      val result = alloc.release(third).value
+      // Then
+      result.update.pitchBend shouldBe None
+    }
+
+    "average the Expression Values of the notes active on a channel" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
+      alloc.allocate(MpeNoteIdentity(2, C5))
+      // When
+      // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
+      val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(-20, 96, 96)))
+      // Then
+      shared.channel shouldBe first.channel
+      val expression = alloc.channelExpression(shared.channel)
+      expression.pitchBend shouldBe -5
+      expression.pressure shouldBe 64
+      expression.slide shouldBe 72
+      shared.update shouldBe MpeExpressionUpdate(Some(-5), Some(64), Some(72))
+    }
+
+    "round a fractional average of the integer dimensions half up" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(10, 32, 48)))
+      alloc.allocate(MpeNoteIdentity(2, C5))
+      // When
+      // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
+      // All three dimensions average to exactly .5 above an even value, which truncation would round down and
+      // half-even would round down to as well. A negative half would pin nothing: at -4.5 truncation and half-even
+      // both give -4, exactly what rounding half up gives.
+      val shared = alloc.allocate(MpeNoteIdentity(3, C3), Some(ImmutableMpeExpression(11, 97, 97)))
+      // Then
+      shared.channel shouldBe first.channel
+      val expression = alloc.channelExpression(shared.channel)
+      expression.pitchBend shouldBe 11 // (10 + 11) / 2 = 10.5
+      expression.pressure shouldBe 65 // (32 + 97) / 2 = 64.5
+      expression.slide shouldBe 73 // (48 + 97) / 2 = 72.5
+    }
+
+    "return an Expression Values snapshot that does not track later mutations" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
+      val channelBefore = alloc.channelExpression(channel)
+      val noteBefore = alloc.expressionFor(identity)
+      // When
+      alloc.updateExpressionPitchBend(1, 30)
+      // Then
+      channelBefore.pitchBend shouldBe 10
+      noteBefore.pitchBend shouldBe 10
+      alloc.channelExpression(channel).pitchBend shouldBe 30
+      alloc.expressionFor(identity).pitchBend shouldBe 30
+    }
+
+    "return each note's own Expression Values, distinct from the channel's aggregate" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val firstIdentity = MpeNoteIdentity(1, C4)
+      val thirdIdentity = MpeNoteIdentity(3, C3)
+      val first = alloc.allocate(firstIdentity, Some(ImmutableMpeExpression(10, 32, 48)))
+      alloc.allocate(MpeNoteIdentity(2, C5))
+      // When
+      // Both groups are full and the pitch class is already present, so the third C shares the oldest channel.
+      val shared = alloc.allocate(thirdIdentity, Some(ImmutableMpeExpression(-20, 96, 96)))
+      // Then
+      shared.channel shouldBe first.channel
+      alloc.expressionFor(firstIdentity).pitchBend shouldBe 10
+      alloc.expressionFor(firstIdentity).pressure shouldBe 32
+      alloc.expressionFor(firstIdentity).slide shouldBe 48
+      alloc.expressionFor(thirdIdentity).pitchBend shouldBe -20
+      alloc.expressionFor(thirdIdentity).pressure shouldBe 96
+      alloc.expressionFor(thirdIdentity).slide shouldBe 96
+      // The channel's aggregate is the average of the two, not either note's own value.
+      alloc.channelExpression(shared.channel).pitchBend shouldBe -5
+    }
+
+    "retain the last Expression Values when the channel becomes unoccupied" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
+      // When
+      val result = alloc.release(identity)
+      // Then
+      result.value.update shouldBe MpeExpressionUpdate.Unchanged
+      alloc.isChannelOccupied(channel) shouldBe false
+      val retained = alloc.channelExpression(channel)
+      retained.pitchBend shouldBe 10
+      retained.pressure shouldBe 32
+      retained.slide shouldBe 48
+    }
+
+    "zero the retained Channel Pressure when the last note is released with resetPressureOnEmpty" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      val channel = alloc.allocate(identity, Some(ImmutableMpeExpression(10, 32, 48))).channel
+      // When
+      val result = alloc.release(identity, resetPressureOnEmpty = true).value
+      // Then
+      result.pressureWasReset shouldBe true
+      result.update.pressure shouldBe Some(0)
+      alloc.channelExpression(channel).pressure shouldBe 0
+      // The other two dimensions are retained.
+      alloc.channelExpression(channel).pitchBend shouldBe 10
+      alloc.channelExpression(channel).slide shouldBe 48
+    }
+
+    "not report a pressure reset when other notes remain on the channel" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(2, C5)
+      val third = MpeNoteIdentity(3, C3)
+      val channel = alloc.allocate(first, Some(ImmutableMpeExpression(pressure = 80))).channel
+      alloc.allocate(second)
+      alloc.allocate(third, Some(ImmutableMpeExpression(pressure = 20))).channel shouldBe channel
+      // When
+      val result = alloc.release(first, resetPressureOnEmpty = true).value
+      // Then
+      result.pressureWasReset shouldBe false
+      result.update.pressure shouldBe Some(20)
+      alloc.channelExpression(channel).pressure shouldBe 20
+    }
+
+    "not report a pressure reset when the retained Channel Pressure is already zero" in {
+      // Given
+      val alloc = allocator15
+      val identity = MpeNoteIdentity(1, C4)
+      alloc.allocate(identity)
+      // When
+      val result = alloc.release(identity, resetPressureOnEmpty = true).value
+      // Then
+      result.pressureWasReset shouldBe false
+      result.update shouldBe MpeExpressionUpdate.Unchanged
+    }
+  }
+
+  "MpeChannelAllocator - Expression Value updates" should {
+    "fan an Expression Pitch Bend update out to every channel holding a note of the input channel" in {
+      // Given
+      val alloc = allocator15
+      val cChannel = alloc.allocate(MpeNoteIdentity(1, C4)).channel
+      val eChannel = alloc.allocate(MpeNoteIdentity(1, E4)).channel
+      val otherChannel = alloc.allocate(MpeNoteIdentity(2, G4)).channel
+      // When
+      val result = alloc.updateExpressionPitchBend(1, 30)
+      // Then
+      result.droppedNotes shouldBe empty
+      result.channelUpdates should contain theSameElementsAs Seq(
+        MpeChannelExpressionUpdate(cChannel, MpeExpressionUpdate(pitchBend = Some(30))),
+        MpeChannelExpressionUpdate(eChannel, MpeExpressionUpdate(pitchBend = Some(30)))
+      )
+      alloc.channelExpression(otherChannel).pitchBend shouldBe 0
+    }
+
+    "report no update for a channel whose average is unchanged" in {
+      // Given
+      val alloc = allocator15
+      alloc.allocate(MpeNoteIdentity(1, C4), Some(ImmutableMpeExpression(30)))
+      // When
+      val result = alloc.updateExpressionPitchBend(1, 30)
+      // Then
+      result.channelUpdates shouldBe empty
+    }
+
+    "ignore a Polyphonic Key Pressure update addressed to an inactive identity" in {
+      // Given
+      val alloc = allocator15
+      alloc.allocate(MpeNoteIdentity(1, C4))
+      // When / Then
+      alloc.updatePressure(MpeNoteIdentity(1, D4), 80) shouldBe MpeExpressionUpdateResult()
+    }
+
+    "update a single identity's Channel Pressure contribution" in {
+      // Given
+      // C4 and C5 both arrive on input channel 1 but land on different channels, and C3, from another input
+      // channel, shares C4's.
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val sibling = MpeNoteIdentity(1, C5)
+      val channel = alloc.allocate(first).channel
+      val siblingChannel = alloc.allocate(sibling).channel
+      siblingChannel should not equal channel
+      alloc.allocate(MpeNoteIdentity(3, C3)).channel shouldBe channel
+      // When
+      val result = alloc.updatePressure(first, 80)
+      // Then
+      // Only C4's own contribution changes: its channel averages 80 with C3's 0, and — unlike an input-channel
+      // update — nothing fans out to C5, which shares C4's input channel.
+      result.channelUpdates shouldEqual Seq(
+        MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pressure = Some(40))))
+      alloc.channelExpression(siblingChannel).pressure shouldBe MpeExpression.DefaultPressure
+    }
+
+    "keep the most recently sounded note when several notes on a channel acquire a high bend at once" in {
+      // Given
+      // Two identities from the same input channel end up sharing a channel.
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(1, C5)
+      val channel = alloc.allocate(first).channel
+      alloc.allocate(MpeNoteIdentity(2, D4))
+      alloc.allocate(second).channel shouldBe channel
+      // When
+      // One Pitch Bend message gives both of them a High Expression Pitch Bend.
+      val result = alloc.updateExpressionPitchBend(1, highPitchBend)
+      // Then
+      result.droppedNotes should have size 1
+      result.droppedNotes.head.channel shouldBe channel
+      result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
+      alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
+      alloc.channelOf(first) shouldBe None
+      result.channelUpdates shouldEqual Seq(
+        MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(highPitchBend))))
+    }
+
+    "drop the co-resident note when an Expression Pitch Bend diverges downwards" in {
+      // Given
+      // A High Expression Pitch Bend exceeds the threshold in either direction, so a negative bend of the same
+      // magnitude must drop just as a positive one does.
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(2, C5)
+      val channel = alloc.allocate(first).channel
+      alloc.allocate(MpeNoteIdentity(3, D4))
+      alloc.allocate(second).channel shouldBe channel
+      // When
+      val result = alloc.updateExpressionPitchBend(2, -highPitchBend)
+      // Then
+      result.droppedNotes should have size 1
+      result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
+      alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
+    }
+
+    "not drop a co-resident note for a bend exactly at the High Expression Pitch Bend threshold" in {
+      // Given
+      // The threshold is exclusive: a bend must exceed it, so a bend exactly at it leaves the channel shared.
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(2, C5)
+      val channel = alloc.allocate(first).channel
+      alloc.allocate(MpeNoteIdentity(3, D4))
+      alloc.allocate(second).channel shouldBe channel
+      // When
+      val result = alloc.updateExpressionPitchBend(2, threshold)
+      // Then
+      result.droppedNotes shouldBe empty
+      alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
+    }
+
+    "report the reference count of each dropped note" in {
+      // Given
+      val alloc = allocator1 // a single member channel
+      val identity = MpeNoteIdentity(1, C4)
+      alloc.allocate(identity)
+      alloc.allocate(identity)
+      // When
+      val result = alloc.allocate(MpeNoteIdentity(2, E4))
+      // Then
+      result.droppedNotes.value.notes shouldEqual Seq(MpeDroppedNote(identity, 2))
+      alloc.channelOf(identity) shouldBe None
+    }
+  }
+
+  "MpeChannelAllocator.retaining" should {
+    // ---- Retained channels ----
+
+    "keep the notes, reference counts, Expression Values, pitch class and group of a retained channel" in {
+      // Given
+      val zone = MpeZone(MpeZoneType.Lower, 7)
+      val alloc = MpeChannelAllocator(zone, threshold)
+      val identity = MpeNoteIdentity(1, MidiNote.C4)
+      val expression = ImmutableMpeExpression(pitchBend = 20, pressure = 70, slide = 100)
+      val channel = alloc.allocate(identity, Some(expression), preferredChannel = Some(1)).channel
+      alloc.allocate(identity)
+      channel shouldEqual 1
+      val group = alloc.channelGroupOf(channel)
+
+      // When
+      // Shrinking the Zone to 4 Members takes Member Channels 5..7 out of MPE control, leaving channel 1 untouched.
+      val shrunk = MpeZone(MpeZoneType.Lower, 4)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc,
+        affectedChannels = zone.memberChannels.toSet -- shrunk.memberChannels,
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      rebuilt.channelOf(identity) shouldEqual Some(channel)
+      rebuilt.referenceCountOf(identity) shouldEqual 2
+      rebuilt.channelExpression(channel).pitchBend shouldEqual 20
+      rebuilt.channelExpression(channel).pressure shouldEqual 70
+      rebuilt.channelExpression(channel).slide shouldEqual 100
+      rebuilt.channelPitchClass(channel) shouldEqual Some(MidiNote.C4.pitchClass)
+      rebuilt.channelGroupOf(channel) shouldEqual group
+    }
+
+    "drop the notes of a channel that is not retained" in {
+      // Given
+      val zone = MpeZone(MpeZoneType.Lower, 7)
+      val alloc = MpeChannelAllocator(zone, threshold)
+      val kept = MpeNoteIdentity(1, MidiNote.C4)
+      val dropped = MpeNoteIdentity(2, MidiNote.E4)
+      val keptChannel = alloc.allocate(kept, preferredChannel = Some(1)).channel
+      // The second note is steered away from its own input channel, so that the reconfiguration below affects its
+      // output channel alone and its drop cannot be attributed to the input-channel rule.
+      val droppedChannel = alloc.allocate(dropped, preferredChannel = Some(7)).channel
+      keptChannel shouldEqual 1
+      droppedChannel shouldEqual 7
+
+      // When
+      // Shrinking the Zone to 6 Members takes Member Channel 7 out of MPE control, while input channel 2 stays.
+      val shrunk = MpeZone(MpeZoneType.Lower, 6)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(7),
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      rebuilt.channelOf(kept) shouldEqual Some(keptChannel)
+      rebuilt.channelOf(dropped) shouldEqual None
+      rebuilt.activeChannelCount shouldEqual 1
+    }
+
+    "drop a note whose input channel left MPE control even when its output channel is retained" in {
+      // Given
+      val zone = MpeZone(MpeZoneType.Lower, 7)
+      val alloc = MpeChannelAllocator(zone, threshold)
+      val identity = MpeNoteIdentity(6, MidiNote.C4)
+      val channel = alloc.allocate(identity, preferredChannel = Some(1)).channel
+      channel shouldEqual 1
+
+      // When
+      // Shrinking the Zone to 5 Members takes Member Channels 6 and 7 out of MPE control — input channel 6 among
+      // them — while the note's output channel 1 stays.
+      val shrunk = MpeZone(MpeZoneType.Lower, 5)
+      val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(shrunk, alloc, affectedChannels = Set(6, 7),
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      rebuilt.channelOf(identity) shouldEqual None
+      rebuilt.isChannelOccupied(channel) shouldBe false
+      // The drop leaves the channel unoccupied, so it retains its aggregate rather than recomputing over an empty
+      // set: nothing the receiver holds has become wrong, and nothing is reported.
+      result shouldEqual MpeExpressionUpdateResult()
+    }
+
+    "report the aggregate a departed note's drop moved on a channel that keeps its other notes" in {
+      // Given
+      // Channel 1 holds two C notes from different input channels, so dropping one moves all three of the
+      // channel's averages.
+      val alloc = allocator3 // PCG=1, EG=2
+      val kept = MpeNoteIdentity(1, C4)
+      val departing = MpeNoteIdentity(3, C5)
+      val channel =
+        alloc.allocate(kept, Some(ImmutableMpeExpression(pitchBend = 10, pressure = 40, slide = 20))).channel
+      alloc.allocate(MpeNoteIdentity(1, D4))
+      alloc.allocate(MpeNoteIdentity(1, E4))
+      alloc.allocate(departing, Some(ImmutableMpeExpression(pitchBend = 30, pressure = 80, slide = 100)))
+        .channel shouldEqual channel
+      alloc.channelExpression(channel).pitchBend shouldEqual 20
+      alloc.channelExpression(channel).pressure shouldEqual 60
+      alloc.channelExpression(channel).slide shouldEqual 60
+
+      // When
+      // Shrinking the Zone to 2 Members takes Member Channel 3 out of MPE control — the departing note's input
+      // channel — while its output channel 1 stays.
+      val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
+        affectedChannels = Set(3), initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      rebuilt.activeNotes(channel) should contain theSameElementsAs Set(kept)
+      result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
+        MpeExpressionUpdate(pitchBend = Some(10), pressure = Some(40), slide = Some(20))))
+      // The departed notes' Note Offs are `MpeTuner`'s to emit, before the allocator is rebuilt, so the rebuild
+      // does not report them a second time.
+      result.droppedNotes shouldBe empty
+    }
+
+    "drop the departed notes before re-applying the divergence rule, and report only the latter" in {
+      // Given
+      // Three C notes share channel 1, none of them above the current threshold of 100. The one that will depart
+      // has both the largest bend and the latest onset, so it would win the divergence rule's survivor test if the
+      // two steps ran in the wrong order.
+      val alloc = allocator3 // PCG=1, EG=2
+      val dropped = MpeNoteIdentity(1, C4)
+      val survivor = MpeNoteIdentity(2, C5)
+      val departing = MpeNoteIdentity(3, C6)
+      val channel = alloc.allocate(dropped, Some(ImmutableMpeExpression(60, 40, 20))).channel
+      alloc.allocate(MpeNoteIdentity(1, D4))
+      alloc.allocate(MpeNoteIdentity(1, E4))
+      alloc.allocate(survivor, Some(ImmutableMpeExpression(90, 80, 100))).channel shouldEqual channel
+      alloc.allocate(departing, Some(ImmutableMpeExpression(70, 0, 60))).channel shouldEqual channel
+
+      // When
+      // Member Channel 3 leaves MPE control, and the new threshold of 50 carries every note left on channel 1
+      // past it.
+      val MpeRebuildResult(rebuilt, result) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 2), alloc,
+        affectedChannels = Set(3), initialExpressionPitchBendThreshold = 50)
+
+      // Then
+      // The departed note is gone before the divergence rule looks at the channel, so the latest onset among the
+      // notes that remain survives.
+      rebuilt.activeNotes(channel) should contain theSameElementsAs Set(survivor)
+      result.droppedNotes.flatMap(_.notes.map(_.noteIdentity)) shouldEqual Seq(dropped)
+      // One report for both drops, measured against the three-note averages the receiver still holds.
+      result.channelUpdates shouldEqual Seq(MpeChannelExpressionUpdate(channel,
+        MpeExpressionUpdate(pitchBend = Some(90), pressure = Some(80), slide = Some(100))))
+    }
+
+    "start every channel of the new Zone empty when the reconfiguration affects them all" in {
+      // Given
+      // The Lower Zone MpeTuner runs in Non-MPE Input Mode, holding a note on channel 1 — a channel the
+      // reconfigured Zone below still has, so its loss can only come from the affected set.
+      val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 15), threshold)
+      alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
+      alloc.activeChannelCount shouldEqual 1
+
+      // When
+      // The first MCM leaves Non-MPE Input Mode, which MpeTuner treats as affecting every channel of the port.
+      // This is the only reconfiguration that affects every Member Channel of a Zone that held notes: a Zone
+      // enabled on both sides of an MCM keeps its anchor channel — 1 for a Lower Zone, 14 for an Upper one —
+      // under an unchanged assignment, and a Zone that was disabled before has no channel state to lose.
+      val configured = MpeZone(MpeZoneType.Lower, 7)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(configured, alloc,
+        affectedChannels = (0 until 16).toSet, initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      rebuilt.activeChannelCount shouldEqual 0
+      rebuilt.activeAllocations shouldBe empty
+    }
+
+    "start a Member Channel the previous Zone did not have empty" in {
+      // Given
+      val alloc = MpeChannelAllocator(MpeZone(MpeZoneType.Lower, 4), threshold)
+      alloc.allocate(MpeNoteIdentity(1, MidiNote.C4), preferredChannel = Some(1))
+
+      // When
+      // Growing the Zone to 7 Members brings Member Channels 5..7 into MPE control; channels 1..4 are untouched.
+      val grown = MpeZone(MpeZoneType.Lower, 7)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(grown, alloc, affectedChannels = Set(5, 6, 7),
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      rebuilt.channelOf(MpeNoteIdentity(1, MidiNote.C4)) shouldEqual Some(1)
+      Seq(5, 6, 7).foreach(rebuilt.isChannelOccupied(_) shouldBe false)
+    }
+
+    "adopt the High Expression Pitch Bend threshold of the reconfigured Zone, not the previous one" in {
+      // Given
+      // The threshold is the one piece of state `retaining` does not carry over: only `MpeTuner` knows the Member
+      // Channel Pitch Bend Sensitivity the reconfigured Zone now holds, so it supplies the threshold that implies.
+      val zone = MpeZone(MpeZoneType.Lower, 7)
+      val alloc = MpeChannelAllocator(zone, threshold)
+      // When
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(MpeZone(MpeZoneType.Lower, 4), alloc,
+        affectedChannels = Set(5, 6, 7), initialExpressionPitchBendThreshold = 2 * threshold)
+      // Then
+      rebuilt.expressionPitchBendThreshold shouldEqual 2 * threshold
+    }
+
+    // ---- At-capacity and over-subscribed groups ----
+
+    "keep working when a retained channel's group is filled to exact capacity in the smaller Zone" in {
+      // Given
+      // A 10-Member Zone has an Expression Group of 3; a 3-Member Zone has one of 2. Three notes of the same pitch
+      // class on different input channels cannot share the Pitch Class Group channel, so beyond the first they
+      // occupy Expression Group channels. Retaining channel 1 (Pitch Class Group) and channels 2-3 (Expression
+      // Group) fills both of the smaller Zone's groups to exactly their capacity — not beyond it.
+      val big = MpeZone(MpeZoneType.Lower, 10)
+      val alloc = MpeChannelAllocator(big, threshold)
+      val identities = Seq(
+        MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.C4), MpeNoteIdentity(3, MidiNote.C4))
+      val channels = identities.map(alloc.allocate(_).channel).toSet
+      channels shouldEqual Set(1, 2, 3)
+
+      // When
+      val small = MpeZone(MpeZoneType.Lower, 3)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+        affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      // Nothing throws, and a fresh note still lands on a Member Channel of the new Zone.
+      val result = rebuilt.allocate(MpeNoteIdentity(1, MidiNote.G4))
+      small.memberChannels.toSet should contain(result.channel)
+    }
+
+    "keep working when a retained channel's Pitch Class Group is over-subscribed in the smaller Zone" in {
+      // Given
+      // A 10-Member Zone has a Pitch Class Group of 7, room enough for three distinct pitch classes, so all three
+      // land there. A 3-Member Zone has a Pitch Class Group of only 1: retaining all three channels genuinely
+      // over-subscribes it (3 occupied Pitch Class Group channels against a capacity of 1), and — because the
+      // channel count is conserved — leaves the Expression Group nominally under capacity (0 against 2) even
+      // though the Zone is, in fact, fully occupied.
+      val big = MpeZone(MpeZoneType.Lower, 10)
+      val alloc = MpeChannelAllocator(big, threshold)
+      val identities = Seq(
+        MpeNoteIdentity(1, MidiNote.C4), MpeNoteIdentity(2, MidiNote.D4), MpeNoteIdentity(3, MidiNote.E4))
+      val channels = identities.map(alloc.allocate(_).channel).toSet
+      channels shouldEqual Set(1, 2, 3)
+
+      // When
+      val small = MpeZone(MpeZoneType.Lower, 3)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+        affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
+      // Zone, even though the Expression Group's nominal room check finds no actual unoccupied channel to grant.
+      val result = rebuilt.allocate(MpeNoteIdentity(4, MidiNote.G4))
+      small.memberChannels.toSet should contain(result.channel)
+    }
+
+    "keep working when a retained channel's Expression Group is over-subscribed in the smaller Zone" in {
+      // Given
+      // A 10-Member Zone has an Expression Group of 3. One note claims the Pitch Class Group (channel 10, via
+      // preferredChannel), arriving on an input channel the shrink drops; three more of the same pitch class each
+      // claim an Expression Group channel (1, 2, 3), arriving on input channels the shrink keeps. Retaining only
+      // channels 1-3 — the Expression Group ones — into a 3-Member Zone (Expression Group of 2) genuinely
+      // over-subscribes it (3 occupied against a capacity of 2), while leaving the Pitch Class Group nominally
+      // under capacity (0 against 1) even though the Zone is, in fact, fully occupied.
+      val big = MpeZone(MpeZoneType.Lower, 10)
+      val alloc = MpeChannelAllocator(big, threshold)
+      alloc.allocate(MpeNoteIdentity(4, MidiNote.C4), preferredChannel = Some(10))
+      val egChannels = Seq(1, 2, 3).map { inputChannel =>
+        alloc.allocate(MpeNoteIdentity(inputChannel, MidiNote.C4), preferredChannel = Some(inputChannel)).channel
+      }.toSet
+      egChannels shouldEqual Set(1, 2, 3)
+
+      // When
+      val small = MpeZone(MpeZoneType.Lower, 3)
+      val MpeRebuildResult(rebuilt, _) = MpeChannelAllocator.retaining(small, alloc,
+        affectedChannels = big.memberChannels.toSet -- small.memberChannels,
+        initialExpressionPitchBendThreshold = threshold)
+
+      // Then
+      // Nothing throws, and a fresh note of yet another pitch class still lands on a Member Channel of the new
+      // Zone, even though the Pitch Class Group's nominal room check finds no actual unoccupied channel to grant.
+      val result = rebuilt.allocate(MpeNoteIdentity(5, MidiNote.D4))
+      small.memberChannels.toSet should contain(result.channel)
+    }
+  }
+
+  "MpeChannelAllocator - High Expression Pitch Bend threshold" should {
+    "re-apply the divergence rule when a lowered threshold reclassifies a shared channel's notes" in {
+      // Given
+      // Two C notes from different input channels share the Pitch Class Group channel, with different bends, both
+      // below the current threshold of 100.
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(2, C5)
+      val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
+      alloc.allocate(MpeNoteIdentity(3, D4))
+      alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
+      // When
+      // Both cross the new threshold at once, which the same-input-channel case never produces.
+      val result = alloc.setExpressionPitchBendThreshold(50)
+      // Then
+      // The latest onset survives, the rest of the channel goes, and the channel's aggregate is reported.
+      alloc.expressionPitchBendThreshold shouldEqual 50
+      result.droppedNotes should have size 1
+      result.droppedNotes.head.channel shouldBe channel
+      result.droppedNotes.head.notes.map(_.noteIdentity) shouldEqual Seq(first)
+      alloc.activeNotes(channel) should contain theSameElementsAs Set(second)
+      result.channelUpdates shouldEqual Seq(
+        MpeChannelExpressionUpdate(channel, MpeExpressionUpdate(pitchBend = Some(90))))
+    }
+
+    "drop nothing when a raised threshold leaves every note below it" in {
+      // Given
+      val alloc = allocator2 // PCG=1, EG=1
+      val first = MpeNoteIdentity(1, C4)
+      val second = MpeNoteIdentity(2, C5)
+      val channel = alloc.allocate(first, Some(ImmutableMpeExpression(60))).channel
+      alloc.allocate(MpeNoteIdentity(3, D4))
+      alloc.allocate(second, Some(ImmutableMpeExpression(90))).channel shouldBe channel
+      // When
+      val result = alloc.setExpressionPitchBendThreshold(150)
+      // Then
+      // The pass only ever drops: nothing is restored, because nothing was retained.
+      result shouldEqual MpeExpressionUpdateResult()
+      alloc.activeNotes(channel) should contain theSameElementsAs Set(first, second)
+    }
   }
 }

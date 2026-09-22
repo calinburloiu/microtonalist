@@ -16,44 +16,44 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class MidiConnectionLimitTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class MidiConnectionLimitTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 
-  behavior of "allowsConnections"
+  "allowsConnections" should {
+    "be true for an unlimited or positive limit and false for zero" in {
+      // Given
+      val cases = Table[MidiConnectionLimit, Boolean](
+        ("limit", "expected"),
+        (MidiConnectionLimit.Unlimited, true),
+        (MidiConnectionLimit.Limited(0), false),
+        (MidiConnectionLimit.Limited(1), true),
+        (MidiConnectionLimit.Limited(8), true)
+      )
 
-  it should "be true for an unlimited or positive limit and false for zero" in {
-    // Given
-    val cases = Table[MidiConnectionLimit, Boolean](
-      ("limit", "expected"),
-      (MidiConnectionLimit.Unlimited, true),
-      (MidiConnectionLimit.Limited(0), false),
-      (MidiConnectionLimit.Limited(1), true),
-      (MidiConnectionLimit.Limited(8), true)
-    )
-
-    forAll(cases) { (limit, expected) =>
-      // When / Then
-      limit.allowsConnections shouldBe expected
+      forAll(cases) { (limit, expected) =>
+        // When / Then
+        limit.allowsConnections shouldBe expected
+      }
     }
   }
 
-  behavior of "toString"
+  "toString" should {
+    "print unlimited or the count" in {
+      // Given
+      val cases = Table[MidiConnectionLimit, String](
+        ("limit", "expected"),
+        (MidiConnectionLimit.Unlimited, "unlimited"),
+        (MidiConnectionLimit.Limited(0), "0"),
+        (MidiConnectionLimit.Limited(8), "8")
+      )
 
-  it should "print unlimited or the count" in {
-    // Given
-    val cases = Table[MidiConnectionLimit, String](
-      ("limit", "expected"),
-      (MidiConnectionLimit.Unlimited, "unlimited"),
-      (MidiConnectionLimit.Limited(0), "0"),
-      (MidiConnectionLimit.Limited(8), "8")
-    )
-
-    forAll(cases) { (limit, expected) =>
-      // When / Then
-      limit.toString shouldEqual expected
+      forAll(cases) { (limit, expected) =>
+        // When / Then
+        limit.toString shouldEqual expected
+      }
     }
   }
 }

@@ -17,10 +17,10 @@
 package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.{ConfigFactory, Config as HoconConfig}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends AnyFlatSpec with Matchers {
+abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends AnyWordSpec with Matchers {
 
   def configResource: String = SubConfigTest.defaultConfigResource
 
@@ -36,16 +36,18 @@ abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extend
   def subConfigsToWrite: Seq[C]
   lazy val subConfigsToWriteCount: Int = subConfigsToWrite.size
 
-  getClass.getSimpleName should "correctly read HOCON sub-config" in {
-    subConfig shouldEqual expectedSubConfigRead
-    mainConfigManager.isDirty shouldBe false
-  }
+  getClass.getSimpleName should {
+    "correctly read HOCON sub-config" in {
+      subConfig shouldEqual expectedSubConfigRead
+      mainConfigManager.isDirty shouldBe false
+    }
 
-  for (i <- 0 until subConfigsToWriteCount) {
-    it should s"correctly read after writing HOCON sub-config ${i + 1} of $subConfigsToWriteCount" in {
-      subConfigManager.notifyConfigChanged(subConfigsToWrite(i))
-      mainConfigManager.isDirty shouldBe true
-      subConfig shouldEqual subConfigsToWrite(i)
+    for (i <- 0 until subConfigsToWriteCount) {
+      s"correctly read after writing HOCON sub-config ${i + 1} of $subConfigsToWriteCount" in {
+        subConfigManager.notifyConfigChanged(subConfigsToWrite(i))
+        mainConfigManager.isDirty shouldBe true
+        subConfig shouldEqual subConfigsToWrite(i)
+      }
     }
   }
 }

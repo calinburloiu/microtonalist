@@ -18,12 +18,12 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.intonation.CentsIntonationStandard
 import org.calinburloiu.music.scmidi.PitchClass
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
-class CompositionTest extends AnyFlatSpec with Matchers {
+class CompositionTest extends AnyWordSpec with Matchers {
   val sampleComposition: Composition = Composition(
     url = Some(new URI("file:///path/to/composition.mtlist")),
     intonationStandard = CentsIntonationStandard,
@@ -33,18 +33,20 @@ class CompositionTest extends AnyFlatSpec with Matchers {
     fill = FillSpec()
   )
 
-  "tracksUrl" should "be derived from URL when there is no override" in {
-    sampleComposition.tracksUrl should contain(new URI("file:///path/to/composition.mtlist.tracks"))
-  }
+  "tracksUrl" should {
+    "be derived from URL when there is no override" in {
+      sampleComposition.tracksUrl should contain(new URI("file:///path/to/composition.mtlist.tracks"))
+    }
 
-  it should "be empty when URL is not defined" in {
-    val composition = sampleComposition.copy(url = None)
-    composition.tracksUrl shouldBe empty
-  }
+    "be empty when URL is not defined" in {
+      val composition = sampleComposition.copy(url = None)
+      composition.tracksUrl shouldBe empty
+    }
 
-  it should "overridden" in {
-    val uri = new URI("file:///path/to/special.mtlist.tracks")
-    val composition = sampleComposition.copy(tracksUrlOverride = Some(uri))
-    composition.tracksUrl should contain(uri)
+    "overridden" in {
+      val uri = new URI("file:///path/to/special.mtlist.tracks")
+      val composition = sampleComposition.copy(tracksUrlOverride = Some(uri))
+      composition.tracksUrl should contain(uri)
+    }
   }
 }

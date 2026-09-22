@@ -26,17 +26,15 @@ class JsonTuningReducerPluginFormatTest extends JsonFormatTestUtils {
   private val jsonPluginFormat = JsonTuningReducerPluginFormat
   private val reads: Reads[TuningReducer] = jsonPluginFormat.reads
 
-  behavior of "DirectTuningReducer JSON plugin format"
+  "DirectTuningReducer JSON plugin format" should {
+    "deserialize DirectTuningReducer" in {
+      assertReads(reads, JsString("direct"), DirectTuningReducer)
+    }
 
-  it should "deserialize DirectTuningReducer" in {
-    assertReads(reads, JsString("direct"), DirectTuningReducer)
+    "serialize DirectTuningReducer" in {
+      jsonPluginFormat.writes.writes(DirectTuningReducer) shouldEqual JsString("direct")
+    }
   }
-
-  it should "serialize DirectTuningReducer" in {
-    jsonPluginFormat.writes.writes(DirectTuningReducer) shouldEqual JsString("direct")
-  }
-
-  behavior of "MergeTuningReducer JSON plugin format"
 
   private val mergeTypeJson = Json.obj(
     "type" -> "merge",
@@ -51,15 +49,17 @@ class JsonTuningReducerPluginFormatTest extends JsonFormatTestUtils {
     (__ \ "equalityTolerance", DisallowedValues(JsNumber(51)), "error.max")
   )
 
-  it should "deserialize a MergeTuningReducer" in {
-    assertReads(reads, mergeTypeJson, mergeType)
-  }
+  "MergeTuningReducer JSON plugin format" should {
+    "deserialize a MergeTuningReducer" in {
+      assertReads(reads, mergeTypeJson, mergeType)
+    }
 
-  it should "fail to deserialize a MergeTuningReducer from invalid JSON" in {
-    assertReadsFailureTable(reads, mergeTypeJson, mergeTypeFailureTable)
-  }
+    "fail to deserialize a MergeTuningReducer from invalid JSON" in {
+      assertReadsFailureTable(reads, mergeTypeJson, mergeTypeFailureTable)
+    }
 
-  it should "serialize a MergeTuningReducer" in {
-    jsonPluginFormat.writes.writes(mergeType) shouldEqual mergeTypeJson
+    "serialize a MergeTuningReducer" in {
+      jsonPluginFormat.writes.writes(mergeType) shouldEqual mergeTypeJson
+    }
   }
 }

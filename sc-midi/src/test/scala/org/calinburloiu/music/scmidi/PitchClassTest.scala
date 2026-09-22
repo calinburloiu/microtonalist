@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PitchClassTest extends AnyFlatSpec with TableDrivenPropertyChecks with Matchers {
+class PitchClassTest extends AnyWordSpec with TableDrivenPropertyChecks with Matchers {
 
   //@formatter:off
   private val pitchClassNamesTables = Table[String, PitchClass](
@@ -72,19 +72,21 @@ class PitchClassTest extends AnyFlatSpec with TableDrivenPropertyChecks with Mat
   )
   //@formatter:on
 
-  it should "successfully parse a string into a PitchClass" in {
-    forAll(pitchClassNamesTables) { (name, pitchClass) =>
-      PitchClass.parse(name) should contain(pitchClass)
+  "PitchClass" should {
+    "successfully parse a string into a PitchClass" in {
+      forAll(pitchClassNamesTables) { (name, pitchClass) =>
+        PitchClass.parse(name) should contain(pitchClass)
+      }
     }
-  }
 
-  it should "fail to parse an invalid string into a PitchClass" in {
-    PitchClass.parse("X#") should be(empty)
-    PitchClass.parse("y") should be(empty)
-    PitchClass.parse("sdfgsfg") should be(empty)
-    PitchClass.parse("Z♯") should be(empty)
-    PitchClass.parse("C♯/G♭") should be(empty)
-    PitchClass.parse("12") should be(empty)
-    PitchClass.parse("-1") should be(empty)
+    "fail to parse an invalid string into a PitchClass" in {
+      PitchClass.parse("X#") should be(empty)
+      PitchClass.parse("y") should be(empty)
+      PitchClass.parse("sdfgsfg") should be(empty)
+      PitchClass.parse("Z♯") should be(empty)
+      PitchClass.parse("C♯/G♭") should be(empty)
+      PitchClass.parse("12") should be(empty)
+      PitchClass.parse("-1") should be(empty)
+    }
   }
 }

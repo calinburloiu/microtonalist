@@ -17,10 +17,10 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.MidiCc
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
+class TuningChangeTriggersTest extends AnyWordSpec with Matchers {
   val triggers: TuningChangeTriggers[PedalTuningChanger.CcNumber] = TuningChangeTriggers(
     previous = Some(MidiCc.SoftPedal),
     next = Some(MidiCc.SostenutoPedal),
@@ -30,57 +30,69 @@ class TuningChangeTriggersTest extends AnyFlatSpec with Matchers {
     )
   )
 
-  "constructor" should "fail if there is no trigger configured" in {
-    assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[PedalTuningChanger.CcNumber](
-        previous = None,
-        next = None,
-        index = Map.empty[Int, PedalTuningChanger.CcNumber]
-      )
+  "constructor" should {
+    "fail if there is no trigger configured" in {
+      assertThrows[IllegalArgumentException] {
+        TuningChangeTriggers[PedalTuningChanger.CcNumber](
+          previous = None,
+          next = None,
+          index = Map.empty[Int, PedalTuningChanger.CcNumber]
+        )
+      }
+
+      assertThrows[IllegalArgumentException] {
+        TuningChangeTriggers[PedalTuningChanger.CcNumber]()
+      }
     }
 
-    assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[PedalTuningChanger.CcNumber]()
+    "fail if index has negative keys" in {
+      assertThrows[IllegalArgumentException] {
+        TuningChangeTriggers[Char](index = Map(-1 -> 'a'))
+      }
     }
   }
 
-  it should "fail if index has negative keys" in {
-    assertThrows[IllegalArgumentException] {
-      TuningChangeTriggers[Char](index = Map(-1 -> 'a'))
+  "hasPreviousWithTrigger" should {
+    "return true if there is a trigger for previous tuning" in {
+      triggers.hasPreviousWithTrigger(MidiCc.SostenutoPedal) shouldBe false
+      triggers.hasPreviousWithTrigger(MidiCc.SoftPedal) shouldBe true
     }
   }
 
-  "hasPreviousWithTrigger" should "return true if there is a trigger for previous tuning" in {
-    triggers.hasPreviousWithTrigger(MidiCc.SostenutoPedal) shouldBe false
-    triggers.hasPreviousWithTrigger(MidiCc.SoftPedal) shouldBe true
+  "hasNextWithTrigger" should {
+    "return true if there is a trigger for next tuning" in {
+      triggers.hasNextWithTrigger(MidiCc.SostenutoPedal) shouldBe true
+      triggers.hasNextWithTrigger(MidiCc.SoftPedal) shouldBe false
+    }
   }
 
-  "hasNextWithTrigger" should "return true if there is a trigger for next tuning" in {
-    triggers.hasNextWithTrigger(MidiCc.SostenutoPedal) shouldBe true
-    triggers.hasNextWithTrigger(MidiCc.SoftPedal) shouldBe false
+  "hasIndexWithTrigger" should {
+    "return true if there is a trigger for tuning to specific index" in {
+      triggers.hasIndexWithTrigger(10) shouldBe true
+      triggers.hasIndexWithTrigger(20) shouldBe true
+      triggers.hasIndexWithTrigger(1) shouldBe false
+      triggers.hasIndexWithTrigger(2) shouldBe false
+    }
   }
 
-  "hasIndexWithTrigger" should "return true if there is a trigger for tuning to specific index" in {
-    triggers.hasIndexWithTrigger(10) shouldBe true
-    triggers.hasIndexWithTrigger(20) shouldBe true
-    triggers.hasIndexWithTrigger(1) shouldBe false
-    triggers.hasIndexWithTrigger(2) shouldBe false
+  "hasTrigger" should {
+    "return true if there is any trigger for given value" in {
+      triggers.hasTrigger(MidiCc.SoftPedal) shouldBe true
+      triggers.hasTrigger(MidiCc.SostenutoPedal) shouldBe true
+      triggers.hasTrigger(10) shouldBe true
+      triggers.hasTrigger(20) shouldBe true
+
+      triggers.hasTrigger(MidiCc.SustainPedal) shouldBe false
+    }
   }
 
-  "hasTrigger" should "return true if there is any trigger for given value" in {
-    triggers.hasTrigger(MidiCc.SoftPedal) shouldBe true
-    triggers.hasTrigger(MidiCc.SostenutoPedal) shouldBe true
-    triggers.hasTrigger(10) shouldBe true
-    triggers.hasTrigger(20) shouldBe true
-
-    triggers.hasTrigger(MidiCc.SustainPedal) shouldBe false
-  }
-
-  "tuningChangeForTrigger" should "compute the tuning change operation for the given trigger" in {
-    triggers.tuningChangeForTrigger(MidiCc.SoftPedal) shouldEqual PreviousTuningChange
-    triggers.tuningChangeForTrigger(MidiCc.SostenutoPedal) shouldEqual NextTuningChange
-    triggers.tuningChangeForTrigger(10) shouldEqual IndexTuningChange(1)
-    triggers.tuningChangeForTrigger(20) shouldEqual IndexTuningChange(2)
-    triggers.tuningChangeForTrigger(MidiCc.SustainPedal) shouldEqual NoTuningChange
+  "tuningChangeForTrigger" should {
+    "compute the tuning change operation for the given trigger" in {
+      triggers.tuningChangeForTrigger(MidiCc.SoftPedal) shouldEqual PreviousTuningChange
+      triggers.tuningChangeForTrigger(MidiCc.SostenutoPedal) shouldEqual NextTuningChange
+      triggers.tuningChangeForTrigger(10) shouldEqual IndexTuningChange(1)
+      triggers.tuningChangeForTrigger(20) shouldEqual IndexTuningChange(2)
+      triggers.tuningChangeForTrigger(MidiCc.SustainPedal) shouldEqual NoTuningChange
+    }
   }
 }

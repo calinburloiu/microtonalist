@@ -19,12 +19,12 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
-class TrackServiceTest extends AnyFlatSpec with Matchers with MockFactory {
+class TrackServiceTest extends AnyWordSpec with Matchers with MockFactory {
 
   trait Fixture {
     val sessionStub: TrackSession = stub[TrackSession]
@@ -36,25 +36,29 @@ class TrackServiceTest extends AnyFlatSpec with Matchers with MockFactory {
       TrackSpec(name + "-id", name, None, Seq.empty, None, None)
   }
 
-  "open" should "call open in TrackSession with the given URI" in new Fixture {
-    // Given
-    val uri = new URI("http://example.com/composition.mtlist.tracks")
+  "open" should {
+    "call open in TrackSession with the given URI" in new Fixture {
+      // Given
+      val uri = new URI("http://example.com/composition.mtlist.tracks")
 
-    // When
-    trackService.open(uri)
+      // When
+      trackService.open(uri)
 
-    // Then
-    sessionStub.open.verify(uri).once()
+      // Then
+      sessionStub.open.verify(uri).once()
+    }
   }
 
-  "replaceAllTracks" should "update tracks in the trackSession with the provided TrackSpecs" in new Fixture {
-    // Given
-    val trackSpecs: TrackSpecs = TrackSpecs(Seq(makeTrackSpec("track1"), makeTrackSpec("track2")))
+  "replaceAllTracks" should {
+    "update tracks in the trackSession with the provided TrackSpecs" in new Fixture {
+      // Given
+      val trackSpecs: TrackSpecs = TrackSpecs(Seq(makeTrackSpec("track1"), makeTrackSpec("track2")))
 
-    // When
-    trackService.replaceAllTracks(trackSpecs)
+      // When
+      trackService.replaceAllTracks(trackSpecs)
 
-    // Then
-    sessionStub.tracks_=.verify(trackSpecs).once()
+      // Then
+      sessionStub.tracks_=.verify(trackSpecs).once()
+    }
   }
 }
