@@ -42,7 +42,8 @@ Scala 3 and is built by using sbt 1.
 
 # Code Intelligence
 
-At the start of every conversation, check whether the Metals MCP is available by attempting to call
+At the start of every conversation, right after the development stack is confirmed running (step 1 of the
+[Warm-up](#warm-up), which must come first), check whether the Metals MCP is available by attempting to call
 `mcp__metals__list-modules`. If it is available, prefer its `mcp__metals__*` tools (symbol inspection, search,
 find-usages, source/docs retrieval, compilation, Coursier dependency lookup). See each tool's own description for
 parameters. If Metals MCP is not available, fall back to the usual CLI tools (`sbt`/`sbtn`, `rg`, `find`, `WebFetch`,
@@ -84,10 +85,11 @@ collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and
 At the start of every conversation, **once** per session:
 
 1. Detect the running stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is not
-   running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing.
-2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full` to warm up the Metals index. This
-   ensures SemanticDB is populated so that symbol resolution, find-usages, and other semantic tools work correctly from
-   the first query.
+   running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing. Do this before any Metals
+   MCP call, because the Metals MCP comes up with the stack.
+2. Check whether the Metals MCP is available (see [Code Intelligence](#code-intelligence)) and, if it is, run a full
+   compile via `mcp__metals__compile-full` to warm up the Metals index. This ensures SemanticDB is populated so that
+   symbol resolution, find-usages, and other semantic tools work correctly from the first query.
 
 ## Compiling
 
