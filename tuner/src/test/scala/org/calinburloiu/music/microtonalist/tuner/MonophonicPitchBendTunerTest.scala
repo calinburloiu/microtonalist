@@ -241,6 +241,48 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
     }
   }
 
+  "MonophonicPitchBendTuner after reset" should {
+    "only configure the output device, without sending pitch bend, although a tuning is set" in new Fixture {
+      // Given
+      tuner.tune(customTuning2)
+      sendNote(noteE4)
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      output should not be empty
+      pitchBendOutput shouldBe empty
+    }
+
+    "keep tuning the notes in the tuning set before the reset" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      sendNote(noteDSharp4)
+      tuner.reset()
+
+      // When
+      output ++= sendNote(noteE4)
+
+      // Then
+      pitchBendOutput should have size 1
+      pitchBendOutput.head.cents shouldEqual -16.67
+    }
+
+    "tune C, the note it starts from, in the tuning set before the reset" in new Fixture {
+      // Given
+      tuner.tune(customTuning2)
+      tuner.reset()
+
+      // When
+      output ++= sendNote(noteC4)
+
+      // Then
+      pitchBendOutput should have size 1
+      pitchBendOutput.head.cents shouldEqual -45.0
+    }
+  }
+
   "MonophonicPitchBendTuner when multiple notes are on" should {
     "play monophonically even if no note off messages are sent" in new Fixture {
       tuner.tune(customTuning)

@@ -65,7 +65,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
    * Resets the tuner and sends the messages that initialize the output to every receiver of the transmitter, as a
    * newly attached receiver gets them, e.g. when the output device (re)opens after the processor attached to it.
    *
-   * It does not apply any tuning: the output plays in the tuning the tuner is left in by its reset.
+   * The tuner's reset restates its current tuning, so the output plays in that tuning again.
    */
   def reset(): Unit = {
     val resetMessages = tuner.reset()

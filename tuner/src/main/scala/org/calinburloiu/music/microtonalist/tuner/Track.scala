@@ -128,8 +128,8 @@ class Track(val spec: TrackSpec,
 
   /**
    * Resets the tuner of this track, if any, sending the messages that initialize the output instrument to the output
-   * of the track, e.g. after the output device (re)opened. The current tuning is not restored: the output plays in
-   * 12-EDO until the next tuning change.
+   * of the track, e.g. after the output device (re)opened, followed by the ones that restore the current tuning of the
+   * tuner, so that the output does not fall back to 12-EDO.
    */
   def resetTuner(): Unit = {
     tunerProcessor.foreach(_.reset())
@@ -144,7 +144,8 @@ class Track(val spec: TrackSpec,
    *      Notes Off, so a note it holds would keep sounding otherwise;
    *   1. resets the tuning changers, so that a trigger held when the input disappeared does not swallow the first
    *      trigger after it comes back;
-   *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one.
+   *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one and
+   *      restores the current tuning.
    *
    * The track keeps no state of its own about held notes.
    */

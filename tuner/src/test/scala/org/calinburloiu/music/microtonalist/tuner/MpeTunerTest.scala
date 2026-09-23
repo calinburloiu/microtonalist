@@ -345,6 +345,19 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       extractNoteOffs(resetOutput) shouldBe empty
     }
+
+    // ---- Tuning retention ----
+
+    "keep the active Tuning" in new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+      // When
+      tuner.reset()
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
+      private val output = noteOn(nonMpeInputChannel, E4)
+      private val noteChannel = extractNoteOns(output).head.channel
+      extractPitchBendsWithCents(output) should contain((noteChannel, -14))
+    }
   }
 
   "MpeTuner - reset() - MPE Input" should {
@@ -435,6 +448,19 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val resetOutput = tuner.reset()
       // Then
       extractNoteOffs(resetOutput) shouldBe empty
+    }
+
+    // ---- Tuning retention ----
+
+    "keep the active Tuning" in new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // When
+      tuner.reset()
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
+      private val output = noteOn(2, E4)
+      private val noteChannel = extractNoteOns(output).head.channel
+      extractPitchBendsWithCents(output) should contain((noteChannel, -14))
     }
   }
 
@@ -3520,14 +3546,6 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         private val output = noteOn(2, E4)
         private val noteChannel = extractNoteOns(output).head.channel
         extractPitchBendsWithCents(output) should contain((noteChannel, -14))
-      }
-
-    "restore the Standard Tuning on reset()" in
-      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-        // When
-        tuner.reset()
-        // Then
-        tuner.tuning shouldEqual Tuning.Standard
       }
 
     // ---- RPN sequence validation gating ----

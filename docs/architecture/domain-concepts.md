@@ -29,8 +29,9 @@ implementations of each Plugin family).
 **Tuner (`tuner` module, `org.calinburloiu.music.microtonalist.tuner`):**
 
 - `Tuning` — 12 optional cent offsets for pitch classes; `Tuning.Standard` is 12-EDO
-- `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; implementations
-  cover the supported tuning protocols (MTS Octave, MPE, monophonic Pitch Bend)
+- `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; keeps the current
+  `tuning` and restates it on `reset()`; implementations cover the supported tuning protocols (MTS Octave, MPE,
+  monophonic Pitch Bend)
 - `TuningChanger` (trait, Plugin) — decides when to change tuning by inspecting MIDI messages
 - `Track` — one instrument pipeline: input device → `TuningChangeProcessor` → `TunerProcessor` → output device
 - `TuningSession` / `TuningService` — holds current tuning index and exposes thread-safe API for changing it

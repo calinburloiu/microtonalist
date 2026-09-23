@@ -28,16 +28,26 @@ class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
 
   val tuneMessage1: MidiMsg = PitchBendMidiMsg(0, 100)
   val tuneMessage2: MidiMsg = PitchBendMidiMsg(0, 0)
+  val tuneMessage3: MidiMsg = PitchBendMidiMsg(0, 200)
 
   val processMessage1: MidiMsg = NoteOnMidiMsg(0, MidiNote(60), 64)
   val processMessage2: MidiMsg = PitchBendMidiMsg(0, 101)
 
+  /**
+   * A processor over a tuner in Just C Major, which it restates on each reset, so that the 12-EDO messages a receiver
+   * gets can only come from detaching it.
+   */
   abstract class Fixture(shouldAttach: Boolean = true) {
-    val tuner: Tuner = stub[Tuner]
-    (() => tuner.reset()).when().returns(Seq(initMessage))
-    tuner.tune.when(TestTunings.justCMaj).returns(Seq(tuneMessage1))
-    tuner.tune.when(Tuning.Standard).returns(Seq(tuneMessage2))
-    tuner.process.when(processMessage1).returns(Seq(processMessage1, processMessage2))
+    val tuner: FakeTuner = FakeTuner(
+      resetMessages = Seq(initMessage),
+      tuningMessages = Map(
+        TestTunings.justCMaj -> Seq(tuneMessage1),
+        Tuning.Standard -> Seq(tuneMessage2),
+        TestTunings.justCRast -> Seq(tuneMessage3)
+      ),
+      processMessages = Map(processMessage1 -> Seq(processMessage1, processMessage2))
+    )
+    tuner.tune(TestTunings.justCMaj)
 
     val receiver: MidiReceiver = stub[MidiReceiver]
     val processor: TunerProcessor = TunerProcessor(tuner)
@@ -83,10 +93,10 @@ class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
   "tune" should {
     "send the tune messages returned by the tuner" in new Fixture {
       // When
-      processor.tune(TestTunings.justCMaj)
+      processor.tune(TestTunings.justCRast)
       // Then
-      tuner.tune.verify(TestTunings.justCMaj).once()
-      receiver.send.verify(tuneMessage1, -1L).once()
+      tuner.tuning shouldEqual TestTunings.justCRast
+      receiver.send.verify(tuneMessage3, -1L).once()
     }
   }
 
@@ -97,7 +107,7 @@ class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
       // When
       processor.receiver.send(processMessage1, timeStamp)
       // Then
-      tuner.process.verify(processMessage1).once()
+      tuner.processedMessages shouldEqual Seq(processMessage1)
       receiver.send.verify(processMessage1, timeStamp).once()
       receiver.send.verify(processMessage2, timeStamp).once()
     }
@@ -108,7 +118,6 @@ class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
       // When
       processor.transmitter.clearReceivers()
       // Then
-      tuner.tune.verify(Tuning.Standard).once()
       receiver.send.verify(tuneMessage2, -1L).once()
     }
 
@@ -122,7 +131,6 @@ class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
         processor.transmitter.removeReceiver(receiver)
 
         // Then
-        tuner.tune.verify(Tuning.Standard).once()
         receiver.send.verify(tuneMessage2, -1L).once()
         anotherReceiver.send.verify(tuneMessage2, -1L).never()
       }
@@ -141,6 +149,20 @@ class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
       // Once when each receiver attached, and once more on reset
       receiver.send.verify(initMessage, -1L).repeated(2)
       anotherReceiver.send.verify(initMessage, -1L).repeated(2)
+    }
+
+    "restore the current tuning after the reset messages" in new Fixture(shouldAttach = false) {
+      // Given
+      val recordingReceiver: RecordingMidiReceiver = RecordingMidiReceiver()
+      processor.transmitter.addReceiver(recordingReceiver)
+      processor.tune(TestTunings.justCRast)
+      recordingReceiver.clear()
+
+      // When
+      processor.reset()
+
+      // Then
+      recordingReceiver.messages shouldEqual Seq(initMessage, tuneMessage3)
     }
   }
 }

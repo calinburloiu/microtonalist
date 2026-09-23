@@ -44,6 +44,10 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   // single tracker slot. `outputChannel` is reused as that slot — it's already a valid 0..15 channel.
   private def trackedChannel: Int = outputChannel
 
+  /**
+   * The tuning [[_currTuningPitchBend]] is derived from, which follows the current [[tuning]]. A reset sets it back to
+   * 12-EDO along with the pitch bend, so that the [[onTune]] call restating the current tuning rebuilds the pitch bend.
+   */
   private var _currTuning: Tuning = Tuning.Standard
   private var _pitchBendSensitivity: PitchBendSensitivity = defaultPitchBendSensitivity
 
@@ -59,12 +63,13 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private var _lastNoteOnVelocity = NoteOnMidiMsg.DefaultVelocity
   private var _lastNoteOffVelocity = NoteOffMidiMsg.DefaultVelocity
 
-  override def reset(): Seq[MidiMsg] = {
-    this._resetState()
-    this._init()
+  override protected def onReset(): Seq[MidiMsg] = {
+    _resetState()
+    _init()
   }
 
   private def _resetState(): Unit = {
+    _currTuning = Tuning.Standard
     _pitchBendSensitivity = defaultPitchBendSensitivity
     tracker.reset()
     _lastSingleNote = 0
@@ -78,7 +83,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def _init(): Seq[MidiMsg] = PitchBendSensitivityMessages.create(
     outputChannel, defaultPitchBendSensitivity)
 
-  override def tune(tuning: Tuning): Seq[MidiMsg] = {
+  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
     currTuning = tuning
 
     // Update pitch bend for the current sounding note

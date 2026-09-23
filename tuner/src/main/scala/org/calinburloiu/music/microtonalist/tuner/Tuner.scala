@@ -36,10 +36,14 @@ import javax.annotation.concurrent.NotThreadSafe
  *   - Whenever the current tuning changes, [[tune]] must be called with that tuning.
  *   - All MIDI messages that pass through the [[Track]] must go through the [[process]] method which will output the
  *     right MIDI messages according to the tuner's functionality and configuration.
- *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reinitialize it. For example, it
- *     may be called if the MIDI configuration of the output device was externally modified, and it needs to be
- *     reconfigured according to this tuner. The method may also be called in case of a bug or issue for
- *     troubleshooting purposes to reset the system state.
+ *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reinitialize it, while keeping
+ *     its current [[tuning]]. For example, it may be called if the MIDI configuration of the output device was
+ *     externally modified, and it needs to be reconfigured according to this tuner, or if the output device was
+ *     turned off and on again. The method may also be called in case of a bug or issue for troubleshooting purposes
+ *     to reset the system state.
+ *
+ * Implementations provide [[onReset]] and [[onTune]], which the final [[reset]] and [[tune]] delegate to, so that
+ * every tuner keeps its current tuning and restates it on reset.
  *
  * @see [[TunerProcessor]] a class that uses a [[Tuner]] instance and adds the necessary I/O operations to be able to
  *      actually tune a device.
@@ -61,27 +65,67 @@ trait Tuner extends Plugin {
    */
   val altTuningOutput: Option[MidiDeviceId] = None
 
+  private var _tuning: Tuning = Tuning.Standard
+
   /**
-   * Resets the internal state of the tuner to its default / initial configuration and returns the MIDI messages that
-   * should configure / initialize the output device to be usable by this tuner.
+   * @return the tuning last passed to [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO
+   *         Tuning if it was never tuned.
+   */
+  final def tuning: Tuning = _tuning
+
+  /**
+   * Resets the internal state of the tuner to its default / initial configuration, while keeping its current
+   * [[tuning]], and returns the MIDI messages that should configure / initialize the output device to be usable by
+   * this tuner, followed by the ones that tune it to the current tuning.
    *
    * This method ''must'' be called before using the tuner for the first time and the messages returned ''must'' be
    * sent to the output device to properly work with this tuner. For example, a tuner based on pitch bend requires
-   * the output device to be configured with the correct pitch bend sensitivity.
+   * the output device to be configured with the correct pitch bend sensitivity. Because it restates the current
+   * tuning, an output device that is reset after it (re)opens plays in that tuning again, not in 12-EDO.
+   *
+   * @return the MIDI messages returned by [[onReset]], followed by the ones returned by [[onTune]] for the current
+   *         tuning.
+   */
+  final def reset(): Seq[MidiMsg] = onReset() ++ onTune(_tuning)
+
+  /**
+   * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object, and stores
+   * it as the current [[tuning]], such that MIDI notes passed via [[process]] method will be played in that tuning.
+   *
+   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
+   *               octave.
+   * @return the MIDI messages returned by [[onTune]] for the tuning.
+   */
+  final def tune(tuning: Tuning): Seq[MidiMsg] = {
+    _tuning = tuning
+    onTune(tuning)
+  }
+
+  /**
+   * Resets the internal state of the tuner to its default / initial configuration and returns the MIDI messages that
+   * should configure / initialize the output device, as the first part of [[reset]], which then calls [[onTune]] with
+   * the current tuning.
+   *
+   * The state a tuner derives from its tuning must be reset as well, so that the [[onTune]] call that follows
+   * rebuilds it.
    *
    * @return the MIDI messages that should configure / initialize the output device.
    */
-  def reset(): Seq[MidiMsg] = Seq.empty
+  protected def onReset(): Seq[MidiMsg] = Seq.empty
 
   /**
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object and
    * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be
    * played in that tuning.
    *
+   * It is called by [[tune]], after the tuning becomes the current [[tuning]], and by [[reset]] to restate the
+   * current tuning.
+   *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
+   * @return the MIDI messages that tune the output instrument.
    */
-  def tune(tuning: Tuning): Seq[MidiMsg]
+  protected def onTune(tuning: Tuning): Seq[MidiMsg]
 
   /**
    * Method called with every MIDI message of a [[Track]] that uses this tuner. Its purpose is to do any processing

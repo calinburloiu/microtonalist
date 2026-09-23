@@ -137,7 +137,7 @@ class TrackManager(private val midiManager: MidiManager,
    * Handles the MIDI device events that concern the devices of the tracks:
    *
    *   - when an output device opens, it resets the tuner of every track whose output is that device, since the device
-   *     may have (re)opened after the track was built;
+   *     may have (re)opened after the track was built, which restores the current tuning on it;
    *   - when an input device becomes unavailable, or fails to, it releases the input of every track whose input is
    *     that device, so that no note stays held on its output.
    *
@@ -153,10 +153,8 @@ class TrackManager(private val midiManager: MidiManager,
   @Subscribe
   private def onMidiEvent(event: MidiEvent): Unit = event match {
     case MidiDeviceOpenedEvent(deviceId, MidiDirection.Output) =>
-      // TODO #305 Restore the current tuning after resetting the tuner.
       tracksWithOutputDevice(deviceId).foreach(_.resetTuner())
     case InputDeviceGone(deviceId) =>
-      // TODO #305 Restore the current tuning after resetting the tuner.
       tracksWithInputDevice(deviceId).foreach(_.releaseInput())
     case _ => // Nothing to do for the other events
   }
