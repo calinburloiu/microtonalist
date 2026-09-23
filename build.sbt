@@ -262,7 +262,7 @@ lazy val experimentsModule = (project in file("experiments"))
     intonationModule,
   )
   .settings(
-    name := "microtonalist-app",
+    name := "microtonalist-experiments",
     commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.experiments.SoftChromaticGenusStudy"),

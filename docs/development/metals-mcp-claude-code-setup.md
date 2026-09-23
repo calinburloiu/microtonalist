@@ -34,15 +34,19 @@ claude --version
 
 ## 2. Install Metals
 
-Install the Metals language server via Coursier. Metals 1.6.x or later is recommended for
-the standalone-MCP path.
+Install the Metals language server via Coursier. Metals 1.6.9 or later is required: earlier
+versions make `glob-search` / `typed-glob-search` require a `fileInFocus` and search only its
+build target, while the agent instructions in `CLAUDE.md` assume they search the whole
+workspace.
 
 ```bash
 cs install metals
 metals --version
 ```
 
-If you already have an older Metals (e.g. via an editor extension), update it the same way.
+If you already have an older Metals, update it with `cs update metals`, then run
+`bin/microtonalist-dev-stack restart`: `metals-standalone-client` launches the Metals version
+that Coursier has installed, so the running stack keeps the old one until restarted.
 
 ## 3. Install `metals-standalone-client`
 

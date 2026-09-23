@@ -53,22 +53,19 @@ finding usages, and understanding class/trait hierarchy — the textual alternat
 same-named variable, follow overrides, or resolve imports. Use symbol search to reduce duplicated code by finding
 already implemented functionality. Use the read docs functionality to understand external code.
 
-## Symbol tool file focus
+## Symbol tool targets
 
-`mcp__metals__glob-search`, `mcp__metals__typed-glob-search`, `mcp__metals__inspect`, `mcp__metals__get-usages`,
-`mcp__metals__get-docs`, and `mcp__metals__get-source` need a `fileInFocus` parameter (`module` alone is not enough) and
-search only that target's classpath — so use a file from the symbol's owning module, or for project-wide scope the
-module with the broadest classpath. The representative files for project-wide searches are:
+`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` search the whole workspace. The other symbol tools
+resolve the symbol on one build target and, without one or with one that lacks the symbol, silently return an empty
+result or "not found" (`mcp__metals__get-source` may even return an unrelated file):
 
-- `app` — covers `config`, `businessync`, `common`, `composition`, `intonation`, `format`, `sc-midi`, `tuner`, `ui`:
-  `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
-- `cli` — separate executable covering `sc-midi`; may contain symbols not in `app`:
-  `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
-- `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
-  `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
-
-For a project-wide search, query all three in parallel; use a lower-level module file only to intentionally scope to
-that module's classpath.
+- `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`: the
+  owning module, derived from the symbol's package with the "Packages" table in
+  [`docs/architecture/module-overview.md`](docs/architecture/module-overview.md). Use `<module>-test` for code under
+  `src/test/scala`, and a module that depends on the library for a dependency's symbol. Check the name against
+  `mcp__metals__list-modules` (once per session), since an unknown name is silently ignored.
+- `mcp__metals__inspect` needs a `fileInFocus` instead; see
+  [`docs/agents/metals-mcp-inspect-workaround.md`](docs/agents/metals-mcp-inspect-workaround.md).
 
 # Build
 
