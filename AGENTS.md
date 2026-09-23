@@ -42,7 +42,8 @@ Scala 3 and is built by using sbt 1.
 
 # Code Intelligence
 
-At the start of every conversation, check whether the Metals MCP is available by attempting to call
+At the start of every conversation, right after the development stack is confirmed running (step 1 of the
+[Warm-up](#warm-up), which must come first), check whether the Metals MCP is available by attempting to call
 `mcp__metals__list-modules`. If it is available, prefer its `mcp__metals__*` tools (symbol inspection, search,
 find-usages, source/docs retrieval, compilation, Coursier dependency lookup). See each tool's own description for
 parameters. If Metals MCP is not available, fall back to the usual CLI tools (`sbt`/`sbtn`, `rg`, `find`, `WebFetch`,
@@ -53,22 +54,19 @@ finding usages, and understanding class/trait hierarchy — the textual alternat
 same-named variable, follow overrides, or resolve imports. Use symbol search to reduce duplicated code by finding
 already implemented functionality. Use the read docs functionality to understand external code.
 
-## Symbol tool file focus
+## Symbol tool targets
 
-`mcp__metals__glob-search`, `mcp__metals__typed-glob-search`, `mcp__metals__inspect`, `mcp__metals__get-usages`,
-`mcp__metals__get-docs`, and `mcp__metals__get-source` need a `fileInFocus` parameter (`module` alone is not enough) and
-search only that target's classpath — so use a file from the symbol's owning module, or for project-wide scope the
-module with the broadest classpath. The representative files for project-wide searches are:
+`mcp__metals__glob-search` and `mcp__metals__typed-glob-search` search the whole workspace. The other symbol tools
+resolve the symbol on one build target and, without one or with one that lacks the symbol, silently return an empty
+result or "not found" (`mcp__metals__get-source` may even return an unrelated file):
 
-- `app` — covers `config`, `businessync`, `common`, `composition`, `intonation`, `format`, `sc-midi`, `tuner`, `ui`:
-  `app/src/main/scala/org/calinburloiu/music/microtonalist/MicrotonalistApp.scala`
-- `cli` — separate executable covering `sc-midi`; may contain symbols not in `app`:
-  `cli/src/main/scala/org/calinburloiu/music/microtonalist/cli/MicrotonalistToolApp.scala`
-- `experiments` — separate executable covering `intonation`; may contain symbols not in `app`:
-  `experiments/src/main/scala/org/calinburloiu/music/microtonalist/experiments/SoftChromaticGenusStudy.scala`
-
-For a project-wide search, query all three in parallel; use a lower-level module file only to intentionally scope to
-that module's classpath.
+- `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`: the
+  owning module, derived from the symbol's package with the "Packages" table in
+  [`docs/architecture/module-overview.md`](docs/architecture/module-overview.md). Use `<module>-test` for code under
+  `src/test/scala`, and a module that depends on the library for a dependency's symbol. Check the name against
+  `mcp__metals__list-modules` (once per session), since an unknown name is silently ignored.
+- `mcp__metals__inspect` needs a `fileInFocus` instead; see
+  [`docs/agents/metals-mcp-inspect-workaround.md`](docs/agents/metals-mcp-inspect-workaround.md).
 
 # Build
 
@@ -87,10 +85,11 @@ collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and
 At the start of every conversation, **once** per session:
 
 1. Detect the running stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is not
-   running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing.
-2. If the Metals MCP is available, run a full compile via `mcp__metals__compile-full` to warm up the Metals index. This
-   ensures SemanticDB is populated so that symbol resolution, find-usages, and other semantic tools work correctly from
-   the first query.
+   running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing. Do this before any Metals
+   MCP call, because the Metals MCP comes up with the stack.
+2. Check whether the Metals MCP is available (see [Code Intelligence](#code-intelligence)) and, if it is, run a full
+   compile via `mcp__metals__compile-full` to warm up the Metals index. This ensures SemanticDB is populated so that
+   symbol resolution, find-usages, and other semantic tools work correctly from the first query.
 
 ## Compiling
 
