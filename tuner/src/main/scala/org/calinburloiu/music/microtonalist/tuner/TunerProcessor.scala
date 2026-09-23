@@ -68,8 +68,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
    * It does not apply any tuning: the output plays in the tuning the tuner is left in by its reset.
    */
   def reset(): Unit = {
-    val initMessages = tuner.reset()
-    sendToReceivers(initMessages, -1)
+    val resetMessages = tuner.reset()
+    sendToReceivers(resetMessages, -1)
   }
 
   override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = tuner.process(message)
@@ -80,8 +80,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     // TODO #121 tuner.reset() mutates state shared by every receiver of this processor, not just the ones newly
     //  attached here. Harmless today because a multi-receiver TunerProcessor is only ever torn down and rebuilt as
     //  a whole (TrackManager.replaceAllTracks); revisit once a track can be rewired incrementally while running.
-    val initMessages = tuner.reset()
-    sendTo(receivers, initMessages, -1)
+    val resetMessages = tuner.reset()
+    sendTo(receivers, resetMessages, -1)
 
     logger.info(s"Attached the processor for tuner $tuner to ${receivers.size} new receiver(s).")
   }

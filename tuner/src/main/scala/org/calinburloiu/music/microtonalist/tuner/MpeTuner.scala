@@ -120,9 +120,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     stopNotesOn(buffer, AllChannels)
     _zones = initialZones
     _inputMode = initialInputMode
-    // Full re-initialization restores the Standard Tuning; an in-band Zone reconfiguration must not, since
-    // nothing in the paper sanctions discarding the performer's active Tuning.
-    _tuning = Tuning.Standard
     resetState()
     warnOnNonMpeInputWithBothZones()
     emitConfiguration(buffer)

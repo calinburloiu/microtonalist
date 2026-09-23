@@ -20,6 +20,7 @@ import java.io.Closeable
 import java.net.URI
 import scala.concurrent.Future
 
+// TODO #121 There should be a pending state while opening to avoid concurrent open requests
 trait OpenableSession extends Closeable {
   def open(uri: URI): Future[Unit]
 

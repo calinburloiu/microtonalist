@@ -65,7 +65,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def _resetState(): Unit = {
-    _currTuning = Tuning.Standard
     _pitchBendSensitivity = defaultPitchBendSensitivity
     tracker.reset()
     _lastSingleNote = 0

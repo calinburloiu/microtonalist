@@ -38,14 +38,11 @@ import javax.annotation.concurrent.ThreadSafe
  *                         the track is closed.
  * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
  *                         tuning change.
- * @param initMidiMessages MIDI messages sent into the pipeline right after it is built, typically to initialize the
- *                         output instrument.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,
             midiManager: MidiManager,
-            tuningService: TuningService,
-            initMidiMessages: Seq[MidiMsg] = Seq.empty) extends Runnable, AutoCloseable, StrictLogging {
+            tuningService: TuningService) extends Runnable, AutoCloseable, StrictLogging {
 
   private val inputDeviceHandle: Option[MidiDeviceHandle] = spec.input.collect {
     case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.openDevice(midiDeviceId, MidiDirection.Input)
@@ -68,11 +65,10 @@ class Track(val spec: TrackSpec,
   //  and that wiring is therefore lost to the tuner and the channel state tracker.
   inputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))
 
-  sendInitMidiMessages()
-
   def id: TrackSpec.Id = spec.id
 
-  // TODO #121 Implement Track#run
+  // TODO #121 Not implemented
+  // TODO #90 We probably need to remove this and `extends Runnable` if we make each `Track` a Pekko actor
   override def run(): Unit = {
     logger.warn("Track#run is not yet implemented!")
   }
@@ -165,15 +161,6 @@ class Track(val spec: TrackSpec,
 
     tuningChangeProcessor.foreach(_.reset())
     resetTuner()
-  }
-
-  // TODO #297 These reach the tuner only when the pipeline already has output receivers, which a track that feeds
-  //  another track does not have yet at this point; otherwise they are dropped without being processed. Unreachable
-  //  today, initMidiMessages having no caller that passes it.
-  private def sendInitMidiMessages(): Unit = {
-    for (message <- initMidiMessages) {
-      pipeline.receiver.send(message, -1)
-    }
   }
 }
 
