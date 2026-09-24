@@ -109,7 +109,12 @@ trait Tuner extends Plugin {
    * The state a tuner derives from its tuning must be reset as well, so that the [[onTune]] call that follows
    * rebuilds it.
    *
-   * @return the MIDI messages that should (re)configure the output device.
+   * A tuner that tracks what the output device plays must first stop it: it sends a Note Off for every note it has
+   * sounding and returns the controls that hold a state, such as the pedals, to their defaults, so that the output
+   * device is not left with hanging notes once the state tracking them is cleared.
+   *
+   * @return the MIDI messages that stop what the output device plays, if the tuner tracks it, followed by the ones
+   *         that should (re)configure the output device.
    */
   protected def onReset(): Seq[MidiMsg] = Seq.empty
 
