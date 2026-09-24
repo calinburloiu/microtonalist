@@ -119,6 +119,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     resetState()
     warnOnNonMpeInputWithBothZones()
     emitConfiguration(buffer)
+    emitMemberChannelDefaults(buffer)
 
     buffer.toSeq
   }
@@ -223,6 +224,19 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     emitZonePbsSequences(buffer, lowerZone)
     emitMcmSequence(buffer, upperZone)
     emitZonePbsSequences(buffer, upperZone)
+  }
+
+  /**
+   * Emits the default of each control dimension — Pitch Bend, CC #74 and Channel Pressure, in that order — on every
+   * Member Channel of both Zones. The allocators a reset recreates assume that the channels hold these defaults,
+   * whereas the receiver may still hold the values of the notes played before the reset.
+   */
+  private def emitMemberChannelDefaults(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    for (zone <- Seq(lowerZone, upperZone) if zone.isEnabled; channel <- zone.memberChannels) {
+      buffer += PitchBendMidiMsg(channel, MpeExpression.DefaultPitchBend)
+      buffer += CcMidiMsg(channel, MidiCc.MpeSlide, MpeExpression.DefaultSlide)
+      buffer += ChannelPressureMidiMsg(channel, MpeExpression.DefaultPressure)
+    }
   }
 
   /**
@@ -647,8 +661,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *
    * Each default is routed as if the input channel holding the value had sent it, under the current input mode and
    * Zones, so that it reaches exactly the output channel the value was forwarded to, once per output channel. The
-   * Pitch Bend of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control, and the
-   * Tuner emits the Pitch Bend of a Member Channel ahead of every note it allocates there.
+   * Pitch Bend of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control, and is
+   * left to [[emitMemberChannelDefaults]], which resets the output Member Channels themselves.
    */
   private def releaseForwardedControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
     val releases = for {

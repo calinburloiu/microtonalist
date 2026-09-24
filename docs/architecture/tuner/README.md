@@ -50,10 +50,10 @@ does not leave hanging notes. Implementations:
   pitch-class bend, and reconfigures zones on an MPE Configuration Message. Its reset sends a Note Off for every active
   note and returns the Pitch Bend and the Sustain and Sostenuto pedals forwarded to a Master Channel to their defaults
   — routing each default as if the input channel holding the value had sent it — before restating the configured
-  Zones; Member Channel Pitch Bend needs no reset, being emitted ahead of every note. `MpeZone*` models the zone layout,
-  while `MpeChannelAllocator` owns both note→channel allocation and the per-note *Expression Value* model —
-  `MpeNoteIdentity`, reference counting, the per-channel aggregate and its retention, and the change reporting
-  `MpeTuner` emits from.
+  Zones, and then sends the Pitch Bend, CC #74 and Channel Pressure defaults the new allocators assume on every Member
+  Channel, even CC #74 in Non-MPE Input Mode. `MpeZone*` models the zone layout, while `MpeChannelAllocator` owns
+  both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting, the
+  per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   Expression Pitch Bend is held in raw signed 14-bit units, exactly as received, and is reinterpreted rather than
   rescaled when the Member Channel Pitch Bend Sensitivity changes; the allocator classifies a High Expression Pitch Bend
   against a raw threshold `MpeTuner` injects through the constructor and re-injects through
