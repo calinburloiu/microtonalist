@@ -200,7 +200,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   /**
    * Clears internal channel-tracking state and recreates allocators from `currentZones`. Does not touch the active
-   * Tuning, which even a full re-initialization, `reset()`, keeps and restates.
+   * Tuning, which even a full reconfiguration, `reset()`, keeps and restates.
    */
   private def resetState(): Unit = {
     tracker.reset()
@@ -890,7 +890,7 @@ object MpeTuner {
   /** The number of MIDI channels. */
   private val MidiChannelCount: Int = 16
 
-  /** Every MIDI channel, the scope of the state reset performed by a full re-initialization. */
+  /** Every MIDI channel, the scope of the state reset performed by a full reconfiguration, `reset()`. */
   private val AllChannels: Set[Int] = (0 until MidiChannelCount).toSet
 
   /** The paper's High Expression Pitch Bend threshold `t`: an absolute pitch deviation of half a semitone. */

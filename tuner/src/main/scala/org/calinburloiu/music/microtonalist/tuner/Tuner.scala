@@ -30,13 +30,13 @@ import javax.annotation.concurrent.NotThreadSafe
  *
  * The flow is as follows:
  *
- *   - When the tuner starts to be used with a [[Track]], the [[reset]] method must initially be called to initialize
- *     or configure the output device to be used with this tuner configuration. For example, a [[Tuner]] based on
- *     pitch bend might want to set the right pitch bend sensitivity.
+ *   - When the tuner starts to be used with a [[Track]], the [[reset]] method must first be called to configure the
+ *     output device to be used with this tuner configuration. For example, a [[Tuner]] based on pitch bend might want
+ *     to set the right pitch bend sensitivity.
  *   - Whenever the current tuning changes, [[tune]] must be called with that tuning.
  *   - All MIDI messages that pass through the [[Track]] must go through the [[process]] method which will output the
  *     right MIDI messages according to the tuner's functionality and configuration.
- *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reinitialize it, while keeping
+ *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reconfigure it, while keeping
  *     its current [[tuning]]. For example, it may be called if the MIDI configuration of the output device was
  *     externally modified, and it needs to be reconfigured according to this tuner, or if the output device was
  *     turned off and on again. The method may also be called in case of a bug or issue for troubleshooting purposes
@@ -75,8 +75,8 @@ trait Tuner extends Plugin {
 
   /**
    * Resets the internal state of the tuner to its default / initial configuration, while keeping its current
-   * [[tuning]], and returns the MIDI messages that should configure / initialize the output device to be usable by
-   * this tuner, followed by the ones that tune it to the current tuning.
+   * [[tuning]], and returns the MIDI messages that should (re)configure the output device to be usable by this tuner,
+   * followed by the ones that tune it to the current tuning.
    *
    * This method ''must'' be called before using the tuner for the first time and the messages returned ''must'' be
    * sent to the output device to properly work with this tuner. For example, a tuner based on pitch bend requires
@@ -103,13 +103,13 @@ trait Tuner extends Plugin {
 
   /**
    * Resets the internal state of the tuner to its default / initial configuration and returns the MIDI messages that
-   * should configure / initialize the output device, as the first part of [[reset]], which then calls [[onTune]] with
-   * the current tuning.
+   * should (re)configure the output device, as the first part of [[reset]], which then calls [[onTune]] with the
+   * current tuning.
    *
    * The state a tuner derives from its tuning must be reset as well, so that the [[onTune]] call that follows
    * rebuilds it.
    *
-   * @return the MIDI messages that should configure / initialize the output device.
+   * @return the MIDI messages that should (re)configure the output device.
    */
   protected def onReset(): Seq[MidiMsg] = Seq.empty
 

@@ -101,7 +101,7 @@ change, calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`, fo
 `reset()` to each receiver newly **attached** to its transmitter, and restoring 12-EDO on each receiver being
 **detached** — not to be confused with the device being available or open, see
 [`midi-device-lifecycle.md`](../midi-device-lifecycle.md). `TunerProcessor.reset()` resets the tuner and sends its
-initialization messages, followed by its current tuning, to every current receiver, and `TuningChangeProcessor.reset()`
+configuration messages, followed by its current tuning, to every current receiver, and `TuningChangeProcessor.reset()`
 resets its tuning changers; `Track` calls both when its devices change.
 
 **Track and lifecycle.**
@@ -114,7 +114,7 @@ resets its tuning changers; `Track` calls both when its devices change.
     the device only once the last reference goes. It must detach because a released handle whose device is
     still available stays live and is the one a later track for that device gets: a closed track left attached would
     keep receiving and sending next to its replacement.
-  - `resetTuner()` re-initialises the output instrument and restores its current tuning, and `releaseInput()`
+  - `resetTuner()` reconfigures the output instrument and restores its current tuning, and `releaseInput()`
     silences it after its input device disappears (see [Device changes](#device-changes)).
 - `TrackSpec` / `TrackSpecs` are the declarative description of a track and an immutable, id-keyed ordered collection
   of them.

@@ -33,8 +33,8 @@ import javax.annotation.concurrent.NotThreadSafe
  * The primary responsibilities of this class include:
  * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receivers.
  * - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
- * - Properly resetting the tuner and sending initialization messages to each receiver that attaches.
- * - Resetting the tuner on request and sending the initialization messages to every receiver.
+ * - Properly resetting the tuner and sending the messages that configure the output to each receiver that attaches.
+ * - Resetting the tuner on request and sending the messages that reconfigure the output to every receiver.
  * - Restoring the default tuning and ensuring a clean state on each receiver that detaches.
  *
  * Sending is not guarded against exceptions here: a message that its device can no longer take should be dropped
@@ -62,7 +62,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   }
 
   /**
-   * Resets the tuner and sends the messages that initialize the output to every receiver of the transmitter, as a
+   * Resets the tuner and sends the messages that reconfigure the output to every receiver of the transmitter, as a
    * newly attached receiver gets them, e.g. when the output device (re)opens after the processor attached to it.
    *
    * The tuner's reset restates its current tuning, so the output plays in that tuning again.

@@ -73,7 +73,7 @@ For a `Track` the two directions are wired in opposite senses:
 `MidiProcessor` runs an **attach / detach protocol** over every change of its transmitter's receivers, calling
 `onDetach(removed)` before the change and `onAttach(added)` after it, with exactly the receivers the change affects,
 followed by `onReceiversChanged(all)`. `TunerProcessor` is the main client: it sends the tuner's `reset()` messages
-to each receiver that attaches, so an output instrument is initialised, and tuned to the tuner's current tuning, when
+to each receiver that attaches, so an output instrument is configured, and tuned to the tuner's current tuning, when
 it joins. It today also restores 12-EDO on each receiver that detaches, which [#305](#subject-to-change-305) moves onto
 the *close*, where it belongs. Only a `MidiProcessor`'s transmitter runs this protocol — a `MidiDeviceHandle`'s
 transmitter is a plain `ConcurrentMidiTransmitter`, so attaching to a device's input fires no hooks.
