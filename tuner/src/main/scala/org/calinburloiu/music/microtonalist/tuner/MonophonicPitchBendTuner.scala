@@ -58,9 +58,35 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private var _lastNoteOnVelocity = NoteOnMidiMsg.DefaultVelocity
   private var _lastNoteOffVelocity = NoteOffMidiMsg.DefaultVelocity
 
+  /**
+   * Stops what sounds on the output device before clearing the state that tracks it, so that the device is not left
+   * with a hanging note or a pedal down, and then resets its pitch bend and configures its pitch bend sensitivity.
+   *
+   * The pitch bend is reset to 0 whatever the output device holds, because the cleared state assumes that it holds no
+   * pitch bend, whereas it may still hold the one of the last note played.
+   */
   override protected def onReset(): Seq[MidiMsg] = {
+    val buffer = mutable.Buffer[MidiMsg]()
+    stopSounding(buffer)
     _resetState()
-    _init()
+
+    buffer += PitchBendMidiMsg(outputChannel, 0)
+    buffer ++= PitchBendSensitivityMessages.create(outputChannel, defaultPitchBendSensitivity)
+
+    buffer.toSeq
+  }
+
+  /** Stops the note sounding on the output device, if any, and releases the pedals that are down. */
+  private def stopSounding(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    // Only the last note held sounds, the previous ones having been stopped to keep playing monophonic
+    if (isAnyNoteOn) {
+      applyNoteOff(buffer, lastNote, _lastNoteOffVelocity)
+    }
+
+    for (pedal <- Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal)
+         if tracker.cc(trackedChannel, pedal, Some(0)) > 0) {
+      buffer += CcMidiMsg(outputChannel, pedal, 0)
+    }
   }
 
   private def _resetState(): Unit = {
@@ -73,9 +99,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     _lastNoteOnVelocity = NoteOnMidiMsg.DefaultVelocity
     _lastNoteOffVelocity = NoteOffMidiMsg.DefaultVelocity
   }
-
-  private def _init(): Seq[MidiMsg] = PitchBendSensitivityMessages.create(
-    outputChannel, defaultPitchBendSensitivity)
 
   override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
     // Only a changed value is marked for sending, so that a tuning which keeps the last note's offset sends nothing
