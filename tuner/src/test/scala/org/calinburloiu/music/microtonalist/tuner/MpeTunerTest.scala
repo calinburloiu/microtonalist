@@ -358,6 +358,74 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val noteChannel = extractNoteOns(output).head.channel
       extractPitchBendsWithCents(output) should contain((noteChannel, -14))
     }
+
+    // ---- Zone-level control release ----
+
+    "release the Sustain Pedal redirected to the Master Channel" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 0))
+    }
+
+    "release the Sostenuto Pedal redirected to the Master Channel" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SostenutoPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SostenutoPedal, 0))
+    }
+
+    "release a pedal held down on several input channels once" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      tuner.process(CcMidiMsg(nonMpeInputChannel + 1, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput).count(_ == CcMidiMsg(0, MidiCc.SustainPedal, 0)) shouldBe 1
+    }
+
+    "reset the Pitch Bend redirected to the Master Channel" in new Fixture(tuner7) {
+      // Given
+      pitchBendValue(nonMpeInputChannel, 1000)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractPitchBends(resetOutput) shouldEqual Seq(PitchBendMidiMsg(0, 0))
+    }
+
+    "not release the pedals nor reset the Pitch Bend back to their defaults" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 0))
+      pitchBendValue(nonMpeInputChannel, 1000)
+      pitchBendValue(nonMpeInputChannel, 0)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should not contain (CcMidiMsg(0, MidiCc.SustainPedal, 0))
+      extractPitchBends(resetOutput) shouldBe empty
+    }
+
+    "release the forwarded controls after stopping the notes and before configuring the Zones" in
+      new Fixture(tuner7) {
+        // Given
+        noteOn(nonMpeInputChannel, C4)
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        private val releaseIndex = resetOutput.indexOf(CcMidiMsg(0, MidiCc.SustainPedal, 0))
+        releaseIndex should be > resetOutput.indexWhere(_.isInstanceOf[NoteOffMidiMsg])
+        releaseIndex should be < resetOutput.indexWhere {
+          case CcMidiMsg(_, MidiCc.RpnLsb | MidiCc.RpnMsb, _) => true
+          case _ => false
+        }
+      }
   }
 
   "MpeTuner - reset() - MPE Input" should {
@@ -462,6 +530,63 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val noteChannel = extractNoteOns(output).head.channel
       extractPitchBendsWithCents(output) should contain((noteChannel, -14))
     }
+
+    // ---- Zone-level control release ----
+
+    "release the Sustain Pedal forwarded on the Master Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(0, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 0))
+    }
+
+    "release the Sostenuto Pedal forwarded on the Master Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(0, MidiCc.SostenutoPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SostenutoPedal, 0))
+    }
+
+    "release a pedal forwarded on the Upper Zone Master Channel" in new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(15, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(15, MidiCc.SustainPedal, 0))
+    }
+
+    "not release a pedal discarded on a Member Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput).filter(_.number == MidiCc.SustainPedal) shouldBe empty
+    }
+
+    "reset the Master Channel Pitch Bend" in new Fixture(tuner7MpeInput) {
+      // Given
+      pitchBendValue(0, 1000)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractPitchBends(resetOutput) shouldEqual Seq(PitchBendMidiMsg(0, 0))
+    }
+
+    "not reset the Pitch Bend of a Member Channel, emitted anew ahead of every note allocated there" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        pitchBendValue(mpeInputChannel, 1000)
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractPitchBends(resetOutput) shouldBe empty
+      }
   }
 
   "MpeTuner - tune() - Non-MPE Input" should {

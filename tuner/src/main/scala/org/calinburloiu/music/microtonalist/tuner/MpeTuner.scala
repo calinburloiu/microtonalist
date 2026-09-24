@@ -111,6 +111,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // Emit Note Off for every active note before switching input mode / zone layout,
     // so downstream receivers are never left with hanging notes (MPE spec Section 2.1.4).
     stopNotesOn(buffer, AllChannels)
+    releaseForwardedControls(buffer)
 
     _zones = initialZones
     _inputMode = initialInputMode
@@ -636,6 +637,45 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       } {
         buffer += NoteOffMidiMsg(zone.masterChannel, midiNote)
       }
+    }
+  }
+
+  /**
+   * Returns the controls forwarded to the output that the input left away from their defaults — the Pitch Bend and
+   * the Sustain and Sostenuto Pedals — to their defaults, so that the receiver does not keep them once a reset clears
+   * the tracker that records them.
+   *
+   * Each default is routed as if the input channel holding the value had sent it, under the current input mode and
+   * Zones, so that it reaches exactly the output channel the value was forwarded to, once per output channel. The
+   * Pitch Bend of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control, and the
+   * Tuner emits the Pitch Bend of a Member Channel ahead of every note it allocates there.
+   */
+  private def releaseForwardedControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    val releases = for {
+      channel <- 0 until MidiChannelCount
+      release <- releasesOfHeldControlsOn(channel)
+      outputChannel <- forwardingChannelOf(release)
+    } yield release.mapChannel(_ => outputChannel)
+
+    buffer ++= releases.distinct
+  }
+
+  /** The messages returning the Pitch Bend and the pedals the tracker holds away from their defaults on a channel. */
+  private def releasesOfHeldControlsOn(channel: Int): Seq[ChannelMidiMsg] = {
+    val pitchBendRelease = Option.when(tracker.pitchBend(channel) != 0)(PitchBendMidiMsg(channel, 0))
+    val pedalReleases = for {
+      pedal <- Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal) if tracker.cc(channel, pedal) > 0
+    } yield CcMidiMsg(channel, pedal, 0)
+
+    pitchBendRelease.toSeq ++ pedalReleases
+  }
+
+  /** The output channel a message received on its channel is forwarded to, if it is forwarded at all. */
+  private def forwardingChannelOf(message: ChannelMidiMsg): Option[Int] = {
+    val role = MpeMessageRouting.roleOf(_inputMode, _zones, message.channel)
+    MpeMessageRouting.route(role, message, RpnSelector.None) match {
+      case MpeRoutingVerdict.ForwardOn(outputChannel) => Some(outputChannel)
+      case _ => None
     }
   }
 
