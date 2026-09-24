@@ -44,11 +44,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   // single tracker slot. `outputChannel` is reused as that slot — it's already a valid 0..15 channel.
   private def trackedChannel: Int = outputChannel
 
-  /**
-   * The tuning [[_currTuningPitchBend]] is derived from, which follows the current [[tuning]]. A reset sets it back to
-   * 12-EDO along with the pitch bend, so that the [[onTune]] call restating the current tuning rebuilds the pitch bend.
-   */
-  private var _currTuning: Tuning = Tuning.Standard
   private var _pitchBendSensitivity: PitchBendSensitivity = defaultPitchBendSensitivity
 
   private val tracker: MidiChannelStateTracker = MidiChannelStateTracker()
@@ -69,7 +64,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   }
 
   private def _resetState(): Unit = {
-    _currTuning = Tuning.Standard
     _pitchBendSensitivity = defaultPitchBendSensitivity
     tracker.reset()
     _lastSingleNote = 0
@@ -84,7 +78,11 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     outputChannel, defaultPitchBendSensitivity)
 
   override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
-    currTuning = tuning
+    // Only a changed value is marked for sending, so that a tuning which keeps the last note's offset sends nothing
+    val newTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(tuning(lastNote.pitchClass), pitchBendSensitivity)
+    if (newTuningPitchBend != currTuningPitchBend) {
+      currTuningPitchBend = newTuningPitchBend
+    }
 
     // Update pitch bend for the current sounding note
     if (isAnyNoteOn) applyPitchBend().toSeq else Seq.empty
@@ -139,18 +137,6 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     tracker.send(normalized)
   }
 
-  private def currTuning: Tuning = _currTuning
-
-  private def currTuning_=(newTuning: Tuning): Unit = {
-    // Update currTuningPitchBend
-    val newOffset = newTuning(lastNote.pitchClass)
-    if (currTuning(lastNote.pitchClass) != newOffset) {
-      currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
-    }
-
-    _currTuning = newTuning
-  }
-
   private def isSettingPitchBendSensitivity: Boolean =
     tracker.rpnSelector(trackedChannel) == RpnMessages.PitchBendSensitivitySelector
 
@@ -174,7 +160,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (_pitchBendSensitivity != value) {
       _pitchBendSensitivity = value
       // Update currTuningPitchBend for the current note using the new sensitivity
-      val offset = currTuning(lastNote.pitchClass)
+      val offset = tuning(lastNote.pitchClass)
       currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(offset, _pitchBendSensitivity)
     }
   }
@@ -193,8 +179,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def turnNoteOn(buffer: mutable.Buffer[MidiMsg], note: MidiNote, velocity: Int,
                          prevLastNote: MidiNote): Unit = {
     // Update currTuningPitchBend by comparing against the tuning offset of the previously held note
-    val newOffset = currTuning(note.pitchClass)
-    if (currTuning(prevLastNote.pitchClass) != newOffset) {
+    val newOffset = tuning(note.pitchClass)
+    if (tuning(prevLastNote.pitchClass) != newOffset) {
       currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
     }
 
@@ -222,14 +208,14 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     if (prevNotes.nonEmpty && prevNotes.last == note && !tracker.isNoteActive(trackedChannel, note)) {
       applyNoteOff(buffer, note, velocity)
 
-      val oldOffset = currTuning(note.pitchClass)
+      val oldOffset = tuning(note.pitchClass)
       // The guard established that this Note Off discharged the note's last reference, so the post-update state no
       // longer holds it and can be read fresh
       val notesAfter = tracker.orderedActiveNotes(trackedChannel)
       // Play the next note from the previous one held down, if available
       if (notesAfter.nonEmpty) {
         val newLast = notesAfter.last
-        val newOffset = currTuning(newLast.pitchClass)
+        val newOffset = tuning(newLast.pitchClass)
         if (oldOffset != newOffset) {
           currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
         }
