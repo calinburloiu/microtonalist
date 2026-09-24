@@ -112,6 +112,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     // so downstream receivers are never left with hanging notes (MPE spec Section 2.1.4).
     stopNotesOn(buffer, AllChannels)
     releaseForwardedControls(buffer)
+    releaseMemberChannelControls(buffer)
 
     _zones = initialZones
     _inputMode = initialInputMode
@@ -119,7 +120,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     resetState()
     warnOnNonMpeInputWithBothZones()
     emitConfiguration(buffer)
-    emitMemberChannelDefaults(buffer)
 
     buffer.toSeq
   }
@@ -224,19 +224,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     emitZonePbsSequences(buffer, lowerZone)
     emitMcmSequence(buffer, upperZone)
     emitZonePbsSequences(buffer, upperZone)
-  }
-
-  /**
-   * Emits the default of each control dimension — Pitch Bend, CC #74 and Channel Pressure, in that order — on every
-   * Member Channel of both Zones. The allocators a reset recreates assume that the channels hold these defaults,
-   * whereas the receiver may still hold the values of the notes played before the reset.
-   */
-  private def emitMemberChannelDefaults(buffer: mutable.Buffer[MidiMsg]): Unit = {
-    for (zone <- Seq(lowerZone, upperZone) if zone.isEnabled; channel <- zone.memberChannels) {
-      buffer += PitchBendMidiMsg(channel, MpeExpression.DefaultPitchBend)
-      buffer += CcMidiMsg(channel, MidiCc.MpeSlide, MpeExpression.DefaultSlide)
-      buffer += ChannelPressureMidiMsg(channel, MpeExpression.DefaultPressure)
-    }
   }
 
   /**
@@ -661,8 +648,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    *
    * Each default is routed as if the input channel holding the value had sent it, under the current input mode and
    * Zones, so that it reaches exactly the output channel the value was forwarded to, once per output channel. The
-   * Pitch Bend of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control, and is
-   * left to [[emitMemberChannelDefaults]], which resets the output Member Channels themselves.
+   * Pitch Bend of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control; see
+   * [[releaseMemberChannelControls]] for the output Member Channels.
    */
   private def releaseForwardedControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
     val releases = for {
@@ -672,6 +659,33 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     } yield release.mapChannel(_ => outputChannel)
 
     buffer ++= releases.distinct
+  }
+
+  /**
+   * Returns CC #74 and Channel Pressure, in that order, to their defaults on each Member Channel where, as the
+   * allocators record, the Tuner left them at another value, so that the receiver does not keep them once a reset
+   * recreates the allocators, which assume the defaults. It runs before the reset restates the Zones, and so covers
+   * the Member Channels of the Zones in effect before it, those the restated Zones leave out included.
+   *
+   * Only what the Tuner itself sent is reset: values another source left on the receiver are not its responsibility.
+   * Pitch Bend needs no reset, being emitted ahead of every note allocated on a Member Channel.
+   */
+  private def releaseMemberChannelControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    // TODO #305 This relies on a tuner resetting its output when detached from it, which none does yet. Until then, a
+    //  tuner that preceded this one on the same output, e.g. before a tracks file was loaded, may leave values that
+    //  this one does not know about.
+    for {
+      alloc <- Seq(lowerAllocator, upperAllocator).flatten
+      channel <- currentZone(alloc).memberChannels
+    } {
+      val expression = alloc.channelExpression(channel)
+      if (expression.slide != MpeExpression.DefaultSlide) {
+        buffer += CcMidiMsg(channel, MidiCc.MpeSlide, MpeExpression.DefaultSlide)
+      }
+      if (expression.pressure != MpeExpression.DefaultPressure) {
+        buffer += ChannelPressureMidiMsg(channel, MpeExpression.DefaultPressure)
+      }
+    }
   }
 
   /** The messages returning the Pitch Bend and the pedals the tracker holds away from their defaults on a channel. */
