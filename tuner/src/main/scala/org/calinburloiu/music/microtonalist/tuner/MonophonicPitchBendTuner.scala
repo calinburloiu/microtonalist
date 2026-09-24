@@ -59,8 +59,10 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private var _lastNoteOffVelocity = NoteOffMidiMsg.DefaultVelocity
 
   /**
-   * Stops what sounds on the output device before clearing the state that tracks it, so that the device is not left
-   * with a hanging note or a pedal down, and then resets its pitch bend and configures its pitch bend sensitivity.
+   * @inheritdoc
+   *
+   * This tuner stops the note sounding, if any, and releases the Sustain and Sostenuto pedals left down. After
+   * clearing its state, it resets the pitch bend and configures the pitch bend sensitivity.
    *
    * The pitch bend is reset to 0 whatever the output device holds, because the cleared state assumes that it holds no
    * pitch bend, whereas it may still hold the one of the last note played.
