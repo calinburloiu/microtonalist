@@ -92,6 +92,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     // TODO #121 tuner.tune(Tuning.Standard) mutates state shared by every receiver of this processor, so it would
     //  also flip the tuning applied to the receivers that remain attached if this processor ever has more than one
     //  receiver left after a partial detach. See the onAttach TODO above for the same caveat on the other side.
+    // TODO #305 tuner.tune(Tuning.Standard) also makes 12-EDO the tuner's current tuning, which a later reset then
+    //  restates instead of the tuning the track is in. A read-only method rendering the 12-EDO messages replaces it.
     val standardTuningMessages = tuner.tune(Tuning.Standard)
     sendTo(receivers, standardTuningMessages, -1)
 

@@ -105,6 +105,8 @@ class Track(val spec: TrackSpec,
     // Removing the output device receiver makes the TunerProcessor send it the 12-EDO messages, so tuning afterwards
     // reaches only the receivers left, the tracks this one feeds.
     outputDeviceHandle.foreach(handle => transmitter.removeReceiver(handle.receiver))
+    // TODO #305 This also makes 12-EDO the tuner's current tuning. A read-only method rendering the 12-EDO messages
+    //  replaces it.
     tune(Tuning.Standard)
 
     spec.input.foreach {

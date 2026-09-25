@@ -275,12 +275,14 @@ These are signalled directly in the code:
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).
 - `TrackManager`'s `MidiEvent` handler runs on the publishing thread instead of the business thread (TODO #90).
+- `TunerProcessor.onDetach` and `Track.close()` send the courtesy 12-EDO messages through `tune(Tuning.Standard)`,
+  which also makes 12-EDO the tuner's current tuning, until #305 renders them with a read-only method (TODO #305).
+- `MpeTuner`'s reset returns only the Member Channel values it sent itself to their defaults, relying on a tuner
+  resetting its output when detached from it, which #305 is to add (TODO #305).
 
 Not signalled in the code yet: [#305](https://github.com/calinburloiu/microtonalist/issues/305) will make attaching
 and detaching a track input/output drive the open and close requests, and will tie the tuner reset and the courtesy
 12-EDO messages to the device actually opening and closing rather than to the wiring change alone — so an output that
 another track still holds open is left playing in its current tuning. It also makes `reset` restate the current
-configuration rather than the constructor one, and renders the courtesy 12-EDO messages with a read-only method:
-today `TunerProcessor.onDetach` and `Track.close()` send them through `tune(Tuning.Standard)`, which also makes 12-EDO
-the tuner's current tuning. See
+configuration rather than the constructor one. See
 [`midi-device-lifecycle.md`](../midi-device-lifecycle.md#subject-to-change-305).
