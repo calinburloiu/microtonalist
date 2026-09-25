@@ -99,10 +99,22 @@ trait Tuner extends Plugin with StrictLogging {
    * the output device to be configured with the correct pitch bend sensitivity. Because it restates the current
    * tuning, an output device that is reset after it (re)opens plays in that tuning again, not in 12-EDO.
    *
+   * The current tuning is restated even if [[canTune]] no longer accepts it once [[onReset]] returned the
+   * configuration to its default, which may decrease a limit of the tuner. The tuner then logs a warning and restates
+   * the tuning clamped to its limits.
+   *
    * @return the MIDI messages returned by [[onReset]], followed by the ones returned by [[onTune]] for the current
    *         tuning.
    */
-  final def reset(): Seq[MidiMsg] = onReset() ++ onTune(_tuning, None)
+  final def reset(): Seq[MidiMsg] = {
+    val resetMessages = onReset()
+    if (!canTune(_tuning)) {
+      logger.warn(s"""The "$typeName" tuner cannot tune exactly to $_tuning since its reset, so it restates it """ +
+        "clamped to its limits.")
+    }
+
+    resetMessages ++ onTune(_tuning, None)
+  }
 
   /**
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object, and stores

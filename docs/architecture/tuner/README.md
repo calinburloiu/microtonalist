@@ -44,7 +44,7 @@ whether it can apply a tuning exactly, without clamping, in its current configur
 `canTune` rejects: it logs a warning, keeps the current tuning and returns no messages, rather than throwing. A limit
 can still decrease after a tuning was accepted — a reset returning the Pitch Bend Sensitivity to its default, or an
 input RPN lowering it — and the tuner then clamps the offsets beyond it, so neither `onTune` nor `process` throws.
-Implementations:
+`reset` logs a warning when it restates a tuning it has to clamp. Implementations:
 
 - `MtsTuner` and its four octave variants (`MtsOctave{1,2}Byte{Non,}RealTimeTuner`) retune the instrument's pitch table
   in advance via a single MTS SysEx, so notes pass through untouched. The SysEx bytes are built by `MtsMessageGenerator`

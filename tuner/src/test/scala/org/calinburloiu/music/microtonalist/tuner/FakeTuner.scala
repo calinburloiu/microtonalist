@@ -27,12 +27,13 @@ import scala.collection.mutable
  * @param resetMessages    What its [[onReset]] returns, which a reset follows with the messages of the current tuning.
  * @param tuningMessages   What its [[onTune]] returns for each of these tunings; it returns nothing for any other.
  * @param processMessages  What [[process]] returns for each of these messages; it returns nothing for any other.
- * @param untunableTunings The tunings its [[canTune]] refuses; it accepts any other.
+ * @param untunableTunings The tunings its [[canTune]] refuses; it accepts any other. A test may change them to model
+ *                         a limit of the tuner that decreases after it accepted a tuning.
  */
 class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
                 tuningMessages: Map[Tuning, Seq[MidiMsg]] = Map.empty,
                 processMessages: Map[MidiMsg, Seq[MidiMsg]] = Map.empty,
-                untunableTunings: Set[Tuning] = Set.empty) extends Tuner {
+                var untunableTunings: Set[Tuning] = Set.empty) extends Tuner {
   override val typeName: String = "fake"
 
   private val _appliedTunings: mutable.Buffer[Tuning] = mutable.ArrayBuffer()
