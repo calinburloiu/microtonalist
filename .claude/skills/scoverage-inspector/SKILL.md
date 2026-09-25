@@ -75,8 +75,8 @@ Deduplicate the resulting set of `(module, fqn)` pairs.
 
 **If `rg` returns more than one file** (two same-named declarations in different packages/modules),
 disambiguate by the class's package: keep the file whose `src/main/scala/<…>` path matches the FQN's
-package. If you need Metals to confirm a symbol resolves, `mcp__metals__get-usages` (with a
-project-wide `fileInFocus`; see the root `CLAUDE.md` "Symbol tool file focus" section) lists
+package. If you need Metals to confirm a symbol resolves, `mcp__metals__get-usages` (with `module`
+set to the class's module; see the root `CLAUDE.md` "Symbol tool targets" section) lists
 reference paths rooted at their module directories — the definition is the `src/main` entry in the
 class's own package.
 
