@@ -693,7 +693,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   /** The messages releasing the pedals the tracker holds down on a channel. */
   private def pedalReleasesOn(channel: Int): Seq[ChannelMidiMsg] = for {
-    pedal <- Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal) if tracker.cc(channel, pedal) > 0
+    pedal <- Tuner.NoteHoldingPedals if tracker.cc(channel, pedal) > 0
   } yield CcMidiMsg(channel, pedal, 0)
 
   /** The message returning the Pitch Bend the tracker holds on a channel to its center, if it is away from it. */

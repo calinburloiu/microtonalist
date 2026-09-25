@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.microtonalist.tuner.Tuner.FamilyName
 import org.calinburloiu.music.scmidi.MidiDeviceId
-import org.calinburloiu.music.scmidi.message.MidiMsg
+import org.calinburloiu.music.scmidi.message.{MidiCc, MidiMsg}
 
 import javax.annotation.concurrent.NotThreadSafe
 
@@ -156,4 +156,10 @@ trait Tuner extends Plugin {
 
 object Tuner {
   val FamilyName: String = "tuner"
+
+  /**
+   * The pedals that keep notes sounding after their Note Off, Sustain and Sostenuto, which a tuner that tracks them
+   * releases on reset.
+   */
+  private[tuner] val NoteHoldingPedals: Seq[Int] = Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal)
 }

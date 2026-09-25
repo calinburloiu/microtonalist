@@ -85,8 +85,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       applyNoteOff(buffer, lastNote, _lastNoteOffVelocity)
     }
 
-    for (pedal <- Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal)
-         if tracker.cc(trackedChannel, pedal, Some(0)) > 0) {
+    for (pedal <- Tuner.NoteHoldingPedals if tracker.cc(trackedChannel, pedal, Some(0)) > 0) {
       buffer += CcMidiMsg(outputChannel, pedal, 0)
     }
   }
