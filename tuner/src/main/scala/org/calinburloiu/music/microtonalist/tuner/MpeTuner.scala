@@ -128,8 +128,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     val buffer = mutable.Buffer[MidiMsg]()
 
     // Update pitch bend on all occupied member channels
-    lowerAllocator.foreach(updateTuningOnZone(buffer, _))
-    upperAllocator.foreach(updateTuningOnZone(buffer, _))
+    lowerAllocator.foreach(updateTuningOnZone(buffer, _, tuning))
+    upperAllocator.foreach(updateTuningOnZone(buffer, _, tuning))
 
     buffer.toSeq
   }
@@ -276,7 +276,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // note of a different pitch class and has missed every tune() that ran while it was empty. A
       // duplicate Note On changes nothing at all, so it is emitted alone.
       if (!result.isDuplicate) {
-        emitPitchBend(buffer, outChannel, alloc)
+        emitPitchBend(buffer, outChannel, alloc, tuning)
       }
       emitSlide(buffer, outChannel, result.update)
       emitPressure(buffer, outChannel, result.update)
@@ -324,7 +324,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
           buffer += NoteOffMidiMsg(outChannel, midiNote, velocity)
 
-          if (result.update.pitchBend.isDefined) emitPitchBend(buffer, outChannel, alloc)
+          if (result.update.pitchBend.isDefined) emitPitchBend(buffer, outChannel, alloc, tuning)
           emitSlide(buffer, outChannel, result.update)
           if (!result.pressureWasReset) emitPressure(buffer, outChannel, result.update)
 
@@ -779,7 +779,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def emitExpressionUpdate(buffer: mutable.Buffer[MidiMsg], channel: Int,
                                    update: MpeExpressionUpdate, alloc: MpeChannelAllocator): Unit = {
-    if (update.pitchBend.isDefined) emitPitchBend(buffer, channel, alloc)
+    if (update.pitchBend.isDefined) emitPitchBend(buffer, channel, alloc, tuning)
     emitSlide(buffer, channel, update)
     emitPressure(buffer, channel, update)
   }
@@ -839,7 +839,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def emitZoneConfigurationResult(buffer: mutable.Buffer[MidiMsg], result: MpeExpressionUpdateResult,
                                           alloc: MpeChannelAllocator): Unit = {
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, DropReason.OnMemberPbsChange))
-    updateTuningOnZone(buffer, alloc)
+    updateTuningOnZone(buffer, alloc, tuning)
     result.channelUpdates.foreach { channelUpdate =>
       emitSlide(buffer, channelUpdate.channel, channelUpdate.update)
       emitPressure(buffer, channelUpdate.channel, channelUpdate.update)
@@ -847,11 +847,12 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Emits a Pitch Bend message for a channel based on the current tuning offset, if the channel has active notes.
-   * The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone type.
+   * Emits a Pitch Bend message for a channel based on the offset `tuning` gives its pitch class, if the channel has
+   * active notes. The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone
+   * type.
    */
   private def emitPitchBend(buffer: mutable.Buffer[MidiMsg], channel: Int,
-                            alloc: MpeChannelAllocator): Unit = {
+                            alloc: MpeChannelAllocator, tuning: Tuning): Unit = {
     val zone = currentZone(alloc)
     alloc.channelPitchClass(channel).foreach { pc =>
       val tuningOffset = tuning(pc)
@@ -861,11 +862,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   private def updateTuningOnZone(buffer: mutable.Buffer[MidiMsg],
-                                 alloc: MpeChannelAllocator): Unit = {
+                                 alloc: MpeChannelAllocator, tuning: Tuning): Unit = {
     val zone = currentZone(alloc)
     // Only occupied channels have a pitch class assigned
     for (ch <- zone.memberChannels) {
-      emitPitchBend(buffer, ch, alloc)
+      emitPitchBend(buffer, ch, alloc, tuning)
     }
   }
 
