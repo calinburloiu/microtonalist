@@ -134,7 +134,17 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     buffer.toSeq
   }
 
-  override def canTune(tuning: Tuning): Boolean = true
+  /**
+   * @inheritdoc
+   *
+   * This tuner can tune a tuning whose offsets are all within the Member Pitch Bend Sensitivity of each enabled Zone,
+   * which an MPE Configuration Message, a Pitch Bend Sensitivity RPN received on a Member Channel or a reset may
+   * change. It clamps an offset of the current tuning that a later change leaves beyond the sensitivity.
+   */
+  override def canTune(tuning: Tuning): Boolean = Seq(lowerZone, upperZone).filter(_.isEnabled).forall { zone =>
+    val maxOffset = zone.memberPitchBendSensitivity.totalCents
+    tuning.offsets.forall(offset => Math.abs(offset) <= maxOffset)
+  }
 
   override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()

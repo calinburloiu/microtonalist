@@ -112,6 +112,9 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
   )
   //@formatter:on
 
+  /** A tuning whose offsets are all 0, except for B, which has the given one. */
+  private def tuningWithB(offset: Double): Tuning = Tuning.fromOffsets(s"B = $offset", Seq.fill(11)(0.0) :+ offset)
+
   /** Neither Zone enabled, so that no channel is under any Zone's control. */
   private val noZones: MpeZones = MpeZones(MpeZone(MpeZoneType.Lower, 0), MpeZone(MpeZoneType.Upper, 0))
 
@@ -899,6 +902,42 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // C5 shares pitch class C, so same offset
         pbByChannel(chC5) shouldBe 0
       }
+
+    // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
+
+    "accept a tuning on the bounds of the Member Pitch Bend Sensitivity" in new Fixture {
+      // Given
+      private val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-4800.0, 4800.0)).flatten)
+
+      // When / Then
+      tuner.canTune(tuning) shouldBe true
+    }
+
+    "refuse a tuning with an offset beyond the Member Pitch Bend Sensitivity" in new Fixture {
+      // When / Then
+      tuner.canTune(tuningWithB(4800.01)) shouldBe false
+      tuner.canTune(tuningWithB(-4800.01)) shouldBe false
+    }
+
+    "refuse a tuning beyond the Member Pitch Bend Sensitivity of either enabled Zone" in new Fixture(MpeTuner(
+      initialZones = MpeZones(
+        MpeZone(MpeZoneType.Lower, 7),
+        MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+      )
+    )) {
+      // When / Then
+      tuner.canTune(tuningWithB(150.0)) shouldBe false
+    }
+
+    "ignore the Member Pitch Bend Sensitivity of a disabled Zone" in new Fixture(MpeTuner(
+      initialZones = MpeZones(
+        MpeZone(MpeZoneType.Lower, 7),
+        MpeZone(MpeZoneType.Upper, 0, memberPitchBendSensitivity = PitchBendSensitivity(1))
+      )
+    )) {
+      // When / Then
+      tuner.canTune(tuningWithB(150.0)) shouldBe true
+    }
   }
 
   "MpeTuner - tune() - MPE Input" should {
@@ -995,6 +1034,20 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         pitchBends should have size 1
         pitchBends.head.channel shouldBe activeChannel
         pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
+      }
+
+    // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
+
+    "refuse a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS lowered" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        tuner.canTune(tuningWithB(150.0)) shouldBe true
+
+        // When
+        sendPbsMsb(tuner, channel = 1, semitones = 1)
+
+        // Then
+        tuner.canTune(tuningWithB(150.0)) shouldBe false
       }
   }
 
@@ -1257,8 +1310,9 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         extractPitchBends(outG).head.cents shouldEqual -3.0
       }
 
-    "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
-      // Use a small PBS (2 semitones = 200 cents) so that a large tuning offset exceeds the range
+    "clamp pitch bend to valid range when a reset lowers the Member PBS below a tuning offset" in {
+      // Use a small initial PBS (2 semitones = 200 cents), which a reset restores after an MCM raised it to the
+      // default one, so that a large tuning offset the tuner accepted exceeds the range
       val smallPbs = PitchBendSensitivity(2)
       val smallPbsTuner = MpeTuner(
         initialZones = MpeZones(
@@ -1269,7 +1323,9 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       new Fixture(smallPbsTuner) {
         // B: exceeds ±200 cents PBS range
         private val extremeTuning = Tuning("extreme", b = Some(500.0))
+        sendMcm(tuner, channel = 0, memberCount = 15)
         tuner.tune(extremeTuning)
+        tuner.reset()
 
         // B should be clamped to max pitch bend value
         private val outB = noteOn(nonMpeInputChannel, MidiNote.B4)
@@ -1417,18 +1473,16 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         extractPitchBends(outG).head.cents shouldEqual -3.0
       }
 
-    "clamp pitch bend to valid range when tuning offset exceeds PBS" in {
+    "clamp pitch bend to valid range when a Member Channel PBS lowers the Member PBS below a tuning offset" in {
       val smallPbs = PitchBendSensitivity(2)
-      val smallPbsTuner = MpeTuner(
-        initialZones = MpeZones(
-          MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = smallPbs),
-          MpeZone(MpeZoneType.Upper, 0)
-        ),
+      val tuner15MpeInput = MpeTuner(
+        initialZones = MpeZones(MpeZone(MpeZoneType.Lower, 15), MpeZone(MpeZoneType.Upper, 0)),
         initialInputMode = MpeInputMode.Mpe
       )
-      new Fixture(smallPbsTuner) {
+      new Fixture(tuner15MpeInput) {
         private val extremeTuning = Tuning("extreme", b = Some(500.0))
         tuner.tune(extremeTuning)
+        sendPbsMsb(tuner, channel = 1, semitones = smallPbs.semitones)
 
         private val outB = noteOn(1, MidiNote.B4)
         private val pbB = extractPitchBends(outB).head
