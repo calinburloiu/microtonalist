@@ -112,7 +112,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     // Only a changed value is marked for sending, so that a tuning which keeps the last note's offset sends nothing
-    val newTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(tuning(lastNote.pitchClass), pitchBendSensitivity)
+    val newTuningPitchBend = tuningPitchBendOf(tuning(lastNote.pitchClass))
     if (newTuningPitchBend != currTuningPitchBend) {
       currTuningPitchBend = newTuningPitchBend
     }
@@ -194,9 +194,12 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
       _pitchBendSensitivity = value
       // Update currTuningPitchBend for the current note using the new sensitivity
       val offset = tuning(lastNote.pitchClass)
-      currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(offset, _pitchBendSensitivity)
+      currTuningPitchBend = tuningPitchBendOf(offset)
     }
   }
+
+  /** The Pitch Bend that tunes a note by the given tuning offset, in the current pitch bend sensitivity. */
+  private def tuningPitchBendOf(offset: Double): Int = PitchBendMidiMsg.convertCentsToValue(offset, pitchBendSensitivity)
 
   private def lastNote: MidiNote =
     tracker.orderedActiveNotes(trackedChannel).lastOption.getOrElse(_lastSingleNote)
@@ -214,7 +217,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     // Update currTuningPitchBend by comparing against the tuning offset of the previously held note
     val newOffset = tuning(note.pitchClass)
     if (tuning(prevLastNote.pitchClass) != newOffset) {
-      currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
+      currTuningPitchBend = tuningPitchBendOf(newOffset)
     }
 
     interruptPedals(buffer)
@@ -250,7 +253,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
         val newLast = notesAfter.last
         val newOffset = tuning(newLast.pitchClass)
         if (oldOffset != newOffset) {
-          currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
+          currTuningPitchBend = tuningPitchBendOf(newOffset)
         }
 
         interruptPedals(buffer)
