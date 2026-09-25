@@ -27,14 +27,19 @@ import scala.collection.mutable
  * @param resetMessages    What its [[onReset]] returns, which a reset follows with the messages of the current tuning.
  * @param tuningMessages   What its [[onTune]] returns for each of these tunings; it returns nothing for any other.
  * @param processMessages  What [[process]] returns for each of these messages; it returns nothing for any other.
- * @param untunableTunings The tunings its [[canTune]] rejects; it accepts any other. A test may change them to model
- *                         a limit of the tuner that decreases after it applied a tuning.
+ * @param untunableTunings           The tunings its [[canTune]] rejects; it accepts any other.
+ * @param untunableTuningsAfterReset `Some` tunings its [[canTune]] rejects instead once its [[onReset]] ran, which
+ *                                   models a reset that changes a limit of the tuner, or `None` to keep rejecting
+ *                                   `untunableTunings`.
  */
 class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
                 tuningMessages: Map[Tuning, Seq[MidiMsg]] = Map.empty,
                 processMessages: Map[MidiMsg, Seq[MidiMsg]] = Map.empty,
-                var untunableTunings: Set[Tuning] = Set.empty) extends Tuner {
+                untunableTunings: Set[Tuning] = Set.empty,
+                untunableTuningsAfterReset: Option[Set[Tuning]] = None) extends Tuner {
   override val typeName: String = "fake"
+
+  private var _untunableTunings: Set[Tuning] = untunableTunings
 
   private val _appliedTunings: mutable.Buffer[Tuning] = mutable.ArrayBuffer()
   private val _previousTunings: mutable.Buffer[Option[Tuning]] = mutable.ArrayBuffer()
@@ -49,9 +54,12 @@ class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
   /** The messages passed to [[process]] so far, in order. */
   def processedMessages: Seq[MidiMsg] = _processedMessages.toSeq
 
-  override def canTune(tuning: Tuning): Boolean = !untunableTunings.contains(tuning)
+  override def canTune(tuning: Tuning): Boolean = !_untunableTunings.contains(tuning)
 
-  override protected def onReset(): Seq[MidiMsg] = resetMessages
+  override protected def onReset(): Seq[MidiMsg] = {
+    untunableTuningsAfterReset.foreach { tunings => _untunableTunings = tunings }
+    resetMessages
+  }
 
   override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     _appliedTunings += tuning

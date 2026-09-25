@@ -31,7 +31,7 @@ class TunerTest extends AnyWordSpec with Matchers {
   private val justCRastMessage: MidiMsg = PitchBendMidiMsg(0, 200)
   private val justDUssakMessage: MidiMsg = PitchBendMidiMsg(0, 300)
 
-  private abstract class Fixture {
+  private abstract class Fixture(untunableTuningsAfterReset: Option[Set[Tuning]] = None) {
     val tuner: FakeTuner = FakeTuner(
       resetMessages = Seq(resetMessage),
       tuningMessages = Map(
@@ -40,7 +40,8 @@ class TunerTest extends AnyWordSpec with Matchers {
         TestTunings.justCRast -> Seq(justCRastMessage),
         TestTunings.justDUssak -> Seq(justDUssakMessage)
       ),
-      untunableTunings = Set(TestTunings.justDUssak)
+      untunableTunings = Set(TestTunings.justDUssak),
+      untunableTuningsAfterReset = untunableTuningsAfterReset
     )
   }
 
@@ -143,33 +144,47 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCMaj
     }
 
-    "restate a tuning it can no longer tune exactly when reset" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-      tuner.untunableTunings = Set(TestTunings.justCMaj)
+    "restate a tuning it can no longer tune exactly when reset" in
+      new Fixture(untunableTuningsAfterReset = Some(Set(TestTunings.justCMaj))) {
+        // Given
+        tuner.tune(TestTunings.justCMaj)
 
-      // When
-      private val output = tuner.reset()
+        // When
+        private val output = tuner.reset()
 
-      // Then
-      output shouldEqual Seq(resetMessage, justCMajMessage)
-    }
-
-    "warn when reset to a tuning it can no longer tune exactly" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-      tuner.untunableTunings = Set(TestTunings.justCMaj)
-
-      // When
-      private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
-        tuner.reset()
+        // Then
+        output shouldEqual Seq(resetMessage, justCMajMessage)
       }
 
-      // Then
-      events.messagesAt(Level.WARN) shouldEqual Seq(
-        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justCMaj}, so it clamps it to its limits."""
-      )
-    }
+    "warn when its reset lowers a limit below the tuning it restates" in
+      new Fixture(untunableTuningsAfterReset = Some(Set(TestTunings.justCMaj))) {
+        // Given
+        tuner.tune(TestTunings.justCMaj)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+          tuner.reset()
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldEqual Seq(
+          s"""The "fake" tuner cannot tune exactly to ${TestTunings.justCMaj}, so it clamps it to its limits."""
+        )
+      }
+
+    "not warn when its reset raises a limit above the tuning it restates" in
+      new Fixture(untunableTuningsAfterReset = Some(Set.empty)) {
+        // Given
+        tuner.tune(TestTunings.justDUssak)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+          tuner.reset()
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldBe empty
+      }
 
     "not warn when reset to a tuning it can tune" in new Fixture {
       // Given
