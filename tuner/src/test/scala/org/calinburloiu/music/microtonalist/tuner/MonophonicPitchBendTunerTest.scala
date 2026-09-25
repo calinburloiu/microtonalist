@@ -806,7 +806,9 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       inside(midiOutput(4)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
       inside(midiOutput(5)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
     }
+  }
 
+  "MonophonicPitchBendTuner when the input changes the pitch bend sensitivity" should {
     "change pitch bend sensitivity via MIDI RPN messages" in new Fixture {
       tuner.tune(customTuning)
 

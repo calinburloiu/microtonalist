@@ -45,8 +45,8 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
   def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double],
-                   tuning: Tuning = tuning): Unit = {
-    val sysExMessage = messageGenerator.generate(tuning)
+                   generatedTuning: Tuning = tuning): Unit = {
+    val sysExMessage = messageGenerator.generate(generatedTuning)
     val data = sysExMessage.data.toArray
     data.head shouldEqual SysExMidiMsg.StatusByte
     data.last shouldEqual SysExMidiMsg.EndOfExclusiveByte

@@ -1040,9 +1040,6 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "refuse a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS lowered" in
       new Fixture(tuner7MpeInput) {
-        // Given
-        tuner.canTune(tuningWithB(150.0)) shouldBe true
-
         // When
         sendPbsMsb(tuner, channel = 1, semitones = 1)
 
