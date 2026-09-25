@@ -92,13 +92,17 @@ trait Tuner extends Plugin {
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object, and stores
    * it as the current [[tuning]], such that MIDI notes passed via [[process]] method will be played in that tuning.
    *
+   * The tuning is stored only once [[onTune]] returns, so a tuning the tuner fails to apply, for which it throws,
+   * leaves the current one in place, and a later [[reset]] restates the latter.
+   *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
    * @return the MIDI messages returned by [[onTune]] for the tuning.
    */
   final def tune(tuning: Tuning): Seq[MidiMsg] = {
+    val messages = onTune(tuning)
     _tuning = tuning
-    onTune(tuning)
+    messages
   }
 
   /**
@@ -123,8 +127,9 @@ trait Tuner extends Plugin {
    * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be
    * played in that tuning.
    *
-   * It is called by [[tune]], after the tuning becomes the current [[tuning]], and by [[reset]] to restate the
-   * current tuning.
+   * It is called by [[tune]], before the tuning becomes the current [[tuning]], and by [[reset]] to restate the
+   * current tuning. Implementations must therefore tune to the `tuning` argument rather than read [[tuning]], and
+   * must throw before changing any state if they cannot apply it, so that the tuner is left in the current tuning.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.

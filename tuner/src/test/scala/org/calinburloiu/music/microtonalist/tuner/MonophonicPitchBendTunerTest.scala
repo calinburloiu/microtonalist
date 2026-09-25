@@ -49,6 +49,8 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
   )
   //@formatter:on
   private val customTuning2 = Tuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
+  /** Beyond the reach of [[semitonePitchBendSensitivity]] on every pitch class. */
+  private val tuningBeyondASemitone = Tuning.fromOffsets("beyond a semitone", Seq.fill(12)(150.0))
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
     noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4.number until MidiNote.C5.number
@@ -330,6 +332,21 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
         case Seq(NoteOffMidiMsg(_, note, _), CcMidiMsg(_, MidiCc.SustainPedal, 0), PitchBendMidiMsg(_, 0)) =>
           note.number shouldEqual noteDSharp4
       }
+    }
+
+    "stop the sounding note and keep the current tuning after failing to apply a tuning beyond the pitch bend " +
+      "sensitivity" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+      an[IllegalArgumentException] should be thrownBy tuner.tune(tuningBeyondASemitone)
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4 }
+      tuner.tuning shouldEqual customTuning
     }
   }
 

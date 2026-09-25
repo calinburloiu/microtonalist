@@ -34,7 +34,8 @@ class TunerTest extends AnyWordSpec with Matchers {
         Tuning.Standard -> Seq(standardTuningMessage),
         TestTunings.justCMaj -> Seq(justCMajMessage),
         TestTunings.justCRast -> Seq(justCRastMessage)
-      )
+      ),
+      rejectedTunings = Set(TestTunings.justDUssak)
     )
   }
 
@@ -61,6 +62,17 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCRast
     }
 
+    "keep its current tuning when it fails to apply a new one" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      an[IllegalArgumentException] should be thrownBy tuner.tune(TestTunings.justDUssak)
+
+      // Then
+      tuner.tuning shouldEqual TestTunings.justCMaj
+    }
+
     "restate its current tuning after its reset messages when reset" in new Fixture {
       // Given
       tuner.tune(TestTunings.justCMaj)
@@ -82,6 +94,18 @@ class TunerTest extends AnyWordSpec with Matchers {
 
       // Then
       tuner.tuning shouldEqual TestTunings.justCMaj
+    }
+
+    "restate the tuning it kept when reset after failing to apply a new one" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+      an[IllegalArgumentException] should be thrownBy tuner.tune(TestTunings.justDUssak)
+
+      // When
+      private val output = tuner.reset()
+
+      // Then
+      output shouldEqual Seq(resetMessage, justCMajMessage)
     }
 
     "restate the Standard Tuning when reset before being tuned" in new Fixture {
