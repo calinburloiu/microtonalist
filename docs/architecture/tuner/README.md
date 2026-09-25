@@ -59,8 +59,8 @@ Implementations:
   Sensitivity.
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
   pitch-class bend, and reconfigures zones on an MPE Configuration Message. It can tune the offsets within the Member
-  Pitch Bend Sensitivity of each enabled Zone. Its reset sends a Note Off for every active
-  note and returns the Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their
+  Pitch Bend Sensitivity of each enabled Zone. Its reset sends a Note Off for every active note and returns the
+  Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their
   defaults — routing each default as if the input channel holding the value had sent it, and releasing the pedals
   first so that the notes they hold stop before their pitch changes — and CC #74 and Channel Pressure on
   each Member Channel where the allocators record another value, before restating the configured Zones. It resets only

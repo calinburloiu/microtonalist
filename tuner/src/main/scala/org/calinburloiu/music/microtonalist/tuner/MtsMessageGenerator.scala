@@ -31,8 +31,8 @@ import scala.collection.immutable.ArraySeq
  */
 trait MtsMessageGenerator {
   /**
-   * Tells whether [[generate]] can encode every offset of the given tuning exactly, without clamping it to the range
-   * of a tuning value in the message.
+   * Tells whether [[generate]] can encode every offset of the given tuning without clamping it to the range of a
+   * tuning value in the message. An offset within that range is still rounded to the resolution of the form.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
@@ -79,8 +79,6 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
   private val canEncodeTuningValue: Double => Boolean =
     if (isIn2ByteForm) canEncode2ByteTuningValue else canEncode1ByteTuningValue
 
-  override def canEncode(tuning: Tuning): Boolean = tuning.offsets.forall(canEncodeTuningValue)
-
   private val headerBytes: Array[Byte] = Array(
     SysExMidiMsg.StatusByte,
     realTimeByte,
@@ -88,6 +86,8 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     HeaderByte_Mts,
     form
   )
+
+  override def canEncode(tuning: Tuning): Boolean = tuning.offsets.forall(canEncodeTuningValue)
 
   override def generate(tuning: Tuning): SysExMidiMsg = {
     val buffer = ByteBuffer.allocate(byteCount)

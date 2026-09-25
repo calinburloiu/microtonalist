@@ -44,8 +44,8 @@ import javax.annotation.concurrent.NotThreadSafe
  *     turned off and on again. The method may also be called in case of a bug or issue for troubleshooting purposes
  *     to reset the system state.
  *
- * Implementations provide [[onReset]] and [[onTune]], which the final [[reset]] and [[tune]] delegate to, so that
- * every tuner keeps its current tuning and restates it on reset.
+ * Implementations provide [[canTune]], [[onReset]] and [[onTune]], which the final [[reset]] and [[tune]] delegate
+ * to, so that every tuner keeps its current tuning and restates it on reset.
  *
  * @see [[TunerProcessor]] a class that uses a [[Tuner]] instance and adds the necessary I/O operations to be able to
  *      actually tune a device.
@@ -76,10 +76,10 @@ trait Tuner extends Plugin with StrictLogging {
   final def tuning: Tuning = _tuning
 
   /**
-   * Tells whether this tuner can apply the given tuning exactly, without clamping any of its offsets, in its current
-   * configuration. Tuners have different limits, such as the range of a tuning value in an MTS message or the Pitch
-   * Bend Sensitivity of a tuner based on Pitch Bend, and some of these limits may change as the tuner processes
-   * messages.
+   * Tells whether this tuner can apply the given tuning exactly, within the resolution of its protocol and without
+   * clamping any of its offsets, in its current configuration. Tuners have different limits, such as the range of a
+   * tuning value in an MTS message or the Pitch Bend Sensitivity of a tuner based on Pitch Bend, and some of these
+   * limits may change as the tuner processes messages.
    *
    * [[tune]] refuses a tuning for which this returns `false`.
    *
@@ -152,15 +152,19 @@ trait Tuner extends Plugin with StrictLogging {
    * It is called by [[tune]], after the tuning becomes the current [[tuning]], only for a tuning that [[canTune]]
    * accepts, and by [[reset]] to restate the current tuning. Implementations tune to the `tuning` argument.
    *
+   * A limit of the tuner may decrease after [[tune]] accepted a tuning, for example when [[onReset]] returns a Pitch
+   * Bend Sensitivity to its default, so the tuning that [[reset]] restates may no longer be one that [[canTune]]
+   * accepts. Implementations must then clamp the offsets beyond the limit rather than throw, as they must whenever a
+   * limit decreases below an offset of the current tuning.
+   *
    * An implementation that sends only what changed from `previousTuning` must send the whole tuning when it is
    * `None`: [[reset]] restates the tuning to an output device whose tuning is unknown, for example because it was
    * turned off and on again.
    *
    * @param tuning         The tuning instance that specifies the offset in cents for each of the 12 pitch classes in
    *                       the octave.
-   * @param previousTuning The tuning the output instrument was tuned to before this call: `Some` tuning the tuner was
-   *                       in when called by [[tune]], or `None` when called by [[reset]], after which the tuning of
-   *                       the output instrument is unknown.
+   * @param previousTuning `Some` tuning the tuner was in before this call when called by [[tune]], or `None` when
+   *                       called by [[reset]], after which the tuning of the output instrument is unknown.
    * @return the MIDI messages that tune the output instrument.
    */
   protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg]
