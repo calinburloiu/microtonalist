@@ -24,15 +24,15 @@ import scala.collection.mutable
  * A [[Tuner]] test double that returns canned messages and records what it is asked to tune to and to process. It is
  * not thread-safe.
  *
- * @param resetMessages   What its [[onReset]] returns, which a reset follows with the messages of the current tuning.
- * @param tuningMessages  What its [[onTune]] returns for each of these tunings; it returns nothing for any other.
- * @param processMessages What [[process]] returns for each of these messages; it returns nothing for any other.
- * @param rejectedTunings The tunings its [[onTune]] fails to apply, throwing an `IllegalArgumentException`.
+ * @param resetMessages    What its [[onReset]] returns, which a reset follows with the messages of the current tuning.
+ * @param tuningMessages   What its [[onTune]] returns for each of these tunings; it returns nothing for any other.
+ * @param processMessages  What [[process]] returns for each of these messages; it returns nothing for any other.
+ * @param untunableTunings The tunings its [[canTune]] refuses; it accepts any other.
  */
 class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
                 tuningMessages: Map[Tuning, Seq[MidiMsg]] = Map.empty,
                 processMessages: Map[MidiMsg, Seq[MidiMsg]] = Map.empty,
-                rejectedTunings: Set[Tuning] = Set.empty) extends Tuner {
+                untunableTunings: Set[Tuning] = Set.empty) extends Tuner {
   override val typeName: String = "fake"
 
   private val _appliedTunings: mutable.Buffer[Tuning] = mutable.ArrayBuffer()
@@ -44,10 +44,11 @@ class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
   /** The messages passed to [[process]] so far, in order. */
   def processedMessages: Seq[MidiMsg] = _processedMessages.toSeq
 
+  override def canTune(tuning: Tuning): Boolean = !untunableTunings.contains(tuning)
+
   override protected def onReset(): Seq[MidiMsg] = resetMessages
 
   override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
-    require(!rejectedTunings.contains(tuning), s"Cannot apply tuning $tuning!")
     _appliedTunings += tuning
     tuningMessages.getOrElse(tuning, Seq.empty)
   }

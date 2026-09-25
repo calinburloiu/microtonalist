@@ -31,6 +31,8 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
                         val thru: Boolean = MtsTuner.DefaultThru) extends Tuner with StrictLogging {
 
+  override def canTune(tuning: Tuning): Boolean = true
+
   override protected def onTune(tuning: Tuning): Seq[MidiMsg] = Seq(mtsMessageGenerator.generate(tuning))
 
   override def process(message: MidiMsg): Seq[MidiMsg] = if (thru) Seq(message) else Seq.empty

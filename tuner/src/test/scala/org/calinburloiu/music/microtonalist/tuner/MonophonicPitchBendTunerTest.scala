@@ -82,6 +82,10 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
         tuner.process(NoteOffMidiMsg(channel, note))
       ).flatten
     }
+
+    /** Changes the pitch bend sensitivity of the tuner with the RPN messages an input device sends. */
+    def sendPitchBendSensitivity(newPitchBendSensitivity: PitchBendSensitivity): Seq[MidiMsg] =
+      PitchBendSensitivityMessages.create(inputChannel, newPitchBendSensitivity).flatMap(tuner.process)
   }
 
   private def filterNotes(messages: Seq[MidiMsg]): Seq[MidiMsg] = {
@@ -243,6 +247,48 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
     }
   }
 
+  "MonophonicPitchBendTuner when asked whether it can tune a tuning" should {
+    "accept a tuning within its pitch bend sensitivity" in new Fixture {
+      // When / Then
+      tuner.canTune(customTuning) shouldBe true
+    }
+
+    "accept a tuning on the bounds of its pitch bend sensitivity" in new Fixture {
+      // Given
+      val tuning: Tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-100.0, 100.0)).flatten)
+
+      // When / Then
+      tuner.canTune(tuning) shouldBe true
+    }
+
+    "refuse a tuning with an offset beyond its pitch bend sensitivity" in new Fixture {
+      // Given
+      val tuning: Tuning = Tuning.fromOffsets("beyond on B", Seq.fill(11)(0.0) :+ -100.01)
+
+      // When / Then
+      tuner.canTune(tuning) shouldBe false
+    }
+
+    "accept a tuning beyond its default pitch bend sensitivity after an RPN raised it" in new Fixture {
+      // Given
+      sendPitchBendSensitivity(tonePitchBendSensitivity)
+
+      // When / Then
+      tuner.canTune(tuningBeyondASemitone) shouldBe true
+    }
+
+    "refuse a tuning beyond its default pitch bend sensitivity again after a reset" in new Fixture {
+      // Given
+      sendPitchBendSensitivity(tonePitchBendSensitivity)
+
+      // When
+      tuner.reset()
+
+      // Then
+      tuner.canTune(tuningBeyondASemitone) shouldBe false
+    }
+  }
+
   "MonophonicPitchBendTuner on reset" should {
     "only reset the pitch bend to 0 and configure the pitch bend sensitivity when no note is sounding, although a " +
       "tuning is set" in new Fixture {
@@ -334,12 +380,12 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       }
     }
 
-    "stop the sounding note and keep the current tuning after failing to apply a tuning beyond the pitch bend " +
+    "stop the sounding note and keep the current tuning after refusing a tuning beyond the pitch bend " +
       "sensitivity" in new Fixture {
       // Given
       tuner.tune(customTuning)
       tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
-      an[IllegalArgumentException] should be thrownBy tuner.tune(tuningBeyondASemitone)
+      tuner.tune(tuningBeyondASemitone)
 
       // When
       output ++= tuner.reset()

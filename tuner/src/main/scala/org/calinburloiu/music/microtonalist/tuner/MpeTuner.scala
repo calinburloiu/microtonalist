@@ -134,6 +134,8 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     buffer.toSeq
   }
 
+  override def canTune(tuning: Tuning): Boolean = true
+
   override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
 

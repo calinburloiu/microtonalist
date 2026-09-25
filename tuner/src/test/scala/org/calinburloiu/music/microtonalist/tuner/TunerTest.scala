@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import ch.qos.logback.classic.Level
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, PitchBendMidiMsg}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -26,6 +29,7 @@ class TunerTest extends AnyWordSpec with Matchers {
   private val standardTuningMessage: MidiMsg = PitchBendMidiMsg(0, 0)
   private val justCMajMessage: MidiMsg = PitchBendMidiMsg(0, 100)
   private val justCRastMessage: MidiMsg = PitchBendMidiMsg(0, 200)
+  private val justDUssakMessage: MidiMsg = PitchBendMidiMsg(0, 300)
 
   private abstract class Fixture {
     val tuner: FakeTuner = FakeTuner(
@@ -33,9 +37,10 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuningMessages = Map(
         Tuning.Standard -> Seq(standardTuningMessage),
         TestTunings.justCMaj -> Seq(justCMajMessage),
-        TestTunings.justCRast -> Seq(justCRastMessage)
+        TestTunings.justCRast -> Seq(justCRastMessage),
+        TestTunings.justDUssak -> Seq(justDUssakMessage)
       ),
-      rejectedTunings = Set(TestTunings.justDUssak)
+      untunableTunings = Set(TestTunings.justDUssak)
     )
   }
 
@@ -62,15 +67,43 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCRast
     }
 
-    "keep its current tuning when it fails to apply a new one" in new Fixture {
+    "return no messages when tuned to a tuning it cannot tune" in new Fixture {
       // Given
       tuner.tune(TestTunings.justCMaj)
 
       // When
-      an[IllegalArgumentException] should be thrownBy tuner.tune(TestTunings.justDUssak)
+      private val output = tuner.tune(TestTunings.justDUssak)
+
+      // Then
+      output shouldBe empty
+      tuner.appliedTunings shouldEqual Seq(TestTunings.justCMaj)
+    }
+
+    "keep its current tuning when tuned to a tuning it cannot tune" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      tuner.tune(TestTunings.justDUssak)
 
       // Then
       tuner.tuning shouldEqual TestTunings.justCMaj
+    }
+
+    "warn when tuned to a tuning it cannot tune" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+        tuner.tune(TestTunings.justDUssak)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldEqual Seq(
+        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justDUssak}, so it keeps the current tuning """ +
+          s"${TestTunings.justCMaj}."
+      )
     }
 
     "restate its current tuning after its reset messages when reset" in new Fixture {
@@ -96,10 +129,10 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCMaj
     }
 
-    "restate the tuning it kept when reset after failing to apply a new one" in new Fixture {
+    "restate the tuning it kept when reset after being tuned to a tuning it cannot tune" in new Fixture {
       // Given
       tuner.tune(TestTunings.justCMaj)
-      an[IllegalArgumentException] should be thrownBy tuner.tune(TestTunings.justDUssak)
+      tuner.tune(TestTunings.justDUssak)
 
       // When
       private val output = tuner.reset()

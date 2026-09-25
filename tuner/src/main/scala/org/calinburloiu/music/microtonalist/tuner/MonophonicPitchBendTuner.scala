@@ -101,6 +101,15 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     _lastNoteOffVelocity = NoteOffMidiMsg.DefaultVelocity
   }
 
+  /**
+   * @inheritdoc
+   *
+   * This tuner can tune a tuning whose offsets are all within the current pitch bend sensitivity, which starts as the
+   * default one, changes when the input sends a Pitch Bend Sensitivity RPN, and returns to the default on reset.
+   */
+  override def canTune(tuning: Tuning): Boolean =
+    tuning.offsets.forall(offset => Math.abs(offset) <= pitchBendSensitivity.totalCents)
+
   override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
     // Only a changed value is marked for sending, so that a tuning which keeps the last note's offset sends nothing
     val newTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(tuning(lastNote.pitchClass), pitchBendSensitivity)

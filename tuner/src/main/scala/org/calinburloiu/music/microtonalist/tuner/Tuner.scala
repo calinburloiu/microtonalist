@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.microtonalist.tuner.Tuner.FamilyName
 import org.calinburloiu.music.scmidi.MidiDeviceId
@@ -33,7 +34,8 @@ import javax.annotation.concurrent.NotThreadSafe
  *   - When the tuner starts to be used with a [[Track]], the [[reset]] method must first be called to configure the
  *     output device to be used with this tuner configuration. For example, a [[Tuner]] based on pitch bend might want
  *     to set the right pitch bend sensitivity.
- *   - Whenever the current tuning changes, [[tune]] must be called with that tuning.
+ *   - Whenever the current tuning changes, [[tune]] must be called with that tuning. The tuner refuses a tuning it
+ *     cannot apply exactly, which [[canTune]] tells in advance, and keeps its current one.
  *   - All MIDI messages that pass through the [[Track]] must go through the [[process]] method which will output the
  *     right MIDI messages according to the tuner's functionality and configuration.
  *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reconfigure it, while keeping
@@ -49,7 +51,7 @@ import javax.annotation.concurrent.NotThreadSafe
  *      actually tune a device.
  */
 @NotThreadSafe
-trait Tuner extends Plugin {
+trait Tuner extends Plugin with StrictLogging {
   override val familyName: String = FamilyName
 
   /**
@@ -68,10 +70,24 @@ trait Tuner extends Plugin {
   private var _tuning: Tuning = Tuning.Standard
 
   /**
-   * @return the tuning last passed to [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO
+   * @return the tuning last applied by [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO
    *         Tuning if it was never tuned.
    */
   final def tuning: Tuning = _tuning
+
+  /**
+   * Tells whether this tuner can apply the given tuning exactly, without clamping any of its offsets, in its current
+   * configuration. Tuners have different limits, such as the range of a tuning value in an MTS message or the Pitch
+   * Bend Sensitivity of a tuner based on Pitch Bend, and some of these limits may change as the tuner processes
+   * messages.
+   *
+   * [[tune]] refuses a tuning for which this returns `false`.
+   *
+   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
+   *               octave.
+   * @return `true` if [[tune]] would apply the tuning exactly, `false` if it would refuse it.
+   */
+  def canTune(tuning: Tuning): Boolean
 
   /**
    * Resets the internal state of the tuner to its default / initial configuration, while keeping its current
@@ -92,17 +108,22 @@ trait Tuner extends Plugin {
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object, and stores
    * it as the current [[tuning]], such that MIDI notes passed via [[process]] method will be played in that tuning.
    *
-   * The tuning is stored only once [[onTune]] returns, so a tuning the tuner fails to apply, for which it throws,
-   * leaves the current one in place, and a later [[reset]] restates the latter.
+   * A tuning that the tuner cannot apply exactly, for which [[canTune]] returns `false`, is refused: the tuner logs a
+   * warning, keeps its current tuning, which a later [[reset]] restates, and returns no messages.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
-   * @return the MIDI messages returned by [[onTune]] for the tuning.
+   * @return the MIDI messages returned by [[onTune]] for the tuning, or none if the tuner refuses it.
    */
   final def tune(tuning: Tuning): Seq[MidiMsg] = {
-    val messages = onTune(tuning)
-    _tuning = tuning
-    messages
+    if (canTune(tuning)) {
+      _tuning = tuning
+      onTune(tuning)
+    } else {
+      logger.warn(s"""The "$typeName" tuner cannot tune exactly to $tuning, so it keeps the current tuning """ +
+        s"$_tuning.")
+      Seq.empty
+    }
   }
 
   /**
@@ -127,9 +148,8 @@ trait Tuner extends Plugin {
    * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be
    * played in that tuning.
    *
-   * It is called by [[tune]], before the tuning becomes the current [[tuning]], and by [[reset]] to restate the
-   * current tuning. Implementations must therefore tune to the `tuning` argument rather than read [[tuning]], and
-   * must throw before changing any state if they cannot apply it, so that the tuner is left in the current tuning.
+   * It is called by [[tune]], after the tuning becomes the current [[tuning]], only for a tuning that [[canTune]]
+   * accepts, and by [[reset]] to restate the current tuning. Implementations tune to the `tuning` argument.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.

@@ -193,6 +193,7 @@ lazy val tunerModule = (project in file("tuner"))
   .dependsOn(
     businessyncModule,
     commonModule,
+    commonTestUtilsModule % Test,
     scMidiModule,
   )
   .disablePlugins(AssemblyPlugin)
