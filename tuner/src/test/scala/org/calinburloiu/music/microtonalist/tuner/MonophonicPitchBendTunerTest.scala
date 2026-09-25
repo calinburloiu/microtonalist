@@ -239,6 +239,17 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       }
     }
 
+    "clamp the tuning of the note on to the pitch bend sensitivity if the tuning is beyond it" in new Fixture {
+      // Given
+      tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
+
+      // When
+      output ++= tuner.tune(tuningBeyondASemitone)
+
+      // Then
+      output shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
+    }
+
     "not send pitch bend if there is no note on " +
       "and the tuning of the last note on changes" in new Fixture {
       // Note: Internally the pitch bend value changes for consistency, but it is not sent
@@ -264,7 +275,7 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       tuner.canTune(tuning) shouldBe true
     }
 
-    "refuse a tuning with an offset beyond its pitch bend sensitivity" in new Fixture {
+    "reject a tuning with an offset beyond its pitch bend sensitivity" in new Fixture {
       // Given
       val tuning: Tuning = Tuning.fromOffsets("beyond on B", Seq.fill(11)(0.0) :+ -100.01)
 
@@ -280,7 +291,7 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       tuner.canTune(tuningBeyondASemitone) shouldBe true
     }
 
-    "refuse a tuning beyond its default pitch bend sensitivity again after a reset" in new Fixture {
+    "reject a tuning beyond its default pitch bend sensitivity again after a reset" in new Fixture {
       // Given
       sendPitchBendSensitivity(tonePitchBendSensitivity)
 
@@ -383,10 +394,8 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       }
     }
 
-    "stop the sounding note and keep the current tuning after refusing a tuning beyond the pitch bend " +
-      "sensitivity" in new Fixture {
+    "stop the sounding note when the tuning is beyond the pitch bend sensitivity" in new Fixture {
       // Given
-      tuner.tune(customTuning)
       tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
       tuner.tune(tuningBeyondASemitone)
 
@@ -395,7 +404,7 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
       // Then
       inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4 }
-      tuner.tuning shouldEqual customTuning
+      tuner.tuning shouldEqual tuningBeyondASemitone
     }
   }
 

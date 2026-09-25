@@ -40,11 +40,11 @@ does not leave hanging notes. `onTune` also receives the tuning the output instr
 from `tune`, `None` from `reset`, after which the tuning of the device is unknown; no tuner uses it yet.
 
 Each tuner has limits, such as the range of a tuning value or its Pitch Bend Sensitivity, and `canTune(tuning)` tells
-whether it can apply a tuning exactly, without clamping, in its current configuration. `tune` refuses a tuning
-`canTune` rejects: it logs a warning, keeps the current tuning and returns no messages, rather than throwing. A limit
-can still decrease after a tuning was accepted — a reset returning the Pitch Bend Sensitivity to its default, or an
-input RPN lowering it — and the tuner then clamps the offsets beyond it, so neither `onTune` nor `process` throws.
-`reset` logs a warning when it restates a tuning it has to clamp. Implementations:
+whether it can apply a tuning exactly, without clamping, in its current configuration. A tuner clamps the offsets
+beyond its limits rather than throw, both for a tuning `canTune` rejects and when a limit decreases after a tuning was
+applied — a reset returning the Pitch Bend Sensitivity to its default, or an input RPN lowering it — so neither
+`onTune` nor `process` throws. `tune` and `reset` log a warning when they apply a tuning `canTune` rejects; checking
+the tunings against the tuners when they are loaded is left to #326. Implementations:
 
 - `MtsTuner` and its four octave variants (`MtsOctave{1,2}Byte{Non,}RealTimeTuner`) retune the instrument's pitch table
   in advance via a single MTS SysEx, so notes pass through untouched. The SysEx bytes are built by `MtsMessageGenerator`
@@ -53,13 +53,13 @@ input RPN lowering it — and the tuner then clamps the offsets beyond it, so ne
   forms.
 - `MonophonicPitchBendTuner` tunes via per-channel Pitch Bend; because Pitch Bend is channel-wide it enforces monophony,
   folding all input onto one output channel and combining the performer's expressive bend with the tuning bend. It can
-  tune the offsets within its current Pitch Bend Sensitivity, which an input RPN changes and a reset restores. Its
-  reset sends a Note Off for the note sounding, releases the Sustain and Sostenuto pedals left down, and resets the
-  Pitch Bend to 0 whatever the instrument holds, the cleared state assuming no bend, before configuring the Pitch Bend
-  Sensitivity.
+  tune exactly the offsets within its current Pitch Bend Sensitivity, which an input RPN changes and a reset restores.
+  Its reset sends a Note Off for the note sounding, releases the Sustain and Sostenuto pedals left down, and resets
+  the Pitch Bend to 0 whatever the instrument holds, the cleared state assuming no bend, before configuring the Pitch
+  Bend Sensitivity.
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
-  pitch-class bend, and reconfigures zones on an MPE Configuration Message. It can tune the offsets within the Member
-  Pitch Bend Sensitivity of each enabled Zone. Its reset sends a Note Off for every active note and returns the
+  pitch-class bend, and reconfigures zones on an MPE Configuration Message. It can tune exactly the offsets within the
+  Member Pitch Bend Sensitivity of each enabled Zone. Its reset sends a Note Off for every active note and returns the
   Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their
   defaults — routing each default as if the input channel holding the value had sent it, and releasing the pedals
   first so that the notes they hold stop before their pitch changes — and CC #74 and Channel Pressure on

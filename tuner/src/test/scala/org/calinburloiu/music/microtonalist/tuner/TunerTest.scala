@@ -78,33 +78,16 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCRast
     }
 
-    "return no messages when tuned to a tuning it cannot tune" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-
+    "apply a tuning it cannot tune exactly when tuned to it" in new Fixture {
       // When
       private val output = tuner.tune(TestTunings.justDUssak)
 
       // Then
-      output shouldBe empty
-      tuner.appliedTunings shouldEqual Seq(TestTunings.justCMaj)
+      output shouldEqual Seq(justDUssakMessage)
+      tuner.tuning shouldEqual TestTunings.justDUssak
     }
 
-    "keep its current tuning when tuned to a tuning it cannot tune" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-
-      // When
-      tuner.tune(TestTunings.justDUssak)
-
-      // Then
-      tuner.tuning shouldEqual TestTunings.justCMaj
-    }
-
-    "warn when tuned to a tuning it cannot tune" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-
+    "warn when tuned to a tuning it cannot tune exactly" in new Fixture {
       // When
       private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
         tuner.tune(TestTunings.justDUssak)
@@ -112,9 +95,18 @@ class TunerTest extends AnyWordSpec with Matchers {
 
       // Then
       events.messagesAt(Level.WARN) shouldEqual Seq(
-        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justDUssak}, so it keeps the current tuning """ +
-          s"${TestTunings.justCMaj}."
+        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justDUssak}, so it clamps it to its limits."""
       )
+    }
+
+    "not warn when tuned to a tuning it can tune" in new Fixture {
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+        tuner.tune(TestTunings.justCMaj)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldBe empty
     }
 
     "restate its current tuning after its reset messages when reset" in new Fixture {
@@ -151,18 +143,6 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCMaj
     }
 
-    "restate the tuning it kept when reset after being tuned to a tuning it cannot tune" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-      tuner.tune(TestTunings.justDUssak)
-
-      // When
-      private val output = tuner.reset()
-
-      // Then
-      output shouldEqual Seq(resetMessage, justCMajMessage)
-    }
-
     "restate a tuning it can no longer tune exactly when reset" in new Fixture {
       // Given
       tuner.tune(TestTunings.justCMaj)
@@ -187,8 +167,7 @@ class TunerTest extends AnyWordSpec with Matchers {
 
       // Then
       events.messagesAt(Level.WARN) shouldEqual Seq(
-        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justCMaj} since its reset, so it restates it """ +
-          "clamped to its limits."
+        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justCMaj}, so it clamps it to its limits."""
       )
     }
 

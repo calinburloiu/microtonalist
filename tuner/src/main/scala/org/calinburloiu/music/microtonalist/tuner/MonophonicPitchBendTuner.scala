@@ -26,9 +26,9 @@ import scala.collection.mutable
  * Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent
  * on, this tuner only supports and enforces monophonic playing.
  *
- * It can only tune a tuning whose offsets are within its current pitch bend sensitivity, see [[canTune]]. If the
- * sensitivity decreases below an offset of the current tuning afterward, on reset or when the input sends a Pitch Bend
- * Sensitivity RPN, the tuner clamps that offset to the sensitivity.
+ * It can only tune exactly the offsets within its current pitch bend sensitivity, see [[canTune]], and clamps any other
+ * offset to the sensitivity. This includes an offset of the current tuning that the sensitivity decreases below, on
+ * reset or when the input sends a Pitch Bend Sensitivity RPN.
  *
  * @param outputChannel               Output MIDI channel on which all output is sent, regardless on the input
  *                                    channels used.
@@ -204,8 +204,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   /**
    * The Pitch Bend that tunes a note by the given tuning offset, in the current pitch bend sensitivity.
    *
-   * The offset is clamped to the pitch bend sensitivity first: although [[canTune]] refuses a tuning beyond it, the
-   * sensitivity may decrease afterward, on reset or when the input sends a Pitch Bend Sensitivity RPN.
+   * The offset is clamped to the pitch bend sensitivity first, since the tuning may be beyond it: [[tune]] applies a
+   * tuning that [[canTune]] does not accept, and the sensitivity may decrease afterward, on reset or when the input
+   * sends a Pitch Bend Sensitivity RPN.
    */
   private def tuningPitchBendOf(offset: Double): Int = {
     val maxOffset = pitchBendSensitivity.totalCents

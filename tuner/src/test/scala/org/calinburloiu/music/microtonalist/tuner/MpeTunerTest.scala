@@ -905,7 +905,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
 
-    "accept a tuning on the bounds of the Member Pitch Bend Sensitivity" in new Fixture {
+    "tell that it can tune exactly a tuning on the bounds of the Member Pitch Bend Sensitivity" in new Fixture {
       // Given
       private val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-4800.0, 4800.0)).flatten)
 
@@ -913,21 +913,23 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       tuner.canTune(tuning) shouldBe true
     }
 
-    "refuse a tuning with an offset beyond the Member Pitch Bend Sensitivity" in new Fixture {
-      // When / Then
-      tuner.canTune(tuningWithB(4800.01)) shouldBe false
-      tuner.canTune(tuningWithB(-4800.01)) shouldBe false
-    }
+    "tell that it cannot tune exactly a tuning with an offset beyond the Member Pitch Bend Sensitivity" in
+      new Fixture {
+        // When / Then
+        tuner.canTune(tuningWithB(4800.01)) shouldBe false
+        tuner.canTune(tuningWithB(-4800.01)) shouldBe false
+      }
 
-    "refuse a tuning beyond the Member Pitch Bend Sensitivity of either enabled Zone" in new Fixture(MpeTuner(
-      initialZones = MpeZones(
-        MpeZone(MpeZoneType.Lower, 7),
-        MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
-      )
-    )) {
-      // When / Then
-      tuner.canTune(tuningWithB(150.0)) shouldBe false
-    }
+    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity of either enabled Zone" in
+      new Fixture(MpeTuner(
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 7),
+          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+        )
+      )) {
+        // When / Then
+        tuner.canTune(tuningWithB(150.0)) shouldBe false
+      }
 
     "ignore the Member Pitch Bend Sensitivity of a disabled Zone" in new Fixture(MpeTuner(
       initialZones = MpeZones(
@@ -1038,7 +1040,8 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
 
-    "refuse a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS lowered" in
+    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS " +
+      "lowered" in
       new Fixture(tuner7MpeInput) {
         // When
         sendPbsMsb(tuner, channel = 1, semitones = 1)
