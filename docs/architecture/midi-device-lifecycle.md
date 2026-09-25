@@ -73,10 +73,10 @@ For a `Track` the two directions are wired in opposite senses:
 `MidiProcessor` runs an **attach / detach protocol** over every change of its transmitter's receivers, calling
 `onDetach(removed)` before the change and `onAttach(added)` after it, with exactly the receivers the change affects,
 followed by `onReceiversChanged(all)`. `TunerProcessor` is the main client: it sends the tuner's `reset()` messages
-to each receiver that attaches, so an output instrument is initialised when it joins. It today also restores 12-EDO
-on each receiver that detaches, which [#305](#subject-to-change-305) moves onto the *close*, where it belongs. Only a
-`MidiProcessor`'s transmitter runs this protocol — a `MidiDeviceHandle`'s transmitter is a plain
-`ConcurrentMidiTransmitter`, so attaching to a device's input fires no hooks.
+to each receiver that attaches, so an output instrument is configured, and tuned to the tuner's current tuning, when
+it joins. It today also restores 12-EDO on each receiver that detaches, which [#305](#subject-to-change-305) moves onto
+the *close*, where it belongs. Only a `MidiProcessor`'s transmitter runs this protocol — a `MidiDeviceHandle`'s
+transmitter is a plain `ConcurrentMidiTransmitter`, so attaching to a device's input fires no hooks.
 
 ## How the three relate
 
@@ -138,11 +138,12 @@ it is today.
       current tuning.
     - An output that gets **detached and thereby becomes closed** triggers a reset *and* gets the courtesy 12-EDO
       messages. An output that stays open because another track still holds it gets neither.
-- **`Tuner` changes shape.** `tune` and `reset` become `final` on the trait, delegating to new `onTune` / `onReset`
-  hooks. `reset` re-states the *current* tuning and the *current* configuration instead of reverting to 12-EDO and
-  to the configuration passed to the constructor — so a newly attached output learns where things actually stand —
-  while still clearing the internal note state. Rendering the 12-EDO courtesy messages becomes a separate read-only
-  method that reads the configuration but mutates nothing.
+- **`Tuner` keeps changing shape.** `tune` and `reset` are already `final` on the trait, delegating to the `onTune` /
+  `onReset` hooks, and `reset` already re-states the *current* tuning (#322). It will also re-state the *current*
+  configuration instead of reverting to the configuration passed to the constructor — so a newly attached output
+  learns where things actually stand — while still clearing the internal note state. Rendering the 12-EDO courtesy
+  messages becomes a separate read-only method that reads the configuration but mutates nothing: today they come
+  from `tune(Tuning.Standard)`, which also makes 12-EDO the tuner's current tuning.
 
 ## Related documents
 

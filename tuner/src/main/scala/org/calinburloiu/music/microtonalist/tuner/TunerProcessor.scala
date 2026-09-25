@@ -33,8 +33,8 @@ import javax.annotation.concurrent.NotThreadSafe
  * The primary responsibilities of this class include:
  * - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receivers.
  * - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
- * - Properly resetting the tuner and sending initialization messages to each receiver that attaches.
- * - Resetting the tuner on request and sending the initialization messages to every receiver.
+ * - Properly resetting the tuner and sending the messages that configure the output to each receiver that attaches.
+ * - Resetting the tuner on request and sending the messages that reconfigure the output to every receiver.
  * - Restoring the default tuning and ensuring a clean state on each receiver that detaches.
  *
  * Sending is not guarded against exceptions here: a message that its device can no longer take should be dropped
@@ -62,14 +62,14 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   }
 
   /**
-   * Resets the tuner and sends the messages that initialize the output to every receiver of the transmitter, as a
+   * Resets the tuner and sends the messages that reconfigure the output to every receiver of the transmitter, as a
    * newly attached receiver gets them, e.g. when the output device (re)opens after the processor attached to it.
    *
-   * It does not apply any tuning: the output plays in the tuning the tuner is left in by its reset.
+   * The tuner's reset restates its current tuning, so the output plays in that tuning again.
    */
   def reset(): Unit = {
-    val initMessages = tuner.reset()
-    sendToReceivers(initMessages, -1)
+    val resetMessages = tuner.reset()
+    sendToReceivers(resetMessages, -1)
   }
 
   override def process(message: MidiMsg, timeStamp: Long): Seq[MidiMsg] = tuner.process(message)
@@ -80,8 +80,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     // TODO #121 tuner.reset() mutates state shared by every receiver of this processor, not just the ones newly
     //  attached here. Harmless today because a multi-receiver TunerProcessor is only ever torn down and rebuilt as
     //  a whole (TrackManager.replaceAllTracks); revisit once a track can be rewired incrementally while running.
-    val initMessages = tuner.reset()
-    sendTo(receivers, initMessages, -1)
+    val resetMessages = tuner.reset()
+    sendTo(receivers, resetMessages, -1)
 
     logger.info(s"Attached the processor for tuner $tuner to ${receivers.size} new receiver(s).")
   }
@@ -92,6 +92,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
     // TODO #121 tuner.tune(Tuning.Standard) mutates state shared by every receiver of this processor, so it would
     //  also flip the tuning applied to the receivers that remain attached if this processor ever has more than one
     //  receiver left after a partial detach. See the onAttach TODO above for the same caveat on the other side.
+    // TODO #305 tuner.tune(Tuning.Standard) also makes 12-EDO the tuner's current tuning, which a later reset then
+    //  restates instead of the tuning the track is in. A read-only method rendering the 12-EDO messages replaces it.
     val standardTuningMessages = tuner.tune(Tuning.Standard)
     sendTo(receivers, standardTuningMessages, -1)
 

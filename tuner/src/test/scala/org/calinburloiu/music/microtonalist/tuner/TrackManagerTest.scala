@@ -45,25 +45,25 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
   /** The message the reset of a second tuner on the same output device sends, to tell the two resets apart. */
   private val otherInitMessage: MidiMsg = CcMidiMsg(1, MidiCc.DataEntryMsb, 2)
 
-  /** A tuner whose reset sends `resetMessage`, which tunes nothing and lets every message through. */
-  private class ResetTuner(resetMessage: MidiMsg = initMessage) extends Tuner {
-    override val typeName: String = "reset"
+  /** A tuner whose reset sends `resetMessage`, and which sends nothing for any tuning. */
+  private def resetTuner(resetMessage: MidiMsg = initMessage): Tuner = FakeTuner(resetMessages = Seq(resetMessage))
 
-    override def reset(): Seq[MidiMsg] = Seq(resetMessage)
+  private val tunings: Seq[Tuning] = Seq(TestTunings.justCMaj, TestTunings.justCRast)
 
-    override def tune(tuning: Tuning): Seq[MidiMsg] = Seq.empty
-
-    override def process(message: MidiMsg): Seq[MidiMsg] = Seq(message)
-  }
+  /** The message an [[MtsOctave1ByteNonRealTimeTuner]] sends to tune its output to `tuning`. */
+  private def mtsTuningMessage(tuning: Tuning): MidiMsg = MtsMessageGenerator.Octave1ByteNonRealTime.generate(tuning)
 
   /**
    * A [[TrackManager]] registered on a real bus, over a stubbed [[MidiManager]] that opens every device as a
    * [[FakeMidiDeviceHandle]] whose receiver records what the device gets. Its two tracks are built, and the messages
    * that building them sent are forgotten: "piano" plays the keyboard on the piano, and "synth" plays the controller on
    * the synth.
+   *
+   * @param pianoTuner The tuner of the "piano" track.
    */
-  private trait Fixture {
+  private abstract class Fixture(pianoTuner: Tuner = resetTuner()) {
     val businessync: Businessync = Businessync(EventBus())
+    val tuningSession: TuningSession = TuningSession(businessync)
 
     val deviceReceivers: Map[MidiDeviceId, RecordingMidiReceiver] =
       Seq(keyboardId, pianoId, controllerId, synthId).map(_ -> RecordingMidiReceiver()).toMap
@@ -82,14 +82,13 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
     midiManager.closeDevice.returns(_ => ())
 
     val trackSpecs: TrackSpecs = TrackSpecs(Seq(
-      TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+      TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(pianoTuner),
         output = Some(DeviceTrackOutputSpec(pianoId, None))),
-      TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(controllerId, None)), tuner = Some(ResetTuner()),
+      TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(controllerId, None)), tuner = Some(resetTuner()),
         output = Some(DeviceTrackOutputSpec(synthId, None)))
     ))
 
-    val trackManager: TrackManager =
-      TrackManager(midiManager, TuningService(TuningSession(businessync), businessync))
+    val trackManager: TrackManager = TrackManager(midiManager, TuningService(tuningSession, businessync))
     businessync.register(trackManager)
     trackManager.replaceAllTracks(trackSpecs)
     deviceReceivers.values.foreach(_.clear())
@@ -108,10 +107,10 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
     "reset the tuner of every track whose output device got opened, when two tracks share it" in new Fixture {
       // Given
       trackManager.replaceAllTracks(TrackSpecs(Seq(
-        TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+        TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(resetTuner()),
           output = Some(DeviceTrackOutputSpec(pianoId, None))),
         TrackSpec("controller", "Controller", input = Some(DeviceTrackInputSpec(controllerId, None)),
-          tuner = Some(ResetTuner(otherInitMessage)), output = Some(DeviceTrackOutputSpec(pianoId, None)))
+          tuner = Some(resetTuner(otherInitMessage)), output = Some(DeviceTrackOutputSpec(pianoId, None)))
       )))
       deviceReceivers.values.foreach(_.clear())
 
@@ -122,6 +121,38 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       deviceReceivers(pianoId).messages shouldEqual Seq(initMessage, otherInitMessage)
       deviceReceivers(synthId).messages shouldBe empty
     }
+
+    "restore the current tuning of the tracks whose output device got opened" in
+      new Fixture(MtsOctave1ByteNonRealTimeTuner()) {
+        // Given
+        tuningSession.tunings = tunings
+        tuningSession.tuningIndex = 1
+        deviceReceivers.values.foreach(_.clear())
+
+        // When
+        businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiDirection.Output))
+
+        // Then
+        deviceReceivers(pianoId).messages shouldEqual Seq(mtsTuningMessage(tunings(1)))
+      }
+
+    "restore the current tuning of a track whose devices got turned off and on again" in
+      new Fixture(MtsOctave1ByteNonRealTimeTuner()) {
+        // Given
+        tuningSession.tunings = tunings
+        tuningSession.tuningIndex = 1
+
+        // When
+        businessync.publish(MidiDeviceUnavailableEvent(keyboardId, MidiDirection.Input))
+        businessync.publish(MidiDeviceUnavailableEvent(pianoId, MidiDirection.Output))
+        // What reaches a device that is off is lost
+        deviceReceivers.values.foreach(_.clear())
+        businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiDirection.Output))
+        businessync.publish(MidiDeviceOpenedEvent(keyboardId, MidiDirection.Input))
+
+        // Then
+        deviceReceivers(pianoId).messages shouldEqual Seq(mtsTuningMessage(tunings(1)))
+      }
 
     "ignore the opening of an input device" in new Fixture {
       // When
@@ -141,12 +172,26 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       deviceReceivers(synthId).messages shouldBe empty
     }
 
+    "restore the current tuning after releasing the output of the tracks whose input device became unavailable" in
+      new Fixture(MtsOctave1ByteNonRealTimeTuner()) {
+        // Given
+        tuningSession.tunings = tunings
+        tuningSession.tuningIndex = 1
+        deviceReceivers.values.foreach(_.clear())
+
+        // When
+        businessync.publish(MidiDeviceUnavailableEvent(keyboardId, MidiDirection.Input))
+
+        // Then
+        deviceReceivers(pianoId).messages shouldEqual inputRelease :+ mtsTuningMessage(tunings(1))
+      }
+
     "release the output of every track whose input device became unavailable, when two tracks share it" in new Fixture {
       // Given
       trackManager.replaceAllTracks(TrackSpecs(Seq(
-        TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+        TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(resetTuner()),
           output = Some(DeviceTrackOutputSpec(pianoId, None))),
-        TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(ResetTuner()),
+        TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(resetTuner()),
           output = Some(DeviceTrackOutputSpec(synthId, None)))
       )))
       deviceReceivers.values.foreach(_.clear())
@@ -187,6 +232,30 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       // Then
       deviceReceivers.values.flatMap(_.messages) shouldBe empty
     }
+  }
+
+  "a tuning event" should {
+    "tune the tracks to the first tuning when the tunings get loaded after the tracks were built" in
+      new Fixture(MtsOctave1ByteNonRealTimeTuner()) {
+        // When
+        tuningSession.tunings = tunings
+
+        // Then
+        deviceReceivers(pianoId).messages shouldEqual Seq(mtsTuningMessage(tunings.head))
+      }
+
+    "keep the first tuning when the output device opens after the tunings got loaded" in
+      new Fixture(MtsOctave1ByteNonRealTimeTuner()) {
+        // Given
+        tuningSession.tunings = tunings
+        deviceReceivers.values.foreach(_.clear())
+
+        // When
+        businessync.publish(MidiDeviceOpenedEvent(pianoId, MidiDirection.Output))
+
+        // Then
+        deviceReceivers(pianoId).messages shouldEqual Seq(mtsTuningMessage(tunings.head))
+      }
   }
 
   "replaceAllTracks" should {

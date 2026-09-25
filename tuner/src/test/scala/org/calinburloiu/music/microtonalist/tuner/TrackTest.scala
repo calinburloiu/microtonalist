@@ -28,14 +28,20 @@ class TrackTest extends AnyWordSpec with Matchers with MockFactory {
   val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
   val inputMessage: MidiMsg = NoteOnMidiMsg(0, MidiNote.C4, 64)
   val outputMessage: MidiMsg = PitchBendMidiMsg(0, 100)
-  /** What the stubbed tuner sends when it is tuned to 12-EDO. */
+  /** What the fake tuner sends when it is tuned to 12-EDO. */
   val standardTuningMessage: MidiMsg = PitchBendMidiMsg(1, -100)
+  /** What the fake tuner sends when it is tuned to Just C Major. */
+  val justCMajTuningMessage: MidiMsg = PitchBendMidiMsg(1, 100)
+
+  private def createTuner(): FakeTuner = FakeTuner(
+    resetMessages = Seq(initMessage),
+    tuningMessages = Map(Tuning.Standard -> Seq(standardTuningMessage),
+      TestTunings.justCMaj -> Seq(justCMajTuningMessage)),
+    processMessages = Map(inputMessage -> Seq(outputMessage))
+  )
 
   trait Fixture {
-    val tuner: Tuner = stub[Tuner]
-    (() => tuner.reset()).when().returns(Seq(initMessage))
-    tuner.tune.when(Tuning.Standard).returns(Seq(standardTuningMessage))
-    tuner.process.when(inputMessage).returns(Seq(outputMessage))
+    val tuner: FakeTuner = createTuner()
 
     val tuningService: TuningService = stub[TuningService]
     val spec: TrackSpec = TrackSpec("track", "Track", tuner = Some(tuner))
@@ -51,10 +57,7 @@ class TrackTest extends AnyWordSpec with Matchers with MockFactory {
     val inputDeviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Seaboard", "ROLI")
     val outputDeviceId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
 
-    val tuner: Tuner = stub[Tuner]
-    (() => tuner.reset()).when().returns(Seq(initMessage))
-    tuner.tune.when(Tuning.Standard).returns(Seq(standardTuningMessage))
-    tuner.process.when(inputMessage).returns(Seq(outputMessage))
+    val tuner: FakeTuner = createTuner()
 
     val inputHandle: FakeMidiDeviceHandle = FakeMidiDeviceHandle(inputDeviceId)
     val outputReceiver: RecordingMidiReceiver = RecordingMidiReceiver()
@@ -142,6 +145,8 @@ class TrackTest extends AnyWordSpec with Matchers with MockFactory {
 
     "switch the tracks it feeds back to 12-EDO exactly once" in new Fixture {
       // Given
+      // A tuning other than 12-EDO, which the tuner restates when the receiver attaches
+      track.tune(TestTunings.justCMaj)
       track.transmitter.addReceiver(receiver)
 
       // When
@@ -175,22 +180,25 @@ class TrackTest extends AnyWordSpec with Matchers with MockFactory {
   }
 
   "resetTuner" should {
-    "send the tuner's reset messages to the output" in new DeviceFixture {
-      // Given
-      outputReceiver.clear()
+    "send the tuner's reset messages to the output, followed by the ones restoring the current tuning" in
+      new DeviceFixture {
+        // Given
+        track.tune(TestTunings.justCMaj)
+        outputReceiver.clear()
 
-      // When
-      track.resetTuner()
+        // When
+        track.resetTuner()
 
-      // Then
-      outputReceiver.messages shouldEqual Seq(initMessage)
-    }
+        // Then
+        outputReceiver.messages shouldEqual Seq(initMessage, justCMajTuningMessage)
+      }
   }
 
   "releaseInput" should {
     "release the pedals and send All Notes Off on every channel straight to the output, then reset the " +
       "tuning changers and tuner" in new DeviceFixture {
         // Given
+        track.tune(TestTunings.justCMaj)
         outputReceiver.clear()
 
         // When
@@ -203,8 +211,9 @@ class TrackTest extends AnyWordSpec with Matchers with MockFactory {
           Seq(CcMidiMsg(channel, MidiCc.SustainPedal, 0), CcMidiMsg(channel, MidiCc.SostenutoPedal, 0),
             AllNotesOffMidiMsg(channel))
         }
-        outputReceiver.messages shouldEqual expectedRelease :+ initMessage
-        tuner.process.verify(*).never()
+        // The tuner reset restores the current tuning
+        outputReceiver.messages shouldEqual expectedRelease ++ Seq(initMessage, justCMajTuningMessage)
+        tuner.processedMessages shouldBe empty
         (() => tuningChanger.reset()).verify().once()
       }
   }

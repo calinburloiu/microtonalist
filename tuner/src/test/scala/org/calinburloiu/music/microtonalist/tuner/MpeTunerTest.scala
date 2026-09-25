@@ -345,6 +345,165 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       extractNoteOffs(resetOutput) shouldBe empty
     }
+
+    // ---- Tuning retention ----
+
+    "keep the active Tuning" in new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+      // When
+      tuner.reset()
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
+      private val output = noteOn(nonMpeInputChannel, E4)
+      private val noteChannel = extractNoteOns(output).head.channel
+      extractPitchBendsWithCents(output) should contain((noteChannel, -14))
+    }
+
+    // ---- Zone-level control release ----
+
+    "release the Sustain Pedal redirected to the Master Channel" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 0))
+    }
+
+    "release the Sostenuto Pedal redirected to the Master Channel" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SostenutoPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SostenutoPedal, 0))
+    }
+
+    "release a pedal held down on several input channels once" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      tuner.process(CcMidiMsg(nonMpeInputChannel + 1, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput).count(_ == CcMidiMsg(0, MidiCc.SustainPedal, 0)) shouldBe 1
+    }
+
+    "reset the Pitch Bend redirected to the Master Channel" in new Fixture(tuner7) {
+      // Given
+      pitchBendValue(nonMpeInputChannel, 1000)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractPitchBends(resetOutput) shouldEqual Seq(PitchBendMidiMsg(0, 0))
+    }
+
+    "release the pedals redirected to the Master Channel before resetting its Pitch Bend" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      pitchBendValue(nonMpeInputChannel, 1000)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      // The notes the pedal holds would otherwise change pitch before they stop.
+      resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+    }
+
+    "release the pedals redirected to the Master Channel before resetting its Pitch Bend, although held on a later " +
+      "input channel" in new Fixture(tuner7) {
+      // Given
+      pitchBendValue(nonMpeInputChannel, 1000)
+      tuner.process(CcMidiMsg(nonMpeInputChannel + 1, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+    }
+
+    "not release the pedals nor reset the Pitch Bend back to their defaults" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 0))
+      pitchBendValue(nonMpeInputChannel, 1000)
+      pitchBendValue(nonMpeInputChannel, 0)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should not contain (CcMidiMsg(0, MidiCc.SustainPedal, 0))
+      extractPitchBends(resetOutput) shouldBe empty
+    }
+
+    "release the forwarded controls after stopping the notes and before configuring the Zones" in
+      new Fixture(tuner7) {
+        // Given
+        noteOn(nonMpeInputChannel, C4)
+        tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        private val releaseIndex = resetOutput.indexOf(CcMidiMsg(0, MidiCc.SustainPedal, 0))
+        releaseIndex should be > resetOutput.indexWhere(_.isInstanceOf[NoteOffMidiMsg])
+        releaseIndex should be < resetOutput.indexWhere {
+          case CcMidiMsg(_, MidiCc.RpnLsb | MidiCc.RpnMsb, _) => true
+          case _ => false
+        }
+      }
+
+    // ---- Member Channel control reset ----
+
+    "not reset the Member Channels of a tuner that has sent nothing on them" in new Fixture(tuner7) {
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractPitchBends(resetOutput) shouldBe empty
+      extractSlides(resetOutput) shouldBe empty
+      extractChannelPressures(resetOutput) shouldBe empty
+    }
+
+    "not reset the Pitch Bend of a Member Channel, emitted anew ahead of every note allocated there" in
+      new Fixture(tuner7, Some(quarterCommaMeantone)) {
+        // Given
+        // E is -14 cents in quarter-comma meantone, so the note leaves its Member Channel bent.
+        noteOn(nonMpeInputChannel, E4)
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractPitchBends(resetOutput) shouldBe empty
+      }
+
+    "reset the Channel Pressure of a Member Channel left away from its default" in new Fixture(tuner7) {
+      // Given
+      private val noteChannel = extractNoteOns(noteOn(nonMpeInputChannel, C4)).head.channel
+      tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractChannelPressures(resetOutput) shouldEqual Seq(ChannelPressureMidiMsg(noteChannel, 0))
+    }
+
+    "not reset the Channel Pressure of a Member Channel whose notes were released" in new Fixture(tuner7) {
+      // Given
+      // Releasing the last note of a Member Channel already returns its Channel Pressure to the default.
+      noteOn(nonMpeInputChannel, C4)
+      tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, C4, 80))
+      noteOff(nonMpeInputChannel, C4)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractChannelPressures(resetOutput) shouldBe empty
+    }
+
+    "reset CC #74 of a Member Channel left away from its default after an MCM switched to MPE Input" in
+      new Fixture(tuner7) {
+        // Given
+        // Non-MPE Input never sends CC #74 to a Member Channel, but the MPE Input an MCM switches to does.
+        sendMcm(tuner, 0, 7)
+        private val noteChannel = extractNoteOns(noteOn(mpeInputChannel, C4, slide = Some(100))).head.channel
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractSlides(resetOutput) shouldEqual Seq(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 64))
+      }
   }
 
   "MpeTuner - reset() - MPE Input" should {
@@ -436,6 +595,224 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       extractNoteOffs(resetOutput) shouldBe empty
     }
+
+    // ---- Tuning retention ----
+
+    "keep the active Tuning" in new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
+      // When
+      tuner.reset()
+      // Then
+      tuner.tuning shouldEqual quarterCommaMeantone
+      // And a note sounded afterwards is still tuned by it: E is -14 cents in quarter-comma meantone.
+      private val output = noteOn(2, E4)
+      private val noteChannel = extractNoteOns(output).head.channel
+      extractPitchBendsWithCents(output) should contain((noteChannel, -14))
+    }
+
+    // ---- Zone-level control release ----
+
+    "release the Sustain Pedal forwarded on the Master Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(0, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SustainPedal, 0))
+    }
+
+    "release the Sostenuto Pedal forwarded on the Master Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(0, MidiCc.SostenutoPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(0, MidiCc.SostenutoPedal, 0))
+    }
+
+    "release a pedal forwarded on the Upper Zone Master Channel" in new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(15, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput) should contain(CcMidiMsg(15, MidiCc.SustainPedal, 0))
+    }
+
+    "not release a pedal discarded on a Member Channel" in new Fixture(tuner7MpeInput) {
+      // Given
+      tuner.process(CcMidiMsg(mpeInputChannel, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractCc(resetOutput).filter(_.number == MidiCc.SustainPedal) shouldBe empty
+    }
+
+    "reset the Master Channel Pitch Bend" in new Fixture(tuner7MpeInput) {
+      // Given
+      pitchBendValue(0, 1000)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractPitchBends(resetOutput) shouldEqual Seq(PitchBendMidiMsg(0, 0))
+    }
+
+    "release the pedals forwarded on the Master Channel before resetting its Pitch Bend" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        tuner.process(CcMidiMsg(0, MidiCc.SustainPedal, 127))
+        pitchBendValue(0, 1000)
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        // The notes the pedal holds would otherwise change pitch before they stop.
+        resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+      }
+
+    // ---- Member Channel control reset ----
+
+    "not reset the Member Channels of a tuner that has sent nothing on them" in new Fixture(tuner7MpeInput) {
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractPitchBends(resetOutput) shouldBe empty
+      extractSlides(resetOutput) shouldBe empty
+      extractChannelPressures(resetOutput) shouldBe empty
+    }
+
+    "not reset the Pitch Bend of a Member Channel, emitted anew ahead of every note allocated there" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // Given
+        // Both the tuning of E and the Expression Pitch Bend leave the note's Member Channel bent.
+        noteOn(mpeInputChannel, E4, pbCents = Some(30.0))
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractPitchBends(resetOutput) shouldBe empty
+      }
+
+    "not reset the Pitch Bend of a Member Channel, although its input Pitch Bend is off center" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        pitchBendValue(mpeInputChannel, 1000)
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractPitchBends(resetOutput) shouldBe empty
+      }
+
+    "reset CC #74 of a Member Channel left away from its default" in new Fixture(tuner7MpeInput) {
+      // Given
+      private val noteChannel = extractNoteOns(noteOn(mpeInputChannel, C4, slide = Some(100))).head.channel
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractSlides(resetOutput) shouldEqual Seq(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 64))
+    }
+
+    "reset the Channel Pressure of a Member Channel left away from its default" in new Fixture(tuner7MpeInput) {
+      // Given
+      private val noteChannel = extractNoteOns(noteOn(mpeInputChannel, C4, pressure = Some(90))).head.channel
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractChannelPressures(resetOutput) shouldEqual Seq(ChannelPressureMidiMsg(noteChannel, 0))
+    }
+
+    "reset a Member Channel whose notes were released, since it keeps their values" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val noteChannel = extractNoteOns(noteOn(mpeInputChannel, C4, slide = Some(100))).head.channel
+        noteOff(mpeInputChannel, C4)
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractSlides(resetOutput) shouldEqual Seq(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 64))
+      }
+
+    "not reset a Member Channel whose values returned to their defaults" in new Fixture(tuner7MpeInput) {
+      // Given
+      noteOn(mpeInputChannel, C4, pressure = Some(90), slide = Some(100))
+      pressure(mpeInputChannel, 0)
+      slide(mpeInputChannel, 64)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractSlides(resetOutput) shouldBe empty
+      extractChannelPressures(resetOutput) shouldBe empty
+    }
+
+    "reset the Member Channels of both Zones" in new Fixture(dualZoneTunerMpeInput) {
+      // Given
+      private val lowerChannel = extractNoteOns(noteOn(1, C4, slide = Some(100))).head.channel
+      private val upperChannel = extractNoteOns(noteOn(14, C4, slide = Some(100))).head.channel
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      extractSlides(resetOutput).map(_.channel) should contain theSameElementsAs Seq(lowerChannel, upperChannel)
+    }
+
+    "reset a Member Channel of the Zones an MCM configured, although the reset leaves it out" in
+      new Fixture(tuner3MpeInput) {
+        // Given
+        // The MCM widens the Lower Zone to 7 Member Channels, and the reset narrows it back to 3. The note lands on
+        // its input channel, which only the widened Zone includes.
+        sendMcm(tuner, 0, 7)
+        private val noteChannel = extractNoteOns(noteOn(6, C4, slide = Some(100))).head.channel
+        noteChannel shouldBe 6
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractSlides(resetOutput) shouldEqual Seq(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 64))
+      }
+
+    "reset the Pitch Bend of a Member Channel that the reset turns into the Lower Zone Master Channel" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        // The output device keeps every value it is sent until it is sent another, as a receiver that does not reset
+        // the channels an MCM moves from one Zone to another (MPE Spec §2.1.4) does.
+        private val outputDevice = MidiChannelStateTracker()
+        // The MCM gives channels 0-14 to an Upper Zone as its Member Channels, and the reset gives channel 0 back to
+        // the default Lower Zone as its Master Channel. The note lands on its input channel, bent by an octave.
+        sendMcm(tuner, 15, 15).foreach(outputDevice.send(_))
+        private val noteOutput = noteOn(0, E4, pbCents = Some(1200.0)) ++ noteOff(0, E4)
+        noteOutput.foreach(outputDevice.send(_))
+        extractNoteOns(noteOutput).head.channel shouldBe 0
+        outputDevice.pitchBend(0) should not be 0
+        // When
+        tuner.reset().foreach(outputDevice.send(_))
+        // Then
+        // Otherwise the bend the note left on channel 0 bends every note of the Lower Zone.
+        outputDevice.pitchBend(0) shouldBe 0
+      }
+
+    "reset the Pitch Bend of a Member Channel that the reset turns into the Upper Zone Master Channel" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        // The MCM widens the Lower Zone to channels 1-15, disabling the Upper Zone, and the reset gives channel 15
+        // back to the Upper Zone as its Master Channel.
+        sendMcm(tuner, 0, 15)
+        private val noteOutput = noteOn(15, E4, pbCents = Some(300.0)) ++ noteOff(15, E4)
+        extractNoteOns(noteOutput).head.channel shouldBe 15
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractPitchBends(resetOutput) should contain(PitchBendMidiMsg(15, 0))
+      }
+
+    "reset the Member Channels after stopping the notes and before configuring the Zones" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        private val noteChannel = extractNoteOns(noteOn(mpeInputChannel, C4, slide = Some(100))).head.channel
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        private val resetIndex = resetOutput.indexOf(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 64))
+        resetIndex should be > resetOutput.indexOf(NoteOffMidiMsg(noteChannel, C4))
+        resetIndex should be < resetOutput.indexWhere {
+          case CcMidiMsg(_, MidiCc.RpnLsb | MidiCc.RpnMsb, _) => true
+          case _ => false
+        }
+      }
   }
 
   "MpeTuner - tune() - Non-MPE Input" should {
@@ -3520,14 +3897,6 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         private val output = noteOn(2, E4)
         private val noteChannel = extractNoteOns(output).head.channel
         extractPitchBendsWithCents(output) should contain((noteChannel, -14))
-      }
-
-    "restore the Standard Tuning on reset()" in
-      new Fixture(mpeTunerMpeInput, Some(quarterCommaMeantone)) {
-        // When
-        tuner.reset()
-        // Then
-        tuner.tuning shouldEqual Tuning.Standard
       }
 
     // ---- RPN sequence validation gating ----

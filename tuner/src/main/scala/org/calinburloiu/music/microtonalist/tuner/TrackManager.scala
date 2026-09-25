@@ -18,8 +18,10 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-import org.calinburloiu.music.scmidi.{MidiDeviceFailedToBecomeUnavailableEvent, MidiDeviceId, MidiDeviceOpenedEvent,
-  MidiDeviceUnavailableEvent, MidiDirection, MidiEvent, MidiManager}
+import org.calinburloiu.music.scmidi.{
+  MidiDeviceFailedToBecomeUnavailableEvent, MidiDeviceId, MidiDeviceOpenedEvent,
+  MidiDeviceUnavailableEvent, MidiDirection, MidiEvent, MidiManager
+}
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
@@ -38,7 +40,7 @@ class TrackManager(private val midiManager: MidiManager,
                    private val executorService: ExecutorService = TrackManager.createExecutorService())
   extends AutoCloseable with StrictLogging {
 
-  import TrackManager.InputDeviceGone
+  import TrackManager.*
 
   private var tracksById: VectorMap[TrackSpec.Id, Track] = VectorMap()
 
@@ -135,7 +137,7 @@ class TrackManager(private val midiManager: MidiManager,
    * Handles the MIDI device events that concern the devices of the tracks:
    *
    *   - when an output device opens, it resets the tuner of every track whose output is that device, since the device
-   *     may have (re)opened after the track was built;
+   *     may have (re)opened after the track was built, which restores the current tuning on it;
    *   - when an input device becomes unavailable, or fails to, it releases the input of every track whose input is
    *     that device, so that no note stays held on its output.
    *
@@ -151,10 +153,8 @@ class TrackManager(private val midiManager: MidiManager,
   @Subscribe
   private def onMidiEvent(event: MidiEvent): Unit = event match {
     case MidiDeviceOpenedEvent(deviceId, MidiDirection.Output) =>
-      // TODO #303 Restore the current tuning after resetting the tuner.
       tracksWithOutputDevice(deviceId).foreach(_.resetTuner())
     case InputDeviceGone(deviceId) =>
-      // TODO #303 Restore the current tuning after resetting the tuner.
       tracksWithInputDevice(deviceId).foreach(_.releaseInput())
     case _ => // Nothing to do for the other events
   }
@@ -190,6 +190,9 @@ object TrackManager extends LazyLogging {
   private[tuner] val TrackThreadsNamePrefix: String = "Track-"
   private[tuner] val TrackThreadsGroup: ThreadGroup = new ThreadGroup("Track")
   private val TrackThreadsPriority: Int = Thread.NORM_PRIORITY + 2
+
+  // TODO #90 Not yet used in any way. It should probably be removed after migrating to Pekko actors, but we may
+  //  extract meaningful thread configuration ideas from it.
 
   /**
    * Creates a custom version of [[Executors.newCachedThreadPool()]] which:

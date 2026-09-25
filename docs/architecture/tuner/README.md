@@ -30,17 +30,35 @@ beyond tolerance) — that the `composition` reducer uses when combining tunings
 
 **Tuners.** `Tuner` (the `@NotThreadSafe` plugin trait) is the protocol abstraction; its three methods define the
 contract the pipeline drives: `reset()` configures the output device, `tune(tuning)` stores a tuning and emits the
-messages it requires now, and `process(message)` rewrites each message flowing through the track. Implementations:
+messages it requires now, and `process(message)` rewrites each message flowing through the track. The trait keeps the
+current `tuning` itself: `tune` and `reset` are `final`, delegating to the `onTune` / `onReset` hooks each
+implementation provides, and `reset` follows the `onReset` messages with the `onTune` ones for the current tuning, so
+the output instrument is tuned to it again rather than falling back to 12-EDO. `onReset` therefore resets the state a
+tuner derives from its tuning too, which the `onTune` call rebuilds. A tuner that tracks what the output instrument
+plays first stops it in `onReset` — the notes it has sounding and the pedals left down — so that clearing that state
+does not leave hanging notes. Implementations:
 
 - `MtsTuner` and its four octave variants (`MtsOctave{1,2}Byte{Non,}RealTimeTuner`) retune the instrument's pitch table
   in advance via a single MTS SysEx, so notes pass through untouched. The SysEx bytes are built by `MtsMessageGenerator`
   / `MtsOctaveMessageGenerator`.
 - `MonophonicPitchBendTuner` tunes via per-channel Pitch Bend; because Pitch Bend is channel-wide it enforces monophony,
-  folding all input onto one output channel and combining the performer's expressive bend with the tuning bend.
+  folding all input onto one output channel and combining the performer's expressive bend with the tuning bend. Its
+  reset sends a Note Off for the note sounding, releases the Sustain and Sostenuto pedals left down, and resets the
+  Pitch Bend to 0 whatever the instrument holds, the cleared state assuming no bend, before configuring the Pitch Bend
+  Sensitivity.
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
-  pitch-class bend, and reconfigures zones on an MPE Configuration Message. `MpeZone*` models the zone layout, while
-  `MpeChannelAllocator` owns both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`,
-  reference counting, the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
+  pitch-class bend, and reconfigures zones on an MPE Configuration Message. Its reset sends a Note Off for every active
+  note and returns the Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their
+  defaults — routing each default as if the input channel holding the value had sent it, and releasing the pedals
+  first so that the notes they hold stop before their pitch changes — and CC #74 and Channel Pressure on
+  each Member Channel where the allocators record another value, before restating the configured Zones. It resets only
+  what it sent itself, not what another source left on the output device. A Member Channel's Pitch Bend, sent ahead
+  of every note allocated there, is reset only on a Member Channel that the restated Zones turn into a Master
+  Channel, where it would bend every note of the Zone; only an MCM that changed the Zones since the last reset
+  makes that possible. This assumes that a tuner resets its output when detached from
+  it, which #305 is to add. `MpeZone*` models the zone layout, while `MpeChannelAllocator` owns
+  both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting, the
+  per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   Expression Pitch Bend is held in raw signed 14-bit units, exactly as received, and is reinterpreted rather than
   rescaled when the Member Channel Pitch Bend Sensitivity changes; the allocator classifies a High Expression Pitch Bend
   against a raw threshold `MpeTuner` injects through the constructor and re-injects through
@@ -97,8 +115,8 @@ change, calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`, fo
 `reset()` to each receiver newly **attached** to its transmitter, and restoring 12-EDO on each receiver being
 **detached** — not to be confused with the device being available or open, see
 [`midi-device-lifecycle.md`](../midi-device-lifecycle.md). `TunerProcessor.reset()` resets the tuner and sends its
-initialization messages to every current receiver, and `TuningChangeProcessor.reset()` resets its tuning changers;
-`Track` calls both when its devices change.
+configuration messages, followed by its current tuning, to every current receiver, and `TuningChangeProcessor.reset()`
+resets its tuning changers; `Track` calls both when its devices change.
 
 **Track and lifecycle.**
 
@@ -110,8 +128,8 @@ initialization messages to every current receiver, and `TuningChangeProcessor.re
     the device only once the last reference goes. It must detach because a released handle whose device is
     still available stays live and is the one a later track for that device gets: a closed track left attached would
     keep receiving and sending next to its replacement.
-  - `resetTuner()` re-initialises the output instrument, and `releaseInput()` silences it after its input device
-    disappears (see [Device changes](#device-changes)).
+  - `resetTuner()` reconfigures the output instrument and restores its current tuning, and `releaseInput()`
+    silences it after its input device disappears (see [Device changes](#device-changes)).
 - `TrackSpec` / `TrackSpecs` are the declarative description of a track and an immutable, id-keyed ordered collection
   of them.
 - `TrackIO` holds the input/output spec plugins, including inter-track routing (`FromTrackInputSpec` /
@@ -200,7 +218,7 @@ The reverse, application-driven path (loading a composition) sets the available 
 MidiDeviceOpenedEvent(id, Output)             (an output device (re)opened)
   → TrackManager.onMidiEvent
   → Track.resetTuner() for every track whose output is DeviceTrackOutputSpec(id)
-  → TunerProcessor.reset() → Tuner.reset() messages → output device
+  → TunerProcessor.reset() → Tuner.reset() messages, current tuning included → output device
 
 MidiDeviceUnavailableEvent(id, Input) or MidiDeviceFailedToBecomeUnavailableEvent(id, Input, _)
   → TrackManager.onMidiEvent
@@ -215,8 +233,10 @@ MidiDeviceUnavailableEvent(id, Input) or MidiDeviceFailedToBecomeUnavailableEven
   receiver of the pipeline already sends the tuner's reset messages.
 - `replaceAllTracks` forgets the closed tracks before building the new ones, so an event published while the new
   tracks open their devices never reaches a closed track.
-- The reset does not restore the current tuning. Until #303, the instrument plays in 12-EDO until the next tuning
-  change.
+- The reset restores the current tuning, as `Tuner.reset()` restates it (#322), so an instrument turned off and on
+  again, or whose input device is gone, keeps playing in the current tuning. At startup the tracks are built before
+  the tunings are loaded: each tuner reset then restates 12-EDO, and loading the tunings tunes every track to the
+  first one.
 - Only the tracks wired straight to a device react. A track fed by another through `ToTrack` / `FromTrack` is not
   released when the feeding track's input device becomes unavailable, nor reset when its own output device opens: the
   release reaches its pipeline input, where its tuner discards what falls outside its input zone, and its own tuner
@@ -258,11 +278,14 @@ These are signalled directly in the code:
 - `TuningService.tunings` is `@deprecated` (TODO #99) and slated for removal once the UI migrates to JavaFX.
 - `TrackManager` still relies on a Guava `@Subscribe` annotation pending fuller Businessync integration (TODO #90).
 - `TrackManager`'s `MidiEvent` handler runs on the publishing thread instead of the business thread (TODO #90).
-- Resetting a track's tuner on a device event does not restore the current tuning (TODO #303).
+- `TunerProcessor.onDetach` and `Track.close()` send the courtesy 12-EDO messages through `tune(Tuning.Standard)`,
+  which also makes 12-EDO the tuner's current tuning, until #305 renders them with a read-only method (TODO #305).
+- `MpeTuner`'s reset returns only the Member Channel values it sent itself to their defaults, relying on a tuner
+  resetting its output when detached from it, which #305 is to add (TODO #305).
 
 Not signalled in the code yet: [#305](https://github.com/calinburloiu/microtonalist/issues/305) will make attaching
 and detaching a track input/output drive the open and close requests, and will tie the tuner reset and the courtesy
 12-EDO messages to the device actually opening and closing rather than to the wiring change alone — so an output that
-another track still holds open is left playing in its current tuning. It also reshapes `Tuner.tune` / `Tuner.reset`
-into `final` methods over new `onTune` / `onReset` hooks. See
+another track still holds open is left playing in its current tuning. It also makes `reset` restate the current
+configuration rather than the constructor one. See
 [`midi-device-lifecycle.md`](../midi-device-lifecycle.md#subject-to-change-305).

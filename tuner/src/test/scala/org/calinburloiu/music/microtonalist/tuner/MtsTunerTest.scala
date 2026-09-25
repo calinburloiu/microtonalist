@@ -48,6 +48,27 @@ class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
     }
   }
 
+  "MtsTuner#reset" should {
+    "re-send the tuning last set" in {
+      // Given
+      val tuner = MtsOctave1ByteNonRealTimeTuner()
+      tuner.tune(TestTunings.justCMaj)
+      // When
+      val result: Seq[MidiMsg] = tuner.reset()
+      // Then
+      result shouldEqual Seq(MtsMessageGenerator.Octave1ByteNonRealTime.generate(TestTunings.justCMaj))
+    }
+
+    "send the Standard Tuning when no tuning was set" in {
+      // Given
+      val tuner = MtsOctave1ByteNonRealTimeTuner()
+      // When
+      val result: Seq[MidiMsg] = tuner.reset()
+      // Then
+      result shouldEqual Seq(MtsMessageGenerator.Octave1ByteNonRealTime.generate(Tuning.Standard))
+    }
+  }
+
   "MtsTuner#process" should {
     "return the received MIDI message if thru is true" in new Fixture(thru = true) {
       // Given

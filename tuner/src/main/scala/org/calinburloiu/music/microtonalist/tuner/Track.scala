@@ -38,14 +38,11 @@ import javax.annotation.concurrent.ThreadSafe
  *                         the track is closed.
  * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
  *                         tuning change.
- * @param initMidiMessages MIDI messages sent into the pipeline right after it is built, typically to initialize the
- *                         output instrument.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,
             midiManager: MidiManager,
-            tuningService: TuningService,
-            initMidiMessages: Seq[MidiMsg] = Seq.empty) extends Runnable, AutoCloseable, StrictLogging {
+            tuningService: TuningService) extends Runnable, AutoCloseable, StrictLogging {
 
   private val inputDeviceHandle: Option[MidiDeviceHandle] = spec.input.collect {
     case DeviceTrackInputSpec(midiDeviceId, _) => midiManager.openDevice(midiDeviceId, MidiDirection.Input)
@@ -68,11 +65,10 @@ class Track(val spec: TrackSpec,
   //  and that wiring is therefore lost to the tuner and the channel state tracker.
   inputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))
 
-  sendInitMidiMessages()
-
   def id: TrackSpec.Id = spec.id
 
-  // TODO #121 Implement Track#run
+  // TODO #121 Not implemented
+  // TODO #90 We probably need to remove this and `extends Runnable` if we make each `Track` a Pekko actor
   override def run(): Unit = {
     logger.warn("Track#run is not yet implemented!")
   }
@@ -109,6 +105,8 @@ class Track(val spec: TrackSpec,
     // Removing the output device receiver makes the TunerProcessor send it the 12-EDO messages, so tuning afterwards
     // reaches only the receivers left, the tracks this one feeds.
     outputDeviceHandle.foreach(handle => transmitter.removeReceiver(handle.receiver))
+    // TODO #305 This also makes 12-EDO the tuner's current tuning. A read-only method rendering the 12-EDO messages
+    //  replaces it.
     tune(Tuning.Standard)
 
     spec.input.foreach {
@@ -131,9 +129,9 @@ class Track(val spec: TrackSpec,
   }
 
   /**
-   * Resets the tuner of this track, if any, sending the messages that initialize the output instrument to the output
-   * of the track, e.g. after the output device (re)opened. The current tuning is not restored: the output plays in
-   * 12-EDO until the next tuning change.
+   * Resets the tuner of this track, if any, sending the messages that reconfigure the output instrument to the output
+   * of the track, e.g. after the output device (re)opened, followed by the ones that restore the current tuning of the
+   * tuner, so that the output does not fall back to 12-EDO.
    */
   def resetTuner(): Unit = {
     tunerProcessor.foreach(_.reset())
@@ -148,7 +146,8 @@ class Track(val spec: TrackSpec,
    *      Notes Off, so a note it holds would keep sounding otherwise;
    *   1. resets the tuning changers, so that a trigger held when the input disappeared does not swallow the first
    *      trigger after it comes back;
-   *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one.
+   *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one and
+   *      restores the current tuning.
    *
    * The track keeps no state of its own about held notes.
    */
@@ -165,15 +164,6 @@ class Track(val spec: TrackSpec,
 
     tuningChangeProcessor.foreach(_.reset())
     resetTuner()
-  }
-
-  // TODO #297 These reach the tuner only when the pipeline already has output receivers, which a track that feeds
-  //  another track does not have yet at this point; otherwise they are dropped without being processed. Unreachable
-  //  today, initMidiMessages having no caller that passes it.
-  private def sendInitMidiMessages(): Unit = {
-    for (message <- initMidiMessages) {
-      pipeline.receiver.send(message, -1)
-    }
   }
 }
 

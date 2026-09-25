@@ -68,8 +68,6 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private var _zones: MpeZones = initialZones
   private var _inputMode: MpeInputMode = initialInputMode
 
-  private var _tuning: Tuning = Tuning.Standard
-
   private var lowerAllocator: Option[MpeChannelAllocator] = createAllocator(lowerZone)
   private var upperAllocator: Option[MpeChannelAllocator] = createAllocator(upperZone)
 
@@ -109,33 +107,39 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   def inputMode: MpeInputMode = _inputMode
 
   /**
-   * @return current tuning
+   * @inheritdoc
+   *
+   * This tuner sends a Note Off for every active note, then returns the Sustain and Sostenuto pedals and the Pitch
+   * Bend forwarded to a Master Channel, CC #74 and Channel Pressure on each Member Channel where the allocators
+   * record another value, and the Pitch Bend on each Member Channel that the restated Zones turn into a Master
+   * Channel, to their defaults. It resets only what it sent itself, not what another source left on the output
+   * device. After restoring the initial Zones and input mode and clearing its state, it restates the Zones with their
+   * MPE Configuration Messages and Pitch Bend Sensitivities.
    */
-  def tuning: Tuning = _tuning
-
-  override def reset(): Seq[MidiMsg] = {
+  override protected def onReset(): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
     // Emit Note Off for every active note before switching input mode / zone layout,
     // so downstream receivers are never left with hanging notes (MPE spec Section 2.1.4).
     stopNotesOn(buffer, AllChannels)
+    releaseForwardedControls(buffer)
+    releaseMemberChannelControls(buffer)
+
     _zones = initialZones
     _inputMode = initialInputMode
-    // Full re-initialization restores the Standard Tuning; an in-band Zone reconfiguration must not, since
-    // nothing in the paper sanctions discarding the performer's active Tuning.
-    _tuning = Tuning.Standard
+
     resetState()
     warnOnNonMpeInputWithBothZones()
     emitConfiguration(buffer)
+
     buffer.toSeq
   }
 
-  override def tune(tuning: Tuning): Seq[MidiMsg] = {
-    _tuning = tuning
+  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
 
     // Update pitch bend on all occupied member channels
-    lowerAllocator.foreach(updateTuningOnZone(buffer, _))
-    upperAllocator.foreach(updateTuningOnZone(buffer, _))
+    lowerAllocator.foreach(updateTuningOnZone(buffer, _, tuning))
+    upperAllocator.foreach(updateTuningOnZone(buffer, _, tuning))
 
     buffer.toSeq
   }
@@ -208,7 +212,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   /**
    * Clears internal channel-tracking state and recreates allocators from `currentZones`. Does not touch the active
-   * Tuning; see `reset()` for full re-initialization.
+   * Tuning, which even a full reconfiguration, `reset()`, keeps and restates.
    */
   private def resetState(): Unit = {
     tracker.reset()
@@ -282,7 +286,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       // note of a different pitch class and has missed every tune() that ran while it was empty. A
       // duplicate Note On changes nothing at all, so it is emitted alone.
       if (!result.isDuplicate) {
-        emitPitchBend(buffer, outChannel, alloc)
+        emitPitchBend(buffer, outChannel, alloc, tuning)
       }
       emitSlide(buffer, outChannel, result.update)
       emitPressure(buffer, outChannel, result.update)
@@ -330,7 +334,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
           buffer += NoteOffMidiMsg(outChannel, midiNote, velocity)
 
-          if (result.update.pitchBend.isDefined) emitPitchBend(buffer, outChannel, alloc)
+          if (result.update.pitchBend.isDefined) emitPitchBend(buffer, outChannel, alloc, tuning)
           emitSlide(buffer, outChannel, result.update)
           if (!result.pressureWasReset) emitPressure(buffer, outChannel, result.update)
 
@@ -647,6 +651,84 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
+  /**
+   * Returns the controls forwarded to the output that the input left away from their defaults — the Sustain and
+   * Sostenuto Pedals, then the Pitch Bend — to their defaults, so that the receiver does not keep them once a reset
+   * clears the tracker that records them.
+   *
+   * Each default is routed as if the input channel holding the value had sent it, under the current input mode and
+   * Zones, so that it reaches exactly the output channel the value was forwarded to, once per output channel. The
+   * pedals of every input channel go before any Pitch Bend, so that the notes they hold stop before the Pitch Bend
+   * changes their pitch, also when several input channels are redirected to the same output channel. The Pitch Bend
+   * of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control; see
+   * [[releaseMemberChannelControls]] for the output Member Channels.
+   */
+  private def releaseForwardedControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    val heldControlReleases = (0 until MidiChannelCount).flatMap(pedalReleasesOn) ++
+      (0 until MidiChannelCount).flatMap(pitchBendReleaseOn)
+    val releases = for {
+      release <- heldControlReleases
+      outputChannel <- forwardingChannelOf(release)
+    } yield release.mapChannel(_ => outputChannel)
+
+    buffer ++= releases.distinct
+  }
+
+  /**
+   * Returns CC #74 and Channel Pressure, in that order, to their defaults on each Member Channel where, as the
+   * allocators record, the Tuner left them at another value, so that the receiver does not keep them once a reset
+   * recreates the allocators, which assume the defaults. It runs before the reset restates the Zones, and so covers
+   * the Member Channels of the Zones in effect before it, those the restated Zones leave out included.
+   *
+   * Only what the Tuner itself sent is reset: values another source left on the receiver are not its responsibility.
+   *
+   * A Member Channel's Pitch Bend needs no reset while the channel stays a Member Channel, being emitted ahead of
+   * every note allocated there. A Member Channel that the restated Zones turn into a Master Channel, which only an
+   * MCM that changed the Zones since the last reset makes possible, gets no note, whereas a Pitch Bend there bends
+   * every note of its Zone: its Pitch Bend is centered first, whatever the Tuner last sent there.
+   */
+  private def releaseMemberChannelControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    val restatedMasterChannels = Seq(initialZones.lower, initialZones.upper).filter(_.isEnabled).map(_.masterChannel)
+
+    // TODO #305 This relies on a tuner resetting its output when detached from it, which none does yet. Until then, a
+    //  tuner that preceded this one on the same output, e.g. before a tracks file was loaded, may leave values that
+    //  this one does not know about.
+    for {
+      alloc <- Seq(lowerAllocator, upperAllocator).flatten
+      channel <- currentZone(alloc).memberChannels
+    } {
+      if (restatedMasterChannels.contains(channel)) {
+        buffer += PitchBendMidiMsg(channel, 0)
+      }
+
+      val expression = alloc.channelExpression(channel)
+      if (expression.slide != MpeExpression.DefaultSlide) {
+        buffer += CcMidiMsg(channel, MidiCc.MpeSlide, MpeExpression.DefaultSlide)
+      }
+      if (expression.pressure != MpeExpression.DefaultPressure) {
+        buffer += ChannelPressureMidiMsg(channel, MpeExpression.DefaultPressure)
+      }
+    }
+  }
+
+  /** The messages releasing the pedals the tracker holds down on a channel. */
+  private def pedalReleasesOn(channel: Int): Seq[ChannelMidiMsg] = for {
+    pedal <- Tuner.NoteHoldingPedals if tracker.cc(channel, pedal) > 0
+  } yield CcMidiMsg(channel, pedal, 0)
+
+  /** The message returning the Pitch Bend the tracker holds on a channel to its center, if it is away from it. */
+  private def pitchBendReleaseOn(channel: Int): Option[ChannelMidiMsg] =
+    Option.when(tracker.pitchBend(channel) != 0)(PitchBendMidiMsg(channel, 0))
+
+  /** The output channel a message received on its channel is forwarded to, if it is forwarded at all. */
+  private def forwardingChannelOf(message: ChannelMidiMsg): Option[Int] = {
+    val role = MpeMessageRouting.roleOf(_inputMode, _zones, message.channel)
+    MpeMessageRouting.route(role, message, RpnSelector.None) match {
+      case MpeRoutingVerdict.ForwardOn(outputChannel) => Some(outputChannel)
+      case _ => None
+    }
+  }
+
   private def processChannelPressure(buffer: mutable.Buffer[MidiMsg], msg: ChannelPressureMidiMsg,
                                      role: MpeChannelRole): Unit = {
     // Per-note pressure on an input Member Channel: it belongs to every note active on that channel, wherever the
@@ -719,7 +801,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   private def emitExpressionUpdate(buffer: mutable.Buffer[MidiMsg], channel: Int,
                                    update: MpeExpressionUpdate, alloc: MpeChannelAllocator): Unit = {
-    if (update.pitchBend.isDefined) emitPitchBend(buffer, channel, alloc)
+    if (update.pitchBend.isDefined) emitPitchBend(buffer, channel, alloc, tuning)
     emitSlide(buffer, channel, update)
     emitPressure(buffer, channel, update)
   }
@@ -779,7 +861,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def emitZoneConfigurationResult(buffer: mutable.Buffer[MidiMsg], result: MpeExpressionUpdateResult,
                                           alloc: MpeChannelAllocator): Unit = {
     result.droppedNotes.foreach(emitDroppedNoteOffs(buffer, _, DropReason.OnMemberPbsChange))
-    updateTuningOnZone(buffer, alloc)
+    updateTuningOnZone(buffer, alloc, tuning)
     result.channelUpdates.foreach { channelUpdate =>
       emitSlide(buffer, channelUpdate.channel, channelUpdate.update)
       emitPressure(buffer, channelUpdate.channel, channelUpdate.update)
@@ -787,25 +869,26 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Emits a Pitch Bend message for a channel based on the current tuning offset, if the channel has active notes.
-   * The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone type.
+   * Emits a Pitch Bend message for a channel based on the offset `tuning` gives its pitch class, if the channel has
+   * active notes. The zone used for pitch bend computation is resolved from `_zones` based on the allocator's zone
+   * type.
    */
   private def emitPitchBend(buffer: mutable.Buffer[MidiMsg], channel: Int,
-                            alloc: MpeChannelAllocator): Unit = {
+                            alloc: MpeChannelAllocator, tuning: Tuning): Unit = {
     val zone = currentZone(alloc)
     alloc.channelPitchClass(channel).foreach { pc =>
-      val tuningOffset = _tuning(pc)
+      val tuningOffset = tuning(pc)
       val totalPitchBend = computeOutputPitchBend(channel, alloc, zone, tuningOffset)
       buffer += PitchBendMidiMsg(channel, totalPitchBend)
     }
   }
 
   private def updateTuningOnZone(buffer: mutable.Buffer[MidiMsg],
-                                 alloc: MpeChannelAllocator): Unit = {
+                                 alloc: MpeChannelAllocator, tuning: Tuning): Unit = {
     val zone = currentZone(alloc)
     // Only occupied channels have a pitch class assigned
     for (ch <- zone.memberChannels) {
-      emitPitchBend(buffer, ch, alloc)
+      emitPitchBend(buffer, ch, alloc, tuning)
     }
   }
 
@@ -898,7 +981,7 @@ object MpeTuner {
   /** The number of MIDI channels. */
   private val MidiChannelCount: Int = 16
 
-  /** Every MIDI channel, the scope of the state reset performed by a full re-initialization. */
+  /** Every MIDI channel, the scope of the state reset performed by a full reconfiguration, `reset()`. */
   private val AllChannels: Set[Int] = (0 until MidiChannelCount).toSet
 
   /** The paper's High Expression Pitch Bend threshold `t`: an absolute pitch deviation of half a semitone. */

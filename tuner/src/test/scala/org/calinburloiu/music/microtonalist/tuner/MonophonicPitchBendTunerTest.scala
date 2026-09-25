@@ -49,6 +49,8 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
   )
   //@formatter:on
   private val customTuning2 = Tuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
+  /** Beyond the reach of [[semitonePitchBendSensitivity]] on every pitch class. */
+  private val tuningBeyondASemitone = Tuning.fromOffsets("beyond a semitone", Seq.fill(12)(150.0))
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
     noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4.number until MidiNote.C5.number
@@ -238,6 +240,169 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       output ++= tuner.tune(customTuning)
 
       output shouldBe empty
+    }
+  }
+
+  "MonophonicPitchBendTuner on reset" should {
+    "only reset the pitch bend to 0 and configure the pitch bend sensitivity when no note is sounding, although a " +
+      "tuning is set" in new Fixture {
+      // Given
+      tuner.tune(customTuning2)
+      sendNote(noteE4)
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      midiOutput shouldEqual PitchBendMidiMsg(outputChannel, 0) +:
+        PitchBendSensitivityMessages.create(outputChannel, pitchBendSensitivity)
+    }
+
+    "stop the sounding note first" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      filterNotes(midiOutput) should have size 1
+      inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4 }
+    }
+
+    "only stop the last note held, the only one sounding" in new Fixture {
+      // Given
+      tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
+      tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      filterNotes(midiOutput) should have size 1
+      inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteE4 }
+    }
+
+    "release the sustain pedal if it is down" in new Fixture {
+      // Given
+      tuner.process(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127))
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      midiOutput should contain(CcMidiMsg(outputChannel, MidiCc.SustainPedal, 0))
+    }
+
+    "release the sostenuto pedal if it is down" in new Fixture {
+      // Given
+      tuner.process(CcMidiMsg(inputChannel, MidiCc.SostenutoPedal, 127))
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      midiOutput should contain(CcMidiMsg(outputChannel, MidiCc.SostenutoPedal, 0))
+    }
+
+    "not release a pedal released before the reset" in new Fixture {
+      // Given
+      tuner.process(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127))
+      tuner.process(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 0))
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      midiOutput should not contain (CcMidiMsg(outputChannel, MidiCc.SustainPedal, 0))
+    }
+
+    "stop the sounding note and release the pedals before resetting the pitch bend" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      tuner.process(CcMidiMsg(inputChannel, MidiCc.SustainPedal, 127))
+      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      inside(midiOutput.take(3)) {
+        case Seq(NoteOffMidiMsg(_, note, _), CcMidiMsg(_, MidiCc.SustainPedal, 0), PitchBendMidiMsg(_, 0)) =>
+          note.number shouldEqual noteDSharp4
+      }
+    }
+
+    "stop the sounding note and keep the current tuning after failing to apply a tuning beyond the pitch bend " +
+      "sensitivity" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+      an[IllegalArgumentException] should be thrownBy tuner.tune(tuningBeyondASemitone)
+
+      // When
+      output ++= tuner.reset()
+
+      // Then
+      inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4 }
+      tuner.tuning shouldEqual customTuning
+    }
+  }
+
+  "MonophonicPitchBendTuner after reset" should {
+    "ignore the Note Off of a note held down across the reset" in new Fixture {
+      // Given
+      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+      tuner.reset()
+
+      // When
+      output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteDSharp4))
+
+      // Then
+      output shouldBe empty
+    }
+
+    "not bend the next note by the pitch bend of the note sounding at the reset" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+
+      // When
+      output ++= tuner.reset()
+      output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteDSharp4))
+      output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
+
+      // Then
+      pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, 0))
+      inside(midiOutput.last) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteC4 }
+    }
+
+    "keep tuning the notes in the tuning set before the reset" in new Fixture {
+      // Given
+      tuner.tune(customTuning)
+      sendNote(noteDSharp4)
+      tuner.reset()
+
+      // When
+      output ++= sendNote(noteE4)
+
+      // Then
+      pitchBendOutput should have size 1
+      pitchBendOutput.head.cents shouldEqual -16.67
+    }
+
+    "tune C, the note it starts from, in the tuning set before the reset" in new Fixture {
+      // Given
+      tuner.tune(customTuning2)
+      tuner.reset()
+
+      // When
+      output ++= sendNote(noteC4)
+
+      // Then
+      pitchBendOutput should have size 1
+      pitchBendOutput.head.cents shouldEqual -45.0
     }
   }
 
