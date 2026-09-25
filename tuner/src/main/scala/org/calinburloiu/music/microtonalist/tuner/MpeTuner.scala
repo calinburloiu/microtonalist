@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 
@@ -59,7 +58,7 @@ enum MpeInputMode {
  *                         upon receiving an MPE Configuration Message.
  */
 class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
-               private val initialInputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner with StrictLogging {
+               private val initialInputMode: MpeInputMode = MpeInputMode.NonMpe) extends Tuner {
 
   import MpeTuner.*
 

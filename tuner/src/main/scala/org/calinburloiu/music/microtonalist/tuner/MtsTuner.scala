@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiDeviceId
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
@@ -29,7 +28,7 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  *                            messages that change the tuning.
  */
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
-                        val thru: Boolean = MtsTuner.DefaultThru) extends Tuner with StrictLogging {
+                        val thru: Boolean = MtsTuner.DefaultThru) extends Tuner {
 
   /**
    * @inheritdoc

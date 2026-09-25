@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, clampValue}
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, RpnMessages}
@@ -38,7 +37,7 @@ import scala.collection.mutable
  */
 case class MonophonicPitchBendTuner(outputChannel: Int,
                                     defaultPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
-  extends Tuner with StrictLogging {
+  extends Tuner {
   require(0 <= outputChannel && outputChannel <= 15,
     s"Output MIDI channel must be between 0 and 15, but was $outputChannel!")
 
