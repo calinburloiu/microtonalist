@@ -398,6 +398,28 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       extractPitchBends(resetOutput) shouldEqual Seq(PitchBendMidiMsg(0, 0))
     }
 
+    "release the pedals redirected to the Master Channel before resetting its Pitch Bend" in new Fixture(tuner7) {
+      // Given
+      tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
+      pitchBendValue(nonMpeInputChannel, 1000)
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      // The notes the pedal holds would otherwise change pitch before they stop.
+      resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+    }
+
+    "release the pedals redirected to the Master Channel before resetting its Pitch Bend, although held on a later " +
+      "input channel" in new Fixture(tuner7) {
+      // Given
+      pitchBendValue(nonMpeInputChannel, 1000)
+      tuner.process(CcMidiMsg(nonMpeInputChannel + 1, MidiCc.SustainPedal, 127))
+      // When
+      private val resetOutput = tuner.reset()
+      // Then
+      resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+    }
+
     "not release the pedals nor reset the Pitch Bend back to their defaults" in new Fixture(tuner7) {
       // Given
       tuner.process(CcMidiMsg(nonMpeInputChannel, MidiCc.SustainPedal, 127))
@@ -633,6 +655,18 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       extractPitchBends(resetOutput) shouldEqual Seq(PitchBendMidiMsg(0, 0))
     }
+
+    "release the pedals forwarded on the Master Channel before resetting its Pitch Bend" in
+      new Fixture(tuner7MpeInput) {
+        // Given
+        tuner.process(CcMidiMsg(0, MidiCc.SustainPedal, 127))
+        pitchBendValue(0, 1000)
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        // The notes the pedal holds would otherwise change pitch before they stop.
+        resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+      }
 
     // ---- Member Channel control reset ----
 

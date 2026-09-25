@@ -642,19 +642,22 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   }
 
   /**
-   * Returns the controls forwarded to the output that the input left away from their defaults — the Pitch Bend and
-   * the Sustain and Sostenuto Pedals — to their defaults, so that the receiver does not keep them once a reset clears
-   * the tracker that records them.
+   * Returns the controls forwarded to the output that the input left away from their defaults — the Sustain and
+   * Sostenuto Pedals, then the Pitch Bend — to their defaults, so that the receiver does not keep them once a reset
+   * clears the tracker that records them.
    *
    * Each default is routed as if the input channel holding the value had sent it, under the current input mode and
    * Zones, so that it reaches exactly the output channel the value was forwarded to, once per output channel. The
-   * Pitch Bend of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control; see
+   * pedals of every input channel go before any Pitch Bend, so that the notes they hold stop before the Pitch Bend
+   * changes their pitch, also when several input channels are redirected to the same output channel. The Pitch Bend
+   * of an input Member Channel is a note's Expression Pitch Bend rather than a forwarded control; see
    * [[releaseMemberChannelControls]] for the output Member Channels.
    */
   private def releaseForwardedControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    val heldControlReleases = (0 until MidiChannelCount).flatMap(pedalReleasesOn) ++
+      (0 until MidiChannelCount).flatMap(pitchBendReleaseOn)
     val releases = for {
-      channel <- 0 until MidiChannelCount
-      release <- releasesOfHeldControlsOn(channel)
+      release <- heldControlReleases
       outputChannel <- forwardingChannelOf(release)
     } yield release.mapChannel(_ => outputChannel)
 
@@ -688,15 +691,14 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     }
   }
 
-  /** The messages returning the Pitch Bend and the pedals the tracker holds away from their defaults on a channel. */
-  private def releasesOfHeldControlsOn(channel: Int): Seq[ChannelMidiMsg] = {
-    val pitchBendRelease = Option.when(tracker.pitchBend(channel) != 0)(PitchBendMidiMsg(channel, 0))
-    val pedalReleases = for {
-      pedal <- Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal) if tracker.cc(channel, pedal) > 0
-    } yield CcMidiMsg(channel, pedal, 0)
+  /** The messages releasing the pedals the tracker holds down on a channel. */
+  private def pedalReleasesOn(channel: Int): Seq[ChannelMidiMsg] = for {
+    pedal <- Seq(MidiCc.SustainPedal, MidiCc.SostenutoPedal) if tracker.cc(channel, pedal) > 0
+  } yield CcMidiMsg(channel, pedal, 0)
 
-    pitchBendRelease.toSeq ++ pedalReleases
-  }
+  /** The message returning the Pitch Bend the tracker holds on a channel to its center, if it is away from it. */
+  private def pitchBendReleaseOn(channel: Int): Option[ChannelMidiMsg] =
+    Option.when(tracker.pitchBend(channel) != 0)(PitchBendMidiMsg(channel, 0))
 
   /** The output channel a message received on its channel is forwarded to, if it is forwarded at all. */
   private def forwardingChannelOf(message: ChannelMidiMsg): Option[Int] = {
