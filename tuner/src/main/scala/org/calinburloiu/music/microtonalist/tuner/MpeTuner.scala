@@ -110,10 +110,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * @inheritdoc
    *
    * This tuner sends a Note Off for every active note, then returns the Sustain and Sostenuto pedals and the Pitch
-   * Bend forwarded to a Master Channel, and CC #74 and Channel Pressure on each Member Channel where the allocators
-   * record another value, to their defaults. It resets only what it sent itself, not what another source left on the
-   * output device. After restoring the initial Zones and input mode and clearing its state, it restates the Zones
-   * with their MPE Configuration Messages and Pitch Bend Sensitivities.
+   * Bend forwarded to a Master Channel, CC #74 and Channel Pressure on each Member Channel where the allocators
+   * record another value, and the Pitch Bend on each Member Channel that the restated Zones turn into a Master
+   * Channel, to their defaults. It resets only what it sent itself, not what another source left on the output
+   * device. After restoring the initial Zones and input mode and clearing its state, it restates the Zones with their
+   * MPE Configuration Messages and Pitch Bend Sensitivities.
    */
   override protected def onReset(): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
@@ -680,9 +681,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    * the Member Channels of the Zones in effect before it, those the restated Zones leave out included.
    *
    * Only what the Tuner itself sent is reset: values another source left on the receiver are not its responsibility.
-   * Pitch Bend needs no reset, being emitted ahead of every note allocated on a Member Channel.
+   *
+   * A Member Channel's Pitch Bend needs no reset while the channel stays a Member Channel, being emitted ahead of
+   * every note allocated there. A Member Channel that the restated Zones turn into a Master Channel, which only an
+   * MCM that changed the Zones since the last reset makes possible, gets no note, whereas a Pitch Bend there bends
+   * every note of its Zone: its Pitch Bend is centered first, whatever the Tuner last sent there.
    */
   private def releaseMemberChannelControls(buffer: mutable.Buffer[MidiMsg]): Unit = {
+    val restatedMasterChannels = Seq(initialZones.lower, initialZones.upper).filter(_.isEnabled).map(_.masterChannel)
+
     // TODO #305 This relies on a tuner resetting its output when detached from it, which none does yet. Until then, a
     //  tuner that preceded this one on the same output, e.g. before a tracks file was loaded, may leave values that
     //  this one does not know about.
@@ -690,6 +697,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
       alloc <- Seq(lowerAllocator, upperAllocator).flatten
       channel <- currentZone(alloc).memberChannels
     } {
+      if (restatedMasterChannels.contains(channel)) {
+        buffer += PitchBendMidiMsg(channel, 0)
+      }
+
       val expression = alloc.channelExpression(channel)
       if (expression.slide != MpeExpression.DefaultSlide) {
         buffer += CcMidiMsg(channel, MidiCc.MpeSlide, MpeExpression.DefaultSlide)

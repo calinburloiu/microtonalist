@@ -52,8 +52,10 @@ does not leave hanging notes. Implementations:
   defaults — routing each default as if the input channel holding the value had sent it, and releasing the pedals
   first so that the notes they hold stop before their pitch changes — and CC #74 and Channel Pressure on
   each Member Channel where the allocators record another value, before restating the configured Zones. It resets only
-  what it sent itself, not what another source left on the output device, and never a Member Channel's Pitch Bend,
-  which is sent ahead of every note allocated there. This assumes that a tuner resets its output when detached from
+  what it sent itself, not what another source left on the output device. A Member Channel's Pitch Bend, sent ahead
+  of every note allocated there, is reset only on a Member Channel that the restated Zones turn into a Master
+  Channel, where it would bend every note of the Zone; only an MCM that changed the Zones since the last reset
+  makes that possible. This assumes that a tuner resets its output when detached from
   it, which #305 is to add. `MpeZone*` models the zone layout, while `MpeChannelAllocator` owns
   both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting, the
   per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.

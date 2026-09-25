@@ -765,6 +765,40 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         extractSlides(resetOutput) shouldEqual Seq(CcMidiMsg(noteChannel, MidiCc.MpeSlide, 64))
       }
 
+    "reset the Pitch Bend of a Member Channel that the reset turns into the Lower Zone Master Channel" in
+      new Fixture(mpeTunerMpeInput) {
+        // Given
+        // The output device keeps every value it is sent until it is sent another, as a receiver that does not reset
+        // the channels an MCM moves from one Zone to another (MPE Spec §2.1.4) does.
+        private val outputDevice = MidiChannelStateTracker()
+        // The MCM gives channels 0-14 to an Upper Zone as its Member Channels, and the reset gives channel 0 back to
+        // the default Lower Zone as its Master Channel. The note lands on its input channel, bent by an octave.
+        sendMcm(tuner, 15, 15).foreach(outputDevice.send(_))
+        private val noteOutput = noteOn(0, E4, pbCents = Some(1200.0)) ++ noteOff(0, E4)
+        noteOutput.foreach(outputDevice.send(_))
+        extractNoteOns(noteOutput).head.channel shouldBe 0
+        outputDevice.pitchBend(0) should not be 0
+        // When
+        tuner.reset().foreach(outputDevice.send(_))
+        // Then
+        // Otherwise the bend the note left on channel 0 bends every note of the Lower Zone.
+        outputDevice.pitchBend(0) shouldBe 0
+      }
+
+    "reset the Pitch Bend of a Member Channel that the reset turns into the Upper Zone Master Channel" in
+      new Fixture(dualZoneTunerMpeInput) {
+        // Given
+        // The MCM widens the Lower Zone to channels 1-15, disabling the Upper Zone, and the reset gives channel 15
+        // back to the Upper Zone as its Master Channel.
+        sendMcm(tuner, 0, 15)
+        private val noteOutput = noteOn(15, E4, pbCents = Some(300.0)) ++ noteOff(15, E4)
+        extractNoteOns(noteOutput).head.channel shouldBe 15
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        extractPitchBends(resetOutput) should contain(PitchBendMidiMsg(15, 0))
+      }
+
     "reset the Member Channels after stopping the notes and before configuring the Zones" in
       new Fixture(tuner7MpeInput) {
         // Given
