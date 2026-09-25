@@ -51,7 +51,8 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   /**
    * Tunes the output instrument using the specified tuning.
    * The method generates the corresponding MIDI messages, if any, for the given tuning
-   * and sends them to every receiver of the transmitter.
+   * and sends them to every receiver of the transmitter. It sends nothing for a tuning the tuner refuses, because it
+   * cannot tune it exactly, see [[Tuner.canTune]].
    *
    * @param tuning The instance that contains the tuning information,
    *               including the offset in cents for each of the 12 pitch classes.
