@@ -43,15 +43,16 @@ class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
   private val tuningBeyondASemitone = Tuning.fromOffsets("beyond a semitone", Seq.fill(12)(150.0))
 
   "MtsTuner#canTune" should {
-    "accept a tuning that its MTS message generator can encode" in new Fixture {
+    "tell that it can tune exactly a tuning that its MTS message generator can encode" in new Fixture {
       // When / Then
       tuner.canTune(TestTunings.justCMaj) shouldBe true
     }
 
-    "reject a tuning that its MTS message generator cannot encode" in new Fixture(canEncode = false) {
-      // When / Then
-      tuner.canTune(TestTunings.justCMaj) shouldBe false
-    }
+    "tell that it cannot tune exactly a tuning that its MTS message generator cannot encode" in
+      new Fixture(canEncode = false) {
+        // When / Then
+        tuner.canTune(TestTunings.justCMaj) shouldBe false
+      }
   }
 
   "MtsTuner#tune" should {
@@ -63,15 +64,16 @@ class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
       result shouldEqual Seq(sysExMessage)
     }
 
-    "return the generated SysEx MTS message for a tuning beyond the range of a tuning value in it" in {
+    "clamp a tuning beyond the range of a tuning value in its MTS message to it" in {
       // Given
       val tuner = MtsOctave2ByteNonRealTimeTuner()
+      val clampedTuning = Tuning.fromOffsets("a semitone", Seq.fill(12)(100.0))
 
       // When
       val result: Seq[MidiMsg] = tuner.tune(tuningBeyondASemitone)
 
       // Then
-      result shouldEqual Seq(MtsMessageGenerator.Octave2ByteNonRealTime.generate(tuningBeyondASemitone))
+      result shouldEqual Seq(MtsMessageGenerator.Octave2ByteNonRealTime.generate(clampedTuning))
     }
   }
 

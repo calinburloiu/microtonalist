@@ -931,6 +931,23 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         tuner.canTune(tuningWithB(150.0)) shouldBe false
       }
 
+    "clamp the Pitch Bend of an occupied Member Channel when tuned beyond the Member Pitch Bend Sensitivity" in
+      new Fixture(MpeTuner(
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 15, memberPitchBendSensitivity = PitchBendSensitivity(2)),
+          MpeZone(MpeZoneType.Upper, 0)
+        )
+      )) {
+        // Given
+        noteOn(nonMpeInputChannel, MidiNote.B4)
+
+        // When
+        private val output = tuner.tune(tuningWithB(500.0))
+
+        // Then
+        extractPitchBends(output).map(_.value) shouldEqual Seq(PitchBendMidiMsg.MaxValue)
+      }
+
     "ignore the Member Pitch Bend Sensitivity of a disabled Zone" in new Fixture(MpeTuner(
       initialZones = MpeZones(
         MpeZone(MpeZoneType.Lower, 7),

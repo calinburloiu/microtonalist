@@ -262,12 +262,12 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
   }
 
   "MonophonicPitchBendTuner when asked whether it can tune a tuning" should {
-    "accept a tuning within its pitch bend sensitivity" in new Fixture {
+    "tell that it can tune exactly a tuning within its pitch bend sensitivity" in new Fixture {
       // When / Then
       tuner.canTune(customTuning) shouldBe true
     }
 
-    "accept a tuning on the bounds of its pitch bend sensitivity" in new Fixture {
+    "tell that it can tune exactly a tuning on the bounds of its pitch bend sensitivity" in new Fixture {
       // Given
       val tuning: Tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-100.0, 100.0)).flatten)
 
@@ -275,7 +275,7 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       tuner.canTune(tuning) shouldBe true
     }
 
-    "reject a tuning with an offset beyond its pitch bend sensitivity" in new Fixture {
+    "tell that it cannot tune exactly a tuning with an offset beyond its pitch bend sensitivity" in new Fixture {
       // Given
       val tuning: Tuning = Tuning.fromOffsets("beyond on B", Seq.fill(11)(0.0) :+ -100.01)
 
@@ -283,7 +283,8 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       tuner.canTune(tuning) shouldBe false
     }
 
-    "accept a tuning beyond its default pitch bend sensitivity after an RPN raised it" in new Fixture {
+    "tell that it can tune exactly a tuning beyond its default pitch bend sensitivity after an RPN " +
+      "raised it" in new Fixture {
       // Given
       sendPitchBendSensitivity(tonePitchBendSensitivity)
 
@@ -291,7 +292,8 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       tuner.canTune(tuningBeyondASemitone) shouldBe true
     }
 
-    "reject a tuning beyond its default pitch bend sensitivity again after a reset" in new Fixture {
+    "tell that it cannot tune exactly a tuning beyond its default pitch bend sensitivity again after a " +
+      "reset" in new Fixture {
       // Given
       sendPitchBendSensitivity(tonePitchBendSensitivity)
 
@@ -394,18 +396,20 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       }
     }
 
-    "stop the sounding note when the tuning is beyond the pitch bend sensitivity" in new Fixture {
-      // Given
-      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
-      tuner.tune(tuningBeyondASemitone)
+    "stop the sounding note without failing when the current tuning is beyond the pitch bend sensitivity" in
+      new Fixture {
+        // Given
+        tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+        tuner.tune(tuningBeyondASemitone)
 
-      // When
-      output ++= tuner.reset()
+        // When
+        output ++= tuner.reset()
 
-      // Then
-      inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4 }
-      tuner.tuning shouldEqual tuningBeyondASemitone
-    }
+        // Then
+        inside(midiOutput.head) {
+          case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4
+        }
+      }
   }
 
   "MonophonicPitchBendTuner after reset" should {
