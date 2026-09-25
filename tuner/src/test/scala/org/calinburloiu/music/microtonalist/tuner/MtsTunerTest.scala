@@ -27,7 +27,7 @@ import scala.collection.immutable.ArraySeq
 
 class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
 
-  abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru) {
+  abstract class Fixture(thru: Boolean = MtsTuner.DefaultThru, canEncode: Boolean = true) {
     val mtsMessageGenerator: MtsMessageGenerator = stub[MtsMessageGenerator]("MtsMessageGenerator")
     val sysExMessage: SysExMidiMsg = SysExMidiMsg(
       ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x08, 0xF7).map(_.toByte)))
@@ -35,7 +35,23 @@ class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
       override val typeName: String = "test"
     }
 
+    mtsMessageGenerator.canEncode.when(*).returns(canEncode)
     mtsMessageGenerator.generate.when(*).returns(sysExMessage)
+  }
+
+  /** Beyond the ±100 cents range of a tuning value in the 2-byte form, on every pitch class. */
+  private val tuningBeyondASemitone = Tuning.fromOffsets("beyond a semitone", Seq.fill(12)(150.0))
+
+  "MtsTuner#canTune" should {
+    "accept a tuning that its MTS message generator can encode" in new Fixture {
+      // When / Then
+      tuner.canTune(TestTunings.justCMaj) shouldBe true
+    }
+
+    "refuse a tuning that its MTS message generator cannot encode" in new Fixture(canEncode = false) {
+      // When / Then
+      tuner.canTune(TestTunings.justCMaj) shouldBe false
+    }
   }
 
   "MtsTuner#tune" should {
@@ -45,6 +61,17 @@ class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
       // Then
       mtsMessageGenerator.generate.verify(TestTunings.justCMaj).once()
       result shouldEqual Seq(sysExMessage)
+    }
+
+    "return no messages for a tuning beyond the range of a tuning value in its MTS message" in {
+      // Given
+      val tuner = MtsOctave2ByteNonRealTimeTuner()
+
+      // When
+      val result: Seq[MidiMsg] = tuner.tune(tuningBeyondASemitone)
+
+      // Then
+      result shouldBe empty
     }
   }
 
@@ -57,6 +84,20 @@ class MtsTunerTest extends AnyWordSpec with Matchers with MockFactory {
       val result: Seq[MidiMsg] = tuner.reset()
       // Then
       result shouldEqual Seq(MtsMessageGenerator.Octave1ByteNonRealTime.generate(TestTunings.justCMaj))
+    }
+
+    "re-send the tuning last set after refusing a tuning beyond the range of a tuning value in its MTS " +
+      "message" in {
+      // Given
+      val tuner = MtsOctave2ByteNonRealTimeTuner()
+      tuner.tune(TestTunings.justCMaj)
+      tuner.tune(tuningBeyondASemitone)
+
+      // When
+      val result: Seq[MidiMsg] = tuner.reset()
+
+      // Then
+      result shouldEqual Seq(MtsMessageGenerator.Octave2ByteNonRealTime.generate(TestTunings.justCMaj))
     }
 
     "send the Standard Tuning when no tuning was set" in {

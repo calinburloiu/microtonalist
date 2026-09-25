@@ -30,11 +30,24 @@ import scala.collection.immutable.ArraySeq
  * for each pitch class in an equal-tempered 12-tone scale.
  */
 trait MtsMessageGenerator {
+  /**
+   * Tells whether [[generate]] can encode every offset of the given tuning exactly, without clamping it to the range
+   * of a tuning value in the message.
+   *
+   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
+   *               octave.
+   * @return `true` if every offset of the tuning is within the range of a tuning value, `false` otherwise.
+   */
+  def canEncode(tuning: Tuning): Boolean
+
   def generate(tuning: Tuning): SysExMidiMsg
 }
 
 /**
  * Abstract class that generates MIDI Tuning Standard (MTS) SysEx messages for octave-based tunings.
+ *
+ * In the 1-byte form, a tuning value is a whole number of cents from -64 to +63, to which an offset is rounded. In the
+ * 2-byte form, it is a number of cents from -100 to +100.
  *
  * @param isRealTime    Specifies whether the generated SysEx message is real-time or non-real-time.
  * @param isIn2ByteForm Indicates whether tuning values are encoded using the 2-byte or the 1-byte form.
@@ -53,6 +66,10 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
   private val byteCount = if (isIn2ByteForm) 33 else 21
   private val putTuningValue: (ByteBuffer, Double) => Unit =
     if (isIn2ByteForm) put2ByteTuningValue else put1ByteTuningValue
+  private val canEncodeTuningValue: Double => Boolean =
+    if (isIn2ByteForm) canEncode2ByteTuningValue else canEncode1ByteTuningValue
+
+  override def canEncode(tuning: Tuning): Boolean = tuning.offsets.forall(canEncodeTuningValue)
 
   private val headerBytes: Array[Byte] = Array(
     SysExMidiMsg.StatusByte,
@@ -79,6 +96,14 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
 
     SysExMidiMsg(ArraySeq.unsafeWrapArray(buffer.array()))
   }
+
+  private def canEncode1ByteTuningValue(tuningValue: Double): Boolean = {
+    val roundedTuningValue = tuningValue.round
+    minTuningOutputValue <= roundedTuningValue && roundedTuningValue <= maxTuningOutputValue
+  }
+
+  private def canEncode2ByteTuningValue(tuningValue: Double): Boolean =
+    Math.abs(tuningValue) <= semitonePitchBendSensitivity.totalCents
 
   private def put1ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
     val nTuningValue = Math.min(Math.max(minTuningOutputValue, tuningValue.round.toInt), maxTuningOutputValue)

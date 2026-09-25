@@ -57,15 +57,54 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
     }
   }
 
+  /** A tuning whose offsets are all 0, except for B, which has the given one. */
+  private def tuningWithB(offset: Double): Tuning = Tuning.fromOffsets(s"B = $offset", Seq.fill(11)(0.0) :+ offset)
+
   "Octave1ByteNonRealTime" should {
     "generate a non-real-time Octave 1-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
+    }
+
+    "encode a tuning whose offsets round to the bounds of the 1-byte range" in {
+      // Given
+      val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-64.49, 63.49)).flatten)
+
+      // When / Then
+      MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuning) shouldBe true
+    }
+
+    "not encode a tuning with an offset rounding below the 1-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(-64.51)) shouldBe false
+    }
+
+    "not encode a tuning with an offset rounding above the 1-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(63.5)) shouldBe false
     }
   }
 
   "Octave2ByteNonRealTime" should {
     "generate a non-real-time Octave 2-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
+    }
+
+    "encode a tuning whose offsets are on the bounds of the 2-byte range" in {
+      // Given
+      val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-100.0, 100.0)).flatten)
+
+      // When / Then
+      MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuning) shouldBe true
+    }
+
+    "not encode a tuning with an offset below the 2-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(-100.01)) shouldBe false
+    }
+
+    "not encode a tuning with an offset above the 2-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(100.01)) shouldBe false
     }
   }
 

@@ -31,7 +31,13 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
                         val thru: Boolean = MtsTuner.DefaultThru) extends Tuner with StrictLogging {
 
-  override def canTune(tuning: Tuning): Boolean = true
+  /**
+   * @inheritdoc
+   *
+   * This tuner can tune a tuning whose offsets are all within the range of a tuning value in the form of its MTS
+   * message, which [[MtsMessageGenerator.canEncode]] tells.
+   */
+  override def canTune(tuning: Tuning): Boolean = mtsMessageGenerator.canEncode(tuning)
 
   override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] =
     Seq(mtsMessageGenerator.generate(tuning))
