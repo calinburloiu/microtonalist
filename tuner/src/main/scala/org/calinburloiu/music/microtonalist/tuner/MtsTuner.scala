@@ -33,8 +33,8 @@ abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
   /**
    * @inheritdoc
    *
-   * This tuner can tune a tuning whose offsets are all within the range of a tuning value in the form of its MTS
-   * message, which [[MtsMessageGenerator.canEncode]] tells.
+   * This tuner can tune exactly a tuning whose offsets are all within the range of a tuning value in the form of its
+   * MTS message, which [[MtsMessageGenerator.canEncode]] tells.
    */
   override def canTune(tuning: Tuning): Boolean = mtsMessageGenerator.canEncode(tuning)
 

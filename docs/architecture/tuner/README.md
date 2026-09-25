@@ -36,8 +36,8 @@ implementation provides, and `reset` follows the `onReset` messages with the `on
 the output instrument is tuned to it again rather than falling back to 12-EDO. `onReset` therefore resets the state a
 tuner derives from its tuning too, which the `onTune` call rebuilds. A tuner that tracks what the output instrument
 plays first stops it in `onReset` — the notes it has sounding and the pedals left down — so that clearing that state
-does not leave hanging notes. `onTune` also receives the tuning the output instrument was in: `Some` current tuning
-from `tune`, `None` from `reset`, after which the tuning of the device is unknown; no tuner uses it yet.
+does not leave hanging notes. `onTune` also receives the tuning the tuner was in: `Some` current tuning from `tune`,
+`None` from `reset`, after which the tuning of the device is unknown; no tuner uses it yet.
 
 Each tuner has limits, such as the range of a tuning value or its Pitch Bend Sensitivity, and `canTune(tuning)` tells
 whether it can apply a tuning exactly, without clamping, in its current configuration. A tuner clamps the offsets
@@ -60,17 +60,16 @@ the tunings against the tuners when they are loaded is left to #326. Implementat
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
   pitch-class bend, and reconfigures zones on an MPE Configuration Message. It can tune exactly the offsets within the
   Member Pitch Bend Sensitivity of each enabled Zone. Its reset sends a Note Off for every active note and returns the
-  Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their
-  defaults — routing each default as if the input channel holding the value had sent it, and releasing the pedals
-  first so that the notes they hold stop before their pitch changes — and CC #74 and Channel Pressure on
-  each Member Channel where the allocators record another value, before restating the configured Zones. It resets only
-  what it sent itself, not what another source left on the output device. A Member Channel's Pitch Bend, sent ahead
-  of every note allocated there, is reset only on a Member Channel that the restated Zones turn into a Master
-  Channel, where it would bend every note of the Zone; only an MCM that changed the Zones since the last reset
-  makes that possible. This assumes that a tuner resets its output when detached from
-  it, which #305 is to add. `MpeZone*` models the zone layout, while `MpeChannelAllocator` owns
-  both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting, the
-  per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
+  Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their defaults — routing each
+  default as if the input channel holding the value had sent it, and releasing the pedals first so that the notes they
+  hold stop before their pitch changes — and CC #74 and Channel Pressure on each Member Channel where the allocators
+  record another value, before restating the configured Zones. It resets only what it sent itself, not what another
+  source left on the output device. A Member Channel's Pitch Bend, sent ahead of every note allocated there, is reset
+  only on a Member Channel that the restated Zones turn into a Master Channel, where it would bend every note of the
+  Zone; only an MCM that changed the Zones since the last reset makes that possible. This assumes that a tuner resets
+  its output when detached from it, which #305 is to add. `MpeZone*` models the zone layout, while `MpeChannelAllocator`
+  owns both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting,
+  the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   Expression Pitch Bend is held in raw signed 14-bit units, exactly as received, and is reinterpreted rather than
   rescaled when the Member Channel Pitch Bend Sensitivity changes; the allocator classifies a High Expression Pitch Bend
   against a raw threshold `MpeTuner` injects through the constructor and re-injects through

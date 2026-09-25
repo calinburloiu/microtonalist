@@ -107,8 +107,9 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   /**
    * @inheritdoc
    *
-   * This tuner can tune a tuning whose offsets are all within the current pitch bend sensitivity, which starts as the
-   * default one, changes when the input sends a Pitch Bend Sensitivity RPN, and returns to the default on reset.
+   * This tuner can tune exactly a tuning whose offsets are all within the current pitch bend sensitivity, which
+   * starts as the default one, changes when the input sends a Pitch Bend Sensitivity RPN, and returns to the default
+   * on reset.
    */
   override def canTune(tuning: Tuning): Boolean =
     tuning.offsets.forall(offset => Math.abs(offset) <= pitchBendSensitivity.totalCents)
