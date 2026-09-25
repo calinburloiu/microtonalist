@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.PitchBendSensitivity
+import org.calinburloiu.music.scmidi.{PitchBendSensitivity, clampValue}
 import org.calinburloiu.music.scmidi.message.{PitchBendMidiMsg, SysExMidiMsg}
 
 import java.nio.ByteBuffer
@@ -40,6 +40,16 @@ trait MtsMessageGenerator {
    */
   def canEncode(tuning: Tuning): Boolean
 
+  /**
+   * Generates the MTS SysEx message that tunes an instrument to the given tuning.
+   *
+   * An offset beyond the range of a tuning value in the message, for which [[canEncode]] returns `false`, is clamped
+   * to that range.
+   *
+   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
+   *               octave.
+   * @return the MTS SysEx message.
+   */
   def generate(tuning: Tuning): SysExMidiMsg
 }
 
@@ -114,7 +124,8 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
   }
 
   private def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
-    val (lsb, msb) = convertTuningValueToBytes(tuningValue)
+    val maxTuningValue = semitonePitchBendSensitivity.totalCents
+    val (lsb, msb) = convertTuningValueToBytes(clampValue(tuningValue, -maxTuningValue, maxTuningValue))
 
     buffer.put(msb)
     buffer.put(lsb)

@@ -44,7 +44,8 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double]): Unit = {
+  def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double],
+                   tuning: Tuning = tuning): Unit = {
     val sysExMessage = messageGenerator.generate(tuning)
     val data = sysExMessage.data.toArray
     data.head shouldEqual SysExMidiMsg.StatusByte
@@ -105,6 +106,14 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
     "not encode a tuning with an offset above the 2-byte range" in {
       // When / Then
       MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(100.01)) shouldBe false
+    }
+
+    "clamp the offsets beyond the 2-byte range to it" in {
+      // Given
+      val tuning = Tuning.fromOffsets("beyond", Seq.fill(6)(Seq(-150.0, 150.0)).flatten)
+
+      // When / Then
+      assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, Seq.fill(6)(Seq(-100.0, 100.0)).flatten, tuning)
     }
   }
 
