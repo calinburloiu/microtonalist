@@ -106,6 +106,15 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
    */
   def inputMode: MpeInputMode = _inputMode
 
+  /**
+   * @inheritdoc
+   *
+   * This tuner sends a Note Off for every active note, then returns the Sustain and Sostenuto pedals and the Pitch
+   * Bend forwarded to a Master Channel, and CC #74 and Channel Pressure on each Member Channel where the allocators
+   * record another value, to their defaults. It resets only what it sent itself, not what another source left on the
+   * output device. After restoring the initial Zones and input mode and clearing its state, it restates the Zones
+   * with their MPE Configuration Messages and Pitch Bend Sensitivities.
+   */
   override protected def onReset(): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
     // Emit Note Off for every active note before switching input mode / zone layout,
