@@ -83,6 +83,14 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
       // When / Then
       MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(63.5)) shouldBe false
     }
+
+    "clamp the offsets beyond the 1-byte range to it" in {
+      // Given
+      val tuning = Tuning.fromOffsets("beyond", Seq.fill(6)(Seq(-80.0, 80.0)).flatten)
+
+      // When / Then
+      assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, Seq.fill(6)(Seq(-64.0, 63.0)).flatten, tuning)
+    }
   }
 
   "Octave2ByteNonRealTime" should {
