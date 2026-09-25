@@ -58,6 +58,17 @@ class TunerTest extends AnyWordSpec with Matchers {
       output shouldEqual Seq(justCMajMessage)
     }
 
+    "tell onTune that the output instrument was in its current tuning when tuned" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      tuner.tune(TestTunings.justCRast)
+
+      // Then
+      tuner.previousTunings shouldEqual Seq(Some(Tuning.Standard), Some(TestTunings.justCMaj))
+    }
+
     "keep the tuning it was last tuned to" in new Fixture {
       // When
       tuner.tune(TestTunings.justCMaj)
@@ -116,6 +127,17 @@ class TunerTest extends AnyWordSpec with Matchers {
       // Then
       output shouldEqual Seq(resetMessage, justCMajMessage)
       tuner.appliedTunings shouldEqual Seq(TestTunings.justCMaj, TestTunings.justCMaj)
+    }
+
+    "tell onTune that the tuning of the output instrument is unknown when reset" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      tuner.reset()
+
+      // Then
+      tuner.previousTunings.last shouldBe None
     }
 
     "keep its current tuning when reset" in new Fixture {

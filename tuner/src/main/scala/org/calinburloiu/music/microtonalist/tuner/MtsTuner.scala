@@ -33,7 +33,8 @@ abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
 
   override def canTune(tuning: Tuning): Boolean = true
 
-  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = Seq(mtsMessageGenerator.generate(tuning))
+  override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] =
+    Seq(mtsMessageGenerator.generate(tuning))
 
   override def process(message: MidiMsg): Seq[MidiMsg] = if (thru) Seq(message) else Seq.empty
 }

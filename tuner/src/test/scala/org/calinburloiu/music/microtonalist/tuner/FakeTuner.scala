@@ -36,10 +36,14 @@ class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
   override val typeName: String = "fake"
 
   private val _appliedTunings: mutable.Buffer[Tuning] = mutable.ArrayBuffer()
+  private val _previousTunings: mutable.Buffer[Option[Tuning]] = mutable.ArrayBuffer()
   private val _processedMessages: mutable.Buffer[MidiMsg] = mutable.ArrayBuffer()
 
   /** The tunings passed to [[onTune]] so far, in order, including the ones a reset restates. */
   def appliedTunings: Seq[Tuning] = _appliedTunings.toSeq
+
+  /** The previous tunings passed to [[onTune]] so far, in order, one for each of [[appliedTunings]]. */
+  def previousTunings: Seq[Option[Tuning]] = _previousTunings.toSeq
 
   /** The messages passed to [[process]] so far, in order. */
   def processedMessages: Seq[MidiMsg] = _processedMessages.toSeq
@@ -48,8 +52,9 @@ class FakeTuner(resetMessages: Seq[MidiMsg] = Seq.empty,
 
   override protected def onReset(): Seq[MidiMsg] = resetMessages
 
-  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
+  override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     _appliedTunings += tuning
+    _previousTunings += previousTuning
     tuningMessages.getOrElse(tuning, Seq.empty)
   }
 

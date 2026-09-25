@@ -136,7 +136,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
   override def canTune(tuning: Tuning): Boolean = true
 
-  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
+  override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
 
     // Update pitch bend on all occupied member channels

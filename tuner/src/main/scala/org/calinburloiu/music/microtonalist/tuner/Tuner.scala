@@ -102,7 +102,7 @@ trait Tuner extends Plugin with StrictLogging {
    * @return the MIDI messages returned by [[onReset]], followed by the ones returned by [[onTune]] for the current
    *         tuning.
    */
-  final def reset(): Seq[MidiMsg] = onReset() ++ onTune(_tuning)
+  final def reset(): Seq[MidiMsg] = onReset() ++ onTune(_tuning, None)
 
   /**
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object, and stores
@@ -117,8 +117,9 @@ trait Tuner extends Plugin with StrictLogging {
    */
   final def tune(tuning: Tuning): Seq[MidiMsg] = {
     if (canTune(tuning)) {
+      val previousTuning = _tuning
       _tuning = tuning
-      onTune(tuning)
+      onTune(tuning, Some(previousTuning))
     } else {
       logger.warn(s"""The "$typeName" tuner cannot tune exactly to $tuning, so it keeps the current tuning """ +
         s"$_tuning.")
@@ -151,11 +152,18 @@ trait Tuner extends Plugin with StrictLogging {
    * It is called by [[tune]], after the tuning becomes the current [[tuning]], only for a tuning that [[canTune]]
    * accepts, and by [[reset]] to restate the current tuning. Implementations tune to the `tuning` argument.
    *
-   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
-   *               octave.
+   * An implementation that sends only what changed from `previousTuning` must send the whole tuning when it is
+   * `None`: [[reset]] restates the tuning to an output device whose tuning is unknown, for example because it was
+   * turned off and on again.
+   *
+   * @param tuning         The tuning instance that specifies the offset in cents for each of the 12 pitch classes in
+   *                       the octave.
+   * @param previousTuning The tuning the output instrument was tuned to before this call: `Some` tuning the tuner was
+   *                       in when called by [[tune]], or `None` when called by [[reset]], after which the tuning of
+   *                       the output instrument is unknown.
    * @return the MIDI messages that tune the output instrument.
    */
-  protected def onTune(tuning: Tuning): Seq[MidiMsg]
+  protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg]
 
   /**
    * Method called with every MIDI message of a [[Track]] that uses this tuner. Its purpose is to do any processing

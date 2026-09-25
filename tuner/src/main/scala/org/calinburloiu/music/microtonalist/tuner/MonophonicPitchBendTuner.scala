@@ -110,7 +110,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   override def canTune(tuning: Tuning): Boolean =
     tuning.offsets.forall(offset => Math.abs(offset) <= pitchBendSensitivity.totalCents)
 
-  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
+  override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     // Only a changed value is marked for sending, so that a tuning which keeps the last note's offset sends nothing
     val newTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(tuning(lastNote.pitchClass), pitchBendSensitivity)
     if (newTuningPitchBend != currTuningPitchBend) {
