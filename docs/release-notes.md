@@ -3,6 +3,50 @@
 The notes of every Microtonalist release, newest first. Each release is also published on the
 [GitHub Releases](https://github.com/calinburloiu/microtonalist/releases) page, with the same notes.
 
+## v1.5.1 (2026-09-26)
+
+This patch release fixes pain points of v1.5.0: a device that is turned off and on again now **keeps the current
+tuning**, and a tuning beyond a tuner's limits no longer makes it fail.
+
+### User-facing changes
+
+- **A device that reopens keeps the current tuning** ([#303](https://github.com/calinburloiu/microtonalist/issues/303), [#322](https://github.com/calinburloiu/microtonalist/issues/322)). Turning an output device off and on again, such as
+  a digital piano switched off overnight, used to leave it in 12-EDO until the next tuning change. The current tuning
+  is now restored as soon as the device is back. This closes the main known issue of v1.5.0.
+- **Bug fixes:**
+  - After a tuner was reset, the first C played on the Monophonic Pitch Bend Tuner was out of tune ([#322](https://github.com/calinburloiu/microtonalist/issues/322)).
+  - A reset now stops what the device was playing: the Monophonic Pitch Bend Tuner and the MPE Tuner send Note Offs
+    for sounding notes, release Sustain and Sostenuto, and return the Pitch Bend to its default ([#322](https://github.com/calinburloiu/microtonalist/issues/322)).
+  - A tuning beyond a tuner's limits made the Monophonic Pitch Bend Tuner (beyond its Pitch Bend Sensitivity) and the
+    2-byte MTS tuners (beyond ±100 cents) fail, and every later reset failed too. Such offsets are now clamped
+    and a warning is logged ([#327](https://github.com/calinburloiu/microtonalist/issues/327)).
+
+### Developer-facing changes
+
+- **Metals MCP is at 1.6.9.** Its `glob-search` and `typed-glob-search` now search the whole workspace without a
+  `fileInFocus`, thanks to a feature request by @calinburloiu. The workaround is removed from the agent instructions,
+  and only `inspect` still needs one, documented in `docs/agents/metals-mcp-inspect-workaround.md` ([#324](https://github.com/calinburloiu/microtonalist/issues/324)). The
+  `experiments` module's name is also fixed.
+- **`Tuner` keeps the current tuning** ([#322](https://github.com/calinburloiu/microtonalist/issues/322)). `tune` and `reset` are `final`: they store or restate the tuning and
+  delegate to the new `onTune` and `onReset`, which every tuner implements. The `tuning` accessor exposes it.
+- **`Tuner.canTune(tuning)` tells whether a tuner can apply a tuning exactly** ([#327](https://github.com/calinburloiu/microtonalist/issues/327)). Tuners clamp what they cannot
+  apply instead of throwing.
+- **A `release` skill** guides an agent through releasing a version, and `docs/release-notes.md` keeps every release
+  note in git ([#328](https://github.com/calinburloiu/microtonalist/issues/328)).
+
+### Known issues
+
+- Attaching and detaching inputs and outputs of a track is not fully handled yet: the courtesy 12-EDO messages still
+  overwrite the tuner's current tuning, and a tuner is not reset when its output is detached ([#305](https://github.com/calinburloiu/microtonalist/issues/305)).
+- Tracks rebuilt after editing the tracks file play in 12-EDO until the next tuning change ([#305](https://github.com/calinburloiu/microtonalist/issues/305)).
+- A tuner that cannot apply a tuning exactly only logs a warning; it is not checked when the tunings are loaded
+  ([#326](https://github.com/calinburloiu/microtonalist/issues/326)).
+- A track fed by another track doesn't react when a device is plugged in or unplugged ([#316](https://github.com/calinburloiu/microtonalist/issues/316)).
+- The app learns that a device failed only when the operating system reports it, and a device that failed to open is
+  not retried ([#302](https://github.com/calinburloiu/microtonalist/issues/302)).
+- Two identical MIDI devices connected at once collapse into one ([#306](https://github.com/calinburloiu/microtonalist/issues/306)).
+- The MIDI plumbing is still to be restructured into a traversable flow graph ([#310](https://github.com/calinburloiu/microtonalist/issues/310)).
+
 ## v1.5.0 (2026-09-22)
 
 This release brings **hot plugging of MIDI devices**. For developers, Java Sound is now confined to the `sc-midi`
