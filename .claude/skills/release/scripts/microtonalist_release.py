@@ -30,7 +30,7 @@ Commands, run from the repository root:
 VERSION is MAJOR.MINOR.PATCH (a leading `v` is accepted). NEXT defaults to the next minor version; its `-SNAPSHOT`
 suffix is added when missing.
 
-The GitHub CLI is `gh`, or the command in `git config release.gh` (a stand-in, in tests and evals).
+The GitHub CLI is `gh`, or the command in `git config release.gh` (a stand-in, in tests).
 """
 
 import argparse
