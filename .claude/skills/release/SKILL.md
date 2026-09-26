@@ -60,7 +60,7 @@ This release brings **hot plugging of MIDI devices**. (One or two sentences; the
 
 ### Known issues
 
-- A limitation that remains after this release, from the user's point of view (#N).
+- A limitation that remains after this release, from the user's or developer's point of view (#N).
 ```
 
 - **Sources.** Every item comes from `context`: the PR descriptions and issues. Say what changed and why it matters,
@@ -72,3 +72,4 @@ This release brings **hot plugging of MIDI devices**. (One or two sentences; the
 - **Known issues** are open issues only: the previous release's known issues that `context` shows still open, and the
   remaining work that the PRs of this release name (e.g. "Not in this PR", `TODO #N`).
 - References may be bare `#N`; `publish` turns them into links. Match the wording and density of the previous release.
+A release should usually fit in a single screen, and the notes should be readable in a terminal or on GitHub.
