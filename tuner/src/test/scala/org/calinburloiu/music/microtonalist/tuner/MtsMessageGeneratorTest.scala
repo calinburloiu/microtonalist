@@ -44,8 +44,9 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
   private val epsilon: Double = 2e-2
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
 
-  def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double]): Unit = {
-    val sysExMessage = messageGenerator.generate(tuning)
+  def assertTuning(messageGenerator: MtsMessageGenerator, expectedOffsets: Seq[Double],
+                   generatedTuning: Tuning = tuning): Unit = {
+    val sysExMessage = messageGenerator.generate(generatedTuning)
     val data = sysExMessage.data.toArray
     data.head shouldEqual SysExMidiMsg.StatusByte
     data.last shouldEqual SysExMidiMsg.EndOfExclusiveByte
@@ -57,15 +58,70 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
     }
   }
 
+  /** A tuning whose offsets are all 0, except for B, which has the given one. */
+  private def tuningWithB(offset: Double): Tuning = Tuning.fromOffsets(s"B = $offset", Seq.fill(11)(0.0) :+ offset)
+
   "Octave1ByteNonRealTime" should {
     "generate a non-real-time Octave 1-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
+    }
+
+    "tell that it can encode exactly a tuning whose offsets round to the bounds of the 1-byte range" in {
+      // Given
+      val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-64.49, 63.49)).flatten)
+
+      // When / Then
+      MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuning) shouldBe true
+    }
+
+    "tell that it cannot encode exactly a tuning with an offset rounding below the 1-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(-64.51)) shouldBe false
+    }
+
+    "tell that it cannot encode exactly a tuning with an offset rounding above the 1-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(63.5)) shouldBe false
+    }
+
+    "clamp the offsets beyond the 1-byte range to it" in {
+      // Given
+      val tuning = Tuning.fromOffsets("beyond", Seq.fill(6)(Seq(-80.0, 80.0)).flatten)
+
+      // When / Then
+      assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, Seq.fill(6)(Seq(-64.0, 63.0)).flatten, tuning)
     }
   }
 
   "Octave2ByteNonRealTime" should {
     "generate a non-real-time Octave 2-byte tuning message" in {
       assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
+    }
+
+    "tell that it can encode exactly a tuning whose offsets are on the bounds of the 2-byte range" in {
+      // Given
+      val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-100.0, 100.0)).flatten)
+
+      // When / Then
+      MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuning) shouldBe true
+    }
+
+    "tell that it cannot encode exactly a tuning with an offset below the 2-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(-100.01)) shouldBe false
+    }
+
+    "tell that it cannot encode exactly a tuning with an offset above the 2-byte range" in {
+      // When / Then
+      MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(100.01)) shouldBe false
+    }
+
+    "clamp the offsets beyond the 2-byte range to it" in {
+      // Given
+      val tuning = Tuning.fromOffsets("beyond", Seq.fill(6)(Seq(-150.0, 150.0)).flatten)
+
+      // When / Then
+      assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, Seq.fill(6)(Seq(-100.0, 100.0)).flatten, tuning)
     }
   }
 

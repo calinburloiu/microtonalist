@@ -30,7 +30,8 @@ implementations of each Plugin family).
 
 - `Tuning` — 12 optional cent offsets for pitch classes; `Tuning.Standard` is 12-EDO
 - `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; keeps the current
-  `tuning` and restates it on `reset()`; implementations cover the supported tuning protocols (MTS Octave, MPE,
+  `tuning` and restates it on `reset()`; `canTune(tuning)` tells whether it can apply a tuning exactly within its
+  limits, which it clamps any other tuning to; implementations cover the supported tuning protocols (MTS Octave, MPE,
   monophonic Pitch Bend)
 - `TuningChanger` (trait, Plugin) — decides when to change tuning by inspecting MIDI messages
 - `Track` — one instrument pipeline: input device → `TuningChangeProcessor` → `TunerProcessor` → output device

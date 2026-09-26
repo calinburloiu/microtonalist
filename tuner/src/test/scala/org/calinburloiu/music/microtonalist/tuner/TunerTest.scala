@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import ch.qos.logback.classic.Level
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, PitchBendMidiMsg}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -26,16 +29,19 @@ class TunerTest extends AnyWordSpec with Matchers {
   private val standardTuningMessage: MidiMsg = PitchBendMidiMsg(0, 0)
   private val justCMajMessage: MidiMsg = PitchBendMidiMsg(0, 100)
   private val justCRastMessage: MidiMsg = PitchBendMidiMsg(0, 200)
+  private val justDUssakMessage: MidiMsg = PitchBendMidiMsg(0, 300)
 
-  private abstract class Fixture {
+  private abstract class Fixture(untunableTuningsAfterReset: Option[Set[Tuning]] = None) {
     val tuner: FakeTuner = FakeTuner(
       resetMessages = Seq(resetMessage),
       tuningMessages = Map(
         Tuning.Standard -> Seq(standardTuningMessage),
         TestTunings.justCMaj -> Seq(justCMajMessage),
-        TestTunings.justCRast -> Seq(justCRastMessage)
+        TestTunings.justCRast -> Seq(justCRastMessage),
+        TestTunings.justDUssak -> Seq(justDUssakMessage)
       ),
-      rejectedTunings = Set(TestTunings.justDUssak)
+      untunableTunings = Set(TestTunings.justDUssak),
+      untunableTuningsAfterReset = untunableTuningsAfterReset
     )
   }
 
@@ -53,6 +59,17 @@ class TunerTest extends AnyWordSpec with Matchers {
       output shouldEqual Seq(justCMajMessage)
     }
 
+    "tell onTune that the output instrument was in its current tuning when tuned" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      tuner.tune(TestTunings.justCRast)
+
+      // Then
+      tuner.previousTunings shouldEqual Seq(Some(Tuning.Standard), Some(TestTunings.justCMaj))
+    }
+
     "keep the tuning it was last tuned to" in new Fixture {
       // When
       tuner.tune(TestTunings.justCMaj)
@@ -62,15 +79,35 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCRast
     }
 
-    "keep its current tuning when it fails to apply a new one" in new Fixture {
-      // Given
-      tuner.tune(TestTunings.justCMaj)
-
+    "apply a tuning it cannot tune exactly when tuned to it" in new Fixture {
       // When
-      an[IllegalArgumentException] should be thrownBy tuner.tune(TestTunings.justDUssak)
+      private val output = tuner.tune(TestTunings.justDUssak)
 
       // Then
-      tuner.tuning shouldEqual TestTunings.justCMaj
+      output shouldEqual Seq(justDUssakMessage)
+      tuner.tuning shouldEqual TestTunings.justDUssak
+    }
+
+    "warn when tuned to a tuning it cannot tune exactly" in new Fixture {
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+        tuner.tune(TestTunings.justDUssak)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldEqual Seq(
+        s"""The "fake" tuner cannot tune exactly to ${TestTunings.justDUssak}, so it clamps it to its limits."""
+      )
+    }
+
+    "not warn when tuned to a tuning it can tune" in new Fixture {
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+        tuner.tune(TestTunings.justCMaj)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldBe empty
     }
 
     "restate its current tuning after its reset messages when reset" in new Fixture {
@@ -85,6 +122,17 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.appliedTunings shouldEqual Seq(TestTunings.justCMaj, TestTunings.justCMaj)
     }
 
+    "tell onTune that the tuning of the output instrument is unknown when reset" in new Fixture {
+      // Given
+      tuner.tune(TestTunings.justCMaj)
+
+      // When
+      tuner.reset()
+
+      // Then
+      tuner.previousTunings.last shouldBe None
+    }
+
     "keep its current tuning when reset" in new Fixture {
       // Given
       tuner.tune(TestTunings.justCMaj)
@@ -96,16 +144,59 @@ class TunerTest extends AnyWordSpec with Matchers {
       tuner.tuning shouldEqual TestTunings.justCMaj
     }
 
-    "restate the tuning it kept when reset after failing to apply a new one" in new Fixture {
+    "restate a tuning it can no longer tune exactly when reset" in
+      new Fixture(untunableTuningsAfterReset = Some(Set(TestTunings.justCMaj))) {
+        // Given
+        tuner.tune(TestTunings.justCMaj)
+
+        // When
+        private val output = tuner.reset()
+
+        // Then
+        output shouldEqual Seq(resetMessage, justCMajMessage)
+      }
+
+    "warn when its reset lowers a limit below the tuning it restates" in
+      new Fixture(untunableTuningsAfterReset = Some(Set(TestTunings.justCMaj))) {
+        // Given
+        tuner.tune(TestTunings.justCMaj)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+          tuner.reset()
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldEqual Seq(
+          s"""The "fake" tuner cannot tune exactly to ${TestTunings.justCMaj}, so it clamps it to its limits."""
+        )
+      }
+
+    "not warn when its reset raises a limit above the tuning it restates" in
+      new Fixture(untunableTuningsAfterReset = Some(Set.empty)) {
+        // Given
+        tuner.tune(TestTunings.justDUssak)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+          tuner.reset()
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldBe empty
+      }
+
+    "not warn when reset to a tuning it can tune" in new Fixture {
       // Given
       tuner.tune(TestTunings.justCMaj)
-      an[IllegalArgumentException] should be thrownBy tuner.tune(TestTunings.justDUssak)
 
       // When
-      private val output = tuner.reset()
+      private val (_, events) = LogCapture.capturing(classOf[FakeTuner].getName) {
+        tuner.reset()
+      }
 
       // Then
-      output shouldEqual Seq(resetMessage, justCMajMessage)
+      events.messagesAt(Level.WARN) shouldBe empty
     }
 
     "restate the Standard Tuning when reset before being tuned" in new Fixture {

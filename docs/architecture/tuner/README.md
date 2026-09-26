@@ -36,29 +36,45 @@ implementation provides, and `reset` follows the `onReset` messages with the `on
 the output instrument is tuned to it again rather than falling back to 12-EDO. `onReset` therefore resets the state a
 tuner derives from its tuning too, which the `onTune` call rebuilds. A tuner that tracks what the output instrument
 plays first stops it in `onReset` — the notes it has sounding and the pedals left down — so that clearing that state
-does not leave hanging notes. Implementations:
+does not leave hanging notes. `onTune` also receives the tuning the tuner was in: `Some` current tuning from `tune`,
+`None` from `reset`, after which the tuning of the device is unknown; no tuner uses it yet. The current `tuning` is kept
+as passed to `tune`, not clamped, so a device may hold it clamped, or still hold an earlier tuning after
+`TunerProcessor` tuned the tuner to 12-EDO on detaching another receiver (TODO #305).
+
+Each tuner has limits, such as the range of a tuning value or its Pitch Bend Sensitivity, and `canTune(tuning)` tells
+whether it can apply a tuning exactly, without clamping, in its current configuration. A tuner clamps the offsets
+beyond its limits rather than throw, both for a tuning `canTune` rejects and when a limit decreases after a tuning was
+applied — a reset returning the Pitch Bend Sensitivity to its default, or an input RPN lowering it — so neither
+`onTune` nor `process` throws. `tune` and `reset` log a warning when they apply a tuning `canTune` rejects, and so
+does a tuner when an input message, such as a Pitch Bend Sensitivity RPN or an MPE Configuration Message, changes a
+limit so that `canTune` rejects the current tuning. Checking the tunings against the tuners when they are loaded is
+left to #326, which can cover only the configured limits. Implementations:
 
 - `MtsTuner` and its four octave variants (`MtsOctave{1,2}Byte{Non,}RealTimeTuner`) retune the instrument's pitch table
   in advance via a single MTS SysEx, so notes pass through untouched. The SysEx bytes are built by `MtsMessageGenerator`
-  / `MtsOctaveMessageGenerator`.
+  / `MtsOctaveMessageGenerator`, whose `canEncode` bounds `canTune`: a tuning value is rounded to −64…+63 cents in
+  the 1-byte form and within ±100 cents in the 2-byte form. `generate` clamps an offset beyond the range in both
+  forms.
 - `MonophonicPitchBendTuner` tunes via per-channel Pitch Bend; because Pitch Bend is channel-wide it enforces monophony,
-  folding all input onto one output channel and combining the performer's expressive bend with the tuning bend. Its
-  reset sends a Note Off for the note sounding, releases the Sustain and Sostenuto pedals left down, and resets the
-  Pitch Bend to 0 whatever the instrument holds, the cleared state assuming no bend, before configuring the Pitch Bend
-  Sensitivity.
+  folding all input onto one output channel and combining the performer's expressive bend with the tuning bend. It can
+  tune exactly the offsets within its current Pitch Bend Sensitivity, which an input RPN changes and a reset restores.
+  Its reset sends a Note Off for the note sounding, releases the Sustain and Sostenuto pedals left down, and resets
+  the Pitch Bend to 0 whatever the instrument holds, the cleared state assuming no bend, before configuring the Pitch
+  Bend Sensitivity.
 - `MpeTuner` is the polyphonic tuner: it distributes notes across MPE Member Channels so each can carry an independent
-  pitch-class bend, and reconfigures zones on an MPE Configuration Message. Its reset sends a Note Off for every active
-  note and returns the Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their
-  defaults — routing each default as if the input channel holding the value had sent it, and releasing the pedals
-  first so that the notes they hold stop before their pitch changes — and CC #74 and Channel Pressure on
-  each Member Channel where the allocators record another value, before restating the configured Zones. It resets only
-  what it sent itself, not what another source left on the output device. A Member Channel's Pitch Bend, sent ahead
-  of every note allocated there, is reset only on a Member Channel that the restated Zones turn into a Master
-  Channel, where it would bend every note of the Zone; only an MCM that changed the Zones since the last reset
-  makes that possible. This assumes that a tuner resets its output when detached from
-  it, which #305 is to add. `MpeZone*` models the zone layout, while `MpeChannelAllocator` owns
-  both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting, the
-  per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
+  pitch-class bend, and reconfigures zones on an MPE Configuration Message. It can tune exactly the offsets within the
+  Member Pitch Bend Sensitivity of each Zone the input reaches: every enabled Zone in MPE Input Mode, only the one
+  non-MPE input is routed to in Non-MPE Input Mode. Its reset sends a Note Off for every active note and returns the
+  Sustain and Sostenuto pedals, then the Pitch Bend, forwarded to a Master Channel to their defaults — routing each
+  default as if the input channel holding the value had sent it, and releasing the pedals first so that the notes they
+  hold stop before their pitch changes — and CC #74 and Channel Pressure on each Member Channel where the allocators
+  record another value, before restating the configured Zones. It resets only what it sent itself, not what another
+  source left on the output device. A Member Channel's Pitch Bend, sent ahead of every note allocated there, is reset
+  only on a Member Channel that the restated Zones turn into a Master Channel, where it would bend every note of the
+  Zone; only an MCM that changed the Zones since the last reset makes that possible. This assumes that a tuner resets
+  its output when detached from it, which #305 is to add. `MpeZone*` models the zone layout, while `MpeChannelAllocator`
+  owns both note→channel allocation and the per-note *Expression Value* model — `MpeNoteIdentity`, reference counting,
+  the per-channel aggregate and its retention, and the change reporting `MpeTuner` emits from.
   Expression Pitch Bend is held in raw signed 14-bit units, exactly as received, and is reinterpreted rather than
   rescaled when the Member Channel Pitch Bend Sensitivity changes; the allocator classifies a High Expression Pitch Bend
   against a raw threshold `MpeTuner` injects through the constructor and re-injects through
@@ -282,6 +298,8 @@ These are signalled directly in the code:
   which also makes 12-EDO the tuner's current tuning, until #305 renders them with a read-only method (TODO #305).
 - `MpeTuner`'s reset returns only the Member Channel values it sent itself to their defaults, relying on a tuner
   resetting its output when detached from it, which #305 is to add (TODO #305).
+- `Tuner.tune` and `Tuner.reset` only log a warning when they apply a tuning that `canTune` rejects, clamping it,
+  until #326 checks each track's tuner against every tuning when the tunings are loaded (TODO #326).
 
 Not signalled in the code yet: [#305](https://github.com/calinburloiu/microtonalist/issues/305) will make attaching
 and detaching a track input/output drive the open and close requests, and will tie the tuner reset and the courtesy

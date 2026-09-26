@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import ch.qos.logback.classic.Level
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}
@@ -51,6 +54,9 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
   private val customTuning2 = Tuning("custom2", -45.0, -34.0, -23.0, -12.0, -1, 2, 13, 24, 35, 46, 17, 34)
   /** Beyond the reach of [[semitonePitchBendSensitivity]] on every pitch class. */
   private val tuningBeyondASemitone = Tuning.fromOffsets("beyond a semitone", Seq.fill(12)(150.0))
+  /** Beyond the reach of [[semitonePitchBendSensitivity]] on E only, every other pitch class being in 12-EDO. */
+  private val tuningWithEBeyondASemitone = Tuning.fromOffsets("E beyond a semitone",
+    Seq.fill(4)(0.0) ++ Seq(150.0) ++ Seq.fill(7)(0.0))
 
   val Seq(noteC4, noteDFlat4, noteD4, noteDSharp4, noteE4, noteF4, noteFSharp4, noteG4,
     noteAb4, noteA4, noteBb4, noteB4) = MidiNote.C4.number until MidiNote.C5.number
@@ -82,6 +88,10 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
         tuner.process(NoteOffMidiMsg(channel, note))
       ).flatten
     }
+
+    /** Changes the pitch bend sensitivity of the tuner with the RPN messages an input device sends. */
+    def sendPitchBendSensitivity(newPitchBendSensitivity: PitchBendSensitivity): Seq[MidiMsg] =
+      PitchBendSensitivityMessages.create(inputChannel, newPitchBendSensitivity).flatMap(tuner.process)
   }
 
   private def filterNotes(messages: Seq[MidiMsg]): Seq[MidiMsg] = {
@@ -232,6 +242,17 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       }
     }
 
+    "clamp the tuning of the note on to the pitch bend sensitivity if the tuning is beyond it" in new Fixture {
+      // Given
+      tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
+
+      // When
+      output ++= tuner.tune(tuningBeyondASemitone)
+
+      // Then
+      output shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
+    }
+
     "not send pitch bend if there is no note on " +
       "and the tuning of the last note on changes" in new Fixture {
       // Note: Internally the pitch bend value changes for consistency, but it is not sent
@@ -240,6 +261,50 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       output ++= tuner.tune(customTuning)
 
       output shouldBe empty
+    }
+  }
+
+  "MonophonicPitchBendTuner when asked whether it can tune a tuning" should {
+    "tell that it can tune exactly a tuning within its pitch bend sensitivity" in new Fixture {
+      // When / Then
+      tuner.canTune(customTuning) shouldBe true
+    }
+
+    "tell that it can tune exactly a tuning on the bounds of its pitch bend sensitivity" in new Fixture {
+      // Given
+      val tuning: Tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-100.0, 100.0)).flatten)
+
+      // When / Then
+      tuner.canTune(tuning) shouldBe true
+    }
+
+    "tell that it cannot tune exactly a tuning with an offset beyond its pitch bend sensitivity" in new Fixture {
+      // Given
+      val tuning: Tuning = Tuning.fromOffsets("beyond on B", Seq.fill(11)(0.0) :+ -100.01)
+
+      // When / Then
+      tuner.canTune(tuning) shouldBe false
+    }
+
+    "tell that it can tune exactly a tuning beyond its default pitch bend sensitivity after an RPN " +
+      "raised it" in new Fixture {
+      // Given
+      sendPitchBendSensitivity(tonePitchBendSensitivity)
+
+      // When / Then
+      tuner.canTune(tuningBeyondASemitone) shouldBe true
+    }
+
+    "tell that it cannot tune exactly a tuning beyond its default pitch bend sensitivity again after a " +
+      "reset" in new Fixture {
+      // Given
+      sendPitchBendSensitivity(tonePitchBendSensitivity)
+
+      // When
+      tuner.reset()
+
+      // Then
+      tuner.canTune(tuningBeyondASemitone) shouldBe false
     }
   }
 
@@ -334,20 +399,20 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       }
     }
 
-    "stop the sounding note and keep the current tuning after failing to apply a tuning beyond the pitch bend " +
-      "sensitivity" in new Fixture {
-      // Given
-      tuner.tune(customTuning)
-      tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
-      an[IllegalArgumentException] should be thrownBy tuner.tune(tuningBeyondASemitone)
+    "stop the sounding note without failing when the current tuning is beyond the pitch bend sensitivity" in
+      new Fixture {
+        // Given
+        tuner.process(NoteOnMidiMsg(inputChannel, noteDSharp4))
+        tuner.tune(tuningBeyondASemitone)
 
-      // When
-      output ++= tuner.reset()
+        // When
+        output ++= tuner.reset()
 
-      // Then
-      inside(midiOutput.head) { case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4 }
-      tuner.tuning shouldEqual customTuning
-    }
+        // Then
+        inside(midiOutput.head) {
+          case NoteOffMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteDSharp4
+        }
+      }
   }
 
   "MonophonicPitchBendTuner after reset" should {
@@ -390,6 +455,19 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       // Then
       pitchBendOutput should have size 1
       pitchBendOutput.head.cents shouldEqual -16.67
+    }
+
+    "clamp the tuning to the default pitch bend sensitivity, which an RPN had raised before the reset" in new Fixture {
+      // Given
+      sendPitchBendSensitivity(tonePitchBendSensitivity)
+      tuner.tune(tuningBeyondASemitone)
+      tuner.reset()
+
+      // When
+      output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
+
+      // Then
+      pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
     }
 
     "tune C, the note it starts from, in the tuning set before the reset" in new Fixture {
@@ -744,7 +822,9 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       inside(midiOutput(4)) { case PitchBendMidiMsg(_, value) => value should be < 0 }
       inside(midiOutput(5)) { case NoteOnMidiMsg(_, note, _) => note.number shouldEqual noteE4 }
     }
+  }
 
+  "MonophonicPitchBendTuner when the input changes the pitch bend sensitivity" should {
     "change pitch bend sensitivity via MIDI RPN messages" in new Fixture {
       tuner.tune(customTuning)
 
@@ -786,6 +866,78 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
         PitchBendMidiMsg.convertCentsToValue(-16.67, tonePitchBendSensitivity)
       )
     }
+
+    "clamp the tuning of the note on when an RPN lowers the sensitivity below its offset" in
+      new Fixture(tonePitchBendSensitivity) {
+        // Given
+        tuner.tune(tuningBeyondASemitone)
+        tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
+
+        // When
+        output ++= sendPitchBendSensitivity(semitonePitchBendSensitivity)
+
+        // Then
+        pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
+      }
+
+    "clamp the tuning of a note played after an RPN lowered the sensitivity below its offset" in
+      new Fixture(tonePitchBendSensitivity) {
+        // Given
+        tuner.tune(tuningWithEBeyondASemitone)
+        sendPitchBendSensitivity(semitonePitchBendSensitivity)
+
+        // When
+        output ++= tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
+
+        // Then
+        pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
+      }
+
+    "clamp the tuning of the note held before the last one released after an RPN lowered the sensitivity below " +
+      "its offset" in new Fixture(tonePitchBendSensitivity) {
+      // Given
+      tuner.tune(tuningWithEBeyondASemitone)
+      tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
+      tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
+      sendPitchBendSensitivity(semitonePitchBendSensitivity)
+
+      // When
+      output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4))
+
+      // Then
+      pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
+      inside(midiOutput.last) { case NoteOnMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteE4 }
+    }
+
+    "warn when an RPN lowers the sensitivity below the tuning" in new Fixture(tonePitchBendSensitivity) {
+      // Given
+      tuner.tune(tuningWithEBeyondASemitone)
+
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[MonophonicPitchBendTuner].getName) {
+        sendPitchBendSensitivity(semitonePitchBendSensitivity)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldEqual Seq(
+        s"""The "monophonicPitchBend" tuner cannot tune exactly to $tuningWithEBeyondASemitone, so it clamps it to """ +
+          "its limits."
+      )
+    }
+
+    "not warn when an RPN lowers the sensitivity while the tuning stays within it" in
+      new Fixture(tonePitchBendSensitivity) {
+        // Given
+        tuner.tune(customTuning)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MonophonicPitchBendTuner].getName) {
+          sendPitchBendSensitivity(semitonePitchBendSensitivity)
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldBe empty
+      }
   }
 
   val pitchBendSensitivities: Seq[PitchBendSensitivity] = Seq(

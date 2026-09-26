@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiDeviceId
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
@@ -29,9 +28,18 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  *                            messages that change the tuning.
  */
 abstract class MtsTuner(val mtsMessageGenerator: MtsMessageGenerator,
-                        val thru: Boolean = MtsTuner.DefaultThru) extends Tuner with StrictLogging {
+                        val thru: Boolean = MtsTuner.DefaultThru) extends Tuner {
 
-  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = Seq(mtsMessageGenerator.generate(tuning))
+  /**
+   * @inheritdoc
+   *
+   * This tuner can tune exactly a tuning whose offsets are all within the range of a tuning value in the form of its
+   * MTS message, which [[MtsMessageGenerator.canEncode]] tells.
+   */
+  override def canTune(tuning: Tuning): Boolean = mtsMessageGenerator.canEncode(tuning)
+
+  override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] =
+    Seq(mtsMessageGenerator.generate(tuning))
 
   override def process(message: MidiMsg): Seq[MidiMsg] = if (thru) Seq(message) else Seq.empty
 }

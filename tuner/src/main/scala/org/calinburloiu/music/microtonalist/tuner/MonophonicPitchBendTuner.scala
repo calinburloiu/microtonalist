@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, clampValue}
 import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, RpnMessages}
@@ -27,6 +26,10 @@ import scala.collection.mutable
  * Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent
  * on, this tuner only supports and enforces monophonic playing.
  *
+ * It can only tune exactly the offsets within its current pitch bend sensitivity, see [[canTune]], and clamps any other
+ * offset to the sensitivity. This includes an offset of the current tuning that the sensitivity decreases below, on
+ * reset or when the input sends a Pitch Bend Sensitivity RPN, which it then warns about.
+ *
  * @param outputChannel               Output MIDI channel on which all output is sent, regardless on the input
  *                                    channels used.
  * @param defaultPitchBendSensitivity Default pitch bend range that will be configured via Pitch Bend Sensitivity
@@ -34,7 +37,7 @@ import scala.collection.mutable
  */
 case class MonophonicPitchBendTuner(outputChannel: Int,
                                     defaultPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
-  extends Tuner with StrictLogging {
+  extends Tuner {
   require(0 <= outputChannel && outputChannel <= 15,
     s"Output MIDI channel must be between 0 and 15, but was $outputChannel!")
 
@@ -101,9 +104,19 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     _lastNoteOffVelocity = NoteOffMidiMsg.DefaultVelocity
   }
 
-  override protected def onTune(tuning: Tuning): Seq[MidiMsg] = {
+  /**
+   * @inheritdoc
+   *
+   * This tuner can tune exactly a tuning whose offsets are all within the current pitch bend sensitivity, which
+   * starts as the default one, changes when the input sends a Pitch Bend Sensitivity RPN, and returns to the default
+   * on reset.
+   */
+  override def canTune(tuning: Tuning): Boolean =
+    tuning.offsets.forall(offset => Math.abs(offset) <= pitchBendSensitivity.totalCents)
+
+  override protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     // Only a changed value is marked for sending, so that a tuning which keeps the last note's offset sends nothing
-    val newTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(tuning(lastNote.pitchClass), pitchBendSensitivity)
+    val newTuningPitchBend = tuningPitchBendOf(tuning(lastNote.pitchClass))
     if (newTuningPitchBend != currTuningPitchBend) {
       currTuningPitchBend = newTuningPitchBend
     }
@@ -183,10 +196,23 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def pitchBendSensitivity_=(value: PitchBendSensitivity): Unit = {
     if (_pitchBendSensitivity != value) {
       _pitchBendSensitivity = value
+      warnIfCannotTune()
       // Update currTuningPitchBend for the current note using the new sensitivity
       val offset = tuning(lastNote.pitchClass)
-      currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(offset, _pitchBendSensitivity)
+      currTuningPitchBend = tuningPitchBendOf(offset)
     }
+  }
+
+  /**
+   * The Pitch Bend that tunes a note by the given tuning offset, in the current pitch bend sensitivity.
+   *
+   * The offset is clamped to the pitch bend sensitivity first, since the tuning may be beyond it: [[tune]] applies a
+   * tuning that [[canTune]] does not accept, and the sensitivity may decrease afterward, on reset or when the input
+   * sends a Pitch Bend Sensitivity RPN.
+   */
+  private def tuningPitchBendOf(offset: Double): Int = {
+    val maxOffset = pitchBendSensitivity.totalCents
+    PitchBendMidiMsg.convertCentsToValue(clampValue(offset, -maxOffset, maxOffset), pitchBendSensitivity)
   }
 
   private def lastNote: MidiNote =
@@ -205,7 +231,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
     // Update currTuningPitchBend by comparing against the tuning offset of the previously held note
     val newOffset = tuning(note.pitchClass)
     if (tuning(prevLastNote.pitchClass) != newOffset) {
-      currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
+      currTuningPitchBend = tuningPitchBendOf(newOffset)
     }
 
     interruptPedals(buffer)
@@ -241,7 +267,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
         val newLast = notesAfter.last
         val newOffset = tuning(newLast.pitchClass)
         if (oldOffset != newOffset) {
-          currTuningPitchBend = PitchBendMidiMsg.convertCentsToValue(newOffset, pitchBendSensitivity)
+          currTuningPitchBend = tuningPitchBendOf(newOffset)
         }
 
         interruptPedals(buffer)
