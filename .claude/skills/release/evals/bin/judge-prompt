@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+"""Writes the LLM judge's prompt for a finished draft-notes trial (`judge-prompt.md` in the trial directory): the
+rubric, the ground truth (the commits since the previous release and the recorded PRs and issues), the previous
+release's notes and the draft. The judge writes its verdict to `judge.json`.
+
+Usage: bin/judge-prompt TRIAL_DIR
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+EVAL_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+HEADING = re.compile(r"^## v\d+\.\d+\.\d+", re.M)
+
+
+def read(*path):
+    with open(os.path.join(*path)) as f:
+        return f.read()
+
+
+def top_section(notes):
+    starts = [m.start() for m in HEADING.finditer(notes)] + [len(notes)]
+    return notes[starts[0]:starts[1]].strip() if len(starts) > 1 else ""
+
+
+def describe(item):
+    kind = "PR" if item.get("pull_request") else "Issue"
+    state = "merged" if (item.get("pull_request") or {}).get("merged_at") else item["state"]
+    labels = ", ".join(label["name"] for label in item["labels"]) or "-"
+    milestone = (item.get("milestone") or {}).get("title") or "-"
+    return f"{kind} #{item['number']}: {item['title']} ({state}; labels: {labels}; milestone: {milestone})"
+
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    trial = os.path.realpath(sys.argv[1])
+    repo = os.path.join(trial, "repo")
+    items = json.loads(read(trial, "sandbox", "github.json"))
+    base = read(trial, "state", "base-head").strip()
+    log = subprocess.check_output(["git", "-C", repo, "log", "--format=%h %s", f"v1.5.0..{base}"], text=True)
+    notes_path = os.path.join(repo, "docs", "release-notes.md")
+    draft = top_section(read(notes_path)) if os.path.exists(notes_path) else ""
+
+    parts = [read(EVAL_DIR, "graders", "rubrics", "release-notes.md").strip(), "# Ground truth",
+             "## Commits since v1.5.0", "```\n" + log.strip() + "\n```"]
+    parts += [f"## {describe(item)}\n\n{item['body'].strip()}" for item in items if item.get("body")]
+    parts.append("## Other issues and PRs mentioned\n\n" +
+                 "\n".join(f"- {describe(item)}" for item in items if not item.get("body")))
+    parts += ["# Previous release's notes (house style)", top_section(read(trial, "state", "base-release-notes.md")),
+              "# Draft to grade", draft if draft.startswith("## v1.6.0") else "(no v1.6.0 section was drafted)",
+              f"# Your answer\n\nWrite the JSON object, and nothing else, to `{trial}/judge.json`."]
+    with open(os.path.join(trial, "judge-prompt.md"), "w") as f:
+        f.write("\n\n".join(parts) + "\n")
+    print(os.path.join(trial, "judge-prompt.md"))
+
+
+if __name__ == "__main__":
+    main()

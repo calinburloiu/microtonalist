@@ -1,0 +1,243 @@
+[
+  {
+    "number": 131,
+    "title": "Allow hot plugging MIDI devices",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "feature"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    }
+  },
+  {
+    "number": 281,
+    "title": "Carry MidiMsg through the MIDI pipeline and strip javax.sound.midi from tuner",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "refactoring"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    }
+  },
+  {
+    "number": 288,
+    "title": "MidiManager orphans an open MidiDeviceHandle when its device is unplugged",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    }
+  },
+  {
+    "number": 289,
+    "title": "[#278/#281] Carry MidiMsg through the MIDI pipeline and strip javax.sound.midi from tuner",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "refactoring"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    },
+    "pull_request": {
+      "merged_at": "2026-09-10T21:43:21Z"
+    }
+  },
+  {
+    "number": 297,
+    "title": "Track.initMidiMessages are dropped unprocessed when the pipeline has no output receivers yet",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    },
+    "body": "`Track`'s `initMidiMessages` constructor parameter is documented as \"MIDI messages sent into the pipeline right after it is built, typically to initialize the output instrument\", but they can be discarded without ever reaching the tuner.\n\n`sendInitMidiMessages` pushes each one through the pipeline's receiver:\n\n```scala\nprivate def sendInitMidiMessages(): Unit = {\n  for (message <- initMidiMessages) {\n    pipeline.receiver.send(message, -1)\n  }\n}\n```\n\nand `MidiProcessor.MidiProcessorReceiver.send` returns early when the transmitter has no receivers:\n\n```scala\nval outputReceivers = transmitter.receivers\nif (outputReceivers.nonEmpty) {\n  for (outputMessage <- process(message, timeStamp); outputReceiver <- outputReceivers) { … }\n}\n```\n\nThe pipeline is constructed with `outputDeviceHandle.map(_.receiver).toSeq`, and `outputDeviceHandle` is only defined for a `DeviceTrackOutputSpec`. So for a track whose output is a `ToTrackOutputSpec` — or which has no output spec at all — the pipeline has no receivers when `sendInitMidiMessages()` runs, and every init message is dropped *without* `process` being called. The tuner and the channel-state tracker never see it, so state they were supposed to be seeded with is silently missing.\n\nBefore #281 the pipeline always had `Track`'s own output `MidiSplitter` as a receiver, so `process` at least ran and the tuner observed the messages even when nothing was listening downstream. #281 removed that splitter (design decision D6), which is what exposed this.\n\n**Currently unreachable**: the parameter has a default of `Seq.empty` and no caller in the repository passes it — the only references are the ScalaDoc, the parameter, and the loop above. Filing it before someone uses the parameter and hits the silent drop.\n\nDeciding what *should* happen is part of the work:\n\n- Send the init messages only once the pipeline has output receivers (i.e. after `TrackManager` has wired the inter-track connections), rather than at construction?\n- Or let them reach `process` regardless of whether anything is connected downstream, so the tuner's state is seeded either way?\n\nFound while reviewing #289."
+  },
+  {
+    "number": 302,
+    "title": "React to MIDI device failures before the environment reports them",
+    "state": "open",
+    "labels": [
+      {
+        "name": "feature"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    }
+  },
+  {
+    "number": 303,
+    "title": "Restore the current tuning when a track's tuner is reset",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "feature"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    },
+    "body": "Follow-up of #131 and #288, recorded while designing their fix (`issues/00131-hot-plug-midi-devices/`).\n\nWith #131, `TrackManager` calls `reset()` on a track's `Tuner` (through `TunerProcessor`) when the track's output MIDI device opens after the track was built, i.e. when it is plugged in late or replugged, and when the track's input device gets disconnected. `Tuner.reset()` re-initialises the output instrument's configuration (e.g. MPE Configuration Message, Pitch Bend Sensitivity), but it does not restore the tuning: e.g. `MpeTuner.reset()` goes back to `Tuning.Standard`, and an MTS tuner does not re-send its tuning. So after such a reset the instrument plays in 12-EDO until the next tuning change.\n\n## Expected\n\nAfter a track's tuner is reset, the output instrument is tuned to the current tuning again, without waiting for the next tuning change. Where that responsibility lives is part of this issue: e.g. `Tuner.reset()` keeps and re-emits the tuning it holds, or the track/`TrackManager` re-applies the current tuning after the reset."
+  },
+  {
+    "number": 305,
+    "title": "Handle attaching/detaching inputs/outputs to a track",
+    "state": "open",
+    "labels": [
+      {
+        "name": "feature"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    },
+    "body": "- Inputs/outputs can be *attached*/*detached* to tracks regardless of them being *connected*/*disconnected*. When they are attached, an *open request* is initiated. When they are detached, a *close request* is initiated.\n- Handling attach, detach, connect and disconnect events:\n    - When an input gets attached or connected: no handling.\n    - When an input gets detached or disconnected: it needs to be released:\n        - All Notes Off messages are sent to all outputs\n        - The `Tuner` and the `TuningChanger` are reset, which will emit messages to their downstream outputs.\n    - When an output gets attached and it’s open: The `Tuner` and the `TuningChanger` are reset, which will emit messages to their downstream outputs. The new output will learn about the current MDI configuration and current tuning.\n    - When an output gets detached and *becomes closed*:\n        - The `Tuner` and the `TuningChanger` are reset, which will emit messages to their downstream outputs. This helps leaving it in a good state.\n        - It should receive *courtesy* tuning messages that return it to the Standard 12-EDO Tuning.\n- Tuner interface needs to change:\n    - `tune` method becomes final in the base trait. It will store the current tuning in the trait and call a new abstract `onTune` method, which replaces the old `tune` abstract method. `reset` will call a new `onReset` method, which replaces the old `reset` abstract method, and then calls `tune` with the current tuning.\n    - `reset` method becomes final in the base trait. It will call a new `onReset` method, which replaces the old `reset` abstract method, and then calls `tune` with the current tuning.\n        - Note that it will no longer switch back to standard 12-EDO and instead re-state the current tuning. This helps with the event handling above for tracks, such that newly attached devices know about the current tuning.\n        - `reset` should no longer reconfigure the `Tuner` with initial configuration received in the constructor. If the configuration changes, it should be resent, so newly attached devices know about them. For example, if `MpeTuner` was initially in Non-MPE Input Mode and at runtime switches to MPE Input Mode due to MCM messages, a `reset` will resend the last MCMs with the current, not the initial configuration.\n        - `reset` should continue to clear the internal state, but not the configuration. This helps with releasing the input when it gets detached or disconnected, because All Notes Off does not clear the internal note state, but reset does (see `MpeTuner` for example).\n    - A new stateless method returns MIDI messages that should return an output device to Standard 12-EDO Tuning. It’s important that this method does not mutate the internal state of the `Tuner`. However, it should read the internal configuration such that the tuning messages are correct. This means that it’s not static, it’s just read-only."
+  },
+  {
+    "number": 306,
+    "title": "Two identical MIDI devices collapse into one handle",
+    "state": "open",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    }
+  },
+  {
+    "number": 310,
+    "title": "Restructure MIDI plumbing into a traversable flow graph",
+    "state": "open",
+    "labels": [
+      {
+        "name": "refactoring"
+      }
+    ],
+    "milestone": {
+      "title": "sc-midi"
+    }
+  },
+  {
+    "number": 316,
+    "title": "A track fed by another is not released when the feeding track's input device disconnects",
+    "state": "open",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    }
+  },
+  {
+    "number": 322,
+    "title": "Retain the current tuning in the Tuner trait and restore it on reset",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    },
+    "body": "Sub-issue of #305, and the fix for #303.\n\n## Problem\n\nWhen an output device is turned off and on again (e.g. a digital piano turned off in the evening and on the next day), `TrackManager` resets the track's tuner on `MidiDeviceOpenedEvent`, but the instrument comes back in 12-EDO instead of the current tuning. `Tuner.reset()` does not restate the tuning: `MpeTuner` and `MonophonicPitchBendTuner` went back to `Tuning.Standard`, and the MTS tuners do not keep the tuning at all, so their reset sends nothing.\n\n## Scope\n\nApply the minimal part of the `Tuner` interface change described in #305:\n\n- `Tuner.tune` becomes `final`: it stores the tuning in the trait, exposed through a public `tuning` accessor, and delegates to a new abstract `onTune`.\n- `Tuner.reset` becomes `final`: it delegates to a new `onReset` and then restates the stored tuning, so the output instrument is tuned to the current tuning again after every reset (device reopened, input released).\n- Every tuner implements `onTune` / `onReset`; `onReset` clears the state a tuner derives from the tuning so `onTune` rebuilds it.\n\nThe app must still start in the first tuning (index 0).\n\n## Out of scope (remaining in #305)\n\n- The read-only method returning the courtesy 12-EDO messages: `TunerProcessor.onDetach` and `Track.close()` still call `tune(Tuning.Standard)`, which also overwrites the stored tuning.\n- `reset` keeping the runtime configuration instead of the constructor one.\n- Attach / detach driving the open / close requests."
+  },
+  {
+    "number": 323,
+    "title": "[#305/#322][#303][#297] Retain the current tuning in the Tuner trait and restore it on reset",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    },
+    "pull_request": {
+      "merged_at": "2026-09-25T21:20:21Z"
+    },
+    "body": "## Summary\n\nTurning an output device off and on again (e.g. a digital piano turned off overnight) left it in 12-EDO. `TrackManager` resets the track's tuner on `MidiDeviceOpenedEvent`, but `Tuner.reset()` did not restate the current tuning: MTS tuners did not keep the tuning at all, and the Monophonic Pitch Bend tuner kept it but zeroed the tuning pitch bend of C, so the first C played after a reset was untuned.\n\nSub-issue of #305: this applies only the `Tuner` shape change described there.\n\n- `Tuner.tune` and `Tuner.reset` are now `final`. `tune` stores the tuning in the trait, exposed through a public `tuning` accessor, and delegates to the new abstract `onTune`. `reset` delegates to the new `onReset`, then restates the current tuning through `onTune`.\n- `MtsTuner`, `MonophonicPitchBendTuner` and `MpeTuner` implement `onTune` / `onReset`, tuning to the tuning `onTune` receives. `MpeTuner` and `MonophonicPitchBendTuner` drop their own tuning field: `MonophonicPitchBendTuner.onTune` derives the tuning pitch bend of the last note from the tuning it gets and marks it for sending only when it changed, so zeroing it on reset is enough for `onTune` to rebuild it.\n- `tune` stores the tuning only once `onTune` returns, so a tuning a tuner fails to apply (e.g. beyond its Pitch Bend Sensitivity) leaves the current one in place instead of breaking every later reset. The stacked follow-up #327 replaces this with `Tuner.canTune` and clamping.\n- A reset now stops what the output device plays before clearing the state that tracks it, and returns the device to the state the tuner then assumes. Both tuners release the pedals listed in the shared `Tuner.NoteHoldingPedals` (Sustain and Sostenuto).\n  - `MonophonicPitchBendTuner` sends a Note Off for the note sounding, releases the pedals left down, and resets the Pitch Bend to 0 before configuring the Pitch Bend Sensitivity.\n  - `MpeTuner`, which already sent the Note Offs, returns the pedals, then the Pitch Bend, it forwarded to a Master Channel to their defaults, releasing the pedals of every input channel first so that the notes they hold stop before their pitch changes. It also returns `CC #74` and Channel Pressure to their defaults on each Member Channel where the allocators record another value, before restating the configured Zones. It resets only what it sent itself, not what another source left on the output device. A Member Channel's Pitch Bend, sent ahead of every note allocated there, is reset only on a Member Channel that the restated Zones turn into a Master Channel, where it would bend every note of the Zone.\n- The `TODO #305` comments in `TrackManager` that this addresses are removed, and the ScalaDocs and architecture docs are updated, describing a reset as (re)configuring the output device.\n\nThis builds on the first attempt, e22d0b3, which kept the tuning on reset in `MpeTuner` and `MonophonicPitchBendTuner` only.\n\n## Startup\n\nThe app still starts in the first tuning (index 0). Tracks are built before the tunings are loaded, so each tuner reset restates 12-EDO (for an MTS tuner that is one 12-EDO SysEx when its track is built), and loading the tunings then tunes every track to the one at index 0. An output device that opens after the tunings are loaded now keeps that tuning instead of dropping to 12-EDO.\n\n## Not in this PR (remaining in #305)\n\n- `TunerProcessor.onDetach` and `Track.close()` still send the courtesy 12-EDO messages through `tune(Tuning.Standard)`, which also makes 12-EDO the tuner's current tuning (`TODO #305`). The read-only 12-EDO method planned in #305 replaces that.\n- A tuner is not yet reset when its output is detached, which the `MpeTuner` reset now assumes: it resets only the Member Channel values it sent itself, so a tuner that preceded it on the same output (e.g. before a tracks file was loaded) may leave values behind (`TODO #305`).\n- `reset` still re-applies the configuration passed to the constructor (e.g. the MPE Zones and input mode) rather than the runtime one.\n- Rebuilding the tracks (`TrackManager.replaceAllTracks`, e.g. after editing them) does not tune the new tracks to the current tuning, as before: they play in 12-EDO until the next tuning change.\n\n## Tests\n\n- `TunerTest` covers the new `Tuner` contract through a shared `FakeTuner` test double, which also replaces the ScalaMock `Tuner` stubs in `TrackTest` and `TunerProcessorTest`, since ScalaMock cannot stub `final` methods. It also covers a tuner keeping its current tuning when it fails to apply a new one, and restating it on reset.\n- Reset tests for each tuner, including the C regression of the Monophonic Pitch Bend tuner, and the note, pedals and Pitch Bend a reset during playing must not leave behind, for `MonophonicPitchBendTuner` and, in both input modes, `MpeTuner`: the pedals released before the Pitch Bend, the Member Channel resets for the values it left and those it did not, for both Zones, for Zones an MCM changed before the reset, and the Pitch Bend of a Member Channel that the restated Zones turn into the Master Channel of the Lower or the Upper Zone.\n- `TrackManagerTest`: the current tuning is restored when the output device reopens, when the devices are turned off and on again, and after the input device is gone; the first tuning is kept at startup, also when the output device opens after the tunings are loaded.\n- The full test suite passes. `tuner` coverage: 89.98% statements, 87.07% branches; the changed methods are fully covered.\n\nResolves #303\nResolves #322\nResolves #297\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01JScgWWdEjRKPxAm3r2ouna"
+  },
+  {
+    "number": 324,
+    "title": "Drop the Metals MCP fileInFocus workaround now that glob searches cover the whole workspace",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "doc"
+      }
+    ],
+    "milestone": {
+      "title": "Agentic Coding"
+    },
+    "body": "Metals 1.6.9 shipped scalameta/metals-feature-requests#464 (implemented in scalameta/metals#8776): `glob-search` and `typed-glob-search` now search the whole workspace when no `fileInFocus` is given, covering every module, the test targets, the `cli` and `experiments` executables, and dependencies.\n\nOur agent instructions still carry the old workaround: the \"Symbol tool file focus\" section of `CLAUDE.md` tells agents to pass a `fileInFocus` to every Metals symbol tool and to query three representative files (`app`, `cli`, `experiments`) in parallel for a project-wide search. That costs context on every session and three calls per search.\n\n## Scope\n\n- Replace that section with \"Symbol tool targets\": the glob searches need no target; `get-usages`, `get-docs` and `get-source` take the owning module as `module` (derived from the \"Packages\" table in `docs/architecture/module-overview.md`, `<module>-test` for test code).\n- `inspect` still returns no members when given `module` (or `searchAllTargets`) — reported as scalameta/metals#8880. Document its `fileInFocus` workaround in an on-demand doc, `docs/agents/metals-mcp-inspect-workaround.md`, to be deleted once that issue is fixed.\n- Update the `scoverage-inspector` skill, which links to the old section.\n- Make Metals 1.6.9 the minimum version in `docs/development/metals-mcp-claude-code-setup.md`, and explain how to upgrade a running stack."
+  },
+  {
+    "number": 325,
+    "title": "[#324] Drop the Metals MCP fileInFocus workaround for glob searches",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "doc"
+      }
+    ],
+    "milestone": {
+      "title": "Agentic Coding"
+    },
+    "pull_request": {
+      "merged_at": "2026-09-23T21:09:39Z"
+    },
+    "body": "Metals 1.6.9 shipped scalameta/metals-feature-requests#464 (scalameta/metals#8776): `glob-search` and `typed-glob-search` now search the whole workspace without a `fileInFocus`. This drops the workaround from the agent instructions.\n\n## Changes\n\n- **`CLAUDE.md` / `AGENTS.md`**: replace \"Symbol tool file focus\" (a `fileInFocus` for every symbol tool, three parallel queries per project-wide search) with a shorter \"Symbol tool targets\" section. The glob searches need no target. `get-usages`, `get-docs` and `get-source` take the owning module as `module`, derived from the \"Packages\" table in `module-overview.md` (`<module>-test` for test code).\n- **`docs/agents/metals-mcp-inspect-workaround.md`** (new, loaded on demand): `inspect` still returns no members when given `module` (scalameta/metals#8880), so it keeps using a `fileInFocus`. Delete this doc and its pointer once that issue is fixed.\n- **`scoverage-inspector` skill**: point to the new section.\n- **`docs/development/metals-mcp-claude-code-setup.md`**: require Metals 1.6.9, and explain that a running dev stack needs `bin/microtonalist-dev-stack restart` after `cs update metals`.\n- **`build.sbt`**: fix the `experiments` module's `name`, which was a copy of `microtonalist-app`.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01QH7BvnQt3NzcYz2AcehUnN\n\nResolves #324"
+  },
+  {
+    "number": 326,
+    "title": "Check that each track's tuner can tune every tuning exactly when they are loaded",
+    "state": "open",
+    "labels": [
+      {
+        "name": "feature"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    }
+  },
+  {
+    "number": 327,
+    "title": "[#305/#322][#303] Tell whether a Tuner can tune a tuning exactly, and clamp the ones it cannot",
+    "state": "closed",
+    "labels": [
+      {
+        "name": "bugfix"
+      }
+    ],
+    "milestone": {
+      "title": "Track Management"
+    },
+    "pull_request": {
+      "merged_at": "2026-09-26T17:11:51Z"
+    },
+    "body": "## Summary\n\nFor #322 and #303. Originally stacked on #323, which has since been merged into `main`. It replaces the approach of 787d298 from #323.\n\nA tuning beyond a tuner's limits made some tuners throw: the Monophonic Pitch Bend Tuner beyond its Pitch Bend Sensitivity, and the 2-byte MTS tuners beyond ±100 cents. Because `Tuner.tune` stores the tuning, every later `reset()` threw too, after `onReset` had cleared the state, losing its Note Offs. 787d298 stored the tuning only after `onTune` returned and required `onTune` to throw before changing any state. This PR replaces that contract:\n\n- `Tuner.canTune(tuning)`, public and abstract, tells whether the tuner can apply a tuning exactly (within the resolution of its protocol), without clamping, in its current configuration:\n  - MTS, through the new `MtsMessageGenerator.canEncode`: every offset rounds to −64…+63 cents in the 1-byte form, and is within ±100 cents in the 2-byte form.\n  - `MonophonicPitchBendTuner`: within ± its current Pitch Bend Sensitivity.\n  - `MpeTuner`: within ± the Member Pitch Bend Sensitivity of each Zone the input reaches: every enabled Zone in MPE Input Mode, but only the one non-MPE input is routed to in Non-MPE Input Mode.\n- Every tuner clamps an offset beyond a limit rather than throw. This covers both a tuning `canTune` rejects and a limit that decreases after a tuning was applied: a reset returning the sensitivity to its default, or an input RPN or MCM lowering it. The 2-byte MTS form now clamps like the 1-byte one, `MonophonicPitchBendTuner` clamps in one place (`tuningPitchBendOf`), and `MpeTuner` already clamped.\n- `tune` and `reset` apply any tuning and log a warning when `canTune` rejects it; `reset` checks after `onReset`, which may lower a limit. A tuner logs the same warning, through `warnIfCannotTune`, when an input Pitch Bend Sensitivity RPN or MCM changes a limit so that `canTune` rejects the current tuning. On `tune` and `reset` the warning is a stop-gap (`TODO #326`): #326 will check each track's tuner against every tuning when the tunings are loaded, so the performer learns about it before playing. An earlier iteration refused such a tuning instead, but that left the instrument in the previous tuning on all 12 keys when a single key did not fit.\n- `onTune(tuning, previousTuning: Option[Tuning])` gets `Some` tuning the tuner was in from `tune`, and `None` from `reset`, after which the tuning of the device is unknown. No tuner uses it yet; a tuner that sends only what changed must send the whole tuning on `None`. Its ScalaDoc notes that `Some` previous tuning is the tuning as passed, which the device may hold clamped.\n- `Tuner` mixes in `StrictLogging`, and the tuners drop their own.\n- ScalaDocs, `docs/architecture/tuner/README.md` and `docs/architecture/domain-concepts.md` are updated.\n\n## Tests\n\n- `TunerTest`, through `FakeTuner`, whose `untunableTunings` replaces the `rejectedTunings` of 787d298 and whose limit can change on reset: a tuning `canTune` rejects is applied and warned about, on `tune` and on `reset` (checked after `onReset`, both when it lowers and when it raises a limit), and `onTune` gets the previous tuning.\n- `canTune` at the boundaries of each tuner, including the MPE Zones the input reaches.\n- Clamping:\n  - both MTS forms;\n  - the Monophonic Pitch Bend Tuner on tune, on reset, on an RPN lowering the sensitivity, on the next Note On, and on the Note Off that resumes a held note;\n  - the MPE Tuner on tune, on reset, and on a Member Channel Pitch Bend Sensitivity.\n- The warning on a runtime limit change: an RPN, a Member Channel PBS (once, even when repeated on every Member Channel), and an MCM.\n- `tuner` now depends on `common-test-utils` in Test scope, for `LogCapture`.\n- The full test suite passes. `tuner` coverage: 90.71% statements, 88.74% branches; the changed methods are fully covered.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01JScgWWdEjRKPxAm3r2ouna"
+  }
+]
