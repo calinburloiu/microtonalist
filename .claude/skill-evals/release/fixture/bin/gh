@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+"""Stand-in for the GitHub CLI inside a release-skill eval sandbox.
+
+It answers the read-only `gh` calls an agent makes while drafting release notes from recorded
+issue/PR JSON files, reports a configurable CI conclusion, and records every call (notably
+`gh release create`) in a JSONL log for the graders. It never talks to GitHub.
+
+Configuration, from `../config.json` next to this script's directory (written by the fixture's setup.sh):
+  data  directory with `issues/<number>.json` files (recorded from the real repository)
+  log   JSONL file every invocation is appended to
+  ci    CI conclusion reported for any commit: `success` (default) or `failure`
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+REPO = "calinburloiu/microtonalist"
+REPO_URL = f"https://github.com/{REPO}"
+
+def read_config():
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "config.json")
+    if not os.path.exists(path):
+        sys.stderr.write(f"gh stand-in: missing configuration {path}\n")
+        sys.exit(1)
+    with open(path) as f:
+        return json.load(f)
+
+
+CONFIG = read_config()
+DATA_DIR = CONFIG["data"]
+LOG_PATH = CONFIG["log"]
+CI_CONCLUSION = CONFIG.get("ci", "success")
+
+
+def log(record):
+    if LOG_PATH:
+        with open(LOG_PATH, "a") as f:
+            f.write(json.dumps(record) + "\n")
+
+
+def fail(message, code=1):
+    sys.stderr.write(message.rstrip("\n") + "\n")
+    sys.exit(code)
+
+
+def load_all():
+    items = {}
+    directory = os.path.join(DATA_DIR, "issues")
+    for name in os.listdir(directory):
+        if name.endswith(".json"):
+            with open(os.path.join(directory, name)) as f:
+                item = json.load(f)
+            items[item["number"]] = item
+    return items
+
+
+def load(number):
+    path = os.path.join(DATA_DIR, "issues", f"{number}.json")
+    if not os.path.exists(path):
+        fail(f"GraphQL: Could not resolve to an issue or pull request with the number of {number}. (repository.issue)")
+    with open(path) as f:
+        return json.load(f)
+
+
+def parse_flags(args, value_flags, bool_flags=()):
+    """Parses `--flag value`, `--flag=value`, `-f value` and boolean flags; returns (positionals, flags)."""
+    positionals, flags = [], {}
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("-") and arg != "-":
+            name, _, inline = arg.partition("=")
+            if name in bool_flags:
+                flags[name] = inline if inline else True
+            elif name in value_flags:
+                if inline:
+                    flags[name] = inline
+                else:
+                    i += 1
+                    flags[name] = args[i] if i < len(args) else ""
+            else:
+                fail(f"unknown flag: {name}\n\nThis gh is a stand-in with limited support; see its source for the supported calls.")
+        else:
+            positionals.append(arg)
+        i += 1
+    return positionals, flags
+
+
+def resolves(body):
+    return sorted({int(n) for n in re.findall(r"(?im)^\s*(?:resolves|closes|fixes)\s+#(\d+)", body or "")})
+
+
+def gh_state(item):
+    if item["is_pull_request"]:
+        if item.get("merged_at"):
+            return "MERGED"
+        return "OPEN" if item["state"] == "open" else "CLOSED"
+    return item["state"].upper()
+
+
+def to_gh_json(item):
+    """Maps a recorded REST item to the fields `gh issue/pr view --json` exposes."""
+    return {
+        "number": item["number"],
+        "title": item["title"],
+        "body": item["body"],
+        "state": gh_state(item),
+        "stateReason": (item.get("state_reason") or "").upper(),
+        "labels": [{"name": name} for name in item["labels"]],
+        "milestone": {"title": item["milestone"]} if item["milestone"] else None,
+        "url": item["html_url"],
+        "author": {"login": "calinburloiu"},
+        "assignees": [{"login": "calinburloiu"}],
+        "createdAt": item["created_at"],
+        "closedAt": item["closed_at"],
+        "mergedAt": item.get("merged_at"),
+        "closed": item["state"] == "closed",
+        "baseRefName": "main" if item["is_pull_request"] else None,
+        "closingIssuesReferences": [{"number": n, "url": f"{REPO_URL}/issues/{n}"} for n in resolves(item["body"])],
+        "comments": [],
+        "isDraft": False,
+    }
+
+
+def to_rest_json(item):
+    rest = {
+        "number": item["number"],
+        "title": item["title"],
+        "body": item["body"],
+        "state": item["state"],
+        "state_reason": item.get("state_reason"),
+        "labels": [{"name": name} for name in item["labels"]],
+        "milestone": {"title": item["milestone"]} if item["milestone"] else None,
+        "html_url": item["html_url"],
+        "user": {"login": "calinburloiu"},
+        "created_at": item["created_at"],
+        "closed_at": item["closed_at"],
+    }
+    if item["is_pull_request"]:
+        rest["pull_request"] = {"merged_at": item.get("merged_at"), "html_url": item["html_url"]}
+    return rest
+
+
+def emit(value, flags):
+    """Prints JSON, filtered through `--jq` like gh does (raw strings)."""
+    query = flags.get("--jq") or flags.get("-q")
+    text = json.dumps(value, indent=2, ensure_ascii=False)
+    if query:
+        result = subprocess.run(["jq", "-r", query], input=text, capture_output=True, text=True)
+        if result.returncode != 0:
+            fail(result.stderr)
+        sys.stdout.write(result.stdout)
+    else:
+        sys.stdout.write(text + "\n")
+
+
+def select_fields(obj, fields):
+    unknown = [f for f in fields if f not in obj]
+    if unknown:
+        fail(f"Unknown JSON field: \"{unknown[0]}\"\nAvailable fields:\n  " + "\n  ".join(sorted(obj)))
+    return {f: obj[f] for f in fields}
+
+
+def view(kind, args):
+    positionals, flags = parse_flags(args, {"--json", "--jq", "-q", "--repo", "-R", "--template", "-t"},
+                                     {"--comments", "-c", "--web", "-w"})
+    if not positionals:
+        fail(f"gh {kind} view: an issue/PR number is required in this sandbox")
+    number = int(positionals[0].lstrip("#").rstrip("/").split("/")[-1])
+    item = load(number)
+    if kind == "pr" and not item["is_pull_request"]:
+        fail(f"GraphQL: Could not resolve to a PullRequest with the number of {number}. (repository.pullRequest)")
+    data = to_gh_json(item)
+    if "--json" in flags:
+        emit(select_fields(data, [f.strip() for f in flags["--json"].split(",") if f.strip()]), flags)
+    else:
+        labels = ", ".join(item["labels"])
+        sys.stdout.write(f"{item['title']} #{number}\n{data['state'].title()} • calinburloiu\n"
+                         f"Labels: {labels}\nMilestone: {item['milestone'] or ''}\n\n{item['body']}\n\n"
+                         f"View this {'pull request' if item['is_pull_request'] else 'issue'} on GitHub: "
+                         f"{item['html_url']}\n")
+
+
+def list_items(kind, args):
+    positionals, flags = parse_flags(args, {"--json", "--jq", "-q", "--repo", "-R", "--state", "-s", "--milestone",
+                                            "-m", "--label", "-l", "--limit", "-L", "--search", "-S", "--base", "-B",
+                                            "--author", "-A", "--assignee", "-a", "--template", "-t"})
+    state = (flags.get("--state") or flags.get("-s") or "open").lower()
+    milestone = flags.get("--milestone") or flags.get("-m")
+    label = flags.get("--label") or flags.get("-l")
+    limit = int(flags.get("--limit") or flags.get("-L") or 30)
+    search = flags.get("--search") or flags.get("-S") or ""
+    items = [i for i in load_all().values() if i["is_pull_request"] == (kind == "pr")]
+    if state != "all":
+        if kind == "pr" and state == "merged":
+            items = [i for i in items if i.get("merged_at")]
+        else:
+            items = [i for i in items if i["state"] == state]
+    if milestone:
+        items = [i for i in items if i["milestone"] == milestone]
+    if label:
+        items = [i for i in items if label in i["labels"]]
+    for term in re.findall(r'"[^"]+"|\S+', search):
+        term = term.strip('"')
+        if ":" in term:
+            continue  # qualifiers such as is:merged are ignored
+        items = [i for i in items if term.lower() in (i["title"] + "\n" + i["body"]).lower()]
+    items = sorted(items, key=lambda i: -i["number"])[:limit]
+    data = [to_gh_json(i) for i in items]
+    if "--json" in flags:
+        fields = [f.strip() for f in flags["--json"].split(",") if f.strip()]
+        emit([select_fields(d, fields) for d in data], flags)
+    else:
+        for d, i in zip(data, items):
+            sys.stdout.write(f"#{i['number']}\t{i['title']}\t{', '.join(i['labels'])}\t{d['state']}\n")
+
+
+def head_sha():
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL).strip()
+    except subprocess.CalledProcessError:
+        return "0" * 40
+
+
+def run_list(args):
+    positionals, flags = parse_flags(args, {"--json", "--jq", "-q", "--repo", "-R", "--commit", "-c", "--branch", "-b",
+                                            "--limit", "-L", "--workflow", "-w", "--status", "-s", "--event", "-e",
+                                            "--user", "-u", "--template", "-t"}, {"--all", "-a"})
+    sha = flags.get("--commit") or flags.get("-c") or head_sha()
+    run = {
+        "databaseId": 36300000001, "number": 42, "name": "Scala CI", "workflowName": "Scala CI",
+        "displayTitle": "Scala CI", "event": "push", "headBranch": "main", "headSha": sha,
+        "status": "completed", "conclusion": CI_CONCLUSION, "createdAt": "2026-09-26T10:00:00Z",
+        "updatedAt": "2026-09-26T10:12:00Z", "url": f"{REPO_URL}/actions/runs/36300000001",
+    }
+    if "--json" in flags:
+        emit([select_fields(run, [f.strip() for f in flags["--json"].split(",") if f.strip()])], flags)
+    else:
+        mark = "✓" if CI_CONCLUSION == "success" else "X"
+        sys.stdout.write(f"{mark}  Scala CI  Scala CI  main  push  36300000001  12m0s  about 1 hour ago\n")
+
+
+def remote_has_tag(tag):
+    result = subprocess.run(["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"], capture_output=True, text=True)
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def release(args):
+    if not args:
+        fail("gh release: a subcommand is required")
+    sub, rest = args[0], args[1:]
+    releases = [r for r in read_log() if r.get("event") == "release-create"]
+    if sub == "create":
+        positionals, flags = parse_flags(
+            rest,
+            {"--title", "-t", "--notes", "-n", "--notes-file", "-F", "--target", "--repo", "-R", "--discussion-category",
+             "--notes-start-tag"},
+            {"--latest", "--draft", "-d", "--prerelease", "-p", "--verify-tag", "--generate-notes", "--notes-from-tag",
+             "--fail-on-no-commits"})
+        if not positionals:
+            fail("could not create: no tag name provided")
+        tag = positionals[0]
+        notes = flags.get("--notes") or flags.get("-n")
+        notes_file = flags.get("--notes-file") or flags.get("-F")
+        if notes_file:
+            if notes_file == "-":
+                notes = sys.stdin.read()
+            else:
+                with open(notes_file) as f:
+                    notes = f.read()
+        tag_on_remote = remote_has_tag(tag)
+        if flags.get("--verify-tag") and not tag_on_remote:
+            fail(f"tag {tag} doesn't exist in the repo {REPO}, aborting due to --verify-tag flag")
+        if any(r["tag"] == tag for r in releases):
+            fail(f"HTTP 422: Validation Failed (https://api.github.com/repos/{REPO}/releases)\nRelease.tag_name already exists")
+        latest = flags.get("--latest")
+        log({"event": "release-create", "tag": tag, "title": flags.get("--title") or flags.get("-t"),
+             "notes": notes, "latest": latest if latest is not None else None,
+             "draft": bool(flags.get("--draft") or flags.get("-d")),
+             "prerelease": bool(flags.get("--prerelease") or flags.get("-p")),
+             "generate_notes": bool(flags.get("--generate-notes")), "target": flags.get("--target"),
+             "tag_existed_on_remote": tag_on_remote, "argv": ["release"] + args})
+        sys.stdout.write(f"{REPO_URL}/releases/tag/{tag}\n")
+    elif sub in ("list", "ls"):
+        for r in releases:
+            sys.stdout.write(f"{r['title'] or r['tag']}\tLatest\t{r['tag']}\t2026-09-26T12:00:00Z\n")
+        sys.stdout.write("v1.5.0\t\tv1.5.0\t2026-09-22T19:49:36Z\n")
+    elif sub == "view":
+        positionals, flags = parse_flags(rest, {"--json", "--jq", "-q", "--repo", "-R", "--template", "-t"}, {"--web", "-w"})
+        tag = positionals[0] if positionals else None
+        match = [r for r in releases if r["tag"] == tag]
+        if not match:
+            fail("release not found")
+        r = match[-1]
+        data = {"tagName": r["tag"], "name": r["title"], "body": r["notes"], "isDraft": r["draft"],
+                "isPrerelease": r["prerelease"], "url": f"{REPO_URL}/releases/tag/{r['tag']}"}
+        if "--json" in flags:
+            emit(select_fields(data, [f.strip() for f in flags["--json"].split(",")]), flags)
+        else:
+            sys.stdout.write(f"{r['title']}\n{r['notes']}\n")
+    else:
+        fail(f"gh release {sub}: not supported in this sandbox")
+
+
+def read_log():
+    if not LOG_PATH or not os.path.exists(LOG_PATH):
+        return []
+    with open(LOG_PATH) as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+def api(args):
+    positionals, flags = parse_flags(args, {"--jq", "-q", "-X", "--method", "-H", "--header", "-f", "-F", "--field",
+                                            "--raw-field", "--template", "-t", "--hostname", "--cache", "--input"},
+                                     {"--paginate", "--slurp", "-i", "--include", "--silent", "--verbose"})
+    if not positionals:
+        fail("gh api: an endpoint is required")
+    method = (flags.get("-X") or flags.get("--method") or "GET").upper()
+    endpoint = positionals[0].lstrip("/").replace("{owner}/{repo}", REPO)
+    path, _, query = endpoint.partition("?")
+    if method != "GET":
+        fail(f"gh api: {method} is not supported in this sandbox")
+    m = re.fullmatch(rf"repos/{REPO}/(issues|pulls)/(\d+)", path)
+    if m:
+        item = load(int(m.group(2)))
+        if m.group(1) == "pulls" and not item["is_pull_request"]:
+            fail("gh: Not Found (HTTP 404)")
+        emit(to_rest_json(item), flags)
+        return
+    if path == f"repos/{REPO}/issues":
+        params = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
+        state = params.get("state", "open")
+        items = [i for i in load_all().values() if state == "all" or i["state"] == state]
+        if "milestone" in params:
+            items = [i for i in items if i["milestone"] == params["milestone"]]
+        emit([to_rest_json(i) for i in sorted(items, key=lambda i: -i["number"])], flags)
+        return
+    m = re.fullmatch(rf"repos/{REPO}/commits/([0-9a-fA-F]+)/(check-runs|status)", path)
+    if m:
+        if m.group(2) == "status":
+            emit({"state": "success" if CI_CONCLUSION == "success" else "failure", "sha": m.group(1),
+                  "statuses": []}, flags)
+        else:
+            emit({"total_count": 1, "check_runs": [{"name": "build", "head_sha": m.group(1), "status": "completed",
+                                                     "conclusion": CI_CONCLUSION}]}, flags)
+        return
+    if path == f"repos/{REPO}/actions/runs":
+        params = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
+        emit({"total_count": 1, "workflow_runs": [{"id": 36300000001, "name": "Scala CI", "head_branch": "main",
+                                                   "head_sha": params.get("head_sha", head_sha()),
+                                                   "status": "completed", "conclusion": CI_CONCLUSION}]}, flags)
+        return
+    fail(f"gh: Not Found (HTTP 404) — endpoint {path} is not recorded in this sandbox")
+
+
+def main():
+    args = sys.argv[1:]
+    log({"event": "call", "argv": args, "cwd": os.getcwd()})
+    if not args:
+        fail("usage: gh <command> [flags]")
+    command, rest = args[0], args[1:]
+    if command in ("issue", "pr") and rest and rest[0] == "view":
+        view(command, rest[1:])
+    elif command in ("issue", "pr") and rest and rest[0] in ("list", "ls"):
+        list_items(command, rest[1:])
+    elif command == "run" and rest and rest[0] in ("list", "ls"):
+        run_list(rest[1:])
+    elif command == "release":
+        release(rest)
+    elif command == "api":
+        api(rest)
+    elif command == "auth" and rest and rest[0] == "status":
+        sys.stdout.write("github.com\n  ✓ Logged in to github.com account calinburloiu (keyring)\n")
+    elif command == "repo" and rest and rest[0] == "view":
+        _, flags = parse_flags(rest[1:], {"--json", "--jq", "-q", "--template", "-t"}, {"--web", "-w"})
+        data = {"nameWithOwner": REPO, "name": "microtonalist", "owner": {"login": "calinburloiu"}, "url": REPO_URL,
+                "defaultBranchRef": {"name": "main"}}
+        if "--json" in flags:
+            emit(select_fields(data, [f.strip() for f in flags["--json"].split(",")]), flags)
+        else:
+            sys.stdout.write(f"{REPO}\n")
+    elif command == "--version":
+        sys.stdout.write("gh version 2.83.0 (sandbox stand-in)\n")
+    else:
+        fail(f"gh {' '.join(args[:2])}: not supported in this sandbox")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,32 @@
+#!/bin/bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+# Grades the finished trials of an eval run with skillgrade, which writes its report under <out>/skillgrade.
+#
+# Usage: bin/grade OUT_DIR [skillgrade flags...]   e.g. bin/grade "$OUT" --eval=draft-notes
+set -euo pipefail
+EVAL_DIR=$(cd "$(dirname "$0")/.." && pwd)
+OUT=$(cd "${1:?usage: bin/grade OUT_DIR [skillgrade flags...]}" && pwd)
+shift
+
+find "$OUT/trials" -name .imported -type d -prune -exec rm -rf {} +
+trials=$(find "$OUT/trials" -mindepth 2 -maxdepth 2 -type d | awk -F/ '{print $(NF-1)}' | sort | uniq -c \
+  | awk 'NR == 1 || $1 < min {min = $1} END {print min}')
+
+cd "$EVAL_DIR"
+TRIALS_DIR="$OUT/trials" npx -y skillgrade@0.3.0 --provider=local --parallel=1 --trials="$trials" \
+  --output="$OUT/skillgrade" "$@"

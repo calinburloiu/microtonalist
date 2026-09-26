@@ -1,0 +1,14 @@
+{
+  "number": 86,
+  "title": "Automatically reload a compostion file when one of its dependent files is changed",
+  "state": "open",
+  "state_reason": null,
+  "body": "",
+  "labels": [],
+  "milestone": "Watch Files",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/86",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2024-11-04T21:23:10Z",
+  "closed_at": null
+}

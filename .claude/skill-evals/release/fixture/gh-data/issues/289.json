@@ -1,0 +1,16 @@
+{
+  "number": 289,
+  "title": "[#278/#281] Carry MidiMsg through the MIDI pipeline and strip javax.sound.midi from tuner",
+  "state": "closed",
+  "state_reason": null,
+  "body": "Resolves #281\n\nSub-issue 3 of the #278 stack, implementing decisions D5, D6 and D7 of the [design](https://github.com/calinburloiu/microtonalist/blob/refactoring/isolate-java-midi/issues/00278-isolate-java-midi/2026-09-07-isolate-java-midi-design.md).\n\n- `MidiSplitter` becomes a receiver over any `MidiTransmitter`; `MidiProcessor` is typed on `MidiMsg` and its output is a `MidiProcessorTransmitter` running the connect/disconnect protocol inside the write lock.\n- `MidiSerialProcessor` wires neighbours through `receivers` / `clearReceivers()`; `MultiTransmitter` is deleted.\n- Conversion happens once, at the device boundary in `MidiDeviceHandle`.\n- `tuner` (`Tuner`, `TuningChanger`, the processors, all tuners, `Track`, `TrackManager`) works on `MidiMsg` and no longer imports `javax.sound.midi`.\n- `SysExMidiMsg.StatusByte` / `EndOfExclusiveByte` replace the Java constants in `MtsMessageGenerator`.\n\n**Stacked PR** — based on `refactoring/280-midi-transmitter-family` (#287), not on `main`. Review after the PRs below it in the stack.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_018eNHfaLf7CkRWLetrCSK8J",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/pull/289",
+  "is_pull_request": true,
+  "merged_at": "2026-09-10T21:43:21Z",
+  "created_at": "2026-09-08T18:14:40Z",
+  "closed_at": "2026-09-10T21:43:21Z"
+}

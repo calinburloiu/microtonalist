@@ -1,0 +1,16 @@
+{
+  "number": 305,
+  "title": "Handle attaching/detaching inputs/outputs to a track",
+  "state": "open",
+  "state_reason": null,
+  "body": "- Inputs/outputs can be *attached*/*detached* to tracks regardless of them being *connected*/*disconnected*. When they are attached, an *open request* is initiated. When they are detached, a *close request* is initiated.\n- Handling attach, detach, connect and disconnect events:\n    - When an input gets attached or connected: no handling.\n    - When an input gets detached or disconnected: it needs to be released:\n        - All Notes Off messages are sent to all outputs\n        - The `Tuner` and the `TuningChanger` are reset, which will emit messages to their downstream outputs.\n    - When an output gets attached and it’s open: The `Tuner` and the `TuningChanger` are reset, which will emit messages to their downstream outputs. The new output will learn about the current MDI configuration and current tuning.\n    - When an output gets detached and *becomes closed*:\n        - The `Tuner` and the `TuningChanger` are reset, which will emit messages to their downstream outputs. This helps leaving it in a good state.\n        - It should receive *courtesy* tuning messages that return it to the Standard 12-EDO Tuning.\n- Tuner interface needs to change:\n    - `tune` method becomes final in the base trait. It will store the current tuning in the trait and call a new abstract `onTune` method, which replaces the old `tune` abstract method. `reset` will call a new `onReset` method, which replaces the old `reset` abstract method, and then calls `tune` with the current tuning.\n    - `reset` method becomes final in the base trait. It will call a new `onReset` method, which replaces the old `reset` abstract method, and then calls `tune` with the current tuning.\n        - Note that it will no longer switch back to standard 12-EDO and instead re-state the current tuning. This helps with the event handling above for tracks, such that newly attached devices know about the current tuning.\n        - `reset` should no longer reconfigure the `Tuner` with initial configuration received in the constructor. If the configuration changes, it should be resent, so newly attached devices know about them. For example, if `MpeTuner` was initially in Non-MPE Input Mode and at runtime switches to MPE Input Mode due to MCM messages, a `reset` will resend the last MCMs with the current, not the initial configuration.\n        - `reset` should continue to clear the internal state, but not the configuration. This helps with releasing the input when it gets detached or disconnected, because All Notes Off does not clear the internal note state, but reset does (see `MpeTuner` for example).\n    - A new stateless method returns MIDI messages that should return an output device to Standard 12-EDO Tuning. It’s important that this method does not mutate the internal state of the `Tuner`. However, it should read the internal configuration such that the tuning messages are correct. This means that it’s not static, it’s just read-only.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/305",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-17T18:54:45Z",
+  "closed_at": null
+}

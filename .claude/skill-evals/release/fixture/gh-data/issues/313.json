@@ -1,0 +1,16 @@
+{
+  "number": 313,
+  "title": "Move track wiring onto the MIDI graph",
+  "state": "open",
+  "state_reason": null,
+  "body": "Sub-issue of #310. **Depends on #312** (`MidiGraph`).\n\nMigrates `Track` and `TrackManager` off hand-rolled wiring and onto graph transactions. This is where the wiring bugs close.\n\n## Scope\n\n- Each track gets two stable endpoint nodes, `TrackInputNode` and `TrackOutputNode`. Everything outside the track connects to those; the tuning-change and tuner nodes sit between them. They give a track with no processors something to connect to, give `releaseInput` its \"send straight to the output, bypassing the tuner\" hook, pin the inter-track edges so swapping a track's tuner does not disturb them, and give the per-track queue a home.\n- The graph is **flat**: its vertices are the individual nodes, not the tracks. A node carries its `trackId`, and `Track` becomes a facade over the nodes sharing its id. No composite or subgraph nodes, so a traversal never has to decide whether to descend into a track.\n- `Track` construction and `TrackManager.replaceAllTracks` become single transactions.\n- Delete `MidiSerialProcessor`: a chain is a path of ordinary edges, with no index arithmetic. Delete `MidiSplitter`: fan-out is what an outlet with several edges does.\n- Drop the `if (outputReceivers.nonEmpty)` guard in the processor's send path, so a node's `process` runs whether or not anything is listening downstream. `MidiChannelStateTracker` and the tuners must observe the stream regardless, so that a note already held when a link is wired is known to the tuner afterwards.\n\n## Issues this closes\n\n- #295 — by removal: `MidiSerialProcessor`, and its index arithmetic, cease to exist.\n- #296 — by construction: both spec branches of a reciprocal pair name the same edge, and edges form a set.\n- #297 and #298 — by construction: a track's nodes are built and wired by a command its thread processes before it starts consuming input, so it is never live on its input while unwired downstream.\n\n## Notes\n\n`onAttach` / `onDetach` move from inside a transmitter's write lock to the commit's notify phase. `onDetach` currently fires *before* the removal so the tuner's courtesy 12-EDO messages still reach the detaching receiver; afterwards it must send directly to the given inlets instead. `TunerProcessor.sendTo` already takes its receivers as an argument, so the change is contained.\n\nWhether a reciprocal spec pair is a *legal* way to declare a link in a `.tracks` file is a separate `TrackSpecs` validation question that #296 also raises.\n\nSee `issues/00310-midi-flow-graph/2026-09-20-graph-topology-options.md`.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/313",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-20T13:32:42Z",
+  "closed_at": null
+}

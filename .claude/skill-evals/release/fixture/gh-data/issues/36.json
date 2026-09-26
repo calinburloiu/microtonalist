@@ -1,0 +1,16 @@
+{
+  "number": 36,
+  "title": "Refactor `TuningMapper` and `TuningReducer` to not use exceptions",
+  "state": "open",
+  "state_reason": null,
+  "body": "They should use a more functional approach with `Either` or custom success/failure objects.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "Errors",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/36",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2021-12-07T18:21:29Z",
+  "closed_at": null
+}

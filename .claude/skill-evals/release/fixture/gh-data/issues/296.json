@@ -1,0 +1,16 @@
+{
+  "number": 296,
+  "title": "A reciprocal inter-track spec pair makes TrackManager deliver every message twice",
+  "state": "open",
+  "state_reason": null,
+  "body": "When two track specs describe the same inter-track connection from both ends, `TrackManager.replaceAllTracks` wires it twice and the downstream track receives every message twice.\n\n`replaceAllTracks` walks every track and wires both directions independently:\n\n```scala\nfor (currTrack <- tracks) {\n  currTrack.spec.input match {\n    case Some(FromTrackInputSpec(trackId, _)) =>\n      tracksById(trackId).transmitter.addReceiver(currTrack.receiver)\n    case _ =>\n  }\n\n  currTrack.spec.output match {\n    case Some(ToTrackOutputSpec(trackId, _)) =>\n      tracksById(trackId).receiver  // added to currTrack.transmitter\n    case _ =>\n  }\n}\n```\n\nSo for specs where track `A` declares `output = ToTrackOutputSpec(B)` **and** track `B` declares `input = FromTrackInputSpec(A)` — the natural way to describe one link from both sides — `B.receiver` is added to `A.transmitter` once from each branch. `MutableMidiTransmitter.addReceiver` appends unconditionally and documents that \"the same receiver may be added more than once\", and `Track.receiver` is a stable instance (`pipeline.receiver`), so the two additions are the same object twice in the sequence. `MidiProcessorReceiver.send` then fans out to both entries and `B` processes every message twice: doubled Note Ons through its tuner, doubled tuning-change triggers, doubled channel-state bookkeeping.\n\nNote that the duplicate add fires no `onConnect`: `MidiProcessorTransmitter.setReceivers` computes `added` as the receivers absent from the current sequence, and `B.receiver` is already present. So the second wiring is silent — no reset messages, no log, just a second copy in the fan-out.\n\nOpen questions for the fix:\n\n- Should `TrackManager` deduplicate the wiring (skip the `output` branch when the target already declares the matching `input`, or check membership before adding)?\n- Or should a reciprocal pair be rejected as an invalid `TrackSpecs` configuration, on the grounds that a link should be declared once?\n- Either way, is a reciprocal pair a *legal* way to describe a link today? If it is, the current behaviour is a bug; if it is not, it deserves validation rather than silent doubling.\n\n**Pre-existing**, not introduced by #281: `243682a` has the same double wiring (through two distinct wrapper receivers there rather than one receiver added twice, so the doubling was equally real).\n\nFound while reviewing #289.",
+  "labels": [
+    "bugfix"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/296",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-10T21:26:32Z",
+  "closed_at": null
+}

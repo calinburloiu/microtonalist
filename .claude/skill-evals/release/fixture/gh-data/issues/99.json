@@ -1,0 +1,16 @@
+{
+  "number": 99,
+  "title": "Migrate GUI from Swing to JavaFX",
+  "state": "open",
+  "state_reason": null,
+  "body": "",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "Architecture",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/99",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2025-01-11T09:22:52Z",
+  "closed_at": null
+}

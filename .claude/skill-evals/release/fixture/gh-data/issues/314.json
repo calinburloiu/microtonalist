@@ -1,0 +1,16 @@
+{
+  "number": 314,
+  "title": "[#310] Compare three MIDI flow graph topology options",
+  "state": "open",
+  "state_reason": null,
+  "body": "Adds the options study for #310. Documentation only, no code.\n\nPart of #310; does not resolve it — the work itself is #311, #312 and #313, and it is scheduled after #121.\n\n## What it contains\n\nThree candidate architectures for owning the MIDI flow graph's topology, each developed against the same nine current track use cases, with API sketches and an end-to-end trace, so they compare line for line:\n\n- **S1** — a central `MidiGraph` owning the edge set, mutated through a validate/apply/notify commit that compiles a resolved fan-out into each port.\n- **S2** — distributed as today, with ports gaining `owner` back-references so a walk becomes possible.\n- **S3** — a central graph that every send consults.\n\nPlus comparison tables against the two goals of #310, the open issues, the hot path and migration size; a recommendation (S1); and the open questions.\n\n## The finding that drives it\n\nThe graph cannot be walked today, at any node. An edge is a bare `MidiReceiver` inside a `Seq` — a one-method sink with no back-reference to whatever owns it — and the static type would erase one even if the instances had it. `MidiProcessorReceiver` could expose its enclosing processor, but `JavaMidiDeviceHandle.HandleReceiver` and `MidiSplitter` have no node to point at. So the `receiver` / `receivers` name clash is a symptom; the redesign is needed because of what an edge points at.\n\n## Decisions recorded in Section 0\n\n- #121 lands first, so a port is driven by one thread: no lock, volatile or atomic on the message path, and a topology change reaches a track as a command on its own queue.\n- Ports are `inlet` / `outlet`; `input` / `output` stay reserved for a device's direction, since a device opened as `MidiDirection.Input` is a graph *source*.\n- The graph is flat: vertices are individual nodes, `Track` is a facade over the nodes carrying its id, with a `TrackInputNode` / `TrackOutputNode` pair as stable endpoints.\n- A node processes whether or not anything is wired downstream, answering the open question in #297.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01S112GDfcBTiA6x3i27dyZi",
+  "labels": [
+    "doc"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/pull/314",
+  "is_pull_request": true,
+  "merged_at": null,
+  "created_at": "2026-09-20T14:17:01Z",
+  "closed_at": null
+}

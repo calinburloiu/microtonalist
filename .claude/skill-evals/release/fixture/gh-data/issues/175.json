@@ -1,0 +1,16 @@
+{
+  "number": 175,
+  "title": "Improve branch test coverage for `common` module to 80%",
+  "state": "open",
+  "state_reason": null,
+  "body": "The `common` module currently meets the 80% target for statement coverage but is below it for branch coverage.\n\n**Current coverage:**\n- Statement: 85.11%\n- Branch: 75.00%\n\n**Target:** 80% statement and branch coverage.\n\nThe configured branch threshold is set to current branch coverage minus a 3% buffer. As coverage improves, the threshold in `build.sbt` should be raised toward 80%.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/175",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-04-28T18:33:31Z",
+  "closed_at": null
+}

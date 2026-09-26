@@ -1,0 +1,16 @@
+{
+  "number": 281,
+  "title": "Carry MidiMsg through the MIDI pipeline and strip javax.sound.midi from tuner",
+  "state": "closed",
+  "state_reason": "completed",
+  "body": "Part of #278 (sub-issue 3 of 5). Depends on sub-issues 1 and 2.\n\n- `MidiSplitter(transmitter: MidiTransmitter) extends MidiReceiver`: fans out to `transmitter.receivers`.\n- `MidiProcessor`: `receiver: MidiReceiver`; `transmitter: MidiProcessorTransmitter` extending `ConcurrentMidiTransmitter`, whose `receivers_=` calls `onDisconnect()` before and `onConnect()` after a change of the receiver set; `process(message: MidiMsg, timeStamp): Seq[MidiMsg]`.\n- `MidiSerialProcessor` wires with `receivers = Seq(next.receiver)` / `clearReceivers()`; constructor takes `initialOutputReceivers: Seq[MidiReceiver]`.\n- `PitchBendSensitivityMessages.create` returns `Seq[MidiMsg]`; `mapShortMessageChannel` deleted.\n- `MidiDeviceHandle` converts at the boundary: outbound `asJava` in its receiver (a `Midi2Msg` is dropped with a warning), inbound `asScala` into a `MidiSplitter(ConcurrentMidiTransmitter())`. `MultiTransmitter` deleted.\n- `tuner`: `Tuner`, `TuningChanger`, `TunerProcessor`, `TuningChangeProcessor`, `MpeTuner`, `MonophonicPitchBendTuner`, `MtsTuner`, `PedalTuningChanger` use `MidiMsg` and drop `asScala` / `asJava`; `MtsMessageGenerator` uses `SysExMidiMsg.StatusByte` / `EndOfExclusiveByte`; `Track` drops its output splitter and exposes `receiver: MidiReceiver` and the pipeline's `transmitter`; `TrackManager` follows; tests stub `MidiReceiver`.\n- After this, `tuner` has no `javax.sound.midi` import.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/281",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-07T19:31:43Z",
+  "closed_at": "2026-09-10T21:43:22Z"
+}

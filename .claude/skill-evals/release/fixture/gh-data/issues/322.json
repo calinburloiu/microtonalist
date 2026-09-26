@@ -1,0 +1,16 @@
+{
+  "number": 322,
+  "title": "Retain the current tuning in the Tuner trait and restore it on reset",
+  "state": "closed",
+  "state_reason": "completed",
+  "body": "Sub-issue of #305, and the fix for #303.\n\n## Problem\n\nWhen an output device is turned off and on again (e.g. a digital piano turned off in the evening and on the next day), `TrackManager` resets the track's tuner on `MidiDeviceOpenedEvent`, but the instrument comes back in 12-EDO instead of the current tuning. `Tuner.reset()` does not restate the tuning: `MpeTuner` and `MonophonicPitchBendTuner` went back to `Tuning.Standard`, and the MTS tuners do not keep the tuning at all, so their reset sends nothing.\n\n## Scope\n\nApply the minimal part of the `Tuner` interface change described in #305:\n\n- `Tuner.tune` becomes `final`: it stores the tuning in the trait, exposed through a public `tuning` accessor, and delegates to a new abstract `onTune`.\n- `Tuner.reset` becomes `final`: it delegates to a new `onReset` and then restates the stored tuning, so the output instrument is tuned to the current tuning again after every reset (device reopened, input released).\n- Every tuner implements `onTune` / `onReset`; `onReset` clears the state a tuner derives from the tuning so `onTune` rebuilds it.\n\nThe app must still start in the first tuning (index 0).\n\n## Out of scope (remaining in #305)\n\n- The read-only method returning the courtesy 12-EDO messages: `TunerProcessor.onDetach` and `Track.close()` still call `tune(Tuning.Standard)`, which also overwrites the stored tuning.\n- `reset` keeping the runtime configuration instead of the constructor one.\n- Attach / detach driving the open / close requests.",
+  "labels": [
+    "bugfix"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/322",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-23T19:34:15Z",
+  "closed_at": "2026-09-25T21:20:22Z"
+}
