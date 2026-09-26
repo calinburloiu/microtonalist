@@ -1,0 +1,16 @@
+{
+  "number": 316,
+  "title": "A track fed by another is not released when the feeding track's input device disconnects",
+  "state": "open",
+  "state_reason": null,
+  "body": "Found while reviewing #304.\n\n`TrackManager.onMidiEvent` matches only `DeviceTrackInputSpec` / `DeviceTrackOutputSpec`, so it\nreaches the tracks wired straight to a device and no further along inter-track links.\n\nFor a chain `A(input = device Y, output = ToTrack(B))` → `B(output = device Z)`, unplugging Y calls\n`A.releaseInput()` only:\n\n- the per-channel release A sends (Hold off, Sostenuto off, All Notes Off) is forwarded into **B's\n  pipeline input**, where `MpeTuner.process` routes it through `MpeMessageRouting.roleOf` / `route`\n  and discards whatever falls outside B's input zone;\n- B's own `Tuner` and `TuningChanger`s are never reset, so B's note state stays stale and device Z\n  can keep notes held.\n\nThe same asymmetry applies to `MidiDeviceOpenedEvent`: when Z opens, only B is reset, not A.\n\n## Possible fix\n\nPropagate the release and the reset transitively along `ToTrackOutputSpec` / `FromTrackInputSpec`\nlinks, rather than only to the tracks that name a device.\n\n## Notes\n\nPre-existing gap in the hot-plug work of #131, which deliberately scoped itself to the tracks wired\ndirectly to a device. Related: #296, #297 and #298 record the other known inter-track wiring gaps,\nand #303 covers restoring the tuning after a reset.",
+  "labels": [
+    "bugfix"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/316",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-20T19:10:41Z",
+  "closed_at": null
+}

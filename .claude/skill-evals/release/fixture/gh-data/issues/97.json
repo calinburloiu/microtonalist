@@ -1,0 +1,16 @@
+{
+  "number": 97,
+  "title": "Implement `Track` management",
+  "state": "open",
+  "state_reason": null,
+  "body": "Besides from the sub-issues, also add support for MIDI channels.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/97",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2025-01-11T09:19:23Z",
+  "closed_at": null
+}

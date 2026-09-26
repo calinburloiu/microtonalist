@@ -1,0 +1,16 @@
+{
+  "number": 188,
+  "title": "Switch BSP server launch from interactive sbt + FIFO to `sbt -bsp`",
+  "state": "open",
+  "state_reason": null,
+  "body": "Follow-up to #186 / #187.\n\n`scripts/development/start-sbt-metals.sh` currently launches the BSP server as a normal interactive `sbt` shell with BSP enabled, with a named FIFO bridging into stdin so the script can push `compile` (warm-up) and `exit` (clean shutdown). This works, but it is more machinery than the design calls for.\n\n`sbt -bsp` is the official single-purpose BSP server mode. The known [sbt/sbt#6096](https://github.com/sbt/sbt/issues/6096) issue (sbtn hanging against `sbt -bsp` servers) was closed on 2020-11-16, so we should not be affected today.\n\n## Switch\n\n- Launch with `sbt -bsp -Dmicrotonalist.targetSuffix=-bsp`.\n- Drop the FIFO and the `compile` warm-up — the user already runs `mcp__metals__compile-full` at session start, which warms the same JVM.\n- Shutdown becomes a plain SIGTERM on the sbt PID (the script's existing trap already does that).\n- Verify `sbtn` still routes correctly to a `sbt -bsp` server (target dir → `target-bsp/`, `logs/sbt.log` grows on each call). If `sbt -bsp` does not log task output into a file we control, log routing verification needs a different approach (e.g. inspecting the BSP server's own log location, or having the script tee `sbt -bsp`'s stderr to `logs/sbt.log`).\n\n## Risk\n\nThe cleanup is small but it changes the script's IPC model. Land this on its own branch with full smoke testing before merging.\n",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/188",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-04-30T20:44:25Z",
+  "closed_at": null
+}

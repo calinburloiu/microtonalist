@@ -1,0 +1,16 @@
+{
+  "number": 302,
+  "title": "React to MIDI device failures before the environment reports them",
+  "state": "open",
+  "state_reason": null,
+  "body": "Follow-up of #131 and #288, recorded while designing their fix (`issues/00131-hot-plug-midi-devices/`).\n\n## (a) A send that fails because the device is gone\n\nWhen a MIDI device is unplugged, a message sent to it can reach a Java Sound `Receiver` that is already closed, and Java Sound throws `IllegalStateException`. CoreMIDI4J may report the environment change only after that. #131/#288 make `JavaMidiDeviceHandle`'s receiver catch that exception, drop the message and log a warning, under a `TODO` pointing here, so that unplugging a device mid-performance no longer throws `TunerException` on the input device's thread.\n\nThe expected flow: `JavaMidiManager` learns about the failed send and treats it as a possible disconnection (e.g. refreshes the environment, or disconnects the handle), instead of waiting for CoreMIDI4J's notification. The catch-and-drop is then replaced by that flow.\n\n## (b) A handle left dead by a failed open\n\nPer the `MidiDeviceHandle.State` failure rule, a handle whose device fails to open rolls back to `Connected` and is no longer requested to open, and `MidiDeviceFailedToOpenEvent` (which carries the device id and its direction) is published. A `Track` keeps that handle, so its device stays unusable until the tracks are rebuilt. Track management should react to the event, e.g. by retrying, rebuilding the affected track, or surfacing the failure to the user.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/302",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-15T09:26:47Z",
+  "closed_at": null
+}

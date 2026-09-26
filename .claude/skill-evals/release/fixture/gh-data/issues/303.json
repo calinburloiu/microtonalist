@@ -1,0 +1,16 @@
+{
+  "number": 303,
+  "title": "Restore the current tuning when a track's tuner is reset",
+  "state": "closed",
+  "state_reason": "duplicate",
+  "body": "Follow-up of #131 and #288, recorded while designing their fix (`issues/00131-hot-plug-midi-devices/`).\n\nWith #131, `TrackManager` calls `reset()` on a track's `Tuner` (through `TunerProcessor`) when the track's output MIDI device opens after the track was built, i.e. when it is plugged in late or replugged, and when the track's input device gets disconnected. `Tuner.reset()` re-initialises the output instrument's configuration (e.g. MPE Configuration Message, Pitch Bend Sensitivity), but it does not restore the tuning: e.g. `MpeTuner.reset()` goes back to `Tuning.Standard`, and an MTS tuner does not re-send its tuning. So after such a reset the instrument plays in 12-EDO until the next tuning change.\n\n## Expected\n\nAfter a track's tuner is reset, the output instrument is tuned to the current tuning again, without waiting for the next tuning change. Where that responsibility lives is part of this issue: e.g. `Tuner.reset()` keeps and re-emits the tuning it holds, or the track/`TrackManager` re-applies the current tuning after the reset.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/303",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-15T09:46:07Z",
+  "closed_at": "2026-09-22T06:46:28Z"
+}

@@ -1,0 +1,16 @@
+{
+  "number": 312,
+  "title": "Add MidiGraph with transactions, snapshots and traversal",
+  "state": "open",
+  "state_reason": null,
+  "body": "Sub-issue of #310. **Depends on #311** (ports and node roles).\n\nAdds the central topology type: the single owner of which nodes exist and how they are wired. Nothing is migrated onto it in this issue — it ships unused, so it can be built and tested on its own.\n\n## Scope\n\n- `MidiEdge(from: MidiOutlet, to: MidiInlet)`, and a `MidiGraph` owning the node and edge sets.\n- A transaction that accumulates changes and applies them in three phases: **validate** the whole prospective topology (a failure changes nothing), **apply**, **notify**. Edges form a set, so wiring the same pair twice is a no-op.\n- `MidiGraphSnapshot`: an immutable view with `successorsOf` / `predecessorsOf`, `depthFirstFrom`, `breadthFirstFrom` and `topologicalOrder`. A traversal walks a frozen snapshot, so a walk that drives a rewiring is never disturbed by its own changes.\n- Validation rules: unknown ports, and cycles (a cycle is an infinite message loop).\n- Since each track owns its nodes on its own thread (#121), a commit does not mutate another thread's ports directly: it dispatches the per-track portion of the change as a command on that track's own queue, applied between messages. No lock and no volatile on either the message path or the wiring path.\n\n## Open questions to settle here\n\n- Notify-phase ordering (topological? reverse for detach?).\n- Whether a lifecycle callback may itself mutate the graph, or must queue the change for a follow-up commit.\n- Whether a cycle is a load-time error, a commit-time error, or a warning with a hop limit.\n\nSee `issues/00310-midi-flow-graph/2026-09-20-graph-topology-options.md`.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/312",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-20T13:32:22Z",
+  "closed_at": null
+}

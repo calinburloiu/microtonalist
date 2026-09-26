@@ -1,0 +1,16 @@
+{
+  "number": 34,
+  "title": "Maintain scale lineage in tuning objects",
+  "state": "open",
+  "state_reason": null,
+  "body": "* Mapping a `Scale` to a `Tuning` does not lose scale and scale degree information. Every pitch class from the `Tuning` implementation contains the original scale degree from which it was mapped to.\n* Composing`Tuning`s by using operations such as `fill` or `merge` keeps the information about all scales and scale degrees involved.\n\nThis feature allows future GUIs to see the scales on a piano keyboard for each tuning.\n\n* `Tuning` implementation allows `merge`.\n* `Tuning` implementation allows additional layers for filling:\n        - Global fill;\n        - Local fill:\n            - Forefill;\n            - Backfill;\n            - Memory fill (a new local fill that remembers the previous main tuning from `TuningSession`).",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Colored Keyboard GUI",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/34",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2021-12-07T18:12:53Z",
+  "closed_at": null
+}

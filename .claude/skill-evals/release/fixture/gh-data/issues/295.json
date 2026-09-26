@@ -1,0 +1,16 @@
+{
+  "number": 295,
+  "title": "MidiSerialProcessor.removeAt(0) always throws and leaves the chain mutated",
+  "state": "open",
+  "state_reason": null,
+  "body": "`MidiSerialProcessor.removeAt(index)` throws for `index == 0` on any non-empty chain, after having already mutated `_processors`.\n\n`removeAt` patches the processor out and then calls `wireProcessorToPrevious(index)` unconditionally:\n\n```scala\n_processors = _processors.patch(index, Seq.empty, 1)\n\nwireProcessorToPrevious(index)\n```\n\nbut `wireProcessorToPrevious` opens with `require(1 <= _index, \"index should be greater or equal to 1\")`, so `removeAt(0)` throws `IllegalArgumentException`. `remove(processor)` goes the same way when the processor is the first in the chain, since it delegates to `removeAt(indexOf(processor))`.\n\nTwo consequences:\n\n- Removing the head of the chain is impossible through the public API.\n- The exception escapes *after* `_processors` was reassigned, so the instance is left with the processor removed from the sequence but the neighbours not rewired, and the removed processor's transmitter not cleared.\n\nThe first processor has no predecessor to rewire, so the fix is presumably to skip `wireProcessorToPrevious` when `index == 0` — the chain head needs no incoming wiring — while still running the `if (index == size) wireOutput()` and `processor.transmitter.clearReceivers()` steps that follow.\n\n**Pre-existing**, not introduced by #281: the same code is at `243682a` (with `setReceiver(null)` in place of `clearReceivers()`). It is unnoticed because `MidiSerialProcessorTest` only ever removes at indices 1 and 2, and `TrackManager` never removes a processor at all.\n\nA fix should come with test cases for `removeAt(0)` and `remove(firstProcessor)` on a chain of two or more, and for the single-processor chain where index 0 is also the last.\n\nFound while reviewing #289.",
+  "labels": [
+    "bugfix"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/295",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-10T21:26:12Z",
+  "closed_at": null
+}

@@ -1,0 +1,30 @@
+#!/bin/bash
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+# Reference solution of the draft-notes task, for `skillgrade --validate`: builds the trial in the workspace, drafts
+# the approved notes, proposes the next snapshot and stops for review.
+set -euo pipefail
+set -a; source task.env; set +a
+WS=$PWD FIXTURE=$PWD/fixture APPLY_APPROVED_NOTES=1 bash fixture/setup.sh
+
+cat > agent-output.txt <<'EOF'
+I drafted the v1.6.0 release notes at the top of docs/release-notes.md; nothing is committed yet. After the release,
+main moves to 1.7.0-SNAPSHOT unless you prefer another version. Please review the notes.
+EOF
+cat > judge.json <<'EOF'
+{"criteria": [{"name": "accuracy", "score": 1, "comment": "reference"}, {"name": "audience", "score": 1, "comment": "reference"},
+ {"name": "known_issues", "score": 1, "comment": "reference"}, {"name": "style", "score": 1, "comment": "reference"},
+ {"name": "concision", "score": 1, "comment": "reference"}], "reasoning": "reference solution"}
+EOF

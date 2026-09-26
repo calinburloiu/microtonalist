@@ -1,0 +1,74 @@
+# skillgrade eval of the `release` skill. See README.md: the trials are run by Claude Code subagents beforehand, and
+# the `command` agent below only loads each finished trial into skillgrade's workspace for grading.
+version: "1"
+
+skill: ../../skills/release
+
+defaults:
+  agent: command
+  command: bash fixture/import-trial.sh
+  provider: local
+  trials: 3
+  timeout: 120
+  threshold: 0.8
+
+tasks:
+  - name: draft-notes
+    instruction: instructions/draft-notes.md
+    workspace:
+      - src: fixture
+        dest: fixture
+      - src: tasks/draft-notes.env
+        dest: task.env
+      - src: solutions/draft-notes.sh
+        dest: draft-notes.sh
+    solution: solutions/draft-notes.sh
+    expected:
+      version: "1.6.0"
+      next: "1.7.0-SNAPSHOT"
+    metadata:
+      step: draft
+    graders:
+      - type: deterministic
+        run: python3 graders/check_draft.py
+        weight: 0.5
+      - type: deterministic
+        run: python3 graders/judge_result.py
+        weight: 0.5
+
+  - name: publish-release
+    instruction: instructions/publish-release.md
+    workspace:
+      - src: fixture
+        dest: fixture
+      - src: tasks/publish-release.env
+        dest: task.env
+      - src: solutions/publish-release.sh
+        dest: publish-release.sh
+    solution: solutions/publish-release.sh
+    expected:
+      version: "1.6.0"
+      next: "1.7.0-SNAPSHOT"
+    metadata:
+      step: publish
+    graders:
+      - type: deterministic
+        run: python3 graders/check_publish.py
+
+  - name: refuse-red-ci
+    instruction: instructions/refuse-red-ci.md
+    workspace:
+      - src: fixture
+        dest: fixture
+      - src: tasks/refuse-red-ci.env
+        dest: task.env
+      - src: solutions/refuse-red-ci.sh
+        dest: refuse-red-ci.sh
+    solution: solutions/refuse-red-ci.sh
+    expected:
+      version: "1.6.0"
+    metadata:
+      step: publish
+    graders:
+      - type: deterministic
+        run: python3 graders/check_refusal.py

@@ -1,0 +1,16 @@
+{
+  "number": 292,
+  "title": "Implement MIDI 2.0 support in sc-midi",
+  "state": "open",
+  "state_reason": null,
+  "body": "Implement MIDI 2.0 support in `sc-midi`, filling in the `Midi2Msg` branch of the message hierarchy that #279 introduces as an empty placeholder.\n\nThe MIDI 2.0 outlook document written for #283 (`issues/00278-isolate-java-midi/2026-09-07-midi2-outlook.md`, Section 3) is the starting point. In short:\n\n- **`Midi2Msg` hierarchy** (`message` package): the MIDI 2.0 Channel Voice messages (Note On/Off with 16-bit velocity and a typed attribute, Poly Pressure, Per-Note Pitch Bend, Registered/Assignable Per-Note Controller, Per-Note Management, Control Change, Registered/Assignable Controller, Program Change with bank, Channel Pressure, Pitch Bend), each carrying a `group` (0-15) besides `channel`, with a `ChannelMidi2Msg.mapChannel` / `mapGroup` mirroring the MIDI 1.0 side.\n- **A UMP codec**: `MidiMsg` to and from Universal MIDI Packet words, covering MIDI 1.0 Channel Voice packets (type 0x2), MIDI 2.0 Channel Voice packets (type 0x4), SysEx7 in Data 64 packets and System messages (type 0x1), with an `UnsupportedMidi2Msg` lossless fallback.\n- **A `Midi2Manager` / `Midi2DeviceHandle`** implementing the traits from #282 over a native binding (Java FFM to CoreMIDI, Windows MIDI Services or ALSA UMP) or a platform API, since `javax.sound.midi` is MIDI 1.0 byte-stream only.\n- **Boundary translation** per D7 of #278: `JavaMidiDeviceHandle` drops (or downward-translates) `Midi2Msg`s, while a `Midi2DeviceHandle` renders `Midi1Msg`s as MIDI 1.0 Channel Voice packets or translates them upward.\n- **Tuner implications**: a `Midi2Tuner` that sets pitch with the Note On Pitch 7.9 attribute or with Per-Note Pitch Bend, which would make `MpeTuner` the MIDI 1.0 fallback rather than the polyphonic default.\n\nThis is a large piece of work and will most likely be split into sub-issues later. It is tracked as a single issue for now so that the `Midi2Msg` placeholder in `message/MidiMsg.scala` has a conventional `TODO` to point at.\n\nDepends on #278 and its sub-issues.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/292",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-08T18:25:00Z",
+  "closed_at": null
+}

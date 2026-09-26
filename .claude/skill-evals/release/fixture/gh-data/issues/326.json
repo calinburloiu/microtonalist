@@ -1,0 +1,16 @@
+{
+  "number": 326,
+  "title": "Check that each track's tuner can tune every tuning exactly when they are loaded",
+  "state": "open",
+  "state_reason": null,
+  "body": "Follow-up of #322 (PR #323 and the PR stacked on it).\n\n## Problem\n\nEach tuner has limits: the range of a tuning value in an MTS message (−64…+63 cents in the 1-byte form, ±100 cents in the 2-byte form), the Pitch Bend Sensitivity of `MonophonicPitchBendTuner`, and the Member Pitch Bend Sensitivity of the Zones of `MpeTuner`. `Tuner.canTune(tuning)` tells whether a tuner can apply a tuning exactly, within those limits.\n\nWhen it cannot, `Tuner.tune` and `Tuner.reset` still apply the tuning, clamping the offsets beyond the limits to them, and only log a warning. The musician hears some keys out of tune with nothing to show why outside the log. For example, a quarter tone at −50 cents shifted by a base offset of about −32 cents (A = 432 Hz) lands near −82 cents, which a 1-byte MTS instrument plays at −64.\n\nAll the tunings are known when a composition is loaded, so the mismatch can be detected before performing, rather than when a tuning change plays out of tune.\n\n## Scope\n\n- When the tunings are loaded or the tracks change, check each track's tuner against every tuning with `canTune`, and report to the user the tunings, and ideally the pitch classes, that a tuner would clamp.\n- Decide how to react: warn only, or refuse the composition or the track. The limits of `MonophonicPitchBendTuner` and `MpeTuner` can also change at runtime (a Pitch Bend Sensitivity RPN or an MPE Configuration Message from the input), so a load-time check covers only the configured limits.\n- Revisit the `TODO` in `Tuner`, which clamps with a warning until then.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/326",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-25T20:30:53Z",
+  "closed_at": null
+}

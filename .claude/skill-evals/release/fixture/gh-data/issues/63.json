@@ -1,0 +1,16 @@
+{
+  "number": 63,
+  "title": "Add support for scale definitions in composition files",
+  "state": "open",
+  "state_reason": null,
+  "body": "A new `definitions` property inside a composition file allows defining local assets. For this issue, only scales should be supported as an asset.\n\nDefinitions are defined via a JSON object where the key represents an ID, which should be a valid URI fragment, and the value is a scale that can be defined inline or could reference an external scale with a URI string. Inside `definitions` property there are sections for values categories of assets. Currently, only `definitions.scales` is supported.\n\nDefinitions can be referenced locally inside the composition file by using a URI fragment with the ID used for the definition. For this issue, only local references should be supported.\n\nAvoid infinite load cycles.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Definitions",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/63",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2024-10-05T18:29:25Z",
+  "closed_at": null
+}
