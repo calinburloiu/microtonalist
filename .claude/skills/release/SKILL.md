@@ -46,7 +46,7 @@ python3 .claude/skills/release/scripts/microtonalist_release.py github-release X
 ```markdown
 ## vX.Y.Z (YYYY-MM-DD)
 
-One or two sentences naming the headline change(s) in **bold**.
+This release brings **hot plugging of MIDI devices**. (One or two sentences; the headline change(s) in bold.)
 
 ### User-facing changes
 

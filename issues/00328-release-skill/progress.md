@@ -43,13 +43,16 @@
 
 ## Pending, in order
 
-1. **The user adds the allow rules.** The classifier denied Claude's own edit to `.claude/settings.local.json` as
-   "Auto-Mode Bypass". Add these two rules to `permissions.allow`:
+1. **Done (2026-09-26, approved by the user in accept-edits mode).** Allow rules for the script. The classifier had
+   denied this edit to `.claude/settings.local.json` as "Auto-Mode Bypass". A rule matches the command text, not the
+   directory, so these rules cover both the eval trials and the real publishing. The file is local and not committed.
+   Rules added to `permissions.allow`:
    ```json
    "Bash(python3 .claude/skills/release/scripts/microtonalist_release.py publish *)",
    "Bash(python3 .claude/skills/release/scripts/microtonalist_release.py github-release *)"
    ```
-2. **The user makes one SKILL.md edit.** The classifier denied this edit as "Self-Modification". In the notes template,
+2. **Done (2026-09-26, approved by the user).** SKILL.md template edit. The classifier had denied it as
+   "Self-Modification". In the notes template,
    replace `One or two sentences naming the headline change(s) in **bold**.` with
    `This release brings **hot plugging of MIDI devices**. (One or two sentences; the headline change(s) in bold.)`.
    The reason: 2 of 3 drafts written with the skill did not bold their headline change.
