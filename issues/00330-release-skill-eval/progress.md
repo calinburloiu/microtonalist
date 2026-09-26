@@ -5,7 +5,7 @@
 - **Branch:** `poc/release-skill-eval`, stacked on `feature/release-skill`.
 - **Issue:** [#330](https://github.com/calinburloiu/microtonalist/issues/330), milestone *Agentic Coding*.
 - **Origin:** split out of #328 on 2026-09-26. The eval and the parts of `issues/00328-release-skill/progress.md` below
-  moved here verbatim; the slimming asked for in #330 comes next.
+  moved here verbatim (`37c2939`), then the eval was slimmed down as #330 asks.
 
 ## Decisions made by the user
 
@@ -17,18 +17,30 @@
 
 ## Done
 
-- **`.claude/skill-evals/release/`:** the skillgrade eval. Its `README.md` explains how to run it and why the trials
-  are subagents. It holds `eval.yaml`, the fixture (`setup.sh`, the stand-in `bin/gh`, and `gh-data/` recorded from the
-  real repository), the graders, the rubric, the reference solutions (`npx skillgrade@0.3.0 --validate` gives 1.00 on
-  all three) and `bin/{prepare-trials,collect-trial,judge-prompt,grade}`.
+- **`.claude/skills/release/evals/`:** the skillgrade eval, next to the skill it evaluates. Its `README.md` explains how
+  to run it and why the trials are subagents. It holds `eval.yaml`, the fixture (`setup.sh`, the stand-in `bin/gh`, and
+  `github.json` recorded from the real repository), the graders, the rubric, the reference solutions
+  (`npx skillgrade@0.3.0 --validate` gives 1.00 on all three) and `bin/{prepare-trials,collect-trial,judge-prompt,grade}`.
+- **Slimmed down (2026-09-26), from 79 files and 3113 lines to 26 files and 1480 lines:**
+  - Moved from `.claude/skill-evals/release/` into the skill. The fixture commits the skill under test without its
+    `evals/`, so that a trial cannot read the approved notes or the rubric. `eval.yaml` says `skill: ..`.
+  - The ~50 recorded issues and PRs became one `fixture/github.json` with the 17 that the script's `context` reads, in
+    the shape `gh api` returns; only the 8 whose bodies `context` prints keep them. `context` prints the same as
+    before, except for the commit SHAs.
+  - The stand-in `gh` went from 408 to 114 lines: `api …/issues/N`, `issue view`, `pr view`, `run list` and
+    `release create`; anything else fails.
+  - `build.sbt` and `docs/release-notes.md` are no longer copies: `setup.sh` takes them from `$REAL_REPO`, the notes
+    without the sections newer than v1.5.0. For `--validate`, `eval.yaml` copies both into the workspace.
+  - Dropped the fixture's `README.md`, the graders' fenced-code handling, and the judge prompt's re-derivation of the
+    referenced items (it now lists `github.json`). The `publish-release` reference solution releases with the skill's
+    own script instead of by hand.
 - **License headers:** added by hand to the extensionless scripts. The pre-commit hook adds them to the `.py` and `.sh`
   files.
 
 ## Pending, in order
 
-1. **Slim the eval down**, as #330 asks: move it next to the skill, a handful of recorded issues, a smaller stand-in
-   `gh`, `build.sbt` and `docs/release-notes.md` derived from the real files, and anything else heavier than needed.
-2. **GREEN iteration 2.** Follow the steps in `.claude/skill-evals/release/README.md`, including the push guard on the
+1. **Done (2026-09-26).** Slim the eval down; see Done.
+2. **GREEN iteration 2.** Follow the steps in `.claude/skills/release/evals/README.md`, including the push guard on the
    real `origin`, which was removed at the end of the #328 session. Rerun `draft-notes` and `publish-release` (3 trials
    each) and judge the drafts again, because the rubric changed after green1's judging. Skip `refuse-red-ci`, which
    already scores 1.00.

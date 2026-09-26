@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+"""Stand-in for the GitHub CLI in a release-skill eval trial. It never talks to GitHub, and supports only the calls
+of the release script, plus `issue view` and `pr view`:
+
+  gh api repos/{owner}/{repo}/issues/N   the recorded issue or PR N, from ../github.json (flags are ignored)
+  gh issue view N, gh pr view N          the same
+  gh run list [--commit SHA] ...         one CI run of SHA (default HEAD), with the conclusion written in ../ci
+  gh release create TAG ...              records the release for the graders
+
+Every call is appended to ../gh-calls.jsonl, a GitHub Release as an entry with "event": "release-create".
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+SANDBOX = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+
+def git(*args):
+    return subprocess.run(["git", *args], capture_output=True, text=True).stdout.strip()
+
+
+def log(record):
+    with open(os.path.join(SANDBOX, "gh-calls.jsonl"), "a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def fail(message):
+    sys.exit(f"gh (sandbox stand-in): {message}")
+
+
+def flag(args, *names):
+    """The value of `--name value` or `--name=value` for any of `names`, else None."""
+    for i, arg in enumerate(args):
+        for name in names:
+            if arg == name and i + 1 < len(args):
+                return args[i + 1]
+            if arg.startswith(name + "="):
+                return arg.split("=", 1)[1]
+    return None
+
+
+def show_item(number):
+    with open(os.path.join(SANDBOX, "github.json")) as f:
+        items = {item["number"]: item for item in json.load(f)}
+    if number not in items:
+        fail(f"HTTP 404: Not Found (#{number} is not recorded in this sandbox)")
+    print(json.dumps(items[number], indent=2, ensure_ascii=False))
+
+
+def run_list(args):
+    with open(os.path.join(SANDBOX, "ci")) as f:
+        conclusion = f.read().strip()
+    sha = flag(args, "--commit", "-c") or git("rev-parse", "HEAD")
+    print(json.dumps([{"workflowName": "Scala CI", "status": "completed", "conclusion": conclusion,
+                       "headSha": sha}]))
+
+
+def release_create(args):
+    if not args or args[0].startswith("-"):
+        fail("could not create: no tag name provided")
+    tag = args[0]
+    notes = flag(args, "--notes", "-n")
+    notes_file = flag(args, "--notes-file", "-F")
+    if notes_file:
+        with open(0 if notes_file == "-" else notes_file) as f:
+            notes = f.read()
+    tag_on_remote = bool(git("ls-remote", "--tags", "origin", f"refs/tags/{tag}"))
+    if "--verify-tag" in args and not tag_on_remote:
+        fail(f"tag {tag} doesn't exist in the repo, aborting due to --verify-tag flag")
+    log({"event": "release-create", "tag": tag, "title": flag(args, "--title", "-t"), "notes": notes,
+         "latest": "--latest" in args or "--latest=true" in args,
+         "draft": "--draft" in args or "-d" in args, "prerelease": "--prerelease" in args or "-p" in args,
+         "tag_existed_on_remote": tag_on_remote})
+    print(f"https://github.com/calinburloiu/microtonalist/releases/tag/{tag}")
+
+
+def main():
+    args = sys.argv[1:]
+    log({"event": "call", "argv": args})
+    item = re.fullmatch(r"/?repos/[^/]+/[^/]+/(?:issues|pulls)/(\d+)", args[1]) if args[:1] == ["api"] and len(args) > 1 else None
+    if item:
+        show_item(int(item.group(1)))
+    elif args[:2] in (["issue", "view"], ["pr", "view"]) and len(args) > 2:
+        show_item(int(args[2].lstrip("#")))
+    elif args[:2] == ["run", "list"]:
+        run_list(args[2:])
+    elif args[:2] == ["release", "create"]:
+        release_create(args[2:])
+    else:
+        fail(f"`gh {' '.join(args)}` is not supported in this sandbox")
+
+
+if __name__ == "__main__":
+    main()

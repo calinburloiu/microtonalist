@@ -183,7 +183,7 @@ release notes from the commits, issues and PR descriptions since the previous re
 `Release v<version>` and `Start v<next>-SNAPSHOT` directly on `main`, tags the release, pushes, and publishes the
 GitHub Release, marked Latest. The script refuses to release unless `main` is clean, in sync with `origin`, and green
 in CI. The skill's eval, an experiment with [skillgrade](https://github.com/mgechev/skillgrade), lives in
-[`.claude/skill-evals/release/`](../../.claude/skill-evals/release/README.md).
+[`.claude/skills/release/evals/`](../../.claude/skills/release/evals/README.md).
 
 ## Authorizing MCP Servers and Plugins
 
