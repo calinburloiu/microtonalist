@@ -1,0 +1,16 @@
+{
+  "number": 298,
+  "title": "A track that feeds another track drops its input until TrackManager wires the link",
+  "state": "open",
+  "state_reason": null,
+  "body": "A `Track` subscribes to its input device in its own constructor, but a track whose output is another track only gets output receivers later, when `TrackManager` wires the inter-track connections. Input arriving in that window is dropped without being processed.\n\n`Track`'s constructor builds the pipeline and immediately subscribes to the input device:\n\n```scala\nprivate val pipeline: MidiSerialProcessor = MidiSerialProcessor(\n  Seq(tuningChangeProcessor, tunerProcessor).flatten, outputDeviceHandle.map(_.receiver).toSeq)\n\ninputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))\n```\n\n`outputDeviceHandle` is populated by a `collect` that only matches `DeviceTrackOutputSpec`, so for a `ToTrackOutputSpec` track the pipeline starts with **no** output receivers. `TrackManager.replaceAllTracks` constructs every track first and only then runs its \"Wire inter-track connections\" loop, so between those two points the track is live on its input device with an empty transmitter — and `MidiProcessorReceiver.send` drops a message without calling `process` when the transmitter has no receivers.\n\nConsequences in that window: notes are dropped rather than tuned, tuning-change triggers (e.g. a pedal) are not seen by `TuningChangeProcessor`, and `MidiChannelStateTracker` misses the messages it needs to track held notes and controller state — so a note already held when the link is wired is unknown to the tuner afterwards.\n\nBefore #281 the pipeline always had `Track`'s own output `MidiSplitter` as a receiver, so `process` ran and the tuner and tracker observed the stream even with nothing connected downstream. #281 removed that splitter (design decision D6), which is what exposed this.\n\nThe window is short — the remaining tracks' construction — so this is unlikely to bite in practice unless a device is already streaming while the composition loads. Possible directions:\n\n- Subscribe to the input device after the inter-track wiring, rather than in the `Track` constructor, so a track never receives before it can forward.\n- Or have `TrackManager` construct all tracks, wire the links, and only then start the inputs, making the ordering explicit rather than incidental.\n\nRelated: `#297` covers the same \"dropped without processing\" behaviour for `Track.initMidiMessages`.\n\nFound while reviewing #289.",
+  "labels": [
+    "bugfix"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/298",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-10T21:38:29Z",
+  "closed_at": null
+}

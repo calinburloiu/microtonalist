@@ -1,0 +1,14 @@
+{
+  "number": 85,
+  "title": "Automatically reload a composition file when it's changed",
+  "state": "open",
+  "state_reason": null,
+  "body": "",
+  "labels": [],
+  "milestone": "Watch Files",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/85",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2024-11-04T21:23:05Z",
+  "closed_at": null
+}

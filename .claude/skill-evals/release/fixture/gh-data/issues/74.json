@@ -1,0 +1,16 @@
+{
+  "number": 74,
+  "title": " [#60] Add suport to overwrite base URI in a composition",
+  "state": "closed",
+  "state_reason": null,
+  "body": "Resolves #60.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Player",
+  "html_url": "https://github.com/calinburloiu/microtonalist/pull/74",
+  "is_pull_request": true,
+  "merged_at": "2024-10-20T20:24:27Z",
+  "created_at": "2024-10-18T08:05:23Z",
+  "closed_at": "2024-10-20T20:24:27Z"
+}

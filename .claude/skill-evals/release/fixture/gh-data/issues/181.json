@@ -1,0 +1,16 @@
+{
+  "number": 181,
+  "title": "Add test coverage for `cli` module to 80%",
+  "state": "open",
+  "state_reason": null,
+  "body": "The `cli` module currently has no tests.\n\n**Current coverage:**\n- Statement: 0.00%\n- Branch: 0.00%\n\n**Target:** 80% statement and branch coverage.\n\nThe configured threshold is set to 0% as a starting point. As coverage improves, the threshold in `build.sbt` should be raised toward 80%.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/181",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-04-28T18:34:04Z",
+  "closed_at": null
+}

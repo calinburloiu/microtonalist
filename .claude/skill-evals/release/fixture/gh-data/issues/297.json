@@ -1,0 +1,16 @@
+{
+  "number": 297,
+  "title": "Track.initMidiMessages are dropped unprocessed when the pipeline has no output receivers yet",
+  "state": "closed",
+  "state_reason": "not_planned",
+  "body": "`Track`'s `initMidiMessages` constructor parameter is documented as \"MIDI messages sent into the pipeline right after it is built, typically to initialize the output instrument\", but they can be discarded without ever reaching the tuner.\n\n`sendInitMidiMessages` pushes each one through the pipeline's receiver:\n\n```scala\nprivate def sendInitMidiMessages(): Unit = {\n  for (message <- initMidiMessages) {\n    pipeline.receiver.send(message, -1)\n  }\n}\n```\n\nand `MidiProcessor.MidiProcessorReceiver.send` returns early when the transmitter has no receivers:\n\n```scala\nval outputReceivers = transmitter.receivers\nif (outputReceivers.nonEmpty) {\n  for (outputMessage <- process(message, timeStamp); outputReceiver <- outputReceivers) { … }\n}\n```\n\nThe pipeline is constructed with `outputDeviceHandle.map(_.receiver).toSeq`, and `outputDeviceHandle` is only defined for a `DeviceTrackOutputSpec`. So for a track whose output is a `ToTrackOutputSpec` — or which has no output spec at all — the pipeline has no receivers when `sendInitMidiMessages()` runs, and every init message is dropped *without* `process` being called. The tuner and the channel-state tracker never see it, so state they were supposed to be seeded with is silently missing.\n\nBefore #281 the pipeline always had `Track`'s own output `MidiSplitter` as a receiver, so `process` at least ran and the tuner observed the messages even when nothing was listening downstream. #281 removed that splitter (design decision D6), which is what exposed this.\n\n**Currently unreachable**: the parameter has a default of `Seq.empty` and no caller in the repository passes it — the only references are the ScalaDoc, the parameter, and the loop above. Filing it before someone uses the parameter and hits the silent drop.\n\nDeciding what *should* happen is part of the work:\n\n- Send the init messages only once the pipeline has output receivers (i.e. after `TrackManager` has wired the inter-track connections), rather than at construction?\n- Or let them reach `process` regardless of whether anything is connected downstream, so the tuner's state is seeded either way?\n\nFound while reviewing #289.",
+  "labels": [
+    "bugfix"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/297",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-10T21:38:11Z",
+  "closed_at": "2026-09-23T09:34:05Z"
+}

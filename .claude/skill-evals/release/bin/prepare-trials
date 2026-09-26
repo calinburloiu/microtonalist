@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+"""Builds the trial directories of the release-skill eval, one per task and trial, under <out>/trials/<task>/<n>/.
+
+Each trial gets the fixture (see fixture/setup.sh) with the skill under test committed in it, the task instruction
+(`instruction.md`) and the prompt to give to the Claude Code subagent that runs the trial (`prompt.md`): the
+instruction preceded by the sandbox rules.
+
+Usage: bin/prepare-trials --out DIR [--skill DIR] [--trials N] [--task NAME ...]
+"""
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+
+EVAL_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+REAL_REPO = os.path.dirname(os.path.dirname(os.path.dirname(EVAL_DIR)))
+
+PROMPT = """\
+You are working in a sandboxed copy of the microtonalist repository, set up to evaluate how an agent carries out a \
+task in it. Work exactly as you would in the real repository, within these sandbox rules:
+
+- The repository is `{repo}`. The shell does not keep its directory between commands, so start every Bash command \
+with `cd {repo} && `. Do not read or change anything outside `{trial}`; in particular, never touch `{real_repo}`.
+- The `origin` remote is a local repository standing in for GitHub: push to it as you would to GitHub.
+- The GitHub CLI of this sandbox is `{gh}`, a stand-in that answers from recorded calinburloiu/microtonalist data. \
+Run it wherever you would run `gh`. Never run the system `gh`, and never use GitHub MCP tools.
+- The repository's project skills are in `{repo}/.claude/skills/`: read the `SKILL.md` of any skill that applies to \
+the task there, and follow it. Do not load skills with the Skill tool, which would load the real repository's copies.
+- Nobody can answer questions during this evaluation. When you would stop to ask the user something, end your turn \
+with the message you would send them.
+
+The user's request:
+
+{instruction}
+"""
+
+
+def read_env(path):
+    env = {}
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                key, _, value = line.partition("=")
+                env[key] = value
+    return env
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--out", required=True, help="output directory of this eval run")
+    parser.add_argument("--skill", default=os.path.join(REAL_REPO, ".claude", "skills", "release"),
+                        help="skill directory under test (default: the repository's release skill)")
+    parser.add_argument("--trials", type=int, default=3, help="trials per task (default: 3)")
+    parser.add_argument("--task", action="append", help="task to prepare (default: every task in tasks/)")
+    args = parser.parse_args()
+
+    tasks = args.task or sorted(name[:-4] for name in os.listdir(os.path.join(EVAL_DIR, "tasks"))
+                                if name.endswith(".env"))
+    for task in tasks:
+        task_env = read_env(os.path.join(EVAL_DIR, "tasks", f"{task}.env"))
+        with open(os.path.join(EVAL_DIR, "instructions", f"{task}.md")) as f:
+            instruction = f.read().strip()
+        for n in range(1, args.trials + 1):
+            trial = os.path.realpath(os.path.join(args.out, "trials", task, str(n)))
+            if os.path.exists(trial):
+                shutil.rmtree(trial)
+            os.makedirs(trial)
+            env = dict(os.environ, WS=trial, FIXTURE=os.path.join(EVAL_DIR, "fixture"),
+                       SKILL_DIR=os.path.realpath(args.skill), **task_env)
+            subprocess.run(["bash", os.path.join(EVAL_DIR, "fixture", "setup.sh")], env=env, check=True)
+            repo = os.path.join(trial, "repo")
+            with open(os.path.join(trial, "instruction.md"), "w") as f:
+                f.write(instruction + "\n")
+            with open(os.path.join(trial, "prompt.md"), "w") as f:
+                f.write(PROMPT.format(repo=repo, trial=trial, real_repo=REAL_REPO,
+                                      gh=os.path.join(trial, "sandbox", "bin", "gh"), instruction=instruction))
+            print(trial)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

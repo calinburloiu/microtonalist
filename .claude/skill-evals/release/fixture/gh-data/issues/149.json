@@ -1,0 +1,16 @@
+{
+  "number": 149,
+  "title": "Windows support",
+  "state": "open",
+  "state_reason": null,
+  "body": "",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Windows Support",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/149",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-03-28T10:18:49Z",
+  "closed_at": null
+}

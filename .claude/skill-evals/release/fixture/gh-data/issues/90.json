@@ -1,0 +1,16 @@
+{
+  "number": 90,
+  "title": "Add businessync infrastructure",
+  "state": "open",
+  "state_reason": null,
+  "body": "Requirements:\n\n* Allows making async calls on business and UI threads.\n    - `run`: fire and forget calls, with `Unit` return type.\n    - `call`: calls with a return value wrapped in a `Future`.\n* Allows publishing events and subscribing to them from business or UI threads.\n    - Events are identified by their class.\n    - Subscribing to a base class is possible to allow catching events of all its subclasses.\n* Allows making the UI thread submission pluggable by offering a configurable lambda that runs on the UI thread.\n* Sequential consistency of UI updates:\n    - Each update (run, call or maybe even event) from UI to business thread increments a version (global counter) on the UI side and attaches it to the queued update.\n    - Every time business thread dequeues an update, if it contains a version from UI it updates its own version. Note that in this case the UI is the producer and its version tells how much did it produce and the business thread is the consumer and tells how much did it consume. The business version is less than or equal to the UI version.\n    - When the business thread publishes an event, it attaches its own version.\n    - When UI subscribes to events it may configure the subscription by opting-in for sequential consistency.\n    - When UI receives an event from business and the subscription to the event opted-in for sequential consistency, it checks the business version from the event against its own version. If the business version is stricly less than its own version, it rejects the event.\n    - **Case study: Business thread handles an update from UI asynchronously (e.g. for handling I/O)**. In this case the business version is updated close to immediately. When the async update eventually finishes and a response event is sent to UI, the response it sent with the current version known by the business thread, which might have been incremented.\n\nImplementation notes:\n\n* The business thread uses a concurrent queue with events. Calls are special events.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Architecture",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/90",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2024-12-30T22:23:24Z",
+  "closed_at": null
+}

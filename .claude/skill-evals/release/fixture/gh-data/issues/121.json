@@ -1,0 +1,16 @@
+{
+  "number": 121,
+  "title": "Implement basic track management",
+  "state": "open",
+  "state_reason": null,
+  "body": "Out of scope:\n\n* MIDI channels (for both input and output)",
+  "labels": [
+    "feature"
+  ],
+  "milestone": "Track Management",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/121",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2025-02-17T20:24:07Z",
+  "closed_at": null
+}

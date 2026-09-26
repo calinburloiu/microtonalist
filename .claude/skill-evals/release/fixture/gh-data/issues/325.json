@@ -1,0 +1,16 @@
+{
+  "number": 325,
+  "title": "[#324] Drop the Metals MCP fileInFocus workaround for glob searches",
+  "state": "closed",
+  "state_reason": null,
+  "body": "Metals 1.6.9 shipped scalameta/metals-feature-requests#464 (scalameta/metals#8776): `glob-search` and `typed-glob-search` now search the whole workspace without a `fileInFocus`. This drops the workaround from the agent instructions.\n\n## Changes\n\n- **`CLAUDE.md` / `AGENTS.md`**: replace \"Symbol tool file focus\" (a `fileInFocus` for every symbol tool, three parallel queries per project-wide search) with a shorter \"Symbol tool targets\" section. The glob searches need no target. `get-usages`, `get-docs` and `get-source` take the owning module as `module`, derived from the \"Packages\" table in `module-overview.md` (`<module>-test` for test code).\n- **`docs/agents/metals-mcp-inspect-workaround.md`** (new, loaded on demand): `inspect` still returns no members when given `module` (scalameta/metals#8880), so it keeps using a `fileInFocus`. Delete this doc and its pointer once that issue is fixed.\n- **`scoverage-inspector` skill**: point to the new section.\n- **`docs/development/metals-mcp-claude-code-setup.md`**: require Metals 1.6.9, and explain that a running dev stack needs `bin/microtonalist-dev-stack restart` after `cs update metals`.\n- **`build.sbt`**: fix the `experiments` module's `name`, which was a copy of `microtonalist-app`.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01QH7BvnQt3NzcYz2AcehUnN\n\nResolves #324",
+  "labels": [
+    "doc"
+  ],
+  "milestone": "Agentic Coding",
+  "html_url": "https://github.com/calinburloiu/microtonalist/pull/325",
+  "is_pull_request": true,
+  "merged_at": "2026-09-23T21:09:39Z",
+  "created_at": "2026-09-23T20:14:05Z",
+  "closed_at": "2026-09-23T21:09:39Z"
+}

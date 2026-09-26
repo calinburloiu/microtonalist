@@ -1,0 +1,16 @@
+{
+  "number": 102,
+  "title": "Add support for memory fill",
+  "state": "open",
+  "state_reason": null,
+  "body": "* Memory fill remembers the tuning value of the previous main tuning (with no fill values).\n* Refactor composition format for fill:\n  * Root property `fill` contains:\n    * `global`: the global fill tuning spec (which deprecates `globalFill` in root.\n    * `local`: a spec that allow enabling/disabling forefill, backfill and memory fill.\n  * A new root property `initialTuningIndex` allow configuring the initial index from the tuning sequence. This allow setting a middle index that is initially affected by both forefill and backfill, but if memory fill is enabled, they will be replaced for some values by memory fill\n* Add implement support for memory fill in `TuningSession`.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/102",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2025-01-31T19:01:44Z",
+  "closed_at": null
+}

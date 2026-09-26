@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+"""Writes the LLM judge's prompt for a finished draft-notes trial (`judge-prompt.md` in the trial directory): the
+rubric, the ground truth (the commits since the previous release and the recorded PRs and issues they reference, plus
+the open issues), the previous release's notes and the draft. The judge writes its verdict to `judge.json`.
+
+Usage: bin/judge-prompt TRIAL_DIR
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+EVAL_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+HEADING = re.compile(r"^## v\d+\.\d+\.\d+", re.M)
+
+
+def top_sections(notes, count):
+    starts = [m.start() for m in HEADING.finditer(notes)] + [len(notes)]
+    return [notes[starts[i]:starts[i + 1]].strip() for i in range(min(count, len(starts) - 1))]
+
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    trial = os.path.realpath(sys.argv[1])
+    repo = os.path.join(trial, "repo")
+    with open(os.path.join(trial, "sandbox", "config.json")) as f:
+        data_dir = json.load(f)["data"]
+    items = {}
+    for name in os.listdir(os.path.join(data_dir, "issues")):
+        with open(os.path.join(data_dir, "issues", name)) as f:
+            item = json.load(f)
+        items[item["number"]] = item
+
+    with open(os.path.join(trial, "state", "base-head")) as f:
+        base = f.read().strip()
+    log = subprocess.check_output(["git", "-C", repo, "log", "--format=%h %s", f"v1.5.0..{base}"], text=True)
+    referenced = []
+    for number in re.findall(r"#(\d+)", log):
+        referenced.append(int(number))
+    for number in list(referenced):
+        body = items.get(number, {}).get("body", "")
+        referenced += [int(n) for n in re.findall(r"(?im)^\s*resolves\s+#(\d+)", body)]
+    referenced = list(dict.fromkeys(n for n in referenced if n in items))
+
+    with open(os.path.join(trial, "state", "base-release-notes.md")) as f:
+        previous = top_sections(f.read(), 1)[0]
+    notes_path = os.path.join(repo, "docs", "release-notes.md")
+    draft = ""
+    if os.path.exists(notes_path):
+        with open(notes_path) as f:
+            first = top_sections(f.read(), 1)
+        if first and first[0].startswith("## v1.6.0"):
+            draft = first[0]
+    with open(os.path.join(EVAL_DIR, "graders", "rubrics", "release-notes.md")) as f:
+        rubric = f.read().strip()
+
+    parts = [rubric, "# Ground truth", "## Commits since v1.5.0", "```\n" + log.strip() + "\n```"]
+    for number in referenced:
+        item = items[number]
+        kind = "PR" if item["is_pull_request"] else "Issue"
+        state = "merged" if item.get("merged_at") else item["state"]
+        parts.append(f"## {kind} #{number}: {item['title']} ({state}; labels: {', '.join(item['labels']) or '-'}; "
+                     f"milestone: {item['milestone'] or '-'})\n\n{item['body'].strip()}")
+    open_items = sorted((i for i in items.values() if i["state"] == "open" and not i["is_pull_request"]),
+                        key=lambda i: -i["number"])
+    parts.append("## Open issues\n\n" + "\n".join(
+        f"- #{i['number']} {i['title']} (milestone: {i['milestone'] or '-'})" for i in open_items))
+    parts += ["# Previous release's notes (house style)", previous,
+              "# Draft to grade", draft or "(no v1.6.0 section was drafted)",
+              f"# Your answer\n\nWrite the JSON object, and nothing else, to `{trial}/judge.json`."]
+    with open(os.path.join(trial, "judge-prompt.md"), "w") as f:
+        f.write("\n\n".join(parts) + "\n")
+    print(os.path.join(trial, "judge-prompt.md"))
+
+
+if __name__ == "__main__":
+    main()

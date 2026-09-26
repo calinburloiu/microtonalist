@@ -1,0 +1,16 @@
+{
+  "number": 129,
+  "title": "Add support track init messages",
+  "state": "open",
+  "state_reason": null,
+  "body": "As a user a would like to send miscellaneous initialization MIDI messages to a track and to have control over their order, including interlacing of CC and program change MIDI messages.\n\nA track can configure in its format an `init` property that takes an array of `MidiMessagePlugin`s. The following plugin types are supported:\n\n* `CcMidiMessagePlugin` can send one or _more_ CC MIDI messages.\n* `ProgramChangeMidiMessagePlugin` can send a Program Change MIDI message.\n* `RawMidiMessagePlugin` can send on or more MIDI messages expressed as raw bytes. These can be expressed as an array of numbers, each between 0 and 255.\n* (optional) plugin(s) for selecting a MIDI mode.\n\nA `MidiMessagePlugin` encapsulates logic to generate a collection of `MidiMessage`s or a collection of `ScMidiMessage`.",
+  "labels": [
+    "feature"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/129",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2025-03-17T18:46:37Z",
+  "closed_at": null
+}

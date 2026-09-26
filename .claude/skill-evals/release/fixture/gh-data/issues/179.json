@@ -1,0 +1,16 @@
+{
+  "number": 179,
+  "title": "Improve test coverage for `format` module to 80%",
+  "state": "open",
+  "state_reason": null,
+  "body": "The `format` module is currently below the 80% coverage target.\n\n**Current coverage:**\n- Statement: 71.46%\n- Branch: 64.69%\n\n**Target:** 80% statement and branch coverage.\n\nThe configured threshold is set to current coverage minus a 3% buffer. As coverage improves, the threshold in `build.sbt` should be raised toward 80%.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/179",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-04-28T18:33:55Z",
+  "closed_at": null
+}

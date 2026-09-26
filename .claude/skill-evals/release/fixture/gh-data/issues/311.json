@@ -1,0 +1,16 @@
+{
+  "number": 311,
+  "title": "Introduce MIDI graph ports and node roles",
+  "state": "open",
+  "state_reason": null,
+  "body": "Sub-issue of #310. **Depends on #121**: each track must already run on its own thread, so ports need no locking.\n\nReplaces the anonymous `MidiReceiver` / `MidiTransmitter` pair with named, owned ports, so that an edge points at a *node* rather than at an opaque sink. Behaviour-preserving: no topology changes, no new wiring semantics.\n\n## Scope\n\n- `MidiNode` (`id`, `inlets`, `outlets`, plus `inlet` / `outlet` conveniences for the single-port case).\n- `MidiInlet extends MidiReceiver` and `MidiOutlet`, each with an `owner: MidiNode` back-reference and a `name`.\n- Role traits: `MidiSourceNode` (no inlets), `MidiSinkNode` (no outlets), `MidiProcessorNode`.\n- `MidiProcessor`'s `receiver` / `transmitter` become `inlet` / `outlet`; `MidiProcessorTransmitter` becomes the outlet.\n- `MidiDeviceSourceNode` / `MidiDeviceSinkNode` adapters over `MidiDeviceHandle`, so the handle stays a lifecycle and I/O type and the Java Sound implementation stays independent of the graph.\n- The outlet's target list is `Seq[MidiInlet]`, not `Seq[MidiReceiver]`. That narrowing is what makes the graph walkable.\n- Ports are plain single-threaded fields: no lock, no volatile, no atomic on the message path. A port is touched only by the thread that drives its node.\n\n## Not in scope\n\nAny central topology object, traversal, or change to how nodes are wired. Wiring stays exactly where it is today.\n\n## Notes\n\n`input` / `output` are already taken by `MidiDirection` and `TrackInputSpec` / `TrackOutputSpec`, where they describe a *device's* direction — a device opened as `MidiDirection.Input` is a graph *source*. Hence `inlet` / `outlet` for the graph's point of view.\n\nSee `issues/00310-midi-flow-graph/2026-09-20-graph-topology-options.md`.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": "sc-midi",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/311",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-20T13:32:06Z",
+  "closed_at": null
+}

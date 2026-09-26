@@ -1,0 +1,16 @@
+{
+  "number": 89,
+  "title": "[PoC] Automatically reload a composition file when it's changed",
+  "state": "open",
+  "state_reason": null,
+  "body": "",
+  "labels": [
+    "poc"
+  ],
+  "milestone": "Watch Files",
+  "html_url": "https://github.com/calinburloiu/microtonalist/pull/89",
+  "is_pull_request": true,
+  "merged_at": null,
+  "created_at": "2024-11-05T21:08:22Z",
+  "closed_at": null
+}

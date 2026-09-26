@@ -1,0 +1,16 @@
+{
+  "number": 324,
+  "title": "Drop the Metals MCP fileInFocus workaround now that glob searches cover the whole workspace",
+  "state": "closed",
+  "state_reason": "completed",
+  "body": "Metals 1.6.9 shipped scalameta/metals-feature-requests#464 (implemented in scalameta/metals#8776): `glob-search` and `typed-glob-search` now search the whole workspace when no `fileInFocus` is given, covering every module, the test targets, the `cli` and `experiments` executables, and dependencies.\n\nOur agent instructions still carry the old workaround: the \"Symbol tool file focus\" section of `CLAUDE.md` tells agents to pass a `fileInFocus` to every Metals symbol tool and to query three representative files (`app`, `cli`, `experiments`) in parallel for a project-wide search. That costs context on every session and three calls per search.\n\n## Scope\n\n- Replace that section with \"Symbol tool targets\": the glob searches need no target; `get-usages`, `get-docs` and `get-source` take the owning module as `module` (derived from the \"Packages\" table in `docs/architecture/module-overview.md`, `<module>-test` for test code).\n- `inspect` still returns no members when given `module` (or `searchAllTargets`) — reported as scalameta/metals#8880. Document its `fileInFocus` workaround in an on-demand doc, `docs/agents/metals-mcp-inspect-workaround.md`, to be deleted once that issue is fixed.\n- Update the `scoverage-inspector` skill, which links to the old section.\n- Make Metals 1.6.9 the minimum version in `docs/development/metals-mcp-claude-code-setup.md`, and explain how to upgrade a running stack.",
+  "labels": [
+    "doc"
+  ],
+  "milestone": "Agentic Coding",
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/324",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-09-23T20:13:30Z",
+  "closed_at": "2026-09-23T21:09:40Z"
+}

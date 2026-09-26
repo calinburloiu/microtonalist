@@ -1,0 +1,16 @@
+{
+  "number": 176,
+  "title": "Improve test coverage for `config` module to 80%",
+  "state": "open",
+  "state_reason": null,
+  "body": "The `config` module (sbt project `appConfig`) is currently below the 80% coverage target.\n\n**Current coverage:**\n- Statement: 66.85%\n- Branch: 53.57%\n\n**Target:** 80% statement and branch coverage.\n\nThe configured threshold is set to current coverage minus a 3% buffer. As coverage improves, the threshold in `build.sbt` should be raised toward 80%.",
+  "labels": [
+    "refactoring"
+  ],
+  "milestone": null,
+  "html_url": "https://github.com/calinburloiu/microtonalist/issues/176",
+  "is_pull_request": false,
+  "merged_at": null,
+  "created_at": "2026-04-28T18:33:36Z",
+  "closed_at": null
+}
