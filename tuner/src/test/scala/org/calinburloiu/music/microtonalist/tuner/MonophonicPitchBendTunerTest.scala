@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import ch.qos.logback.classic.Level
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}
@@ -905,6 +908,36 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
       inside(midiOutput.last) { case NoteOnMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteE4 }
     }
+
+    "warn when an RPN lowers the sensitivity below the tuning" in new Fixture(tonePitchBendSensitivity) {
+      // Given
+      tuner.tune(tuningWithEBeyondASemitone)
+
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[MonophonicPitchBendTuner].getName) {
+        sendPitchBendSensitivity(semitonePitchBendSensitivity)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) shouldEqual Seq(
+        s"""The "monophonicPitchBend" tuner cannot tune exactly to $tuningWithEBeyondASemitone, so it clamps it to """ +
+          "its limits."
+      )
+    }
+
+    "not warn when an RPN lowers the sensitivity while the tuning stays within it" in
+      new Fixture(tonePitchBendSensitivity) {
+        // Given
+        tuner.tune(customTuning)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MonophonicPitchBendTuner].getName) {
+          sendPitchBendSensitivity(semitonePitchBendSensitivity)
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldBe empty
+      }
   }
 
   val pitchBendSensitivities: Seq[PitchBendSensitivity] = Seq(

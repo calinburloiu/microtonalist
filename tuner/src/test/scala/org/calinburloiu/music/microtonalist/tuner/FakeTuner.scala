@@ -24,9 +24,12 @@ import scala.collection.mutable
  * A [[Tuner]] test double that returns canned messages and records what it is asked to tune to and to process. It is
  * not thread-safe.
  *
- * @param resetMessages    What its [[onReset]] returns, which a reset follows with the messages of the current tuning.
- * @param tuningMessages   What its [[onTune]] returns for each of these tunings; it returns nothing for any other.
- * @param processMessages  What [[process]] returns for each of these messages; it returns nothing for any other.
+ * @param resetMessages              What its [[onReset]] returns, which a reset follows with the messages of the
+ *                                   current tuning.
+ * @param tuningMessages             What its [[onTune]] returns for each of these tunings; it returns nothing for any
+ *                                   other.
+ * @param processMessages            What [[process]] returns for each of these messages; it returns nothing for any
+ *                                   other.
  * @param untunableTunings           The tunings its [[canTune]] rejects; it accepts any other.
  * @param untunableTuningsAfterReset `Some` tunings its [[canTune]] rejects instead once its [[onReset]] ran, which
  *                                   models a reset that changes a limit of the tuner, or `None` to keep rejecting

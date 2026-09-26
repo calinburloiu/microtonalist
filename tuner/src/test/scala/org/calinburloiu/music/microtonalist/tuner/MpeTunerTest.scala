@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
+import ch.qos.logback.classic.Level
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}
@@ -920,16 +923,38 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         tuner.canTune(tuningWithB(-4800.01)) shouldBe false
       }
 
-    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity of either enabled Zone" in
+    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity of the Upper Zone when it " +
+      "is the only one enabled" in new Fixture(MpeTuner(
+      initialZones = MpeZones(
+        MpeZone(MpeZoneType.Lower, 0),
+        MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+      )
+    )) {
+      // When / Then
+      tuner.canTune(tuningWithB(150.0)) shouldBe false
+    }
+
+    "tell that it can tune exactly a tuning beyond the Member Pitch Bend Sensitivity of a disabled Zone" in
       new Fixture(MpeTuner(
         initialZones = MpeZones(
           MpeZone(MpeZoneType.Lower, 7),
-          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+          MpeZone(MpeZoneType.Upper, 0, memberPitchBendSensitivity = PitchBendSensitivity(1))
         )
       )) {
         // When / Then
-        tuner.canTune(tuningWithB(150.0)) shouldBe false
+        tuner.canTune(tuningWithB(150.0)) shouldBe true
       }
+
+    "tell that it can tune exactly a tuning beyond the Member Pitch Bend Sensitivity of the Upper Zone, which the " +
+      "input does not reach when both Zones are enabled" in new Fixture(MpeTuner(
+      initialZones = MpeZones(
+        MpeZone(MpeZoneType.Lower, 7),
+        MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+      )
+    )) {
+      // When / Then
+      tuner.canTune(tuningWithB(150.0)) shouldBe true
+    }
 
     "clamp the Pitch Bend of an occupied Member Channel when tuned beyond the Member Pitch Bend Sensitivity" in
       new Fixture(MpeTuner(
@@ -947,16 +972,6 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // Then
         extractPitchBends(output).map(_.value) shouldEqual Seq(PitchBendMidiMsg.MaxValue)
       }
-
-    "ignore the Member Pitch Bend Sensitivity of a disabled Zone" in new Fixture(MpeTuner(
-      initialZones = MpeZones(
-        MpeZone(MpeZoneType.Lower, 7),
-        MpeZone(MpeZoneType.Upper, 0, memberPitchBendSensitivity = PitchBendSensitivity(1))
-      )
-    )) {
-      // When / Then
-      tuner.canTune(tuningWithB(150.0)) shouldBe true
-    }
   }
 
   "MpeTuner - tune() - MPE Input" should {
@@ -1057,13 +1072,15 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
 
-    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS " +
-      "lowered" in
-      new Fixture(tuner7MpeInput) {
-        // When
-        sendPbsMsb(tuner, channel = 1, semitones = 1)
-
-        // Then
+    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity of either enabled Zone" in
+      new Fixture(MpeTuner(
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 7),
+          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+        ),
+        initialInputMode = MpeInputMode.Mpe
+      )) {
+        // When / Then
         tuner.canTune(tuningWithB(150.0)) shouldBe false
       }
   }
@@ -3369,6 +3386,39 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // for a note that was never struck — would leave the receiver with an unmatched Note Off.
         extractNoteOffs(output) shouldEqual Seq(NoteOffMidiMsg(outChannel, C4))
       }
+
+    // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
+
+    "warn when the MCM makes reachable a Zone whose Member Pitch Bend Sensitivity is below the tuning" in
+      new Fixture(MpeTuner(
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 7),
+          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+        )
+      ), Some(tuningWithB(150.0))) {
+        // When
+        // Leaving Non-MPE Input Mode makes the Upper Zone reachable, and the MCM on the Lower Zone leaves its
+        // sensitivity untouched.
+        private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
+          sendMcm(tuner, channel = 0, memberCount = 7)
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldEqual Seq(
+          s"""The "mpe" tuner cannot tune exactly to ${tuningWithB(150.0)}, so it clamps it to its limits."""
+        )
+      }
+
+    "not warn when the MCM leaves the tuning within the Member Pitch Bend Sensitivity" in
+      new Fixture(initialTuning = Some(quarterCommaMeantone)) {
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
+          sendMcm(tuner, channel = 0, memberCount = 7)
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldBe empty
+      }
   }
 
   "MpeTuner - MCM Processing - MPE Input" should {
@@ -4459,5 +4509,51 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       tuner.zones.lower.masterPitchBendSensitivity shouldEqual MpeZone.DefaultMasterPitchBendSensitivity
       tuner.zones.lower.memberPitchBendSensitivity shouldEqual MpeZone.DefaultMemberPitchBendSensitivity
     }
+
+    // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
+
+    "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS " +
+      "lowered" in new Fixture(tuner7MpeInput) {
+      // When
+      sendPbsMsb(tuner, channel = 1, semitones = 1)
+
+      // Then
+      tuner.canTune(tuningWithB(150.0)) shouldBe false
+    }
+
+    "warn when a Member Channel PBS lowers the Member Pitch Bend Sensitivity below the tuning" in
+      new Fixture(tuner7MpeInput, Some(tuningWithB(150.0))) {
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
+          sendPbsMsb(tuner, channel = 1, semitones = 1)
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldEqual Seq(
+          s"""The "mpe" tuner cannot tune exactly to ${tuningWithB(150.0)}, so it clamps it to its limits."""
+        )
+      }
+
+    "warn only once when the PBS that lowers the Member Pitch Bend Sensitivity below the tuning arrives on every " +
+      "Member Channel" in new Fixture(tuner7MpeInput, Some(tuningWithB(150.0))) {
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
+        for (channel <- 1 to 7) sendPbsMsb(tuner, channel, semitones = 1)
+      }
+
+      // Then
+      events.messagesAt(Level.WARN) should have size 1
+    }
+
+    "not warn when a Member Channel PBS lowers the Member Pitch Bend Sensitivity while the tuning stays within it" in
+      new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
+          sendPbsMsb(tuner, channel = 1, semitones = 1)
+        }
+
+        // Then
+        events.messagesAt(Level.WARN) shouldBe empty
+      }
   }
 }

@@ -70,7 +70,10 @@ trait Tuner extends Plugin with StrictLogging {
   private var _tuning: Tuning = Tuning.Standard
 
   /**
-   * @return the tuning last applied by [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO
+   * The tuning is kept as it was passed, even if the tuner clamps it to its limits, so that the tuner tunes it exactly
+   * again once a limit that clamped it increases.
+   *
+   * @return the tuning last passed to [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO
    *         Tuning if it was never tuned.
    */
   final def tuning: Tuning = _tuning
@@ -82,7 +85,8 @@ trait Tuner extends Plugin with StrictLogging {
    * limits may change as the tuner processes messages.
    *
    * [[tune]] and [[reset]] still apply a tuning for which this returns `false`, clamping its offsets to the limits of
-   * the tuner, and log a warning.
+   * the tuner, and log a warning. A tuner logs it as well when a message passed to [[process]] changes a limit such
+   * that this returns `false` for the current tuning.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
    *               octave.
@@ -109,7 +113,7 @@ trait Tuner extends Plugin with StrictLogging {
   final def reset(): Seq[MidiMsg] = {
     // `onReset` runs first, since it may change the limits that `applyTuning` checks the tuning against
     val resetMessages = onReset()
-    resetMessages ++ applyTuning(_tuning, None)
+    resetMessages ++ applyTuning(None)
   }
 
   /**
@@ -126,17 +130,28 @@ trait Tuner extends Plugin with StrictLogging {
   final def tune(tuning: Tuning): Seq[MidiMsg] = {
     val previousTuning = _tuning
     _tuning = tuning
-    applyTuning(tuning, Some(previousTuning))
+    applyTuning(Some(previousTuning))
   }
 
-  /** Tunes to the given tuning with [[onTune]], after warning if the tuner has to clamp it to its limits. */
-  private def applyTuning(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg] = {
+  /** Tunes to the current tuning with [[onTune]], after warning if the tuner has to clamp it to its limits. */
+  private def applyTuning(previousTuning: Option[Tuning]): Seq[MidiMsg] = {
     // TODO #326 Check each tuning against the tuner when the tunings are loaded, rather than only warning here
-    if (!canTune(tuning)) {
-      logger.warn(s"""The "$typeName" tuner cannot tune exactly to $tuning, so it clamps it to its limits.""")
-    }
+    warnIfCannotTune()
 
-    onTune(tuning, previousTuning)
+    onTune(_tuning, previousTuning)
+  }
+
+  /**
+   * Logs a warning if [[canTune]] does not accept the current [[tuning]], which the tuner then clamps to its limits.
+   *
+   * [[tune]] and [[reset]] call it, and an implementation must call it after a message passed to [[process]] changes
+   * one of its limits, such as a Pitch Bend Sensitivity RPN, since the tunings cannot be checked against such a
+   * change in advance.
+   */
+  protected final def warnIfCannotTune(): Unit = {
+    if (!canTune(_tuning)) {
+      logger.warn(s"""The "$typeName" tuner cannot tune exactly to ${_tuning}, so it clamps it to its limits.""")
+    }
   }
 
   /**
@@ -171,7 +186,10 @@ trait Tuner extends Plugin with StrictLogging {
    *
    * An implementation that sends only what changed from `previousTuning` must send the whole tuning when it is
    * `None`: [[reset]] restates the tuning to an output device whose tuning is unknown, for example because it was
-   * turned off and on again.
+   * turned off and on again. `Some` previous tuning is not exactly what the output devices hold either: it is the
+   * [[tuning]] as passed to [[tune]], which the tuner may have clamped to limits that changed since, and
+   * [[TunerProcessor]] tunes the tuner to 12-EDO when it detaches one of its receivers, while the others keep the
+   * previous tuning, until #305 changes that.
    *
    * @param tuning         The tuning instance that specifies the offset in cents for each of the 12 pitch classes in
    *                       the octave.

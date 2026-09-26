@@ -28,7 +28,7 @@ import scala.collection.mutable
  *
  * It can only tune exactly the offsets within its current pitch bend sensitivity, see [[canTune]], and clamps any other
  * offset to the sensitivity. This includes an offset of the current tuning that the sensitivity decreases below, on
- * reset or when the input sends a Pitch Bend Sensitivity RPN.
+ * reset or when the input sends a Pitch Bend Sensitivity RPN, which it then warns about.
  *
  * @param outputChannel               Output MIDI channel on which all output is sent, regardless on the input
  *                                    channels used.
@@ -196,6 +196,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   private def pitchBendSensitivity_=(value: PitchBendSensitivity): Unit = {
     if (_pitchBendSensitivity != value) {
       _pitchBendSensitivity = value
+      warnIfCannotTune()
       // Update currTuningPitchBend for the current note using the new sensitivity
       val offset = tuning(lastNote.pitchClass)
       currTuningPitchBend = tuningPitchBendOf(offset)

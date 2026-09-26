@@ -66,7 +66,7 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
       assertTuning(MtsMessageGenerator.Octave1ByteNonRealTime, expected1ByteOffsets)
     }
 
-    "encode a tuning whose offsets round to the bounds of the 1-byte range" in {
+    "tell that it can encode exactly a tuning whose offsets round to the bounds of the 1-byte range" in {
       // Given
       val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-64.49, 63.49)).flatten)
 
@@ -74,12 +74,12 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
       MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuning) shouldBe true
     }
 
-    "not encode a tuning with an offset rounding below the 1-byte range" in {
+    "tell that it cannot encode exactly a tuning with an offset rounding below the 1-byte range" in {
       // When / Then
       MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(-64.51)) shouldBe false
     }
 
-    "not encode a tuning with an offset rounding above the 1-byte range" in {
+    "tell that it cannot encode exactly a tuning with an offset rounding above the 1-byte range" in {
       // When / Then
       MtsMessageGenerator.Octave1ByteNonRealTime.canEncode(tuningWithB(63.5)) shouldBe false
     }
@@ -98,7 +98,7 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
       assertTuning(MtsMessageGenerator.Octave2ByteNonRealTime, tuning.offsets)
     }
 
-    "encode a tuning whose offsets are on the bounds of the 2-byte range" in {
+    "tell that it can encode exactly a tuning whose offsets are on the bounds of the 2-byte range" in {
       // Given
       val tuning = Tuning.fromOffsets("bounds", Seq.fill(6)(Seq(-100.0, 100.0)).flatten)
 
@@ -106,12 +106,12 @@ class MtsMessageGeneratorTest extends AnyWordSpec with Matchers {
       MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuning) shouldBe true
     }
 
-    "not encode a tuning with an offset below the 2-byte range" in {
+    "tell that it cannot encode exactly a tuning with an offset below the 2-byte range" in {
       // When / Then
       MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(-100.01)) shouldBe false
     }
 
-    "not encode a tuning with an offset above the 2-byte range" in {
+    "tell that it cannot encode exactly a tuning with an offset above the 2-byte range" in {
       // When / Then
       MtsMessageGenerator.Octave2ByteNonRealTime.canEncode(tuningWithB(100.01)) shouldBe false
     }

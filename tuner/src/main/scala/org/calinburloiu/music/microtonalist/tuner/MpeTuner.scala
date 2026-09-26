@@ -136,11 +136,13 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   /**
    * @inheritdoc
    *
-   * This tuner can tune exactly a tuning whose offsets are all within the Member Pitch Bend Sensitivity of each
-   * enabled Zone, which an MPE Configuration Message, a Pitch Bend Sensitivity RPN received on a Member Channel or a
-   * reset may change. It clamps any other offset to the sensitivity.
+   * This tuner can tune exactly a tuning whose offsets are all within the Member Pitch Bend Sensitivity of each Zone
+   * the input reaches: every enabled Zone in MPE Input Mode, but only the one non-MPE input is routed to in Non-MPE
+   * Input Mode. An MPE Configuration Message, which also switches to MPE Input Mode, a Pitch Bend Sensitivity RPN
+   * received on a Member Channel or a reset may change them. It clamps any other offset to the sensitivity, and warns
+   * when one of those messages leaves the current tuning beyond it.
    */
-  override def canTune(tuning: Tuning): Boolean = Seq(lowerZone, upperZone).filter(_.isEnabled).forall { zone =>
+  override def canTune(tuning: Tuning): Boolean = reachableZones.forall { zone =>
     val maxOffset = zone.memberPitchBendSensitivity.totalCents
     tuning.offsets.forall(offset => Math.abs(offset) <= maxOffset)
   }
@@ -206,6 +208,16 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def lowerZone: MpeZone = _zones.lower
 
   private def upperZone: MpeZone = _zones.upper
+
+  /**
+   * The enabled Zones whose Member Channels the input can reach: both in MPE Input Mode, but only the one non-MPE
+   * input is routed to in Non-MPE Input Mode — the Lower Zone when it is enabled, otherwise the Upper Zone, as
+   * [[MpeMessageRouting.roleOf]] routes it.
+   */
+  private def reachableZones: Seq[MpeZone] = {
+    val enabledZones = Seq(lowerZone, upperZone).filter(_.isEnabled)
+    if (_inputMode == MpeInputMode.NonMpe) enabledZones.take(1) else enabledZones
+  }
 
   /**
    * Warns when the Tuner is configured in Non-MPE Input Mode with both Zones enabled: non-MPE input is
@@ -485,6 +497,10 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
 
     // Switch to MPE input mode
     _inputMode = MpeInputMode.Mpe
+
+    // The addressed Zone takes the default sensitivities, and leaving Non-MPE Input Mode may make the other Zone
+    // reachable, either of which may leave the tuning beyond a Member Pitch Bend Sensitivity.
+    warnIfCannotTune()
   }
 
   /**
@@ -577,6 +593,7 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
   private def applyPbsUpdate(buffer: mutable.Buffer[MidiMsg], channel: Int,
                              ccNumber: Int, ccValue: Int,
                              updatedZone: MpeZone, isMaster: Boolean): Unit = {
+    val previousZone = if (updatedZone.zoneType == MpeZoneType.Lower) lowerZone else upperZone
     _zones = _zones.update(updatedZone)
 
     if (logger.underlying.isInfoEnabled) {
@@ -598,6 +615,11 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
     if (!isMaster) {
       val alloc = if (updatedZone.zoneType == MpeZoneType.Lower) lowerAllocator else upperAllocator
       alloc.foreach(applyExpressionPitchBendThreshold(buffer, _))
+
+      // Only on a change, since a sender repeats the same sensitivity on every Member Channel of the Zone
+      if (updatedZone.memberPitchBendSensitivity != previousZone.memberPitchBendSensitivity) {
+        warnIfCannotTune()
+      }
     }
   }
 
