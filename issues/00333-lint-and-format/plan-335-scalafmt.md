@@ -67,7 +67,32 @@ design is the source of truth; this plan doesn't reopen its decisions.
   are never committed, and each step that creates one deletes it.
 - `$REPO` is the repository root, `/Users/calinburloiu/Development/microtonalist`.
 - **Stop points** are marked **STOP**. At each one, report to the user in chat (explain; don't just point to a file)
-  and wait.
+  and wait, unless the run is unattended.
+
+### Unattended run
+
+When the user has said they're away, run Tasks 1–7 without waiting at any STOP point: make the decision, record it in
+the decision log, and continue. The run ends at Task 7, Step 11. Tasks 8–10 need merges only the user makes, so they
+never run unattended. Never merge a PR or push to `main`.
+
+The **decision log** is `$SCRATCH/decisions.md`: one numbered entry per decision the user would otherwise have made,
+written as soon as it's made (the file survives context compaction). Each entry gives the task and step, what was
+decided, the alternatives, why, and how to change it later: which file or setting to edit, and that Task 8
+regenerates the bulk PR afterwards. At the end, the log goes into the tooling PR body (Task 6, Step 4, updated in
+Task 7, Step 11) and into the final report.
+
+Defaults for the decisions this plan already foresees:
+
+- **Task 1, Step 8** (sbt skips untracked files): take option (a), drop `project.git = true`.
+- **Task 2, Step 4** (IntelliJ IDEA is running, so `format.sh` fails): skip the step and judge by the code's own
+  consistency.
+- **Task 2, Steps 5–6**: each style difference kept because no setting removes it is a decision.
+- **Task 3**: approve the config yourself, by Task 2's stop rule; see "Unattended run" in Task 3.
+- **Task 7, Step 4** (the formatter output breaks compilation): fix `.scalafmt.conf` on `feature/scalafmt`, push it
+  to the tooling PR, and restart Task 7 from Step 1 on a fresh branch.
+- **Anything unforeseen**: choose the option most consistent with the design that is easiest to undo, and log it.
+  Stop only when every option would be irreversible or reach outside the plan's scope, and then say why in the final
+  report.
 
 ## Pre-measured starting point
 
@@ -484,6 +509,11 @@ Then ask the user to approve the config or name the changes to undo.
 
 If the user asks for changes, go back to Task 2, Step 5 for those categories, then present only what changed.
 
+**Unattended run:** skip Steps 3–4. Approve the config yourself if Task 2's stop rule holds, and log it as a decision.
+Write the review material from Step 3 to `$SCRATCH/config-review.md` for the tooling PR body (Task 6), without the
+sample diffs, since the bulk PR shows the full reformat. Instead, name the sample files and the categories to look at
+in each.
+
 - [ ] **Step 5: Reset the reformat and commit the config**
 
 ```bash
@@ -874,7 +904,7 @@ Expected: success. Coverage commands don't work through `sbtn`, so this uses pla
 
 ```bash
 git status --short                  # expected: empty
-git log --oneline main..HEAD        # expected: the design doc, the plan, Task 1's two commits, and Tasks 3, 4 and 5
+git log --oneline main..HEAD        # expected: the design doc and plan commits, Task 1's two, and Tasks 3, 4 and 5
 git diff --stat main..HEAD          # expected: only the files listed under "Tooling PR" in "File structure"
 sbtn lint; echo "exit=$?"           # expected: non-zero (the code isn't formatted until the bulk PR)
 ```
@@ -904,6 +934,10 @@ unformatted.
 <the tuning log table from $SCRATCH/scalafmt-tuning.md>
 
 What the bulk PR will still change: <the remaining categories, with counts, as approved in Task 3>.
+
+<unattended run only: "## Config review", with the content of $SCRATCH/config-review.md>
+
+<unattended run only: "## Decisions made without the user", with the entries of $SCRATCH/decisions.md>
 
 ## Verification
 
@@ -1094,6 +1128,10 @@ Step 3.
 
 Give the user both PR links, the bulk PR's shortstat, and the next steps: they review and merge the tooling PR; Task 8
 regenerates the bulk commit when asked; the finish PR starts after the bulk PR merges.
+
+**Unattended run:** if Tasks 6–7 added decision log entries after the tooling PR was opened, update the tooling PR
+body's "Decisions made without the user" section (GitHub MCP `update_pull_request`). The final report lists every
+decision in the log, each with how to change it, followed by anything that failed or was skipped.
 
 ### Task 8: Regenerate the bulk commit (on the user's request)
 
