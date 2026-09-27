@@ -58,7 +58,7 @@ If a command fails, relay its message, which says what was done and how to finis
 ## Release notes format
 
 ```markdown
-## vX.Y.Z
+## vX.Y.Z (YYYY-MM-DD)
 
 This release brings **hot plugging of MIDI devices**. (One or two sentences; the headline change(s) in bold.)
 
