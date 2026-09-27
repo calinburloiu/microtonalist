@@ -85,6 +85,10 @@ with a message. If a staged file doesn't parse, the hook prints scalafmt's error
 whole file also stages its unstaged hunks, so a partial commit (`git add -p`) includes them; the hook's license-header
 step already behaves this way.
 
+`git commit <paths>` and `git commit --only`, which some IDE commit dialogs use, give the hook a temporary index that it
+can't re-stage into. When the hook changes a file in such a commit, it stops the commit instead; review the changes and
+commit again, which then commits the formatted files.
+
 ### Editors
 
 Metals reads `.scalafmt.conf` by itself, so formatting from an editor that uses Metals matches `sbtn fix`. Agents format

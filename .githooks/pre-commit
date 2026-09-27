@@ -27,6 +27,10 @@
 # Each step rewrites the files in the working tree and re-stages them, so its
 # changes land in this commit. Re-staging a whole file also stages the file's
 # unstaged hunks, so a partial commit (`git add -p`) includes them.
+# `git commit <paths>` (or `--only`) runs the hook on a temporary index, where
+# re-staging would leave the real index with the old content. In that case the
+# hook re-stages nothing and stops the commit if a step changed a file; the
+# next `git commit <paths>` then commits the changed files.
 #
 # Enable once per clone with:  git config core.hooksPath .githooks
 # The hook is a convenience: when a step's tool is not installed, that step is
@@ -39,10 +43,35 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# `git commit <paths>` and `git commit --only` point GIT_INDEX_FILE at a
+# temporary `next-index-<pid>.lock`; see the header comment.
+commit_with_paths=false
+case "${GIT_INDEX_FILE:-}" in
+  */next-index-*.lock) commit_with_paths=true ;;
+esac
+changed_files_not_restaged=false
+
 # Prints the staged (Added/Copied/Modified/Renamed) files whose path matches the
-# extended regular expression $1, one per line.
+# extended regular expression $1, one per line. A staged file that was removed
+# from the working tree is left out: re-staging it would stage its deletion.
 staged_files_matching() {
-  git diff --cached --name-only --diff-filter=ACMR | grep -E "$1" || true
+  local f
+  git diff --cached --name-only --diff-filter=ACMR | grep -E "$1" | while IFS= read -r f; do
+    if [ -e "$f" ]; then
+      printf '%s\n' "$f"
+    fi
+  done || true
+}
+
+# Re-stages the given files, which a step may have rewritten, so its changes
+# land in this commit. With `git commit <paths>` it only records whether a step
+# changed any of them.
+restage() {
+  if [ "$commit_with_paths" = true ]; then
+    git diff --quiet -- "$@" || changed_files_not_restaged=true
+  else
+    git add -- "$@"
+  fi
 }
 
 # Adds license headers to the staged, in-scope files. addlicense recognises the
@@ -68,7 +97,7 @@ add_license_headers() {
 
   addlicense -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu" -l apache "${files[@]}"
   # Re-stage anything addlicense rewrote so the header lands in this commit.
-  git add -- "${files[@]}"
+  restage "${files[@]}"
 }
 
 # Formats the staged Scala and sbt files. scalafmt reads its version, its style
@@ -93,8 +122,13 @@ format_scala() {
     exit 1
   fi
   # Re-stage the formatted files so the formatting lands in this commit.
-  git add -- "${files[@]}"
+  restage "${files[@]}"
 }
 
 add_license_headers
 format_scala
+
+if [ "$changed_files_not_restaged" = true ]; then
+  echo "pre-commit: the hook changed some of the files, and 'git commit <paths>' doesn't let it re-stage them. Review the changes (git diff) and commit again." >&2
+  exit 1
+fi
