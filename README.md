@@ -22,6 +22,7 @@ instruments over several protocols:
   AI-assisted development with Claude Code (Metals MCP, GitHub plugin).
 - [Architecture](docs/architecture/README.md) — module overview, domain concepts, data flow, and per-module deep dives.
 - [Contributing](CONTRIBUTING.md) — GitHub conventions (labels, branches, issues, pull requests) and coding standards.
+- [Release notes](docs/release-notes.md) — what changed in each release, newest first.
 
 ## Building and running
 
