@@ -16,49 +16,85 @@
 #
 
 #
-# pre-commit — add Apache 2.0 license headers to new source files.
+# pre-commit — prepare the staged source files for the commit.
 #
-# Runs google/addlicense in add mode over the staged, in-scope files, then
-# re-stages any it modified, so new files get a header automatically on commit.
-# Existing files (which already contain a "Copyright" line) are left untouched.
+# 1. addlicense adds the Apache 2.0 license header to new source files. Existing
+#    files (which already contain a "Copyright" line) are left untouched.
+#    See docs/development/license-headers.md.
+# 2. scalafmt formats the staged `.scala` and `.sbt` files with the repository's
+#    `.scalafmt.conf`. See docs/development/build.md#pre-commit-hook.
+#
+# Each step rewrites the files in the working tree and re-stages them, so its
+# changes land in this commit. Re-staging a whole file also stages the file's
+# unstaged hunks, so a partial commit (`git add -p`) includes them.
 #
 # Enable once per clone with:  git config core.hooksPath .githooks
-# CI enforces the same headers via `addlicense -check`, so this hook is a
-# convenience: if addlicense is not installed it skips quietly and lets CI catch
-# any omissions.
-#
-# See docs/development/license-headers.md.
+# The hook is a convenience: when a step's tool is not installed, that step is
+# skipped with a message and the other step still runs. CI enforces the license
+# headers via `addlicense -check`.
 #
 
 set -euo pipefail
 
-if ! command -v addlicense >/dev/null 2>&1; then
-  echo "pre-commit: addlicense not found on PATH; skipping license-header insertion (CI will enforce)." >&2
-  exit 0
-fi
-
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# Staged (Added/Copied/Modified), in-scope files. addlicense recognises the
+# Prints the staged (Added/Copied/Modified/Renamed) files whose path matches the
+# extended regular expression $1, one per line.
+staged_files_matching() {
+  git diff --cached --name-only --diff-filter=ACMR | grep -E "$1" || true
+}
+
+# Adds license headers to the staged, in-scope files. addlicense recognises the
 # comment style for these extensions; `.sbt` and `.fxml` are deliberately left
 # out of add mode because addlicense would pick the wrong style for them — add
-# their headers by hand (CI's `-check` still enforces them). See the doc above.
-# (A `while read` loop instead of `mapfile` keeps this working on the bash 3.2
-# that ships with macOS.)
-files=()
-while IFS= read -r f; do
-  [ -n "$f" ] && files+=("$f")
-done < <(
-  git diff --cached --name-only --diff-filter=ACM \
-    | grep -E '\.(scala|java|py|sh|bash|html|xml|js|css|properties)$' || true
-)
+# their headers by hand (CI's `-check` still enforces them).
+add_license_headers() {
+  # (A `while read` loop instead of `mapfile` keeps this working on the bash 3.2
+  # that ships with macOS.)
+  local files=()
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] && files+=("$f")
+  done < <(staged_files_matching '\.(scala|java|py|sh|bash|html|xml|js|css|properties)$')
 
-[ "${#files[@]}" -eq 0 ] && exit 0
+  if [ "${#files[@]}" -eq 0 ]; then
+    return 0
+  fi
+  if ! command -v addlicense >/dev/null 2>&1; then
+    echo "pre-commit: addlicense not found on PATH; skipping license-header insertion (CI will enforce)." >&2
+    return 0
+  fi
 
-addlicense -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu" -l apache "${files[@]}"
+  addlicense -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu" -l apache "${files[@]}"
+  # Re-stage anything addlicense rewrote so the header lands in this commit.
+  git add -- "${files[@]}"
+}
 
-# Re-stage anything addlicense rewrote so the header lands in this commit.
-git add -- "${files[@]}"
+# Formats the staged Scala and sbt files. scalafmt reads its version, its style
+# and each file's dialect from .scalafmt.conf.
+format_scala() {
+  local files=()
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] && files+=("$f")
+  done < <(staged_files_matching '\.(scala|sbt)$')
 
-exit 0
+  if [ "${#files[@]}" -eq 0 ]; then
+    return 0
+  fi
+  if ! command -v scalafmt >/dev/null 2>&1; then
+    echo "pre-commit: scalafmt not found on PATH; skipping formatting. Install it with: cs install scalafmt" >&2
+    return 0
+  fi
+
+  if ! scalafmt --non-interactive --respect-project-filters "${files[@]}"; then
+    echo "pre-commit: scalafmt failed (see above). Fix the error, or bypass the hook with 'git commit --no-verify'." >&2
+    exit 1
+  fi
+  # Re-stage the formatted files so the formatting lands in this commit.
+  git add -- "${files[@]}"
+}
+
+add_license_headers
+format_scala

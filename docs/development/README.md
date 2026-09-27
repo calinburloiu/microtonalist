@@ -36,6 +36,9 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 * [`addlicense`](https://github.com/google/addlicense) + Go
     - Optional: only needed to run the license-header commit hook or CI check locally. Install with
       `go install github.com/google/addlicense@latest`. See [`license-headers.md`](license-headers.md).
+* [scalafmt](https://scalameta.org/scalafmt/) command-line tool
+    - Optional: for the formatting step of the pre-commit hook. Install with `cs install scalafmt`. See
+      [`build.md`](build.md#pre-commit-hook).
 
 ## Building
 

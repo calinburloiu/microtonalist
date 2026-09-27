@@ -70,6 +70,21 @@ sbtn lint
 Both are command aliases defined in `build.sbt`. Besides the modules that `root` aggregates, they cover the build
 definition and the `experiments` module, which `root` doesn't aggregate.
 
+### Pre-commit hook
+
+The pre-commit hook in [`.githooks/`](../../.githooks/pre-commit) formats the staged `.scala` and `.sbt` files with the
+scalafmt command-line tool and re-stages them, so commits come out formatted even without running `sbtn fix`. Enable the
+hooks once per clone with `git config core.hooksPath .githooks`, and install the tool with Coursier:
+
+```bash
+cs install scalafmt
+```
+
+The tool downloads the scalafmt version that `.scalafmt.conf` pins. If it isn't installed, the hook skips formatting
+with a message. If a staged file doesn't parse, the hook prints scalafmt's error and aborts the commit. Re-staging a
+whole file also stages its unstaged hunks, so a partial commit (`git add -p`) includes them; the hook's license-header
+step already behaves this way.
+
 ## Building the fat JAR
 
 Building the fat JAR for the executable application:

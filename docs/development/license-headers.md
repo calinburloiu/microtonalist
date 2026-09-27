@@ -84,6 +84,9 @@ line) are left untouched. Enable it once per clone:
 git config core.hooksPath .githooks
 ```
 
+The same hook also formats the staged `.scala` and `.sbt` files with scalafmt; see
+[`build.md`](build.md#pre-commit-hook).
+
 If `addlicense` is not on your `PATH`, the hook skips quietly and lets CI catch any omissions. Install it with:
 
 ```bash
