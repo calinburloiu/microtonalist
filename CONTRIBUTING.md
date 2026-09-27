@@ -38,6 +38,10 @@ also formats the staged Scala and sbt files. For that, install the scalafmt comm
 cs install scalafmt
 ```
 
+To format with the same rules in IntelliJ IDEA, open **Settings → Editor → Code Style → Scala**, set **Formatter** to
+**Scalafmt**, and keep the default configuration file, `.scalafmt.conf`. Optionally, also turn on **Settings → Tools →
+Actions on Save → Reformat code**. `.idea/` isn't committed, so each developer does this once.
+
 ## Labels
 
 The following labels are used for issues and pull requests, and as branch-name prefixes:

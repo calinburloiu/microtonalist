@@ -85,6 +85,13 @@ with a message. If a staged file doesn't parse, the hook prints scalafmt's error
 whole file also stages its unstaged hunks, so a partial commit (`git add -p`) includes them; the hook's license-header
 step already behaves this way.
 
+### Editors
+
+Metals reads `.scalafmt.conf` by itself, so formatting from an editor that uses Metals matches `sbtn fix`. Agents format
+with `sbtn fix` rather than the Metals MCP `format-file` tool: with the development stack's standalone Metals client
+(see [`dev-stack.md`](../agents/dev-stack.md)), that tool computes the formatting but doesn't write it to the file. For
+IntelliJ IDEA, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md#formatting).
+
 ## Building the fat JAR
 
 Building the fat JAR for the executable application:
