@@ -47,6 +47,29 @@ For small changes, it is recommended to only compile individual modules. Compili
 sbtn "${MODULE}/compile"
 ```
 
+## Formatting
+
+Scala sources and the sbt build definition (`build.sbt` and `project/*.scala`) are formatted with
+[scalafmt](https://scalameta.org/scalafmt/). Its configuration, `.scalafmt.conf` at the repository root, pins the
+scalafmt version and reproduces IntelliJ IDEA's default Scala style. It sets `newlines.source = keep`: scalafmt keeps the
+line breaks the author wrote and only adds one where a line would exceed 120 columns, so two ways of breaking the same
+expression can both pass the check.
+
+Format everything:
+
+```bash
+sbtn fix
+```
+
+Check the formatting without changing any file. It fails if a file isn't formatted:
+
+```bash
+sbtn lint
+```
+
+Both are command aliases defined in `build.sbt`. Besides the modules that `root` aggregates, they cover the build
+definition and the `experiments` module, which `root` doesn't aggregate.
+
 ## Building the fat JAR
 
 Building the fat JAR for the executable application:
