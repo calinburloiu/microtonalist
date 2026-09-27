@@ -179,10 +179,10 @@ small structured results instead of loading the full report into context.
 
 [`.claude/skills/release/SKILL.md`](../../.claude/skills/release/SKILL.md) releases a new version: Claude drafts the
 release notes from the commits, issues and PR descriptions since the previous release, into
-[`docs/release-notes.md`](../release-notes.md), and once you approve them, a bundled script commits
-`Release v<version>` and `Start v<next>-SNAPSHOT` directly on `main`, tags the release, pushes, and publishes the
-GitHub Release, marked Latest. The script refuses to release unless `main` is clean, in sync with `origin`, and green
-in CI.
+[`docs/release-notes.md`](../release-notes.md). Once you approve them, a bundled script commits `Release v<version>`
+and `Start v<next>-SNAPSHOT` directly on `main` and tags the release, locally, and Claude stops for you to inspect the
+commits and the tag. Once you approve those too, the script pushes them and publishes the GitHub Release, marked
+Latest. The script refuses to release unless `main` is clean, in sync with `origin`, and green in CI.
 
 ## Authorizing MCP Servers and Plugins
 

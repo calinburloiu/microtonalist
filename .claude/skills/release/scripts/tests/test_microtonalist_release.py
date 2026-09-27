@@ -25,6 +25,7 @@ import datetime
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -201,6 +202,12 @@ class RepoFixture(unittest.TestCase):
     def set_version(self, version):
         self.write("build.sbt", BUILD_SBT.format(version=version))
 
+    def start_snapshot(self, version):
+        """Moves main, and its origin, to the development version `version`."""
+        self.set_version(version)
+        self.commit(f"Start v{version}")
+        self.git("push", "-q", "origin", "main")
+
     def write_gh_config(self):
         with open(os.path.join(self.bin, "gh-config.json"), "w") as f:
             json.dump(self.gh_config, f)
@@ -217,18 +224,18 @@ class RepoFixture(unittest.TestCase):
         index = notes.index("## v1.5.0")
         self.write("docs/release-notes.md", notes[:index] + draft + notes[index:])
 
-    def run_cli(self, *args):
-        """Runs the script's main() in the repository; returns (exit code, stdout, stderr)."""
+    def run_cli(self, *args, cwd=None):
+        """Runs the script's main() in the repository, or in `cwd`; returns (exit code, stdout, stderr)."""
         out, err = io.StringIO(), io.StringIO()
-        cwd = os.getcwd()
-        os.chdir(self.repo)
+        saved_cwd = os.getcwd()
+        os.chdir(cwd or self.repo)
         saved_env = dict(os.environ)
         os.environ.update(self.env)
         try:
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                 code = release.main(list(args))
         finally:
-            os.chdir(cwd)
+            os.chdir(saved_cwd)
             os.environ.clear()
             os.environ.update(saved_env)
         return code, out.getvalue(), err.getvalue()
@@ -257,6 +264,13 @@ class VersionTest(unittest.TestCase):
         # When / Then
         self.assertEqual(release.next_version("1.6.0", "2.0.0"), "2.0.0-SNAPSHOT")
         self.assertEqual(release.next_version("1.6.0", "v2.0.0-SNAPSHOT"), "2.0.0-SNAPSHOT")
+
+    def test_next_version_keeps_a_higher_snapshot_by_default(self):
+        # When / Then
+        self.assertEqual(release.next_version("1.5.1", None, "2.0.0-SNAPSHOT"), "2.0.0-SNAPSHOT")
+        self.assertEqual(release.next_version("1.5.1", None, "1.6.0-SNAPSHOT"), "1.6.0-SNAPSHOT")
+        self.assertEqual(release.next_version("1.6.0", None, "1.6.0-SNAPSHOT"), "1.7.0-SNAPSHOT")
+        self.assertEqual(release.next_version("1.5.1", "1.5.2", "2.0.0-SNAPSHOT"), "1.5.2-SNAPSHOT")
 
     def test_next_version_must_come_after_the_release(self):
         # When / Then
@@ -303,10 +317,18 @@ class NotesTest(unittest.TestCase):
         self.assertEqual(text, f"Fixed ([#303]({ISSUES}303), [#322]({ISSUES}322)). See [[#92]({ISSUES}92)] and "
                                f"[#12]({ISSUES}12).")
 
+    def test_linkify_links_both_issues_of_a_sub_issue_reference(self):
+        # When
+        text = release.linkify("Fixed (#305/#322).")
+
+        # Then
+        self.assertEqual(text, f"Fixed ([#305]({ISSUES}305)/[#322]({ISSUES}322)).")
+
     def test_linkify_leaves_links_code_and_anchors_alone(self):
         # Given
         text = textwrap.dedent(f"""\
             Linked [#303]({ISSUES}303), CC `#74`, a [release](https://x.org/releases#release-v1.5.0), a#1, #12abc.
+            A [PR #141](https://x.org/pull/141), https://x.org/p?id=#12, <https://x.org/#3>.
             ```
             # not a heading, #99
             ```
@@ -326,6 +348,17 @@ class NotesTest(unittest.TestCase):
         self.assertEqual((version, date), ("1.6.0", "2026-01-01"))
         self.assertTrue(section.startswith("## v1.6.0 (2026-01-01)\n"))
         self.assertNotIn("v1.5.0", section)
+
+    def test_top_section_accepts_a_heading_with_a_placeholder_date(self):
+        # Given
+        notes = NOTES_V150.replace("## v1.5.0", "## v1.6.0 (YYYY-MM-DD)\n\nIntro.\n\n## v1.5.0")
+
+        # When
+        version, _, section = release.top_section(notes)
+
+        # Then
+        self.assertEqual(version, "1.6.0")
+        self.assertEqual(section, "## v1.6.0 (YYYY-MM-DD)\n\nIntro.\n\n")
 
     def test_github_release_body_drops_the_heading_and_raises_subheadings(self):
         # Given
@@ -378,6 +411,17 @@ class PlanTest(RepoFixture):
         # Then
         self.assertEqual(code, 0, err)
 
+    def test_plan_runs_from_a_subdirectory(self):
+        # Given
+        subdirectory = os.path.join(self.repo, "docs")
+
+        # When
+        code, out, err = self.run_cli("plan", "1.6.0", cwd=subdirectory)
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertIn("Release v1.6.0", out)
+
     def test_plan_fails_off_main(self):
         # Given
         self.git("switch", "-q", "-c", "feature/x")
@@ -416,6 +460,29 @@ class PlanTest(RepoFixture):
         # Then
         self.assertEqual(code, 1)
         self.assertIn("origin/main", err)
+
+    def test_plan_fails_when_ahead_of_origin(self):
+        # Given
+        self.write("Tuner.scala", "// not pushed\n")
+        self.commit("Not pushed")
+
+        # When
+        code, _, err = self.run_cli("plan", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("origin/main", err)
+
+    def test_plan_fails_when_the_build_is_not_at_a_snapshot(self):
+        # Given
+        self.start_snapshot("1.6.0")
+
+        # When
+        code, _, err = self.run_cli("plan", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("-SNAPSHOT", err)
 
     def test_plan_fails_when_the_tag_exists(self):
         # Given
@@ -483,14 +550,65 @@ class PlanTest(RepoFixture):
         runs = [c["argv"] for c in self.gh_calls() if c["argv"][:2] == ["run", "list"]]
         self.assertEqual(len(runs), 1)
         self.assertIn(self.base, runs[0])
+        self.assertEqual(runs[0][runs[0].index("-R") + 1], "calinburloiu/microtonalist")
 
-    def test_plan_warns_when_the_version_differs_from_the_snapshot(self):
+    def test_plan_does_not_warn_for_the_snapshot_version(self):
+        # When
+        code, _, err = self.run_cli("plan", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("warning", err)
+
+    def test_plan_does_not_warn_for_a_patch_of_the_previous_release(self):
+        # When
+        code, _, err = self.run_cli("plan", "1.5.1")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("warning", err)
+
+    def test_plan_warns_when_the_version_skips_releases(self):
+        # When
+        code, _, err = self.run_cli("plan", "1.5.3")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertIn("warning", err)
+        self.assertIn("1.5.1", err)
+
+    def test_plan_keeps_a_higher_snapshot_as_the_next_version_of_a_patch(self):
+        # Given
+        self.start_snapshot("2.0.0-SNAPSHOT")
+
         # When
         code, out, err = self.run_cli("plan", "1.5.1")
 
         # Then
-        self.assertEqual(code, 0)
-        self.assertIn("1.6.0-SNAPSHOT", out + err)
+        self.assertEqual(code, 0, err)
+        self.assertIn("Start v2.0.0-SNAPSHOT", out)
+        self.assertNotIn("warning", err)
+
+    def test_plan_warns_when_the_next_version_given_is_below_the_snapshot(self):
+        # Given
+        self.start_snapshot("2.0.0-SNAPSHOT")
+
+        # When
+        code, _, err = self.run_cli("plan", "1.5.1", "--next", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertIn("warning", err)
+        self.assertIn("2.0.0-SNAPSHOT", err)
+
+    def test_plan_warns_when_the_version_skips_the_snapshot(self):
+        # When
+        code, _, err = self.run_cli("plan", "1.7.0")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertIn("warning", err)
+        self.assertIn("1.6.0-SNAPSHOT", err)
 
 
 class ContextTest(RepoFixture):
@@ -525,6 +643,28 @@ class ContextTest(RepoFixture):
         self.assertIn("A track fed by another is not released", out)
         self.assertIn("open", out)
 
+    def test_context_says_why_a_known_issue_was_closed(self):
+        # Given
+        self.gh_config["issues"]["316"].update(state="closed", state_reason="not_planned")
+        self.write_gh_config()
+
+        # When
+        _, out, _ = self.run_cli("context")
+
+        # Then
+        known = out[out.index("# Known issues"):out.index("# Other issues")]
+        self.assertIn("#316", known)
+        self.assertIn("closed as not planned", known)
+
+    def test_context_asks_github_about_this_repository(self):
+        # When
+        self.run_cli("context")
+
+        # Then
+        paths = [c["argv"][1] for c in self.gh_calls() if c["argv"][:1] == ["api"]]
+        self.assertTrue(paths)
+        self.assertTrue(all(path.startswith("repos/calinburloiu/microtonalist/issues/") for path in paths), paths)
+
     def test_context_lists_the_pull_requests_before_the_issues(self):
         # When
         _, out, _ = self.run_cli("context")
@@ -551,6 +691,17 @@ class ContextTest(RepoFixture):
         self.assertNotIn("#74", others)
         self.assertNotIn("#8776", others)
 
+    def test_context_fails_without_a_release_tag(self):
+        # Given
+        self.git("tag", "-d", "v1.5.0")
+
+        # When
+        code, _, err = self.run_cli("context")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("no release tag", err)
+
     def test_context_survives_references_it_cannot_resolve(self):
         # Given
         del self.gh_config["issues"]["303"]
@@ -564,48 +715,202 @@ class ContextTest(RepoFixture):
         self.assertIn("#303", out)
 
 
-class PublishTest(RepoFixture):
+class CommitTest(RepoFixture):
 
-    def test_publish_commits_tags_pushes_and_creates_the_github_release(self):
+    def assert_commit_dates_the_heading(self, heading):
         # Given
-        self.add_draft()
+        self.add_draft(DRAFT_V160.replace("## v1.6.0 (2026-01-01)", heading))
 
         # When
-        code, out, err = self.run_cli("publish", "1.6.0")
+        code, _, err = self.run_cli("commit", "1.6.0")
 
         # Then
         self.assertEqual(code, 0, err)
-        log = self.remote_git("log", "--format=%s", f"{self.base}..main").splitlines()
-        self.assertEqual(log, ["Start v1.7.0-SNAPSHOT", "Release v1.6.0"])
-        release_sha = self.remote_git("rev-parse", "main^")
-        self.assertEqual(self.remote_git("rev-parse", "refs/tags/v1.6.0^{commit}"), release_sha)
-        self.assertIn('ThisBuild / version := "1.6.0"', self.remote_git("show", "v1.6.0:build.sbt"))
-        self.assertIn('ThisBuild / version := "1.7.0-SNAPSHOT"', self.remote_git("show", "main:build.sbt"))
-        self.assertEqual(self.remote_git("show", "--name-only", "--format=", release_sha).split(),
-                         ["build.sbt", "docs/release-notes.md"])
-        self.assertEqual(self.remote_git("show", "--name-only", "--format=", "main").split(), ["build.sbt"])
-        self.assertEqual(self.git("rev-parse", "HEAD"), self.remote_git("rev-parse", "main"))
-        self.assertEqual(self.git("status", "--porcelain"), "")
-        self.assertIn("releases/tag/v1.6.0", out)
+        notes = self.git("show", "v1.6.0:docs/release-notes.md")
+        self.assertIn(f"## v1.6.0 ({TODAY})\n", notes)
+        self.assertNotIn(heading + "\n", notes)
 
-    def test_publish_dates_and_links_the_committed_notes(self):
+    def fail_commits(self, subject_prefix):
+        """Makes git refuse the commits whose subject starts with `subject_prefix`."""
+        hook = os.path.join(self.repo, ".git", "hooks", "commit-msg")
+        with open(hook, "w") as f:
+            f.write(f"#!/bin/sh\ngrep -q '^{subject_prefix}' \"$1\" && exit 1\nexit 0\n")
+        os.chmod(hook, 0o755)
+
+    def assert_undone(self, code, err):
+        self.assertEqual(code, 1)
+        self.assertIn("Nothing was committed", err)
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.base)
+        self.assertEqual(self.git("tag", "-l", "v1.6.0"), "")
+        self.assertEqual(self.read("build.sbt"), BUILD_SBT.format(version="1.6.0-SNAPSHOT"))
+        self.assertIn(DRAFT_V160, self.read("docs/release-notes.md"))
+        self.assertEqual(self.git("status", "--porcelain"), "M docs/release-notes.md")
+
+    def test_commit_commits_and_tags_the_release_locally_only(self):
         # Given
         self.add_draft()
 
         # When
-        self.run_cli("publish", "1.6.0")
+        code, out, err = self.run_cli("commit", "1.6.0")
 
         # Then
-        notes = self.remote_git("show", "v1.6.0:docs/release-notes.md")
+        self.assertEqual(code, 0, err)
+        log = self.git("log", "--format=%s", f"{self.base}..HEAD").splitlines()
+        self.assertEqual(log, ["Start v1.7.0-SNAPSHOT", "Release v1.6.0"])
+        self.assertEqual(self.git("rev-parse", "refs/tags/v1.6.0^{commit}"), self.git("rev-parse", "HEAD^"))
+        self.assertIn('ThisBuild / version := "1.6.0"', self.git("show", "v1.6.0:build.sbt"))
+        self.assertIn('ThisBuild / version := "1.7.0-SNAPSHOT"', self.git("show", "HEAD:build.sbt"))
+        self.assertEqual(self.git("show", "--name-only", "--format=", "v1.6.0").split(),
+                         ["build.sbt", "docs/release-notes.md"])
+        self.assertEqual(self.git("show", "--name-only", "--format=", "HEAD").split(), ["build.sbt"])
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual(self.remote_git("rev-parse", "main"), self.base)
+        self.assertEqual(self.remote_git("tag", "-l", "v1.6.0"), "")
+        self.assertFalse([c for c in self.gh_calls() if c["argv"][:2] == ["release", "create"]])
+        self.assertIn("publish 1.6.0", out)
+
+    def test_commit_dates_and_links_the_committed_notes(self):
+        # Given
+        self.add_draft()
+
+        # When
+        self.run_cli("commit", "1.6.0")
+
+        # Then
+        notes = self.git("show", "v1.6.0:docs/release-notes.md")
         self.assertIn(f"## v1.6.0 ({TODAY})\n", notes)
         self.assertIn(f"([#303]({ISSUES}303), [#322]({ISSUES}322))", notes)
         self.assertIn(f"([#305]({ISSUES}305))", notes)
         self.assertIn("See `#74`.", notes)
         self.assertTrue(notes.endswith(NOTES_V150[NOTES_V150.index("## v1.5.0"):].rstrip("\n")))
 
-    def test_publish_creates_a_latest_github_release_from_the_notes(self):
+    def test_commit_dates_a_heading_without_a_date(self):
+        self.assert_commit_dates_the_heading("## v1.6.0")
+
+    def test_commit_dates_a_heading_with_a_placeholder_date(self):
+        self.assert_commit_dates_the_heading("## v1.6.0 (YYYY-MM-DD)")
+
+    def test_commit_keeps_non_ascii_notes_under_a_c_locale(self):
+        # Given
+        self.add_draft(DRAFT_V160.replace("Rebuilt tracks", "Cireșar tracks – rebuilt"))
+        script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "microtonalist_release.py")
+        env = dict(self.env, LC_ALL="C", LANG="C", PYTHONUTF8="0", PYTHONIOENCODING="")
+
+        # When
+        result = subprocess.run([sys.executable, script, "commit", "1.6.0"], cwd=self.repo, env=env,
+                                capture_output=True, text=True, encoding="utf-8")
+
+        # Then
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Cireșar tracks – rebuilt", self.git("show", "v1.6.0:docs/release-notes.md"))
+
+    def test_commit_uses_the_next_version_given(self):
         # Given
         self.add_draft()
+
+        # When
+        code, _, err = self.run_cli("commit", "1.6.0", "--next", "2.0.0")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "Start v2.0.0-SNAPSHOT")
+
+    def test_commit_prints_how_to_undo_it_keeping_the_notes(self):
+        # Given
+        self.add_draft()
+        _, out, _ = self.run_cli("commit", "1.6.0")
+        undo = [line for line in out.splitlines() if line.startswith("To undo")]
+        self.assertEqual(len(undo), 1, out)
+
+        # When
+        subprocess.run(undo[0].split(": ", 1)[1], shell=True, check=True, cwd=self.repo, env=self.env,
+                       capture_output=True)
+
+        # Then
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.base)
+        self.assertEqual(self.git("tag", "-l", "v1.6.0"), "")
+        self.assertEqual(self.git("status", "--porcelain"), "M docs/release-notes.md")
+        self.assertIn("## v1.6.0", self.read("docs/release-notes.md"))
+        code, _, err = self.run_cli("plan", "1.6.0")
+        self.assertEqual(code, 0, err)
+
+    def test_commit_undoes_everything_when_the_release_commit_fails(self):
+        # Given
+        self.add_draft()
+        self.fail_commits("Release")
+
+        # When
+        code, _, err = self.run_cli("commit", "1.6.0")
+
+        # Then
+        self.assert_undone(code, err)
+
+    def test_commit_undoes_everything_when_the_next_version_commit_fails(self):
+        # Given
+        self.add_draft()
+        self.fail_commits("Start")
+
+        # When
+        code, _, err = self.run_cli("commit", "1.6.0")
+
+        # Then
+        self.assert_undone(code, err)
+
+    def test_commit_requires_the_release_notes_section(self):
+        # When
+        code, _, err = self.run_cli("commit", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("## v1.6.0", err)
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.base)
+
+    def test_commit_changes_nothing_when_a_check_fails(self):
+        # Given
+        self.add_draft()
+        self.gh_config["runs"] = [{"workflowName": "Scala CI", "status": "completed", "conclusion": "failure",
+                                   "headSha": self.base}]
+        self.write_gh_config()
+
+        # When
+        code, _, _ = self.run_cli("commit", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.base)
+        self.assertEqual(self.git("tag", "-l", "v1.6.0"), "")
+
+
+class PublishTest(RepoFixture):
+
+    def commit_release(self, *args):
+        self.add_draft()
+        code, _, err = self.run_cli("commit", "1.6.0", *args)
+        self.assertEqual(code, 0, err)
+
+    def assert_nothing_published(self):
+        self.assertEqual(self.remote_git("tag", "-l", "v1.6.0"), "")
+        self.assertFalse([c for c in self.gh_calls() if c["argv"][:2] == ["release", "create"]])
+
+    def test_publish_pushes_the_release_commits_and_creates_the_github_release(self):
+        # Given
+        self.commit_release()
+        head = self.git("rev-parse", "HEAD")
+
+        # When
+        code, out, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 0, err)
+        self.assertEqual(self.remote_git("rev-parse", "main"), head)
+        self.assertEqual(self.remote_git("rev-parse", "refs/tags/v1.6.0^{commit}"), self.remote_git("rev-parse",
+                                                                                                    "main^"))
+        self.assertEqual(self.git("rev-parse", "HEAD"), head)
+        self.assertIn("releases/tag/v1.6.0", out)
+
+    def test_publish_creates_a_latest_github_release_from_the_notes(self):
+        # Given
+        self.commit_release()
 
         # When
         self.run_cli("publish", "1.6.0")
@@ -625,47 +930,153 @@ class PublishTest(RepoFixture):
         self.assertNotIn("v1.5.0", notes)
         self.assertIn(f"[#303]({ISSUES}303)", notes)
 
-    def test_publish_uses_the_next_version_given(self):
+    def test_publish_pushes_the_next_version_given_to_commit(self):
         # Given
-        self.add_draft()
+        self.commit_release("--next", "2.0.0")
 
         # When
-        code, _, err = self.run_cli("publish", "1.6.0", "--next", "2.0.0")
+        code, _, err = self.run_cli("publish", "1.6.0")
 
         # Then
         self.assertEqual(code, 0, err)
         self.assertEqual(self.remote_git("log", "-1", "--format=%s", "main"), "Start v2.0.0-SNAPSHOT")
 
-    def test_publish_requires_the_release_notes_section(self):
+    def test_publish_requires_the_release_commits(self):
+        # Given
+        self.add_draft()
+
         # When
         code, _, err = self.run_cli("publish", "1.6.0")
 
         # Then
         self.assertEqual(code, 1)
-        self.assertIn("## v1.6.0", err)
+        self.assertIn("commit 1.6.0", err)
         self.assertEqual(self.remote_git("rev-parse", "main"), self.base)
-        self.assertEqual(self.git("rev-parse", "HEAD"), self.base)
+        self.assert_nothing_published()
 
-    def test_publish_changes_nothing_when_a_check_fails(self):
+    def test_publish_refuses_commits_on_top_of_the_release(self):
         # Given
-        self.add_draft()
-        self.gh_config["runs"] = [{"workflowName": "Scala CI", "status": "completed", "conclusion": "failure",
-                                   "headSha": self.base}]
-        self.write_gh_config()
+        self.commit_release()
+        self.write("Tuner.scala", "// after the release\n")
+        self.commit("Unrelated")
 
         # When
-        code, _, _ = self.run_cli("publish", "1.6.0")
+        code, _, err = self.run_cli("publish", "1.6.0")
 
         # Then
         self.assertEqual(code, 1)
+        self.assertIn("Start v", err)
+        self.assertEqual(self.remote_git("rev-parse", "main"), self.base)
+        self.assert_nothing_published()
+
+    def test_publish_refuses_when_origin_moved_since_the_release_commits(self):
+        # Given
+        self.commit_release()
+        other = os.path.join(self.tmp, "other")
+        self.git("clone", "-q", self.remote, other, cwd=self.tmp)
+        with open(os.path.join(other, "new.txt"), "w") as f:
+            f.write("x\n")
+        self.git("add", "new.txt", cwd=other)
+        self.git("commit", "-q", "-m", "New", cwd=other)
+        self.git("push", "-q", "origin", "main", cwd=other)
+        moved = self.remote_git("rev-parse", "main")
+
+        # When
+        code, _, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("origin/main", err)
+        self.assertEqual(self.remote_git("rev-parse", "main"), moved)
+        self.assert_nothing_published()
+
+    def test_publish_refuses_uncommitted_changes(self):
+        # Given
+        self.commit_release()
+        self.write("docs/release-notes.md", self.read("docs/release-notes.md") + "\nEdited after the commit.\n")
+
+        # When
+        code, _, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("docs/release-notes.md", err)
+        self.assertEqual(self.remote_git("rev-parse", "main"), self.base)
+        self.assert_nothing_published()
+
+    def test_publish_explains_how_to_release_uncommitted_changes(self):
+        # Given
+        self.commit_release()
+        self.write("docs/release-notes.md", self.read("docs/release-notes.md") + "\nEdited after the commit.\n")
+        _, _, err = self.run_cli("publish", "1.6.0")
+        undo = re.search(r"with `([^`]*)`", err)
+        self.assertIsNotNone(undo, err)
+
+        # When
+        subprocess.run(undo.group(1), shell=True, check=True, cwd=self.repo, env=self.env, capture_output=True)
+
+        # Then
         self.assertEqual(self.git("rev-parse", "HEAD"), self.base)
         self.assertEqual(self.git("tag", "-l", "v1.6.0"), "")
+        self.assertIn("Edited after the commit.", self.read("docs/release-notes.md"))
+        code, _, err = self.run_cli("commit", "1.6.0")
+        self.assertEqual(code, 0, err)
+
+    def test_publish_asks_to_set_aside_uncommitted_changes_to_other_files(self):
+        # Given
+        self.commit_release()
+        self.write("Tuner.scala", "// not for this release\n")
+
+        # When
+        code, _, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("Tuner.scala", err)
+        self.assertIn("stash", err.lower())
+        self.assertNotIn("git reset", err)
+        self.assert_nothing_published()
+
+    def test_publish_refuses_a_tag_left_behind_by_rewritten_commits(self):
+        # Given
+        self.commit_release()
+        self.git("reset", "-q", "--hard", self.base)
+        self.add_draft(DRAFT_V160.replace("keeps", "retains"))
+        self.set_version("1.6.0")
+        self.commit("Release v1.6.0")
+        self.set_version("1.7.0-SNAPSHOT")
+        self.commit("Start v1.7.0-SNAPSHOT")
+
+        # When
+        code, _, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("v1.6.0", err)
         self.assertEqual(self.remote_git("rev-parse", "main"), self.base)
-        self.assertFalse([c for c in self.gh_calls() if c["argv"][:2] == ["release", "create"]])
+        self.assert_nothing_published()
+
+    def test_publish_changes_nothing_when_the_push_fails(self):
+        # Given
+        self.commit_release()
+        hook = os.path.join(self.remote, "hooks", "pre-receive")
+        with open(hook, "w") as f:
+            f.write("#!/bin/sh\necho 'protected branch' >&2\nexit 1\n")
+        os.chmod(hook, 0o755)
+
+        # When
+        code, _, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("nothing was published", err)
+        self.assertIn("publish 1.6.0", err)
+        self.assertEqual(self.remote_git("rev-parse", "main"), self.base)
+        self.assert_nothing_published()
 
     def test_publish_explains_how_to_finish_when_the_github_release_fails(self):
         # Given
-        self.add_draft()
+        self.commit_release()
         self.gh_config["release_fails"] = True
         self.write_gh_config()
 
@@ -678,12 +1089,27 @@ class PublishTest(RepoFixture):
                                                                                                     "main^"))
         self.assertIn("github-release 1.6.0", err)
 
+    def test_publish_points_to_github_release_when_the_tag_is_already_pushed(self):
+        # Given
+        self.commit_release()
+        self.gh_config["release_fails"] = True
+        self.write_gh_config()
+        self.run_cli("publish", "1.6.0")
+
+        # When
+        code, _, err = self.run_cli("publish", "1.6.0")
+
+        # Then
+        self.assertEqual(code, 1)
+        self.assertIn("github-release 1.6.0", err)
+
 
 class GithubReleaseTest(RepoFixture):
 
     def test_github_release_publishes_the_notes_of_a_pushed_tag(self):
         # Given
         self.add_draft()
+        self.run_cli("commit", "1.6.0")
         self.gh_config["release_fails"] = True
         self.write_gh_config()
         self.run_cli("publish", "1.6.0")

@@ -15,20 +15,21 @@
 
 """Releases a new microtonalist version.
 
-Commands, run from the repository root:
+Commands, run anywhere in the repository:
 
   plan VERSION [--next NEXT]     Check that VERSION can be released now and print the release plan. Changes nothing.
   context                        Print what the release notes are drafted from: the commits since the latest release,
                                  the PRs and issues they reference, and the state of the previous known issues.
-  publish VERSION [--next NEXT]  Release VERSION, after the checks of `plan`, from the notes drafted at the top of
-                                 docs/release-notes.md: commit "Release vVERSION" (build.sbt and the notes), tag
-                                 vVERSION, commit "Start vNEXT" (build.sbt), push both and the tag to origin, and
-                                 create the GitHub Release, marked Latest.
+  commit VERSION [--next NEXT]   Make the release locally, after the checks of `plan`, from the notes drafted at the top
+                                 of docs/release-notes.md: commit "Release vVERSION" (build.sbt and the notes), tag
+                                 vVERSION, and commit "Start vNEXT" (build.sbt). Pushes nothing, and prints how to undo.
+  publish VERSION                Publish the release made by `commit`: push main and the tag to origin, and create the
+                                 GitHub Release, marked Latest, from the committed notes.
   github-release VERSION         Create the GitHub Release of an already pushed tag, from its notes (to finish a
                                  `publish` whose last step failed).
 
-VERSION is MAJOR.MINOR.PATCH (a leading `v` is accepted). NEXT defaults to the next minor version; its `-SNAPSHOT`
-suffix is added when missing.
+VERSION is MAJOR.MINOR.PATCH (a leading `v` is accepted). NEXT defaults to the next minor version, or to the
+-SNAPSHOT version build.sbt is at, if higher; its `-SNAPSHOT` suffix is added when missing.
 
 The GitHub CLI is `gh`, or the command in `git config release.gh` (a stand-in, in tests).
 """
@@ -46,16 +47,18 @@ BUILD_FILE = "build.sbt"
 NOTES_FILE = "docs/release-notes.md"
 BRANCH = "main"
 REMOTE = "origin"
-ISSUE_URL = "https://github.com/calinburloiu/microtonalist/issues/"
+REPO = "calinburloiu/microtonalist"
+ISSUE_URL = f"https://github.com/{REPO}/issues/"
+SCRIPT_FILE = os.path.abspath(__file__)
 
 VERSION_LINE = re.compile(r'^ThisBuild / version := "([^"]*)"$', re.M)
 RELEASE_VERSION = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 SNAPSHOT_VERSION = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(-SNAPSHOT)?$")
 RELEASE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
-SECTION_HEADING = re.compile(r"^## v(\d+\.\d+\.\d+)(?: \((\d{4}-\d{2}-\d{2})\))?[ \t]*$", re.M)
+SECTION_HEADING = re.compile(r"^## v(\d+\.\d+\.\d+)(?: \(([^)\n]*)\))?[ \t]*$", re.M)
 FENCE = re.compile(r"^\s*(```|~~~)")
 CODE_SPAN = re.compile(r"(`[^`\n]*`)")
-LINK_OR_REF = re.compile(r"\[#\d+\]\([^)]*\)|(?<![\w/&#])#(\d+)\b")
+LINK_OR_REF = re.compile(r"\[[^\]\n]*\]\([^)\n]*\)|<?https?://[^\s)>]*>?|(?<![\w&#])#(\d+)\b")
 REFERENCE = re.compile(r"(?<![\w&])#(\d+)\b")
 
 
@@ -78,11 +81,13 @@ def release_version(text):
     return ".".join(m.groups())
 
 
-def next_version(version, requested):
-    """The development version after releasing `version`: `requested`, or else the next minor, as a -SNAPSHOT."""
+def next_version(version, requested, snapshot=None):
+    """The development version after releasing `version`, as a -SNAPSHOT: `requested`, or else the next minor or the
+    `snapshot` being developed, whichever is higher (a patch keeps the development version it was released from)."""
     if requested is None:
         major, minor, _ = version_tuple(version)
-        return f"{major}.{minor + 1}.0-SNAPSHOT"
+        result = f"{major}.{minor + 1}.0-SNAPSHOT"
+        return snapshot if snapshot and version_tuple(snapshot) > version_tuple(result) else result
     m = SNAPSHOT_VERSION.match(requested)
     if not m:
         raise ReleaseError(f"invalid next version {requested!r}: expected MAJOR.MINOR.PATCH[-SNAPSHOT]")
@@ -90,6 +95,20 @@ def next_version(version, requested):
     if version_tuple(result) <= version_tuple(version):
         raise ReleaseError(f"the next version {result} must come after the release {version}")
     return result
+
+
+def expected_release(version, snapshot):
+    """Whether releasing `version` from the development version `snapshot` is expected: `snapshot` is the version
+    being released, or `version` is a patch of an earlier release, found while developing the next one."""
+    if version_tuple(version) == version_tuple(snapshot):
+        return True
+    return version_tuple(version)[2] > 0 and version_tuple(version) < version_tuple(snapshot)
+
+
+def successors(version):
+    """The versions that can directly follow the release `version`: its next patch, minor and major."""
+    major, minor, patch = version_tuple(version)
+    return [f"{major}.{minor}.{patch + 1}", f"{major}.{minor + 1}.0", f"{major + 1}.0.0"]
 
 
 def latest_release_tag(tags):
@@ -134,10 +153,11 @@ def linkify(text):
 
 
 def top_section(notes):
-    """The newest release section of the notes, as (version, date or None, section text)."""
+    """The newest release section of the notes, as (version, date or None, section text). The date is whatever the
+    heading has in parentheses after the version, possibly a placeholder such as `YYYY-MM-DD`."""
     matches = list(SECTION_HEADING.finditer(notes))
     if not matches:
-        raise ReleaseError(f"{NOTES_FILE} has no `## vMAJOR.MINOR.PATCH (YYYY-MM-DD)` section")
+        raise ReleaseError(f"{NOTES_FILE} has no `## vMAJOR.MINOR.PATCH` section")
     first = matches[0]
     end = matches[1].start() if len(matches) > 1 else len(notes)
     return first.group(1), first.group(2), notes[first.start():end]
@@ -159,13 +179,13 @@ def github_release_body(section):
 def with_release_section(notes, version, date):
     """Dates and links the top section of the notes, which must be the one of `version`."""
     found, _, section = top_section(notes)
+    heading, _, rest = section.partition("\n")
     if found != version:
-        raise ReleaseError(f"the top section of {NOTES_FILE} must be `## v{version} (YYYY-MM-DD)`, "
-                           f"with the release notes of v{version}; found `## v{found}`")
-    if not section.split("\n", 1)[1].strip():
+        raise ReleaseError(f"the top section of {NOTES_FILE} must be `## v{version}`, with the release notes of "
+                           f"v{version}; found `{heading}`")
+    if not rest.strip():
         raise ReleaseError(f"the `## v{version}` section of {NOTES_FILE} is empty")
-    start = notes.index(section)
-    heading, rest = section.split("\n", 1)
+    start = SECTION_HEADING.search(notes).start()
     return notes[:start] + f"## v{version} ({date})\n" + linkify(rest) + notes[start + len(section):]
 
 
@@ -173,7 +193,7 @@ def with_release_section(notes, version, date):
 
 
 def run(command, check=True, input_text=None):
-    result = subprocess.run(command, capture_output=True, text=True, input=input_text)
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", input=input_text)
     if check and result.returncode != 0:
         raise ReleaseError(f"`{' '.join(command)}` failed:\n{(result.stderr or result.stdout).strip()}")
     return result
@@ -192,14 +212,25 @@ def gh(*args, check=True):
     return run([gh_command()] + list(args), check=check)
 
 
+def script():
+    """This script's path, relative to the repository root, for the commands printed to the user."""
+    return os.path.relpath(SCRIPT_FILE)
+
+
 def read_file(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
 def write_file(path, text):
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+
+
+def uncommitted_changes():
+    """The paths of tracked files with uncommitted changes."""
+    status = run(["git", "status", "--porcelain"]).stdout.splitlines()
+    return [line[3:] for line in status if line and not line.startswith("??")]
 
 
 # Checks --------------------------------------------------------------------------------------------------------------
@@ -210,6 +241,7 @@ class Plan:
 
     def __init__(self, version, requested_next):
         self.version = release_version(version)
+        self.requested_next = requested_next
         self.next = next_version(self.version, requested_next)
         self.tag = f"v{self.version}"
         self.errors, self.warnings = [], []
@@ -228,9 +260,7 @@ class Plan:
         branch = git("rev-parse", "--abbrev-ref", "HEAD")
         if branch != BRANCH:
             self.errors.append(f"releases are made from {BRANCH}, but the current branch is {branch}")
-        status = run(["git", "status", "--porcelain"]).stdout.splitlines()
-        changed = [line[3:] for line in status if line and not line.startswith("??")]
-        others = [path for path in changed if path != NOTES_FILE]
+        others = [path for path in uncommitted_changes() if path != NOTES_FILE]
         if others:
             self.errors.append(f"uncommitted changes other than {NOTES_FILE}: {', '.join(others)}")
         fetched = run(["git", "fetch", "--quiet", "--tags", REMOTE], check=False)
@@ -250,8 +280,13 @@ class Plan:
             return
         if not self.current_version.endswith("-SNAPSHOT"):
             self.errors.append(f"{BUILD_FILE} is at {self.current_version}, not at a -SNAPSHOT version")
-        elif self.current_version != f"{self.version}-SNAPSHOT":
-            self.warnings.append(f"{BUILD_FILE} is at {self.current_version}, but the release is {self.version}")
+        else:
+            if not expected_release(self.version, self.current_version):
+                self.warnings.append(f"{BUILD_FILE} is at {self.current_version}, but the release is {self.version}")
+            self.next = next_version(self.version, self.requested_next, self.current_version)
+            if version_tuple(self.next) < version_tuple(self.current_version):
+                self.warnings.append(f"the next version {self.next} is below {self.current_version}, the version "
+                                     f"{BUILD_FILE} is at now")
 
     def check_tags(self):
         tags = git("tag", "--list", "v*").split()
@@ -261,11 +296,15 @@ class Plan:
         if self.previous_tag:
             if version_tuple(self.version) <= version_tuple(self.previous_tag[1:]):
                 self.errors.append(f"{self.version} does not come after the latest release, {self.previous_tag}")
+            elif self.version not in successors(self.previous_tag[1:]):
+                expected = successors(self.previous_tag[1:])
+                self.warnings.append(f"{self.version} skips versions after the latest release, {self.previous_tag}: "
+                                     f"expected {expected[0]}, {expected[1]} or {expected[2]}")
             self.commit_count = int(git("rev-list", "--count", f"{self.previous_tag}..HEAD"))
 
     def check_ci(self):
-        result = gh("run", "list", "--commit", self.head, "--json", "workflowName,status,conclusion,headSha",
-                    check=False)
+        result = gh("run", "list", "-R", REPO, "--commit", self.head, "--json",
+                    "workflowName,status,conclusion,headSha", check=False)
         if result.returncode != 0:
             self.errors.append(f"cannot read the CI status of {self.head[:7]}: {result.stderr.strip()}")
             return
@@ -311,7 +350,7 @@ def command_plan(args):
 
 
 def fetch_item(number):
-    result = gh("api", f"repos/{{owner}}/{{repo}}/issues/{number}", check=False)
+    result = gh("api", f"repos/{REPO}/issues/{number}", check=False)
     return json.loads(result.stdout) if result.returncode == 0 else None
 
 
@@ -329,6 +368,8 @@ def references(text):
 def describe(item):
     kind = "PR" if item.get("pull_request") else "Issue"
     state = "merged" if (item.get("pull_request") or {}).get("merged_at") else item["state"]
+    if state == "closed" and item.get("state_reason"):
+        state += " as " + item["state_reason"].replace("_", " ")
     labels = ", ".join(label["name"] for label in item.get("labels", [])) or "-"
     milestone = (item.get("milestone") or {}).get("title") or "-"
     return f"{kind} #{item['number']}: {item['title']} ({state}; labels: {labels}; milestone: {milestone})"
@@ -403,42 +444,105 @@ def create_github_release(tag):
     version, _, section = top_section(notes)
     if f"v{version}" != tag:
         raise ReleaseError(f"the top section of {NOTES_FILE} at {tag} is v{version}, not {tag}")
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
         f.write(github_release_body(section))
     try:
-        result = gh("release", "create", tag, "--title", tag, "--notes-file", f.name, "--latest", "--verify-tag")
+        result = gh("release", "create", tag, "-R", REPO, "--title", tag, "--notes-file", f.name, "--latest",
+                    "--verify-tag")
     finally:
         os.unlink(f.name)
     print(f"GitHub Release: {result.stdout.strip()}")
 
 
-def command_publish(args):
+def undo_command(tag, base):
+    return f"git tag -d {tag} && git reset --quiet --mixed {base} && git checkout -- {BUILD_FILE}"
+
+
+def command_commit(args):
     plan = checked_plan(args.version, args.next)
-    notes = with_release_section(read_file(NOTES_FILE), plan.version, datetime.date.today().isoformat())
+    draft = read_file(NOTES_FILE)
+    notes = with_release_section(draft, plan.version, datetime.date.today().isoformat())
     build = read_file(BUILD_FILE)
 
-    write_file(NOTES_FILE, notes)
-    write_file(BUILD_FILE, with_build_version(build, plan.version))
-    git("add", BUILD_FILE, NOTES_FILE)
-    git("commit", "--quiet", "-m", f"Release {plan.tag}")
-    git("tag", plan.tag)
-    write_file(BUILD_FILE, with_build_version(build, plan.next))
-    git("add", BUILD_FILE)
-    git("commit", "--quiet", "-m", f"Start v{plan.next}")
-    print(f"Committed \"Release {plan.tag}\" (tagged {plan.tag}) and \"Start v{plan.next}\".")
-
-    pushed = run(["git", "push", "--quiet", "--atomic", REMOTE, BRANCH, plan.tag], check=False)
-    if pushed.returncode != 0:
-        raise ReleaseError(
-            f"pushing to {REMOTE} failed, so nothing was published:\n{pushed.stderr.strip()}\n"
-            f"To undo the local release commits and tag, keeping the notes: git tag -d {plan.tag} && "
-            f"git reset --mixed {REMOTE}/{BRANCH} && git checkout -- {BUILD_FILE}")
-    print(f"Pushed {BRANCH} and {plan.tag} to {REMOTE}.")
     try:
-        create_github_release(plan.tag)
+        write_file(NOTES_FILE, notes)
+        write_file(BUILD_FILE, with_build_version(build, plan.version))
+        git("add", BUILD_FILE, NOTES_FILE)
+        git("commit", "--quiet", "-m", f"Release {plan.tag}")
+        git("tag", plan.tag)
+        write_file(BUILD_FILE, with_build_version(build, plan.next))
+        git("add", BUILD_FILE)
+        git("commit", "--quiet", "-m", f"Start v{plan.next}")
+    except (ReleaseError, OSError) as e:
+        # The checks guarantee that the tag did not exist and that HEAD was plan.head, so both are safe to restore.
+        run(["git", "tag", "-d", plan.tag], check=False)
+        run(["git", "reset", "--quiet", "--mixed", plan.head], check=False)
+        write_file(BUILD_FILE, build)
+        write_file(NOTES_FILE, draft)
+        raise ReleaseError(f"{e}\nNothing was committed: the release commits and tag are undone, and {BUILD_FILE} "
+                           f"and {NOTES_FILE} are as they were.")
+
+    print("\nCommitted locally; nothing is pushed yet:")
+    for sha in git("rev-list", f"{plan.head}..HEAD").split():
+        files = ", ".join(git("show", "--name-only", "--format=", sha).split())
+        print(f"  {git('log', '-1', '--format=%h %s%d', sha)}: {files}")
+    print(f"\nTo publish, once the user approves: python3 {script()} publish {plan.version}")
+    print(f"To undo, keeping the notes: {undo_command(plan.tag, plan.head)}")
+
+
+def release_commits_error(tag, version):
+    """Why HEAD is not the pair of release commits of `tag` that `commit` makes, or None if it is."""
+    if git("rev-parse", "--abbrev-ref", "HEAD") != BRANCH:
+        return f"releases are published from {BRANCH}"
+    tagged = git("rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}", check=False)
+    if not tagged:
+        return f"there is no tag {tag}: run `commit {version}` first"
+    if git("log", "-1", "--format=%s", tagged) != f"Release {tag}":
+        return f"the tag {tag} is not on a \"Release {tag}\" commit"
+    if (git("rev-parse", "HEAD^", check=False) != tagged
+            or not re.fullmatch(r"Start v\S+-SNAPSHOT", git("log", "-1", "--format=%s"))):
+        return f"HEAD must be the \"Start v...-SNAPSHOT\" commit right after the tag {tag}"
+    changed = uncommitted_changes()
+    if changed == [NOTES_FILE]:
+        undo = undo_command(tag, git("rev-parse", f"{tagged}^"))
+        return (f"uncommitted changes to {NOTES_FILE}, which would not be published. To release them, undo the "
+                f"release commits, keeping the notes, with `{undo}`, and commit again")
+    if changed:
+        return (f"uncommitted changes, which are not part of the release: {', '.join(changed)}. Stash or revert "
+                f"them (they belong in a pull request of their own), and publish again")
+    return None
+
+
+def command_publish(args):
+    version = release_version(args.version)
+    tag = f"v{version}"
+    if git("ls-remote", "--tags", REMOTE, f"refs/tags/{tag}", check=False):
+        raise ReleaseError(f"the tag {tag} is already on {REMOTE}. If its GitHub Release is missing, run: "
+                           f"python3 {script()} github-release {version}")
+    error = release_commits_error(tag, version)
+    if error:
+        raise ReleaseError(error)
+    fetched = run(["git", "fetch", "--quiet", REMOTE, BRANCH], check=False)
+    if fetched.returncode != 0:
+        raise ReleaseError(f"cannot fetch {REMOTE}: {fetched.stderr.strip()}")
+    base = git("rev-parse", f"{tag}^")
+    if git("rev-parse", f"{REMOTE}/{BRANCH}") != base:
+        raise ReleaseError(f"{REMOTE}/{BRANCH} moved since the release commits were made on {base[:7]}, so nothing "
+                           f"was published. Undo them, keeping the notes, with `{undo_command(tag, base)}`, pull, "
+                           f"and release again")
+
+    pushed = run(["git", "push", "--quiet", "--atomic", REMOTE, BRANCH, tag], check=False)
+    if pushed.returncode != 0:
+        raise ReleaseError(f"pushing to {REMOTE} failed, so nothing was published:\n{pushed.stderr.strip()}\n"
+                           f"The release commits and tag are intact: fix the cause and run "
+                           f"`python3 {script()} publish {version}` again, or undo them, keeping the notes, with "
+                           f"`{undo_command(tag, base)}`")
+    print(f"Pushed {BRANCH} and {tag} to {REMOTE}.")
+    try:
+        create_github_release(tag)
     except ReleaseError as e:
         raise ReleaseError(f"{e}\nThe commits and the tag are pushed. To create the GitHub Release, run: "
-                           f"python3 {sys.argv[0]} github-release {plan.version}")
+                           f"python3 {script()} github-release {version}")
 
 
 def command_github_release(args):
@@ -452,17 +556,23 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="microtonalist_release.py", description=__doc__.split("\n\n")[0],
                                      epilog=__doc__.split("\n\n", 1)[1], formatter_class=argparse.RawTextHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name, handler in (("plan", command_plan), ("publish", command_publish)):
+    for name, handler in (("plan", command_plan), ("commit", command_commit)):
         sub = commands.add_parser(name)
         sub.add_argument("version")
-        sub.add_argument("--next", help="the next development version (default: the next minor, -SNAPSHOT)")
+        sub.add_argument("--next", help="the next development version (default: the next minor, or the -SNAPSHOT "
+                                        "version build.sbt is at, if higher)")
         sub.set_defaults(handler=handler)
     commands.add_parser("context").set_defaults(handler=command_context)
-    sub = commands.add_parser("github-release")
-    sub.add_argument("version")
-    sub.set_defaults(handler=command_github_release)
+    for name, handler in (("publish", command_publish), ("github-release", command_github_release)):
+        sub = commands.add_parser(name)
+        sub.add_argument("version")
+        sub.set_defaults(handler=handler)
     args = parser.parse_args(argv)
     try:
+        root = run(["git", "rev-parse", "--show-toplevel"], check=False)
+        if root.returncode != 0:
+            raise ReleaseError("run this from the microtonalist repository")
+        os.chdir(root.stdout.strip())
         args.handler(args)
     except ReleaseError as e:
         print(f"error: {e}", file=sys.stderr)

@@ -340,7 +340,7 @@ This is a patch release that fixes a bug.
 * Factor-out config module by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/94
 * [[#95](https://github.com/calinburloiu/microtonalist/issues/95)] Refactor tuning change flow by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/101
 * [[#95](https://github.com/calinburloiu/microtonalist/issues/95)] Allow configuring triggersThru per TuningChanger by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/104
-* [[#65](https://github.com/calinburloiu/microtonalist/issues/65)/#105] Add JSON-Schema for TuningChanger plugin and reorganize schemas in directories by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/107
+* [[#65](https://github.com/calinburloiu/microtonalist/issues/65)/[#105](https://github.com/calinburloiu/microtonalist/issues/105)] Add JSON-Schema for TuningChanger plugin and reorganize schemas in directories by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/107
 * [[#108](https://github.com/calinburloiu/microtonalist/issues/108)] Implement format for TuningChanger by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/110
 * [[#111](https://github.com/calinburloiu/microtonalist/issues/111)] Create a fill root property to include global and local fill specification by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/112
 * [[#96](https://github.com/calinburloiu/microtonalist/issues/96)] Refactor Tuner interface to comply to Plugin by @calinburloiu in https://github.com/calinburloiu/microtonalist/pull/113
