@@ -874,6 +874,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         pitchBends should have size 1
         pitchBends.head.channel shouldBe activeChannel
         pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
+        pitchBends.map(_.channel) should not contain releasedChannel
       }
 
     // ---- Paper worked examples ----
@@ -1066,6 +1067,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         pitchBends should have size 1
         pitchBends.head.channel shouldBe activeChannel
         pitchBends.head.cents.round.toInt shouldBe 2 // pythagorean G offset
+        pitchBends.map(_.channel) should not contain releasedChannel
       }
 
     // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
@@ -1126,8 +1128,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "preserve Note Off velocity" in new Fixture {
       // Given
-      private val noteOnOutput = noteOn(nonMpeInputChannel, C4, 100)
-      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
+      noteOn(nonMpeInputChannel, C4, 100)
       // When
       private val noteOffOutput = noteOff(nonMpeInputChannel, C4, 73)
       // Then
@@ -1420,8 +1421,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "preserve Note Off velocity" in new Fixture(tuner7MpeInput) {
       // Given
-      private val noteOnOutput = noteOn(mpeInputChannel, C4, 100)
-      private val noteOnChannel = extractNoteOns(noteOnOutput).head.channel
+      noteOn(mpeInputChannel, C4, 100)
       // When
       private val noteOffOutput = noteOff(mpeInputChannel, C4, 73)
       // Then
@@ -1932,8 +1932,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "ignore Polyphonic Key Pressure for non-active notes" in new Fixture {
       // Given
-      private val noteOutput = noteOn(nonMpeInputChannel, C4)
-      private val noteChannel = extractNoteOns(noteOutput).head.channel
+      noteOn(nonMpeInputChannel, C4)
       // When
       private val output = tuner.process(PolyPressureMidiMsg(nonMpeInputChannel, D4, 80))
       // Then

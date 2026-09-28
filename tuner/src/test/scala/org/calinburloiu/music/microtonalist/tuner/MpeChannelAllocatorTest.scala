@@ -146,9 +146,8 @@ class MpeChannelAllocatorTest extends AnyWordSpec with Matchers with OptionValue
       // Given
       val alloc = allocator15
       val r1 = alloc.allocateNote(C4) // ch1
-      val r2 = alloc.allocateNote(D4) // ch2
+      alloc.allocateNote(D4) // ch2
       val ch1 = r1.channel
-      val ch2 = r2.channel
       alloc.releaseNote(C4) // older
       alloc.releaseNote(D4) // newer
 
@@ -358,7 +357,7 @@ class MpeChannelAllocatorTest extends AnyWordSpec with Matchers with OptionValue
       val alloc = allocator2 // PCG=1, EG=1
       val r1 = alloc.allocateNote(C4)
       val r2 = alloc.allocateNote(C5)
-      val r3 = alloc.allocateNote(C3)
+      alloc.allocateNote(C3)
       // When
       // Add another note to r1's channel
       alloc.allocateNote(C6) // goes to channel with fewest notes

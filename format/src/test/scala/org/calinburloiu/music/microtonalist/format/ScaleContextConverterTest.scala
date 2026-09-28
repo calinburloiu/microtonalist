@@ -140,7 +140,7 @@ class ScaleContextConverterTest extends AnyWordSpec, Matchers, BeforeAndAfter {
       // Given
       val context = Some(ScaleFormatContext(None, None))
       // When
-      val result = scaleContextConverter.convert(maj4RatiosScale, None)
+      val result = scaleContextConverter.convert(maj4RatiosScale, context)
       // Then
       result shouldBe theSameInstanceAs(maj4RatiosScale)
     }

@@ -25,6 +25,7 @@ import org.calinburloiu.music.scmidi.{
 
 import java.util.concurrent.*
 import javax.annotation.concurrent.NotThreadSafe
+import scala.annotation.nowarn
 import scala.collection.immutable.VectorMap
 
 // TODO #121 Logic to update tracks.
@@ -129,6 +130,8 @@ class TrackManager(private val midiManager: MidiManager,
    */
   // TODO #90 Remove @Subscribe after implementing businessync.
   @Subscribe
+  // Guava's EventBus calls it through @Subscribe, which the compiler can't see. Goes away with @Subscribe (#90).
+  @nowarn("msg=unused private member")
   private def onTuningChanged(event: TuningEvent): Unit = {
     tune(event.currentTuning)
   }
@@ -151,6 +154,8 @@ class TrackManager(private val midiManager: MidiManager,
   //  tune of the business thread: TunerProcessor is @NotThreadSafe and expects the external synchronization of the
   //  track thread that TODO #121 has yet to introduce.
   @Subscribe
+  // Guava's EventBus calls it through @Subscribe, which the compiler can't see. Goes away with @Subscribe (#90).
+  @nowarn("msg=unused private member")
   private def onMidiEvent(event: MidiEvent): Unit = event match {
     case MidiDeviceOpenedEvent(deviceId, MidiDirection.Output) =>
       tracksWithOutputDevice(deviceId).foreach(_.resetTuner())
