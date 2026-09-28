@@ -28,6 +28,13 @@ git config core.hooksPath .githooks
 
 See [License headers](docs/development/license-headers.md) for details.
 
+Bulk, tool-generated changes, such as reformatting the whole codebase, are listed in `.git-blame-ignore-revs`. GitHub's
+blame view skips them automatically; to make local `git blame` skip them too, run once per clone:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ### Formatting
 
 Code is formatted with scalafmt; see the [Build reference](docs/development/build.md#formatting). The git hook above
