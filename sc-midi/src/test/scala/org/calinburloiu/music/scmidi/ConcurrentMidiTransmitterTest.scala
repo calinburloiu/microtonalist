@@ -50,8 +50,6 @@ class ConcurrentMidiTransmitterTest extends AnyWordSpec with Matchers with Mutab
 
     def lockReadLockCount: Int = lock.getReadLockCount
 
-    def lockHasQueuedThreads: Boolean = lock.hasQueuedThreads
-
     /** Runs `body` on the calling thread while holding the write lock, so that a test can block a reader out. */
     def holdingWriteLock[R](body: => R): R = withWriteLock {
       body
@@ -75,17 +73,14 @@ class ConcurrentMidiTransmitterTest extends AnyWordSpec with Matchers with Mutab
     }
   }
 
+  /** How long a test waits for something that should happen at once; only a broken transmitter ever reaches it. */
+  private val AwaitTimeoutMillis: Long = 30000L
+
   /**
-   * Polls `condition` until it holds or `timeoutMillis` expires, and returns whether it held. Used instead of a fixed
-   * sleep, so that the assertion is decided by the state under test rather than by how fast the machine is.
+   * How long a test waits for a read that the write lock must block. Only a transmitter whose reads skip the lock
+   * completes the read within it; a correct one pays it once, so it is kept short.
    */
-  private def awaitCondition(condition: => Boolean, timeoutMillis: Long = 30000L): Boolean = {
-    val deadlineNanos = System.nanoTime() + timeoutMillis * 1000000L
-    while (!condition && System.nanoTime() < deadlineNanos) {
-      Thread.sleep(1)
-    }
-    condition
-  }
+  private val BlockedReadWaitMillis: Long = 100L
 
   trait ProbeFixture {
     val receiver1: MidiReceiver = NoOpMidiReceiver()
@@ -239,25 +234,29 @@ class ConcurrentMidiTransmitterTest extends AnyWordSpec with Matchers with Mutab
     "block a read while another thread holds the write lock" in new ProbeFixture {
       // Given
       probe.addReceiver(receiver1)
+      val readerStarted: CountDownLatch = CountDownLatch(1)
       val readDone: CountDownLatch = CountDownLatch(1)
       val readReceivers: AtomicReference[Seq[MidiReceiver]] = AtomicReference(Seq.empty)
       val reader: Thread = Thread(() => {
+        readerStarted.countDown()
         readReceivers.set(probe.receivers)
         readDone.countDown()
       })
       reader.setDaemon(true)
 
       // When
-      // The reader parks in the lock's queue rather than returning, which is what pins that `receivers` takes the read
-      // lock: without it the read would complete straight away and never queue.
-      val blockedOnTheLock: Boolean = probe.holdingWriteLock {
+      // A read that skipped the read lock would complete at once, and fail the test as soon as it does. A read that
+      // takes it waits for the write lock, so only this passing case waits the whole BlockedReadWaitMillis.
+      val (readerStartedInTime, readCompletedUnderWriteLock) = probe.holdingWriteLock {
         reader.start()
-        awaitCondition(probe.lockHasQueuedThreads) && readDone.getCount == 1
+        val started = readerStarted.await(AwaitTimeoutMillis, TimeUnit.MILLISECONDS)
+        (started, readDone.await(BlockedReadWaitMillis, TimeUnit.MILLISECONDS))
       }
 
       // Then
-      blockedOnTheLock shouldBe true
-      readDone.await(30000L, TimeUnit.MILLISECONDS) shouldBe true
+      readerStartedInTime shouldBe true
+      readCompletedUnderWriteLock shouldBe false
+      readDone.await(AwaitTimeoutMillis, TimeUnit.MILLISECONDS) shouldBe true
       readReceivers.get() shouldEqual Seq(receiver1)
     }
 
