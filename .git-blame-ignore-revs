@@ -1,7 +1,9 @@
 # Commits that `git blame` skips: bulk changes made by a tool, with no hand edits. GitHub's blame view reads this file
 # automatically; for local `git blame`, run once per clone:
 #
-#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#   git config blame.ignoreRevsFile ':(optional).git-blame-ignore-revs'
+#
+# `:(optional)` (Git 2.52 or later) keeps `git blame` working in checkouts that predate this file; see CONTRIBUTING.md.
 #
 # Each entry is a commit's full SHA on `main`, after its PR was squash-merged.
 

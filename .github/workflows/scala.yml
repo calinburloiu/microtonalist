@@ -43,6 +43,12 @@ jobs:
         java-version: '23'
         distribution: 'temurin'
         cache: 'sbt'
+        # A cache key of its own: this job downloads only sbt, its plugins and scalafmt, so saving its cache under the
+        # `build` job's key would leave `build` without the library dependencies.
+        cache-dependency-path: |
+          project/build.properties
+          project/plugins.sbt
+          .scalafmt.conf
     - uses: sbt/setup-sbt@v1
     - name: Check formatting
       run: sbt lint
