@@ -5,8 +5,8 @@
 - **Issues:** #333 (parent), with sub-issues #335 (scalafmt), #334 (compiler warnings and scalafix) and #336 (Scala and
   dependency upgrade)
 - **Status:** approved in conversation, section by section; pending review of this written version
-- **Revised:** 2026-09-28, with the decisions taken while planning #334 (`plan-334-lint.md`, "Decisions after the
-  design") and the facts that planning measured: sections 1, 4, 5, 6, 7, 8 and appendix B
+- **Revised:** 2026-09-28, with the decisions taken while planning #334 (`plan-334-lint.md`, which the #334 tooling PR
+  adds, "Decisions after the design") and the facts that planning measured: sections 1, 4, 5, 6, 7, 8 and appendix B
 
 Each sub-issue gets its own implementation plan in this directory.
 
@@ -69,8 +69,9 @@ PR titles use the `[#333/#335]` and `[#333/#334]` prefixes.
 - **Bulk PR:** only tool output, with no hand edits. One command reproduces it: `sbtn scalafmtAll scalafmtSbt` (plus
   `experiments/scalafmtAll`) for #335, and `sbtn fix` for #334. Reviewers check it by re-running the command and
   diffing, not by reading it line by line. It's regenerated right before merging, after rebasing on the latest `main`,
-  so it never carries conflict resolutions. Merge it soon after it opens, to keep branches in progress from
-  conflicting with it.
+  so it never carries conflict resolutions. Merge it right after the tooling PR, in one sitting: in between, `main`
+  has the tooling but not the tool output, so `sbtn fix` and the pre-commit hook would put it into unrelated commits.
+  Merging it soon also keeps branches in progress from conflicting with it.
 - **Finish PR:** after the bulk PR merges, rebase the finish branch onto `main` and add the bulk PR's **squashed SHA
   on `main`** to `.git-blame-ignore-revs`. #335's finish PR creates that file. The same PR turns on that sub-issue's
   enforcement.
@@ -122,10 +123,10 @@ Starting settings, based on the existing code:
 | `align.openParenDefnSite` (and `align.openParenCallSite`, if the code shows it) | `true` | Matches `class MpeTuner(private val …,\n               private val …) extends Tuner {` |
 | `danglingParentheses.*` | tuned | The code keeps `)` on the last line rather than on its own line |
 | `docstrings.style` | `Asterisk` | The existing ` * ` ScalaDoc style |
-| `docstrings.wrap`, `comments.wrap` | off | Don't rewrap prose |
+| `docstrings.wrap`, `comments.wrap` | `keep`, `no` | scalafmt can't break only the comment lines that are too long: it refills every ScalaDoc paragraph, or every multi-line `/* */` comment, license headers included |
 | `rewrite.scala3.convertToNewSyntax`, `rewrite.scala3.removeOptionalBraces` | `false` | Brace syntax convention |
 | Import sorting | not configured | #334's `OrganizeImports` owns import order |
-| `project.git` | `true` | Format only tracked files |
+| `project.git` | not set | `true` would leave new files unformatted until they're `git add`ed. sbt formats only its source directories, and the hook passes file names |
 
 #### Why `newlines.source = keep`
 
@@ -134,7 +135,7 @@ Starting settings, based on the existing code:
 | Mode | Existing line breaks | New line breaks |
 | --- | --- | --- |
 | unset (the default, "classic") | Some are kept (e.g. one argument per line); most others are joined if the result fits | Where scalafmt's heuristics choose |
-| **`keep`** | **Kept wherever the syntax allows** | **Only where a line would exceed `maxColumn`** |
+| **`keep`** | **Kept wherever the syntax and the other settings allow** | **Where a code line would exceed `maxColumn`, and where a few settings require one** |
 | `fold` | Removed wherever possible | Only when needed to fit |
 | `unfold` | Ignored | Once a construct doesn't fit on one line, every element gets its own line |
 
@@ -165,7 +166,9 @@ differently and both pass `scalafmtCheck`. The setting can be tightened later, o
 
 ### Editors and agents
 
-- Metals picks up `.scalafmt.conf` by itself, so agents can also use the Metals MCP `format-file` tool.
+- Metals picks up `.scalafmt.conf` by itself, so editors that use Metals format like `sbtn fix`. Agents format with
+  `sbtn fix`: with the development stack's standalone Metals client, the Metals MCP `format-file` tool doesn't write
+  its edits to the file.
 - `.idea/` stays gitignored. The docs explain how to set IntelliJ's Scala formatter to Scalafmt (Settings → Editor →
   Code Style → Scala → Formatter), optionally with reformat on save.
 
@@ -389,7 +392,7 @@ instead:
 - **Tests and coverage:** the full test suite (`sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"`) and `coverageCheck` pass
   after every PR. A scalafix removal that breaks a `given` import fails compilation.
 - **Hooks and editors:** the pre-commit step formats a staged, badly formatted file, and skips cleanly when
-  `scalafmt` isn't on `PATH`. Metals `compile-full` and `format-file` still work.
+  `scalafmt` isn't on `PATH`. Metals `compile-full` still works, and Metals reads `.scalafmt.conf`.
 - **CI:** the finish PR's first `lint` run is green.
 
 ## 8. Risks

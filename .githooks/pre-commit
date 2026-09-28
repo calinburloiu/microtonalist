@@ -30,7 +30,9 @@
 # `git commit <paths>` (or `--only`) runs the hook on a temporary index, where
 # re-staging would leave the real index with the old content. In that case the
 # hook re-stages nothing and stops the commit if a step changed a file; the
-# next `git commit <paths>` then commits the changed files.
+# next `git commit <paths>` then commits the changed files. A commit that
+# concludes a merge leaves the files taken as they are from the merged branch
+# untouched.
 #
 # Enable once per clone with:  git config core.hooksPath .githooks
 # The hook is a convenience: when a step's tool is not installed, that step is
@@ -59,13 +61,28 @@ staged_list="$(mktemp)"
 trap 'rm -f "$staged_list"' EXIT
 git diff --cached --name-only -z --diff-filter=ACMR > "$staged_list"
 
+# A commit that concludes a merge stages every file that the merged branch
+# changed; see is_as_in_merged_branch.
+merging=false
+if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  merging=true
+fi
+
+# Tells whether this commit concludes a merge and the staged file $1 is the same
+# as in the merged branch. The hook leaves such a file as it is, so that the merge
+# commit holds no change that neither parent has. It still prepares the files
+# that the merge combined or that were resolved by hand.
+is_as_in_merged_branch() {
+  [ "$merging" = true ] && git diff --cached --quiet MERGE_HEAD -- "$1"
+}
+
 # Prints the staged files whose path matches the extended regular expression $1,
 # each followed by a NUL. A staged file that was removed from the working tree is
 # left out: re-staging it would stage its deletion.
 staged_files_matching() {
   local f
   while IFS= read -r -d '' f; do
-    if [[ $f =~ $1 ]] && [ -e "$f" ]; then
+    if [[ $f =~ $1 ]] && [ -e "$f" ] && ! is_as_in_merged_branch "$f"; then
       printf '%s\0' "$f"
     fi
   done < "$staged_list"
@@ -73,12 +90,14 @@ staged_files_matching() {
 
 # Re-stages the given files, which a step may have rewritten, so its changes
 # land in this commit. With `git commit <paths>` it only records whether a step
-# changed any of them.
+# changed any of them. Every file is already in the index, so `-f` adds no new
+# file: it only lets git re-stage a file that was force-added under an ignored
+# path.
 restage() {
   if [ "$commit_with_paths" = true ]; then
     git diff --quiet -- "$@" || changed_files_not_restaged=true
   else
-    git add -- "$@"
+    git add -f -- "$@"
   fi
 }
 

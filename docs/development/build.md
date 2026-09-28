@@ -49,11 +49,13 @@ sbtn "${MODULE}/compile"
 
 ## Formatting
 
-Scala sources and the sbt build definition (`build.sbt` and `project/*.scala`) are formatted with
-[scalafmt](https://scalameta.org/scalafmt/). Its configuration, `.scalafmt.conf` at the repository root, pins the
-scalafmt version and reproduces IntelliJ IDEA's default Scala style. It sets `newlines.source = keep`: scalafmt keeps the
-line breaks the author wrote and only adds one where a line would exceed 120 columns, so two ways of breaking the same
-expression can both pass the check.
+Scala sources and the sbt build definition (`build.sbt`, and the `.sbt` and `.scala` files under `project/`) are
+formatted with [scalafmt](https://scalameta.org/scalafmt/). Its configuration, `.scalafmt.conf` at the repository root,
+pins the scalafmt version and reproduces IntelliJ IDEA's default Scala style. It sets `newlines.source = keep`: scalafmt
+keeps most of the line breaks the author wrote, so two ways of breaking the same expression can both pass the check. It
+breaks a code line that would exceed 120 columns, and a few of its rules add or move other breaks, e.g. a multi-line
+`if` condition gets its parentheses on their own lines. It doesn't wrap comments, so wrap a long comment by hand:
+scalafmt can only refill whole comments, which would rewrap every ScalaDoc and license header.
 
 Format everything:
 
@@ -81,9 +83,16 @@ cs install scalafmt
 ```
 
 The tool downloads the scalafmt version that `.scalafmt.conf` pins. If it isn't installed, the hook skips formatting
-with a message. If a staged file doesn't parse, the hook prints scalafmt's error and aborts the commit. Re-staging a
-whole file also stages its unstaged hunks, so a partial commit (`git add -p`) includes them; the hook's license-header
-step already behaves this way.
+with a message. If a staged file doesn't parse, the hook prints scalafmt's error and aborts the commit, leaving the
+other staged files formatted in the working tree but not re-staged.
+
+The hook formats the working-tree copy of each staged file, not its staged content, and then re-stages the whole file.
+So a partial commit (`git add -p`) also includes the file's unstaged hunks, and is aborted when those hunks make the
+file fail to parse. The hook's license-header step already behaves this way.
+
+A commit that concludes a merge leaves untouched the files taken as they are from the merged branch, so that the merge
+commit holds no change that neither parent has. It formats only the files that the merge combined or that were
+resolved by hand.
 
 `git commit <paths>` and `git commit --only`, which some IDE commit dialogs use, give the hook a temporary index that it
 can't re-stage into. When the hook changes a file in such a commit, it stops the commit instead; review the changes and

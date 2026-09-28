@@ -9,8 +9,9 @@ General (mainly production-code) Scala conventions for this repository. Test con
   IntelliJ IDEA's default Scala style. Format with `sbtn fix` and check with `sbtn lint`; see
   [`build.md`](build.md#formatting).
 * Indentation is done with 2 spaces.
-* Lines have a maximum length of 120 characters.
-* scalafmt keeps the line breaks you write, and only adds one where a line would exceed 120 characters.
+* Lines have a maximum length of 120 characters. scalafmt breaks longer code lines but doesn't wrap comments, so wrap a
+  long comment or ScalaDoc line by hand.
+* scalafmt keeps most of the line breaks you write; a few of its rules add or move some.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
 
 ## Use brace syntax
