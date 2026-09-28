@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.common
 
-// TODO Add support for Windows and maybe GNU/Linux
+// TODO #149 Add support for Windows and maybe GNU/Linux
 object PlatformUtils {
 
   def isMac: Boolean = true

@@ -65,7 +65,8 @@ object TuningMapper {
   val Default: AutoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = false)
 }
 
-// TODO Wouldn't a more functional approach than an exception be more appropriate? Or encode the conflicts inside?
+// TODO #36 Wouldn't a more functional approach than an exception be more appropriate? Or encode the
+//  conflicts inside?
 
 /**
  * Exception thrown if a conflict occurs while mapping a scale to a tuning.
