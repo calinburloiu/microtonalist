@@ -20,6 +20,9 @@ ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / version := "1.6.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
+// SemanticDB, which scalafix's semantic rules read. Metals enables it too, but plain sbt (CI) needs it set.
+ThisBuild / semanticdbEnabled := true
+
 // Register the coverage-related commands
 commands ++= Coverage.commands
 
