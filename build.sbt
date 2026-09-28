@@ -307,7 +307,20 @@ lazy val compilerOptions = Seq(
   "-language:implicitConversions",
   "-language:postfixOps",
   // Used for scalamock: trait Mock is marked as experimental
-  "-experimental"
+  "-experimental",
+  // Unused imports, private members, local definitions, parameters, and `@nowarn` annotations that suppress nothing
+  "-Wunused:all",
+  // Brace syntax only: indentation syntax and `if … then` are compile errors. See
+  // docs/development/coding-conventions.md#use-brace-syntax.
+  "-no-indent",
+  "-old-syntax",
+)
+
+// Warnings for production code only: ScalaTest's assertions return `Assertion`, so in tests they would fire on nearly
+// every line. See docs/development/linting.md.
+lazy val mainOnlyCompilerOptions = Seq(
+  "-Wvalue-discard",
+  "-Wnonunit-statement",
 )
 
 // When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
@@ -327,6 +340,9 @@ lazy val commonSettings = Seq(
     "-source", "23", "-target", "23",
   ),
   scalacOptions ++= compilerOptions,
+  Compile / scalacOptions ++= mainOnlyCompilerOptions,
+  // `Test / scalacOptions` starts from `Compile / scalacOptions`, so the production-only flags are removed explicitly.
+  Test / scalacOptions --= mainOnlyCompilerOptions,
   resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
   libraryDependencies ++= commonDependencies,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
