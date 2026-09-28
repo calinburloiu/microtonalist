@@ -28,6 +28,17 @@ git config core.hooksPath .githooks
 
 See [License headers](docs/development/license-headers.md) for details.
 
+Bulk, tool-generated changes, such as reformatting the whole codebase, are listed in `.git-blame-ignore-revs`. GitHub's
+blame view skips them automatically; to make local `git blame` skip them too, run once per clone:
+
+```bash
+git config blame.ignoreRevsFile ':(optional).git-blame-ignore-revs'
+```
+
+The `:(optional)` prefix, which needs Git 2.52 or later, keeps `git blame` working in checkouts that predate the file,
+such as older tags or branches that haven't merged it yet. With an older Git, leave the prefix out, and expect
+`git blame` to fail with `fatal: could not open object name list` in those checkouts.
+
 ### Formatting
 
 Code is formatted with scalafmt; see the [Build reference](docs/development/build.md#formatting). The git hook above

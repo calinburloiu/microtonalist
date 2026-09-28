@@ -76,6 +76,8 @@ sbtn lint
 Both are command aliases defined in `build.sbt`. Besides the modules that `root` aggregates, they cover the build
 definition and the `experiments` module, which `root` doesn't aggregate.
 
+CI's `lint` job runs `sbt lint` on every pull request, in parallel with the tests.
+
 ### Pre-commit hook
 
 The pre-commit hook in [`.githooks/`](../../.githooks/pre-commit) formats the staged `.scala` and `.sbt` files with the
@@ -87,8 +89,8 @@ cs install scalafmt
 ```
 
 The tool downloads the scalafmt version that `.scalafmt.conf` pins. If it isn't installed, the hook skips formatting
-with a message. If a staged file doesn't parse, the hook prints scalafmt's error and aborts the commit, leaving the
-other staged files formatted in the working tree but not re-staged.
+with a message, and CI's `lint` job catches unformatted code instead. If a staged file doesn't parse, the hook prints
+scalafmt's error and aborts the commit, leaving the other staged files formatted in the working tree but not re-staged.
 
 The hook formats the working-tree copy of each staged file, not its staged content, and then re-stages the whole file.
 So a partial commit (`git add -p`) also includes the file's unstaged hunks, and is aborted when those hunks make the

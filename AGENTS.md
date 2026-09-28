@@ -34,6 +34,7 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts.
+    - **Lint**. Run `sbtn fix` to format the code, then make sure `sbtn lint` passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
   skill).
 - If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
