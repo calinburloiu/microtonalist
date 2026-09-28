@@ -42,8 +42,8 @@ trait JsonFormatTestUtils extends AnyWordSpec with Matchers with Inside with Tab
    * Asserts that a JSON value is correctly deserialized using the provided `Reads` instance and matches the expected
    * result.
    *
-   * @param reads       A `Reads` instance used to deserialize the JSON.
-   * @param json        The JSON value to be deserialized.
+   * @param reads A `Reads` instance used to deserialize the JSON.
+   * @param json The JSON value to be deserialized.
    * @param matchResult A function to validate that the actual result matches the expected result.
    */
   def matchReads[A](reads: Reads[A], json: JsValue, matchResult: A => Unit): Unit = {
@@ -102,16 +102,17 @@ trait JsonFormatTestUtils extends AnyWordSpec with Matchers with Inside with Tab
   }
 
   /**
-   * Method that can be used for testing error handling at property level by using a table to check errors returned
-   * when invalid values are passed to various properties.
+   * Method that can be used for testing error handling at property level by using a table to check errors returned when
+   * invalid values are passed to various properties.
    *
-   * @param reads        JSON deserializer.
+   * @param reads JSON deserializer.
    * @param baselineJson A JSON that should be successfully deserialized as it is which will be modified according to
-   *                     the second column of the table at the [[JsPath]] of the first column.
-   * @param table        A test table with the following columns:
-   *               - Path where `baselineJson` will be modified to be invalid.
-   *               - Check to be performed which will produce various failures at the given path.
-   *               - Expected error message.
+   *   the second column of the table at the [[JsPath]] of the first column.
+   * @param table
+   *   A test table with the following columns:
+   *   - Path where `baselineJson` will be modified to be invalid.
+   *   - Check to be performed which will produce various failures at the given path.
+   *   - Expected error message.
    * @tparam A Type to be deserialized.
    */
   def assertReadsFailureTable[A](reads: Reads[A],

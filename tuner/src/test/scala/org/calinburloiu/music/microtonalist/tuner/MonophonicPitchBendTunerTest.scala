@@ -123,7 +123,7 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
       output should not be empty
 
       val ccMessages: Seq[(Int, Int)] = collectCcMessages(output)
-      ccMessages should contain inOrderOnly(
+      ccMessages should contain inOrderOnly (
         (MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
         (MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
         (MidiCc.DataEntryMsb, customPitchBendSensitivity.semitones),
@@ -199,17 +199,17 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
     "always output messages to the same configured channel, " +
       "regardless of the channel on which they were received" in new Fixture {
-      // Use a microtonal tuning such that pitch bend messages are also send
-      output ++= tuner.tune(customTuning2)
+        // Use a microtonal tuning such that pitch bend messages are also send
+        output ++= tuner.tune(customTuning2)
 
-      for (note <- MidiNote.C4.number to MidiNote.C5.number; channel = note % 12) {
-        output ++= sendNote(note, channel)
+        for (note <- MidiNote.C4.number to MidiNote.C5.number; channel = note % 12) {
+          output ++= sendNote(note, channel)
+        }
+
+        output should not be empty
+        pitchBendOutput should not be empty
+        channelMessageOutput.map(_.channel).forall(_ == outputChannel) should be(true)
       }
-
-      output should not be empty
-      pitchBendOutput should not be empty
-      channelMessageOutput.map(_.channel).forall(_ == outputChannel) should be(true)
-    }
   }
 
   "MonophonicPitchBendTuner when the tuning is changed" should {
@@ -223,12 +223,12 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
     "not send pitch bend if there is no note on " +
       "and the tuning of the last note on does not change" in new Fixture {
-      sendNote(noteC4)
+        sendNote(noteC4)
 
-      output ++= tuner.tune(customTuning)
+        output ++= tuner.tune(customTuning)
 
-      output shouldBe empty
-    }
+        output shouldBe empty
+      }
 
     "send pitch bend if a note is on and its tuning changes" in new Fixture {
       tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
@@ -255,13 +255,13 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
     "not send pitch bend if there is no note on " +
       "and the tuning of the last note on changes" in new Fixture {
-      // Note: Internally the pitch bend value changes for consistency, but it is not sent
-      sendNote(noteE4)
+        // Note: Internally the pitch bend value changes for consistency, but it is not sent
+        sendNote(noteE4)
 
-      output ++= tuner.tune(customTuning)
+        output ++= tuner.tune(customTuning)
 
-      output shouldBe empty
-    }
+        output shouldBe empty
+      }
   }
 
   "MonophonicPitchBendTuner when asked whether it can tune a tuning" should {
@@ -288,40 +288,41 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
     "tell that it can tune exactly a tuning beyond its default pitch bend sensitivity after an RPN " +
       "raised it" in new Fixture {
-      // Given
-      sendPitchBendSensitivity(tonePitchBendSensitivity)
+        // Given
+        sendPitchBendSensitivity(tonePitchBendSensitivity)
 
-      // When / Then
-      tuner.canTune(tuningBeyondASemitone) shouldBe true
-    }
+        // When / Then
+        tuner.canTune(tuningBeyondASemitone) shouldBe true
+      }
 
     "tell that it cannot tune exactly a tuning beyond its default pitch bend sensitivity again after a " +
       "reset" in new Fixture {
-      // Given
-      sendPitchBendSensitivity(tonePitchBendSensitivity)
+        // Given
+        sendPitchBendSensitivity(tonePitchBendSensitivity)
 
-      // When
-      tuner.reset()
+        // When
+        tuner.reset()
 
-      // Then
-      tuner.canTune(tuningBeyondASemitone) shouldBe false
-    }
+        // Then
+        tuner.canTune(tuningBeyondASemitone) shouldBe false
+      }
   }
 
   "MonophonicPitchBendTuner on reset" should {
     "only reset the pitch bend to 0 and configure the pitch bend sensitivity when no note is sounding, although a " +
       "tuning is set" in new Fixture {
-      // Given
-      tuner.tune(customTuning2)
-      sendNote(noteE4)
+        // Given
+        tuner.tune(customTuning2)
+        sendNote(noteE4)
 
-      // When
-      output ++= tuner.reset()
+        // When
+        output ++= tuner.reset()
 
-      // Then
-      midiOutput shouldEqual PitchBendMidiMsg(outputChannel, 0) +:
-        PitchBendSensitivityMessages.create(outputChannel, pitchBendSensitivity)
-    }
+        // Then
+        midiOutput shouldEqual
+          PitchBendMidiMsg(outputChannel, 0) +:
+          PitchBendSensitivityMessages.create(outputChannel, pitchBendSensitivity)
+      }
 
     "stop the sounding note first" in new Fixture {
       // Given
@@ -710,20 +711,20 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
     "clamp the pitch bend to min/max value if adding received pitch bend to tuning pitch bend " +
       "exceeds the bounds" in new Fixture {
-      tuner.tune(customTuning)
+        tuner.tune(customTuning)
 
-      output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MaxValue - 1))
-      output ++= sendNote(noteDFlat4)
-      pitchBendOutput should have size 2
-      pitchBendOutput(1).value should equal(PitchBendMidiMsg.MaxValue)
+        output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MaxValue - 1))
+        output ++= sendNote(noteDFlat4)
+        pitchBendOutput should have size 2
+        pitchBendOutput(1).value should equal(PitchBendMidiMsg.MaxValue)
 
-      output.clear()
+        output.clear()
 
-      output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MinValue + 1))
-      output ++= sendNote(noteA4)
-      pitchBendOutput should have size 2
-      pitchBendOutput(1).value should equal(PitchBendMidiMsg.MinValue)
-    }
+        output ++= tuner.process(PitchBendMidiMsg(inputChannel, PitchBendMidiMsg.MinValue + 1))
+        output ++= sendNote(noteA4)
+        pitchBendOutput should have size 2
+        pitchBendOutput(1).value should equal(PitchBendMidiMsg.MinValue)
+      }
   }
 
   "MonophonicPitchBendTuner when non-tuning-related MIDI messages are received" should {
@@ -895,19 +896,19 @@ class MonophonicPitchBendTunerTest extends AnyWordSpec with Matchers with Inside
 
     "clamp the tuning of the note held before the last one released after an RPN lowered the sensitivity below " +
       "its offset" in new Fixture(tonePitchBendSensitivity) {
-      // Given
-      tuner.tune(tuningWithEBeyondASemitone)
-      tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
-      tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
-      sendPitchBendSensitivity(semitonePitchBendSensitivity)
+        // Given
+        tuner.tune(tuningWithEBeyondASemitone)
+        tuner.process(NoteOnMidiMsg(inputChannel, noteE4))
+        tuner.process(NoteOnMidiMsg(inputChannel, noteC4))
+        sendPitchBendSensitivity(semitonePitchBendSensitivity)
 
-      // When
-      output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4))
+        // When
+        output ++= tuner.process(NoteOffMidiMsg(inputChannel, noteC4))
 
-      // Then
-      pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
-      inside(midiOutput.last) { case NoteOnMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteE4 }
-    }
+        // Then
+        pitchBendOutput shouldEqual Seq(PitchBendMidiMsg(outputChannel, PitchBendMidiMsg.MaxValue))
+        inside(midiOutput.last) { case NoteOnMidiMsg(`outputChannel`, note, _) => note.number shouldEqual noteE4 }
+      }
 
     "warn when an RPN lowers the sensitivity below the tuning" in new Fixture(tonePitchBendSensitivity) {
       // Given

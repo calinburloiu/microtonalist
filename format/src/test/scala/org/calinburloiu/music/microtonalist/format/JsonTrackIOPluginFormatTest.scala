@@ -53,7 +53,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
   private val deviceFailureTableRows = midiDeviceIdFailureTableRows ++ channelFailureTableRows
   private val deviceFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    deviceFailureTableRows *
+    deviceFailureTableRows*
   )
 
   "DeviceTrackInputSpec JSON plugin format" should {
@@ -82,7 +82,7 @@ class JsonTrackInputSpecPluginFormatTest extends JsonFormatTestUtils {
   ) ++ channelFailureTableRows
   private val fromTrackInputFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    fromTrackInputFailureTableRows *
+    fromTrackInputFailureTableRows*
   )
 
   "FromTrackInputSpec JSON plugin format" should {
@@ -117,7 +117,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
   private val deviceFailureTableRows = midiDeviceIdFailureTableRows ++ channelFailureTableRows
   private val deviceFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    deviceFailureTableRows *
+    deviceFailureTableRows*
   )
 
   "DeviceTrackOutputSpec JSON plugin format" should {
@@ -146,7 +146,7 @@ class JsonTrackOutputSpecPluginFormatTest extends JsonFormatTestUtils {
   ) ++ channelFailureTableRows
   private val toTrackOutputFailureTable = Table[JsPath, JsonFailureCheck, String](
     ("jsonPath", "failureCheck", "errorKey"),
-    toTrackOutputFailureTableRows *
+    toTrackOutputFailureTableRows*
   )
 
   "FromTrackOutputSpec JSON plugin format" should {

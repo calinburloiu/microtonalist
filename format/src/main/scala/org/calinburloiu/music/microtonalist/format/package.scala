@@ -42,15 +42,15 @@ package object format {
   }
 
   /**
-   * When a resource is loaded, its URI will be used as the base URI for all resources referred inside it. That base
-   * URI may be overridden to further simplify the URIs referred inside it.
+   * When a resource is loaded, its URI will be used as the base URI for all resources referred inside it. That base URI
+   * may be overridden to further simplify the URIs referred inside it.
    *
    * E.g., A composition resource is loaded from file:///Users/john/Music/composition.mtlist. All scales referenced
    * inside it will use its URI as base URI. So a scale from file:///Users/john/Music/scales/rast.jscl can be referenced
    * as simply "scales/rast.jscl". But this relative URI can be further simplified by defining an override URI
    * "scales/". Then, the same scale may be referenced as simply "rast.jscl".
    *
-   * @param baseUri         The base URI of the resource being loaded.
+   * @param baseUri The base URI of the resource being loaded.
    * @param overrideBaseUri The override base URI to be used for internal resources of the resource being loaded.
    * @return an override base URI resolved against the initial base URI.
    */
@@ -66,7 +66,7 @@ package object format {
   /**
    * Maps a URL with `microtonalist` scheme to the actual URL as configured via `libraryBaseUrl`
    *
-   * @param url            URL of a resource from the library.
+   * @param url URL of a resource from the library.
    * @param libraryBaseUrl Base URL of the library.
    * @return the actual URL.
    */
@@ -92,9 +92,9 @@ package object format {
 
   /**
    * Format for a MIDI Control Change controller number, between 0 and
-   * [[org.calinburloiu.music.scmidi.message.MidiRequirements.MaxControllerNumber]] (119). MIDI 1.0 reserves 120-127
-   * for the Channel Mode messages, which are not controllers, so they are rejected. Do not use it for other 7-bit
-   * MIDI values — [[uint7Format]] covers the full 0-127 range.
+   * [[org.calinburloiu.music.scmidi.message.MidiRequirements.MaxControllerNumber]] (119). MIDI 1.0 reserves 120-127 for
+   * the Channel Mode messages, which are not controllers, so they are rejected. Do not use it for other 7-bit MIDI
+   * values — [[uint7Format]] covers the full 0-127 range.
    */
   lazy val ccNumberFormat: Format[Int] = {
     val reads = __.read[Int](min(0) keepAnd max(MidiRequirements.MaxControllerNumber)) orElse

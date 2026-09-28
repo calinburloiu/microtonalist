@@ -36,9 +36,9 @@ private[tuner] enum MpeChannelRole {
   case Member(zone: MpeZone)
 
   /**
-   * Under no Zone's control, in either input mode: an MPE input channel outside every enabled Zone, and — when no
-   * Zone is enabled at all — every channel in both input modes. The paper's "Messages Outside the Zone Structure"
-   * section discards everything received here, an MCM on MIDI Channel 1 or 16 excepted (1-based).
+   * Under no Zone's control, in either input mode: an MPE input channel outside every enabled Zone, and — when no Zone
+   * is enabled at all — every channel in both input modes. The paper's "Messages Outside the Zone Structure" section
+   * discards everything received here, an MCM on MIDI Channel 1 or 16 excepted (1-based).
    */
   case Outside
 }
@@ -51,17 +51,17 @@ private[tuner] enum MpeRoutingVerdict {
   case Discard
 
   /**
-   * Relay the message unmodified, on the given output channel: the Master Channel of the Zone the deciding role
-   * belongs to, which for a [[MpeChannelRole.Master]] is the arrival channel itself.
+   * Relay the message unmodified, on the given output channel: the Master Channel of the Zone the deciding role belongs
+   * to, which for a [[MpeChannelRole.Master]] is the arrival channel itself.
    */
   case ForwardOn(channel: Int)
 
   /**
-   * Re-emit a Registered or Non-Registered Parameter sequence of the Tuner's own — the value message, preceded by
-   * the selector whenever the parameter selected on the output channel changes, via
-   * [[MpeMessageRouting.rpnSequence]] — for a value message of a parameter the Tuner does not interpret. The
-   * sender's own selector CCs are discarded rather than relayed, which is what keeps interleaved RPN/NRPN streams
-   * from different input channels from being merged into one another on a shared output channel.
+   * Re-emit a Registered or Non-Registered Parameter sequence of the Tuner's own — the value message, preceded by the
+   * selector whenever the parameter selected on the output channel changes, via [[MpeMessageRouting.rpnSequence]] — for
+   * a value message of a parameter the Tuner does not interpret. The sender's own selector CCs are discarded rather
+   * than relayed, which is what keeps interleaved RPN/NRPN streams from different input channels from being merged into
+   * one another on a shared output channel.
    */
   case ForwardRpnSequenceOn(channel: Int)
 
@@ -70,23 +70,23 @@ private[tuner] enum MpeRoutingVerdict {
 }
 
 /**
- * The MPE Tuner's MIDI message routing and filtering rules, as pure functions of the channel's role, the message
- * and the channel's currently selected Registered or Non-Registered Parameter.
+ * The MPE Tuner's MIDI message routing and filtering rules, as pure functions of the channel's role, the message and
+ * the channel's currently selected Registered or Non-Registered Parameter.
  *
- * This object holds no state: everything it needs is passed in, which is what lets the paper's message-handling
- * table be read straight off [[route]].
+ * This object holds no state: everything it needs is passed in, which is what lets the paper's message-handling table
+ * be read straight off [[route]].
  */
 private[tuner] object MpeMessageRouting {
 
   /**
    * Classifies a channel within a Zone configuration.
    *
-   * In Non-MPE Input Mode the input carries no Zone structure of its own, so every channel takes the same role,
-   * naming the Zone its Zone-level messages are routed to: the Lower Zone when enabled, otherwise the Upper Zone.
+   * In Non-MPE Input Mode the input carries no Zone structure of its own, so every channel takes the same role, naming
+   * the Zone its Zone-level messages are routed to: the Lower Zone when enabled, otherwise the Upper Zone.
    *
    * @param inputMode The Tuner's current input mode.
-   * @param zones     The Tuner's current Zone configuration.
-   * @param channel   The 0-indexed MIDI channel to classify.
+   * @param zones The Tuner's current Zone configuration.
+   * @param channel The 0-indexed MIDI channel to classify.
    */
   def roleOf(inputMode: MpeInputMode, zones: MpeZones, channel: Int): MpeChannelRole = inputMode match {
     case MpeInputMode.NonMpe =>
@@ -107,17 +107,16 @@ private[tuner] object MpeMessageRouting {
   }
 
   /**
-   * Decides what to do with a channel message, implementing the rows of the paper's message-handling table, row by
-   * row: the message supplies the row, the role the column. The table's RPN/NRPN rows discard every selector CC,
-   * re-emit a value message of an uninterpreted parameter as a sequence of the Tuner's own via [[rpnSequence]], and
-   * ignore an invalid MCM's parameter traffic in its entirety.
+   * Decides what to do with a channel message, implementing the rows of the paper's message-handling table, row by row:
+   * the message supplies the row, the role the column. The table's RPN/NRPN rows discard every selector CC, re-emit a
+   * value message of an uninterpreted parameter as a sequence of the Tuner's own via [[rpnSequence]], and ignore an
+   * invalid MCM's parameter traffic in its entirety.
    *
-   * @param role        The role of the channel the message arrived on, from [[roleOf]].
-   * @param message     The received message.
-   * @param rpnSelector The parameter currently selected on the arrival channel, which is what distinguishes an MCM
-   *                    Data Entry from a Pitch Bend Sensitivity one from uninterpreted parameter traffic. It must
-   *                    already account for the message being routed — [[MpeTuner]] feeds every message to its
-   *                    tracker before dispatching it.
+   * @param role The role of the channel the message arrived on, from [[roleOf]].
+   * @param message The received message.
+   * @param rpnSelector The parameter currently selected on the arrival channel, which is what distinguishes an MCM Data
+   *   Entry from a Pitch Bend Sensitivity one from uninterpreted parameter traffic. It must already account for the
+   *   message being routed — [[MpeTuner]] feeds every message to its tracker before dispatching it.
    */
   def route(role: MpeChannelRole,
             message: ChannelMidiMsg,
@@ -125,19 +124,19 @@ private[tuner] object MpeMessageRouting {
     case msg: CcMidiMsg => routeCc(role, msg, rpnSelector)
     case msg: ChannelModeMidiMsg => routeChannelMode(role, msg)
     case _: NoteMidiMsg => role match {
-      case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
-      case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
-      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
-    }
+        case MpeChannelRole.Member(_) | MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
+        case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
+        case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+      }
     // The first two of the three per-note control dimensions; CC #74 is the third, in `routeCc`.
     case _: PitchBendMidiMsg | _: ChannelPressureMidiMsg => routeControlDimension(role)
     case _: PolyPressureMidiMsg => role match {
-      // Forbidden on a Member Channel by the MPE Specification; converted to Channel Pressure for a non-MPE input.
-      case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
-      case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
-      case MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
-      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
-    }
+        // Forbidden on a Member Channel by the MPE Specification; converted to Channel Pressure for a non-MPE input.
+        case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
+        case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardOn(zone.masterChannel)
+        case MpeChannelRole.NonMpeInput(_) => MpeRoutingVerdict.Interpret
+        case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+      }
     case _: ProgramChangeMidiMsg => routeZoneLevel(role)
   }
 
@@ -180,10 +179,10 @@ private[tuner] object MpeMessageRouting {
   /**
    * Routes a Channel Mode message.
    *
-   * The four MIDI Mode messages — Omni Mode Off and On, Mono Mode On and Poly Mode On — are discarded at every role
-   * in both input modes: the Tuner is fixed-mode on both sides, and a Mono Mode On reaching an output Member Channel
-   * would turn every shared allocation into a note drop. The other four — All Sound Off, Reset All Controllers,
-   * Local Control and All Notes Off — are ordinary Zone-level traffic.
+   * The four MIDI Mode messages — Omni Mode Off and On, Mono Mode On and Poly Mode On — are discarded at every role in
+   * both input modes: the Tuner is fixed-mode on both sides, and a Mono Mode On reaching an output Member Channel would
+   * turn every shared allocation into a note drop. The other four — All Sound Off, Reset All Controllers, Local Control
+   * and All Notes Off — are ordinary Zone-level traffic.
    */
   private def routeChannelMode(role: MpeChannelRole, msg: ChannelModeMidiMsg): MpeRoutingVerdict = msg match {
     case _: OmniModeOffMidiMsg | _: OmniModeOnMidiMsg | _: MonoModeOnMidiMsg | _: PolyModeOnMidiMsg =>
@@ -195,11 +194,11 @@ private[tuner] object MpeMessageRouting {
    * Routes a Data Entry, Data Increment or Data Decrement, to which the currently selected parameter gives meaning.
    *
    * Two parameters get special treatment. The MCM is accepted only as a Data Entry MSB on MIDI Channel 1 or 16
-   * (1-based) — the MPE Specification does not use its LSB — carrying a Member Channel count a Zone can hold, and
-   * an MCM that fails any of those tests is ignored in its entirety, its selector having already been consumed above.
+   * (1-based) — the MPE Specification does not use its LSB — carrying a Member Channel count a Zone can hold, and an
+   * MCM that fails any of those tests is ignored in its entirety, its selector having already been consumed above.
    * Pitch Bend Sensitivity is accepted at every role but `Outside`. A Data Increment or Decrement of either is
-   * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's
-   * stored value from the receiver's, since the Tuner does not interpret the increment.
+   * discarded: neither the paper nor the MPE Specification covers it, and relaying one would desync the Tuner's stored
+   * value from the receiver's, since the Tuner does not interpret the increment.
    *
    * A value message is discarded when no parameter is selected, which [[MidiChannelStateTracker]] reports for a
    * parameter with a selector CC still to arrive as much as for one deselected by a Null: it records no value for
@@ -221,19 +220,19 @@ private[tuner] object MpeMessageRouting {
       }
     case RpnSelector.None => MpeRoutingVerdict.Discard
     case _ => role match {
-      case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
-      case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
-      case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
-      case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
-    }
+        case MpeChannelRole.Member(_) => MpeRoutingVerdict.Discard
+        case MpeChannelRole.Master(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
+        case MpeChannelRole.NonMpeInput(zone) => MpeRoutingVerdict.ForwardRpnSequenceOn(zone.masterChannel)
+        case MpeChannelRole.Outside => MpeRoutingVerdict.Discard
+      }
   }
 
   /**
    * Whether the MCM this Data Entry MSB carries is valid: received on MIDI Channel 1 or 16 (1-based), whatever the
    * channel's current role, and requesting a number of Member Channels a Zone can hold.
    *
-   * The count is checked here rather than left to [[MpeZone]]'s own `require`, which would throw out of the Tuner
-   * and into the MIDI transmitter's thread for a value the input is free to send.
+   * The count is checked here rather than left to [[MpeZone]]'s own `require`, which would throw out of the Tuner and
+   * into the MIDI transmitter's thread for a value the input is free to send.
    */
   private def isValidMcm(msg: CcMidiMsg): Boolean =
     (msg.channel == 0 || msg.channel == 15) && MpeZone.isValidMemberCount(msg.value)
@@ -250,22 +249,22 @@ private[tuner] object MpeMessageRouting {
    * Whether relaying `msg` unmodified deselects the parameter the receiving channel holds, obliging the caller to
    * forget what it last left selected there.
    *
-   * Reset All Controllers is the case that arises in ordinary traffic: the paper forwards it unmodified onto the
-   * very output Master Channel a relayed sequence latches its selector on, and a conformant receiver responds to it
-   * by returning its parameter selection to Null. The Tuner therefore authors the parameter selected on its output
+   * Reset All Controllers is the case that arises in ordinary traffic: the paper forwards it unmodified onto the very
+   * output Master Channel a relayed sequence latches its selector on, and a conformant receiver responds to it by
+   * returning its parameter selection to Null. The Tuner therefore authors the parameter selected on its output
    * channels without authoring every message that changes it, which is what this predicate exists to catch.
    *
    * This is a statement about the ''receiver'', not about the Tuner's own view of its input.
    * [[MidiChannelStateTracker]] can model the same response, but only when constructed with
    * `shallRespondToResetMessages`, and [[MpeTuner]] deliberately leaves that off: the paper has the Tuner keep its
    * tracked state across a relayed Reset All Controllers rather than clear it. So the two sides part company here by
-   * design — the output-channel record is dropped while the input channel keeps its selection — and the parting is
-   * safe in the only direction that matters, a dropped record costing a re-emitted selector rather than a value
-   * message riding a selection the receiver no longer holds.
+   * design — the output-channel record is dropped while the input channel keeps its selection — and the parting is safe
+   * in the only direction that matters, a dropped record costing a re-emitted selector rather than a value message
+   * riding a selection the receiver no longer holds.
    *
-   * All Sound Off, All Notes Off and Local Control leave the selection alone and are not included. A System Reset
-   * does deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than
-   * this predicate.
+   * All Sound Off, All Notes Off and Local Control leave the selection alone and are not included. A System Reset does
+   * deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than this
+   * predicate.
    */
   private[tuner] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
     case _: ResetAllControllersMidiMsg => true
@@ -281,31 +280,28 @@ private[tuner] object MpeMessageRouting {
    * parameter selected: selection latches, so a run of value messages of one parameter needs one selector, while two
    * senders sharing an output channel still get a selector each, their parameters differing.
    *
-   * Exactly one value message goes out per value message received. Unlike `PitchBendSensitivityMessages.create`,
-   * which owns the value it sends and therefore always sends both Data Entry halves, the Tuner has no reading of an
+   * Exactly one value message goes out per value message received. Unlike `PitchBendSensitivityMessages.create`, which
+   * owns the value it sends and therefore always sends both Data Entry halves, the Tuner has no reading of an
    * uninterpreted parameter from which to supply a half the sender did not send.
    *
    * No closing RPN Null is appended. The paper's Null rule governs the sequences the Tuner ''originates''; appending
-   * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for
-   * NRPN traffic.
+   * one to a relayed sequence would invent protocol the sender never sent, and would have to be an NRPN Null for NRPN
+   * traffic.
    *
-   * The new latched selector is returned alongside the sequence rather than left for the caller to infer, so that
-   * what the output channel now holds selected cannot drift from what was actually emitted on it.
+   * The new latched selector is returned alongside the sequence rather than left for the caller to infer, so that what
+   * the output channel now holds selected cannot drift from what was actually emitted on it.
    *
-   * @param selector        The parameter selected on the input channel, from
-   *                        [[MidiChannelStateTracker.rpnSelector]].
-   * @param valueCc         The received value message: Data Entry MSB or LSB, Data Increment or Data Decrement. Its
-   *                        channel is the input's and is remapped to `outputChannel`; only its number and value are
-   *                        carried through.
-   * @param outputChannel   The channel the whole sequence is emitted on.
-   * @param latchedSelector The parameter the Tuner last left selected on `outputChannel`, or [[RpnSelector.None]]
-   *                        when it does not know. Only a caller that records ''every'' sequence it emits on that
-   *                        channel — the closing RPN Nulls of the Tuner's own MCM and Pitch Bend Sensitivity
-   *                        sequences included — may pass anything else, a stale value being what would let a value
-   *                        message ride a selection the Null has since cleared.
-   * @return the sequence and the parameter `outputChannel` holds selected after it, which the caller must record.
-   *         The sequence is empty, and the latched selector unchanged, when no parameter is selected and no
-   *         sequence can be formed.
+   * @param selector The parameter selected on the input channel, from [[MidiChannelStateTracker.rpnSelector]].
+   * @param valueCc The received value message: Data Entry MSB or LSB, Data Increment or Data Decrement. Its channel is
+   *   the input's and is remapped to `outputChannel`; only its number and value are carried through.
+   * @param outputChannel The channel the whole sequence is emitted on.
+   * @param latchedSelector The parameter the Tuner last left selected on `outputChannel`, or [[RpnSelector.None]] when
+   *   it does not know. Only a caller that records ''every'' sequence it emits on that channel — the closing RPN Nulls
+   *   of the Tuner's own MCM and Pitch Bend Sensitivity sequences included — may pass anything else, a stale value
+   *   being what would let a value message ride a selection the Null has since cleared.
+   * @return the sequence and the parameter `outputChannel` holds selected after it, which the caller must record. The
+   *   sequence is empty, and the latched selector unchanged, when no parameter is selected and no sequence can be
+   *   formed.
    */
   def rpnSequence(selector: RpnSelector,
                   valueCc: CcMidiMsg,

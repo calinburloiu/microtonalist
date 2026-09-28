@@ -44,10 +44,10 @@ object MicrotonalistToolApp {
           midiManager.close()
         }
       case _ => println(
-        """Usage:
+          """Usage:
           |midi-devices    prints all available MIDI devices
           |""".stripMargin
-      )
+        )
     }
   }
 }

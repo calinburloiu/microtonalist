@@ -17,21 +17,19 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 /**
- * Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and 
+ * Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and
  * tuning configuration.
  *
- * @param id             Unique identifier of a track.
- * @param name           User defined name of a track. Character `"#"` will be substituted with the 1-based track
- *                       index. If the
- *                       user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
- * @param input          Plugin used to configure the track input.
+ * @param id Unique identifier of a track.
+ * @param name User defined name of a track. Character `"#"` will be substituted with the 1-based track index. If the
+ *   user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
+ * @param input Plugin used to configure the track input.
  * @param tuningChangers A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
- *                       not. The decision is of the first one that returns an effective [[TuningChange]], so the
- *                       decision is taken by an OR operator. Note that if none decides to trigger a change, no change
- *                       will be performed.
- * @param tuner          An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
- * @param output         Plugin used to configure the track output.
- * @param muted          Tells whether the plugin is muted or not.
+ *   not. The decision is of the first one that returns an effective [[TuningChange]], so the decision is taken by an OR
+ *   operator. Note that if none decides to trigger a change, no change will be performed.
+ * @param tuner An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
+ * @param output Plugin used to configure the track output.
+ * @param muted Tells whether the plugin is muted or not.
  */
 case class TrackSpec(id: TrackSpec.Id,
                      name: String,
@@ -94,13 +92,13 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
    *
    * @param index The 0-based index of the desired `TrackSpec` in the collection.
    * @return An `Option` containing the `TrackSpec` at the given index if it exists, or `None` if the index is out of
-   *         bounds.
+   *   bounds.
    */
   def get(index: Int): Option[TrackSpec] = tracks.lift(index)
 
   /**
-   * Retrieves the name of the track corresponding to the specified ID, substituting `"#"` with the track number
-   * (`index + 1`). If the user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
+   * Retrieves the name of the track corresponding to the specified ID, substituting `"#"` with the track number (`index
+   * + 1`). If the user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
    *
    * @param id The unique identifier of the track whose name is to be retrieved.
    * @return an option containing the track name with indexed placeholders replaced, or None if the ID does not exist.
@@ -162,13 +160,13 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
   def ids: Seq[TrackSpec.Id] = tracks.map(_.id)
 
   /**
-   * Adds the specified track to the TrackSpecs collection before the track specified by `beforeId`.
-   * If `beforeId` is not provided, or it doesn't exist, the track will be added to the end of the collection.
-   * If a track with the same ID already exists in the collection, no changes are made.
+   * Adds the specified track to the TrackSpecs collection before the track specified by `beforeId`. If `beforeId` is
+   * not provided, or it doesn't exist, the track will be added to the end of the collection. If a track with the same
+   * ID already exists in the collection, no changes are made.
    *
-   * @param track    The `TrackSpec` to be added.
-   * @param beforeId The optional ID of the track before which the specified track should be added.
-   *                 If `None` or non-existent, the track is added at the end of the collection.
+   * @param track The `TrackSpec` to be added.
+   * @param beforeId The optional ID of the track before which the specified track should be added. If `None` or
+   *   non-existent, the track is added at the end of the collection.
    * @return A new `TrackSpecs` object, or the same instance if nothing changed.
    */
   def addBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): TrackSpecs = {
@@ -210,15 +208,15 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
   private def _update(index: Int, track: TrackSpec): TrackSpecs = copy(tracks = tracks.updated(index, track))
 
   /**
-   * Moves a track with the specified ID to a position before another track identified by `beforeId`.
-   * If the `idToMove` is not found, no changes are made. If `beforeId` is not provided or does not exist,
-   * the track is moved to the end of the collection.
+   * Moves a track with the specified ID to a position before another track identified by `beforeId`. If the `idToMove`
+   * is not found, no changes are made. If `beforeId` is not provided or does not exist, the track is moved to the end
+   * of the collection.
    *
    * @param idToMove The unique identifier of the track to be moved.
    * @param beforeId An optional unique identifier of the track before which the `idToMove` track should be positioned.
-   *                 If `None` or non-existent, the track is moved to the end of the collection.
-   * @return A new `TrackSpecs` object with the track moved to the desired position, or the same instance
-   *         if the `idToMove` is not found.
+   *   If `None` or non-existent, the track is moved to the end of the collection.
+   * @return A new `TrackSpecs` object with the track moved to the desired position, or the same instance if the
+   *   `idToMove` is not found.
    */
   def moveBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): TrackSpecs = get(idToMove) match {
     case None => this
@@ -226,8 +224,8 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
   }
 
   /**
-   * Removes the track with the specified unique identifier from the collection.
-   * If no track with the given ID exists, the collection remains unchanged and is returned as is.
+   * Removes the track with the specified unique identifier from the collection. If no track with the given ID exists,
+   * the collection remains unchanged and is returned as is.
    *
    * @param id The unique identifier of the `TrackSpec` to be removed.
    * @return A new `TrackSpecs` object without the specified track, or the same instance if the track does not exist.

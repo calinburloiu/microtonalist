@@ -21,9 +21,8 @@ import org.calinburloiu.music.scmidi.MidiNote
 /**
  * A note together with its origin: the pair (input channel, note number).
  *
- * The input channel belongs in a note's identity because it is the carrier of per-note information in both
- * input modes — of a note's Expression Values in MPE Input Mode, and of the Polyphonic Key Pressure
- * addressed to a note in Non-MPE Input Mode — so two notes with the same note number arriving on different
- * input channels are independent notes.
+ * The input channel belongs in a note's identity because it is the carrier of per-note information in both input modes
+ * — of a note's Expression Values in MPE Input Mode, and of the Polyphonic Key Pressure addressed to a note in Non-MPE
+ * Input Mode — so two notes with the same note number arriving on different input channels are independent notes.
  */
 private[tuner] case class MpeNoteIdentity(inputChannel: Int, midiNote: MidiNote)

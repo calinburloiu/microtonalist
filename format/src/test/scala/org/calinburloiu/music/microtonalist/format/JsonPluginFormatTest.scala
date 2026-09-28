@@ -60,17 +60,19 @@ class JsonPluginFormatTest extends JsonFormatTestUtils {
       FamilyNameAnimals,
       Seq(
         JsonPluginFormat.TypeSpec.withSettings[Domestic](TypeNameDomestic, Json.format[Domestic], classOf[Domestic]),
-        JsonPluginFormat.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest], Json
-          .obj(
-            "rabbit" -> "Bugs Bunny",
-            "squirrel" -> "Nutz",
-            "wolf" -> "White Fang"
-          )),
-        JsonPluginFormat.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle], Json
-          .obj(
-            "lion" -> "King",
-            "snake" -> "Monty"
-          )),
+        JsonPluginFormat.TypeSpec.withSettings[Forest](TypeNameForest, Json.format[Forest], classOf[Forest],
+          Json
+            .obj(
+              "rabbit" -> "Bugs Bunny",
+              "squirrel" -> "Nutz",
+              "wolf" -> "White Fang"
+            )),
+        JsonPluginFormat.TypeSpec.withSettings[Jungle](TypeNameJungle, Json.format[Jungle], classOf[Jungle],
+          Json
+            .obj(
+              "lion" -> "King",
+              "snake" -> "Monty"
+            )),
         JsonPluginFormat.TypeSpec.withoutSettings(TypeNameSea, Sea)
       ),
       defaultTypeName

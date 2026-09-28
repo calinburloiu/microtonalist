@@ -21,8 +21,8 @@ package org.calinburloiu.music.scmidi
  *
  * A device may work in both directions, or in neither, so all four values describe one.
  *
- * @param name     Descriptive name of the direction.
- * @param isInput  Indicates whether the endpoint supports MIDI input.
+ * @param name Descriptive name of the direction.
+ * @param isInput Indicates whether the endpoint supports MIDI input.
  * @param isOutput Indicates whether the endpoint supports MIDI output.
  */
 enum MidiDirection(val name: String, val isInput: Boolean, val isOutput: Boolean) {
@@ -36,7 +36,7 @@ enum MidiDirection(val name: String, val isInput: Boolean, val isOutput: Boolean
 
 object MidiDirection {
   /**
-   * @param isInput  Whether the endpoint supports MIDI input.
+   * @param isInput Whether the endpoint supports MIDI input.
    * @param isOutput Whether the endpoint supports MIDI output.
    * @return the direction that combines the two capabilities.
    */

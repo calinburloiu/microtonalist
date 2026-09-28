@@ -17,8 +17,8 @@
 package org.calinburloiu.music.scmidi
 
 /**
- * How many transmitters or receivers a MIDI device can open at once, that is, how many consumers can subscribe to
- * the messages it sends or how many producers can send messages to it.
+ * How many transmitters or receivers a MIDI device can open at once, that is, how many consumers can subscribe to the
+ * messages it sends or how many producers can send messages to it.
  *
  * Java Sound encodes "unlimited" as `-1`; the Java Sound implementation maps that to [[Unlimited]], so the API never
  * carries the sentinel. A [[Limited]] count is expected to be non-negative, but the type does not enforce it.
@@ -31,8 +31,8 @@ enum MidiConnectionLimit {
   case Limited(count: Int)
 
   /**
-   * @return whether at least one connection can be opened, that is, whether the device can be used in the
-   *         direction this limit describes.
+   * @return whether at least one connection can be opened, that is, whether the device can be used in the direction
+   *   this limit describes.
    */
   def allowsConnections: Boolean = this match {
     case Unlimited => true

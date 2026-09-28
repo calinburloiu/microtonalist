@@ -23,17 +23,17 @@ import java.net.URI
 import scala.concurrent.Future
 
 /**
- * Repository pattern trait used for retrieving or persisting scales identified by URI. Implementations are
- * responsible for abstracting reading and writing from a particular data source like file, Web or cloud service.
+ * Repository pattern trait used for retrieving or persisting scales identified by URI. Implementations are responsible
+ * for abstracting reading and writing from a particular data source like file, Web or cloud service.
  */
 trait ScaleRepo {
 
   /**
    * Retrieves a scale.
    *
-   * @param uri     Universal resource identifier (URI) for the scale.
+   * @param uri Universal resource identifier (URI) for the scale.
    * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
-   *                certain properties in order to override or fill them when they are missing.
+   *   certain properties in order to override or fill them when they are missing.
    * @return the requested scale
    */
   def read(uri: URI, context: Option[ScaleFormatContext]): Scale[Interval]
@@ -41,9 +41,9 @@ trait ScaleRepo {
   /**
    * Retrieves a scale asynchronously.
    *
-   * @param uri     Universal resource identifier (URI) for the scale.
+   * @param uri Universal resource identifier (URI) for the scale.
    * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
-   *                certain properties in order to override or fill them when they are missing.
+   *   certain properties in order to override or fill them when they are missing.
    * @return a [[Future]] of the requested scale
    */
   def readAsync(uri: URI, context: Option[ScaleFormatContext]): Future[Scale[Interval]]
@@ -51,12 +51,12 @@ trait ScaleRepo {
   /**
    * Persists a scale.
    *
-   * @param scale     scale to be persisted
-   * @param uri       universal resource identifier (URI) for the scale
+   * @param scale scale to be persisted
+   * @param uri universal resource identifier (URI) for the scale
    * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
-   *                  used for identification.
-   * @param context   If writing occurs in a context, such as from a composition file, then a context may be set
-   *                  with certain properties to override them in the serialized scale.
+   *   used for identification.
+   * @param context If writing occurs in a context, such as from a composition file, then a context may be set with
+   *   certain properties to override them in the serialized scale.
    */
   def write(scale: Scale[Interval],
             uri: URI,
@@ -66,12 +66,12 @@ trait ScaleRepo {
   /**
    * Persists a scale asynchronously.
    *
-   * @param scale     scale to be persisted
-   * @param uri       universal resource identifier (URI) for the scale
+   * @param scale scale to be persisted
+   * @param uri universal resource identifier (URI) for the scale
    * @param mediaType the media type that identifies the format of the scale. If not provided, the extension might be
-   *                  used for identification.
-   * @param context   If writing occurs in a context, such as from a composition file, then a context may be set
-   *                  with certain properties to override them in the serialized scale.
+   *   used for identification.
+   * @param context If writing occurs in a context, such as from a composition file, then a context may be set with
+   *   certain properties to override them in the serialized scale.
    * @return a [[Future]] for tracking when the operation finished
    */
   def writeAsync(scale: Scale[Interval],

@@ -34,21 +34,21 @@ import javax.annotation.concurrent.NotThreadSafe
  *   - When the tuner starts to be used with a [[Track]], the [[reset]] method must first be called to configure the
  *     output device to be used with this tuner configuration. For example, a [[Tuner]] based on pitch bend might want
  *     to set the right pitch bend sensitivity.
- *   - Whenever the current tuning changes, [[tune]] must be called with that tuning. The tuner clamps a tuning
- *     beyond its limits to them, which [[canTune]] tells in advance, and logs a warning.
+ *   - Whenever the current tuning changes, [[tune]] must be called with that tuning. The tuner clamps a tuning beyond
+ *     its limits to them, which [[canTune]] tells in advance, and logs a warning.
  *   - All MIDI messages that pass through the [[Track]] must go through the [[process]] method which will output the
  *     right MIDI messages according to the tuner's functionality and configuration.
- *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reconfigure it, while keeping
- *     its current [[tuning]]. For example, it may be called if the MIDI configuration of the output device was
- *     externally modified, and it needs to be reconfigured according to this tuner, or if the output device was
- *     turned off and on again. The method may also be called in case of a bug or issue for troubleshooting purposes
- *     to reset the system state.
+ *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reconfigure it, while keeping its
+ *     current [[tuning]]. For example, it may be called if the MIDI configuration of the output device was externally
+ *     modified, and it needs to be reconfigured according to this tuner, or if the output device was turned off and on
+ *     again. The method may also be called in case of a bug or issue for troubleshooting purposes to reset the system
+ *     state.
  *
- * Implementations provide [[canTune]], [[onReset]] and [[onTune]], which the final [[reset]] and [[tune]] delegate
- * to, so that every tuner keeps its current tuning and restates it on reset.
+ * Implementations provide [[canTune]], [[onReset]] and [[onTune]], which the final [[reset]] and [[tune]] delegate to,
+ * so that every tuner keeps its current tuning and restates it on reset.
  *
  * @see [[TunerProcessor]] a class that uses a [[Tuner]] instance and adds the necessary I/O operations to be able to
- *      actually tune a device.
+ *   actually tune a device.
  */
 @NotThreadSafe
 trait Tuner extends Plugin with StrictLogging {
@@ -58,12 +58,12 @@ trait Tuner extends Plugin with StrictLogging {
    * Optional MIDI output identifier for an alternative MIDI output device designated for sending the MIDI tuning
    * messages.
    *
-   * If specified, this device will be used exclusively for tuning operations instead of the actual MIDI output. If
-   * not, the actual MIDI output will be used.
+   * If specified, this device will be used exclusively for tuning operations instead of the actual MIDI output. If not,
+   * the actual MIDI output will be used.
    *
-   * Note that there are [[Tuner]]s for which setting this to [[Some]] value doesn't make sense, because in their
-   * case tuning values alone do not have any effect without the other messages. This is the case for tuners that use
-   * pitch bend.
+   * Note that there are [[Tuner]]s for which setting this to [[Some]] value doesn't make sense, because in their case
+   * tuning values alone do not have any effect without the other messages. This is the case for tuners that use pitch
+   * bend.
    */
   val altTuningOutput: Option[MidiDeviceId] = None
 
@@ -73,8 +73,8 @@ trait Tuner extends Plugin with StrictLogging {
    * The tuning is kept as it was passed, even if the tuner clamps it to its limits, so that the tuner tunes it exactly
    * again once a limit that clamped it increases.
    *
-   * @return the tuning last passed to [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO
-   *         Tuning if it was never tuned.
+   * @return the tuning last passed to [[tune]], which the tuner keeps across [[reset]]s, or the Standard 12-EDO Tuning
+   *   if it was never tuned.
    */
   final def tuning: Tuning = _tuning
 
@@ -89,7 +89,7 @@ trait Tuner extends Plugin with StrictLogging {
    * that this returns `false` for the current tuning.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
-   *               octave.
+   *   octave.
    * @return `true` if the tuner would apply the tuning exactly, `false` if it would clamp it.
    */
   def canTune(tuning: Tuning): Boolean
@@ -99,16 +99,16 @@ trait Tuner extends Plugin with StrictLogging {
    * [[tuning]], and returns the MIDI messages that should (re)configure the output device to be usable by this tuner,
    * followed by the ones that tune it to the current tuning.
    *
-   * This method ''must'' be called before using the tuner for the first time and the messages returned ''must'' be
-   * sent to the output device to properly work with this tuner. For example, a tuner based on pitch bend requires
-   * the output device to be configured with the correct pitch bend sensitivity. Because it restates the current
-   * tuning, an output device that is reset after it (re)opens plays in that tuning again, not in 12-EDO.
+   * This method ''must'' be called before using the tuner for the first time and the messages returned ''must'' be sent
+   * to the output device to properly work with this tuner. For example, a tuner based on pitch bend requires the output
+   * device to be configured with the correct pitch bend sensitivity. Because it restates the current tuning, an output
+   * device that is reset after it (re)opens plays in that tuning again, not in 12-EDO.
    *
-   * If [[canTune]] does not accept the current tuning once [[onReset]] returned the configuration to its default,
-   * which may decrease a limit of the tuner, the tuner logs a warning and restates the tuning clamped to its limits.
+   * If [[canTune]] does not accept the current tuning once [[onReset]] returned the configuration to its default, which
+   * may decrease a limit of the tuner, the tuner logs a warning and restates the tuning clamped to its limits.
    *
    * @return the MIDI messages returned by [[onReset]], followed by the ones returned by [[onTune]] for the current
-   *         tuning.
+   *   tuning.
    */
   final def reset(): Seq[MidiMsg] = {
     // `onReset` runs first, since it may change the limits that `applyTuning` checks the tuning against
@@ -124,7 +124,7 @@ trait Tuner extends Plugin with StrictLogging {
    * the tuner, which logs a warning.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
-   *               octave.
+   *   octave.
    * @return the MIDI messages returned by [[onTune]] for the tuning.
    */
   final def tune(tuning: Tuning): Seq[MidiMsg] = {
@@ -145,8 +145,8 @@ trait Tuner extends Plugin with StrictLogging {
    * Logs a warning if [[canTune]] does not accept the current [[tuning]], which the tuner then clamps to its limits.
    *
    * [[tune]] and [[reset]] call it, and an implementation must call it after a message passed to [[process]] changes
-   * one of its limits, such as a Pitch Bend Sensitivity RPN, since the tunings cannot be checked against such a
-   * change in advance.
+   * one of its limits, such as a Pitch Bend Sensitivity RPN, since the tunings cannot be checked against such a change
+   * in advance.
    */
   protected final def warnIfCannotTune(): Unit = {
     if (!canTune(_tuning)) {
@@ -159,42 +159,42 @@ trait Tuner extends Plugin with StrictLogging {
    * should (re)configure the output device, as the first part of [[reset]], which then calls [[onTune]] with the
    * current tuning.
    *
-   * The state a tuner derives from its tuning must be reset as well, so that the [[onTune]] call that follows
-   * rebuilds it.
+   * The state a tuner derives from its tuning must be reset as well, so that the [[onTune]] call that follows rebuilds
+   * it.
    *
    * A tuner that tracks what the output device plays must first stop it: it sends a Note Off for every note it has
    * sounding and returns the controls that hold a state, such as the pedals, to their defaults, so that the output
    * device is not left with hanging notes once the state tracking them is cleared.
    *
-   * @return the MIDI messages that stop what the output device plays, if the tuner tracks it, followed by the ones
-   *         that should (re)configure the output device.
+   * @return the MIDI messages that stop what the output device plays, if the tuner tracks it, followed by the ones that
+   *   should (re)configure the output device.
    */
   protected def onReset(): Seq[MidiMsg] = Seq.empty
 
   /**
    * Generates MIDI messages, if any, for tuning an output instrument by using the specified tuning object and
-   * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be
-   * played in that tuning.
+   * potentially stores state about the given tuning such that MIDI notes passed via [[process]] method will be played
+   * in that tuning.
    *
-   * It is called by [[tune]], after the tuning becomes the current [[tuning]], and by [[reset]] to restate the
-   * current tuning. Implementations tune to the `tuning` argument.
+   * It is called by [[tune]], after the tuning becomes the current [[tuning]], and by [[reset]] to restate the current
+   * tuning. Implementations tune to the `tuning` argument.
    *
    * The tuning may be one that [[canTune]] does not accept: [[tune]] applies any tuning, and a limit of the tuner may
    * decrease after a tuning was applied, for example when [[onReset]] returns a Pitch Bend Sensitivity to its default.
    * Implementations must clamp the offsets beyond a limit rather than throw, here as whenever a limit decreases below
    * an offset of the current tuning.
    *
-   * An implementation that sends only what changed from `previousTuning` must send the whole tuning when it is
-   * `None`: [[reset]] restates the tuning to an output device whose tuning is unknown, for example because it was
-   * turned off and on again. `Some` previous tuning is not exactly what the output devices hold either: it is the
-   * [[tuning]] as passed to [[tune]], which the tuner may have clamped to limits that changed since, and
-   * [[TunerProcessor]] tunes the tuner to 12-EDO when it detaches one of its receivers, while the others keep the
-   * previous tuning, until #305 changes that.
+   * An implementation that sends only what changed from `previousTuning` must send the whole tuning when it is `None`:
+   * [[reset]] restates the tuning to an output device whose tuning is unknown, for example because it was turned off
+   * and on again. `Some` previous tuning is not exactly what the output devices hold either: it is the [[tuning]] as
+   * passed to [[tune]], which the tuner may have clamped to limits that changed since, and [[TunerProcessor]] tunes the
+   * tuner to 12-EDO when it detaches one of its receivers, while the others keep the previous tuning, until #305
+   * changes that.
    *
-   * @param tuning         The tuning instance that specifies the offset in cents for each of the 12 pitch classes in
-   *                       the octave.
+   * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
+   *   octave.
    * @param previousTuning `Some` tuning the tuner was in before this call when called by [[tune]], or `None` when
-   *                       called by [[reset]], after which the tuning of the output instrument is unknown.
+   *   called by [[reset]], after which the tuning of the output instrument is unknown.
    * @return the MIDI messages that tune the output instrument.
    */
   protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg]
@@ -204,14 +204,14 @@ trait Tuner extends Plugin with StrictLogging {
    * required to those incoming MIDI messages and generates the right sequence of output MIDI messages to achieve the
    * tuner's goal.
    *
-   * Usually, the goal is to tune the passed MIDI notes to the tuning provided to [[tune]] method (e.g. tuners based
-   * on pitch bend will add pitch bend messages). But some tuners, such as those based on MTS, which send the tuning
-   * in advance, do not alter incoming note messages, but might still want to do some processing to them based on the
+   * Usually, the goal is to tune the passed MIDI notes to the tuning provided to [[tune]] method (e.g. tuners based on
+   * pitch bend will add pitch bend messages). But some tuners, such as those based on MTS, which send the tuning in
+   * advance, do not alter incoming note messages, but might still want to do some processing to them based on the
    * tuner's configuration.
    *
    * @param message The incoming MIDI message to be processed.
-   * @return A sequence of MIDI messages to be sent to the output device, possibly modified
-   *         or generated depending on the tuner's functionality and configuration.
+   * @return A sequence of MIDI messages to be sent to the output device, possibly modified or generated depending on
+   *   the tuner's functionality and configuration.
    */
   def process(message: MidiMsg): Seq[MidiMsg]
 }

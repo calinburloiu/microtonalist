@@ -178,12 +178,15 @@ class TuningTest extends AnyWordSpec with Matchers {
       val tuningWithoutName = Tuning(name = "", offsetOptions = offsets2)
 
       // Then
-      tuningWithName1.merge(tuningWithoutName, mergeTolerance) should contain(Tuning(name = "Foo", offsetOptions =
-        expectedOffsets))
-      tuningWithoutName.merge(tuningWithName1, mergeTolerance) should contain(Tuning(name = "Foo", offsetOptions =
-        expectedOffsets))
-      tuningWithName1.merge(tuningWithName2, mergeTolerance) should contain(Tuning(name = "Foo + Bar", offsetOptions =
-        expectedOffsets))
+      tuningWithName1.merge(tuningWithoutName, mergeTolerance) should contain(Tuning(name = "Foo",
+        offsetOptions =
+          expectedOffsets))
+      tuningWithoutName.merge(tuningWithName1, mergeTolerance) should contain(Tuning(name = "Foo",
+        offsetOptions =
+          expectedOffsets))
+      tuningWithName1.merge(tuningWithName2, mergeTolerance) should contain(Tuning(name = "Foo + Bar",
+        offsetOptions =
+          expectedOffsets))
     }
   }
 }

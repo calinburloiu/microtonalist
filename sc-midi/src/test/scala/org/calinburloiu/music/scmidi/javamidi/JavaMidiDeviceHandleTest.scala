@@ -37,9 +37,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
   private val requestedDirection: MidiDirection = MidiDirection.Output
 
   /**
-   * The failure the fixtures inject into the device. Being shared, it must not be used where the production code
-   * calls `addSuppressed` on it, which mutates it for good: the case that needs an open failure and a close failure
-   * at once builds its own instances for that reason.
+   * The failure the fixtures inject into the device. Being shared, it must not be used where the production code calls
+   * `addSuppressed` on it, which mutates it for good: the case that needs an open failure and a close failure at once
+   * builds its own instances for that reason.
    */
   private val failure: Exception = MidiUnavailableException("The device is busy")
 
@@ -79,8 +79,8 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       handle.becomeAvailable(availableDevice.asMidiDeviceInfo, availableDevice)
 
     /**
-     * Another instance of the device, as CoreMIDI4J creates one when the device is replugged or swapped. The
-     * parameters configure the instance.
+     * Another instance of the device, as CoreMIDI4J creates one when the device is replugged or swapped. The parameters
+     * configure the instance.
      */
     def newDevice(maxTransmitters: Int = -1, openFailure: Option[Exception] = None): FakeMidiDevice =
       FakeMidiDevice(deviceId.name, deviceId.vendor, maxTransmitters = maxTransmitters, openFailure = openFailure)
@@ -1175,9 +1175,9 @@ class JavaMidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrive
       // Then
       events.filter(event => Set(Level.INFO, Level.WARN).contains(event.getLevel))
         .map(event => (event.getLevel, event.getFormattedMessage)) shouldEqual Seq(
-          (Level.INFO, """Successfully closed output device "CoreMIDI4J - FP-90" (Roland)."""),
-          (Level.WARN, """Output device "CoreMIDI4J - FP-90" (Roland) became unavailable.""")
-        )
+        (Level.INFO, """Successfully closed output device "CoreMIDI4J - FP-90" (Roland)."""),
+        (Level.WARN, """Output device "CoreMIDI4J - FP-90" (Roland) became unavailable.""")
+      )
     }
 
     "report the opening and the closing of the device at info level" in new Fixture {

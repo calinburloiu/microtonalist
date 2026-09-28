@@ -49,8 +49,8 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
   private val AwaitTimeoutMillis: Long = 5000
 
   /**
-   * How long a scan stays open for another to join it. Only a manager that lets refreshes overlap fills it; a
-   * correct one pays it once, so it is kept short.
+   * How long a scan stays open for another to join it. Only a manager that lets refreshes overlap fills it; a correct
+   * one pays it once, so it is kept short.
    */
   private val ScanOverlapWindowMillis: Long = 25
 
@@ -432,11 +432,12 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
         // Given
         // A JDK Sequencer or Synthesizer provider builds a new instance on every lookup
         val instances: mutable.Buffer[FakeMidiDevice] = mutable.ArrayBuffer()
-        environment.plugResolvingAfresh(device.getDeviceInfo, () => {
-          val instance = endpoint.newDevice(deviceName)
-          instances += instance
-          instance
-        })
+        environment.plugResolvingAfresh(device.getDeviceInfo,
+          () => {
+            val instance = endpoint.newDevice(deviceName)
+            instances += instance
+            instance
+          })
         manager.refresh()
         val handle: MidiDeviceHandle = manager.openDevice(id, direction)
         val heldInstance: FakeMidiDevice = instances.last
@@ -748,11 +749,12 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
      */
     abstract class SequencerFixture extends Fixture {
       val instances: mutable.Buffer[FakeMidiDevice] = mutable.ArrayBuffer()
-      environment.plugResolvingAfresh(javaDeviceInfo, () => {
-        val instance = FakeMidiDevice(deviceName, maxTransmitters = -1, maxReceivers = -1)
-        instances += instance
-        instance
-      })
+      environment.plugResolvingAfresh(javaDeviceInfo,
+        () => {
+          val instance = FakeMidiDevice(deviceName, maxTransmitters = -1, maxReceivers = -1)
+          instances += instance
+          instance
+        })
       val manager: JavaMidiManager = newManager()
       val id: MidiDeviceId = instances.head.id
     }
@@ -812,72 +814,72 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
     "be opened in the other direction on the instance it is open on in one, after a refresh, although it resolves to " +
       "a new instance on every lookup" in {
-      val directions = Table(("openedFirst", "openedLater"),
-        (MidiDirection.Input, MidiDirection.Output),
-        (MidiDirection.Output, MidiDirection.Input))
+        val directions = Table(("openedFirst", "openedLater"),
+          (MidiDirection.Input, MidiDirection.Output),
+          (MidiDirection.Output, MidiDirection.Input))
 
-      forAll(directions) { (openedFirst, openedLater) =>
-        new SequencerFixture {
-          // Given
-          manager.openDevice(id, openedFirst)
-          val heldInstance: FakeMidiDevice = instances.last
-          manager.refresh()
+        forAll(directions) { (openedFirst, openedLater) =>
+          new SequencerFixture {
+            // Given
+            manager.openDevice(id, openedFirst)
+            val heldInstance: FakeMidiDevice = instances.last
+            manager.refresh()
 
-          // When
-          manager.openDevice(id, openedLater)
+            // When
+            manager.openDevice(id, openedLater)
 
-          // Then
-          instances should have size 2
-          instances.last.openCount shouldEqual 0
-          heldInstance.openCount shouldEqual 1
+            // Then
+            instances should have size 2
+            instances.last.openCount shouldEqual 0
+            heldInstance.openCount shouldEqual 1
 
-          // When
-          manager.closeDevice(id, openedFirst)
+            // When
+            manager.closeDevice(id, openedFirst)
 
-          // Then
-          heldInstance.isOpen shouldBe true
-          manager.deviceOf(id, openedLater).map(_.state) shouldEqual Some(State.Open)
+            // Then
+            heldInstance.isOpen shouldBe true
+            manager.deviceOf(id, openedLater).map(_.state) shouldEqual Some(State.Open)
+          }
         }
       }
-    }
 
     "move to a new instance in both directions on a refresh once the instance it is open on got closed, although it " +
       "resolves to a new instance on every lookup" in new SequencerFixture {
-      // Given
-      val inputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Input)
-      instances.last.close()
-      manager.refresh()
+        // Given
+        val inputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Input)
+        instances.last.close()
+        manager.refresh()
 
-      // When
-      val outputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Output)
+        // When
+        val outputHandle: MidiDeviceHandle = manager.openDevice(id, MidiDirection.Output)
 
-      // Then
-      instances should have size 2
-      instances.last.isOpen shouldBe true
-      instances.last.openCount shouldEqual 1
-      Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
-    }
+        // Then
+        instances should have size 2
+        instances.last.isOpen shouldBe true
+        instances.last.openCount shouldEqual 1
+        Seq(inputHandle, outputHandle).map(_.state) shouldEqual Seq(State.Open, State.Open)
+      }
 
     "be opened on its source as an input and on its destination as an output, after a refresh, when exposed as two " +
       "instances sharing its id" in new Fixture {
-      // Given
-      // A hardware device, which CoreMIDI4J exposes as a source and a destination
-      val source: FakeMidiDevice = Input.newDevice(deviceName)
-      val destination: FakeMidiDevice = Output.newDevice(deviceName)
-      environment.plug(source)
-      environment.plug(destination)
-      val manager: JavaMidiManager = newManager()
-      manager.openDevice(source.id, MidiDirection.Input)
-      manager.refresh()
+        // Given
+        // A hardware device, which CoreMIDI4J exposes as a source and a destination
+        val source: FakeMidiDevice = Input.newDevice(deviceName)
+        val destination: FakeMidiDevice = Output.newDevice(deviceName)
+        environment.plug(source)
+        environment.plug(destination)
+        val manager: JavaMidiManager = newManager()
+        manager.openDevice(source.id, MidiDirection.Input)
+        manager.refresh()
 
-      // When
-      val outputHandle: MidiDeviceHandle = manager.openDevice(destination.id, MidiDirection.Output)
+        // When
+        val outputHandle: MidiDeviceHandle = manager.openDevice(destination.id, MidiDirection.Output)
 
-      // Then
-      source.openCount shouldEqual 1
-      destination.isOpen shouldBe true
-      outputHandle.state shouldEqual State.Open
-    }
+        // Then
+        source.openCount shouldEqual 1
+        destination.isOpen shouldBe true
+        outputHandle.state shouldEqual State.Open
+      }
 
     "keep sending to the device as an output after it is closed as an input" in new BidirectionalFixture {
       // When
@@ -961,9 +963,11 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
       // What a subscriber on another thread sees of the handle when each event reaches it; with the lock still held,
       // the lookup would time out.
       val observedStates: mutable.Buffer[Option[State]] = mutable.ArrayBuffer()
-      onPublish = _ => observedStates += CompletableFuture
-        .supplyAsync(() => manager.deviceOf(device.id, MidiDirection.Output).map(_.state))
-        .get(5, TimeUnit.SECONDS)
+      onPublish = _ =>
+        observedStates +=
+          CompletableFuture
+            .supplyAsync(() => manager.deviceOf(device.id, MidiDirection.Output).map(_.state))
+            .get(5, TimeUnit.SECONDS)
 
       // When
       manager.refresh()

@@ -87,5 +87,5 @@ private case class ManualTuningMapperRepr(keyboardMapping: KeyboardMapping)
 private case class AutoTuningMapperRepr(shouldMapQuarterTonesLow: Boolean = false,
                                         quarterToneTolerance: Option[Double] = None,
                                         softChromaticGenusMapping: SoftChromaticGenusMapping =
-                                        SoftChromaticGenusMapping.Off,
+                                          SoftChromaticGenusMapping.Off,
                                         overrideKeyboardMapping: Option[KeyboardMapping] = None)

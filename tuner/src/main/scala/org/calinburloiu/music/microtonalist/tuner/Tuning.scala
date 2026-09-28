@@ -25,8 +25,8 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 
 /**
- * Describes the tuning of a keyed instrument, typically with a piano keyboard, by specifying offsets in cents
- * for pitch classes. It is allowed to skip tuning values for pitch classes that are not used in the tuning.
+ * Describes the tuning of a keyed instrument, typically with a piano keyboard, by specifying offsets in cents for pitch
+ * classes. It is allowed to skip tuning values for pitch classes that are not used in the tuning.
  *
  * A tuning can only be specified for the 12 pitch classes: C, C#\Db, ..., B. It cannot specify different values for
  * each instance of a pitch class.
@@ -40,10 +40,9 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]])
 
   import Tuning.*
 
-
   /**
-   * Retrieves the offset in cents for the specified pitch class number.
-   * If no offset is defined for the provided pitch class number, returns a default value of 0.0.
+   * Retrieves the offset in cents for the specified pitch class number. If no offset is defined for the provided pitch
+   * class number, returns a default value of 0.0.
    *
    * @param pitchClassNumber The 0-based index of the pitch class number whose offset is to be retrieved.
    * @return the offset in cents for the specified pitch class number, or 0.0 if no offset is defined.
@@ -54,12 +53,12 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]])
   }
 
   /**
-   * Retrieves the offset in cents for the specified pitch class number as an optional value, returning [[Some]]
-   * value if there is a tuning defined for that pitch class or [[None]] if there isn't.
+   * Retrieves the offset in cents for the specified pitch class number as an optional value, returning [[Some]] value
+   * if there is a tuning defined for that pitch class or [[None]] if there isn't.
    *
    * @param pitchClassNumber The 0-based index of the pitch class number whose offset is to be retrieved.
-   * @return a [[Some]] containing the offset in cents for the specified pitch class number, or `None` if no
-   *         offset is defined.
+   * @return a [[Some]] containing the offset in cents for the specified pitch class number, or `None` if no offset is
+   *   defined.
    */
   def get(pitchClassNumber: Int): Option[Double] = {
     checkElementIndex(pitchClassNumber, size)
@@ -123,8 +122,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]])
   def completedCount: Int = offsetOptions.map(d => if (d.isDefined) 1 else 0).sum
 
   /**
-   * Fills each key with empty offsets from `this` with corresponding non-empty
-   * offsets from `that`.
+   * Fills each key with empty offsets from `this` with corresponding non-empty offsets from `that`.
    */
   def fill(that: Tuning): Tuning = {
     require(this.size == that.size, s"Expecting equally sized operand, got one with size ${that.size}")
@@ -161,7 +159,7 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]])
    *   - If both have tuning offsets for a key, and they are not equal, it is said that there is a ''conflict'' and
    *     `None` is returned.
    *
-   * @param that      other tuning used for merging
+   * @param that other tuning used for merging
    * @param tolerance maximum error tolerance in cents when comparing two correspondent tuning offsets for equality
    * @return `Some` new tuning if the merge was successful, or `None` if there was a conflict.
    */
@@ -214,10 +212,10 @@ case class Tuning(name: String, offsetOptions: Seq[Option[Double]])
   }
 
   /**
-   * Checks if this [[Tuning]] has the offsets equal within an error tolerance with the given
-   * [[Tuning]]. Other properties are ignored in the comparison.
+   * Checks if this [[Tuning]] has the offsets equal within an error tolerance with the given [[Tuning]]. Other
+   * properties are ignored in the comparison.
    *
-   * @param that           The tuning to compare with.
+   * @param that The tuning to compare with.
    * @param centsTolerance Error tolerance in cents.
    * @return true if the tunings are almost equal, or false otherwise.
    */
@@ -341,8 +339,9 @@ object Tuning {
             a: Double,
             aSharpOrBFlat: Double,
             b: Double): Tuning = {
-    Tuning(name, Seq(Some(c), Some(cSharpOrDFlat), Some(d), Some(dSharpOrEFlat), Some(e), Some(f),
-      Some(fSharpOrGFlat), Some(g), Some(gSharpOrAFlat), Some(a), Some(aSharpOrBFlat), Some(b)))
+    Tuning(name,
+      Seq(Some(c), Some(cSharpOrDFlat), Some(d), Some(dSharpOrEFlat), Some(e), Some(f),
+        Some(fSharpOrGFlat), Some(g), Some(gSharpOrAFlat), Some(a), Some(aSharpOrBFlat), Some(b)))
   }
 
   def fromOffsets(name: String, offsets: Seq[Double]): Tuning = Tuning(name, offsets.map(Some(_)))
@@ -359,7 +358,7 @@ object Tuning {
    * Creates a Tuning instance where all keys in the tuning have the same offset value.
    *
    * @param offset The value to fill each key in the tuning with.
-   * @param size   The number of keys in the tuning.
+   * @param size The number of keys in the tuning.
    * @return a new Tuning instance filled with the specified offset value across all keys.
    */
   def fill(name: String, offset: Double, size: Int): Tuning = Tuning(name, Seq.fill(size)(Some(offset)))

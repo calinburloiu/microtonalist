@@ -33,10 +33,10 @@ enum MpeZoneType {
 /**
  * Structural properties of an MPE Zone: zone type, channel layout, and group sizes.
  *
- * This trait captures the immutable structural aspects of an MPE Zone that do not change after zone configuration.
- * It is separated from [[MpeZone]] to allow components that only need the zone structure (e.g.,
- * [[MpeChannelAllocator]]) to depend on this trait without holding a reference to Pitch Bend Sensitivity
- * configuration which may change through the lifetime of an [[MpeTuner]].
+ * This trait captures the immutable structural aspects of an MPE Zone that do not change after zone configuration. It
+ * is separated from [[MpeZone]] to allow components that only need the zone structure (e.g., [[MpeChannelAllocator]])
+ * to depend on this trait without holding a reference to Pitch Bend Sensitivity configuration which may change through
+ * the lifetime of an [[MpeTuner]].
  */
 trait MpeZoneStructure {
 
@@ -64,9 +64,8 @@ trait MpeZoneStructure {
   /**
    * The number of Member Channels allocated to the Expression Group.
    *
-   * The Expression Group is used for notes whose pitch class is already represented in the
-   * Pitch Class Group or for notes that cannot be accommodated in the Pitch Class Group
-   * because all its channels are occupied.
+   * The Expression Group is used for notes whose pitch class is already represented in the Pitch Class Group or for
+   * notes that cannot be accommodated in the Pitch Class Group because all its channels are occupied.
    *
    * @see [[pitchClassGroupSize]]
    */
@@ -80,8 +79,8 @@ trait MpeZoneStructure {
   /**
    * The number of Member Channels allocated to the Pitch Class Group.
    *
-   * The Pitch Class Group is used for notes of distinct pitch classes, ensuring each
-   * pitch class can have its own independent tuning offset.
+   * The Pitch Class Group is used for notes of distinct pitch classes, ensuring each pitch class can have its own
+   * independent tuning offset.
    *
    * @see [[expressionGroupSize]]
    */
@@ -93,8 +92,8 @@ trait MpeZoneStructure {
  *
  * MPE organizes MIDI Channels into one or two Zones.
  *
- * @param zoneType                   Whether this is a Lower or Upper Zone.
- * @param memberCount                The number of Member Channels in this Zone (0 to 15).
+ * @param zoneType Whether this is a Lower or Upper Zone.
+ * @param memberCount The number of Member Channels in this Zone (0 to 15).
  * @param masterPitchBendSensitivity The Pitch Bend Sensitivity for the Master Channel.
  * @param memberPitchBendSensitivity The Pitch Bend Sensitivity for all Member Channels within this Zone.
  */
@@ -127,23 +126,23 @@ object MpeZone {
 }
 
 /**
- * Immutable configuration of up to two MPE Zones (Lower and Upper), handling overlap resolution
- * as specified by the MPE Specification.
+ * Immutable configuration of up to two MPE Zones (Lower and Upper), handling overlap resolution as specified by the MPE
+ * Specification.
  *
- * On construction, if the given zones overlap, the lower zone is shrunk to resolve the conflict
- * (the upper zone is treated as the later arrival). The `update` method returns a new instance
- * where the updated zone takes precedence and the other zone is shrunk if necessary.
+ * On construction, if the given zones overlap, the lower zone is shrunk to resolve the conflict (the upper zone is
+ * treated as the later arrival). The `update` method returns a new instance where the updated zone takes precedence and
+ * the other zone is shrunk if necessary.
  *
  * @param lower The Lower Zone configuration.
  * @param upper The Upper Zone configuration.
  */
-case class MpeZones private(lower: MpeZone, upper: MpeZone) {
+case class MpeZones private (lower: MpeZone, upper: MpeZone) {
 
   /**
    * Returns a new [[MpeZones]] with the given zone replacing the existing zone of the same type.
    *
-   * The updated zone takes precedence: if the update causes overlap, the ''other'' zone is shrunk
-   * to resolve the conflict. Pitch Bend Sensitivity of the shrunk zone is preserved.
+   * The updated zone takes precedence: if the update causes overlap, the ''other'' zone is shrunk to resolve the
+   * conflict. Pitch Bend Sensitivity of the shrunk zone is preserved.
    *
    * @param zone The new zone configuration (Lower or Upper).
    * @return A new [[MpeZones]] with the update applied and any overlap resolved.
@@ -177,8 +176,8 @@ object MpeZones {
   /**
    * Creates an [[MpeZones]] instance, resolving any overlap by shrinking the lower zone.
    *
-   * The upper zone is treated as the later arrival per the MPE Specification: "the most recent
-   * message takes precedence (those MIDI Channels are reassigned to the newer Zone)".
+   * The upper zone is treated as the later arrival per the MPE Specification: "the most recent message takes precedence
+   * (those MIDI Channels are reassigned to the newer Zone)".
    *
    * @param lower The Lower Zone. Must have `zoneType == MpeZoneType.Lower`.
    * @param upper The Upper Zone. Must have `zoneType == MpeZoneType.Upper`.
@@ -215,4 +214,3 @@ object MpeZones {
       s"upper zone must have zoneType Upper; got ${upper.zoneType}")
   }
 }
-

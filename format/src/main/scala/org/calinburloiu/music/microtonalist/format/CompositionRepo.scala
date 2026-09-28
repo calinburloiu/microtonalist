@@ -23,8 +23,8 @@ import scala.concurrent.Future
 
 /**
  * Repository pattern trait used for retrieving or persisting Microtonalist compositions identified by URI.
- * Implementations are responsible for abstracting reading and writing from a particular data source like file, Web
- * or cloud service.
+ * Implementations are responsible for abstracting reading and writing from a particular data source like file, Web or
+ * cloud service.
  */
 trait CompositionRepo {
   /**
@@ -47,7 +47,7 @@ trait CompositionRepo {
    * Persists a composition.
    *
    * @param composition composition to be persisted
-   * @param uri         universal resource identifier (URI) for the composition
+   * @param uri universal resource identifier (URI) for the composition
    */
   def write(composition: Composition, uri: URI): Unit
 
@@ -55,7 +55,7 @@ trait CompositionRepo {
    * Persists a composition asynchronously.
    *
    * @param composition composition to be persisted
-   * @param uri         universal resource identifier (URI) for the composition
+   * @param uri universal resource identifier (URI) for the composition
    * @return a Future for tracking when the operation finished
    */
   def writeAsync(composition: Composition, uri: URI): Future[Unit]
@@ -71,7 +71,6 @@ class CompositionRepoException(message: String, cause: Throwable) extends Runtim
  */
 class CompositionNotFoundException(uri: URI, cause: Throwable = null)
   extends CompositionRepoException(s"Composition with $uri was not found!", cause)
-
 
 /**
  * Exception thrown if the composition request was invalid.

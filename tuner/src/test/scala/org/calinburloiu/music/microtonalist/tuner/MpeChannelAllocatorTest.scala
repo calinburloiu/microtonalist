@@ -66,9 +66,9 @@ class MpeChannelAllocatorTest extends AnyWordSpec with Matchers with OptionValue
   private val lowPitchBend: Int = 50
 
   /**
-   * Note-centric shorthands for the call sites this suite was originally written against. Each note is
-   * allocated as the identity `(inputChannel, midiNote)`; the input channel defaults to 0 and is passed
-   * explicitly only where a test later addresses that note through an update method.
+   * Note-centric shorthands for the call sites this suite was originally written against. Each note is allocated as the
+   * identity `(inputChannel, midiNote)`; the input channel defaults to 0 and is passed explicitly only where a test
+   * later addresses that note through an update method.
    */
   extension (alloc: MpeChannelAllocator) {
     private def allocateNote(midiNote: MidiNote,

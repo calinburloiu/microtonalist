@@ -27,8 +27,9 @@ design is the source of truth; this plan doesn't reopen its decisions.
   sbt 1.10.7: every 2.6.x release refuses to run on sbt older than 1.12.9. #336 upgrades sbt, and then the plugin to
   2.6.x. The plugin downloads the scalafmt version that `.scalafmt.conf` pins, so the output doesn't depend on it.
 - `.scalafmt.conf` at the repo root with `version = 3.11.5`, and no license header (the `.conf` extension isn't checked).
-- Style targets: `maxColumn = 120`, `indent.main = 2`, `newlines.source = keep`, `docstrings.style = Asterisk`, no
-  docstring or comment wrapping, `rewrite.scala3.convertToNewSyntax = false`, `rewrite.scala3.removeOptionalBraces`
+- Style targets: `maxColumn = 120`, `indent.main = 2`, `newlines.source = keep`, `docstrings.style = Asterisk`,
+  ScalaDoc refilled with `docstrings.wrap = fold` (chosen in the tooling PR's review; the plan started without it), no
+  other comment wrapping, `rewrite.scala3.convertToNewSyntax = false`, `rewrite.scala3.removeOptionalBraces`
   off, no import sorting (#334's `OrganizeImports` owns it), `project.git = true`.
 - Dialects: `scala3` by default, `sbt1` for `*.sbt`, `scala212` for `project/*.scala`.
 - Aliases in `build.sbt`: `fix` = `scalafmtAll`, `scalafmtSbt`, `experiments/scalafmtAll`; `lint` = `scalafmtCheckAll`,
@@ -1097,8 +1098,9 @@ git restore -- '*.scala' '*.sbt' && git switch -
 ```
 
 The commit is regenerated right before merging, on top of the latest `main`, so it never carries conflict resolutions.
-Please merge it soon after that, to keep branches in progress from conflicting with it. Once it's merged, the finish PR
-adds its squashed SHA to `.git-blame-ignore-revs`, so `git blame` skips it.
+Please merge it right after the tooling PR: in between, `main` has the tooling but not the formatted code, so `sbtn fix`
+and the pre-commit hook would reformat whole files in unrelated commits. Once it's merged, the finish PR adds its
+squashed SHA to `.git-blame-ignore-revs`, so `git blame` skips it.
 
 ## Verification
 
@@ -1129,8 +1131,9 @@ Step 3.
 
 - [ ] **Step 11: STOP and report**
 
-Give the user both PR links, the bulk PR's shortstat, and the next steps: they review and merge the tooling PR; Task 8
-regenerates the bulk commit when asked; the finish PR starts after the bulk PR merges.
+Give the user both PR links, the bulk PR's shortstat, and the next steps: they review the tooling PR; once they merge
+it, Task 8 regenerates the bulk commit and they merge the bulk PR right away, in the same sitting; the finish PR starts
+after the bulk PR merges.
 
 **Unattended run:** if Tasks 6–7 added decision log entries after the tooling PR was opened, update the tooling PR
 body's "Decisions made without the user" section (GitHub MCP `update_pull_request`). The final report lists every
@@ -1173,7 +1176,9 @@ If `B` is `origin/main` and the PR's base is still `feature/scalafmt`, set it to
 
 - [ ] **Step 4: STOP**
 
-Tell the user the bulk PR is regenerated and ready. Recommend a squash merge soon, before other branches move `main`.
+Tell the user the bulk PR is regenerated and ready. Recommend a squash merge right away: until it merges, `main` has the
+tooling but not the formatted code, so `sbtn fix` and the pre-commit hook reformat whole files in unrelated commits,
+and other branches that move `main` make it conflict.
 
 ## Phase 3: Finish PR (`feature/scalafmt-enforce`), after the bulk PR merges
 

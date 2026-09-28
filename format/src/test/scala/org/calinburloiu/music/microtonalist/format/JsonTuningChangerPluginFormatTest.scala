@@ -79,7 +79,7 @@ class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {
     }
 
     "fail to deserialize from invalid JSON" in {
-        assertReadsFailureTable(reads, pedalTuningChangerJson, pedalTuningChangerFailureTable)
+      assertReadsFailureTable(reads, pedalTuningChangerJson, pedalTuningChangerFailureTable)
     }
 
     "serialize" in {

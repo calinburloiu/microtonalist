@@ -168,22 +168,23 @@ class AutoTuningMapperTest extends AnyWordSpec with Matchers with TableDrivenPro
 
     "map a scale with concurrent pitches on the same tuning pitch class, if " +
       "those concurrent pitches are equivalent (have the same normalized interval)" in {
-      val octaveRedundancy = RatiosScale((1, 1), (5, 4), (3, 2), (7, 4), (2, 1), (5, 2), (3, 1))
+        val octaveRedundancy = RatiosScale((1, 1), (5, 4), (3, 2), (7, 4), (2, 1), (5, 2), (3, 1))
 
-      // Note: Here we also get a precision error that is ignored by the tolerance
-      val resultWithHighQuarterTones = autoTuningMapperWithHighQuarterTones.mapScale(octaveRedundancy, cTuningReference)
-      val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(octaveRedundancy, cTuningReference)
+        // Note: Here we also get a precision error that is ignored by the tolerance
+        val resultWithHighQuarterTones =
+          autoTuningMapperWithHighQuarterTones.mapScale(octaveRedundancy, cTuningReference)
+        val resultWithLowQuarterTones = autoTuningMapperWithLowQuarterTones.mapScale(octaveRedundancy, cTuningReference)
 
-      resultWithHighQuarterTones.almostEquals(resultWithLowQuarterTones, testTolerance) shouldBe true
+        resultWithHighQuarterTones.almostEquals(resultWithLowQuarterTones, testTolerance) shouldBe true
 
-      resultWithHighQuarterTones.c shouldEqual 0.0
-      resultWithHighQuarterTones.e shouldEqual -13.69
-      resultWithHighQuarterTones.g shouldEqual 1.96
-      resultWithHighQuarterTones.bFlat shouldEqual -31.18
+        resultWithHighQuarterTones.c shouldEqual 0.0
+        resultWithHighQuarterTones.e shouldEqual -13.69
+        resultWithHighQuarterTones.g shouldEqual 1.96
+        resultWithHighQuarterTones.bFlat shouldEqual -31.18
 
-      resultWithHighQuarterTones.size shouldEqual 12
-      resultWithHighQuarterTones.count(_.nonEmpty) shouldEqual 4
-    }
+        resultWithHighQuarterTones.size shouldEqual 12
+        resultWithHighQuarterTones.count(_.nonEmpty) shouldEqual 4
+      }
 
     "map a scale without unison or octave to a tuning without the base pitch class" in {
       val tetrachord = RatiosScale("maj-4", (9, 8), (5, 4), (4, 3))

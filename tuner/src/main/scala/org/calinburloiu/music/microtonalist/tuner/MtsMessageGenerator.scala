@@ -25,17 +25,17 @@ import scala.collection.immutable.ArraySeq
 /**
  * Represents a generator for MIDI Tuning Standard (MTS) messages based on a given tuning.
  *
- * This trait defines the ability to generate a SysEx (System Exclusive) MIDI message to specify
- * the tuning for a musical instrument. The tuning is defined in terms of the offset (in cents)
- * for each pitch class in an equal-tempered 12-tone scale.
+ * This trait defines the ability to generate a SysEx (System Exclusive) MIDI message to specify the tuning for a
+ * musical instrument. The tuning is defined in terms of the offset (in cents) for each pitch class in an equal-tempered
+ * 12-tone scale.
  */
 trait MtsMessageGenerator {
   /**
-   * Tells whether [[generate]] can encode every offset of the given tuning without clamping it to the range of a
-   * tuning value in the message. An offset within that range is still rounded to the resolution of the form.
+   * Tells whether [[generate]] can encode every offset of the given tuning without clamping it to the range of a tuning
+   * value in the message. An offset within that range is still rounded to the resolution of the form.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
-   *               octave.
+   *   octave.
    * @return `true` if every offset of the tuning is within the range of a tuning value, `false` otherwise.
    */
   def canEncode(tuning: Tuning): Boolean
@@ -43,11 +43,11 @@ trait MtsMessageGenerator {
   /**
    * Generates the MTS SysEx message that tunes an instrument to the given tuning.
    *
-   * An offset beyond the range of a tuning value in the message, for which [[canEncode]] returns `false`, is clamped
-   * to that range.
+   * An offset beyond the range of a tuning value in the message, for which [[canEncode]] returns `false`, is clamped to
+   * that range.
    *
    * @param tuning The tuning instance that specifies the offset in cents for each of the 12 pitch classes in the
-   *               octave.
+   *   octave.
    * @return the MTS SysEx message.
    */
   def generate(tuning: Tuning): SysExMidiMsg
@@ -59,7 +59,7 @@ trait MtsMessageGenerator {
  * In the 1-byte form, a tuning value is a whole number of cents from -64 to +63, to which an offset is rounded. In the
  * 2-byte form, it is a number of cents from -100 to +100.
  *
- * @param isRealTime    Specifies whether the generated SysEx message is real-time or non-real-time.
+ * @param isRealTime Specifies whether the generated SysEx message is real-time or non-real-time.
  * @param isIn2ByteForm Indicates whether tuning values are encoded using the 2-byte or the 1-byte form.
  */
 abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
@@ -147,9 +147,8 @@ private[tuner] object MtsOctaveMessageGenerator {
 /**
  * An object containing predefined implementations of MIDI Tuning Standard (MTS) message generators.
  *
- * This object provides specific generators for creating MTS SysEx messages for octave-based tunings,
- * with varying configurations such as real-time or non-real-time message type and 1-byte or 2-byte forms for each
- * tuning value.
+ * This object provides specific generators for creating MTS SysEx messages for octave-based tunings, with varying
+ * configurations such as real-time or non-real-time message type and 1-byte or 2-byte forms for each tuning value.
  *
  * @see [[MtsMessageGenerator]]
  */
@@ -159,29 +158,29 @@ object MtsMessageGenerator {
   private[tuner] val HeaderByte_Mts: Byte = 0x08.toByte
 
   /**
-   * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
-   * where tuning values are encoded using the 1-byte form.
+   * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings, where tuning values
+   * are encoded using the 1-byte form.
    */
   case object Octave1ByteNonRealTime
     extends MtsOctaveMessageGenerator(isRealTime = false, isIn2ByteForm = false)
 
   /**
-   * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
-   * where tuning values are encoded using the 2-byte form.
+   * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings, where tuning values
+   * are encoded using the 2-byte form.
    */
   case object Octave2ByteNonRealTime
     extends MtsOctaveMessageGenerator(isRealTime = false, isIn2ByteForm = true)
 
   /**
-   * Generates a real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
-   * where tuning values are encoded using the 1-byte form.
+   * Generates a real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings, where tuning values are
+   * encoded using the 1-byte form.
    */
   case object Octave1ByteRealTime
     extends MtsOctaveMessageGenerator(isRealTime = true, isIn2ByteForm = false)
 
   /**
-   * Generates a real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings,
-   * where tuning values are encoded using the 2-byte form.
+   * Generates a real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings, where tuning values are
+   * encoded using the 2-byte form.
    */
   case object Octave2ByteRealTime
     extends MtsOctaveMessageGenerator(isRealTime = true, isIn2ByteForm = true)

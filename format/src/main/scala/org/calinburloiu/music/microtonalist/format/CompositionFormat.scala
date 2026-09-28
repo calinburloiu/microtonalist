@@ -31,7 +31,7 @@ trait CompositionFormat {
    * Reads a [[Composition]] from an [[InputStream]].
    *
    * @param inputStream stream to read input from
-   * @param baseUri     an optional base URI for resolving relative URIs present in the input composition
+   * @param baseUri an optional base URI for resolving relative URIs present in the input composition
    * @return the composition deserialized
    */
   def read(inputStream: InputStream, baseUri: Option[URI] = None): Composition
@@ -40,7 +40,7 @@ trait CompositionFormat {
    * Reads a [[Composition]] from an [[InputStream]] asynchronously.
    *
    * @param inputStream stream to read input from
-   * @param baseUri     an optional base URI for resolving relative URIs present in the input composition
+   * @param baseUri an optional base URI for resolving relative URIs present in the input composition
    * @return a [[Future]] of composition deserialized
    */
   def readAsync(inputStream: InputStream, baseUri: Option[URI] = None): Future[Composition]
@@ -48,7 +48,7 @@ trait CompositionFormat {
   /**
    * Writes a [[Composition]] to [[OutputStream]].
    *
-   * @param composition  composition to be serialized
+   * @param composition composition to be serialized
    * @param outputStream stream to write the output to
    */
   def write(composition: Composition, outputStream: OutputStream): Unit
@@ -56,7 +56,7 @@ trait CompositionFormat {
   /**
    * Writes a [[Composition]] to [[OutputStream]] asynchronously.
    *
-   * @param composition  composition to be serialized
+   * @param composition composition to be serialized
    * @param outputStream stream to write the output to
    * @return a [[Future]] for tracking when the operation finished
    */

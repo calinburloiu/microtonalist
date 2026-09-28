@@ -28,7 +28,7 @@ sealed abstract class TrackEvent extends BusinessyncEvent
 /**
  * Event informing that tracks have been opened within a track session.
  *
- * @param uri    The URI from which the tracks were read.
+ * @param uri The URI from which the tracks were read.
  * @param tracks The specifications of the opened tracks.
  */
 case class TracksOpenedEvent(uri: URI, tracks: TrackSpecs) extends TrackEvent
@@ -50,9 +50,9 @@ case class TracksReplacedEvent(tracks: TrackSpecs) extends TrackEvent
 /**
  * Event informing the addition of a new track to a track session.
  *
- * @param track    The specification of the track that has been added.
+ * @param track The specification of the track that has been added.
  * @param beforeId Optional ID of the track before which the new track has been inserted. `None` means that the track
- *                 was appended to the list of tracks.
+ *   was appended to the list of tracks.
  */
 case class TrackAddedEvent(track: TrackSpec, beforeId: Option[TrackSpec.Id]) extends TrackEvent
 
@@ -66,9 +66,9 @@ case class TrackUpdatedEvent(track: TrackSpec) extends TrackEvent
 /**
  * Represents an event triggered when a track is moved within a session to a different position.
  *
- * @param movedId  The unique identifier of the track being moved.
+ * @param movedId The unique identifier of the track being moved.
  * @param beforeId The unique identifier of the track before which the moved track is placed, if applicable. `None`
- *                 indicates that the track was moved to the last position.
+ *   indicates that the track was moved to the last position.
  */
 case class TrackMovedEvent(movedId: TrackSpec.Id, beforeId: Option[TrackSpec.Id]) extends TrackEvent
 

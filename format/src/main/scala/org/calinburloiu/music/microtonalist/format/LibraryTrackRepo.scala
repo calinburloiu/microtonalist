@@ -30,12 +30,12 @@ import scala.concurrent.Future
  * `<path-in-library>` is relative to the configured base URI.
  *
  * For example, if the user configures `file:///Users/john/Music/microtonalist/lib/` as the base URI for the library,
- * the Microtonalist Library URI `microtonalist:///tracks/default.mtlist.tracks` used as a tracks file URI will
- * actually point to `/Users/john/Music/microtonalist/lib/tracks/default.mtlist.tracks`.
+ * the Microtonalist Library URI `microtonalist:///tracks/default.mtlist.tracks` used as a tracks file URI will actually
+ * point to `/Users/john/Music/microtonalist/lib/tracks/default.mtlist.tracks`.
  *
  * @param libraryBaseUrl base URI for Microtonalist Library
- * @param fileTrackRepo  a [[FileTrackRepo]] instance
- * @param httpTrackRepo  an [[HttpTrackRepo]] instance
+ * @param fileTrackRepo a [[FileTrackRepo]] instance
+ * @param httpTrackRepo an [[HttpTrackRepo]] instance
  */
 class LibraryTrackRepo(libraryBaseUrl: URI,
                        fileTrackRepo: FileTrackRepo,
