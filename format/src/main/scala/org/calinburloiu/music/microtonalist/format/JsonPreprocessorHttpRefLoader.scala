@@ -22,6 +22,7 @@ import play.api.libs.json.{JsObject, JsPath, Json}
 import java.net.URI
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
+import scala.util.boundary
 
 /**
  * Loader for JSON preprocessor references that retrieves the referenced URIs via HTTP without performing any validation
@@ -29,9 +30,9 @@ import java.net.http.{HttpClient, HttpRequest}
  */
 class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreprocessorRefLoader with StrictLogging {
 
-  override def load(uri: URI, pathContext: JsPath): Option[JsObject] = {
+  override def load(uri: URI, pathContext: JsPath): Option[JsObject] = boundary {
     if (!(uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme))) {
-      return None
+      boundary.break(None)
     }
 
     logger.info(s"Reading JSON preprocessor reference $uri via HTTP...")

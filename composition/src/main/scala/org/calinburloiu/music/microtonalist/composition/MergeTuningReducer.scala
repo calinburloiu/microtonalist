@@ -20,6 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.tuner.{DefaultCentsTolerance, Tuning}
 
 import scala.annotation.tailrec
+import scala.util.boundary
 
 /**
  * Reducing algorithm for a sequence of [[Tuning]]s that attempts to merge consecutive [[Tuning]]s that don't have
@@ -46,9 +47,9 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
   override val typeName: String = MergeTuningReducer.typeName
 
   override def reduceTunings(tunings: Seq[Tuning],
-                             globalFillTuning: Tuning = Tuning.Standard): TuningList = {
+                             globalFillTuning: Tuning = Tuning.Standard): TuningList = boundary {
     if (tunings.isEmpty) {
-      return TuningList(Seq.empty)
+      boundary.break(TuningList(Seq.empty))
     }
 
     val tuningSize = tunings.head.size
