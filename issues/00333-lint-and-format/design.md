@@ -88,7 +88,9 @@ GitHub's blame view reads `.git-blame-ignore-revs` automatically. For local `git
 
 ### Plugin and config
 
-- `project/plugins.sbt`: `addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2")`.
+- `project/plugins.sbt`: `addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6")`. It's the newest release that runs
+  on sbt 1.10.7: every 2.6.x release refuses to run on sbt older than 1.12.9. #336 upgrades sbt, and then the plugin.
+  The plugin downloads the scalafmt version that `.scalafmt.conf` pins, so the output doesn't depend on it.
 - `.scalafmt.conf` at the repo root, with `version = 3.11.5`. The `.conf` extension isn't covered by the license
   header check, just like the existing HOCON files.
 
@@ -327,8 +329,9 @@ in which case the same tooling, bulk and finish split applies.
     scalamock, scalatest.
   - Any dependencies declared inline in `build.sbt`.
   - The sbt plugins: sbt-assembly, sbt-buildinfo, sbt-scoverage, sbt-scalafmt, sbt-scalafix; plus scalafmt's
-    `version`.
-  - sbt itself, within 1.x.
+    `version`. sbt-scalafmt goes from 2.5.6 to 2.6.x once sbt is upgraded (see the `TODO #336` in
+    `project/plugins.sbt`).
+  - sbt itself, within 1.x, and to at least 1.12.9, which sbt-scalafmt 2.6.x requires.
   - A dependency that can't be upgraded (incompatible, or needing a code migration out of scope) stays where it is, and
     the reason is recorded in the PR.
 - **Compatibility checks**, each confirmed by a full compile and test run:

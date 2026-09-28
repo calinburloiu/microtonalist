@@ -51,16 +51,24 @@ case "${GIT_INDEX_FILE:-}" in
 esac
 changed_files_not_restaged=false
 
-# Prints the staged (Added/Copied/Modified/Renamed) files whose path matches the
-# extended regular expression $1, one per line. A staged file that was removed
-# from the working tree is left out: re-staging it would stage its deletion.
+# The staged (Added/Copied/Modified/Renamed) files, each followed by a NUL. With
+# `-z`, git neither quotes nor escapes a name (it would otherwise quote one with
+# non-ASCII characters). They're listed here, outside any function, so that a git
+# error stops the hook (`set -e`) instead of passing as an empty list.
+staged_list="$(mktemp)"
+trap 'rm -f "$staged_list"' EXIT
+git diff --cached --name-only -z --diff-filter=ACMR > "$staged_list"
+
+# Prints the staged files whose path matches the extended regular expression $1,
+# each followed by a NUL. A staged file that was removed from the working tree is
+# left out: re-staging it would stage its deletion.
 staged_files_matching() {
   local f
-  git diff --cached --name-only --diff-filter=ACMR | grep -E "$1" | while IFS= read -r f; do
-    if [ -e "$f" ]; then
-      printf '%s\n' "$f"
+  while IFS= read -r -d '' f; do
+    if [[ $f =~ $1 ]] && [ -e "$f" ]; then
+      printf '%s\0' "$f"
     fi
-  done || true
+  done < "$staged_list"
 }
 
 # Re-stages the given files, which a step may have rewritten, so its changes
@@ -83,8 +91,8 @@ add_license_headers() {
   # that ships with macOS.)
   local files=()
   local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && files+=("$f")
+  while IFS= read -r -d '' f; do
+    files+=("$f")
   done < <(staged_files_matching '\.(scala|java|py|sh|bash|html|xml|js|css|properties)$')
 
   if [ "${#files[@]}" -eq 0 ]; then
@@ -105,8 +113,8 @@ add_license_headers() {
 format_scala() {
   local files=()
   local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && files+=("$f")
+  while IFS= read -r -d '' f; do
+    files+=("$f")
   done < <(staged_files_matching '\.(scala|sbt)$')
 
   if [ "${#files[@]}" -eq 0 ]; then

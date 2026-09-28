@@ -15,7 +15,7 @@ already follows, and enforce it in CI and in the agent workflow.
 `sbtn fix`. The finish PR, which starts after the bulk PR merges, records the bulk PR's squashed SHA in
 `.git-blame-ignore-revs`, adds the CI `lint` job, and adds the Lint step to the CLAUDE.md workflow.
 
-**Tech Stack:** sbt 1.10.7, Scala 3.6.3, sbt-scalafmt 2.6.2, scalafmt 3.11.5 (sbt plugin and Coursier CLI), bash 3.2+
+**Tech Stack:** sbt 1.10.7, Scala 3.6.3, sbt-scalafmt 2.5.6, scalafmt 3.11.5 (sbt plugin and Coursier CLI), bash 3.2+
 (the pre-commit hook), GitHub Actions.
 
 **Spec:** [`design.md`](design.md), sections 2 (delivery structure), 3 (#335: scalafmt) and 7 (verification). The
@@ -23,7 +23,9 @@ design is the source of truth; this plan doesn't reopen its decisions.
 
 ## Global Constraints
 
-- `project/plugins.sbt`: `addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2")`.
+- `project/plugins.sbt`: `addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6")`, the newest release that runs on
+  sbt 1.10.7: every 2.6.x release refuses to run on sbt older than 1.12.9. #336 upgrades sbt, and then the plugin to
+  2.6.x. The plugin downloads the scalafmt version that `.scalafmt.conf` pins, so the output doesn't depend on it.
 - `.scalafmt.conf` at the repo root with `version = 3.11.5`, and no license header (the `.conf` extension isn't checked).
 - Style targets: `maxColumn = 120`, `indent.main = 2`, `newlines.source = keep`, `docstrings.style = Asterisk`, no
   docstring or comment wrapping, `rewrite.scala3.convertToNewSyntax = false`, `rewrite.scala3.removeOptionalBraces`
@@ -177,7 +179,8 @@ Expected: an error that `lint` isn't a valid command or key, and a non-zero exit
 Append to `project/plugins.sbt`:
 
 ```scala
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2")
+// TODO #336 Upgrade to sbt-scalafmt 2.6.x, which refuses to run on sbt older than 1.12.9, after upgrading sbt
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6")
 ```
 
 - [ ] **Step 3: Create `.scalafmt.conf` with the pre-measured config**
@@ -920,7 +923,7 @@ unformatted.
 
 ## Changes
 
-- `sbt-scalafmt` 2.6.2, and a `.scalafmt.conf` pinning scalafmt 3.11.5. It's tuned to reproduce the IntelliJ IDEA
+- `sbt-scalafmt` 2.5.6, and a `.scalafmt.conf` pinning scalafmt 3.11.5. It's tuned to reproduce the IntelliJ IDEA
   default style that the code already follows, and keeps the author's line breaks (`newlines.source = keep`).
 - sbt aliases: `fix` formats everything and `lint` checks it, including `experiments` and the build definition.
 - The pre-commit hook formats the staged `.scala` and `.sbt` files. Each of its two steps is skipped on its own when
