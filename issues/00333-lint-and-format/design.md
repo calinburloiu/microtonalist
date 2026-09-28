@@ -5,6 +5,8 @@
 - **Issues:** #333 (parent), with sub-issues #335 (scalafmt), #334 (compiler warnings and scalafix) and #336 (Scala and
   dependency upgrade)
 - **Status:** approved in conversation, section by section; pending review of this written version
+- **Revised:** 2026-09-28, with the decisions taken while planning #334 (`plan-334-lint.md`, "Decisions after the
+  design") and the facts that planning measured: sections 1, 4, 5, 6, 7, 8 and appendix B
 
 Each sub-issue gets its own implementation plan in this directory.
 
@@ -31,10 +33,12 @@ CI failure that arrives much later, tends to get ignored.
 | --- | --- |
 | Tools | Compiler warning flags plus scalafix (#334); scalafmt (#335). No WartRemover or Scapegoat for now. |
 | Style | scalafmt reproduces the current style (IntelliJ IDEA defaults) as closely as possible. |
-| Local strictness | Warnings are compile errors locally, except the one warning a TDD red-phase stub needs. |
+| Local strictness | Warnings are compile errors locally, except the one warning a TDD red-phase stub needs, and unused imports, which `sbtn fix` removes. |
 | CI strictness | Strict: no exceptions apart from deprecations. |
 | Deprecations | Always warnings, never errors. |
+| Unused code | scalafix removes unused imports only. The compiler reports any other unused code, which is fixed by hand. |
 | Scalafix locally | Enforced through the CLAUDE.md coding workflow (a "Lint" final check), not through compilation. |
+| Warnings and agents | Agents never ignore a warning: CLAUDE.md says so, and the Lint step ends with CI's strict check. |
 | Automatic formatting | The pre-commit hook rewrites staged files with scalafmt. |
 | Bulk changes | Each bulk change goes in its own squash-merged PR, and its squashed SHA goes in `.git-blame-ignore-revs`. |
 | Scala version | Stay on 3.6.3 for #334/#335; upgrade to 3.8.x, and all dependencies, in #336. |
@@ -187,7 +191,7 @@ These are added to `compilerOptions` in `build.sbt`:
 | --- | --- | --- |
 | `-Wunused:all` | main and test | Unused imports, private members, locals, parameters, and `@nowarn` annotations that suppress nothing |
 | `-no-indent`, `-old-syntax` | main and test | Compile *errors* for indentation syntax and `if x then`, enforcing the brace convention |
-| `-Wvalue-discard`, `-Wnonunit-statement` | **main only** | ScalaTest's `shouldBe` returns `Assertion`, so these would fire on nearly every test line. The plan confirms the scoping with `show Test/scalacOptions`. |
+| `-Wvalue-discard`, `-Wnonunit-statement` | **main only** | ScalaTest's `shouldBe` returns `Assertion`, so these would fire on nearly every test line. `Test / scalacOptions` inherits `Compile / scalacOptions`, so the build removes them from `Test` explicitly (verified with `show Test/scalacOptions`). |
 
 Not included: `-Wsafe-init` (slower compiles, and no documented convention needs it) and `-Wshadow`. Either can be
 added later.
@@ -198,17 +202,21 @@ The build property `microtonalist.build.strictWarnings` works like the existing 
 
 | Mode | Used by | `-Wconf` |
 | --- | --- | --- |
-| Default | Local builds, Metals/BSP (`sbtn`), IntelliJ, the CI coverage job | `-Wconf:any:e,cat=deprecation:w,msg=unused explicit parameter:w` |
-| Strict (`-Dmicrotonalist.build.strictWarnings=true`) | CI `lint` job | `-Wconf:any:e,cat=deprecation:w` |
+| Default | Local builds, Metals/BSP (`sbtn`), IntelliJ, the CI coverage job | `-Wconf:any:e,cat=deprecation:w,msg=unused explicit parameter:w,msg=unused import:w` |
+| Strict (`-Dmicrotonalist.build.strictWarnings=true`) | CI `lint` job, the last check of the CLAUDE.md Lint step | `-Wconf:any:e,cat=deprecation:w` |
 
-- **Default mode** turns every warning into a compile error except deprecations and "unused explicit parameter", the
-  only warning a red-phase stub triggers (see appendix A).
-- **Strict mode** makes the unused-parameter warning fatal too, so an unused parameter left over after the green phase
+- **Default mode** turns every warning into a compile error except deprecations and two more:
+  - "unused explicit parameter", the only warning a red-phase stub triggers (see appendix A);
+  - "unused import", so that the code still compiles and `sbtn fix` can remove it: scalafix only runs on code that
+    compiles, so an error-level unused import could only be removed by hand. `sbtn lint` fails on it all the same,
+    through the `OrganizeImports` check.
+- **Strict mode** makes both fatal too, so an unused parameter left over after the green phase, or an unused import,
   fails CI.
 - **Deprecations are never fatal.**
 - The long-running `sbtn` server can't take the property for a single command. A strict local run therefore uses
   plain `sbt -Dmicrotonalist.build.strictWarnings=true lint`, which spawns a separate JVM that writes to `target/`, so
-  it doesn't collide with the server's `target-bsp/`.
+  it doesn't collide with the server's `target-bsp/`. The CLAUDE.md Lint step ends with it, so that an agent finishes a
+  task with no warning left but deprecations.
 
 **`-Wconf` ordering (verified on 3.6.3, appendix A):** within a single `-Wconf` option, the **rightmost** matching rule
 wins, even though the compiler's help text says "leftmost". The broad `any:e` must therefore come first, followed by
@@ -247,21 +255,26 @@ allowed until green. Everything else must compile."
 
 The plan's first step checks that each rule works on Scala 3.6.3, and drops any that doesn't.
 
-- **`RemoveUnused`:** removes unused code automatically. It matters mostly for the bulk PR: once warnings are fatal,
-  the compiler reports unused code before scalafix could remove it.
+- **No `RemoveUnused`.** scalafix removes unused imports only, through `OrganizeImports`. The compiler reports any other
+  unused code (methods, values, classes, parameters), which is fixed by hand. On a scratch copy of the code,
+  `RemoveUnused` deleted `TrackManager`'s private `@Subscribe` handlers, which only Guava's `EventBus` calls, and the
+  build stayed green; it also turned unused test values into dead statements, one of which hid a missing check.
 - **`OrganizeImports`**, configured to match IntelliJ's default layout, which the existing code follows:
-  - Groups: other packages, then `java`/`javax`, then `scala` (e.g. `groups = ["*", "re:javax?\\.", "scala."]`).
+  - Groups: other packages, one blank line, then `java`, `javax` and `scala` with no blank line between them:
+    `blankLines = Manual` and `groups = ["*", "---", "re:javax?\\.", "scala."]`. The layout without `---`, one blank
+    line between each group, changed 110 files, against 75.
   - `targetDialect = Scala3`, `removeUnused = true`, `groupedImports = Keep`.
   - How many imports from one package get merged into a `*` import (`coalesceToWildcardImportThreshold`) is tuned by
-    minimizing the bulk diff, like scalafmt.
+    minimizing the bulk diff, like scalafmt. Measured: left unset; a threshold of 5 made the diff bigger.
   - The plan checks that IntelliJ's "Optimize imports" produces the same result, so the IDE and the CI check never
     undo each other.
 - **`DisableSyntax`:** each check's message points to the relevant section of the convention docs.
   - `noReturns = true`.
   - Regex `//\s*TODO(?! #\d+)` for TODOs without an issue number. It deliberately doesn't match a mid-sentence
     "the onAttach TODO above".
-  - Regex `Thread\.sleep`. The one production use (`MicrotonalistApp.scala:107`) gets a `// scalafix:ok` comment with
-    a reason.
+  - Regex `Thread\.sleep`. The one production use (the shutdown hook in `MicrotonalistApp`) gets a
+    `// scalafix:ok DisableSyntax.threadSleep` comment, and a comment giving the reason.
+  - `noReturns` has a fixed message; only the regex checks take a custom one.
   - Regex `AnyFlatSpec`.
 - **`NoValInForComprehension`, `RedundantSyntax`:** cheap syntax checks.
 
@@ -277,7 +290,7 @@ The same "Enforced by …" information is added to each entry in the convention 
 | TODOs have issue numbers | `DisableSyntax` regex |
 | No sleeping in tests | `DisableSyntax` regex |
 | Tests use `AnyWordSpec`, not `AnyFlatSpec` | `DisableSyntax` regex |
-| No unused code | `-Wunused:all` and `RemoveUnused` |
+| No unused code | `-Wunused:all`; `OrganizeImports` removes unused imports |
 | Avoid `new` | Not enforced. Reworded as a recommendation ("Prefer omitting `new`"); the code has 539 existing `new X(...)` calls. |
 | `enum` for simple enumerations; no `case class` with `var` fields; for-comprehensions for nested monads; `_value` backing fields; ScalaDoc on public identifiers; Given/When/Then comments; no `if` around assertions; fixtures; shared test utilities | Not enforced; documented only |
 
@@ -285,21 +298,25 @@ The same "Enforced by …" information is added to each entry in the convention 
 
 **Tooling PR, fixed by hand:**
 
-- The `return` in `MergeTuningReducer.scala:51`: rewritten with `boundary`.
+- The 2 `return` statements, in `MergeTuningReducer` and `JsonPreprocessorHttpRefLoader` (which has no test yet):
+  rewritten with `boundary`.
 - The 3 TODOs without an issue number, in `PlatformUtils.scala`, `TuningMapper.scala` and `TuningReference.scala`:
   each gets an issue number or is removed, decided with the user one by one.
 - The `Thread.sleep` in `ConcurrentMidiTransmitterTest`: replaced with a latch, per the test conventions.
-- Whatever `-Wvalue-discard` and `-Wnonunit-statement` report, plus the `-Wunused` findings that `RemoveUnused` can't
-  fix on Scala 3.6.3. Anything `RemoveUnused` can fix is left for the bulk PR. **The plan starts by counting these per
-  module and category. If there are too many to fix by hand in one PR, stop and re-scope with the user.**
+- Whatever `-Wvalue-discard` and `-Wnonunit-statement` report, plus every `-Wunused` finding other than an unused
+  import. Unused imports are left for the bulk PR. **The plan starts by counting these per module and category. If
+  there are too many to fix by hand in one PR, stop and re-scope with the user.** Measured while planning: 24 (14
+  discarded values, 7 unused private members, 3 unused local definitions).
 - The 2 deprecated `TuningService.tunings` uses stay as they are, since deprecations remain warnings.
 
-**Bulk PR:** only the output of `sbtn fix` (scalafix autofixes, then scalafmt).
+**Bulk PR:** only the output of `sbtn fix` (scalafix autofixes, then scalafmt): unused imports removed, imports ordered,
+and redundant syntax simplified. It removes no definition.
 
-### Aliases and enforcement (finish PR)
+### Aliases and enforcement
 
-- `fix` becomes: `scalafixAll`, `experiments/scalafixAll`, then the #335 formatting commands.
-- `lint` becomes: `Test/compile` and `experiments/Test/compile`, `scalafixAll --check` and
+- **Tooling PR:** `fix` becomes `scalafixAll`, `experiments/scalafixAll`, then the #335 formatting commands, since the
+  bulk PR is its output. `lint` doesn't change yet: its new checks would fail CI before the bulk PR merges.
+- **Finish PR:** `lint` becomes `Test/compile` and `experiments/Test/compile`, `scalafixAll --check` and
   `experiments/scalafixAll --check`, then the #335 format checks.
 - CI's `lint` job runs `sbt -Dmicrotonalist.build.strictWarnings=true lint`.
 - The `-Wconf` policy from section 4 turns on.
@@ -310,8 +327,15 @@ The same "Enforced by …" information is added to each entry in the convention 
 - **New `docs/development/linting.md`**, read on demand. It holds the rationale: what each flag and rule does, the
   warnings policy, the strict property, the `-Wconf` ordering and phase quirks, rules for suppressing warnings, and how
   to add a rule.
-- **CLAUDE.md** keeps only the facts an agent needs every time: warnings are errors except red-phase constructor
-  parameters and deprecations, the Lint step is `sbtn fix` then `sbtn lint`, and the `@nowarn` rules.
+- **CLAUDE.md** keeps only the facts an agent needs every time:
+  - Never ignore a warning: deal with each one the change introduced before the task ends.
+  - Warnings are errors, except red-phase constructor parameters, unused imports (`sbtn fix` removes them) and
+    deprecations (don't add a use of a deprecated API).
+  - Nothing removes other unused code automatically. Before deleting an "unused" private method, check that nothing
+    calls it through reflection. Before deleting an unused test value, check whether the case forgot to check it.
+  - The Lint step is `sbtn fix`, then `sbtn lint`, then CI's strict check,
+    `sbt -Dmicrotonalist.build.strictWarnings=true lint`, which fails on every warning but a deprecation.
+  - The `@nowarn` and `// scalafix:ok` rules.
 - **`coding-conventions.md` and `test-conventions.md`:** the "Enforced by …" notes, and the reworded "Avoid `new`".
 - **`build.md`:** the strict property.
 
@@ -344,7 +368,8 @@ in which case the same tooling, bulk and finish split applies.
 - **New checker findings:** fix what the reworked `-Wunused` reports. Any `@nowarn` added in #334 that becomes
   unnecessary is flagged by `-Wunused:nowarn` and removed.
 - **Red-phase exception:** keep `msg=unused explicit parameter:w`. Scala 3.8.4 still warns about unused constructor
-  parameters (appendix A); only the private-`???` false positive goes away.
+  parameters (appendix A); only the private-`???` false positive goes away. Keep `msg=unused import:w` too, and check
+  that the unused-import message still matches it.
 - **`-Wconf` ordering:** re-test on the new version with the scratch-file method from appendix A.
 
 **Out of scope:** new warning flags that 3.7 or 3.8 may add. They'd go in a separate issue if wanted.
@@ -356,8 +381,10 @@ These changes are build configuration, with no production logic to drive by test
 instead:
 
 - **Negative checks:** an uncommitted scratch file holds one deliberate violation per rule: indentation syntax, an
-  unused import, `return`, a bare TODO, `Thread.sleep`, `AnyFlatSpec`, and unformatted code. Each must fail `compile`
-  or `lint`, and then the file is deleted. A red-phase stub must compile in default mode and fail in strict mode.
+  unused import, an unused private method, `return`, a bare TODO, `Thread.sleep`, `AnyFlatSpec`, and unformatted code.
+  Each must fail `compile` or `lint`, and then the file is deleted. A red-phase stub and an unused import must compile
+  in default mode and fail in strict mode. `sbtn fix` must remove an unused import, and must fail on an unused private
+  method, leaving it in place.
 - **Bulk PRs are reproducible:** re-running the command on the base commit gives an empty diff against the PR.
 - **Tests and coverage:** the full test suite (`sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"`) and `coverageCheck` pass
   after every PR. A scalafix removal that breaks a `given` import fails compilation.
@@ -372,6 +399,8 @@ instead:
 | scalafmt can't exactly reproduce some IntelliJ default | Tune the config to minimize the diff; the user reviews sample files for any remaining style differences before the bulk PR |
 | `OrganizeImports` and IntelliJ's "Optimize imports" disagree | Tune them to agree; if they can't, document "run `sbtn fix` instead of IntelliJ's Optimize Imports" |
 | A scalafix rule doesn't support Scala 3.6.3 | Drop it; the compiler still covers unused code |
+| Agents ignore the warnings that stay warnings locally | CLAUDE.md tells them to deal with each one; the Lint step ends with CI's strict check |
+| An unused private method is only called through reflection (e.g. Guava's `@Subscribe`) | No automatic removal; `@nowarn` with the reason; tests cover the handlers |
 | Scala 3 coverage instrumentation emits warnings, which become fatal in `coverageCheck` | Check early in #334; if needed, a narrow `-Wconf` rule for instrumented builds |
 | Too many hand fixes in #334 | Count them first; stop and re-scope with the user |
 | Bulk PRs conflict with branches in progress | Merge them soon after they open; other branches rebase and run `sbtn fix` |
@@ -407,9 +436,10 @@ Scratch files were compiled directly with the Scala compiler JARs from the Cours
 | --- | --- |
 | `new X(...)` calls | 539 (not enforced) |
 | TODOs without an issue number | 3 |
-| `return` statements | 1 (`MergeTuningReducer`) |
+| `return` statements | 2 (`MergeTuningReducer`, `JsonPreprocessorHttpRefLoader`) |
 | `Thread.sleep` | 1 in a test (`ConcurrentMidiTransmitterTest`), 1 in production (`MicrotonalistApp`) |
 | `AnyFlatSpec` | 0 |
 | Indentation syntax or `if … then` | 0 found by grep; `-no-indent` / `-old-syntax` will confirm |
 | Compiler warnings (existing flags) | 2 deprecations |
+| Compiler warnings with the #334 flags (measured while planning #334) | 37: 14 discarded values, 11 unused imports, 7 unused private members, 3 unused local definitions, 2 deprecations |
 | Tracked Scala sources | 245 files, about 45.5k lines |
