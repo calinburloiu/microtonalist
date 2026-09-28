@@ -178,7 +178,9 @@ class MpeTuner(private val initialZones: MpeZones = MpeZones.DefaultZones,
             buffer += msg.mapChannel(_ => channel)
             // A relayed Reset All Controllers deselects the parameter at the receiver, so what the Tuner recorded
             // for that channel has stopped being a fact about it.
-            if (MpeMessageRouting.deselectsOnRelay(msg)) outputRpnSelectors.remove(channel)
+            if (MpeMessageRouting.deselectsOnRelay(msg)) {
+              val _ = outputRpnSelectors.remove(channel)
+            }
           case MpeRoutingVerdict.ForwardRpnSequenceOn(channel) => msg match {
               case cc: CcMidiMsg =>
                 val (messages, latchedSelector) =

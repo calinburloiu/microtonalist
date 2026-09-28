@@ -49,8 +49,8 @@ class TuningService(session: TuningSession, businessync: Businessync) {
    */
   def changeTuning(tuningChange: EffectiveTuningChange): Unit = businessync.run { () =>
     tuningChange match {
-      case PreviousTuningChange => session.previousTuning()
-      case NextTuningChange => session.nextTuning()
+      case PreviousTuningChange => val _ = session.previousTuning()
+      case NextTuningChange => val _ = session.nextTuning()
       case IndexTuningChange(index) => session.tuningIndex = index
     }
   }

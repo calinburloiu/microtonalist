@@ -47,7 +47,7 @@ object LogCapture {
     val appender = new AppenderBase[ILoggingEvent] {
       override def append(event: ILoggingEvent): Unit = {
         if (event.getThreadName == threadName) {
-          events.add(event)
+          val _ = events.add(event)
         }
       }
     }
@@ -75,7 +75,7 @@ object LogCapture {
    * complete, or runs it on this thread if it has not started yet.
    */
   private def awaitSlf4jInitialization(): Unit = classOf[LoggerFactory].synchronized {
-    LoggerFactory.getILoggerFactory
+    val _ = LoggerFactory.getILoggerFactory
   }
 
   extension (events: Seq[ILoggingEvent]) {
