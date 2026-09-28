@@ -23,17 +23,16 @@ import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendS
 import scala.collection.mutable
 
 /**
- * Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent
- * on, this tuner only supports and enforces monophonic playing.
+ * Tuner that uses pitch bend to tune notes. Because pitch bend MIDI messages affect the whole channel they are sent on,
+ * this tuner only supports and enforces monophonic playing.
  *
  * It can only tune exactly the offsets within its current pitch bend sensitivity, see [[canTune]], and clamps any other
  * offset to the sensitivity. This includes an offset of the current tuning that the sensitivity decreases below, on
  * reset or when the input sends a Pitch Bend Sensitivity RPN, which it then warns about.
  *
- * @param outputChannel               Output MIDI channel on which all output is sent, regardless on the input
- *                                    channels used.
- * @param defaultPitchBendSensitivity Default pitch bend range that will be configured via Pitch Bend Sensitivity
- *                                    MIDI RPN.
+ * @param outputChannel Output MIDI channel on which all output is sent, regardless on the input channels used.
+ * @param defaultPitchBendSensitivity Default pitch bend range that will be configured via Pitch Bend Sensitivity MIDI
+ *   RPN.
  */
 case class MonophonicPitchBendTuner(outputChannel: Int,
                                     defaultPitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity.Default)
@@ -64,8 +63,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   /**
    * @inheritdoc
    *
-   * This tuner stops the note sounding, if any, and releases the Sustain and Sostenuto pedals left down. After
-   * clearing its state, it resets the pitch bend and configures the pitch bend sensitivity.
+   * This tuner stops the note sounding, if any, and releases the Sustain and Sostenuto pedals left down. After clearing
+   * its state, it resets the pitch bend and configures the pitch bend sensitivity.
    *
    * The pitch bend is reset to 0 whatever the output device holds, because the cleared state assumes that it holds no
    * pitch bend, whereas it may still hold the one of the last note played.
@@ -107,9 +106,8 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
   /**
    * @inheritdoc
    *
-   * This tuner can tune exactly a tuning whose offsets are all within the current pitch bend sensitivity, which
-   * starts as the default one, changes when the input sends a Pitch Bend Sensitivity RPN, and returns to the default
-   * on reset.
+   * This tuner can tune exactly a tuning whose offsets are all within the current pitch bend sensitivity, which starts
+   * as the default one, changes when the input sends a Pitch Bend Sensitivity RPN, and returns to the default on reset.
    */
   override def canTune(tuning: Tuning): Boolean =
     tuning.offsets.forall(offset => Math.abs(offset) <= pitchBendSensitivity.totalCents)
@@ -127,10 +125,11 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
 
   override def process(message: MidiMsg): Seq[MidiMsg] = {
     val buffer = mutable.Buffer[MidiMsg]()
-    val forwardMessage = () => message match {
-      case channelMessage: ChannelMidiMsg => channelMessage.mapChannel(_ => outputChannel)
-      case _ => message
-    }
+    val forwardMessage = () =>
+      message match {
+        case channelMessage: ChannelMidiMsg => channelMessage.mapChannel(_ => outputChannel)
+        case _ => message
+      }
 
     // `turnNoteOn` / `turnNoteOff` need to know which notes were held down *before* this message.
     // Capture the pre-message state once, then update the tracker so all other reads (CC values,
@@ -329,7 +328,7 @@ case class MonophonicPitchBendTuner(outputChannel: Int,
    * Generates a pitch bend MIDI message if the pitch bend value has changed since the last call.
    *
    * @return An `Option` containing the newly generated `PitchBendMidiMsg` with pitch bend if the pitch bend value has
-   *         changed, or `None` if there is no change.
+   *   changed, or `None` if there is no change.
    */
   private def applyPitchBend(): Option[PitchBendMidiMsg] = {
     // Only send the pitch bend value if it changed since the last call

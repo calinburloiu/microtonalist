@@ -27,7 +27,7 @@ import scala.concurrent.Future
  *
  * The service makes sure that all operations are executed on the business thread.
  *
- * @param session     Object where all mutable operations are performed.
+ * @param session Object where all mutable operations are performed.
  * @param businessync Provides thread communication capabilities.
  */
 @ThreadSafe

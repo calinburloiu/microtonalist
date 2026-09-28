@@ -22,8 +22,8 @@ import org.calinburloiu.music.scmidi.PitchClass
 import scala.collection.mutable
 
 /**
- * Per-note state on an output Member Channel: the note's own Expression Values, its reference count and
- * the logical time of the Note On that allocated it.
+ * Per-note state on an output Member Channel: the note's own Expression Values, its reference count and the logical
+ * time of the Note On that allocated it.
  */
 private[tuner] class MpeNoteState(val expression: MutableMpeExpression,
                                   var referenceCount: Int,
@@ -32,11 +32,11 @@ private[tuner] class MpeNoteState(val expression: MutableMpeExpression,
 /**
  * Holds all mutable runtime state for a single MPE Member Channel within the allocator.
  *
- * A channel is considered ''occupied'' while it has at least one active Note Identity (i.e. a Note On has
- * been received but the matching Note Off has not yet arrived). Once it becomes unoccupied its pitch-class
- * and group assignments are cleared and the channel is eligible for reuse, but it '''retains''' its
- * aggregated Expression Values: averaging is defined only while at least one note is active, and the
- * retained values are what let the caller omit control messages whose value would not change.
+ * A channel is considered ''occupied'' while it has at least one active Note Identity (i.e. a Note On has been received
+ * but the matching Note Off has not yet arrived). Once it becomes unoccupied its pitch-class and group assignments are
+ * cleared and the channel is eligible for reuse, but it '''retains''' its aggregated Expression Values: averaging is
+ * defined only while at least one note is active, and the retained values are what let the caller omit control messages
+ * whose value would not change.
  *
  * @param channel The 0-indexed MIDI channel number this state object represents.
  */
@@ -56,11 +56,11 @@ private[tuner] class MpeChannelState(val channel: Int) {
   def noteCount: Int = _notes.size
 
   /**
-   * The channel's aggregated Expression Values: the average of its active notes' values, one term per Note
-   * Identity whatever its reference count, retained unchanged while the channel is unoccupied.
+   * The channel's aggregated Expression Values: the average of its active notes' values, one term per Note Identity
+   * whatever its reference count, retained unchanged while the channel is unoccupied.
    *
-   * The average is recomputed on demand, the first time it is read after a mutation that can move it. The
-   * value is immutable, so it stays valid across later mutations and serves as a "before" reference.
+   * The average is recomputed on demand, the first time it is read after a mutation that can move it. The value is
+   * immutable, so it stays valid across later mutations and serves as a "before" reference.
    */
   def expression: MpeExpression = {
     if (_isExpressionStale) {
@@ -117,27 +117,25 @@ private[tuner] class MpeChannelState(val channel: Int) {
   def onsetTimeOf(noteIdentity: MpeNoteIdentity): Long = _notes(noteIdentity).onsetTime
 
   /**
-   * The pitch class shared by all active notes on this channel, or `None` when the channel is
-   * unoccupied. All notes on a single channel are required to belong to the same pitch class so
-   * that one tuning offset can serve all of them.
+   * The pitch class shared by all active notes on this channel, or `None` when the channel is unoccupied. All notes on
+   * a single channel are required to belong to the same pitch class so that one tuning offset can serve all of them.
    */
   def pitchClass: Option[PitchClass] = _pitchClass
 
   /**
-   * The [[ChannelGroup]] this channel is currently assigned to, or `None` when the channel is
-   * unoccupied.
+   * The [[ChannelGroup]] this channel is currently assigned to, or `None` when the channel is unoccupied.
    */
   def group: Option[ChannelGroup] = _group
 
   /**
-   * The logical timestamp of the most recent Note On event processed on this channel.
-   * Zero when the channel is unoccupied (never received a note, or all notes have been released).
+   * The logical timestamp of the most recent Note On event processed on this channel. Zero when the channel is
+   * unoccupied (never received a note, or all notes have been released).
    */
   def lastNoteOnTime: Long = _lastNoteOnTime
 
   /**
-   * The logical timestamp of the most recent Note Off event processed on this channel.
-   * Zero when the channel has never had a note released.
+   * The logical timestamp of the most recent Note Off event processed on this channel. Zero when the channel has never
+   * had a note released.
    */
   def lastNoteOffTime: Long = _lastNoteOffTime
 
@@ -145,15 +143,14 @@ private[tuner] class MpeChannelState(val channel: Int) {
   def isOccupied: Boolean = _notes.nonEmpty
 
   /**
-   * Adds a note to this channel with a reference count of 1, updating pitch class, group, and onset time
-   * accordingly. Pitch class and group are only set when the channel transitions from unoccupied to
-   * occupied. When the channel is already occupied, the `targetGroup` must match the existing group.
+   * Adds a note to this channel with a reference count of 1, updating pitch class, group, and onset time accordingly.
+   * Pitch class and group are only set when the channel transitions from unoccupied to occupied. When the channel is
+   * already occupied, the `targetGroup` must match the existing group.
    *
    * @param noteIdentity The note being added.
-   * @param expression   The initial Expression Values of the note.
-   * @param time         The logical timestamp of the onset.
-   * @param targetGroup  The channel group; must match the existing group when the channel is already
-   *                     occupied.
+   * @param expression The initial Expression Values of the note.
+   * @param time The logical timestamp of the onset.
+   * @param targetGroup The channel group; must match the existing group when the channel is already occupied.
    */
   def addNote(noteIdentity: MpeNoteIdentity,
               expression: MpeExpression,
@@ -173,10 +170,9 @@ private[tuner] class MpeChannelState(val channel: Int) {
   }
 
   /**
-   * Increments the reference count of an already active identity, for a duplicate Note On. Nothing else
-   * changes: the identity keeps its onset time, the channel keeps its own timestamps because no allocation
-   * occurs, and the aggregate is not invalidated because an identity contributes a single term to it
-   * whatever its reference count.
+   * Increments the reference count of an already active identity, for a duplicate Note On. Nothing else changes: the
+   * identity keeps its onset time, the channel keeps its own timestamps because no allocation occurs, and the aggregate
+   * is not invalidated because an identity contributes a single term to it whatever its reference count.
    */
   def incrementReferenceCount(noteIdentity: MpeNoteIdentity): Unit = {
     require(referenceCountOf(noteIdentity) >= 1,
@@ -203,12 +199,12 @@ private[tuner] class MpeChannelState(val channel: Int) {
   }
 
   /**
-   * Removes a note from this channel whatever its reference count, updating note-off time accordingly.
-   * Clears pitch class, group, and onset time when the channel becomes unoccupied. The aggregate is
-   * invalidated, but a channel left unoccupied retains it rather than recomputing over an empty set.
+   * Removes a note from this channel whatever its reference count, updating note-off time accordingly. Clears pitch
+   * class, group, and onset time when the channel becomes unoccupied. The aggregate is invalidated, but a channel left
+   * unoccupied retains it rather than recomputing over an empty set.
    *
    * @param noteIdentity The note to remove.
-   * @param time         The logical timestamp of the removal.
+   * @param time The logical timestamp of the removal.
    */
   def removeNote(noteIdentity: MpeNoteIdentity, time: Long): Unit = {
     if (_notes.remove(noteIdentity).isDefined) {

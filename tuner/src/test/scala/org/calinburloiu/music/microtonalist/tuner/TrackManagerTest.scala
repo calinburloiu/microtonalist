@@ -29,8 +29,8 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
   private val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
 
   /**
-   * What releasing the input of a track sends straight to its output, on each of the 16 channels: the pedals
-   * released first, then All Notes Off.
+   * What releasing the input of a track sends straight to its output, on each of the 16 channels: the pedals released
+   * first, then All Notes Off.
    */
   private val inputRelease: Seq[MidiMsg] = (0 until MidiChannelCount).flatMap { channel =>
     Seq(CcMidiMsg(channel, MidiCc.SustainPedal, 0), CcMidiMsg(channel, MidiCc.SostenutoPedal, 0),

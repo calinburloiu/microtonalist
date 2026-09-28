@@ -28,15 +28,15 @@ object PitchClassFormat extends Format[PitchClass] {
 
   override def reads(json: JsValue): JsResult[PitchClass] = json match {
     case _: JsNumber => JsPath.read[Int](Reads.min(0) keepAnd Reads.max(11))
-      .map(PitchClass.fromNumber)
-      .reads(json)
+        .map(PitchClass.fromNumber)
+        .reads(json)
     case _: JsString => JsPath.read[String]
-      .flatMapResult { string =>
-        PitchClass.fromName(string).flatMap { pc => Try(pc.assertValid()).toOption } match {
-          case Some(pitchClass) => JsSuccess(pitchClass)
-          case None => JsError(InvalidPitchClassError)
-        }
-      }.reads(json)
+        .flatMapResult { string =>
+          PitchClass.fromName(string).flatMap { pc => Try(pc.assertValid()).toOption } match {
+            case Some(pitchClass) => JsSuccess(pitchClass)
+            case None => JsError(InvalidPitchClassError)
+          }
+        }.reads(json)
     case _ => JsError(InvalidPitchClassError)
   }
 

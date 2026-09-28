@@ -30,14 +30,14 @@ import scala.jdk.CollectionConverters.*
 object LogCapture {
 
   /**
-   * Runs `body` with the logger named `loggerName` and its descendants enabled down to DEBUG, and returns the result
-   * of `body` together with the events those loggers emitted meanwhile on the calling thread.
+   * Runs `body` with the logger named `loggerName` and its descendants enabled down to DEBUG, and returns the result of
+   * `body` together with the events those loggers emitted meanwhile on the calling thread.
    *
    * Suites may run in parallel in the same JVM, so the events of other threads are ignored, and each suite should
    * capture a logger of its own, since the level of the logger is restored once `body` completes.
    *
    * @param loggerName Name of the logger to capture, typically the fully qualified name of the class under test;
-   *                   logback treats the loggers of its nested classes as descendants, so they are captured too.
+   *   logback treats the loggers of its nested classes as descendants, so they are captured too.
    */
   def capturing[R](loggerName: String)(body: => R): (R, Seq[ILoggingEvent]) = {
     awaitSlf4jInitialization()

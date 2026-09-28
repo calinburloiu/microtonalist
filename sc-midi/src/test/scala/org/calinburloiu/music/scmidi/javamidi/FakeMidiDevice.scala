@@ -31,26 +31,25 @@ class TestDeviceInfo(name: String, vendor: String, description: String, version:
  * A Java Sound [[MidiDevice]] test double that records how it is used, so that the Java Sound boundary can be tested
  * without MIDI hardware.
  *
- * The directions the device works in follow from its connection limits, as for a real device: `0` transmitters makes
- * it no input, `0` receivers makes it no output, and `-1` stands for unlimited.
+ * The directions the device works in follow from its connection limits, as for a real device: `0` transmitters makes it
+ * no input, `0` receivers makes it no output, and `-1` stands for unlimited.
  *
  * Its receivers behave like those of CoreMIDI4J and of the JDK's own devices: each `getReceiver` call creates a new
  * receiver, which stays attached to the device until it is closed, a receiver rejects messages once it is closed or
  * while the device is not open, and closing the device closes all of its receivers.
  *
- * @param name                 Name of the device.
- * @param vendor               Vendor of the device.
- * @param maxTransmitters      What `getMaxTransmitters` reports.
- * @param maxReceivers         What `getMaxReceivers` reports; with `0`, `getReceiver` throws
- *                             `MidiUnavailableException`.
- * @param openFailure          Thrown by `open` when defined, leaving the device closed; a test may set it at any
- *                             time, e.g. to make only a later `open` call fail.
- * @param closeFailure         Thrown by `close` when defined, leaving the device in its current state; a test may set
- *                             it at any time, e.g. to make closing fail only once the device is already closed.
- * @param receiverFailure      Thrown by `getReceiver` when defined, instead of creating a receiver; a test may set it
- *                             at any time, e.g. to make only a later `getReceiver` call fail.
+ * @param name Name of the device.
+ * @param vendor Vendor of the device.
+ * @param maxTransmitters What `getMaxTransmitters` reports.
+ * @param maxReceivers What `getMaxReceivers` reports; with `0`, `getReceiver` throws `MidiUnavailableException`.
+ * @param openFailure Thrown by `open` when defined, leaving the device closed; a test may set it at any time, e.g. to
+ *   make only a later `open` call fail.
+ * @param closeFailure Thrown by `close` when defined, leaving the device in its current state; a test may set it at any
+ *   time, e.g. to make closing fail only once the device is already closed.
+ * @param receiverFailure Thrown by `getReceiver` when defined, instead of creating a receiver; a test may set it at any
+ *   time, e.g. to make only a later `getReceiver` call fail.
  * @param receiverCloseFailure Thrown by the `close` of any of its receivers when defined, leaving that receiver
- *                             attached; closing the device still closes all of them. A test may set it at any time.
+ *   attached; closing the device still closes all of them. A test may set it at any time.
  */
 class FakeMidiDevice(name: String,
                      vendor: String = "Roland",

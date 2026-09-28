@@ -63,8 +63,9 @@ class CoreConfigManager(mainConfigManager: MainConfigManager)
 
   override protected def deserialize(hoconConfig: HoconConfig): CoreConfig = CoreConfig(
     libraryBaseUrl = hoconConfig.getAs[String]("libraryBaseUrl")
-      .map(uri => parseUrlOrPath(uri).getOrElse(throw new ConfigPropertyException(
-        s"$configRootPath.libraryBaseUrl", "must be a valid URL or a local path")))
+      .map(uri =>
+        parseUrlOrPath(uri).getOrElse(throw new ConfigPropertyException(
+          s"$configRootPath.libraryBaseUrl", "must be a valid URL or a local path")))
       .getOrElse(CoreConfig.defaultLibraryBaseUrl),
     metaConfig = hoconConfig.getAs[MetaConfig]("metaConfig").getOrElse(MetaConfig())
   )

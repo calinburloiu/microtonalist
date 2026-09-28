@@ -19,31 +19,29 @@ import sbt.Keys.*
 import scoverage.ScoverageKeys.*
 
 /**
- * `coverageAll`, `coverageModules <module> [<module> ...]`, `coverageCheck`, `coverageClean`, and
- * `coverageThresholds` sbt commands — run the coverage workflow, clean up the reports directory, and inspect
- * per-module thresholds.
+ * `coverageAll`, `coverageModules <module> [<module> ...]`, `coverageCheck`, `coverageClean`, and `coverageThresholds`
+ * sbt commands — run the coverage workflow, clean up the reports directory, and inspect per-module thresholds.
  *
  * `coverageAll` runs `clean; coverage; test; coverageReport; coverageAggregate` across all modules.
  *
  * `coverageModules <module> [<module> ...]` runs the same workflow but only the named modules' tests are run, giving
- * accurate per-module coverage that is not inflated by tests from other modules exercising the same code. At least
- * one module must be supplied. All listed modules' tests run inside a single `coverage` session, then each produces
- * its own `coverageReport`.
+ * accurate per-module coverage that is not inflated by tests from other modules exercising the same code. At least one
+ * module must be supplied. All listed modules' tests run inside a single `coverage` session, then each produces its own
+ * `coverageReport`.
  *
- * `coverageClean` deletes the `coverage-reports/` directory at the repo root. The reports directory is
- * configured via `coverageDataDir` in `build.sbt` to live outside `target/` so it survives `sbt clean`.
- * Use `coverageClean` when you want to discard the persisted reports themselves.
+ * `coverageClean` deletes the `coverage-reports/` directory at the repo root. The reports directory is configured via
+ * `coverageDataDir` in `build.sbt` to live outside `target/` so it survives `sbt clean`. Use `coverageClean` when you
+ * want to discard the persisted reports themselves.
  *
- * `coverageCheck` is intended for CI: it runs the same workflow as `coverageAll` but disables HTML and
- * Cobertura report output for speed. XML output is kept on because `coverageAggregate` reads each subproject's
- * XML to combine their coverage data. Per-module thresholds are enforced by `coverageReport` (each subproject
- * with `coverageFailOnMinimum`) and the aggregate threshold by `coverageAggregate` against the root project's
- * settings. The HTML/Cobertura toggles are restored at the end so a local invocation does not leave the session
- * with reduced output enabled.
+ * `coverageCheck` is intended for CI: it runs the same workflow as `coverageAll` but disables HTML and Cobertura report
+ * output for speed. XML output is kept on because `coverageAggregate` reads each subproject's XML to combine their
+ * coverage data. Per-module thresholds are enforced by `coverageReport` (each subproject with `coverageFailOnMinimum`)
+ * and the aggregate threshold by `coverageAggregate` against the root project's settings. The HTML/Cobertura toggles
+ * are restored at the end so a local invocation does not leave the session with reduced output enabled.
  *
- * `coverageThresholds` prints a table of the minimum statement and branch coverage percentages configured for
- * each module aggregated by root (excluding modules with coverage disabled, e.g. `common-test-utils`). Useful
- * for agents and developers who need to check thresholds without reading `build.sbt`.
+ * `coverageThresholds` prints a table of the minimum statement and branch coverage percentages configured for each
+ * module aggregated by root (excluding modules with coverage disabled, e.g. `common-test-utils`). Useful for agents and
+ * developers who need to check thresholds without reading `build.sbt`.
  */
 object Coverage {
 
@@ -110,7 +108,7 @@ object Coverage {
     val rootResolved = structure.units.values.flatMap(_.defined.values).find(_.id == "root")
     val includedIds: Set[String] = rootResolved match {
       case Some(root) => root.aggregate.map(_.project).toSet + "root"
-      case None       => structure.allProjectRefs.map(_.project).toSet
+      case None => structure.allProjectRefs.map(_.project).toSet
     }
 
     case class Row(id: String, stmt: Double, branch: Double)

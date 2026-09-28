@@ -19,9 +19,9 @@ package org.calinburloiu.music.scmidi
 /**
  * Manages access to MIDI devices and gives information about them.
  *
- * The `direction` a method takes tells how the caller wants to use a device: as an input ([[MidiDirection.Input]]),
- * as an output ([[MidiDirection.Output]]) or as both ([[MidiDirection.InputOutput]]). It is a request: the `direction`
- * of a [[MidiDeviceHandle]] or of a [[MidiDeviceInfo]] tells instead what the device itself is capable of, and a caller
+ * The `direction` a method takes tells how the caller wants to use a device: as an input ([[MidiDirection.Input]]), as
+ * an output ([[MidiDirection.Output]]) or as both ([[MidiDirection.InputOutput]]). It is a request: the `direction` of
+ * a [[MidiDeviceHandle]] or of a [[MidiDeviceInfo]] tells instead what the device itself is capable of, and a caller
  * may request less than that. A MIDI 2.0 implementation, for instance, would let it request only the input of a device
  * that works in both directions, and so a projection of that device.
  *
@@ -32,8 +32,8 @@ package org.calinburloiu.music.scmidi
  * [[MidiDirection.Output]] and rejects [[MidiDirection.InputOutput]].
  *
  * An implementation scans the environment on [[refresh]] and typically also when the platform reports a change, and
- * publishes [[MidiEvent]]s about what it finds. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiManager]] is the
- * Java Sound implementation; consumers receive a [[MidiManager]] and the composition root picks the implementation.
+ * publishes [[MidiEvent]]s about what it finds. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiManager]] is the Java
+ * Sound implementation; consumers receive a [[MidiManager]] and the composition root picks the implementation.
  *
  * A handle is live while the manager holds it, which is exactly while its state is not
  * [[MidiDeviceHandle.State.Closed]] (see [[MidiDeviceHandle]]). The manager holds a handle for every device that is
@@ -42,24 +42,24 @@ package org.calinburloiu.music.scmidi
 trait MidiManager extends AutoCloseable {
 
   /**
-   * Rescans the environment for MIDI device information and updates the internal state, publishing the
-   * [[MidiEvent]]s that describe what changed.
+   * Rescans the environment for MIDI device information and updates the internal state, publishing the [[MidiEvent]]s
+   * that describe what changed.
    *
-   * Refreshes are serialised: a refresh scans the environment before it reconciles the result, so two running at
-   * once would otherwise be able to reconcile in the opposite order and leave the registries describing the
-   * environment as it was at the earlier scan. A concurrent call therefore waits for the one in progress.
+   * Refreshes are serialised: a refresh scans the environment before it reconciles the result, so two running at once
+   * would otherwise be able to reconcile in the opposite order and leave the registries describing the environment as
+   * it was at the earlier scan. A concurrent call therefore waits for the one in progress.
    */
   def refresh(): Unit
 
   /**
-   * @param deviceId  Unique identifier of the device.
+   * @param deviceId Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
    * @return whether the device with the given identifier is currently available.
    */
   def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean
 
   /**
-   * @param deviceId  Unique identifier of the device.
+   * @param deviceId Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
    * @return the information of the device with the given identifier, if it is currently available.
    */
@@ -85,17 +85,17 @@ trait MidiManager extends AutoCloseable {
    * available and opens, [[MidiDeviceHandle.State.WaitingToOpen]] if it is not available, in which case it opens once
    * the device becomes available, and [[MidiDeviceHandle.State.Available]] if the device fails to open.
    *
-   * @param deviceId  Unique identifier of the device.
+   * @param deviceId Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
    * @return the live handle of the device.
    */
   def openDevice(deviceId: MidiDeviceId, direction: MidiDirection): MidiDeviceHandle
 
   /**
-   * @param deviceId  Unique identifier of the device.
+   * @param deviceId Unique identifier of the device.
    * @param direction How the caller wants to use the device (see [[MidiManager]]).
    * @return the live handle of the device with the given identifier: requested to open, available, or both. An
-   *         available device nobody opened has one, in [[MidiDeviceHandle.State.Available]].
+   *   available device nobody opened has one, in [[MidiDeviceHandle.State.Available]].
    */
   def deviceOf(deviceId: MidiDeviceId, direction: MidiDirection): Option[MidiDeviceHandle]
 
@@ -107,8 +107,8 @@ trait MidiManager extends AutoCloseable {
 
   /**
    * @param direction How the caller wants to use the devices (see [[MidiManager]]).
-   * @return the live handles of the devices requested to open, whether or not their device is available: the open
-   *         ones, and those waiting to open once their device becomes available.
+   * @return the live handles of the devices requested to open, whether or not their device is available: the open ones,
+   *   and those waiting to open once their device becomes available.
    */
   def devicesRequestedToOpenFor(direction: MidiDirection): Seq[MidiDeviceHandle]
 
@@ -118,7 +118,7 @@ trait MidiManager extends AutoCloseable {
    * where it stays live, or, if its device is not available, to [[MidiDeviceHandle.State.Closed]], where it is
    * forgotten.
    *
-   * @param deviceId  Unique identifier of the device.
+   * @param deviceId Unique identifier of the device.
    * @param direction The direction the device was opened for with [[openDevice]] (see [[MidiManager]]).
    */
   def closeDevice(deviceId: MidiDeviceId, direction: MidiDirection): Unit

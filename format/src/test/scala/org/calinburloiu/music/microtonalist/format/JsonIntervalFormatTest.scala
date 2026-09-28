@@ -34,14 +34,16 @@ class JsonIntervalFormatTest extends JsonFormatTestUtils {
       assertReads(format, JsNumber(-333.33), CentsInterval(-333.33))
       assertReads(format, JsNumber(0), CentsInterval(0))
 
-      matchReads(format, JsString("5/4"), { (result: Interval) =>
-        result shouldBe a[CentsInterval]
-        result.cents shouldEqual 386.31
-      })
-      matchReads(format, JsString("8/9"), { (result: Interval) =>
-        result shouldBe a[CentsInterval]
-        result.cents shouldEqual -203.91
-      })
+      matchReads(format, JsString("5/4"),
+        { (result: Interval) =>
+          result shouldBe a[CentsInterval]
+          result.cents shouldEqual 386.31
+        })
+      matchReads(format, JsString("8/9"),
+        { (result: Interval) =>
+          result shouldBe a[CentsInterval]
+          result.cents shouldEqual -203.91
+        })
     }
 
     "not read invalid data in CentsIntonationStandard" in {

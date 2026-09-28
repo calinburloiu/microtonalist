@@ -31,7 +31,7 @@ import scala.concurrent.Future
  * This class should only be accessed from the business thread.
  *
  * @param trackManager Manages the MIDI configuration and handling of tracks.
- * @param businessync  An instance of `Businessync` responsible for handling event publication.
+ * @param businessync An instance of `Businessync` responsible for handling event publication.
  */
 @NotThreadSafe
 class TrackSession(trackManager: TrackManager,
@@ -60,9 +60,8 @@ class TrackSession(trackManager: TrackManager,
   /**
    * Closes the current track session and clears the list of tracks.
    *
-   * Publishes a [[TracksClosedEvent]] containing the URI of the session
-   * that was previously active, if any. Note that the operation is idempotent, if the session was already closed, no
-   * URI will be passed to the event.
+   * Publishes a [[TracksClosedEvent]] containing the URI of the session that was previously active, if any. Note that
+   * the operation is idempotent, if the session was already closed, no URI will be passed to the event.
    */
   override def close(): Unit = {
     val uriBefore = _uri
@@ -120,8 +119,8 @@ class TrackSession(trackManager: TrackManager,
   def indexOf(id: TrackSpec.Id): Int = _tracks.indexOf(id)
 
   /**
-   * Retrieves the name of the track corresponding to the specified ID, substituting `"#"` with the track number
-   * (`index + 1`). If the user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
+   * Retrieves the name of the track corresponding to the specified ID, substituting `"#"` with the track number (`index
+   * + 1`). If the user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
    *
    * @param id The unique identifier of the track whose name is to be retrieved.
    * @return An option containing the track name with indexed placeholders replaced, or None if the ID does not exist.
@@ -173,12 +172,12 @@ class TrackSession(trackManager: TrackManager,
   /**
    * Adds a new track to the session before the specified track ID.
    *
-   * If the specified `beforeId` does not exist, the track will be added at the end of the session.
-   * If a track with the same ID already exists, no changes are made.
+   * If the specified `beforeId` does not exist, the track will be added at the end of the session. If a track with the
+   * same ID already exists, no changes are made.
    *
    * A [[TrackAddedEvent]] will be published to notify subscribers if the track is successfully added.
    *
-   * @param track    The track specification to be added.
+   * @param track The track specification to be added.
    * @param beforeId The ID of the track before which the specified track should be added.
    */
   def addTrackBefore(track: TrackSpec, beforeId: TrackSpec.Id): Unit = addTrackBefore(track, Some(beforeId))
@@ -186,14 +185,14 @@ class TrackSession(trackManager: TrackManager,
   /**
    * Adds a new track to the session before the specified track ID, if provided.
    *
-   * If the specified `beforeId` is undefined or  does not exist, the track will be added at the end of the session.
-   * If a track with the same ID already exists, no changes are made.
+   * If the specified `beforeId` is undefined or does not exist, the track will be added at the end of the session. If a
+   * track with the same ID already exists, no changes are made.
    *
    * A [[TrackAddedEvent]] will be published to notify subscribers if the track is successfully added.
    *
-   * @param track    The track specification to be added.
-   * @param beforeId The optional ID of the track before which the specified track should be added. `None` is
-   *                 equivalent with appending.
+   * @param track The track specification to be added.
+   * @param beforeId The optional ID of the track before which the specified track should be added. `None` is equivalent
+   *   with appending.
    */
   def addTrackBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): Unit = {
     val countBefore = _tracks.size
@@ -213,8 +212,8 @@ class TrackSession(trackManager: TrackManager,
    * If the track is successfully updated, a [[TrackUpdatedEvent]] is published containing the updated track
    * information.
    *
-   * @param track The track specification to be updated. Its `id` is used to find and update
-   *              the corresponding track in the session.
+   * @param track The track specification to be updated. Its `id` is used to find and update the corresponding track in
+   *   the session.
    */
   def updateTrack(track: TrackSpec): Unit = {
     val trackBefore = _tracks.get(track.id)
@@ -228,8 +227,8 @@ class TrackSession(trackManager: TrackManager,
   /**
    * Moves the track identified by `idToMove` to the position before the track identified by `beforeId`.
    *
-   * If `beforeId` doesn't exist, the track will be moved to the end of the collection.
-   * Nothing happens if `idToMove` does not exist.
+   * If `beforeId` doesn't exist, the track will be moved to the end of the collection. Nothing happens if `idToMove`
+   * does not exist.
    *
    * If the track is successfully moved a [[TrackMovedEvent]] is published.
    *
@@ -241,15 +240,14 @@ class TrackSession(trackManager: TrackManager,
   /**
    * Moves the track identified by `idToMove` to the position before the track identified by `beforeId`.
    *
-   * If `beforeId` is `None`, or it doesn't exist, the track will be moved to the end of the collection.
-   * Nothing happens if `idToMove` does not exist.
+   * If `beforeId` is `None`, or it doesn't exist, the track will be moved to the end of the collection. Nothing happens
+   * if `idToMove` does not exist.
    *
    * If the track is successfully moved a [[TrackMovedEvent]] is published.
    *
    * @param idToMove The unique identifier of the track to be moved.
-   * @param beforeId An optional unique identifier of the track before which the `idToMove` track should be
-   *                 positioned. If `None` or non-existent, the track is moved to the end of the
-   *                 collection.
+   * @param beforeId An optional unique identifier of the track before which the `idToMove` track should be positioned.
+   *   If `None` or non-existent, the track is moved to the end of the collection.
    */
   def moveTrackBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): Unit = {
     val indexBefore = _tracks.indexOf(idToMove)

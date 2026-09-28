@@ -36,8 +36,8 @@ object DeferrableReadStatus {
   case object Unloaded extends DeferrableReadStatus
 
   /**
-   * A [[DeferredRead]] instance for which [[DeferrableRead#load]] was called but the load operation was not
-   * completed yet.
+   * A [[DeferredRead]] instance for which [[DeferrableRead#load]] was called but the load operation was not completed
+   * yet.
    */
   case object PendingLoad extends DeferrableReadStatus
 
@@ -56,21 +56,21 @@ object DeferrableReadStatus {
 }
 
 /**
- * Marks a JSON value representation to be potentially loaded later. The value may be read immediately, if it's
- * already present in the JSON, or a placeholder representation can be loaded first that can later be used to load
- * the actual value. The placeholder typically contains a reference / an import that allows loading the actual value
- * later by using a ''loader'' function (see [[DeferrableRead#load]]).
+ * Marks a JSON value representation to be potentially loaded later. The value may be read immediately, if it's already
+ * present in the JSON, or a placeholder representation can be loaded first that can later be used to load the actual
+ * value. The placeholder typically contains a reference / an import that allows loading the actual value later by using
+ * a ''loader'' function (see [[DeferrableRead#load]]).
  *
- * To use a [[DeferrableRead]] object (if it's not an [[AlreadyRead]] and is a [[DeferredRead]]) you must first load
- * its value by calling [[DeferrableRead#load]]. Note that this is an asynchronous operation and the value will most
- * likely not be available immediately. To properly get the value you need to use one of the [[Future]]s for the
- * value returned by the class, either [[DeferrableRead#load]] or [[DeferrableRead#futureValue]]. You don't necessary
- * need to match between an [[AlreadyRead]] and a [[DeferredRead]] in order to know if the value needs to be loaded.
+ * To use a [[DeferrableRead]] object (if it's not an [[AlreadyRead]] and is a [[DeferredRead]]) you must first load its
+ * value by calling [[DeferrableRead#load]]. Note that this is an asynchronous operation and the value will most likely
+ * not be available immediately. To properly get the value you need to use one of the [[Future]]s for the value returned
+ * by the class, either [[DeferrableRead#load]] or [[DeferrableRead#futureValue]]. You don't necessary need to match
+ * between an [[AlreadyRead]] and a [[DeferredRead]] in order to know if the value needs to be loaded.
  * [[DeferrableRead#load]] is a no-op for [[AlreadyRead]].
  *
  * @tparam V type of the ''value'' whose reading may be deferred
  * @tparam P type of the ''placeholder'' that will be used later to load the actual value that typically contains a
- *           reference (e.g. a URI)
+ *   reference (e.g. a URI)
  */
 sealed trait DeferrableRead[V, P] {
   /**
@@ -94,14 +94,14 @@ sealed trait DeferrableRead[V, P] {
   def futureValue: Future[V]
 
   /**
-   * Convenience accessor that gets the current value if it's already available. Only call it if you are sure that
-   * the value was successfully loaded: the [[Future]]s returned by [[DeferrableRead#load]] or
+   * Convenience accessor that gets the current value if it's already available. Only call it if you are sure that the
+   * value was successfully loaded: the [[Future]]s returned by [[DeferrableRead#load]] or
    * [[DeferrableRead#futureValue]] have successfully completed and [[DeferrableRead#status]] is
    * [[DeferrableReadStatus.Loaded]].
    *
    * @return the current value
    * @throws NoSuchElementException if the value was not loaded yet
-   * @throws Throwable              any other exception caught while loading the value
+   * @throws Throwable any other exception caught while loading the value
    */
   def value: V
 }
@@ -110,14 +110,13 @@ sealed trait DeferrableRead[V, P] {
  * A [[DeferrableRead]] for which its value loading was not deferred, already contains a value and does not require
  * loading via [[AlreadyRead#load]].
  *
- * [[AlreadyRead#value]] always returns a value, [[AlreadyRead#status]] always returns
- * [[DeferrableReadStatus.Loaded]] and [[AlreadyRead#futureValue]] always returns an already completed [[Future]] of
- * the value.
+ * [[AlreadyRead#value]] always returns a value, [[AlreadyRead#status]] always returns [[DeferrableReadStatus.Loaded]]
+ * and [[AlreadyRead#futureValue]] always returns an already completed [[Future]] of the value.
  *
  * @param value the already read value
  * @tparam V type of the ''value'' whose reading may be deferred
  * @tparam P type of the ''placeholder'' that will be used later to load the actual value that typically contains a
- *           reference (e.g. a URI)
+ *   reference (e.g. a URI)
  */
 case class AlreadyRead[V, P](override val value: V) extends DeferrableRead[V, P] {
   override def load(loader: P => Future[V]): Future[V] = Future(value)
@@ -129,14 +128,14 @@ case class AlreadyRead[V, P](override val value: V) extends DeferrableRead[V, P]
 
 /**
  * A [[DeferrableRead]] for which its value loading was deferred and instead contains a [[DeferredRead#placeholder]]
- * value. To obtain its value, it must be loaded first by calling [[DeferredRead#load]], which does this
- * asynchronously by using the [[DeferredRead#placeholder]].
+ * value. To obtain its value, it must be loaded first by calling [[DeferredRead#load]], which does this asynchronously
+ * by using the [[DeferredRead#placeholder]].
  *
  * @param placeholder the placeholder value used for loading the actual value which typically contains some kind of
- *                    reference to the value like an URI
+ *   reference to the value like an URI
  * @tparam V type of the ''value'' whose reading may be deferred
  * @tparam P type of the ''placeholder'' that will be used later to load the actual value that typically contains a
- *           reference (e.g. a URI)
+ *   reference (e.g. a URI)
  */
 case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Locking, LazyLogging {
   private implicit val lock: ReadWriteLock = new ReentrantReadWriteLock()
@@ -156,34 +155,34 @@ case class DeferredRead[V, P](placeholder: P) extends DeferrableRead[V, P], Lock
         logger.warn(s"The value $v was already loaded!")
         v
       case None => withWriteLock {
-        try {
-          // We need to read the value again because it might have changed since we released the read lock above
-          _futureValue match {
-            case Some(v) =>
-              logger.warn(s"The value $v was already concurrently loaded!")
-              v
-            case None =>
-              _status = DeferrableReadStatus.PendingLoad
-              val futureValue = loader(placeholder).andThen { result =>
-                withWriteLock {
-                  result match {
-                    case Success(v) =>
-                      _value = Some(v)
-                      _status = DeferrableReadStatus.Loaded
-                    case Failure(exception) =>
-                      _status = DeferrableReadStatus.FailedLoad(exception)
+          try {
+            // We need to read the value again because it might have changed since we released the read lock above
+            _futureValue match {
+              case Some(v) =>
+                logger.warn(s"The value $v was already concurrently loaded!")
+                v
+              case None =>
+                _status = DeferrableReadStatus.PendingLoad
+                val futureValue = loader(placeholder).andThen { result =>
+                  withWriteLock {
+                    result match {
+                      case Success(v) =>
+                        _value = Some(v)
+                        _status = DeferrableReadStatus.Loaded
+                      case Failure(exception) =>
+                        _status = DeferrableReadStatus.FailedLoad(exception)
+                    }
                   }
                 }
-              }
-              _futureValue = Some(futureValue)
-              futureValue
+                _futureValue = Some(futureValue)
+                futureValue
+            }
+          } catch {
+            case throwable: Throwable =>
+              _status = DeferrableReadStatus.FailedLoad(throwable)
+              throw throwable
           }
-        } catch {
-          case throwable: Throwable =>
-            _status = DeferrableReadStatus.FailedLoad(throwable)
-            throw throwable
         }
-      }
     }
 
     loadedValue
@@ -220,7 +219,7 @@ object DeferrableRead {
   /**
    * Creates a play-json [[Reads]] instance based on [[Reads]] instances for the value and the placeholder.
    *
-   * @param valueReads       a [[Reads]] for the value
+   * @param valueReads a [[Reads]] for the value
    * @param placeholderReads a [[Reads]] for the placeholder
    * @tparam V type of the ''value''
    * @tparam P type of the ''placeholder''
@@ -235,7 +234,7 @@ object DeferrableRead {
   /**
    * Creates a play-json [[Writes]] instance based on [[Writes]] instances for the value and the placeholder.
    *
-   * @param valueWrites       a [[Writes]] for the value
+   * @param valueWrites a [[Writes]] for the value
    * @param placeholderWrites a [[Writes]] for the placeholder
    * @tparam V type of the ''value''
    * @tparam P type of the ''placeholder''
@@ -249,7 +248,7 @@ object DeferrableRead {
   /**
    * Creates a play-json [[Format]] instance based on [[Format]]s for the value and the placeholder.
    *
-   * @param valueFormat       a [[Format]] for the value
+   * @param valueFormat a [[Format]] for the value
    * @param placeholderFormat a [[Format]] for the placeholder
    * @tparam V type of the ''value''
    * @tparam P type of the ''placeholder''

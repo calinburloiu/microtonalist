@@ -22,11 +22,11 @@ import org.calinburloiu.music.microtonalist.tuner.{DefaultCentsTolerance, Tuning
 import scala.annotation.tailrec
 
 /**
- * Reducing algorithm for a sequence of [[Tuning]]s that attempts to merge consecutive [[Tuning]]s that
- * don't have conflicts. The merging is performed in the order of the sequence.
+ * Reducing algorithm for a sequence of [[Tuning]]s that attempts to merge consecutive [[Tuning]]s that don't have
+ * conflicts. The merging is performed in the order of the sequence.
  *
- * Two [[Tuning]]s are said to have conflicts if they have at least one pair of corresponding pitch class offsets
- * with different values, the rest of them being equal or have close values (see `tolerance`).
+ * Two [[Tuning]]s are said to have conflicts if they have at least one pair of corresponding pitch class offsets with
+ * different values, the rest of them being equal or have close values (see `tolerance`).
  *
  * The algorithm also attempt to apply two kinds _local fill_:
  *
@@ -37,8 +37,8 @@ import scala.annotation.tailrec
  * piano with sustain pedal and the tuning is changed, a large number of notes retuned could result in an unwanted
  * effect.
  *
- * @param equalityTolerance Error in cents that should be tolerated when comparing corresponding pitch class
- *                          offsets of [[Tuning]]s to avoid double precision errors.
+ * @param equalityTolerance Error in cents that should be tolerated when comparing corresponding pitch class offsets of
+ *   [[Tuning]]s to avoid double precision errors.
  */
 case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
   extends TuningReducer with StrictLogging {
@@ -66,8 +66,8 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
   }
 
   private def collect(tunings: Seq[Tuning],
-                            backFill: Tuning,
-                            tuningSize: Int): List[Tuning] = {
+                      backFill: Tuning,
+                      tuningSize: Int): List[Tuning] = {
     if (tunings.isEmpty) {
       List.empty
     } else {
@@ -84,7 +84,7 @@ case class MergeTuningReducer(equalityTolerance: Double = DefaultCentsTolerance)
 
   @tailrec
   private def merge(acc: Tuning,
-                          tunings: Seq[Tuning]): (Tuning, Seq[Tuning]) = {
+                    tunings: Seq[Tuning]): (Tuning, Seq[Tuning]) = {
     tunings.headOption match {
       case Some(nextTuning) =>
         acc.merge(nextTuning, equalityTolerance) match {

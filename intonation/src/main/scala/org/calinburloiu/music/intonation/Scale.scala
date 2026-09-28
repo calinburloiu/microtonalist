@@ -31,8 +31,8 @@ import com.google.common.math.DoubleMath
  * Instances are immutable. Prefer the [[Scale.create]] smart constructors to obtain the most specific subtype
  * ([[RatiosScale]], [[CentsScale]], [[EdoScale]]) for a given set of intervals.
  *
- * @tparam I   the type of [[Interval]] this scale is composed of; covariant, so that e.g. a `Scale[RatioInterval]` is a
- *             `Scale[Interval]`
+ * @tparam I the type of [[Interval]] this scale is composed of; covariant, so that e.g. a `Scale[RatioInterval]` is a
+ *   `Scale[Interval]`
  *
  * @param name the human-readable name of the scale (it may be empty)
  * @param intervals the ordered, non-empty, sorted intervals composing the scale, each measured from the base pitch
@@ -95,8 +95,8 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
    * The softest scale with a given number if intervals is the one in which all [[relativeIntervals]] are equal. For
    * example, the whole tone scale is the softest octave-based scale.
    *
-   * For computing the entropy each interval of [[relativeIntervals]] is transformed into a probability by taking
-   * its proportion with respect to scale's [[range]].
+   * For computing the entropy each interval of [[relativeIntervals]] is transformed into a probability by taking its
+   * proportion with respect to scale's [[range]].
    *
    * @param logBase the base to be used for the logarithm when computing the entropy.
    * @return the entropy value.
@@ -112,8 +112,8 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   /**
    * A measure of how soft a scale is which uses the concept of entropy.
    *
-   * The softest scale for a given number of intervals will have a softness of 1. The harder the scale is the closer
-   * the softness value is to 0.
+   * The softest scale for a given number of intervals will have a softness of 1. The harder the scale is the closer the
+   * softness value is to 0.
    *
    * It uses [[entropy]] with a logarithm base equal to the number of [[relativeIntervals]].
    *
@@ -214,10 +214,10 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   }
 
   /**
-   * Checks if this scale has the intervals equal within an error tolerance with the given scale. Other properties
-   * are ignored in the comparison.
+   * Checks if this scale has the intervals equal within an error tolerance with the given scale. Other properties are
+   * ignored in the comparison.
    *
-   * @param that           The scale to compare with.
+   * @param that The scale to compare with.
    * @param centsTolerance Error tolerance in cents.
    * @return true if the scales are almost equal, or false otherwise.
    */
@@ -251,7 +251,7 @@ object Scale {
   /**
    * Creates a generic [[Scale]] from a name and a sequence of intervals, without selecting a specific subtype.
    *
-   * @param name    name of the scale
+   * @param name name of the scale
    * @param pitches the intervals composing the scale
    * @return the created scale
    */
@@ -260,8 +260,8 @@ object Scale {
   /**
    * Creates a generic [[Scale]] from a name and intervals given as varargs.
    *
-   * @param name        name of the scale
-   * @param headPitch   the first interval
+   * @param name name of the scale
+   * @param headPitch the first interval
    * @param tailPitches the remaining intervals
    * @return the created scale
    */
@@ -271,17 +271,17 @@ object Scale {
   /**
    * Creates an unnamed generic [[Scale]] from intervals given as varargs.
    *
-   * @param headPitch   the first interval
+   * @param headPitch the first interval
    * @param tailPitches the remaining intervals
    * @return the created scale
    */
   def apply[I <: Interval](headPitch: I, tailPitches: I*): Scale[I] =
-    Scale("", headPitch, tailPitches *)
+    Scale("", headPitch, tailPitches*)
 
   /**
    * Creates the correct [[Scale]] implementation by taking pitches [[Interval]] implementation into account.
    *
-   * @param name      name of scale to be created
+   * @param name name of scale to be created
    * @param intervals scale pitches
    * @return the created scale
    */
@@ -316,28 +316,30 @@ object Scale {
    * Creates the [[Scale]] subtype matching the given [[IntonationStandard]], converting the intervals to the
    * corresponding [[Interval]] type, ensuring a unison is present, and sorting them.
    *
-   * @param name               name of scale to be created
-   * @param intervals          scale pitches
+   * @param name name of scale to be created
+   * @param intervals scale pitches
    * @param intonationStandard the intonation standard determining the resulting subtype and interval type
    * @return the created scale
    */
   def create(name: String, intervals: Seq[Interval], intonationStandard: IntonationStandard): Scale[Interval] = {
     intonationStandard match {
-      case CentsIntonationStandard => CentsScale(name, processIntervals(intervals.map(_.toCentsInterval),
-        CentsInterval.Unison))
+      case CentsIntonationStandard => CentsScale(name,
+          processIntervals(intervals.map(_.toCentsInterval),
+            CentsInterval.Unison))
       case JustIntonationStandard if intervals.forall(_.isInstanceOf[RatioInterval]) =>
         RatiosScale(name, processIntervals(intervals.asInstanceOf[Seq[RatioInterval]], RatioInterval.Unison))
       case JustIntonationStandard => throw new IllegalArgumentException("A scale with JustIntonationStandard must " +
-        "have all intervals of type RatioInterval")
-      case EdoIntonationStandard(edo) => EdoScale(name, processIntervals(intervals.map(_.toEdoInterval(edo)),
-        EdoInterval.unisonFor(edo)))
+          "have all intervals of type RatioInterval")
+      case EdoIntonationStandard(edo) => EdoScale(name,
+          processIntervals(intervals.map(_.toEdoInterval(edo)),
+            EdoInterval.unisonFor(edo)))
     }
   }
 
   /**
    * Creates a single-interval scale containing only the unison of the given [[IntonationStandard]].
    *
-   * @param name               name of scale to be created
+   * @param name name of scale to be created
    * @param intonationStandard the intonation standard whose unison the scale contains
    * @return the created unison scale
    */
@@ -350,20 +352,18 @@ object Scale {
   }
 }
 
-
 /**
  * Result of converting a [[Scale]] to another [[IntonationStandard]] via [[Scale.convertToIntonationStandard]].
  *
- * @param scale             [[Some]] converted scale, or [[None]] if the conversion was not possible
+ * @param scale [[Some]] converted scale, or [[None]] if the conversion was not possible
  * @param conversionQuality the worst-case quality among all per-interval conversions
  */
 case class ScaleConversionResult(scale: Option[Scale[Interval]], conversionQuality: IntonationConversionQuality)
 
-
 /**
  * A [[Scale]] whose intervals are all [[RatioInterval]]s, i.e. expressed as just-intonation frequency ratios.
  *
- * @param name      the human-readable name of the scale (it may be empty)
+ * @param name the human-readable name of the scale (it may be empty)
  * @param intervals the ordered, non-empty, sorted just-intonation intervals composing the scale
  */
 case class RatiosScale(override val name: String,
@@ -395,14 +395,13 @@ object RatiosScale {
     RatiosScale(name, headRatioPitch +: tailRatioPitches)
 
   def apply(headRatioPitch: RatioInterval, tailRatioPitches: RatioInterval*): RatiosScale =
-    RatiosScale("", headRatioPitch, tailRatioPitches *)
+    RatiosScale("", headRatioPitch, tailRatioPitches*)
 }
-
 
 /**
  * A [[Scale]] whose intervals are all [[CentsInterval]]s, i.e. expressed in decimal cents.
  *
- * @param name      the human-readable name of the scale (it may be empty)
+ * @param name the human-readable name of the scale (it may be empty)
  * @param intervals the ordered, non-empty, sorted cents intervals composing the scale
  */
 case class CentsScale(override val name: String,
@@ -434,13 +433,13 @@ object CentsScale {
     CentsScale(name, headCentsInterval +: tailCentsIntervals)
 
   def apply(headCentsInterval: CentsInterval, tailCentsIntervals: CentsInterval*): CentsScale =
-    CentsScale("", headCentsInterval, tailCentsIntervals *)
+    CentsScale("", headCentsInterval, tailCentsIntervals*)
 
   def apply(name: String, headCentValue: Double, tailCentValues: Double*): CentsScale =
     CentsScale(name, (headCentValue +: tailCentValues).map(CentsInterval.apply))
 
   def apply(headCentValue: Double, tailCentValues: Double*): CentsScale =
-    CentsScale("", headCentValue, tailCentValues *)
+    CentsScale("", headCentValue, tailCentValues*)
 }
 
 /**
@@ -448,7 +447,7 @@ object CentsScale {
  *
  * All intervals must share the same [[edo]] value.
  *
- * @param name      the human-readable name of the scale (may be empty)
+ * @param name the human-readable name of the scale (may be empty)
  * @param intervals the ordered, non-empty, sorted EDO intervals composing the scale, all sharing the same `edo`
  */
 case class EdoScale(override val name: String,
@@ -482,13 +481,13 @@ object EdoScale {
     EdoScale(name, headEdoInterval +: tailEdoIntervals)
 
   def apply(headEdoInterval: EdoInterval, tailEdoIntervals: EdoInterval*): EdoScale =
-    EdoScale("", headEdoInterval, tailEdoIntervals *)
+    EdoScale("", headEdoInterval, tailEdoIntervals*)
 
   def apply(name: String, edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
     EdoScale(name, (headCount +: tailCounts).map(EdoInterval(edo, _)))
 
   def apply(edo: Int, headCount: Int, tailCounts: Int*): EdoScale =
-    EdoScale("", edo, headCount, tailCounts *)
+    EdoScale("", edo, headCount, tailCounts*)
 
   def apply(name: String,
             edo: Int, headCountRelativeToStandard: (Int, Int),

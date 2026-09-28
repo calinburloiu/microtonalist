@@ -25,9 +25,9 @@ import scala.util.boundary
 /**
  * JSON preprocessor that replaces JSON references to other JSON files with the actual JSON value.
  *
- * A JSON reference is a `$ref` property in a JSON object that has a URI as value. The given `refLoaders` are used
- * to load JSON objects based on that URI and other context information. The `$ref` property is replaced with the
- * object loaded. Properties already present in the object that contained the `$ref` are overridden by those loaded.
+ * A JSON reference is a `$ref` property in a JSON object that has a URI as value. The given `refLoaders` are used to
+ * load JSON objects based on that URI and other context information. The `$ref` property is replaced with the object
+ * loaded. Properties already present in the object that contained the `$ref` are overridden by those loaded.
  *
  * @param refLoaders a list of reference loaders responsible to load JSON values from reference URI based on context
  */
@@ -38,7 +38,7 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
   /**
    * Performs preprocessing in the given JSON value.
    *
-   * @param json    JSON value to be preprocessed
+   * @param json JSON value to be preprocessed
    * @param baseUri optional base URI used to resolve relative URIs from `$ref` properties
    * @return a preprocessed JSON with all references replaced
    */
@@ -46,9 +46,9 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
     if (refLoaders.isEmpty) json else preprocessValue(json, JsPath(), baseUri, new NestedRefContext).value
 
   /**
-   * @param json             JSON value to preprocess
-   * @param path             path where the value was found
-   * @param baseUri          optional base URI used to resolve relative URIs from `$ref` properties
+   * @param json JSON value to preprocess
+   * @param path path where the value was found
+   * @param baseUri optional base URI used to resolve relative URIs from `$ref` properties
    * @param nestedRefContext object used for accounting nested references
    * @return [[Unchanged]] with the unchanged value or [[Changed]] with the preprocessed value
    */
@@ -64,9 +64,9 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
   }
 
   /**
-   * @param obj              JSON object to preprocess
-   * @param path             path where the object was found
-   * @param baseUri          optional base URI used to resolve relative URIs from `$ref` properties
+   * @param obj JSON object to preprocess
+   * @param path path where the object was found
+   * @param baseUri optional base URI used to resolve relative URIs from `$ref` properties
    * @param nestedRefContext object used for accounting nested references
    * @return [[Unchanged]] with the unchanged object or [[Changed]] with the preprocessed object
    */
@@ -102,9 +102,9 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
   }
 
   /**
-   * @param array            JSON array to preprocess
-   * @param path             path where the array was found
-   * @param baseUri          optional base URI used to resolve relative URIs from `$ref` properties
+   * @param array JSON array to preprocess
+   * @param path path where the array was found
+   * @param baseUri optional base URI used to resolve relative URIs from `$ref` properties
    * @param nestedRefContext object used for accounting nested references
    * @return [[Unchanged]] with the unchanged array or [[Changed]] with the preprocessed array
    */
@@ -122,8 +122,8 @@ class JsonPreprocessor(refLoaders: Seq[JsonPreprocessorRefLoader]) {
   /**
    * Tries to load a JSON object from the given URI by taking a JSON path as context.
    *
-   * @param uri              URI where the JSON object is to be read
-   * @param pathContext      JSON path used as context
+   * @param uri URI where the JSON object is to be read
+   * @param pathContext JSON path used as context
    * @param nestedRefContext object used for accounting nested references
    * @return maybe a JSON object
    */
@@ -207,13 +207,12 @@ trait JsonPreprocessorRefLoader {
   /**
    * Attempts to load a JSON reference by using the given URI found in the given path in the input JSON.
    *
-   * @param uri         URL used for loading the reference
+   * @param uri URL used for loading the reference
    * @param pathContext path in the input JSON where the reference should be replaced
    * @throws JsonPreprocessorRefLoadException if this loader matched the given `uri` and `pathContext`, but an error
-   *                                          occurred
-   *                                          while loading the reference
+   *   occurred while loading the reference
    * @return `Some` JSON object to be replaced in the input JSON if this loader matched the given `uri` and
-   *         `pathContext`, or None if it did not
+   *   `pathContext`, or None if it did not
    */
   @throws[JsonPreprocessorRefLoadException]
   def load(uri: URI, pathContext: JsPath): Option[JsObject]
@@ -222,7 +221,7 @@ trait JsonPreprocessorRefLoader {
 /**
  * Exception thrown when an error occurred loading a JSON reference in [[JsonPreprocessor]].
  *
- * @param uri         URI where the JSON object referenced is to be read
+ * @param uri URI where the JSON object referenced is to be read
  * @param pathContext JSON path where the reference was encountered
  */
 class JsonPreprocessorRefLoadException(val uri: URI, val pathContext: JsPath, message: String, cause: Throwable = null)

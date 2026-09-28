@@ -27,13 +27,15 @@ class FormatPackageObjectTest extends AnyWordSpec with Matchers {
 
   "filePathOf" should {
     "convert an absolute URL to a file system path" in {
-      filePathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual Paths
-        .get("/", "Users", "john", "Music", "phrygian.scl")
+      filePathOf(new URI("file:///Users/john/Music/phrygian.scl")) shouldEqual
+        Paths
+          .get("/", "Users", "john", "Music", "phrygian.scl")
     }
 
     "convert a relative URL to file system path" in {
-      filePathOf(new URI("Music/phrygian.scl")) shouldEqual Paths
-        .get("Music", "phrygian.scl")
+      filePathOf(new URI("Music/phrygian.scl")) shouldEqual
+        Paths
+          .get("Music", "phrygian.scl")
     }
 
     "fail for a non file URL" in {

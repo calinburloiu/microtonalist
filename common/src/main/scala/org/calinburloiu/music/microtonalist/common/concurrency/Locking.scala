@@ -48,7 +48,7 @@ trait Locking {
    * before and after the execution of the block of code, respectively.
    *
    * @param block The block of code to be executed while the lock is held.
-   * @param lock  The lock to be acquired and released during the execution of the block.
+   * @param lock The lock to be acquired and released during the execution of the block.
    * @return The result of executing the block.
    */
   @inline
@@ -62,10 +62,10 @@ trait Locking {
   }
 
   /**
-   * Executes the given block of code while holding the read lock of the provided [[ReadWriteLock]],
-   * ensuring proper lock acquisition and release around the block's execution.
+   * Executes the given block of code while holding the read lock of the provided [[ReadWriteLock]], ensuring proper
+   * lock acquisition and release around the block's execution.
    *
-   * @param block         The block of code to be executed while the read lock is held.
+   * @param block The block of code to be executed while the read lock is held.
    * @param readWriteLock The [[ReadWriteLock]] instance whose read lock will be used during execution.
    * @return The result of executing the block.
    */
@@ -80,10 +80,10 @@ trait Locking {
   }
 
   /**
-   * Executes the given block of code while holding the write lock of the provided [[ReadWriteLock]],
-   * ensuring proper lock acquisition and release around the block's execution.
+   * Executes the given block of code while holding the write lock of the provided [[ReadWriteLock]], ensuring proper
+   * lock acquisition and release around the block's execution.
    *
-   * @param block         The block of code to be executed while the write lock is held.
+   * @param block The block of code to be executed while the write lock is held.
    * @param readWriteLock The [[ReadWriteLock]] instance whose write lock will be used during execution.
    * @return The result of executing the block.
    */

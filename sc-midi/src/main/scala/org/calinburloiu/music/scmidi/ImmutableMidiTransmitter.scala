@@ -19,8 +19,8 @@ package org.calinburloiu.music.scmidi
 /**
  * A [[MidiTransmitter]] that is a value: every change returns a new instance and leaves this one untouched.
  *
- * Suited to configuration that is built once and then only read, and to pipelines owned by a single thread that
- * prefer to swap a whole transmitter rather than mutate one.
+ * Suited to configuration that is built once and then only read, and to pipelines owned by a single thread that prefer
+ * to swap a whole transmitter rather than mutate one.
  *
  * @param receivers the receivers messages are forwarded to, in order; defaults to none.
  */

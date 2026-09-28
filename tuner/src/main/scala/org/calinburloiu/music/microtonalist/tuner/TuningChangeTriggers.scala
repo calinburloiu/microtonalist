@@ -21,8 +21,8 @@ package org.calinburloiu.music.microtonalist.tuner
  *
  * @tparam T The type of the trigger used to identify tuning changes.
  * @param previous Configures the trigger for changing to the previous tuning.
- * @param next     Configures the trigger for changing to the next tuning.
- * @param index    A map that configures the triggers as values for changing to a given tuning index as key.
+ * @param next Configures the trigger for changing to the next tuning.
+ * @param index A map that configures the triggers as values for changing to a given tuning index as key.
  * @throws IllegalArgumentException if no trigger is defined for any of previous, next, or index.
  * @throws IllegalArgumentException if any index key is less than 0.
  */
@@ -81,8 +81,8 @@ case class TuningChangeTriggers[T](previous: Option[T] = None,
    * Determines the appropriate [[TuningChange]] operation based on the provided trigger.
    *
    * @param trigger The trigger used to determine the tuning change operation.
-   * @return A `TuningChange` object representing the determined operation. If no operation is configured for the
-   *         given trigger, [[NoTuningChange]] is returned.
+   * @return A `TuningChange` object representing the determined operation. If no operation is configured for the given
+   *   trigger, [[NoTuningChange]] is returned.
    */
   def tuningChangeForTrigger(trigger: T): TuningChange = {
     if (hasPreviousWithTrigger(trigger)) {

@@ -30,13 +30,12 @@ import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.{Failure, Success}
 
 /**
- * A concrete implementation of the [[TrackRepo]] trait that retrieves and persists track specifications
- * via HTTP.
+ * A concrete implementation of the [[TrackRepo]] trait that retrieves and persists track specifications via HTTP.
  *
- * @param httpClient              The HTTP client used for sending HTTP requests.
- * @param trackFormat             Format object used to read and write track specifications.
- * @param synchronousAwaitTimeout The maximum duration to wait for asynchronous operations to complete when used 
- *                                synchronously.
+ * @param httpClient The HTTP client used for sending HTTP requests.
+ * @param trackFormat Format object used to read and write track specifications.
+ * @param synchronousAwaitTimeout The maximum duration to wait for asynchronous operations to complete when used
+ *   synchronously.
  */
 class HttpTrackRepo(httpClient: HttpClient,
                     trackFormat: TrackFormat,
@@ -88,12 +87,14 @@ class HttpTrackRepo(httpClient: HttpClient,
     response.statusCode() match {
       case 200 => trackFormat.readTracksAsync(response.body(), Some(uri))
       case 404 => throw new TracksNotFoundException(uri)
-      case status if status >= 400 && status < 500 => throw new BadTracksRequestException(uri,
-        Some(s"HTTP request to $uri returned status code $status"))
-      case status if status >= 500 && status < 600 => throw new TracksReadFailureException(uri,
-        s"HTTP request to $uri returned status code $status")
+      case status if status >= 400 && status < 500 =>
+        throw new BadTracksRequestException(uri,
+          Some(s"HTTP request to $uri returned status code $status"))
+      case status if status >= 500 && status < 600 =>
+        throw new TracksReadFailureException(uri,
+          s"HTTP request to $uri returned status code $status")
       case status => throw new TracksReadFailureException(uri,
-        s"Unexpected HTTP response status code $status for $uri")
+          s"Unexpected HTTP response status code $status for $uri")
     }
   }
 }

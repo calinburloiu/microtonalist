@@ -25,8 +25,8 @@ package org.calinburloiu.music.scmidi
  *
  * The device is not required to be available in the system when it is requested: the manager informs the handle when
  * the device becomes available or unavailable, and [[info]] is defined only while the device is available. A handle
- * requested while its device is unavailable waits in [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the
- * device becomes available.
+ * requested while its device is unavailable waits in [[MidiDeviceHandle.State.WaitingToOpen]] and opens once the device
+ * becomes available.
  *
  * A handle is live while its manager holds it, which is exactly while its [[state]] is not
  * [[MidiDeviceHandle.State.Closed]]. A handle that reaches `Closed` is forgotten by its manager and stays `Closed` for
@@ -53,11 +53,11 @@ trait MidiDeviceHandle {
   def info: Option[MidiDeviceInfo]
 
   /**
-   * Determines if the associated MIDI device is an input device. If it is, this handle's [[transmitter]] can be used
-   * to subscribe to the messages the device sends; otherwise it never emits anything.
+   * Determines if the associated MIDI device is an input device. If it is, this handle's [[transmitter]] can be used to
+   * subscribe to the messages the device sends; otherwise it never emits anything.
    *
    * @return True if the MIDI device supports input, false otherwise — including while it is unavailable, when its
-   *         capabilities are not known.
+   *   capabilities are not known.
    */
   def isInputDevice: Boolean = info.exists(_.isInputDevice)
 
@@ -66,15 +66,15 @@ trait MidiDeviceHandle {
    * send messages to the device.
    *
    * @return True if the MIDI device supports output, false otherwise — including while it is unavailable, when its
-   *         capabilities are not known.
+   *   capabilities are not known.
    */
   def isOutputDevice: Boolean = info.exists(_.isOutputDevice)
 
   /**
    * Tells whether the device supports input and/or output.
    *
-   * @return A [[MidiDirection]] indicating the input/output capabilities of the device; [[MidiDirection.None]]
-   *         while it is unavailable.
+   * @return A [[MidiDirection]] indicating the input/output capabilities of the device; [[MidiDirection.None]] while it
+   *   is unavailable.
    */
   def direction: MidiDirection = MidiDirection(isInputDevice, isOutputDevice)
 
@@ -87,7 +87,7 @@ trait MidiDeviceHandle {
    * Checks whether the MIDI device is currently available in the system.
    *
    * @return True if the device is available, i.e. the [[state]] is [[MidiDeviceHandle.State.Available]] or
-   *         [[MidiDeviceHandle.State.Open]]; false otherwise.
+   *   [[MidiDeviceHandle.State.Open]]; false otherwise.
    */
   def isAvailable: Boolean = state.isAvailable
 
@@ -100,8 +100,8 @@ trait MidiDeviceHandle {
 
   /**
    * Determines if the MIDI device has been requested to open, i.e. an `open` transition succeeded and no `close`
-   * transition has happened since, whether or not the device is available. Unlike [[isOpen]], it is also true while
-   * the handle waits for the device to become available in order to open it.
+   * transition has happened since, whether or not the device is available. Unlike [[isOpen]], it is also true while the
+   * handle waits for the device to become available in order to open it.
    *
    * @return True if the device has been requested to open, false otherwise.
    * @see [[MidiDeviceHandle.State.isOpenRequested]], which this mirrors for the current [[state]].
@@ -149,8 +149,8 @@ object MidiDeviceHandle {
    * The diagram is a square over the two properties of a state: [[isAvailable]] is false on the left and true on the
    * right, and [[isOpenRequested]] is false at the bottom and true at the top. Hence, `become available` and
    * `become unavailable` move horizontally, while `open` and `close` move vertically. The four states cover every
-   * combination of the two, so the device is open for use only in [[Open]], where it is both available and requested
-   * to open.
+   * combination of the two, so the device is open for use only in [[Open]], where it is both available and requested to
+   * open.
    *
    * Each transition either succeeds or fails, and a failure sets to false the property it concerns, so that the handle
    * never relies on a device that failed: a failure to become available or unavailable leaves the handle unavailable,
@@ -159,10 +159,9 @@ object MidiDeviceHandle {
    * anyway, and an [[Available]] handle whose device fails to close as it becomes unavailable moves to [[Closed]]
    * anyway, where a later request to open the device waits for it to become available again.
    *
-   * @param isAvailable     Indicates whether the device is available in the system.
-   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an `open` transition
-   *                        succeeded and no `close` transition has happened since, whether or not the device is
-   *                        available.
+   * @param isAvailable Indicates whether the device is available in the system.
+   * @param isOpenRequested Indicates whether the device has been requested to open, i.e. an `open` transition succeeded
+   *   and no `close` transition has happened since, whether or not the device is available.
    */
   //@formatter:off
   enum State(val isAvailable: Boolean, val isOpenRequested: Boolean) {

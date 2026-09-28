@@ -26,8 +26,8 @@ import org.calinburloiu.music.scmidi.{MidiDeviceInfo, MidiDirection, MidiManager
 class MidiDevicesCliCommand(midiManager: MidiManager) {
 
   /**
-   * Prints every input and output device: its name, vendor, version and description, and how many transmitters
-   * (inputs) or receivers (outputs) it can open.
+   * Prints every input and output device: its name, vendor, version and description, and how many transmitters (inputs)
+   * or receivers (outputs) it can open.
    */
   def run(): Unit = {
     println("=== Input Devices ===\n")

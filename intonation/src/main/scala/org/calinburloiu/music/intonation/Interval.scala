@@ -32,11 +32,10 @@ import scala.util.Try
  * When applying a binary operation such is `+` or `-` on intervals of different types, the following result can be
  * obtained:
  *
- * * A [[CentsInterval]] with any interval produces a [[CentsInterval]].
- * * A [[RealInterval]] with any interval except a [[CentsInterval]] produces a [[RealInterval]].
- * * A [[RatioInterval]] with any interval except a [[CentsInterval]] produces a [[RealInterval]].
- * * An [[EdoInterval]] with any interval except a [[CentsInterval]] produces a [[RealInterval]].
- * *
+ * * A [[CentsInterval]] with any interval produces a [[CentsInterval]]. * A [[RealInterval]] with any interval except a
+ * [[CentsInterval]] produces a [[RealInterval]]. * A [[RatioInterval]] with any interval except a [[CentsInterval]]
+ * produces a [[RealInterval]]. * An [[EdoInterval]] with any interval except a [[CentsInterval]] produces a
+ * [[RealInterval]]. *
  */
 sealed trait Interval extends Ordered[Interval] {
   /**
@@ -149,9 +148,8 @@ object Interval {
    * Scala application tuning files encodes intervals by using the following convention:
    *
    * * An integer or a fraction is an interval expressed as a just intonation frequency ratio. E.g. `2` or `2/1` are
-   * octaves, `3/2` is a perfect fifth.
-   * * A decimal number that contains a dot is an interval expressed in cents. E.g. 150.0 is neutral second, 700.0 is
-   * a perfect fifth in 12-EDO.
+   * octaves, `3/2` is a perfect fifth. * A decimal number that contains a dot is an interval expressed in cents. E.g.
+   * 150.0 is neutral second, 700.0 is a perfect fifth in 12-EDO.
    *
    * @param intervalValue interval value that follows Scala application's convention
    * @return `Some` [[RatioInterval]] or [[CentsInterval]] if it was successfully parsed, `None` is it was invalid
@@ -175,8 +173,9 @@ object Interval {
  * @param realValue the positive frequency ratio in decimal format
  */
 case class RealInterval(override val realValue: Double) extends Interval {
-  require(realValue > 0.0 &&
-    realValue != Double.PositiveInfinity && realValue != Double.NaN,
+  require(
+    realValue > 0.0 &&
+      realValue != Double.PositiveInfinity && realValue != Double.NaN,
     s"Expecting a positive finite real value for the interval, but got $realValue")
 
   override def isNormalized: Boolean = realValue >= 1 && realValue < 2
@@ -244,13 +243,14 @@ object RealInterval {
  *
  * Although precise, this type of interval cannot express any interval such as temperaments.
  *
- * @param numerator   positive integer fraction numerator
+ * @param numerator positive integer fraction numerator
  * @param denominator positive integer fraction denominator
  */
 case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
   require(numerator > 0, s"Expecting a positive value for the numerator, but got $numerator")
-  require(denominator > 0, s"Expecting a positive value for the denominator, but got " +
-    s"$denominator")
+  require(denominator > 0,
+    s"Expecting a positive value for the denominator, but got " +
+      s"$denominator")
 
   override def realValue: Double = numerator.toDouble / denominator
 
@@ -453,7 +453,7 @@ object CentsInterval {
  * Note that by using this interval type with `edo = 1200` you are not achieving the exact same effect as
  * [[CentsInterval]], because the later allows fractions of a cent, while this type only allows integers for `count`.
  *
- * @param edo   the number of divisions used to express an octave
+ * @param edo the number of divisions used to express an octave
  * @param count the number of division used to express the interval
  */
 case class EdoInterval(edo: Int, count: Int) extends Interval {
@@ -528,9 +528,8 @@ case class EdoInterval(edo: Int, count: Int) extends Interval {
   }
 
   /**
-   * @return a pair of integers where the first is the number of 12-EDO semitones approximated
-   *         in this EDO (by rounding, 0.5 goes up), and the second is the offset in
-   *         divisions (in this EDO) from the approximated semitone.
+   * @return a pair of integers where the first is the number of 12-EDO semitones approximated in this EDO (by rounding,
+   *   0.5 goes up), and the second is the offset in divisions (in this EDO) from the approximated semitone.
    */
   def countRelativeToStandard: (Int, Int) = {
     val factor = edo / 12.0
@@ -546,10 +545,10 @@ object EdoInterval {
    * Creates an [[EdoInterval]] by specifying a count value relative to an approximation in the given `edo` of the
    * standard tuning (12-EDO).
    *
-   * @param edo                     the number of divisions used to express an octave
-   * @param countRelativeToStandard a pair of integers where the first is the number of 12-EDO semitones approximated
-   *                                in this EDO (by rounding, 0.5 goes up), and the second is the offset in
-   *                                divisions (in this EDO) from the approximated semitone.
+   * @param edo the number of divisions used to express an octave
+   * @param countRelativeToStandard a pair of integers where the first is the number of 12-EDO semitones approximated in
+   *   this EDO (by rounding, 0.5 goes up), and the second is the offset in divisions (in this EDO) from the
+   *   approximated semitone.
    * @return a new [[EdoInterval]]
    */
   def apply(edo: Int, countRelativeToStandard: (Int, Int)): EdoInterval = {
@@ -575,8 +574,8 @@ object EdoInterval {
 /**
  * Convenience factory for intervals in a given interval.
  *
- * Creating an [[EdoInterval]] always requires specifying `edo` which can be tiring. An instance of this factory
- * holds that values and will only ask for the `count` value.
+ * Creating an [[EdoInterval]] always requires specifying `edo` which can be tiring. An instance of this factory holds
+ * that values and will only ask for the `count` value.
  *
  * @param edo the number of divisions used to express an octave
  */
@@ -595,7 +594,7 @@ case class EdoIntervalFactory(edo: Int) {
    * Creates an [[EdoInterval]] by specifying a count value relative to an approximation in the given `edo` of the
    * standard tuning (12-EDO).
    *
-   * @param semitones     the number of 12-EDO semitones approximated in this EDO (by rounding, 0.5 goes up)
+   * @param semitones the number of 12-EDO semitones approximated in this EDO (by rounding, 0.5 goes up)
    * @param relativeCount the offset in divisions (in this EDO) from the approximated semitone
    * @return a new [[EdoInterval]]
    */

@@ -85,8 +85,8 @@ class MidiProcessorTest extends AnyWordSpec with Matchers with Stubs {
   }
 
   /**
-   * From inside each hook, tries to read the transmitter's receivers on another thread and records whether that
-   * read completed while the hook was still running. It completes at once unless the hook holds the write lock.
+   * From inside each hook, tries to read the transmitter's receivers on another thread and records whether that read
+   * completed while the hook was still running. It completes at once unless the hook holds the write lock.
    */
   class LockProbingMidiProcessor extends MidiProcessor {
     val readerTimeoutMillis: Long = 200L

@@ -22,7 +22,7 @@ package org.calinburloiu.music.scmidi
  * Note that a physical device that works as both input and output has a single [[MidiDeviceId]] but is listed by a
  * [[MidiManager]] once per direction, with a [[MidiDeviceInfo]] and a [[MidiDeviceHandle]] for each.
  *
- * @param name   Name of the MIDI device.
+ * @param name Name of the MIDI device.
  * @param vendor The name of the company who supplies the device.
  */
 case class MidiDeviceId(name: String,

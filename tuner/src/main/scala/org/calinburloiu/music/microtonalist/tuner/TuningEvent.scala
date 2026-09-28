@@ -34,12 +34,12 @@ sealed abstract class TuningEvent extends BusinessyncEvent {
 }
 
 /**
- * Event representing an update in the tuning index within a tuning session. This event specifies the
- * new tuning index and the corresponding tuning that is currently being applied.
+ * Event representing an update in the tuning index within a tuning session. This event specifies the new tuning index
+ * and the corresponding tuning that is currently being applied.
  *
- * @param tuningIndex   Identifier representing the index within the sequence of tunings related to the session.
- * @param currentTuning The current tuning object, describing the pitch class offsets in cents for
- *                      the specified musical tuning.
+ * @param tuningIndex Identifier representing the index within the sequence of tunings related to the session.
+ * @param currentTuning The current tuning object, describing the pitch class offsets in cents for the specified musical
+ *   tuning.
  */
 case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
                                    override val currentTuning: Tuning) extends TuningEvent
@@ -49,12 +49,11 @@ case class TuningIndexUpdatedEvent(override val tuningIndex: Int,
  *
  * Note that updating tuning sequence might also affect the index when the new list is smaller that the index.
  *
- * This event is emitted to notify listeners of changes in the available tunings as part of a tuning session.
- * The `tuningIndex` must be within the bounds of the provided `tunings` sequence if the sequence is non-empty.
- * If the sequence is empty, a default value of `Tuning.Edo12` (12-tone equal temperament) will be used as
- * the `currentTuning`.
+ * This event is emitted to notify listeners of changes in the available tunings as part of a tuning session. The
+ * `tuningIndex` must be within the bounds of the provided `tunings` sequence if the sequence is non-empty. If the
+ * sequence is empty, a default value of `Tuning.Edo12` (12-tone equal temperament) will be used as the `currentTuning`.
  *
- * @param tunings     The new tuning list.
+ * @param tunings The new tuning list.
  * @param tuningIndex Index of the currently selected tuning within the `tunings` sequence.
  */
 case class TuningsUpdatedEvent(tunings: Seq[Tuning], override val tuningIndex: Int) extends TuningEvent {
@@ -62,8 +61,8 @@ case class TuningsUpdatedEvent(tunings: Seq[Tuning], override val tuningIndex: I
     s"Tuning index $tuningIndex is out of bounds for tunings $tunings!")
 
   /**
-   * The current tuning applied in the session. This is determined by the index of the selected tuning
-   * within the `tunings` sequence. If the sequence is empty, the default tuning `Tuning.Edo12` is used instead.
+   * The current tuning applied in the session. This is determined by the index of the selected tuning within the
+   * `tunings` sequence. If the sequence is empty, the default tuning `Tuning.Edo12` is used instead.
    */
   override val currentTuning: Tuning = tunings.lift(tuningIndex).getOrElse(Tuning.Standard)
 }

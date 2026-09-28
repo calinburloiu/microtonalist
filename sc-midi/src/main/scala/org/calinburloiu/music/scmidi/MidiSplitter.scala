@@ -23,8 +23,8 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
  *
  * The caller chooses the transmitter and, with it, whether and how the receivers can change: an
  * [[ImmutableMidiTransmitter]] for a fixed fan-out, a [[MutableMidiTransmitter]] on a single thread, a
- * [[ConcurrentMidiTransmitter]] when receivers are added from other threads. The splitter does not own the
- * transmitter: it only reads its receivers, and its lifetime is the caller's business.
+ * [[ConcurrentMidiTransmitter]] when receivers are added from other threads. The splitter does not own the transmitter:
+ * it only reads its receivers, and its lifetime is the caller's business.
  *
  * @param transmitter the transmitter whose receivers get every message.
  */

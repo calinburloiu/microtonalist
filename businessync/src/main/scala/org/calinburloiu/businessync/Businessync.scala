@@ -26,8 +26,8 @@ case class BusinessyncUiHandler(run: () => Unit,
 
 class Businessync(eventBus: EventBus) {
   /**
-   * Publishes an event to its subscribers and delivers it on either the Business or the UI Thread based on which
-   * method subscribers used for subscribing, [[subscribe]] or [[subscribeOnUi]], respectively.
+   * Publishes an event to its subscribers and delivers it on either the Business or the UI Thread based on which method
+   * subscribers used for subscribing, [[subscribe]] or [[subscribeOnUi]], respectively.
    *
    * TODO #90 Details
    *
@@ -68,8 +68,8 @@ class Businessync(eventBus: EventBus) {
   def subscribe[E <: BusinessyncEvent](eventClass: Class[E], handler: E => Unit): Unit = {}
 
   /**
-   * Subscribes to events that match the given class to be delivered on the UI Thread by calling the given
-   * function handler.
+   * Subscribes to events that match the given class to be delivered on the UI Thread by calling the given function
+   * handler.
    *
    * TODO #90 Details
    *

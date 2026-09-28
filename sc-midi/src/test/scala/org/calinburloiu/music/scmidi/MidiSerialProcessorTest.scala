@@ -58,9 +58,9 @@ class MidiSerialProcessorTest extends AnyWordSpec, Matchers, BeforeAndAfter, Stu
     val outputReceiver: Stub[MidiReceiver] = stub[MidiReceiver]
     outputReceiver.send.returns {
       case (msg, ts) => msg match {
-        case NoteOnMidiMsg(_, _, velocity) => outputVelocities += velocity
-        case _ =>
-      }
+          case NoteOnMidiMsg(_, _, velocity) => outputVelocities += velocity
+          case _ =>
+        }
     }
 
     val midiSerialProcessor: MidiSerialProcessor

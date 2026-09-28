@@ -23,9 +23,9 @@ import scala.collection.immutable.ArraySeq
 /**
  * Scala-idiomatic base trait of the immutable MIDI message model.
  *
- * Unlike Java's [[javax.sound.midi.MidiMessage]] (and its subclasses like [[javax.sound.midi.ShortMessage]]),
- * which expose raw byte data and mutable state, `MidiMsg` subtypes are immutable case classes with named,
- * validated parameters and Scala pattern matching support.
+ * Unlike Java's [[javax.sound.midi.MidiMessage]] (and its subclasses like [[javax.sound.midi.ShortMessage]]), which
+ * expose raw byte data and mutable state, `MidiMsg` subtypes are immutable case classes with named, validated
+ * parameters and Scala pattern matching support.
  *
  * The hierarchy is split by MIDI specification family: every MIDI 1.0 message (including the Standard MIDI File meta
  * events) is a [[Midi1Msg]] and every MIDI 2.0 message is a [[Midi2Msg]]. Pipeline signatures take `MidiMsg` so that
@@ -55,8 +55,7 @@ sealed trait Midi1Msg extends MidiMsg
 sealed trait Midi2Msg extends MidiMsg
 
 /**
- * Base class for all MIDI channel messages (both Voice and Mode). Subtypes carry a validated
- * `channel` field (0-15).
+ * Base class for all MIDI channel messages (both Voice and Mode). Subtypes carry a validated `channel` field (0-15).
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  */
@@ -88,10 +87,10 @@ sealed trait MetaMidiMsg extends Midi1Msg
 
 /**
  * Base class for Note On and Note Off MIDI messages, replacing Java's overloaded use of
- * [[javax.sound.midi.ShortMessage]] with typed `channel`, `midiNote`, and `velocity` parameters
- * that are validated on construction.
+ * [[javax.sound.midi.ShortMessage]] with typed `channel`, `midiNote`, and `velocity` parameters that are validated on
+ * construction.
  *
- * @param channel  The 0-indexed MIDI channel (0-15).
+ * @param channel The 0-indexed MIDI channel (0-15).
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
@@ -106,7 +105,7 @@ sealed abstract class NoteMidiMsg(channel: Int,
 /**
  * Represents a MIDI Note On message.
  *
- * @param channel  The 0-indexed MIDI channel (0-15).
+ * @param channel The 0-indexed MIDI channel (0-15).
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
@@ -131,7 +130,7 @@ object NoteOnMidiMsg {
 /**
  * Represents a MIDI Note Off message.
  *
- * @param channel  The 0-indexed MIDI channel (0-15).
+ * @param channel The 0-indexed MIDI channel (0-15).
  * @param midiNote The MIDI note.
  * @param velocity The velocity (0-127).
  */
@@ -155,9 +154,9 @@ object NoteOffMidiMsg {
  * Represents a MIDI Polyphonic Key Pressure (Poly Aftertouch) message with typed `midiNote` and validated `value`
  * parameters.
  *
- * @param channel  The 0-indexed MIDI channel (0-15).
+ * @param channel The 0-indexed MIDI channel (0-15).
  * @param midiNote The MIDI note to which the pressure applies.
- * @param value    The pressure value (0-127).
+ * @param value The pressure value (0-127).
  */
 case class PolyPressureMidiMsg(override val channel: Int, midiNote: MidiNote, value: Int)
   extends ChannelMidiMsg(channel) {
@@ -176,8 +175,8 @@ case class PolyPressureMidiMsg(override val channel: Int, midiNote: MidiNote, va
  * Mode messages, which are [[ChannelModeMidiMsg]] subtypes rather than Control Changes.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
- * @param number  The controller number (0-119).
- * @param value   The controller value (0-127).
+ * @param number The controller number (0-119).
+ * @param value The controller value (0-127).
  */
 case class CcMidiMsg(override val channel: Int, number: Int, value: Int)
   extends ChannelMidiMsg(channel) {
@@ -190,8 +189,8 @@ case class CcMidiMsg(override val channel: Int, number: Int, value: Int)
 /**
  * Represents a MIDI Program Change message with a validated `program` parameter.
  *
- * Unlike Java's [[javax.sound.midi.ShortMessage]], which uses a generic `data1` byte for the program number,
- * this class provides a descriptively named `program` field.
+ * Unlike Java's [[javax.sound.midi.ShortMessage]], which uses a generic `data1` byte for the program number, this class
+ * provides a descriptively named `program` field.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  * @param program The program number (0-127).
@@ -207,7 +206,7 @@ case class ProgramChangeMidiMsg(override val channel: Int, program: Int)
  * Represents a MIDI Channel Pressure (Aftertouch) message with a validated `value` parameter.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
- * @param value   The pressure value (0-127).
+ * @param value The pressure value (0-127).
  */
 case class ChannelPressureMidiMsg(override val channel: Int, value: Int)
   extends ChannelMidiMsg(channel) {
@@ -224,7 +223,7 @@ case class ChannelPressureMidiMsg(override val channel: Int, value: Int)
  * based on a [[PitchBendSensitivity]].
  *
  * @param channel The 0-indexed MIDI channel (0-15).
- * @param value   The signed 14-bit pitch bend value (-8192 to 8191).
+ * @param value The signed 14-bit pitch bend value (-8192 to 8191).
  */
 case class PitchBendMidiMsg(override val channel: Int, value: Int)
   extends ChannelMidiMsg(channel) {
@@ -239,8 +238,7 @@ case class PitchBendMidiMsg(override val channel: Int, value: Int)
   /**
    * Calculates the pitch bend in cents using the implicit pitch bend sensitivity.
    *
-   * @param pitchBendSensitivity Implicit parameter that defines the pitch bend range
-   *                             in semitones and cents.
+   * @param pitchBendSensitivity Implicit parameter that defines the pitch bend range in semitones and cents.
    *
    * @return The pitch bend amount in cents.
    */
@@ -328,9 +326,9 @@ object PitchBendMidiMsg {
  * Base class of the eight MIDI 1.0 Channel Mode messages.
  *
  * MIDI 1.0 puts them on the wire with the Control Change status byte (`0xBn`) and controller numbers 120-127, but
- * defines them as a category of their own: they are not controllers, and a receiver must not treat them as such.
- * They are therefore modelled as their own types rather than as [[CcMidiMsg]] values, and `CcMidiMsg` refuses their
- * numbers; see [[MidiRequirements.requireControllerNumber]].
+ * defines them as a category of their own: they are not controllers, and a receiver must not treat them as such. They
+ * are therefore modelled as their own types rather than as [[CcMidiMsg]] values, and `CcMidiMsg` refuses their numbers;
+ * see [[MidiRequirements.requireControllerNumber]].
  *
  * Only Local Control and Mono Mode On give their data byte a meaning, so only those two carry a field. The other six
  * send `0` and ignore whatever arrived: this is the one place where the byte-level round trip is deliberately not
@@ -384,11 +382,11 @@ object ResetAllControllersMidiMsg {
 }
 
 /**
- * Represents a Local Control Channel Mode message (number 122), which connects or disconnects a receiver's own
- * keyboard from its sound generator.
+ * Represents a Local Control Channel Mode message (number 122), which connects or disconnects a receiver's own keyboard
+ * from its sound generator.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
- * @param isOn    Whether local control is switched on.
+ * @param isOn Whether local control is switched on.
  */
 case class LocalControlMidiMsg(override val channel: Int, isOn: Boolean) extends ChannelModeMidiMsg(channel) {
   override def mapChannel(map: Int => Int): LocalControlMidiMsg = copy(channel = map(channel))
@@ -406,9 +404,8 @@ object LocalControlMidiMsg {
   val OnValue: Int = 127
 
   /**
-   * The lowest data byte that reads as on (`64`). MIDI 1.0 defines only [[OffValue]] and [[OnValue]] for this
-   * message, so any other value follows the specification's general switch-controller convention: 0-63 off,
-   * 64-127 on.
+   * The lowest data byte that reads as on (`64`). MIDI 1.0 defines only [[OffValue]] and [[OnValue]] for this message,
+   * so any other value follows the specification's general switch-controller convention: 0-63 off, 64-127 on.
    */
   val OnThreshold: Int = 64
 }
@@ -465,7 +462,7 @@ object OmniModeOnMidiMsg {
  * Represents a Mono Mode On Channel Mode message (number 126), which makes the receiver monophonic, one voice per
  * channel.
  *
- * @param channel      The 0-indexed MIDI channel (0-15).
+ * @param channel The 0-indexed MIDI channel (0-15).
  * @param channelCount The number of channels the receiver is asked to use, `0` meaning as many as it has voices.
  */
 case class MonoModeOnMidiMsg(override val channel: Int, channelCount: Int) extends ChannelModeMidiMsg(channel) {
@@ -484,15 +481,15 @@ object MonoModeOnMidiMsg {
   val Number: Int = 126
 
   /**
-   * The channel counts the message may carry: 0 to 16. `0` asks the receiver to use as many channels as it has
-   * voices; any other value is the exact number of channels.
+   * The channel counts the message may carry: 0 to 16. `0` asks the receiver to use as many channels as it has voices;
+   * any other value is the exact number of channels.
    */
   val ChannelCountRange: Range = 0 to 16
 }
 
 /**
- * Represents a Poly Mode On Channel Mode message (number 127), which returns the receiver to full polyphony on a
- * single channel.
+ * Represents a Poly Mode On Channel Mode message (number 127), which returns the receiver to full polyphony on a single
+ * channel.
  *
  * @param channel The 0-indexed MIDI channel (0-15).
  */
@@ -513,11 +510,11 @@ object PolyModeOnMidiMsg {
 /**
  * Represents a MIDI Time Code Quarter Frame message.
  *
- * The single data byte encodes a 3-bit message type in the high nibble (0-7, selecting which part of
- * the SMPTE time is being transmitted) and a 4-bit values field in the low nibble (0-15).
+ * The single data byte encodes a 3-bit message type in the high nibble (0-7, selecting which part of the SMPTE time is
+ * being transmitted) and a 4-bit values field in the low nibble (0-15).
  *
  * @param messageType The message type nibble (0-7).
- * @param values      The values nibble (0-15).
+ * @param values The values nibble (0-15).
  */
 case class MidiTimeCodeMidiMsg(messageType: Int, values: Int) extends SysCommonMidiMsg {
   MidiRequirements.requireUnsigned3BitValue("messageType", messageType)
@@ -525,8 +522,8 @@ case class MidiTimeCodeMidiMsg(messageType: Int, values: Int) extends SysCommonM
 }
 
 /**
- * Represents a MIDI Song Position Pointer message, carrying a 14-bit position in MIDI beats
- * (one MIDI beat = six MIDI clocks).
+ * Represents a MIDI Song Position Pointer message, carrying a 14-bit position in MIDI beats (one MIDI beat = six MIDI
+ * clocks).
  *
  * @param position The song position in MIDI beats (0-16383).
  */
@@ -580,8 +577,8 @@ case object SystemResetMidiMsg extends SysRealTimeMidiMsg
  * Represents a MIDI System Exclusive (SysEx) message.
  *
  * The `data` holds the full byte sequence including the leading `0xF0` status byte and the trailing `0xF7`
- * end-of-exclusive byte. [[ArraySeq]] is used (instead of `Array[Byte]`) so structural equality and hashing
- * work correctly with `case class`.
+ * end-of-exclusive byte. [[ArraySeq]] is used (instead of `Array[Byte]`) so structural equality and hashing work
+ * correctly with `case class`.
  *
  * @param data The full SysEx byte sequence.
  */
@@ -759,10 +756,10 @@ object SetTempoMetaMidiMsg {
 /**
  * Represents an SMPTE Offset SMF meta event (type `0x54`).
  *
- * @param hour            Hour byte (includes frame-rate encoding per SMF spec; 0-255).
- * @param minute          Minute (0-255 as stored; typically 0-59).
- * @param second          Second (0-255 as stored; typically 0-59).
- * @param frame           Frame (0-255 as stored).
+ * @param hour Hour byte (includes frame-rate encoding per SMF spec; 0-255).
+ * @param minute Minute (0-255 as stored; typically 0-59).
+ * @param second Second (0-255 as stored; typically 0-59).
+ * @param frame Frame (0-255 as stored).
  * @param fractionalFrame Fractional frame, in hundredths (0-255 as stored; typically 0-99).
  */
 case class SmpteOffsetMetaMidiMsg(hour: Int,
@@ -786,9 +783,9 @@ object SmpteOffsetMetaMidiMsg {
 /**
  * Represents a Time Signature SMF meta event (type `0x58`).
  *
- * @param numerator                        Time signature numerator.
- * @param denominatorPowerOf2              Power-of-2 exponent for the denominator (e.g. 2 means denominator 4).
- * @param midiClocksPerMetronomeTick       MIDI clocks per metronome tick.
+ * @param numerator Time signature numerator.
+ * @param denominatorPowerOf2 Power-of-2 exponent for the denominator (e.g. 2 means denominator 4).
+ * @param midiClocksPerMetronomeTick MIDI clocks per metronome tick.
  * @param thirtySecondNotesPer24MidiClocks Number of 32nd notes per 24 MIDI clocks (usually 8).
  */
 case class TimeSignatureMetaMidiMsg(numerator: Int,
@@ -811,7 +808,7 @@ object TimeSignatureMetaMidiMsg {
  * Represents a Key Signature SMF meta event (type `0x59`).
  *
  * @param sharpsOrFlats Number of sharps (positive) or flats (negative); range -7 to 7.
- * @param mode          Whether the key is major or minor.
+ * @param mode Whether the key is major or minor.
  */
 case class KeySignatureMetaMidiMsg(sharpsOrFlats: Int, mode: MidiKeySignatureMode) extends MetaMidiMsg {
   require(sharpsOrFlats >= -7 && sharpsOrFlats <= 7,

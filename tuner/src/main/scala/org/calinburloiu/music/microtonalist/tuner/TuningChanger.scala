@@ -22,17 +22,17 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
 import javax.annotation.concurrent.NotThreadSafe
 
 /**
- * `TuningChanger` is an abstract class representing a pluggable component for determining a [[TuningChange]]
- * operation based on incoming MIDI messages. It is part of the `"tuningChanger"` plugin family and is responsible for
- * deciding how the tuning of an instrument should be modified.
+ * `TuningChanger` is an abstract class representing a pluggable component for determining a [[TuningChange]] operation
+ * based on incoming MIDI messages. It is part of the `"tuningChanger"` plugin family and is responsible for deciding
+ * how the tuning of an instrument should be modified.
  */
 @NotThreadSafe
 abstract class TuningChanger extends Plugin {
   override val familyName: String = TuningChanger.FamilyName
 
   /**
-   * @return whether tuning change MIDI trigger messages should pass through to the output or if they should be
-   *         filtered out.
+   * @return whether tuning change MIDI trigger messages should pass through to the output or if they should be filtered
+   *   out.
    */
   def triggersThru: Boolean
 

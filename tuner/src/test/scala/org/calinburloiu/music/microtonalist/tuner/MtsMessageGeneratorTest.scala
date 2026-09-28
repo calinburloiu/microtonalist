@@ -25,8 +25,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import scala.language.implicitConversions
 
 /**
- * This test suite uses an internal Java class: [[com.sun.media.sound.SoftTuning]]. If you see compiler errors
- * related to it in IntelliJ, you need to add the following in the run configuration of the test in VM options:
+ * This test suite uses an internal Java class: [[com.sun.media.sound.SoftTuning]]. If you see compiler errors related
+ * to it in IntelliJ, you need to add the following in the run configuration of the test in VM options:
  *
  * {{{
  * --add-exports=java.desktop/com.sun.media.sound=ALL-UNNAMED

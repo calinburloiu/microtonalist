@@ -17,8 +17,8 @@
 package org.calinburloiu.music.intonation
 
 /**
- * Class that specified how intervals are expressed or interpreted: as values in cents, as just intonation ratios or
- * as the number of divisions in a particular EDO tuning.
+ * Class that specified how intervals are expressed or interpreted: as values in cents, as just intonation ratios or as
+ * the number of divisions in a particular EDO tuning.
  *
  * @param typeName Identifier of the intonation standard type.
  */
@@ -37,9 +37,9 @@ sealed abstract class IntonationStandard(val typeName: String) {
     case CentsIntonationStandard => IntonationConversionQuality.Lossless
     case JustIntonationStandard => IntonationConversionQuality.Impossible
     case EdoIntonationStandard(thatEdo) => this match {
-      case EdoIntonationStandard(thisEdo) if thatEdo % thisEdo == 0 => IntonationConversionQuality.Lossless
-      case _ => IntonationConversionQuality.Lossy
-    }
+        case EdoIntonationStandard(thisEdo) if thatEdo % thisEdo == 0 => IntonationConversionQuality.Lossless
+        case _ => IntonationConversionQuality.Lossy
+      }
   }
 }
 

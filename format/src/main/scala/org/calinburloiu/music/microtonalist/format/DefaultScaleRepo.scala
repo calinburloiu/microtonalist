@@ -31,8 +31,8 @@ import scala.concurrent.Future
  * Other repositories are accessed based on URI in the following way:
  *
  *   - Relative URIs and those with `file` scheme use [[FileScaleRepo]]. [[ScaleRepo]]s don't have a base URI, that's
- *     why it was chosen to interpret relative URIs as files. Callers are advised to always resolve relative URI
- *     based on the base URI before making calls to the repo. In this way relative URI can be based on any scheme.
+ *     why it was chosen to interpret relative URIs as files. Callers are advised to always resolve relative URI based
+ *     on the base URI before making calls to the repo. In this way relative URI can be based on any scheme.
  *   - URIs with `http`/`https` scheme use [[HttpScaleRepo]].
  *   - URIs with `microtonalist` scheme use [[LibraryScaleRepo]].
  *
@@ -41,11 +41,10 @@ import scala.concurrent.Future
  *   - The `name` may be changed by the tuning specification
  *   - The scale pitch intervals may be converted from their intonation standard to another one from the context. For
  *     example, a scale in just intonation might be converted to 31-EDO when the composition file has this later
- *     intonation
- *     standard, but this will do a lossy conversion which will generate a warning.
+ *     intonation standard, but this will do a lossy conversion which will generate a warning.
  *
- * @param fileScaleRepo    a [[FileScaleRepo]] instance
- * @param httpScaleRepo    an [[HttpScaleRepo]] instance
+ * @param fileScaleRepo a [[FileScaleRepo]] instance
+ * @param httpScaleRepo an [[HttpScaleRepo]] instance
  * @param libraryScaleRepo a [[LibraryScaleRepo]] instance
  */
 class DefaultScaleRepo(fileScaleRepo: Option[FileScaleRepo],

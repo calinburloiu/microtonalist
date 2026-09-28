@@ -22,21 +22,21 @@ import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.mutable
 
 /**
- * A [[MidiReceiver]] that tracks per-channel MIDI state derived from the messages it receives: active notes
- * (with their velocities, Polyphonic Key Pressure, and a count of the Note On messages no Note Off has yet
- * discharged), Control Change values, Registered and Non-Registered Parameter Number values together with the
- * parameter each channel currently has selected, Channel Pressure, Pitch Bend, and Program Change.
- * Channel Mode messages are not Control Changes and are never recorded as such: no
- * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] number appears in the tracked CC values.
+ * A [[MidiReceiver]] that tracks per-channel MIDI state derived from the messages it receives: active notes (with their
+ * velocities, Polyphonic Key Pressure, and a count of the Note On messages no Note Off has yet discharged), Control
+ * Change values, Registered and Non-Registered Parameter Number values together with the parameter each channel
+ * currently has selected, Channel Pressure, Pitch Bend, and Program Change. Channel Mode messages are not Control
+ * Changes and are never recorded as such: no [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] number
+ * appears in the tracked CC values.
  *
  * The Channel Mode messages that set a state are tracked per channel instead: the receive mode, through
  * [[isOmniModeOn]] and [[isPolyModeOn]] / [[isMonoModeOn]], with the channel count a Mono Mode On asks for through
- * [[monoModeChannelCount]], and Local Control, through [[isLocalControlOn]]. Every channel starts in the power-up
- * state MIDI 1.0 recommends — Omni On/Poly (Mode 1), with Local Control on — and holds
- * whatever it was last asked for. A receiver honours a Mode message only on its Basic Channel, which the tracker does
- * not know, so it records the request on whichever channel it arrives. These states are tracked whatever
- * `shallRespondToResetMessages` says, and no reset Channel Mode message changes them: RP-015 lists the other Channel
- * Mode messages among what Reset All Controllers leaves unchanged.
+ * [[monoModeChannelCount]], and Local Control, through [[isLocalControlOn]]. Every channel starts in the power-up state
+ * MIDI 1.0 recommends — Omni On/Poly (Mode 1), with Local Control on — and holds whatever it was last asked for. A
+ * receiver honours a Mode message only on its Basic Channel, which the tracker does not know, so it records the request
+ * on whichever channel it arrives. These states are tracked whatever `shallRespondToResetMessages` says, and no reset
+ * Channel Mode message changes them: RP-015 lists the other Channel Mode messages among what Reset All Controllers
+ * leaves unchanged.
  *
  * With `shallRespondToResetMessages` set, the MIDI Mode messages 124–127 also cancel the channel's active notes, MIDI
  * 1.0 making them act as All Notes Off too. MIDI 1.0 further directs a receiver in Omni mode to ignore All Notes Off
@@ -44,26 +44,25 @@ import scala.collection.mutable
  * arrives on is the receiver's Basic Channel, so the Omni state it records never filters a message.
  *
  * Notes are reference-counted: a note struck twice without an intervening release stays active until it has received
- * two Note Off messages, which is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation.
- * See [[referenceCount]].
+ * two Note Off messages, which is what lets a consumer discharge MIDI 1.0's one-Note-Off-per-Note-On obligation. See
+ * [[referenceCount]].
  *
- * Default values for Control Change, Registered Parameter Number, and Non-Registered Parameter Number lookups
- * may be supplied via the constructor; if not, the companion object's [[MidiChannelStateTracker.DefaultCcValues]],
+ * Default values for Control Change, Registered Parameter Number, and Non-Registered Parameter Number lookups may be
+ * supplied via the constructor; if not, the companion object's [[MidiChannelStateTracker.DefaultCcValues]],
  * [[MidiChannelStateTracker.DefaultRpnValues]], and [[MidiChannelStateTracker.DefaultNrpnValues]] are consulted.
  *
- * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads. It should usually
- * be used from a track thread.
+ * '''Not thread-safe.''' External synchronization is required when accessed from multiple threads. It should usually be
+ * used from a track thread.
  *
- * @param ccDefaults                  per-CC-number default values that override the companion's defaults. Every key
- *                                    must be a controller number (0-119).
- * @param rpnDefaults                 per-RPN default values that override the companion's defaults.
- * @param nrpnDefaults                per-NRPN default values that override the companion's defaults.
- * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off, Reset All Controllers
- *                                    and All Notes Off — and the All Notes Off that the MIDI Mode messages 124–127
- *                                    imply mutate the tracked state. Defaults to `false`, which leaves the state
- *                                    untouched. Set to `true` when the tracker models a receiver that is known to act
- *                                    on these messages. The receive mode and Local Control are tracked whatever this
- *                                    flag says. Independent of this flag, [[reset]] always clears everything.
+ * @param ccDefaults per-CC-number default values that override the companion's defaults. Every key must be a controller
+ *   number (0-119).
+ * @param rpnDefaults per-RPN default values that override the companion's defaults.
+ * @param nrpnDefaults per-NRPN default values that override the companion's defaults.
+ * @param shallRespondToResetMessages whether the reset Channel Mode messages — All Sound Off, Reset All Controllers and
+ *   All Notes Off — and the All Notes Off that the MIDI Mode messages 124–127 imply mutate the tracked state. Defaults
+ *   to `false`, which leaves the state untouched. Set to `true` when the tracker models a receiver that is known to act
+ *   on these messages. The receive mode and Local Control are tracked whatever this flag says. Independent of this
+ *   flag, [[reset]] always clears everything.
  */
 @NotThreadSafe
 class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
@@ -138,16 +137,19 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     channelStates(channel) = ChannelState()
   }
 
-  /** @return the set of currently active notes on the given channel — those holding at least one undischarged
-   *          Note On. */
+  /**
+   * @return the set of currently active notes on the given channel — those holding at least one undischarged Note On.
+   */
   def activeNotes(channel: Int): Set[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keySet.toSet
   }
 
-  /** @return the currently active notes on the given channel, in order of their most recent Note On. Each note
-   *          appears exactly once, no matter how large its reference count is; a duplicate Note On for an
-   *          already-active note does not add a second entry, it only moves the existing one to the end. */
+  /**
+   * @return the currently active notes on the given channel, in order of their most recent Note On. Each note appears
+   *   exactly once, no matter how large its reference count is; a duplicate Note On for an already-active note does not
+   *   add a second entry, it only moves the existing one to the end.
+   */
   def orderedActiveNotes(channel: Int): Seq[MidiNote] = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).activeNotes.keys.toSeq
@@ -161,7 +163,7 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * @return the number of Note On messages received for the given note on the given channel that no Note Off has yet
-   *         discharged, or `0` if the note is not active.
+   *   discharged, or `0` if the note is not active.
    */
   def referenceCount(channel: Int, midiNote: MidiNote): Int = {
     MidiRequirements.requireChannel(channel)
@@ -172,8 +174,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   def velocity(channel: Int, midiNote: MidiNote): Int = velocityOption(channel, midiNote).getOrElse(0)
 
   /**
-   * @return the velocity of the given note on the given channel, or `None` if the note is not active. A duplicate
-   *         Note On overwrites it with the most recent value.
+   * @return the velocity of the given note on the given channel, or `None` if the note is not active. A duplicate Note
+   *   On overwrites it with the most recent value.
    */
   def velocityOption(channel: Int, midiNote: MidiNote): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -181,17 +183,16 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * @return the most recent Polyphonic Key Pressure value for the given note on the given channel — `0` if
-   *         the note is active but no Polyphonic Key Pressure has been received for it yet, or if the note
-   *         is not active.
+   * @return the most recent Polyphonic Key Pressure value for the given note on the given channel — `0` if the note is
+   *   active but no Polyphonic Key Pressure has been received for it yet, or if the note is not active.
    */
   def polyPressure(channel: Int, midiNote: MidiNote): Int = polyPressureOption(channel, midiNote).getOrElse(0)
 
   /**
-   * @return the most recent Polyphonic Key Pressure value for the given note on the given channel — `Some(0)` if
-   *         the note is active but no Polyphonic Key Pressure has been received for it yet, or `None` if the note
-   *         is not active. A duplicate Note On retains it: with two voices sounding for one key, pressure addressed
-   *         to that key applies to both.
+   * @return the most recent Polyphonic Key Pressure value for the given note on the given channel — `Some(0)` if the
+   *   note is active but no Polyphonic Key Pressure has been received for it yet, or `None` if the note is not active.
+   *   A duplicate Note On retains it: with two voices sounding for one key, pressure addressed to that key applies to
+   *   both.
    */
   def polyPressureOption(channel: Int, midiNote: MidiNote): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -204,8 +205,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     channelStates(channel).channelPressure.getOrElse(0)
   }
 
-  /** @return the most recent Pitch Bend recorded on the given channel, or `0` (no pitch bend) if none has been
-   *          received. */
+  /**
+   * @return the most recent Pitch Bend recorded on the given channel, or `0` (no pitch bend) if none has been received.
+   */
   def pitchBend(channel: Int): Int = {
     MidiRequirements.requireChannel(channel)
     channelStates(channel).pitchBend.getOrElse(0)
@@ -214,7 +216,7 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * @return the recorded value of the given CC on the given channel, or `None` if it has not been set.
    * @throws IllegalArgumentException if `ccNumber` is not a controller number (0-119): 120-127 are Channel Mode
-   *                                  messages, which are never recorded as CC values.
+   *   messages, which are never recorded as CC values.
    */
   def ccOption(channel: Int, ccNumber: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -225,9 +227,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * Retrieves the recorded value of the given CC on the given channel, or a default if not set.
    *
-   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `ccDefaults`,
-   * then the companion's [[MidiChannelStateTracker.DefaultCcValues]]. If no value is found through any
-   * of these, a [[NoSuchElementException]] is thrown.
+   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `ccDefaults`, then the
+   * companion's [[MidiChannelStateTracker.DefaultCcValues]]. If no value is found through any of these, a
+   * [[NoSuchElementException]] is thrown.
    *
    * @return the recorded value of the given CC on the given channel, or a default if not set.
    */
@@ -243,9 +245,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * Convenience getter that returns the current Bank Select MSB and LSB on the given channel as a tuple.
    *
-   * Each value is resolved through [[cc]], so it benefits from the same default-fallback behaviour as any other
-   * CC: a recorded value is preferred, then the constructor's `ccDefaults`, then the companion's defaults
-   * (`(0, 0)` by default).
+   * Each value is resolved through [[cc]], so it benefits from the same default-fallback behaviour as any other CC: a
+   * recorded value is preferred, then the constructor's `ccDefaults`, then the companion's defaults (`(0, 0)` by
+   * default).
    *
    * @return `(msb, lsb)` for Bank Select on the given channel.
    */
@@ -260,8 +262,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * @return whether the given channel was last put in Omni On mode, by an Omni Mode On, rather than in Omni Off mode,
-   *         by an Omni Mode Off. `true` until either is received, Omni On/Poly (Mode 1) being the power-up mode MIDI
-   *         1.0 recommends.
+   *   by an Omni Mode Off. `true` until either is received, Omni On/Poly (Mode 1) being the power-up mode MIDI 1.0
+   *   recommends.
    */
   def isOmniModeOn(channel: Int): Boolean = {
     MidiRequirements.requireChannel(channel)
@@ -269,22 +271,22 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * @return whether the given channel was last put in Poly mode, by a Poly Mode On, rather than in Mono mode, by a
-   *         Mono Mode On. `true` until either is received, Omni On/Poly (Mode 1) being the power-up mode MIDI 1.0
-   *         recommends. The inverse of [[isMonoModeOn]].
+   * @return whether the given channel was last put in Poly mode, by a Poly Mode On, rather than in Mono mode, by a Mono
+   *   Mode On. `true` until either is received, Omni On/Poly (Mode 1) being the power-up mode MIDI 1.0 recommends. The
+   *   inverse of [[isMonoModeOn]].
    */
   def isPolyModeOn(channel: Int): Boolean = monoModeChannelCount(channel).isEmpty
 
   /**
-   * @return whether the given channel was last put in Mono mode, by a Mono Mode On, rather than in Poly mode, by a
-   *         Poly Mode On. The inverse of [[isPolyModeOn]], so `false` until either is received.
+   * @return whether the given channel was last put in Mono mode, by a Mono Mode On, rather than in Poly mode, by a Poly
+   *   Mode On. The inverse of [[isPolyModeOn]], so `false` until either is received.
    */
   def isMonoModeOn(channel: Int): Boolean = !isPolyModeOn(channel)
 
   /**
    * @return the number of channels the last Mono Mode On asked the receiver to use on the given channel — `0` meaning
-   *         as many as it has voices — or `None` while the channel is in Poly mode: until a Mono Mode On is received,
-   *         and again after a Poly Mode On.
+   *   as many as it has voices — or `None` while the channel is in Poly mode: until a Mono Mode On is received, and
+   *   again after a Poly Mode On.
    */
   def monoModeChannelCount(channel: Int): Option[Int] = {
     MidiRequirements.requireChannel(channel)
@@ -292,8 +294,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * @return whether Local Control was last switched on for the given channel. `true` until a Local Control message
-   *         is received, MIDI 1.0 asking instruments to power up with Local Control on.
+   * @return whether Local Control was last switched on for the given channel. `true` until a Local Control message is
+   *   received, MIDI 1.0 asking instruments to power up with Local Control on.
    */
   def isLocalControlOn(channel: Int): Boolean = {
     MidiRequirements.requireChannel(channel)
@@ -302,9 +304,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * @return the current RPN/NRPN selector state on the given channel. [[RpnSelector.None]] is returned when no
-   *         parameter is selected — before any RPN/NRPN CC messages have been received, after a Reset All Controllers
-   *         or a Null RPN/NRPN (in either order of its two CCs), and while only one of a parameter's two selector CCs
-   *         has arrived, which selects nothing until the other completes the pair.
+   *   parameter is selected — before any RPN/NRPN CC messages have been received, after a Reset All Controllers or a
+   *   Null RPN/NRPN (in either order of its two CCs), and while only one of a parameter's two selector CCs has arrived,
+   *   which selects nothing until the other completes the pair.
    */
   def rpnSelector(channel: Int): RpnSelector = {
     MidiRequirements.requireChannel(channel)
@@ -313,9 +315,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * @return the parameter the given channel is assembling from its selector CCs, each half either received or still
-   *         pending. Unlike [[rpnSelector]], which collapses every incomplete parameter into [[RpnSelector.None]],
-   *         this tells a channel waiting for the second CC of a parameter apart from one holding no selection at all,
-   *         and shows which half it is still waiting for.
+   *   pending. Unlike [[rpnSelector]], which collapses every incomplete parameter into [[RpnSelector.None]], this tells
+   *   a channel waiting for the second CC of a parameter apart from one holding no selection at all, and shows which
+   *   half it is still waiting for.
    */
   def partialRpnSelector(channel: Int): PartialRpnSelector = {
     MidiRequirements.requireChannel(channel)
@@ -323,8 +325,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry
-   *         (or Data Increment / Decrement) has updated this RPN.
+   * @return the recorded `(valueMsb, valueLsb)` for the given RPN on the given channel, or `None` if no Data Entry (or
+   *   Data Increment / Decrement) has updated this RPN.
    */
   def rpnOption(channel: Int, parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] = {
     MidiRequirements.requireChannel(channel)
@@ -334,9 +336,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * Retrieves the `(valueMsb, valueLsb)` for the given RPN on the given channel, or a default if not recorded.
    *
-   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `rpnDefaults`,
-   * then the companion's [[MidiChannelStateTracker.DefaultRpnValues]]. If no value is found through any of these,
-   * a [[NoSuchElementException]] is thrown.
+   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `rpnDefaults`, then the
+   * companion's [[MidiChannelStateTracker.DefaultRpnValues]]. If no value is found through any of these, a
+   * [[NoSuchElementException]] is thrown.
    *
    * @return the `(valueMsb, valueLsb)` for the given RPN, or a default if not recorded.
    */
@@ -351,8 +353,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * @return the recorded `(valueMsb, valueLsb)` for the given NRPN on the given channel, or `None` if no Data Entry
-   *         (or Data Increment / Decrement) has updated this NRPN.
+   * @return the recorded `(valueMsb, valueLsb)` for the given NRPN on the given channel, or `None` if no Data Entry (or
+   *   Data Increment / Decrement) has updated this NRPN.
    */
   def nrpnOption(channel: Int, parameterMsb: Int, parameterLsb: Int): Option[(Int, Int)] = {
     MidiRequirements.requireChannel(channel)
@@ -362,9 +364,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   /**
    * Retrieves the `(valueMsb, valueLsb)` for the given NRPN on the given channel, or a default if not recorded.
    *
-   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `nrpnDefaults`,
-   * then the companion's [[MidiChannelStateTracker.DefaultNrpnValues]]. If no value is found through any of these,
-   * a [[NoSuchElementException]] is thrown.
+   * Lookup order: the recorded value, then `overrideDefaultValue`, then the constructor's `nrpnDefaults`, then the
+   * companion's [[MidiChannelStateTracker.DefaultNrpnValues]]. If no value is found through any of these, a
+   * [[NoSuchElementException]] is thrown.
    *
    * @return the `(valueMsb, valueLsb)` for the given NRPN, or a default if not recorded.
    */
@@ -414,8 +416,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * The halves of the Registered Parameter being assembled on the channel, both pending when what it is assembling
-   * is not an RPN: a selector CC of one kind starts a fresh parameter rather than inheriting a half of the other's.
+   * The halves of the Registered Parameter being assembled on the channel, both pending when what it is assembling is
+   * not an RPN: a selector CC of one kind starts a fresh parameter rather than inheriting a half of the other's.
    */
   private def rpnHalves(partial: PartialRpnSelector): (Option[Int], Option[Int]) = partial match {
     case PartialRpnSelector.Rpn(msb, lsb) => (msb, lsb)
@@ -430,8 +432,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
 
   /**
    * The Registered Parameter the given halves assemble into: the Null Function deselects and clears both halves,
-   * whichever of its two CCs completed the pair — which is what makes Null detection insensitive to the order MIDI
-   * 1.0 lets them arrive in — so that selecting a parameter afterwards takes both of its CCs again.
+   * whichever of its two CCs completed the pair — which is what makes Null detection insensitive to the order MIDI 1.0
+   * lets them arrive in — so that selecting a parameter afterwards takes both of its CCs again.
    *
    * A half that is still pending cannot complete the Null pair, so a lone Null MSB or LSB leaves the parameter
    * half-assembled rather than deselecting: 127 is a parameter number like any other.
@@ -446,9 +448,9 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
     else PartialRpnSelector.Nrpn(msb, lsb)
 
   /**
-   * The parameter the channel holds selected: the one its two selector CCs have completed, both halves having
-   * arrived. A parameter with a half still pending gives a Data Entry, Data Increment or Data Decrement nothing to
-   * apply to, so it reads as [[RpnSelector.None]] exactly as an absent selection does.
+   * The parameter the channel holds selected: the one its two selector CCs have completed, both halves having arrived.
+   * A parameter with a half still pending gives a Data Entry, Data Increment or Data Decrement nothing to apply to, so
+   * it reads as [[RpnSelector.None]] exactly as an absent selection does.
    */
   private def selectorOf(state: ChannelState): RpnSelector = state.partialRpnSelector match {
     case PartialRpnSelector.Rpn(Some(msb), Some(lsb)) => RpnSelector.Rpn(msb, lsb)
@@ -482,8 +484,8 @@ class MidiChannelStateTracker(ccDefaults: Map[Int, Int] = Map.empty,
   }
 
   /**
-   * Cancels the channel's active notes when the tracker models a receiver that honours the messages doing so: All
-   * Sound Off, All Notes Off, and the MIDI Mode messages 124–127, which MIDI 1.0 makes act as All Notes Off too.
+   * Cancels the channel's active notes when the tracker models a receiver that honours the messages doing so: All Sound
+   * Off, All Notes Off, and the MIDI Mode messages 124–127, which MIDI 1.0 makes act as All Notes Off too.
    */
   private def cancelActiveNotes(state: ChannelState): Unit = {
     if (shallRespondToResetMessages) state.activeNotes.clear()
@@ -563,8 +565,8 @@ object MidiChannelStateTracker {
   )
 
   /**
-   * Default values for known Control Change controllers, used by [[MidiChannelStateTracker.cc]] when a recorded
-   * value, an override, or a constructor-supplied default is unavailable. These match common MIDI 1.0 defaults.
+   * Default values for known Control Change controllers, used by [[MidiChannelStateTracker.cc]] when a recorded value,
+   * an override, or a constructor-supplied default is unavailable. These match common MIDI 1.0 defaults.
    */
   val DefaultCcValues: Map[Int, Int] = Map(
     MidiCc.BankSelectMsb -> 0,
@@ -592,8 +594,8 @@ object MidiChannelStateTracker {
    * Increment / Decrement when neither a recorded value nor a constructor-supplied default is available for the
    * currently selected RPN.
    *
-   * Values are taken from the MIDI 1.0 spec (RP-018, RP-024). The map key is `(parameterMsb, parameterLsb)`; the
-   * value is the default `(valueMsb, valueLsb)`.
+   * Values are taken from the MIDI 1.0 spec (RP-018, RP-024). The map key is `(parameterMsb, parameterLsb)`; the value
+   * is the default `(valueMsb, valueLsb)`.
    */
   val DefaultRpnValues: Map[(Int, Int), (Int, Int)] = Map(
     // Pitch Bend Sensitivity (0,0): ±2 semitones, 0 cents.
@@ -609,9 +611,9 @@ object MidiChannelStateTracker {
   )
 
   /**
-   * Default values for Non-Registered Parameter Numbers. NRPN are vendor-specific, so this ships empty for
-   * symmetry with [[DefaultCcValues]] and [[DefaultRpnValues]]; per-device defaults are supplied through the
-   * constructor's `nrpnDefaults` parameter.
+   * Default values for Non-Registered Parameter Numbers. NRPN are vendor-specific, so this ships empty for symmetry
+   * with [[DefaultCcValues]] and [[DefaultRpnValues]]; per-device defaults are supplied through the constructor's
+   * `nrpnDefaults` parameter.
    */
   val DefaultNrpnValues: Map[(Int, Int), (Int, Int)] = Map.empty
 

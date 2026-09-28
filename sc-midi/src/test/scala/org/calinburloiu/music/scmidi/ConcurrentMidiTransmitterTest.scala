@@ -60,9 +60,9 @@ class ConcurrentMidiTransmitterTest extends AnyWordSpec with Matchers with Mutab
 
   /**
    * Overrides `setReceivers` the way #281's `MidiProcessorTransmitter` will: it reads the current receivers to compare
-   * them with the incoming ones before letting the change through. That read takes the read lock while the change
-   * guard already holds the write lock — a downgrade, which a [[java.util.concurrent.locks.ReentrantReadWriteLock]]
-   * permits and which the opposite order would deadlock on. Not `private`, for the same reason as above.
+   * them with the incoming ones before letting the change through. That read takes the read lock while the change guard
+   * already holds the write lock — a downgrade, which a [[java.util.concurrent.locks.ReentrantReadWriteLock]] permits
+   * and which the opposite order would deadlock on. Not `private`, for the same reason as above.
    */
   class ComparingTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty)
     extends ConcurrentMidiTransmitter(initialReceivers) {
@@ -102,9 +102,9 @@ class ConcurrentMidiTransmitterTest extends AnyWordSpec with Matchers with Mutab
    * Reading is a checked precondition, not a hope. `readersRunning` is only cleared once every reader has completed a
    * first snapshot, and `runAll` records in `allReadersRead` whether that happened within `joinTimeoutMillis`, for the
    * test to assert on. Without that barrier a reader starved until after the writers finished would find the flag
-   * already `false`, never enter its loop, and silently reduce this to a writers-only test that still passes green.
-   * The barrier pins that every reader read during the run; it does not, and cannot without distorting the timings
-   * under test, pin that any individual read interleaved with an individual write.
+   * already `false`, never enter its loop, and silently reduce this to a writers-only test that still passes green. The
+   * barrier pins that every reader read during the run; it does not, and cannot without distorting the timings under
+   * test, pin that any individual read interleaved with an individual write.
    */
   trait ConcurrencyFixture {
     val writerCount: Int = 8

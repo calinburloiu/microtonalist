@@ -19,7 +19,7 @@ package org.calinburloiu.music.scmidi
 import scala.language.implicitConversions
 import scala.util.Try
 
-case class PitchClass private(number: Int) extends AnyVal {
+case class PitchClass private (number: Int) extends AnyVal {
   /**
    * Call this method after creating an instance.
    *

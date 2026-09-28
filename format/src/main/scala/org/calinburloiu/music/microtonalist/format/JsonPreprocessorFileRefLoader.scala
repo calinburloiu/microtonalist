@@ -23,8 +23,8 @@ import java.net.URI
 import scala.util.Try
 
 /**
- * Loader for JSON preprocessor references that loads the referenced URIs from the file system without
- * performing any validation and checking for the path context.
+ * Loader for JSON preprocessor references that loads the referenced URIs from the file system without performing any
+ * validation and checking for the path context.
  */
 class JsonPreprocessorFileRefLoader extends JsonPreprocessorRefLoader {
   override def load(uri: URI, pathContext: JsPath): Option[JsObject] = {
@@ -36,13 +36,13 @@ class JsonPreprocessorFileRefLoader extends JsonPreprocessorRefLoader {
         new FileInputStream(path.toString)
       }.recover {
         case e: FileNotFoundException => throw new JsonPreprocessorRefLoadException(uri, pathContext,
-          s"Referenced file $uri not found at $pathContext", e.getCause)
+            s"Referenced file $uri not found at $pathContext", e.getCause)
       }.get
 
       Json.parse(inputStream) match {
         case obj: JsObject => Some(obj)
         case _ => throw new JsonPreprocessorRefLoadException(uri, pathContext,
-          s"Referenced JSON from $uri at $pathContext must be a JSON object")
+            s"Referenced JSON from $uri at $pathContext must be a JSON object")
       }
     }
   }

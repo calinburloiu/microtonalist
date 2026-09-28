@@ -39,8 +39,10 @@ package object common {
    */
   private def mapPathToUri(path: Path, uriString: String): URI = {
     var result = path.toUri
-    if ((Files.isDirectory(path) || PlatformUtils.isWindows && uriString.endsWith("\\") || uriString.endsWith("/"))
-      && !result.toString.endsWith("/")) {
+    if (
+      (Files.isDirectory(path) || PlatformUtils.isWindows && uriString.endsWith("\\") || uriString.endsWith("/"))
+        && !result.toString.endsWith("/")
+    ) {
       result = new URI(result.toString + "/")
     }
 

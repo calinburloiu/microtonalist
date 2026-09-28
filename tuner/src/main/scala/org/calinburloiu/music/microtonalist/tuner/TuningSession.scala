@@ -41,8 +41,8 @@ class TuningSession(businessync: Businessync) {
   def tunings: Seq[Tuning] = _tunings
 
   /**
-   * Updates the sequence of tunings and ensures the [[tuningIndex]] remains valid within the new tunings.
-   * If the sequence of tunings changes, a `TuningsUpdatedEvent` is published.
+   * Updates the sequence of tunings and ensures the [[tuningIndex]] remains valid within the new tunings. If the
+   * sequence of tunings changes, a `TuningsUpdatedEvent` is published.
    *
    * @param newTunings the new sequence of tuning objects to replace the current tunings.
    */
@@ -55,8 +55,8 @@ class TuningSession(businessync: Businessync) {
   }
 
   /**
-   * Retrieves the current tuning index (0-based), which indicates the position of the
-   * currently selected tuning within the sequence of tunings.
+   * Retrieves the current tuning index (0-based), which indicates the position of the currently selected tuning within
+   * the sequence of tunings.
    *
    * @return the current tuning index.
    */
@@ -81,8 +81,8 @@ class TuningSession(businessync: Businessync) {
   }
 
   /**
-   * Retrieves the current tuning from the sequence of available tunings based on the current tuning index.
-   * If the index is invalid or no tunings are defined, returns the default 12-tone equal temperament tuning.
+   * Retrieves the current tuning from the sequence of available tunings based on the current tuning index. If the index
+   * is invalid or no tunings are defined, returns the default 12-tone equal temperament tuning.
    *
    * @return the currently selected tuning, or the default `12-EDO` tuning if the index is invalid or out of range.
    */
@@ -96,8 +96,8 @@ class TuningSession(businessync: Businessync) {
   def tuningCount: Int = tunings.size
 
   /**
-   * Selects the previous tuning in the sequence of available tunings. If the current tuning index is
-   * at the beginning of the list, it wraps around to the last tuning.
+   * Selects the previous tuning in the sequence of available tunings. If the current tuning index is at the beginning
+   * of the list, it wraps around to the last tuning.
    *
    * @return the updated tuning index after selecting the previous tuning.
    */
@@ -106,8 +106,8 @@ class TuningSession(businessync: Businessync) {
   }
 
   /**
-   * Selects the next tuning in the sequence of available tunings. If the current tuning index
-   * is at the end of the list, it wraps around to the first tuning.
+   * Selects the next tuning in the sequence of available tunings. If the current tuning index is at the end of the
+   * list, it wraps around to the first tuning.
    *
    * @return the updated tuning index after selecting the next tuning.
    */
@@ -119,8 +119,8 @@ class TuningSession(businessync: Businessync) {
    * Calculates and updates the tuning index by adding a specified step to the current tuning index and wrapping it
    * within the valid range of available tunings. Values may be negative to go backwards.
    *
-   * @param step the number of steps to move the tuning index forward or backward.
-   *             Positive values move forward, negative values move backward.
+   * @param step the number of steps to move the tuning index forward or backward. Positive values move forward,
+   *   negative values move backward.
    * @return the updated tuning index after applying the specified step.
    */
   def nextBy(step: Int): Int = {

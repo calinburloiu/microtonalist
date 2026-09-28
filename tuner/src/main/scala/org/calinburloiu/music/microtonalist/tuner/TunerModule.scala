@@ -20,13 +20,13 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.MidiManager
 
 /**
- * Composition root of the `tuner` module: lazily wires the sessions, the services and the [[TrackManager]] around
- * the [[MidiManager]] it is given.
+ * Composition root of the `tuner` module: lazily wires the sessions, the services and the [[TrackManager]] around the
+ * [[MidiManager]] it is given.
  *
  * @param businessync The event bus and business thread the sessions and services run on.
- * @param trackRepo   Where [[TrackSession]] loads tracks from.
+ * @param trackRepo Where [[TrackSession]] loads tracks from.
  * @param midiManager Opens the MIDI devices of the tracks. The caller owns it and closes it after this module; it is
- *                    not closed by [[close]].
+ *   not closed by [[close]].
  */
 class TunerModule(businessync: Businessync,
                   trackRepo: TrackRepo,

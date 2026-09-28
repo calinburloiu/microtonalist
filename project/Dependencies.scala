@@ -37,4 +37,3 @@ object Dependencies {
   val scalaMock = "org.scalamock" %% "scalamock" % scalaMockVersion
   val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
 }
-

@@ -17,13 +17,13 @@
 package org.calinburloiu.music.scmidi
 
 /**
- * The parameter a MIDI channel currently holds selected, which gives meaning to the Data Entry, Data Increment and
- * Data Decrement messages that follow it.
+ * The parameter a MIDI channel currently holds selected, which gives meaning to the Data Entry, Data Increment and Data
+ * Decrement messages that follow it.
  *
- * Selection latches: it persists until another selector or a Null Function replaces it, so a run of value messages
- * for one parameter needs a single selector ahead of it. This is the vocabulary shared by the two sides of MIDI 1.0's
- * parameter procedure — [[MidiChannelStateTracker]] derives it from an incoming stream, and [[RpnMessages]] renders
- * it back into the Control Change pair that selects it.
+ * Selection latches: it persists until another selector or a Null Function replaces it, so a run of value messages for
+ * one parameter needs a single selector ahead of it. This is the vocabulary shared by the two sides of MIDI 1.0's
+ * parameter procedure — [[MidiChannelStateTracker]] derives it from an incoming stream, and [[RpnMessages]] renders it
+ * back into the Control Change pair that selects it.
  *
  * It carries only ''complete'' parameters, both of whose selector CCs have arrived. [[PartialRpnSelector]] is the
  * finer-grained counterpart that also shows a half still pending, for the callers that need to tell that apart from
@@ -32,8 +32,8 @@ package org.calinburloiu.music.scmidi
 enum RpnSelector {
   /**
    * No parameter is currently selected, which is what the Null Function of MIDI 1.0 leaves behind and what
-   * [[RpnMessages.select]] renders as that Null. Data Entry and Increment/Decrement messages are ignored — as they
-   * are for a parameter with a selector CC still to arrive, which reads as this case too; see
+   * [[RpnMessages.select]] renders as that Null. Data Entry and Increment/Decrement messages are ignored — as they are
+   * for a parameter with a selector CC still to arrive, which reads as this case too; see
    * [[MidiChannelStateTracker.partialRpnSelector]] to distinguish the two.
    */
   case None
@@ -50,12 +50,12 @@ enum RpnSelector {
  * MIDI 1.0 letting the two CCs of a parameter arrive in either order.
  *
  * A pending half distinguishes a selector CC that has not arrived from one that carried the Null value (127), a
- * parameter number like any other — the distinction [[MidiChannelStateTracker]] needs in order to record a value
- * for an RPN or NRPN with a 127 half, and to recognize the Null ''pair'' whichever of its two CCs completes it.
+ * parameter number like any other — the distinction [[MidiChannelStateTracker]] needs in order to record a value for an
+ * RPN or NRPN with a 127 half, and to recognize the Null ''pair'' whichever of its two CCs completes it.
  *
  * It is the finer-grained counterpart of [[RpnSelector]]: a parameter with a half still pending selects nothing, so
- * [[MidiChannelStateTracker.rpnSelector]] reports it as [[RpnSelector.None]], as it does an absent selection.
- * Read it through [[MidiChannelStateTracker.partialRpnSelector]] when those two need telling apart, and
+ * [[MidiChannelStateTracker.rpnSelector]] reports it as [[RpnSelector.None]], as it does an absent selection. Read it
+ * through [[MidiChannelStateTracker.partialRpnSelector]] when those two need telling apart, and
  * [[MidiChannelStateTracker.rpnSelector]] when only a parameter complete enough to take a value matters.
  *
  * At least one half of an [[PartialRpnSelector.Rpn]] or [[PartialRpnSelector.Nrpn]] the tracker reports is always

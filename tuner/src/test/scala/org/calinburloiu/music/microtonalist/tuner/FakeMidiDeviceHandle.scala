@@ -16,14 +16,16 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiDeviceHandle, MidiDeviceId, MidiDeviceInfo,
-  MidiReceiver}
+import org.calinburloiu.music.scmidi.{
+  ConcurrentMidiTransmitter, MidiDeviceHandle, MidiDeviceId, MidiDeviceInfo,
+  MidiReceiver
+}
 
 /**
  * An open [[MidiDeviceHandle]] test double, so that a test can give a track devices through a stubbed
  * [[org.calinburloiu.music.scmidi.MidiManager]].
  *
- * @param id       The identifier of the device.
+ * @param id The identifier of the device.
  * @param receiver Where the messages sent to the device go.
  */
 class FakeMidiDeviceHandle(override val id: MidiDeviceId,
