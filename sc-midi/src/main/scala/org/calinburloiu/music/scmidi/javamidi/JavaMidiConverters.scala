@@ -26,8 +26,8 @@ import scala.collection.immutable.ArraySeq
  * Bidirectional converters between [[Midi1Msg]] / [[MidiMsg]] and [[javax.sound.midi.MidiMessage]] modelled after
  * [[scala.jdk.CollectionConverters]].
  *
- * It also builds the device-level API values from Java Sound: `javaDevice.asMidiDeviceInfo`,
- * `javaInfo.asMidiDeviceId` and [[connectionLimit]].
+ * It also builds the device-level API values from Java Sound: `javaDevice.asMidiDeviceInfo`, `javaInfo.asMidiDeviceId`
+ * and [[connectionLimit]].
  *
  * Import the members of this object to enable the `asJava` and `asScala` extension methods:
  *
@@ -38,10 +38,10 @@ import scala.collection.immutable.ArraySeq
  *   val scala: MidiMsg = java.asScala
  * }}}
  *
- * Both directions dispatch through lookup tables: `asJava` by concrete subtype [[Class]] (cheaper than pattern
- * matching on a closed sealed hierarchy of 30+ cases), `asScala` by MIDI command / status / meta-type byte.
- * A Control Change is the one status byte both tables split further: its controller number decides between a
- * [[CcMidiMsg]] and a [[ChannelModeMidiMsg]] subtype.
+ * Both directions dispatch through lookup tables: `asJava` by concrete subtype [[Class]] (cheaper than pattern matching
+ * on a closed sealed hierarchy of 30+ cases), `asScala` by MIDI command / status / meta-type byte. A Control Change is
+ * the one status byte both tables split further: its controller number decides between a [[CcMidiMsg]] and a
+ * [[ChannelModeMidiMsg]] subtype.
  */
 object JavaMidiConverters {
   /**
@@ -86,8 +86,8 @@ object JavaMidiConverters {
   }
 
   /**
-   * Converts a Java Sound connection count into a [[MidiConnectionLimit]]: `-1`, Java Sound's encoding of
-   * "unlimited", becomes [[MidiConnectionLimit.Unlimited]]; any other count becomes [[MidiConnectionLimit.Limited]].
+   * Converts a Java Sound connection count into a [[MidiConnectionLimit]]: `-1`, Java Sound's encoding of "unlimited",
+   * becomes [[MidiConnectionLimit.Unlimited]]; any other count becomes [[MidiConnectionLimit.Limited]].
    *
    * @param javaMaxConnections the value of `MidiDevice.getMaxTransmitters` or `MidiDevice.getMaxReceivers`.
    */
@@ -102,8 +102,8 @@ object JavaMidiConverters {
 
   extension (javaDevice: MidiDevice) {
     /**
-     * Builds the [[MidiDeviceInfo]] of this Java Sound device. It needs the device rather than its
-     * `MidiDevice.Info` alone, because the connection limits come from `getMaxTransmitters` / `getMaxReceivers`.
+     * Builds the [[MidiDeviceInfo]] of this Java Sound device. It needs the device rather than its `MidiDevice.Info`
+     * alone, because the connection limits come from `getMaxTransmitters` / `getMaxReceivers`.
      */
     def asMidiDeviceInfo: MidiDeviceInfo = {
       val javaInfo = javaDevice.getDeviceInfo

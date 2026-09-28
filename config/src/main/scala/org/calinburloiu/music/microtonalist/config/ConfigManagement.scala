@@ -27,7 +27,7 @@ import java.util.concurrent.locks.{ReadWriteLock, ReentrantReadWriteLock}
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 import scala.util.Try
 
-final class MainConfigManager private[microtonalist](configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
+final class MainConfigManager private[microtonalist] (configFile: Option[Path], fallbackMainHoconConfig: HoconConfig)
   extends AutoCloseable, Locking, StrictLogging {
 
   import MainConfigManager.*
@@ -121,7 +121,6 @@ object MainConfigManager {
 
   def apply(mainHoconConfig: HoconConfig): MainConfigManager = new MainConfigManager(None, mainHoconConfig)
 }
-
 
 trait Configured
 

@@ -19,8 +19,8 @@ package org.calinburloiu.music.scmidi
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
 /**
- * A [[MidiReceiver]] that ignores every message. Transmitter tests only need receivers that are distinct by
- * identity, so each instance stands for one distinct receiver and nothing is ever sent to it.
+ * A [[MidiReceiver]] that ignores every message. Transmitter tests only need receivers that are distinct by identity,
+ * so each instance stands for one distinct receiver and nothing is ever sent to it.
  */
 class NoOpMidiReceiver extends MidiReceiver {
   override def send(message: MidiMsg, timeStamp: Long): Unit = {}

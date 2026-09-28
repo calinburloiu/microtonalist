@@ -21,17 +21,16 @@ package org.calinburloiu.music.scmidi
  *
  * The [[id]] is derived from the name and vendor, and the directions the device can be used in derive from its
  * connection limits: a device that can open at least one transmitter is an input, one that can open at least one
- * receiver is an output. A physical device that works as both is listed by a [[MidiManager]] once per direction,
- * with the same [[id]].
+ * receiver is an output. A physical device that works as both is listed by a [[MidiManager]] once per direction, with
+ * the same [[id]].
  *
- * @param name              Name of the device.
- * @param vendor            Name of the company that supplies the device.
- * @param description       Description of the device.
- * @param version           Version of the device.
- * @param transmittersLimit How many transmitters the device can open, that is, how many consumers can subscribe to
- *                          the messages it sends.
- * @param receiversLimit    How many receivers the device can open, that is, how many producers can send messages to
- *                          it.
+ * @param name Name of the device.
+ * @param vendor Name of the company that supplies the device.
+ * @param description Description of the device.
+ * @param version Version of the device.
+ * @param transmittersLimit How many transmitters the device can open, that is, how many consumers can subscribe to the
+ *   messages it sends.
+ * @param receiversLimit How many receivers the device can open, that is, how many producers can send messages to it.
  */
 case class MidiDeviceInfo(name: String,
                           vendor: String,

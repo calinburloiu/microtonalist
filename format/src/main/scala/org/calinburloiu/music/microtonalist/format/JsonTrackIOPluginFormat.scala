@@ -23,11 +23,11 @@ import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 
 /**
- * Abstract class extending [[JsonPluginFormat]] to handle JSON serialization and deserialization
- * for plugins related to MIDI track input/output.
+ * Abstract class extending [[JsonPluginFormat]] to handle JSON serialization and deserialization for plugins related to
+ * MIDI track input/output.
  *
- * This class provides utility methods to create `TypeSpec` definitions for devices and inter-track
- * configurations, facilitating (de)serialization of associated plugin data.
+ * This class provides utility methods to create `TypeSpec` definitions for devices and inter-track configurations,
+ * facilitating (de)serialization of associated plugin data.
  *
  * @tparam P A type parameter bounded by [[TrackIOSupport]] to specify the supported plugin type.
  */
@@ -94,8 +94,8 @@ object JsonTrackIOPluginFormat {
 }
 
 /**
- * JSON format handler for [[TrackInputSpec]] plugins, providing serialization and deserialization support
- * for various track input specifications.
+ * JSON format handler for [[TrackInputSpec]] plugins, providing serialization and deserialization support for various
+ * track input specifications.
  */
 object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInputSpec] {
   override val familyName: String = TrackInputSpec.FamilyName
@@ -119,8 +119,8 @@ object JsonTrackInputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackInput
 }
 
 /**
- * JSON format handler for [[TrackOutputSpec]] plugins, providing serialization and deserialization support
- * for various track output specifications.
+ * JSON format handler for [[TrackOutputSpec]] plugins, providing serialization and deserialization support for various
+ * track output specifications.
  */
 object JsonTrackOutputSpecPluginFormat extends JsonTrackIOPluginFormat[TrackOutputSpec] {
   override val familyName: String = TrackOutputSpec.FamilyName

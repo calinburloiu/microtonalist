@@ -107,19 +107,23 @@ class JavaMidiConvertersTest extends AnyWordSpec with TableDrivenPropertyChecks 
     (SetTempoMetaMidiMsg(500000), metaMessage(0x51, Array(0x07.toByte, 0xA1.toByte, 0x20.toByte))),
     (
       SmpteOffsetMetaMidiMsg(1, 2, 3, 4, 5),
-      metaMessage(0x54, Array(1.toByte, 2.toByte, 3.toByte, 4.toByte, 5.toByte))
+      metaMessage(0x54,
+        Array(1.toByte, 2.toByte, 3.toByte, 4.toByte, 5.toByte))
     ),
     (
       TimeSignatureMetaMidiMsg(4, 2, 24, 8),
-      metaMessage(0x58, Array(4.toByte, 2.toByte, 24.toByte, 8.toByte))
+      metaMessage(0x58,
+        Array(4.toByte, 2.toByte, 24.toByte, 8.toByte))
     ),
     (
       KeySignatureMetaMidiMsg(-3, MidiKeySignatureMode.Minor),
-      metaMessage(0x59, Array((-3).toByte, 1.toByte))
+      metaMessage(0x59,
+        Array((-3).toByte, 1.toByte))
     ),
     (
       KeySignatureMetaMidiMsg(2, MidiKeySignatureMode.Major),
-      metaMessage(0x59, Array(2.toByte, 0.toByte))
+      metaMessage(0x59,
+        Array(2.toByte, 0.toByte))
     ),
     (
       SequencerSpecificMetaMidiMsg(ArraySeq(0x00.toByte, 0x12.toByte, 0x34.toByte)),

@@ -19,8 +19,8 @@ package org.calinburloiu.music.scmidi
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
 /**
- * Scala-idiomatic counterpart of [[javax.sound.midi.Receiver]] that consumes [[MidiMsg]] instances directly,
- * without first having to wrap or unwrap [[javax.sound.midi.MidiMessage]] objects.
+ * Scala-idiomatic counterpart of [[javax.sound.midi.Receiver]] that consumes [[MidiMsg]] instances directly, without
+ * first having to wrap or unwrap [[javax.sound.midi.MidiMessage]] objects.
  *
  * Implementations may be stateful (e.g. tracking the current MIDI state) or stateless (e.g. forwarding to another
  * sink). Unlike its Java counterpart, this trait carries no `close()`: nothing in this module calls one generically
@@ -30,9 +30,9 @@ trait MidiReceiver {
   /**
    * Sends a MIDI message to this receiver.
    *
-   * @param message   the MIDI message to send.
+   * @param message the MIDI message to send.
    * @param timeStamp the time-stamp for the message, in microseconds; `-1L` indicates that time-stamping is not
-   *                  supported by this receiver.
+   *   supported by this receiver.
    */
   def send(message: MidiMsg, timeStamp: Long = -1L): Unit
 }

@@ -23,14 +23,13 @@ import javax.annotation.concurrent.NotThreadSafe
 import scala.annotation.tailrec
 
 /**
- * Processes incoming messages and decides whether to trigger a tuning change or not based on the incoming MIDI
- * messages and the given [[TuningChanger]] plugins.
+ * Processes incoming messages and decides whether to trigger a tuning change or not based on the incoming MIDI messages
+ * and the given [[TuningChanger]] plugins.
  *
- * @param tuningService  The service to trigger the actual tuning change.
+ * @param tuningService The service to trigger the actual tuning change.
  * @param tuningChangers A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
- *                       not. The decision is of the first one that returns an effective [[TuningChange]], so this
- *                       class acts like an OR operator. Note that if none decides to trigger a change, no change
- *                       will be performed.
+ *   not. The decision is of the first one that returns an effective [[TuningChange]], so this class acts like an OR
+ *   operator. Note that if none decides to trigger a change, no change will be performed.
  */
 @NotThreadSafe
 class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
@@ -78,11 +77,11 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
 object TuningChangeProcessor {
   /**
    * Chooses the first [[TuningChanger]] from the given list that returns an effective [[TuningChange]] (which has
-   * [[TuningChange#isChanging]] true) for the given MIDI message and returns it. If there is none,
-   * [[NoTuningChange]] is returned.
+   * [[TuningChange#isChanging]] true) for the given MIDI message and returns it. If there is none, [[NoTuningChange]]
+   * is returned.
    *
    * @return a pair of the [[TuningChange]] decision taken and the corresponding tuning changer that produced it, if
-   *         any.
+   *   any.
    */
   @tailrec
   private def computeTuningChange(message: MidiMsg,

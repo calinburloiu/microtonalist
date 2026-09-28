@@ -31,27 +31,25 @@ import org.scalatest.{Inside, OptionValues}
 /**
  * Tests for [[MpeTuner]].
  *
- * == Test Organization ==
+ * ==Test Organization==
  *
- * Tests are divided into eight categories matching the operations and MIDI-behavior kinds under test:
- * `reset()`, `tune()`, `process() - Basic`, `process() - Expression`, `process() - Note Dropping`,
+ * Tests are divided into eight categories matching the operations and MIDI-behavior kinds under test: `reset()`,
+ * `tune()`, `process() - Basic`, `process() - Expression`, `process() - Note Dropping`,
  * `process() - Zone-level Messages`, `MCM Processing`, and `PBS Processing`.
  *
- * Each category is further split by input mode into one or two `should` blocks whose subjects
- * follow the pattern `"MpeTuner - <category> - <Non-MPE Input | MPE Input>"`. When both modes have
- * tests, the Non-MPE Input block comes first.
+ * Each category is further split by input mode into one or two `should` blocks whose subjects follow the pattern
+ * `"MpeTuner - <category> - <Non-MPE Input | MPE Input>"`. When both modes have tests, the Non-MPE Input block comes
+ * first.
  *
- * Inside each `should` block, tests are grouped into named subgroups separated by
- * `// ---- <subgroup name> ----` comment lines. Within a subgroup, tests are ordered by similarity,
- * from simplest to most complex: general cases before special cases, happy path before edge cases.
+ * Inside each `should` block, tests are grouped into named subgroups separated by `// ---- <subgroup name> ----`
+ * comment lines. Within a subgroup, tests are ordered by similarity, from simplest to most complex: general cases
+ * before special cases, happy path before edge cases.
  *
- * When a Non-MPE and an MPE test cover the same behavior, they share the same (or a near-matching)
- * name — the input mode is already captured in the `should` block's subject and need not appear in the
- * test name itself.
+ * When a Non-MPE and an MPE test cover the same behavior, they share the same (or a near-matching) name — the input
+ * mode is already captured in the `should` block's subject and need not appear in the test name itself.
  *
- * When adding a test, pick the `should` block that matches the category and input mode of the
- * behavior under test, then place it in the most fitting subgroup (creating a new one at the end of
- * the block if none fits).
+ * When adding a test, pick the `should` block that matches the category and input mode of the behavior under test, then
+ * place it in the most fitting subgroup (creating a new one at the end of the block if none fits).
  */
 class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValues with TableDrivenPropertyChecks {
 
@@ -73,9 +71,9 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
   private val mpeInputChannel: Int = 1
 
   /**
-   * One Pitch Bend unit is ≈0.586 cents at the default Member Channel Pitch Bend Sensitivity of ±48
-   * semitones, and an average over quantized per-note values lands up to half a unit from the arithmetic
-   * expectation, so the tolerance is one unit. Assertions that need finer resolution compare MIDI values.
+   * One Pitch Bend unit is ≈0.586 cents at the default Member Channel Pitch Bend Sensitivity of ±48 semitones, and an
+   * average over quantized per-note values lands up to half a unit from the arithmetic expectation, so the tolerance is
+   * one unit. Assertions that need finer resolution compare MIDI values.
    */
   private val epsilon: Double = 6e-1
   private implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(epsilon)
@@ -215,9 +213,9 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
     extractCc(output).filter(_.number == MidiCc.MpeSlide)
 
   /**
-   * The raw signed 14-bit Pitch Bend value a deviation in cents takes under a Pitch Bend Sensitivity. Assertions
-   * that mention a raw value pin it with an explicit golden number as well, so they do not become tautologies
-   * against the production conversion.
+   * The raw signed 14-bit Pitch Bend value a deviation in cents takes under a Pitch Bend Sensitivity. Assertions that
+   * mention a raw value pin it with an explicit golden number as well, so they do not become tautologies against the
+   * production conversion.
    */
   private def rawPitchBend(cents: Double, pbs: PitchBendSensitivity = defaultPbs): Int =
     PitchBendMidiMsg.convertCentsToValue(cents, pbs)
@@ -299,13 +297,13 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val output = tuner.reset()
       // Then
       private val ccs = extractCc(output)
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
       )
       (1 to 7).foreach { ch =>
-        ccs should contain inOrder(
+        ccs should contain inOrder (
           CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
           CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
           CcMidiMsg(ch, MidiCc.DataEntryMsb, 48)
@@ -412,19 +410,19 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val resetOutput = tuner.reset()
       // Then
       // The notes the pedal holds would otherwise change pitch before they stop.
-      resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+      resetOutput should contain inOrder (CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
     }
 
     "release the pedals redirected to the Master Channel before resetting its Pitch Bend, although held on a later " +
       "input channel" in new Fixture(tuner7) {
-      // Given
-      pitchBendValue(nonMpeInputChannel, 1000)
-      tuner.process(CcMidiMsg(nonMpeInputChannel + 1, MidiCc.SustainPedal, 127))
-      // When
-      private val resetOutput = tuner.reset()
-      // Then
-      resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
-    }
+        // Given
+        pitchBendValue(nonMpeInputChannel, 1000)
+        tuner.process(CcMidiMsg(nonMpeInputChannel + 1, MidiCc.SustainPedal, 127))
+        // When
+        private val resetOutput = tuner.reset()
+        // Then
+        resetOutput should contain inOrder (CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+      }
 
     "not release the pedals nor reset the Pitch Bend back to their defaults" in new Fixture(tuner7) {
       // Given
@@ -520,13 +518,13 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val output = tuner.reset()
       // Then
       private val ccs = extractCc(output)
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
       )
       (1 to 7).foreach { ch =>
-        ccs should contain inOrder(
+        ccs should contain inOrder (
           CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
           CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
           CcMidiMsg(ch, MidiCc.DataEntryMsb, 48)
@@ -671,7 +669,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         private val resetOutput = tuner.reset()
         // Then
         // The notes the pedal holds would otherwise change pitch before they stop.
-        resetOutput should contain inOrder(CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
+        resetOutput should contain inOrder (CcMidiMsg(0, MidiCc.SustainPedal, 0), PitchBendMidiMsg(0, 0))
       }
 
     // ---- Member Channel control reset ----
@@ -846,7 +844,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // Then
         private val pitchBends = extractPitchBends(tuneOutput)
         // Every occupied member channel must receive a pitch bend
-        pitchBends.map(_.channel).toSet should contain allOf(noteOnChannel, noteOnChannel2)
+        pitchBends.map(_.channel).toSet should contain allOf (noteOnChannel, noteOnChannel2)
         // C and E should have different pitch bends reflecting pythagorean tuning offsets
         pitchBends.size shouldEqual 2
         pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
@@ -925,14 +923,14 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity of the Upper Zone when it " +
       "is the only one enabled" in new Fixture(MpeTuner(
-      initialZones = MpeZones(
-        MpeZone(MpeZoneType.Lower, 0),
-        MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
-      )
-    )) {
-      // When / Then
-      tuner.canTune(tuningWithB(150.0)) shouldBe false
-    }
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 0),
+          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+        )
+      )) {
+        // When / Then
+        tuner.canTune(tuningWithB(150.0)) shouldBe false
+      }
 
     "tell that it can tune exactly a tuning beyond the Member Pitch Bend Sensitivity of a disabled Zone" in
       new Fixture(MpeTuner(
@@ -947,14 +945,14 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "tell that it can tune exactly a tuning beyond the Member Pitch Bend Sensitivity of the Upper Zone, which the " +
       "input does not reach when both Zones are enabled" in new Fixture(MpeTuner(
-      initialZones = MpeZones(
-        MpeZone(MpeZoneType.Lower, 7),
-        MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
-      )
-    )) {
-      // When / Then
-      tuner.canTune(tuningWithB(150.0)) shouldBe true
-    }
+        initialZones = MpeZones(
+          MpeZone(MpeZoneType.Lower, 7),
+          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+        )
+      )) {
+        // When / Then
+        tuner.canTune(tuningWithB(150.0)) shouldBe true
+      }
 
     "clamp the Pitch Bend of an occupied Member Channel when tuned beyond the Member Pitch Bend Sensitivity" in
       new Fixture(MpeTuner(
@@ -998,7 +996,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         private val tuneOutput = tuner.tune(pythagoreanTuning)
         // Then
         private val pitchBends = extractPitchBends(tuneOutput)
-        pitchBends.map(_.channel).toSet should contain allOf(noteOnChannel, noteOnChannel2)
+        pitchBends.map(_.channel).toSet should contain allOf (noteOnChannel, noteOnChannel2)
         // C and E should reflect pythagorean tuning offsets (0.0, 8.0)
         pitchBends.size shouldEqual 2
         pitchBends.map(_.cents.round.toInt) should contain theSameElementsInOrderAs Seq(0, 8)
@@ -1076,7 +1074,8 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       new Fixture(MpeTuner(
         initialZones = MpeZones(
           MpeZone(MpeZoneType.Lower, 7),
-          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
+          MpeZone(MpeZoneType.Upper, 7,
+            memberPitchBendSensitivity = PitchBendSensitivity(1))
         ),
         initialInputMode = MpeInputMode.Mpe
       )) {
@@ -1097,7 +1096,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
         // Pitch Bend carries the tuning offset; CC #74 never appears on a Member Channel in this mode and
         // Channel Pressure already holds its default, so both are omitted.
-        output should contain inOrder(
+        output should contain inOrder (
           PitchBendMidiMsg(noteChannel, 0),
           NoteOnMidiMsg(noteChannel, C4, 100)
         )
@@ -1388,7 +1387,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         private val noteChannel = extractNoteOns(output).head.channel
         private val pitchBend = extractPitchBends(output).head
 
-        output should contain inOrder(
+        output should contain inOrder (
           pitchBend,
           CcMidiMsg(noteChannel, MidiCc.MpeSlide, 100),
           ChannelPressureMidiMsg(noteChannel, 90),
@@ -2393,15 +2392,15 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
       " 2 candidate channels" in new Fixture(tuner2) {
-      // Given
-      noteOn(nonMpeInputChannel, G4) // highest
-      noteOn(nonMpeInputChannel, C4) // lowest
-      // When
-      private val output = noteOn(nonMpeInputChannel, E4)
-      // Then
-      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-      droppedNotes should contain(C4)
-    }
+        // Given
+        noteOn(nonMpeInputChannel, G4) // highest
+        noteOn(nonMpeInputChannel, C4) // lowest
+        // When
+        private val output = noteOn(nonMpeInputChannel, E4)
+        // Then
+        private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+        droppedNotes should contain(C4)
+      }
   }
 
   "MpeTuner - process() - Note Dropping - MPE Input" should {
@@ -2449,15 +2448,15 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "preserve the highest and drop the lowest note during channel exhaustion dropping when there are only" +
       " 2 candidate channels" in new Fixture(tuner2MpeInput) {
-      // Given
-      noteOn(2, G4) // highest
-      noteOn(1, C4) // lowest
-      // When
-      private val output = noteOn(1, E4)
-      // Then
-      private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
-      droppedNotes should contain(C4)
-    }
+        // Given
+        noteOn(2, G4) // highest
+        noteOn(1, C4) // lowest
+        // When
+        private val output = noteOn(1, E4)
+        // Then
+        private val droppedNotes = extractNoteOffs(output).map(_.midiNote)
+        droppedNotes should contain(C4)
+      }
 
     "emit a dropped note's Note Off before the incoming note's own setup messages" in
       new Fixture(tuner1MpeInput, Some(quarterCommaMeantone)) {
@@ -2807,7 +2806,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       tuner.zones.lower.memberCount shouldEqual 7
       tuner.inputMode shouldBe MpeInputMode.Mpe
       // The MCM the Tuner emits downstream is addressed to the Master Channel of the Zone it just configured
-      extractCc(output) should contain inOrder(
+      extractCc(output) should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
@@ -3327,7 +3326,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       tuner.inputMode shouldBe MpeInputMode.Mpe
 
       private val ccs = extractCc(output)
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
@@ -3390,12 +3389,14 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
     // ---- Tunings beyond the Member Pitch Bend Sensitivity ----
 
     "warn when the MCM makes reachable a Zone whose Member Pitch Bend Sensitivity is below the tuning" in
-      new Fixture(MpeTuner(
-        initialZones = MpeZones(
-          MpeZone(MpeZoneType.Lower, 7),
-          MpeZone(MpeZoneType.Upper, 7, memberPitchBendSensitivity = PitchBendSensitivity(1))
-        )
-      ), Some(tuningWithB(150.0))) {
+      new Fixture(
+        MpeTuner(
+          initialZones = MpeZones(
+            MpeZone(MpeZoneType.Lower, 7),
+            MpeZone(MpeZoneType.Upper, 7,
+              memberPitchBendSensitivity = PitchBendSensitivity(1))
+          )
+        ), Some(tuningWithB(150.0))) {
         // When
         // Leaving Non-MPE Input Mode makes the Upper Zone reachable, and the MCM on the Lower Zone leaves its
         // sensitivity untouched.
@@ -3430,7 +3431,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       private val ccs = extractCc(output)
       // MCM: RPN LSB=6, RPN MSB=0, Data Entry MSB=memberCount on master channel 0
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 15)
@@ -3462,7 +3463,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       // Should output MCM for the new lower zone with memberCount=10
       private val ccs = extractCc(output)
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 10)
@@ -3477,7 +3478,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       // Should output MCM for the new upper zone with memberCount=10
       private val ccs = extractCc(output)
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(15, MidiCc.DataEntryMsb, 10)
@@ -3504,7 +3505,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       private val ccs = extractCc(output)
       // Upper zone MCM should show memberCount=4
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(15, MidiCc.DataEntryMsb, 4)
@@ -3862,7 +3863,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // A conforming receiver performs this reset itself on the MCM, so restating it is idempotent there and
         // corrective on a receiver that does not.
         private val ccs = extractCc(output)
-        ccs should contain inOrder(
+        ccs should contain inOrder (
           CcMidiMsg(0, MidiCc.DataEntryMsb, 7),
           CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
           CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
@@ -3870,7 +3871,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
           CcMidiMsg(0, MidiCc.DataEntryLsb, masterPbs.cents)
         )
         (1 to 7).foreach { ch =>
-          ccs should contain inOrder(
+          ccs should contain inOrder (
             CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
             CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
             CcMidiMsg(ch, MidiCc.DataEntryMsb, defaultPbs.semitones),
@@ -3896,14 +3897,14 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // The Upper Zone kept its sensitivities, and the MCM that overlap resolution forces out restates them, so a
         // receiver that did reset them on that MCM is brought back into step with the model.
         private val ccs = extractCc(output)
-        ccs should contain inOrder(
+        ccs should contain inOrder (
           CcMidiMsg(15, MidiCc.DataEntryMsb, 4),
           CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
           CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
           CcMidiMsg(15, MidiCc.DataEntryMsb, 12)
         )
         (11 to 14).foreach { ch =>
-          ccs should contain inOrder(
+          ccs should contain inOrder (
             CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
             CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
             CcMidiMsg(ch, MidiCc.DataEntryMsb, 24)
@@ -3911,7 +3912,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         }
         // And the channels handed to the Lower Zone take that Zone's member default instead.
         (8 to 10).foreach { ch =>
-          ccs should contain inOrder(
+          ccs should contain inOrder (
             CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
             CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
             CcMidiMsg(ch, MidiCc.DataEntryMsb, defaultPbs.semitones)
@@ -3936,14 +3937,14 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // reach of the Pitch Bend the retuning pass re-emits on both Zones: a receiver that wrongly took the MCM's
         // reset Zone-wide would otherwise read those Pitch Bends against a range the Tuner does not share.
         private val ccs = extractCc(output)
-        ccs should contain inOrder(
+        ccs should contain inOrder (
           CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
           CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
           CcMidiMsg(15, MidiCc.DataEntryMsb, 12),
           CcMidiMsg(15, MidiCc.DataEntryLsb, masterPbs.cents)
         )
         (8 to 14).foreach { ch =>
-          ccs should contain inOrder(
+          ccs should contain inOrder (
             CcMidiMsg(ch, MidiCc.RpnLsb, MidiRpn.PitchBendSensitivityLsb),
             CcMidiMsg(ch, MidiCc.RpnMsb, MidiRpn.PitchBendSensitivityMsb),
             CcMidiMsg(ch, MidiCc.DataEntryMsb, 24),
@@ -3990,7 +3991,7 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
         // Then
         // The restated sensitivity precedes the Pitch Bend encoded against it, so a receiver that wrongly reset it
         // on the MCM is back in step with the Tuner before the value that depends on it arrives.
-        output should contain inOrder(
+        output should contain inOrder (
           CcMidiMsg(13, MidiCc.DataEntryMsb, 24),
           keptPitchBend
         )
@@ -4043,8 +4044,9 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       private val output = tuner.process(CcMidiMsg(0, MidiCc.DataEntryMsb, 48))
       // Then - Should NOT contain MCM reconfiguration output
       private val ccs = extractCc(output)
-      ccs.filter(cc => cc.number == MidiCc.DataEntryMsb &&
-        cc.value == 15) shouldBe empty // no MCM with memberCount=15
+      ccs.filter(cc =>
+        cc.number == MidiCc.DataEntryMsb &&
+          cc.value == 15) shouldBe empty // no MCM with memberCount=15
     }
 
     // ---- Channel-of-receipt gating ----
@@ -4086,13 +4088,13 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
       // Then
       private val ccs = extractCc(resetOutput)
       // Lower zone should be back to 7 members
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(0, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(0, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(0, MidiCc.DataEntryMsb, 7)
       )
       // Upper zone should be back to 7 members
-      ccs should contain inOrder(
+      ccs should contain inOrder (
         CcMidiMsg(15, MidiCc.RpnLsb, MidiRpn.MpeConfigurationMessageLsb),
         CcMidiMsg(15, MidiCc.RpnMsb, MidiRpn.MpeConfigurationMessageMsb),
         CcMidiMsg(15, MidiCc.DataEntryMsb, 7)
@@ -4514,12 +4516,12 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "tell that it cannot tune exactly a tuning beyond the Member Pitch Bend Sensitivity that a Member Channel PBS " +
       "lowered" in new Fixture(tuner7MpeInput) {
-      // When
-      sendPbsMsb(tuner, channel = 1, semitones = 1)
+        // When
+        sendPbsMsb(tuner, channel = 1, semitones = 1)
 
-      // Then
-      tuner.canTune(tuningWithB(150.0)) shouldBe false
-    }
+        // Then
+        tuner.canTune(tuningWithB(150.0)) shouldBe false
+      }
 
     "warn when a Member Channel PBS lowers the Member Pitch Bend Sensitivity below the tuning" in
       new Fixture(tuner7MpeInput, Some(tuningWithB(150.0))) {
@@ -4536,14 +4538,14 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
     "warn only once when the PBS that lowers the Member Pitch Bend Sensitivity below the tuning arrives on every " +
       "Member Channel" in new Fixture(tuner7MpeInput, Some(tuningWithB(150.0))) {
-      // When
-      private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
-        for (channel <- 1 to 7) sendPbsMsb(tuner, channel, semitones = 1)
-      }
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MpeTuner].getName) {
+          for (channel <- 1 to 7) sendPbsMsb(tuner, channel, semitones = 1)
+        }
 
-      // Then
-      events.messagesAt(Level.WARN) should have size 1
-    }
+        // Then
+        events.messagesAt(Level.WARN) should have size 1
+      }
 
     "not warn when a Member Channel PBS lowers the Member Pitch Bend Sensitivity while the tuning stays within it" in
       new Fixture(tuner7MpeInput, Some(quarterCommaMeantone)) {

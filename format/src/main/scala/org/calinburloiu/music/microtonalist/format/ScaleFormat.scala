@@ -31,10 +31,10 @@ trait ScaleFormat {
    * Reads a scale from an [[InputStream]].
    *
    * @param inputStream Scale source.
-   * @param baseUri     Optional base URI to be used when for resolving relative URI references found in the scale
-   *                    that is read.
-   * @param context     If reading occurs in a context, such as in a composition file, then a context may be set with
-   *                    certain properties, that may be omitted from the serialized scale.
+   * @param baseUri Optional base URI to be used when for resolving relative URI references found in the scale that is
+   *   read.
+   * @param context If reading occurs in a context, such as in a composition file, then a context may be set with
+   *   certain properties, that may be omitted from the serialized scale.
    * @return the scale read
    */
   def read(inputStream: InputStream,
@@ -44,10 +44,10 @@ trait ScaleFormat {
   /**
    * Writes the given scale to the given [[OutputStream]].
    *
-   * @param scale        Scale to write.
+   * @param scale Scale to write.
    * @param outputStream Target where the scale should be written.
-   * @param context      If writing occurs in a context, such as from a composition file, then a context may be set
-   *                     with certain properties, that may be omitted from the serialized scale.
+   * @param context If writing occurs in a context, such as from a composition file, then a context may be set with
+   *   certain properties, that may be omitted from the serialized scale.
    */
   def write(scale: Scale[Interval], outputStream: OutputStream, context: Option[ScaleFormatContext]): Unit
 }
@@ -58,9 +58,9 @@ trait ScaleFormat {
 class InvalidScaleFormatException(message: String, cause: Throwable = null) extends Exception(message, cause)
 
 class MissingContextScaleFormatException extends InvalidScaleFormatException(
-  "If name and intonationStandard properties are missing from the scale definition, they must be present in the " +
-    "surrounding context!")
+    "If name and intonationStandard properties are missing from the scale definition, they must be present in the " +
+      "surrounding context!")
 
 class IncompatibleIntervalsScaleFormatException extends InvalidScaleFormatException(
-  "The scale intervals are incompatible with the intonation standard"
-)
+    "The scale intervals are incompatible with the intonation standard"
+  )

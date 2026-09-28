@@ -29,8 +29,8 @@ trait TrackIOSupport
 /**
  * A trait that extends [[TrackIOSupport]] and provides optional MIDI channel configuration for a track.
  *
- * This trait specifies the ability to define a particular MIDI channel or allow any channel to be used.
- * The channel must be specified within the range of valid MIDI channel numbers (0-15).
+ * This trait specifies the ability to define a particular MIDI channel or allow any channel to be used. The channel
+ * must be specified within the range of valid MIDI channel numbers (0-15).
  */
 trait TrackChannelIOSupport extends TrackIOSupport {
   /**
@@ -40,10 +40,10 @@ trait TrackChannelIOSupport extends TrackIOSupport {
    *
    * The semantics of the channel depends on the direction of the MIDI flow:
    *
-   *   - In the context of ''input'', if the channel is defined, it marks a ''filtering'' of all incoming MIDI
-   *     messages that have that channel number. If it's not defined, all messages will pass.
-   *   - In the context of ''output'', if the channel is defined, it marks a ''mapping'' of all outgoing MIDI
-   *     messages such that all are transformed to have that channel number. If it's not defined, message pass without
+   *   - In the context of ''input'', if the channel is defined, it marks a ''filtering'' of all incoming MIDI messages
+   *     that have that channel number. If it's not defined, all messages will pass.
+   *   - In the context of ''output'', if the channel is defined, it marks a ''mapping'' of all outgoing MIDI messages
+   *     such that all are transformed to have that channel number. If it's not defined, message pass without
    *     modification.
    */
   val channel: Option[Int]
@@ -52,11 +52,11 @@ trait TrackChannelIOSupport extends TrackIOSupport {
 }
 
 /**
- * A trait that extends [[TrackChannelIOSupport]] and provides support for associating
- * a track with a MIDI device, either as input or as output.
+ * A trait that extends [[TrackChannelIOSupport]] and provides support for associating a track with a MIDI device,
+ * either as input or as output.
  *
- * This trait allows specifying a particular MIDI device represented by its unique
- * [[MidiDeviceId]], enabling device-specific track operations.
+ * This trait allows specifying a particular MIDI device represented by its unique [[MidiDeviceId]], enabling
+ * device-specific track operations.
  */
 trait TrackDeviceIOSupport extends TrackChannelIOSupport {
   /**
@@ -66,8 +66,8 @@ trait TrackDeviceIOSupport extends TrackChannelIOSupport {
 }
 
 /**
- * A trait extending [[TrackChannelIOSupport]] that provides support for attaching a track's input or output to
- * another track, providing inter-track communication.
+ * A trait extending [[TrackChannelIOSupport]] that provides support for attaching a track's input or output to another
+ * track, providing inter-track communication.
  */
 trait InterTrackIOSupport extends TrackChannelIOSupport {
   /**
@@ -79,9 +79,9 @@ trait InterTrackIOSupport extends TrackChannelIOSupport {
 /**
  * Plugin that provides the configuration of a track's input.
  *
- * This trait extends [[TrackIOSupport]] to provide capabilities specific to MIDI track configuration.
- * Additionally, it is a [[Plugin]] that belongs to the `trackInput` family, allowing integration with pluggable
- * components for various track inputs.
+ * This trait extends [[TrackIOSupport]] to provide capabilities specific to MIDI track configuration. Additionally, it
+ * is a [[Plugin]] that belongs to the `trackInput` family, allowing integration with pluggable components for various
+ * track inputs.
  */
 trait TrackInputSpec extends TrackIOSupport with Plugin {
   override val familyName: String = TrackInputSpec.FamilyName
@@ -94,9 +94,9 @@ object TrackInputSpec {
 /**
  * Plugin that provides the configuration of a track's output.
  *
- * This trait extends [[TrackIOSupport]] to provide capabilities specific to MIDI track configuration.
- * Additionally, it is a [[Plugin]] that belongs to the `trackOutput` family, allowing integration with pluggable
- * components for various track outputs.
+ * This trait extends [[TrackIOSupport]] to provide capabilities specific to MIDI track configuration. Additionally, it
+ * is a [[Plugin]] that belongs to the `trackOutput` family, allowing integration with pluggable components for various
+ * track outputs.
  */
 trait TrackOutputSpec extends TrackIOSupport with Plugin {
   override val familyName: String = TrackOutputSpec.FamilyName
@@ -106,14 +106,13 @@ object TrackOutputSpec {
   val FamilyName: String = "trackOutput"
 }
 
-
 /**
  * Plugin used as a configuration of a track input that uses a MIDI device.
  *
  * @param midiDeviceId Unique identifier of the associated MIDI device.
- * @param channel      Optional MIDI channel to be used for this track input. If the channel is defined, it marks a
- *                     ''filtering'' of all incoming MIDI messages that have that channel number. If it's not
- *                     defined, all messages will pass.
+ * @param channel Optional MIDI channel to be used for this track input. If the channel is defined, it marks a
+ *   ''filtering'' of all incoming MIDI messages that have that channel number. If it's not defined, all messages will
+ *   pass.
  */
 case class DeviceTrackInputSpec(override val midiDeviceId: MidiDeviceId,
                                 override val channel: Option[Int]) extends TrackInputSpec with TrackDeviceIOSupport {
@@ -129,8 +128,8 @@ object DeviceTrackInputSpec {
  *
  * @param trackId Identifier of the track that this input is attached to.
  * @param channel Optional MIDI channel to be used for this track input. If the channel is defined, it marks a
- *                ''filtering'' of all incoming MIDI messages that have that channel number. If it's not
- *                defined, all messages will pass.
+ *   ''filtering'' of all incoming MIDI messages that have that channel number. If it's not defined, all messages will
+ *   pass.
  */
 case class FromTrackInputSpec(override val trackId: TrackSpec.Id,
                               override val channel: Option[Int]) extends TrackInputSpec with InterTrackIOSupport {
@@ -141,14 +140,13 @@ object FromTrackInputSpec {
   val TypeName: String = "track"
 }
 
-
 /**
  * Plugin used as a configuration of a track output that uses a MIDI device.
  *
  * @param midiDeviceId Unique identifier of the associated MIDI device.
- * @param channel      Optional MIDI channel to be used for this track output. If the channel is defined, it marks a
- *                     ''mapping'' of all outgoing MIDI messages such that all are transformed to have that channel
- *                     number. If it's not defined, message pass without modification.
+ * @param channel Optional MIDI channel to be used for this track output. If the channel is defined, it marks a
+ *   ''mapping'' of all outgoing MIDI messages such that all are transformed to have that channel number. If it's not
+ *   defined, message pass without modification.
  */
 case class DeviceTrackOutputSpec(override val midiDeviceId: MidiDeviceId,
                                  override val channel: Option[Int]) extends TrackOutputSpec with TrackDeviceIOSupport {
@@ -164,8 +162,8 @@ object DeviceTrackOutputSpec {
  *
  * @param trackId Identifier of the track that this output is attached to.
  * @param channel Optional MIDI channel to be used for this track output. If the channel is defined, it marks a
- *                ''mapping'' of all outgoing MIDI messages such that all are transformed to have that channel
- *                number. If it's not defined, message pass without modification.
+ *   ''mapping'' of all outgoing MIDI messages such that all are transformed to have that channel number. If it's not
+ *   defined, message pass without modification.
  */
 case class ToTrackOutputSpec(override val trackId: TrackSpec.Id,
                              override val channel: Option[Int]) extends TrackOutputSpec with InterTrackIOSupport {

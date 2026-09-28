@@ -33,7 +33,7 @@ class PrecisionTest extends AnyWordSpec with Matchers with TableDrivenPropertyCh
       val convertedIntervals = scaleCents.intervals.map { (centsInterval: CentsInterval) =>
         RealInterval(centsInterval.realValue)
       }
-      val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail *)
+      val convertedScale = Scale(convertedIntervals.head, convertedIntervals.tail*)
 
       val autoTuningMapper = AutoTuningMapper(shouldMapQuarterTonesLow = true, quarterToneTolerance = 0.5e-2)
       val tuning = autoTuningMapper.mapScale(convertedScale, StandardTuningReference(PitchClass.C))

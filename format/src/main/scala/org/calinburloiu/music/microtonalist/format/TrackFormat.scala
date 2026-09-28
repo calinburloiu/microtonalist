@@ -35,7 +35,7 @@ trait TrackFormat {
    * Reads track specifications from the provided input stream and optional base URI.
    *
    * @param inputStream Input stream containing the tracks data to be read.
-   * @param baseUri     Optional base URI used for resolving relative references in the tracks data.
+   * @param baseUri Optional base URI used for resolving relative references in the tracks data.
    * @return The track specifications parsed from the input stream.
    */
   def readTracks(inputStream: InputStream, baseUri: Option[URI] = None): TrackSpecs
@@ -44,7 +44,7 @@ trait TrackFormat {
    * Reads track specifications asynchronously from the provided input stream and optional base URI.
    *
    * @param inputStream Input stream containing the tracks data to be read.
-   * @param baseUri     Optional base URI used for resolving relative references in the tracks data.
+   * @param baseUri Optional base URI used for resolving relative references in the tracks data.
    * @return A future containing the track specifications parsed from the input stream.
    */
   def readTracksAsync(inputStream: InputStream, baseUri: Option[URI] = None): Future[TrackSpecs]
@@ -52,7 +52,7 @@ trait TrackFormat {
   /**
    * Writes the given track specifications to the provided output stream.
    *
-   * @param trackSpecs   Track specifications to be written.
+   * @param trackSpecs Track specifications to be written.
    * @param outputStream Output stream to which the track specifications will be written.
    */
   def writeTracks(trackSpecs: TrackSpecs, outputStream: OutputStream): Unit
@@ -60,7 +60,7 @@ trait TrackFormat {
   /**
    * Writes the given track specifications asynchronously to the provided output stream.
    *
-   * @param trackSpecs   Track specifications to be written.
+   * @param trackSpecs Track specifications to be written.
    * @param outputStream Output stream to which the track specifications will be written.
    * @return A future indicating the completion of the write operation.
    */

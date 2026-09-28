@@ -20,8 +20,8 @@ import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 /**
- * [[TuningReducer]] algorithm that essentially performs no reduce and only applies the global fill. It should be
- * used if no reduction is wanted.
+ * [[TuningReducer]] algorithm that essentially performs no reduce and only applies the global fill. It should be used
+ * if no reduction is wanted.
  */
 object DirectTuningReducer extends TuningReducer with StrictLogging {
 

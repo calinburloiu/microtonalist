@@ -29,7 +29,7 @@ import scala.util.{Failure, Success}
 /**
  * Repository implementation that retrieves and persists track specifications by using the file system.
  *
- * @param trackFormat             Format object used for reading and writing track specifications.
+ * @param trackFormat Format object used for reading and writing track specifications.
  * @param synchronousAwaitTimeout Time duration to wait for a result in synchronous operations.
  */
 class FileTrackRepo(trackFormat: TrackFormat,

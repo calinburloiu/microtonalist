@@ -24,8 +24,8 @@ import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
 
 /**
- * Loader for JSON preprocessor references that retrieves the referenced URIs via HTTP without
- * performing any validation and checking for the path context.
+ * Loader for JSON preprocessor references that retrieves the referenced URIs via HTTP without performing any validation
+ * and checking for the path context.
  */
 class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreprocessorRefLoader with StrictLogging {
 
@@ -44,7 +44,7 @@ class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreproce
         Json.parse(response.body()) match {
           case obj: JsObject => Some(obj)
           case _ => throw new JsonPreprocessorRefLoadException(uri, pathContext,
-            s"Referenced JSON from $uri at $pathContext must be a JSON object")
+              s"Referenced JSON from $uri at $pathContext must be a JSON object")
         }
       case 404 => throw new ScaleNotFoundException(uri)
       case status if status >= 400 && status < 600 =>

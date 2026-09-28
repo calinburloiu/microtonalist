@@ -23,15 +23,15 @@ import play.api.libs.json.*
 /**
  * Instances of this trait are used for parsing a _family_ of plugins represented as JSON by using Play JSON Format.
  *
- * A _JSON plugin_ is an object with a particular _type_ that is part of a _family_. The family is used in a
- * certain context (e.g. tuning mapper, tuning reduces, scale etc.). For each family there can be one or more types.
- * The type is identified in the JSON object by the `type` property (which might be implicit for a default type).
- * Each type may have its own specific properties called _settings_.
+ * A _JSON plugin_ is an object with a particular _type_ that is part of a _family_. The family is used in a certain
+ * context (e.g. tuning mapper, tuning reduces, scale etc.). For each family there can be one or more types. The type is
+ * identified in the JSON object by the `type` property (which might be implicit for a default type). Each type may have
+ * its own specific properties called _settings_.
  *
  * One should create separate instances of this class for each family and configure it with a sequence of specs, each
- * for each type. Each type may have default values, in `defaultSettings`, for certain settings to allow users to
- * omit them. Settings values per family/type can also be set globally by the user per composition file in the
- * settings section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
+ * for each type. Each type may have default values, in `defaultSettings`, for certain settings to allow users to omit
+ * them. Settings values per family/type can also be set globally by the user per composition file in the settings
+ * section and the class has a setter for setting the root of the settings JSON after the JSON file was parsed.
  */
 trait JsonPluginFormat[P] {
 
@@ -52,8 +52,8 @@ trait JsonPluginFormat[P] {
   /**
    * Implicit type name to be used for a plugin which allows:
    *
-   *  - Omitting the `type` property in the JSON representation.
-   *  - Having an implicit plugin instance without declaring it.
+   *   - Omitting the `type` property in the JSON representation.
+   *   - Having an implicit plugin instance without declaring it.
    */
   val defaultTypeName: Option[String] = None
 
@@ -131,8 +131,8 @@ trait JsonPluginFormat[P] {
    * Attempts to read a plugin from the global settings of a composition file.
    *
    * @param rootGlobalSettings The JSON of the `settings` property branch from a composition file.
-   * @return [[Some]] plugin instance if the deserialization from global settings was successful, or [[None]] if
-   *         there are mandatory settings that are missing.
+   * @return [[Some]] plugin instance if the deserialization from global settings was successful, or [[None]] if there
+   *   are mandatory settings that are missing.
    */
   def readDefaultPlugin(rootGlobalSettings: JsObject): JsResult[P] = {
     (for (
@@ -183,14 +183,14 @@ object JsonPluginFormat {
   /**
    * Specification object for serializing/deserializing a plugin with a given type.
    *
-   * @param typeName        The given plugin type name.
-   * @param javaClass       The Java [[Class]] used for the deserialized plugin that is used when doing
-   *                        serialization for identification.
-   * @param formatOrPlugin  Either a [[Left]] with [[Format]] used for serializing/deserializing the
-   *                        plugin type settings in/from JSON, or a [[Right]] with the singleton plugin type value
-   *                        when the plugin has no settings and is only defined by its type name.
-   * @param defaultSettings Default settings values in JSON object format that should be used when not
-   *                        provided in a serialized JSON.
+   * @param typeName The given plugin type name.
+   * @param javaClass The Java [[Class]] used for the deserialized plugin that is used when doing serialization for
+   *   identification.
+   * @param formatOrPlugin Either a [[Left]] with [[Format]] used for serializing/deserializing the plugin type settings
+   *   in/from JSON, or a [[Right]] with the singleton plugin type value when the plugin has no settings and is only
+   *   defined by its type name.
+   * @param defaultSettings Default settings values in JSON object format that should be used when not provided in a
+   *   serialized JSON.
    * @tparam P Scala type used for the plugin type.
    */
   case class TypeSpec[P](typeName: String,
@@ -218,8 +218,8 @@ object JsonPluginFormat {
     /**
      * Factory method for a plugin type that has no settings and is only defined by its type name.
      *
-     * This method should be typically used for plugin that do not implement [[Plugin]]. See the overloaded method if
-     * it does.
+     * This method should be typically used for plugin that do not implement [[Plugin]]. See the overloaded method if it
+     * does.
      *
      * Note that in this case the [[TypeSpec]] does not need a [[Format]].
      */

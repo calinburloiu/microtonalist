@@ -51,7 +51,7 @@ class HuygensFokkerScalaScaleFormat extends ScaleFormat with StrictLogging {
     val description = lines.head
     val pitchesCount = Try(lines(1).toInt).recover {
       case e: NumberFormatException => throw new InvalidHuygensFokkerScalaFileException(
-        "Invalid file format: the number of pitches is not a number", e)
+          "Invalid file format: the number of pitches is not a number", e)
     }.get
 
     val pitchValues = lines.slice(2, 2 + pitchesCount)

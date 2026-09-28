@@ -33,7 +33,7 @@ import scala.util.{Failure, Success}
 /**
  * Scale repository implementation that retrieves and persists scales remotely by using HTTP.
  *
- * @param httpClient          HTTP client configured to access scales
+ * @param httpClient HTTP client configured to access scales
  * @param scaleFormatRegistry registry responsible for choosing the scale format
  */
 class HttpScaleRepo(httpClient: HttpClient,
@@ -65,7 +65,7 @@ class HttpScaleRepo(httpClient: HttpClient,
       .andThen {
         case Success(_) => logger.info(s"Successfully read scale from $uri via HTTP")
         case Failure(exception) => logger.error(s"Failed to read scale from $uri via HTTP!",
-          exception)
+            exception)
       }
   }
 
@@ -89,10 +89,12 @@ class HttpScaleRepo(httpClient: HttpClient,
 
       scaleFormat.read(response.body(), Some(uri), context)
     case 404 => throw new ScaleNotFoundException(uri)
-    case status if status >= 400 && status < 500 => throw new BadScaleRequestException(uri, None,
-      Some(s"HTTP request to $uri returned status code $status"))
-    case status if status >= 500 && status < 600 => throw new ScaleReadFailureException(uri,
-      s"HTTP request to $uri returned status code $status")
+    case status if status >= 400 && status < 500 =>
+      throw new BadScaleRequestException(uri, None,
+        Some(s"HTTP request to $uri returned status code $status"))
+    case status if status >= 500 && status < 600 =>
+      throw new ScaleReadFailureException(uri,
+        s"HTTP request to $uri returned status code $status")
     case status => throw new ScaleReadFailureException(uri, s"Unexpected HTTP response status code $status for $uri")
   }
 

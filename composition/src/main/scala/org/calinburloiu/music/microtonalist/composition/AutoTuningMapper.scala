@@ -29,10 +29,9 @@ import scala.collection.mutable
  * Enum type for the method used to detect the soft chromatic genus pattern between scale's intervals to allow mapping
  * them on a keyboard by using the characteristic augmented second, despite `shouldMapQuarterTonesLow` property.
  *
- * A pattern of intervals that have the soft chromatic genus is defined here as a trichord with two neighboring
- * relative intervals out of which one is a three-quarter-tone interval and the other is a remaining between a whole
- * tone and an augmented second. The [[aug2Threshold]] property determines the minimum value in cents of the
- * "augmented second".
+ * A pattern of intervals that have the soft chromatic genus is defined here as a trichord with two neighboring relative
+ * intervals out of which one is a three-quarter-tone interval and the other is a remaining between a whole tone and an
+ * augmented second. The [[aug2Threshold]] property determines the minimum value in cents of the "augmented second".
  *
  * These two intervals can be seen in a tetrachord by adding an interval which has a size between a semitone and a
  * three-quarter-tone.
@@ -42,7 +41,7 @@ import scala.collection.mutable
  * `shouldMapQuarterTonesLow` is set to false this tetrachord would be mapped on the C key to C, D, E and F keys.
  * However, one would expect a chromatic tetrachord to be mapped to C, Db, E and F. This feature allows that.
  *
- * @param typeName      The identified of the mapping method.
+ * @param typeName The identified of the mapping method.
  * @param aug2Threshold The minimum size in cents of the augmented second.
  */
 sealed abstract class SoftChromaticGenusMapping(override val typeName: String,
@@ -72,26 +71,24 @@ object SoftChromaticGenusMapping {
 }
 
 /**
- * A [[TuningMapper]] that attempts to automatically map scales to a tuning with offsets for some of the pitch
- * classes.
+ * A [[TuningMapper]] that attempts to automatically map scales to a tuning with offsets for some of the pitch classes.
  *
  * Note that some complex scales cannot be mapped automatically because multiple pitches would require to use the same
  * tuning key, resulting in a conflict.
  *
- * @param shouldMapQuarterTonesLow  'true' if the mapper should attempt to map a quarter tone to the lower pitch class
- *                                  with +50 cents offset, or `false` if it should attempt to map it to the higher
- *                                  pitch class with -50 cents offset. Note that in case of a conflict, with
- *                                  multiple intervals on the same key pitch class, the mapper will prioritize the
- *                                  conflict resolution and avoid this flag.
- * @param quarterToneTolerance      tolerance value used for offsets when they are close to +50 or -50 cents in
- *                                  order to avoid precision errors while mapping a quarter tone to its pitch class
- * @param softChromaticGenusMapping Method used to detect the soft chromatic genus pattern between scale's intervals
- *                                  to allow mapping them on a keyboard by using the characteristic augmented second,
- *                                  despite `shouldMapQuarterTonesLow` property.
- * @param overrideKeyboardMapping   a [[KeyboardMapping]] containing scale pitch index mar ked as exceptions that are
- *                                  going to be manually mapped to a user specified pitch class
- * @param tolerance                 Error in cents that should be tolerated when comparing corresponding pitch class
- * offsets of [[Tuning]] to avoid floating-point precision errors.
+ * @param shouldMapQuarterTonesLow 'true' if the mapper should attempt to map a quarter tone to the lower pitch class
+ *   with +50 cents offset, or `false` if it should attempt to map it to the higher pitch class with -50 cents offset.
+ *   Note that in case of a conflict, with multiple intervals on the same key pitch class, the mapper will prioritize
+ *   the conflict resolution and avoid this flag.
+ * @param quarterToneTolerance tolerance value used for offsets when they are close to +50 or -50 cents in order to
+ *   avoid precision errors while mapping a quarter tone to its pitch class
+ * @param softChromaticGenusMapping Method used to detect the soft chromatic genus pattern between scale's intervals to
+ *   allow mapping them on a keyboard by using the characteristic augmented second, despite `shouldMapQuarterTonesLow`
+ *   property.
+ * @param overrideKeyboardMapping a [[KeyboardMapping]] containing scale pitch index mar ked as exceptions that are
+ *   going to be manually mapped to a user specified pitch class
+ * @param tolerance Error in cents that should be tolerated when comparing corresponding pitch class offsets of
+ *   [[Tuning]] to avoid floating-point precision errors.
  */
 case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMapQuarterTonesLow,
                             quarterToneTolerance: Double = DefaultQuarterToneTolerance,
@@ -129,10 +126,10 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
   /**
    * Automatically maps an interval to a pitch class on the keyboard.
    *
-   * @param interval                         interval to be mapped
-   * @param ref                              reference taken when mapping the interval
+   * @param interval interval to be mapped
+   * @param ref reference taken when mapping the interval
    * @param overrideShouldMapQuarterTonesLow if defined, it is used instead of the class member
-   *                                         [[shouldMapQuarterTonesLow]]
+   *   [[shouldMapQuarterTonesLow]]
    * @return a pitch class with its offset from 12-EDO in cents.
    */
   def mapInterval(interval: Interval,
@@ -155,7 +152,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 
     /**
      * @param pitches Duplicated non-conflicting pitches that are mapped to the same pitch class. They might differ
-     *                slightly in tuning offset (due to precision errors) and have different scale pitch index.
+     *   slightly in tuning offset (due to precision errors) and have different scale pitch index.
      * @return The min scale pitch index to use for all those pitches.
      */
     def extractScalePitchIndex(pitches: PitchesInfo): Int = {
@@ -176,7 +173,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
 
   /**
    * @return A sequence of pitch information objects each containing a [[TuningPitch]] and a scale pitch index, with the
-   *         pitches mentioned in `overrideKeyboardMapping` excluded.
+   *   pitches mentioned in `overrideKeyboardMapping` excluded.
    */
   private def mapScaleToPitchesInfo(scale: Scale[Interval], ref: TuningReference): PitchesInfo = {
     val mutablePitchesInfo = mutable.Map[Int, TuningPitch]()

@@ -99,9 +99,8 @@ class MutableMidiTransmitter(initialReceivers: Seq[MidiReceiver] = Seq.empty) ex
   protected def withChangeGuard[R](body: => R): R = body
 
   /**
-   * Performs a change of the receivers. The single point every modifier and [[receivers_=]] funnel through, and the
-   * one to override to observe or extend what happens when the receivers change; always called inside
-   * [[withChangeGuard]].
+   * Performs a change of the receivers. The single point every modifier and [[receivers_=]] funnel through, and the one
+   * to override to observe or extend what happens when the receivers change; always called inside [[withChangeGuard]].
    *
    * An override may read [[receivers]] to compare the incoming sequence with the current one, and must call
    * `super.setReceivers` for the change to take effect.

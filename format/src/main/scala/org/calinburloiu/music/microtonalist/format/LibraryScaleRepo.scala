@@ -34,8 +34,8 @@ import scala.concurrent.Future
  * `/Users/john/Music/microtonalist/lib/scales/lydian.scl`.
  *
  * @param libraryBaseUrl base URL for Microtonalist Library
- * @param fileScaleRepo  a [[FileScaleRepo]] instance
- * @param httpScaleRepo  an [[HttpScaleRepo]] instance
+ * @param fileScaleRepo a [[FileScaleRepo]] instance
+ * @param httpScaleRepo an [[HttpScaleRepo]] instance
  */
 class LibraryScaleRepo(libraryBaseUrl: URI,
                        fileScaleRepo: FileScaleRepo,

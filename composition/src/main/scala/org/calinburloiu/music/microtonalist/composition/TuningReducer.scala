@@ -20,8 +20,8 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 
 /**
- * Merges one or more tunings into ideally less final tunings, minimizing the number of tuning switches a
- * musician must perform while playing.
+ * Merges one or more tunings into ideally less final tunings, minimizing the number of tuning switches a musician must
+ * perform while playing.
  */
 trait TuningReducer extends Plugin {
 

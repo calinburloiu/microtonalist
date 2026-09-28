@@ -66,37 +66,37 @@ class TuningChangeProcessorTest extends AnyWordSpec with Matchers with MockFacto
 
     "forward MIDI messages that are not tuning change triggers " +
       "when triggersThru is true" in new Fixture(triggersThru = true) {
-      // When
-      processor.receiver.send(nonTriggerMessage1, 1)
-      // Then
-      receiverStub.send.verify(nonTriggerMessage1, 1).once()
-    }
+        // When
+        processor.receiver.send(nonTriggerMessage1, 1)
+        // Then
+        receiverStub.send.verify(nonTriggerMessage1, 1).once()
+      }
 
     "forward MIDI messages that are not tuning change triggers " +
       "when triggersThru is false" in new Fixture(triggersThru = false) {
-      // When
-      processor.receiver.send(nonTriggerMessage1, 1)
-      // Then
-      receiverStub.send.verify(nonTriggerMessage1, 1).once()
-    }
+        // When
+        processor.receiver.send(nonTriggerMessage1, 1)
+        // Then
+        receiverStub.send.verify(nonTriggerMessage1, 1).once()
+      }
 
     "forward MIDI messages that are tuning change triggers " +
       "when triggersThru is true" in new Fixture(triggersThru = true) {
-      // When
-      processor.receiver.send(ccTriggerMessage, 1)
-      processor.receiver.send(ccTriggerMessage, 2)
-      // Then
-      receiverStub.send.verify(ccTriggerMessage, *).repeated(2)
-    }
+        // When
+        processor.receiver.send(ccTriggerMessage, 1)
+        processor.receiver.send(ccTriggerMessage, 2)
+        // Then
+        receiverStub.send.verify(ccTriggerMessage, *).repeated(2)
+      }
 
     "not forward MIDI messages that are tuning change triggers " +
       "when triggersThru is false" in new Fixture(triggersThru = false) {
-      // When
-      processor.receiver.send(ccTriggerMessage, 1)
-      processor.receiver.send(ccTriggerMessage, 2)
-      // Then
-      receiverStub.send.verify(*, *).never()
-    }
+        // When
+        processor.receiver.send(ccTriggerMessage, 1)
+        processor.receiver.send(ccTriggerMessage, 2)
+        // Then
+        receiverStub.send.verify(*, *).never()
+      }
   }
 
   "reset" should {

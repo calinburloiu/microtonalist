@@ -20,19 +20,19 @@ package object composition {
   /**
    * Error allowed (inclusive) when detecting quarter-tone values.
    *
-   * A perfect quarter-tone `q` is an odd multiple of 50 cents. When a tolerance is allowed with this constant its
-   * value can be between `q - DefaultQuarterToneTolerance` and `q + DefaultQuarterToneTolerance`, inclusive.
+   * A perfect quarter-tone `q` is an odd multiple of 50 cents. When a tolerance is allowed with this constant its value
+   * can be between `q - DefaultQuarterToneTolerance` and `q + DefaultQuarterToneTolerance`, inclusive.
    */
   val DefaultQuarterToneTolerance: Double = 13.0
 
   /**
    * Rounds a [[Double]] value to the nearest [[Int]] neighbor value. If the neighbors are close to equidistant with
-   * respect to the value, then it is rounded according to `halfDown` parameter. How close to equidistant the value
-   * can be is controlled by `halfTolerance` parameter.
+   * respect to the value, then it is rounded according to `halfDown` parameter. How close to equidistant the value can
+   * be is controlled by `halfTolerance` parameter.
    *
-   * @param value         number to round
-   * @param halfDown      true to round towards negative infinity when the value is close to equidistant to its integer
-   *                      neighbors, or false otherwise
+   * @param value number to round
+   * @param halfDown true to round towards negative infinity when the value is close to equidistant to its integer
+   *   neighbors, or false otherwise
    * @param halfTolerance how close to equidistant between two integer neighbors the value can be
    * @return
    */

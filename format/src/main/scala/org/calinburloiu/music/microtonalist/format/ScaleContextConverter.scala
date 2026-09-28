@@ -33,7 +33,7 @@ class ScaleContextConverter(businessync: Businessync) extends LazyLogging {
   /**
    * Converts a scale to a specified intonation standard or renames it based on the provided context.
    *
-   * @param scale   The scale to be converted or renamed.
+   * @param scale The scale to be converted or renamed.
    * @param context An optional context that may include a new name and/or an intonation standard to convert to.
    * @return The converted or renamed scale.
    */
@@ -65,14 +65,13 @@ class ScaleContextConverter(businessync: Businessync) extends LazyLogging {
 }
 
 /**
- * Event triggered when a scale is converted between different intonation standards,
- * potentially losing precision or fidelity during the process.
+ * Event triggered when a scale is converted between different intonation standards, potentially losing precision or
+ * fidelity during the process.
  *
- * @param fromIntonationStandard The original `IntonationStandard` of the scale before conversion.
- *                               None if no standard is specified (in case of a scale with different types of
- *                               intervals).
- * @param toIntonationStandard   The target `IntonationStandard` to which the scale is converted.
- * @param scaleName              The name of the scale being converted.
+ * @param fromIntonationStandard The original `IntonationStandard` of the scale before conversion. None if no standard
+ *   is specified (in case of a scale with different types of intervals).
+ * @param toIntonationStandard The target `IntonationStandard` to which the scale is converted.
+ * @param scaleName The name of the scale being converted.
  */
 case class ScaleLossyConversionEvent(fromIntonationStandard: Option[IntonationStandard],
                                      toIntonationStandard: IntonationStandard,

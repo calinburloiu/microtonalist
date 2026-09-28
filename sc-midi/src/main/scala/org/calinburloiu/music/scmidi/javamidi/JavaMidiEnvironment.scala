@@ -41,9 +41,8 @@ trait JavaMidiEnvironment {
    * consistent, or a device's id will diverge between the failure event and the available set.
    *
    * @throws javax.sound.midi.MidiUnavailableException if the device cannot be resolved because of a resource
-   *                                                    restriction.
-   * @throws IllegalArgumentException                   if `javaInfo` does not describe a device of this
-   *                                                    environment.
+   *   restriction.
+   * @throws IllegalArgumentException if `javaInfo` does not describe a device of this environment.
    */
   def javaDeviceOf(javaInfo: MidiDevice.Info): MidiDevice
 

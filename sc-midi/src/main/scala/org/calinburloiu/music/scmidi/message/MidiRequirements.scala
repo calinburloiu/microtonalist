@@ -55,8 +55,8 @@ object MidiRequirements {
     require((value & 0xFFFFFF80) == 0, s"$name must be between 0 and 127; got $value")
 
   /**
-   * Requires that the given Control Change controller number is between 0 and [[MaxControllerNumber]]. Numbers
-   * 120-127 are Channel Mode messages, which have their own types under
+   * Requires that the given Control Change controller number is between 0 and [[MaxControllerNumber]]. Numbers 120-127
+   * are Channel Mode messages, which have their own types under
    * [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] and are not controllers, so the error for one of them
    * names those types.
    */

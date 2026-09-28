@@ -196,8 +196,10 @@ class JsonPreprocessorTest extends AnyWordSpec with Matchers with MockFactory {
     "fail if an error occurs while loading a reference" in {
       // Given
       val input = Json.obj("$ref" -> "https://example.org/1")
-      val loaders: RefLoaders = Seq((_, _) => None, (uri, path) => throw new JsonPreprocessorRefLoadException(uri,
-        path, "Boom!"))
+      val loaders: RefLoaders = Seq((_, _) => None,
+        (uri, path) =>
+          throw new JsonPreprocessorRefLoadException(uri,
+            path, "Boom!"))
       val preprocessor = new JsonPreprocessor(loaders)
       // Then
       assertThrows[JsonPreprocessorRefLoadException] {
@@ -210,15 +212,15 @@ class JsonPreprocessorTest extends AnyWordSpec with Matchers with MockFactory {
       val input = Json.obj(
         "$ref" -> "https://example.org/1"
       )
-      val loaders: RefLoaders = Seq(
-        (uri, _) => uri.toString match {
+      val loaders: RefLoaders = Seq((uri, _) =>
+        uri.toString match {
           case "https://example.org/1" => Some(Json.obj(
-            "name" -> "John",
-            "$ref" -> "https://example.org/2"
-          ))
+              "name" -> "John",
+              "$ref" -> "https://example.org/2"
+            ))
           case "https://example.org/2" => Some(Json.obj(
-            "age" -> 25
-          ))
+              "age" -> 25
+            ))
           case _ => None
         }
       )
@@ -252,29 +254,28 @@ class JsonPreprocessorTest extends AnyWordSpec with Matchers with MockFactory {
       )
       val refs = mutable.ArrayBuffer[String]()
       val paths = mutable.ArrayBuffer[JsPath]()
-      val loaders: RefLoaders = Seq(
-        (uri, path) => {
-          val uriString = uri.toString
+      val loaders: RefLoaders = Seq((uri, path) => {
+        val uriString = uri.toString
 
-          refs += uriString
-          paths += path
+        refs += uriString
+        paths += path
 
-          uriString match {
-            case "https://example.org/data/people/john-details.json" => Some(Json.obj(
+        uriString match {
+          case "https://example.org/data/people/john-details.json" => Some(Json.obj(
               "age" -> 25,
             ))
-            case "https://example.org/data/pets/pamela.json" => Some(Json.obj(
+          case "https://example.org/data/pets/pamela.json" => Some(Json.obj(
               "animal" -> "dog",
               "details" -> Json.obj(
                 "$ref" -> "details/countryside.json"
               )
             ))
-            case "https://example.org/data/pets/details/countryside.json" => Some(Json.obj(
+          case "https://example.org/data/pets/details/countryside.json" => Some(Json.obj(
               "location" -> "countryside"
             ))
-            case _ => None
-          }
+          case _ => None
         }
+      }
       )
       val expectedOutput = Json.obj(
         "name" -> "John Doe",
@@ -316,14 +317,14 @@ class JsonPreprocessorTest extends AnyWordSpec with Matchers with MockFactory {
       val input = Json.obj(
         "$ref" -> "https://example.org/1"
       )
-      val loaders: RefLoaders = Seq(
-        (uri, _) => uri.toString match {
+      val loaders: RefLoaders = Seq((uri, _) =>
+        uri.toString match {
           case "https://example.org/1" => Some(Json.obj(
-            "$ref" -> "https://example.org/2"
-          ))
+              "$ref" -> "https://example.org/2"
+            ))
           case "https://example.org/2" => Some(Json.obj(
-            "$ref" -> "https://example.org/1"
-          ))
+              "$ref" -> "https://example.org/1"
+            ))
           case _ => None
         }
       )
@@ -341,8 +342,8 @@ class JsonPreprocessorTest extends AnyWordSpec with Matchers with MockFactory {
         "$ref" -> "https://example.org/foo"
       )
       var i = 0
-      val loaders: RefLoaders = Seq(
-        (uri, path) => uri.toString match {
+      val loaders: RefLoaders = Seq((uri, path) =>
+        uri.toString match {
           case _ =>
             i += 1
             Some(Json.obj(

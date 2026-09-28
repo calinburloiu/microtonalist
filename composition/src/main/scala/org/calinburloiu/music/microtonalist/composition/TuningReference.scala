@@ -21,8 +21,8 @@ import org.calinburloiu.music.microtonalist.common.Plugin
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 
 /**
- * Tuning reference tells what pitch class from the keyboard instrument must be used for the base pitch of a
- * composition and what tuning offset should have with respect to standard tuning (12-EDO).
+ * Tuning reference tells what pitch class from the keyboard instrument must be used for the base pitch of a composition
+ * and what tuning offset should have with respect to standard tuning (12-EDO).
  */
 trait TuningReference extends Plugin {
 
@@ -52,7 +52,7 @@ object TuningReference {
  * Tuning reference relative standard tuning (12-EDO).
  *
  * @param basePitchClass The number of the base pitch class (0 is C, 1 is C#/Db, ..., 11 is B).
- * @param baseOffset     Offset in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.
+ * @param baseOffset Offset in cents of the base pitch with respect to the standard (12-EDO) pitch class tuning.
  */
 case class StandardTuningReference(override val basePitchClass: PitchClass,
                                    override val baseOffset: Double = 0.0) extends TuningReference {
@@ -70,9 +70,8 @@ object StandardTuningReference {
  * Tuning reference relative to concert pitch.
  *
  * @param concertPitchToBaseInterval Interval between the reference frequency and composition's base pitch.
- * @param baseMidiNote               MIDI note number of the composition's base pitch, relative to which scales are
- *                                   tuned.
- * @param concertPitchFreq           Reference frequency in Hz, typically known as concert pitch and set to `440.0` Hz.
+ * @param baseMidiNote MIDI note number of the composition's base pitch, relative to which scales are tuned.
+ * @param concertPitchFreq Reference frequency in Hz, typically known as concert pitch and set to `440.0` Hz.
  */
 case class ConcertPitchTuningReference(concertPitchToBaseInterval: Interval,
                                        baseMidiNote: MidiNote,

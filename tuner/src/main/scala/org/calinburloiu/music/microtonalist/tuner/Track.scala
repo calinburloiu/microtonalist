@@ -19,8 +19,10 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
-import org.calinburloiu.music.scmidi.{ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiDirection,
-  MidiManager, MidiReceiver}
+import org.calinburloiu.music.scmidi.{
+  ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiDirection,
+  MidiManager, MidiReceiver
+}
 
 import javax.annotation.concurrent.ThreadSafe
 
@@ -28,16 +30,15 @@ import javax.annotation.concurrent.ThreadSafe
  * MIDI route for tuning an output device.
  *
  * When the track has a device output, the output device receiver is an initial receiver of the pipeline, so the
- * pipeline attaches to it — and a tuner sends its `reset()` messages to the device — as soon as the track is built.
- * A receiver added later through [[transmitter]] (another track) attaches on its own: the device receiver, already
- * there, is left alone rather than being detached and re-attached.
+ * pipeline attaches to it — and a tuner sends its `reset()` messages to the device — as soon as the track is built. A
+ * receiver added later through [[transmitter]] (another track) attaches on its own: the device receiver, already there,
+ * is left alone rather than being detached and re-attached.
  *
- * @param spec             The declarative description this track is built from: its id, input, output, tuner and
- *                         tuning changers.
- * @param midiManager      Used to open the input and output MIDI devices named by the spec, and to release them when
- *                         the track is closed.
- * @param tuningService    Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective
- *                         tuning change.
+ * @param spec The declarative description this track is built from: its id, input, output, tuner and tuning changers.
+ * @param midiManager Used to open the input and output MIDI devices named by the spec, and to release them when the
+ *   track is closed.
+ * @param tuningService Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective tuning
+ *   change.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,
@@ -79,8 +80,8 @@ class Track(val spec: TrackSpec,
   def receiver: MidiReceiver = pipeline.receiver
 
   /**
-   * @return the transmitter this track's output goes out through: the output device receiver and the receivers of
-   *         the tracks fed by this one.
+   * @return the transmitter this track's output goes out through: the output device receiver and the receivers of the
+   *   tracks fed by this one.
    */
   def transmitter: ConcurrentMidiTransmitter = pipeline.transmitter
 
@@ -141,9 +142,9 @@ class Track(val spec: TrackSpec,
    * Releases the output of this track after its input became unavailable, so that no note stays held on it. It:
    *
    *   1. releases the Hold (Sustain) and Sostenuto pedals, then sends All Notes Off, on each of the 16 MIDI channels
-   *      straight to the output of the track, bypassing the tuner, so that it reaches every channel the tuner may
-   *      have used, such as MPE Member Channels. The pedals go first because a latched one takes priority over All
-   *      Notes Off, so a note it holds would keep sounding otherwise;
+   *      straight to the output of the track, bypassing the tuner, so that it reaches every channel the tuner may have
+   *      used, such as MPE Member Channels. The pedals go first because a latched one takes priority over All Notes
+   *      Off, so a note it holds would keep sounding otherwise;
    *   1. resets the tuning changers, so that a trigger held when the input disappeared does not swallow the first
    *      trigger after it comes back;
    *   1. resets the tuner, as [[resetTuner]] does, which also clears the note state of tuners that keep one and

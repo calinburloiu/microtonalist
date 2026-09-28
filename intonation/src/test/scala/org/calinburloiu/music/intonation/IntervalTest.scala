@@ -513,16 +513,16 @@ class EdoIntervalTest extends AnyWordSpec with Matchers with TableDrivenProperty
 
   "countRelativeToStandard" should {
     "return a pair of an approximation of semitones and the offset in cents" in {
-      EdoInterval(72, (7, 0)).countRelativeToStandard shouldEqual(7, 0)
-      EdoInterval(72, (4, -1)).countRelativeToStandard shouldEqual(4, -1)
-      EdoInterval(72, (3, +1)).countRelativeToStandard shouldEqual(3, +1)
+      EdoInterval(72, (7, 0)).countRelativeToStandard shouldEqual (7, 0)
+      EdoInterval(72, (4, -1)).countRelativeToStandard shouldEqual (4, -1)
+      EdoInterval(72, (3, +1)).countRelativeToStandard shouldEqual (3, +1)
 
-      EdoInterval(31, 10).countRelativeToStandard shouldEqual(4, 0)
-      EdoInterval(31, 7).countRelativeToStandard shouldEqual(3, -1)
+      EdoInterval(31, 10).countRelativeToStandard shouldEqual (4, 0)
+      EdoInterval(31, 7).countRelativeToStandard shouldEqual (3, -1)
 
-      EdoInterval(53, (7, 0)).countRelativeToStandard shouldEqual(7, 0)
-      EdoInterval(53, (4, -1)).countRelativeToStandard shouldEqual(4, -1)
-      EdoInterval(53, (3, +1)).countRelativeToStandard shouldEqual(3, +1)
+      EdoInterval(53, (7, 0)).countRelativeToStandard shouldEqual (7, 0)
+      EdoInterval(53, (4, -1)).countRelativeToStandard shouldEqual (4, -1)
+      EdoInterval(53, (3, +1)).countRelativeToStandard shouldEqual (3, +1)
     }
   }
 
@@ -741,69 +741,69 @@ class IntervalTest extends AnyWordSpec with TableDrivenPropertyChecks with Match
   "all interval classes" should {
     "correctly compute the cents, normalize and invert values for " +
       "the most common just intervals" in {
-      forAll(validIntervals) { (ratioInterval, cents, normalizedRatioInterval, invertedRatioInterval) =>
-        val interval = RealInterval(ratioInterval.numerator.toDouble / ratioInterval.denominator)
-        val centsInterval = CentsInterval(cents)
+        forAll(validIntervals) { (ratioInterval, cents, normalizedRatioInterval, invertedRatioInterval) =>
+          val interval = RealInterval(ratioInterval.numerator.toDouble / ratioInterval.denominator)
+          val centsInterval = CentsInterval(cents)
 
-        withClue("Interval.cents:") {
-          interval.cents shouldEqual cents
-        }
-        withClue("RatioInterval.cents:") {
-          ratioInterval.cents shouldEqual cents
-        }
-        withClue("CentsInterval.cents:") {
-          centsInterval.cents shouldEqual cents
-        }
+          withClue("Interval.cents:") {
+            interval.cents shouldEqual cents
+          }
+          withClue("RatioInterval.cents:") {
+            ratioInterval.cents shouldEqual cents
+          }
+          withClue("CentsInterval.cents:") {
+            centsInterval.cents shouldEqual cents
+          }
 
-        withClue("Interval.isNormalized:") {
-          interval.isNormalized shouldEqual (ratioInterval == normalizedRatioInterval)
-        }
-        withClue("RatioInterval.isNormalized:") {
-          ratioInterval.isNormalized shouldEqual (ratioInterval == normalizedRatioInterval)
-        }
-        withClue("CentsInterval.isNormalized:") {
-          centsInterval.isNormalized shouldEqual (ratioInterval == normalizedRatioInterval)
-        }
+          withClue("Interval.isNormalized:") {
+            interval.isNormalized shouldEqual (ratioInterval == normalizedRatioInterval)
+          }
+          withClue("RatioInterval.isNormalized:") {
+            ratioInterval.isNormalized shouldEqual (ratioInterval == normalizedRatioInterval)
+          }
+          withClue("CentsInterval.isNormalized:") {
+            centsInterval.isNormalized shouldEqual (ratioInterval == normalizedRatioInterval)
+          }
 
-        withClue("Interval.normalize:") {
-          interval.normalize.realValue shouldEqual normalizedRatioInterval.realValue
-        }
-        withClue("RatioInterval.normalize:") {
-          ratioInterval.normalize shouldEqual normalizedRatioInterval
-        }
-        withClue("CentsInterval.normalize:") {
-          centsInterval.normalize.cents shouldEqual normalizedRatioInterval.cents
-        }
+          withClue("Interval.normalize:") {
+            interval.normalize.realValue shouldEqual normalizedRatioInterval.realValue
+          }
+          withClue("RatioInterval.normalize:") {
+            ratioInterval.normalize shouldEqual normalizedRatioInterval
+          }
+          withClue("CentsInterval.normalize:") {
+            centsInterval.normalize.cents shouldEqual normalizedRatioInterval.cents
+          }
 
-        if (ratioInterval >= RatioInterval.Unison && ratioInterval < RatioInterval.Octave) {
-          withClue("Interval.normalize same instance:") {
-            interval.normalize should be theSameInstanceAs interval
+          if (ratioInterval >= RatioInterval.Unison && ratioInterval < RatioInterval.Octave) {
+            withClue("Interval.normalize same instance:") {
+              interval.normalize should be theSameInstanceAs interval
+            }
+            withClue("RatioInterval.normalize same instance:") {
+              ratioInterval.normalize should be theSameInstanceAs ratioInterval
+            }
+            withClue("CentsInterval.normalize same instance:") {
+              centsInterval.normalize should be theSameInstanceAs centsInterval
+            }
           }
-          withClue("RatioInterval.normalize same instance:") {
-            ratioInterval.normalize should be theSameInstanceAs ratioInterval
-          }
-          withClue("CentsInterval.normalize same instance:") {
-            centsInterval.normalize should be theSameInstanceAs centsInterval
-          }
-        }
 
-        if (ratioInterval >= RatioInterval.Unison && ratioInterval <= RatioInterval.Octave) {
-          withClue("Interval.invert:") {
-            interval.invert.realValue shouldEqual invertedRatioInterval.realValue
+          if (ratioInterval >= RatioInterval.Unison && ratioInterval <= RatioInterval.Octave) {
+            withClue("Interval.invert:") {
+              interval.invert.realValue shouldEqual invertedRatioInterval.realValue
+            }
+            withClue("RatioInterval.invert:") {
+              ratioInterval.invert shouldEqual invertedRatioInterval
+            }
+            withClue("CentsInterval.invert:") {
+              centsInterval.invert.cents shouldEqual invertedRatioInterval.cents
+            }
+          } else {
+            assertThrows[IllegalArgumentException](interval.invert)
+            assertThrows[IllegalArgumentException](ratioInterval.invert)
+            assertThrows[IllegalArgumentException](centsInterval.invert)
           }
-          withClue("RatioInterval.invert:") {
-            ratioInterval.invert shouldEqual invertedRatioInterval
-          }
-          withClue("CentsInterval.invert:") {
-            centsInterval.invert.cents shouldEqual invertedRatioInterval.cents
-          }
-        } else {
-          assertThrows[IllegalArgumentException](interval.invert)
-          assertThrows[IllegalArgumentException](ratioInterval.invert)
-          assertThrows[IllegalArgumentException](centsInterval.invert)
         }
       }
-    }
 
     "correctly add" in {
       val table = Table[RatioInterval, RatioInterval, RatioInterval](

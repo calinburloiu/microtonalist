@@ -31,8 +31,8 @@ import scala.collection.immutable.VectorMap
 
 /**
  * Manages a collection of MIDI tracks and updates them based on external events: it re-tunes every track when the
- * tuning changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks
- * whose input device becomes unavailable.
+ * tuning changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks whose
+ * input device becomes unavailable.
  */
 @NotThreadSafe
 class TrackManager(private val midiManager: MidiManager,
@@ -138,8 +138,8 @@ class TrackManager(private val midiManager: MidiManager,
    *
    *   - when an output device opens, it resets the tuner of every track whose output is that device, since the device
    *     may have (re)opened after the track was built, which restores the current tuning on it;
-   *   - when an input device becomes unavailable, or fails to, it releases the input of every track whose input is
-   *     that device, so that no note stays held on its output.
+   *   - when an input device becomes unavailable, or fails to, it releases the input of every track whose input is that
+   *     device, so that no note stays held on its output.
    *
    * @param event The MIDI event published by the [[MidiManager]].
    */
@@ -172,12 +172,11 @@ object TrackManager extends LazyLogging {
 
   /**
    * Matches the [[MidiEvent]]s that tell an input device is gone, whatever came of making it unavailable: a
-   * [[MidiDeviceUnavailableEvent]] and the [[MidiDeviceFailedToBecomeUnavailableEvent]] that replaces it when
-   * releasing the device throws, which leaves the device just as gone.
+   * [[MidiDeviceUnavailableEvent]] and the [[MidiDeviceFailedToBecomeUnavailableEvent]] that replaces it when releasing
+   * the device throws, which leaves the device just as gone.
    *
-   * The two share a handler, and Scala forbids binding a variable in a pattern alternative, so they are matched by
-   * name here instead of by
-   * `MidiDeviceUnavailableEvent(deviceId, _) | MidiDeviceFailedToBecomeUnavailableEvent(…)`.
+   * The two share a handler, and Scala forbids binding a variable in a pattern alternative, so they are matched by name
+   * here instead of by `MidiDeviceUnavailableEvent(deviceId, _) | MidiDeviceFailedToBecomeUnavailableEvent(…)`.
    */
   private object InputDeviceGone {
     def unapply(event: MidiEvent): Option[MidiDeviceId] = event match {

@@ -319,7 +319,7 @@ lazy val compilerOptions = Seq(
 lazy val targetSuffixOverride: Seq[Setting[?]] =
   sys.props.get("microtonalist.build.targetSuffix").filter(_.nonEmpty) match {
     case Some(suffix) => Seq(target := baseDirectory.value / s"target$suffix")
-    case None         => Seq.empty
+    case None => Seq.empty
   }
 
 lazy val commonSettings = Seq(
@@ -327,7 +327,7 @@ lazy val commonSettings = Seq(
     "-source", "23", "-target", "23",
   ),
   scalacOptions ++= compilerOptions,
-  resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
+  resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
   libraryDependencies ++= commonDependencies,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
 ) ++ targetSuffixOverride
@@ -339,7 +339,7 @@ lazy val assemblySettings = Seq(
       MergeStrategy.concat
     case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
       MergeStrategy.rename
-    case PathList(ps@_*) if ps.last == "module-info.class" => MergeStrategy.discard
+    case PathList(ps @ _*) if ps.last == "module-info.class" => MergeStrategy.discard
     case PathList("META-INF", xs @ _*) =>
       xs.map(_.toLowerCase) match {
         case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil =>

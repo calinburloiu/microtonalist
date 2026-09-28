@@ -36,19 +36,17 @@ import scala.collection.mutable
  *
  * Only Control Change numbers 0-119 can trigger a change. MIDI 1.0 reserves 120-127 for the Channel Mode messages,
  * which arrive as [[org.calinburloiu.music.scmidi.message.ChannelModeMidiMsg]] values rather than
- * [[org.calinburloiu.music.scmidi.message.CcMidiMsg]] ones, so a trigger configured on one of those numbers would
- * never fire. Construction therefore throws an `IllegalArgumentException` for any trigger outside 0-119, and the JSON
- * format rejects such a trigger when a composition is read.
+ * [[org.calinburloiu.music.scmidi.message.CcMidiMsg]] ones, so a trigger configured on one of those numbers would never
+ * fire. Construction therefore throws an `IllegalArgumentException` for any trigger outside 0-119, and the JSON format
+ * rejects such a trigger when a composition is read.
  *
- * @param triggers     The configuration of MIDI CC triggers that determine tuning changes.
- *                     These can include triggers for previous, next tuning changes,
- *                     or specific index-based tuning changes.
- * @param threshold    The threshold value for the pedal input to determine if a pedal is pressed
- *                     or released. Values above this threshold indicate a pressed state,
- *                     while values below or equal indicate a released state. Tuning changes are
- *                     only triggered when the state transitions from released to pressed.
- * @param triggersThru Whether tuning change MIDI trigger messages should pass through to the output or
- *                     if they should be filtered out.
+ * @param triggers The configuration of MIDI CC triggers that determine tuning changes. These can include triggers for
+ *   previous, next tuning changes, or specific index-based tuning changes.
+ * @param threshold The threshold value for the pedal input to determine if a pedal is pressed or released. Values above
+ *   this threshold indicate a pressed state, while values below or equal indicate a released state. Tuning changes are
+ *   only triggered when the state transitions from released to pressed.
+ * @param triggersThru Whether tuning change MIDI trigger messages should pass through to the output or if they should
+ *   be filtered out.
  */
 case class PedalTuningChanger(triggers: TuningChangeTriggers[CcNumber],
                               threshold: Int,
@@ -69,8 +67,8 @@ case class PedalTuningChanger(triggers: TuningChangeTriggers[CcNumber],
   def nextTuningCcTrigger: Option[CcNumber] = triggers.next
 
   /**
-   * A mutable map that tracks the state of pedals, corresponding MIDI control change (CC) messages. A pedal may be
-   * in a pressed state, `true` value, or released state, `false` value.
+   * A mutable map that tracks the state of pedals, corresponding MIDI control change (CC) messages. A pedal may be in a
+   * pressed state, `true` value, or released state, `false` value.
    */
   private val ccDepressed: mutable.Map[Int, Boolean] = mutable.Map
     .newBuilder[Int, Boolean]
@@ -138,14 +136,14 @@ object PedalTuningChanger {
    * Convenience factory that creates an instance of `PedalTuningChanger` with specified MIDI Control Change (CC)
    * triggers for previous and next tuning changes, and a threshold to determine pedal press or release.
    *
-   * @param previousTuningCcTrigger The MIDI CC number that triggers a change to the previous tuning.
-   *                                Defaults to `Cc.SoftPedal`.
-   * @param nextTuningCcTrigger     The MIDI CC number that triggers a change to the next tuning.
-   *                                Defaults to `Cc.SostenutoPedal`.
-   * @param threshold               The threshold value for determining whether the CC value
-   *                                represents a pedal press or release. Defaults to `0`.
-   * @param triggersThru            Whether tuning change MIDI trigger messages should pass through to the output or
-   *                                if they should be filtered out.
+   * @param previousTuningCcTrigger The MIDI CC number that triggers a change to the previous tuning. Defaults to
+   *   `Cc.SoftPedal`.
+   * @param nextTuningCcTrigger The MIDI CC number that triggers a change to the next tuning. Defaults to
+   *   `Cc.SostenutoPedal`.
+   * @param threshold The threshold value for determining whether the CC value represents a pedal press or release.
+   *   Defaults to `0`.
+   * @param triggersThru Whether tuning change MIDI trigger messages should pass through to the output or if they should
+   *   be filtered out.
    * @return An instance of `PedalTuningChanger` configured with the specified parameters.
    */
   def apply(previousTuningCcTrigger: Int = MidiCc.SoftPedal,

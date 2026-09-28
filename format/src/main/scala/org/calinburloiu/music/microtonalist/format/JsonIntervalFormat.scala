@@ -23,9 +23,9 @@ import play.api.libs.json.*
  * Object that contains format utilities for reading intervals in JSON format.
  *
  * Note that how an interval is read in JSON format depends on the [[IntonationStandard]]. For a given intonation
- * standard, intervals specific to other intonation standards are allowed if those are convertible to the former and
- * if there are no ambiguities (e.g. for [[EdoIntonationStandard]] JSON numbers are values in divisions and cannot
- * be interpreted as cents because for them the same JSON number type is used).
+ * standard, intervals specific to other intonation standards are allowed if those are convertible to the former and if
+ * there are no ambiguities (e.g. for [[EdoIntonationStandard]] JSON numbers are values in divisions and cannot be
+ * interpreted as cents because for them the same JSON number type is used).
  */
 object JsonIntervalFormat {
   private[format] val ErrorExpectedIntervalFor: Map[String, String] = Map(

@@ -27,8 +27,8 @@ package org.calinburloiu.music.scmidi
  *   - [[MutableMidiTransmitter]] — in-place changes, for a single thread.
  *   - [[ConcurrentMidiTransmitter]] — in-place changes from any thread.
  *
- * Unlike its Java counterpart, this trait carries no `close()`: none of the three implementations above holds
- * a resource of its own. An implementation that ever does can mix in `AutoCloseable` itself.
+ * Unlike its Java counterpart, this trait carries no `close()`: none of the three implementations above holds a
+ * resource of its own. An implementation that ever does can mix in `AutoCloseable` itself.
  *
  * @see [[javax.sound.midi.Transmitter]], which allows a single receiver only.
  */

@@ -21,7 +21,6 @@ import scala.language.implicitConversions
 package object scmidi {
   import org.calinburloiu.music.scmidi.message.MidiRequirements
 
-
   /** Concert pitch frequency in Hz for central A4. */
   val DefaultConcertPitchFreq: Double = 440.0
 

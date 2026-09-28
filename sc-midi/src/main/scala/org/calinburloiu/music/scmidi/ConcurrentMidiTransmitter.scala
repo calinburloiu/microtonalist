@@ -25,17 +25,17 @@ import javax.annotation.concurrent.ThreadSafe
  * A [[MutableMidiTransmitter]] that may be read and changed from any thread.
  *
  * It supplies the two hooks of the mutable class with a [[ReentrantReadWriteLock]]: reads take the read lock, and the
- * change guard takes the write lock for the whole read-modify-write, so concurrent `addReceiver`s never lose an
- * update. The modifiers themselves are inherited unchanged — the mutable class already routes every one of them, and
- * a direct `receivers = …` assignment, through the guard.
+ * change guard takes the write lock for the whole read-modify-write, so concurrent `addReceiver`s never lose an update.
+ * The modifiers themselves are inherited unchanged — the mutable class already routes every one of them, and a direct
+ * `receivers = …` assignment, through the guard.
  *
  * A subclass therefore overrides `setReceivers` without knowing that a lock exists: the write lock is always held by
  * the time the hook runs, whatever the entry point, and the hook may read [[receivers]] re-entrantly to compare the
  * incoming sequence with the current one. Holding the write lock while taking the read lock is a downgrade, which is
  * permitted; it is the reverse order that a `ReentrantReadWriteLock` cannot do, and no path here produces it.
  *
- * Extends the mutable class so that a caller which only needs "something it can add a receiver to" has one static
- * type, whatever the threading policy.
+ * Extends the mutable class so that a caller which only needs "something it can add a receiver to" has one static type,
+ * whatever the threading policy.
  *
  * @param initialReceivers the receivers messages are forwarded to at construction; defaults to none.
  */

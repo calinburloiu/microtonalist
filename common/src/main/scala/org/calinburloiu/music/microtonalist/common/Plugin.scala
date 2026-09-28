@@ -20,8 +20,8 @@ package org.calinburloiu.music.microtonalist.common
  * Instances of this trait are pluggable components that allow users to choose between multiple options identifies by
  * [[typeName]] withing a certain context identified by [[familyName]].
  *
- * E.g. `TuningMapper` is the ''family'' of the plugin with [[familyName]] `tuningMapper` and `AutoTuningMapper` is
- * the ''type'' of the plugin with `typeName` `"auto"`. The user may choose another type of the same family, such as
+ * E.g. `TuningMapper` is the ''family'' of the plugin with [[familyName]] `tuningMapper` and `AutoTuningMapper` is the
+ * ''type'' of the plugin with `typeName` `"auto"`. The user may choose another type of the same family, such as
  * `ManualTuningMapper`.
  */
 trait Plugin {

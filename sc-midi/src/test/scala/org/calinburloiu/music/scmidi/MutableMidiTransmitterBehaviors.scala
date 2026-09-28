@@ -20,9 +20,9 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
- * Shared behaviours for the single-thread contract of [[MutableMidiTransmitter]], to be run by the test class of
- * each implementation (the class itself and [[ConcurrentMidiTransmitter]]) via `behave like` inside the `should` block
- * of its subject.
+ * Shared behaviours for the single-thread contract of [[MutableMidiTransmitter]], to be run by the test class of each
+ * implementation (the class itself and [[ConcurrentMidiTransmitter]]) via `behave like` inside the `should` block of
+ * its subject.
  */
 trait MutableMidiTransmitterBehaviors {
   this: AnyWordSpec & Matchers =>

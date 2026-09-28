@@ -48,7 +48,7 @@ trait TrackRepo {
    * Persists the given track specifications to the specified URI.
    *
    * @param trackSpecs The track specifications to be written.
-   * @param uri        The URI where the track specifications should be saved.
+   * @param uri The URI where the track specifications should be saved.
    */
   def writeTracks(trackSpecs: TrackSpecs, uri: URI): Unit
 
@@ -56,7 +56,7 @@ trait TrackRepo {
    * Asynchronously persists the given track specifications to the specified URI.
    *
    * @param trackSpecs The track specifications to be written.
-   * @param uri        The URI where the track specifications should be saved.
+   * @param uri The URI where the track specifications should be saved.
    * @return A Future representing the completion of the write operation.
    */
   def writeTracksAsync(trackSpecs: TrackSpecs, uri: URI): Future[Unit]

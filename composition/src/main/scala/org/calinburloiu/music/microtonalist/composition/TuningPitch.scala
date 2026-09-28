@@ -27,7 +27,7 @@ import scala.language.implicitConversions
  * Class representing the tuning of a single pitch class with its offset in cents from 12-EDO.
  *
  * @param pitchClass Pitch class semitone number: C is 0, C#/Db is 1, ..., B is 11
- * @param offset     Offset from the semitone in cents
+ * @param offset Offset from the semitone in cents
  */
 case class TuningPitch(pitchClass: PitchClass, offset: Double) {
   def cents: Double = 100.0 * pitchClass + offset
@@ -35,8 +35,8 @@ case class TuningPitch(pitchClass: PitchClass, offset: Double) {
   def interval: CentsInterval = CentsInterval(cents)
 
   /**
-   * Tells if the instance is overflowing. A `TuningPitch` is said to overflow if its `offset` absolute
-   * value exceeds 100 cents causing it to overlap with an another pitch class.
+   * Tells if the instance is overflowing. A `TuningPitch` is said to overflow if its `offset` absolute value exceeds
+   * 100 cents causing it to overlap with an another pitch class.
    *
    * @return true if it's overflowing, false otherwise
    */

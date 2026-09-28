@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 /**
- * An object describing an operation that controls to which
- * [[Tuning]] from the tuning sequence should the [[Tuner]] tune.
+ * An object describing an operation that controls to which [[Tuning]] from the tuning sequence should the [[Tuner]]
+ * tune.
  *
  * @see [[TuningChanger]] which returns such an object as a decision based on the input MIDI received.
  */
@@ -30,8 +30,8 @@ sealed trait TuningChange {
   def isTriggering: Boolean
 
   /**
-   * Tells whether this operation object has the potential to trigger a tuning change but may not necessarily do so.
-   * See [[isTriggering]] which tells for certain.
+   * Tells whether this operation object has the potential to trigger a tuning change but may not necessarily do so. See
+   * [[isTriggering]] which tells for certain.
    *
    * @return whether this operation object has the potential to trigger a tuning change, or not.
    */
@@ -58,12 +58,12 @@ sealed trait IneffectiveTuningChange extends TuningChange {
 case object NoTuningChange extends IneffectiveTuningChange
 
 /**
- * Describes an operation that does not trigger a tuning change, but the MIDI message that caused the production of
- * this operation via [[TuningChanger.decide]] it part of a series/pattern that may eventually trigger an effective
- * tuning change.
+ * Describes an operation that does not trigger a tuning change, but the MIDI message that caused the production of this
+ * operation via [[TuningChanger.decide]] it part of a series/pattern that may eventually trigger an effective tuning
+ * change.
  *
- * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous
- * stream of CC messages, but only for one of them a tuning change is triggered, for the rest this operation is emitted.
+ * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous stream of CC
+ * messages, but only for one of them a tuning change is triggered, for the rest this operation is emitted.
  */
 case object MayTriggerTuningChange extends IneffectiveTuningChange {
   override def mayTrigger: Boolean = true
@@ -75,13 +75,11 @@ case object MayTriggerTuningChange extends IneffectiveTuningChange {
  */
 case object PreviousTuningChange extends EffectiveTuningChange
 
-
 /**
  * Describes an operation that changes to the next tuning from the tuning sequence. If the current tuning is the last
  * one, it wraps around to the first tuning.
  */
 case object NextTuningChange extends EffectiveTuningChange
-
 
 /**
  * Describes an operation that changes to a specific tuning index from the tuning sequence.

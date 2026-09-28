@@ -70,9 +70,9 @@ object ManualTuningMapper {
   /**
    * Computes the offset in cents from 12-EDO for the given pitch class.
    *
-   * @param totalCentsInterval a normalized total number of cents counted from a 12-EDO C which contains absolute
-   *                           scale intervals
-   * @param pitchClass         pitch class from which the offset is computed
+   * @param totalCentsInterval a normalized total number of cents counted from a 12-EDO C which contains absolute scale
+   *   intervals
+   * @param pitchClass pitch class from which the offset is computed
    * @return an offset in cents
    */
   private def computeTuningOffset(totalCentsInterval: CentsInterval, pitchClass: PitchClass): Double = {
