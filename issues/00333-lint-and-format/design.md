@@ -123,7 +123,8 @@ Starting settings, based on the existing code:
 | `align.openParenDefnSite` (and `align.openParenCallSite`, if the code shows it) | `true` | Matches `class MpeTuner(private val …,\n               private val …) extends Tuner {` |
 | `danglingParentheses.*` | tuned | The code keeps `)` on the last line rather than on its own line |
 | `docstrings.style` | `Asterisk` | The existing ` * ` ScalaDoc style |
-| `docstrings.wrap`, `comments.wrap` | `keep`, `no` | scalafmt can't break only the comment lines that are too long: it refills every ScalaDoc paragraph, or every multi-line `/* */` comment, license headers included |
+| `docstrings.wrap` | `fold` | Keeps ScalaDoc within 120 columns by refilling each paragraph; chosen in the tooling PR's review |
+| `comments.wrap` | `no` | It would refill every multi-line `/* */` comment whatever its length, license headers included |
 | `rewrite.scala3.convertToNewSyntax`, `rewrite.scala3.removeOptionalBraces` | `false` | Brace syntax convention |
 | Import sorting | not configured | #334's `OrganizeImports` owns import order |
 | `project.git` | not set | `true` would leave new files unformatted until they're `git add`ed. sbt formats only its source directories, and the hook passes file names |
@@ -141,7 +142,8 @@ Starting settings, based on the existing code:
 
 `keep` is the closest match to IntelliJ, whose default reformat also keeps the line breaks the author wrote ("Keep when
 reformatting → Line breaks"). The bulk diff shrinks to indentation, spacing and alignment fixes, and lines over 120
-columns are still split. **Trade-off:** line breaks aren't standardized. Two authors can break the same expression
+columns are still split. ScalaDoc is the exception: `docstrings.wrap = fold` refills its paragraphs, which makes up most
+of the bulk diff. **Trade-off:** line breaks aren't standardized. Two authors can break the same expression
 differently and both pass `scalafmtCheck`. The setting can be tightened later, one construct at a time.
 
 ### sbt aliases (in `build.sbt`)

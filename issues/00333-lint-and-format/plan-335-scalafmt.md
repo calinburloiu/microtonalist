@@ -27,8 +27,9 @@ design is the source of truth; this plan doesn't reopen its decisions.
   sbt 1.10.7: every 2.6.x release refuses to run on sbt older than 1.12.9. #336 upgrades sbt, and then the plugin to
   2.6.x. The plugin downloads the scalafmt version that `.scalafmt.conf` pins, so the output doesn't depend on it.
 - `.scalafmt.conf` at the repo root with `version = 3.11.5`, and no license header (the `.conf` extension isn't checked).
-- Style targets: `maxColumn = 120`, `indent.main = 2`, `newlines.source = keep`, `docstrings.style = Asterisk`, no
-  docstring or comment wrapping, `rewrite.scala3.convertToNewSyntax = false`, `rewrite.scala3.removeOptionalBraces`
+- Style targets: `maxColumn = 120`, `indent.main = 2`, `newlines.source = keep`, `docstrings.style = Asterisk`,
+  ScalaDoc refilled with `docstrings.wrap = fold` (chosen in the tooling PR's review; the plan started without it), no
+  other comment wrapping, `rewrite.scala3.convertToNewSyntax = false`, `rewrite.scala3.removeOptionalBraces`
   off, no import sorting (#334's `OrganizeImports` owns it), `project.git = true`.
 - Dialects: `scala3` by default, `sbt1` for `*.sbt`, `scala212` for `project/*.scala`.
 - Aliases in `build.sbt`: `fix` = `scalafmtAll`, `scalafmtSbt`, `experiments/scalafmtAll`; `lint` = `scalafmtCheckAll`,

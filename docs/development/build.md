@@ -54,8 +54,12 @@ formatted with [scalafmt](https://scalameta.org/scalafmt/). Its configuration, `
 pins the scalafmt version and reproduces IntelliJ IDEA's default Scala style. It sets `newlines.source = keep`: scalafmt
 keeps most of the line breaks the author wrote, so two ways of breaking the same expression can both pass the check. It
 breaks a code line that would exceed 120 columns, and a few of its rules add or move other breaks, e.g. a multi-line
-`if` condition gets its parentheses on their own lines. It doesn't wrap comments, so wrap a long comment by hand:
-scalafmt can only refill whole comments, which would rewrap every ScalaDoc and license header.
+`if` condition gets its parentheses on their own lines.
+
+ScalaDoc is the exception to keeping line breaks: scalafmt refills each ScalaDoc paragraph up to 120 columns
+(`docstrings.wrap = fold`), and indents the continuation lines of a tag like `@param` by 2 instead of aligning them.
+Other comments aren't wrapped, so wrap a `//` or `/* */` comment longer than 120 columns by hand: scalafmt can only
+refill every multi-line `/* */` comment, which would rewrap each file's license header.
 
 Format everything:
 
