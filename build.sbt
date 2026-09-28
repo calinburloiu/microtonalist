@@ -26,9 +26,10 @@ ThisBuild / semanticdbEnabled := true
 // Register the coverage-related commands
 commands ++= Coverage.commands
 
-// Code formatting: `fix` rewrites the sources with scalafmt and `lint` checks them without changing anything. `root`
-// doesn't aggregate `experiments`, so both name it explicitly. See docs/development/build.md#formatting.
-addCommandAlias("fix", "scalafmtAll; scalafmtSbt; experiments/scalafmtAll")
+// Code formatting and linting: `fix` applies the scalafix autofixes, then formats the sources with scalafmt; `lint`
+// checks the formatting without changing anything. `root` doesn't aggregate `experiments`, so both name it explicitly.
+// See docs/development/build.md#formatting and docs/development/linting.md.
+addCommandAlias("fix", "scalafixAll; experiments/scalafixAll; scalafmtAll; scalafmtSbt; experiments/scalafmtAll")
 addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck; experiments/scalafmtCheckAll")
 
 // # Projects
