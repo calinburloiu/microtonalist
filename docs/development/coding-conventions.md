@@ -3,6 +3,8 @@
 General (mainly production-code) Scala conventions for this repository. Test conventions live in
 [`test-conventions.md`](test-conventions.md).
 
+Each convention says whether a tool enforces it. See [`linting.md`](linting.md).
+
 ## General formatting
 
 * Code is formatted with [scalafmt](https://scalameta.org/scalafmt/), configured in `.scalafmt.conf` to reproduce
@@ -14,6 +16,8 @@ General (mainly production-code) Scala conventions for this repository. Test con
 * scalafmt keeps most of the line breaks you write in code; a few of its rules add or move some. In ScalaDoc, it joins
   the lines of each paragraph and refills them.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
+
+Enforced by scalafmt, except the ScalaDoc rule, which isn't enforced.
 
 ## Use brace syntax
 
@@ -33,6 +37,9 @@ case class Person(name: String, age: Int) {
   def greet: String = s"Hi, I'm $name"
 }
 ```
+
+Enforced by the compiler flags `-no-indent` and `-old-syntax`, which make indentation syntax and `if … then` compile
+errors, and by scalafmt, which never removes braces.
 
 ## Use `enum`
 
@@ -57,6 +64,8 @@ enum MpeInputMode {
 }
 ```
 
+Not enforced.
+
 ## Avoid `case class` for mutable data structures
 
 Avoid using case classes for data structures that expose mutable fields.
@@ -75,6 +84,8 @@ class ActiveNote(val midiNote: MidiNote,
                  var expressivePitchBend: Int = 0)
 ```
 
+Not enforced.
+
 ## TODOs have issue numbers
 
 All TODOs in the code use `// TODO #<issue_number>`, where `<issue_number>` is the issue number on the project's GitHub
@@ -91,6 +102,8 @@ Correct:
 ```scala
 // TODO #149 Add support for Windows
 ```
+
+Enforced by scalafix (`DisableSyntax`, `todoWithoutIssue`).
 
 ## Prefer for-comprehensions for nested monads
 
@@ -114,19 +127,38 @@ for {
 } yield item * 2
 ```
 
-## Avoid `new` when instantiating a class
+Not enforced.
 
-Wrong:
+## Prefer omitting `new` when instantiating a class
+
+Avoid:
 
 ```scala
 val c = new MyClass(x, y)
 ```
 
-Correct:
+Prefer:
 
 ```scala
 val c = MyClass(x, y)
 ```
+
+This is a recommendation, not enforced: the code still has many `new X(...)` calls.
+
+## No unused code
+
+Remove unused imports, private members, local definitions and parameters. In production code, don't discard a
+non-`Unit` value silently either: when discarding it is intended, assign it to `_`.
+
+```scala
+if (handle.state == State.Closed) {
+  val _ = handles.remove(handle.id)
+}
+```
+
+Enforced by the compiler (`-Wunused:all`, and for production code `-Wvalue-discard` and `-Wnonunit-statement`).
+`sbtn fix` removes unused imports with scalafix. Nothing removes other unused code automatically: fix it by hand, and
+when a test value is unused, check first whether the case forgot to check it.
 
 ## No `return`
 
@@ -164,6 +196,8 @@ class C {
 }
 ```
 
+Enforced by scalafix (`DisableSyntax.noReturns`).
+
 ## Class private internal backing variables for public getter / setter
 
 If a class has a public getter or setter that is backed by an internal `private` or `protected` variable, use the same
@@ -180,3 +214,5 @@ class C {
   }
 }
 ```
+
+Not enforced.

@@ -9,6 +9,7 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 - [`test.md`](test.md) — running the test suite.
 - [`coding-conventions.md`](coding-conventions.md) — general / production Scala coding conventions.
 - [`test-conventions.md`](test-conventions.md) — conventions for writing tests.
+- [`linting.md`](linting.md) — compiler warnings and scalafix rules: what each checks, and how to suppress a finding.
 - [`coverage.md`](coverage.md) — manual coverage workflow (`coverageAll` / `coverageModules`) and CI's `coverageCheck`.
 - [`scoverage-issue.md`](scoverage-issue.md) — the known sbt-scoverage + Scala 3 TASTy concurrency issue and how to
   handle it.
