@@ -23,6 +23,11 @@ ThisBuild / organization := "org.calinburloiu.music"
 // Register the coverage-related commands
 commands ++= Coverage.commands
 
+// Code formatting: `fix` rewrites the sources with scalafmt and `lint` checks them without changing anything. `root`
+// doesn't aggregate `experiments`, so both name it explicitly. See docs/development/build.md#formatting.
+addCommandAlias("fix", "scalafmtAll; scalafmtSbt; experiments/scalafmtAll")
+addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck; experiments/scalafmtCheckAll")
+
 // # Projects
 //
 // CONVENTION: every project sets `.withId(<base-directory-name>)` so the sbt project ID always equals the

@@ -16,49 +16,146 @@
 #
 
 #
-# pre-commit — add Apache 2.0 license headers to new source files.
+# pre-commit — prepare the staged source files for the commit.
 #
-# Runs google/addlicense in add mode over the staged, in-scope files, then
-# re-stages any it modified, so new files get a header automatically on commit.
-# Existing files (which already contain a "Copyright" line) are left untouched.
+# 1. addlicense adds the Apache 2.0 license header to new source files. Existing
+#    files (which already contain a "Copyright" line) are left untouched.
+#    See docs/development/license-headers.md.
+# 2. scalafmt formats the staged `.scala` and `.sbt` files with the repository's
+#    `.scalafmt.conf`. See docs/development/build.md#pre-commit-hook.
+#
+# Each step rewrites the files in the working tree and re-stages them, so its
+# changes land in this commit. Re-staging a whole file also stages the file's
+# unstaged hunks, so a partial commit (`git add -p`) includes them.
+# `git commit <paths>` (or `--only`) runs the hook on a temporary index, where
+# re-staging would leave the real index with the old content. In that case the
+# hook re-stages nothing and stops the commit if a step changed a file; the
+# next `git commit <paths>` then commits the changed files. A commit that
+# concludes a merge leaves the files taken as they are from the merged branch
+# untouched.
 #
 # Enable once per clone with:  git config core.hooksPath .githooks
-# CI enforces the same headers via `addlicense -check`, so this hook is a
-# convenience: if addlicense is not installed it skips quietly and lets CI catch
-# any omissions.
-#
-# See docs/development/license-headers.md.
+# The hook is a convenience: when a step's tool is not installed, that step is
+# skipped with a message and the other step still runs. CI enforces the license
+# headers via `addlicense -check`.
 #
 
 set -euo pipefail
 
-if ! command -v addlicense >/dev/null 2>&1; then
-  echo "pre-commit: addlicense not found on PATH; skipping license-header insertion (CI will enforce)." >&2
-  exit 0
-fi
-
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# Staged (Added/Copied/Modified), in-scope files. addlicense recognises the
+# `git commit <paths>` and `git commit --only` point GIT_INDEX_FILE at a
+# temporary `next-index-<pid>.lock`; see the header comment.
+commit_with_paths=false
+case "${GIT_INDEX_FILE:-}" in
+  */next-index-*.lock) commit_with_paths=true ;;
+esac
+changed_files_not_restaged=false
+
+# The staged (Added/Copied/Modified/Renamed) files, each followed by a NUL. With
+# `-z`, git neither quotes nor escapes a name (it would otherwise quote one with
+# non-ASCII characters). They're listed here, outside any function, so that a git
+# error stops the hook (`set -e`) instead of passing as an empty list.
+staged_list="$(mktemp)"
+trap 'rm -f "$staged_list"' EXIT
+git diff --cached --name-only -z --diff-filter=ACMR > "$staged_list"
+
+# A commit that concludes a merge stages every file that the merged branch
+# changed; see is_as_in_merged_branch.
+merging=false
+if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  merging=true
+fi
+
+# Tells whether this commit concludes a merge and the staged file $1 is the same
+# as in the merged branch. The hook leaves such a file as it is, so that the merge
+# commit holds no change that neither parent has. It still prepares the files
+# that the merge combined or that were resolved by hand.
+is_as_in_merged_branch() {
+  [ "$merging" = true ] && git diff --cached --quiet MERGE_HEAD -- "$1"
+}
+
+# Prints the staged files whose path matches the extended regular expression $1,
+# each followed by a NUL. A staged file that was removed from the working tree is
+# left out: re-staging it would stage its deletion.
+staged_files_matching() {
+  local f
+  while IFS= read -r -d '' f; do
+    if [[ $f =~ $1 ]] && [ -e "$f" ] && ! is_as_in_merged_branch "$f"; then
+      printf '%s\0' "$f"
+    fi
+  done < "$staged_list"
+}
+
+# Re-stages the given files, which a step may have rewritten, so its changes
+# land in this commit. With `git commit <paths>` it only records whether a step
+# changed any of them. Every file is already in the index, so `-f` adds no new
+# file: it only lets git re-stage a file that was force-added under an ignored
+# path.
+restage() {
+  if [ "$commit_with_paths" = true ]; then
+    git diff --quiet -- "$@" || changed_files_not_restaged=true
+  else
+    git add -f -- "$@"
+  fi
+}
+
+# Adds license headers to the staged, in-scope files. addlicense recognises the
 # comment style for these extensions; `.sbt` and `.fxml` are deliberately left
 # out of add mode because addlicense would pick the wrong style for them — add
-# their headers by hand (CI's `-check` still enforces them). See the doc above.
-# (A `while read` loop instead of `mapfile` keeps this working on the bash 3.2
-# that ships with macOS.)
-files=()
-while IFS= read -r f; do
-  [ -n "$f" ] && files+=("$f")
-done < <(
-  git diff --cached --name-only --diff-filter=ACM \
-    | grep -E '\.(scala|java|py|sh|bash|html|xml|js|css|properties)$' || true
-)
+# their headers by hand (CI's `-check` still enforces them).
+add_license_headers() {
+  # (A `while read` loop instead of `mapfile` keeps this working on the bash 3.2
+  # that ships with macOS.)
+  local files=()
+  local f
+  while IFS= read -r -d '' f; do
+    files+=("$f")
+  done < <(staged_files_matching '\.(scala|java|py|sh|bash|html|xml|js|css|properties)$')
 
-[ "${#files[@]}" -eq 0 ] && exit 0
+  if [ "${#files[@]}" -eq 0 ]; then
+    return 0
+  fi
+  if ! command -v addlicense >/dev/null 2>&1; then
+    echo "pre-commit: addlicense not found on PATH; skipping license-header insertion (CI will enforce)." >&2
+    return 0
+  fi
 
-addlicense -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu" -l apache "${files[@]}"
+  addlicense -ignore '**/tests/resources/**' -f .license-header.tmpl -c "Calin-Andrei Burloiu" -l apache "${files[@]}"
+  # Re-stage anything addlicense rewrote so the header lands in this commit.
+  restage "${files[@]}"
+}
 
-# Re-stage anything addlicense rewrote so the header lands in this commit.
-git add -- "${files[@]}"
+# Formats the staged Scala and sbt files. scalafmt reads its version, its style
+# and each file's dialect from .scalafmt.conf.
+format_scala() {
+  local files=()
+  local f
+  while IFS= read -r -d '' f; do
+    files+=("$f")
+  done < <(staged_files_matching '\.(scala|sbt)$')
 
-exit 0
+  if [ "${#files[@]}" -eq 0 ]; then
+    return 0
+  fi
+  if ! command -v scalafmt >/dev/null 2>&1; then
+    echo "pre-commit: scalafmt not found on PATH; skipping formatting. Install it with: cs install scalafmt" >&2
+    return 0
+  fi
+
+  if ! scalafmt --non-interactive --respect-project-filters "${files[@]}"; then
+    echo "pre-commit: scalafmt failed (see above). Fix the error, or bypass the hook with 'git commit --no-verify'." >&2
+    exit 1
+  fi
+  # Re-stage the formatted files so the formatting lands in this commit.
+  restage "${files[@]}"
+}
+
+add_license_headers
+format_scala
+
+if [ "$changed_files_not_restaged" = true ]; then
+  echo "pre-commit: the hook changed some of the files, and 'git commit <paths>' doesn't let it re-stage them. Review the changes (git diff) and commit again." >&2
+  exit 1
+fi

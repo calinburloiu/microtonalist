@@ -5,9 +5,14 @@ General (mainly production-code) Scala conventions for this repository. Test con
 
 ## General formatting
 
+* Code is formatted with [scalafmt](https://scalameta.org/scalafmt/), configured in `.scalafmt.conf` to reproduce
+  IntelliJ IDEA's default Scala style. Format with `sbtn fix` and check with `sbtn lint`; see
+  [`build.md`](build.md#formatting).
 * Indentation is done with 2 spaces.
-* Lines have a maximum length of 120 characters.
-* Currently, we use IntelliJ IDEA for formatting code with the default settings.
+* Lines have a maximum length of 120 characters. scalafmt breaks longer code lines and refills ScalaDoc paragraphs, but
+  doesn't wrap other comments, so wrap a long `//` or `/* */` comment by hand.
+* scalafmt keeps most of the line breaks you write in code; a few of its rules add or move some. In ScalaDoc, it joins
+  the lines of each paragraph and refills them.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
 
 ## Use brace syntax
