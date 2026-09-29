@@ -307,6 +307,19 @@ def coverageSettings(stmt: Double, branch: Double): Seq[Setting[?]] = Seq(
   coverageDataDir := (LocalRootProject / baseDirectory).value / "coverage-reports" / thisProject.value.id,
 )
 
+// When `-Dmicrotonalist.build.strictWarnings=true` is passed to sbt, the warnings that the default mode allows are
+// compile errors too. CI's `lint` job and the Lint step's last check set it. See
+// docs/development/linting.md#warnings-policy.
+lazy val strictWarnings: Boolean = sys.props.get("microtonalist.build.strictWarnings").contains("true")
+
+// Every warning is a compile error, except deprecations and, unless strictWarnings, two more: an unused constructor
+// parameter, the one warning a TDD red-phase stub needs, and an unused import, which `sbtn fix` removes (scalafix only
+// runs on code that compiles). Within one -Wconf option the rightmost matching rule wins (not the leftmost, as scalac's
+// help says), so `any:e` comes first. Re-test any change on a scratch file.
+lazy val warningsPolicy: String =
+  if (strictWarnings) "-Wconf:any:e,cat=deprecation:w"
+  else "-Wconf:any:e,cat=deprecation:w,msg=unused explicit parameter:w,msg=unused import:w"
+
 lazy val compilerOptions = Seq(
   "-deprecation",
   "-feature",
@@ -324,6 +337,7 @@ lazy val compilerOptions = Seq(
   // docs/development/coding-conventions.md#use-brace-syntax.
   "-no-indent",
   "-old-syntax",
+  warningsPolicy,
 )
 
 // When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory

@@ -21,7 +21,8 @@ Scala 3 and is built by using sbt 1.
   explains how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
-      no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
+      no logic) to get them to compile. A stub may leave constructor parameters unused; that warning is allowed until
+      green. Everything else must compile. Then confirm the tests fail for the right reason. The tests failure reason
       **shall not** be due to compile errors, iterate until the code compiles.
     - **Green**. Write only enough production code to make it pass, no more.
     - **Refactor**. Once green, refactor the structure and naming freely, keeping the suite green throughout.
