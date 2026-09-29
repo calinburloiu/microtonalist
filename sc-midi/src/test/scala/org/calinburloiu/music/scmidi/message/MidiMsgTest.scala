@@ -582,9 +582,11 @@ class MidiMsgTest extends AnyWordSpec with Matchers with TableDrivenPropertyChec
       typeChecks("val m: Midi1Msg = NoteOnMidiMsg(0, MidiNote(60))") shouldBe true // Channel Voice
       typeChecks("val m: Midi1Msg = TuneRequestMidiMsg") shouldBe true // System Common
       typeChecks("val m: Midi1Msg = TimingClockMidiMsg") shouldBe true // System Real-Time
-      typeChecks("val m: Midi1Msg = SysExMidiMsg(ArraySeq.empty[Byte])") shouldBe true // System Exclusive
+      typeChecks("val m: Midi1Msg = SysExMidiMsg(scala.collection.immutable.ArraySeq.empty[Byte])") shouldBe
+        true // System Exclusive
       typeChecks("val m: Midi1Msg = EndOfTrackMetaMidiMsg") shouldBe true // SMF meta
-      typeChecks("val m: Midi1Msg = UnsupportedMidiMsg(ArraySeq.empty[Byte])") shouldBe true // fallback
+      typeChecks("val m: Midi1Msg = UnsupportedMidiMsg(scala.collection.immutable.ArraySeq.empty[Byte])") shouldBe
+        true // fallback
     }
 
     "keep Midi1Msg and Midi2Msg as subtypes of MidiMsg" in {

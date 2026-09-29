@@ -61,7 +61,7 @@ ScalaDoc is the exception to keeping line breaks: scalafmt refills each ScalaDoc
 Other comments aren't wrapped, so wrap a `//` or `/* */` comment longer than 120 columns by hand: scalafmt can only
 refill every multi-line `/* */` comment, which would rewrap each file's license header.
 
-Format everything:
+Apply the scalafix autofixes (see [Linting](#linting)), then format everything:
 
 ```bash
 sbtn fix
@@ -73,8 +73,7 @@ Check the formatting without changing any file. It fails if a file isn't formatt
 sbtn lint
 ```
 
-Both are command aliases defined in `build.sbt`. Besides the modules that `root` aggregates, they cover the build
-definition and the `experiments` module, which `root` doesn't aggregate.
+Both are command aliases defined in `build.sbt`. Besides the modules, they cover the build definition.
 
 CI's `lint` job runs `sbt lint` on every pull request, in parallel with the tests.
 
@@ -110,6 +109,13 @@ Metals reads `.scalafmt.conf` by itself, so formatting from an editor that uses 
 with `sbtn fix` rather than the Metals MCP `format-file` tool: with the development stack's standalone Metals client
 (see [`dev-stack.md`](../agents/dev-stack.md)), that tool computes the formatting but doesn't write it to the file. For
 IntelliJ IDEA, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md#formatting).
+
+## Linting
+
+Before formatting, `sbtn fix` applies the autofixes of [scalafix](https://scalacenter.github.io/scalafix/): it removes
+unused imports, orders the imports, and removes redundant syntax. The compiler also warns about unused code and
+discarded values. [`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how
+to suppress a finding.
 
 ## Building the fat JAR
 

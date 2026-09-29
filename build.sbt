@@ -20,13 +20,19 @@ ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / version := "1.6.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
+// SemanticDB, which scalafix's semantic rules read. Metals enables it too, but plain sbt (CI) needs it set.
+ThisBuild / semanticdbEnabled := true
+
 // Register the coverage-related commands
 commands ++= Coverage.commands
 
-// Code formatting: `fix` rewrites the sources with scalafmt and `lint` checks them without changing anything. `root`
-// doesn't aggregate `experiments`, so both name it explicitly. See docs/development/build.md#formatting.
-addCommandAlias("fix", "scalafmtAll; scalafmtSbt; experiments/scalafmtAll")
-addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck; experiments/scalafmtCheckAll")
+// Code formatting and linting: `fix` applies the scalafix autofixes, then formats the sources with scalafmt; `lint`
+// checks the formatting without changing anything. See docs/development/build.md#formatting and
+// docs/development/linting.md.
+addCommandAlias("fix", "scalafixAll; scalafmtAll; scalafmtSbt")
+// TODO #334 Check the scalafix rules too (`scalafixAll --check`) once the bulk autofix PR (#342) has merged: before it,
+//  the unorganized imports would fail the check.
+addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck")
 
 // # Projects
 //
@@ -56,6 +62,7 @@ lazy val root = (project in file("."))
     formatModule,
     intonationModule,
     scMidiModule,
+    experimentsModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -267,12 +274,13 @@ lazy val experimentsModule = (project in file("experiments"))
   .dependsOn(
     intonationModule,
   )
+  .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-experiments",
     commonSettings,
-    assemblySettings,
-    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.experiments.SoftChromaticGenusStudy"),
     libraryDependencies ++= Seq(),
+    // Throwaway research studies without tests — exclude from coverage measurement.
+    coverageEnabled := false,
   )
 
 // # Dependencies
@@ -307,7 +315,15 @@ lazy val compilerOptions = Seq(
   "-language:implicitConversions",
   "-language:postfixOps",
   // Used for scalamock: trait Mock is marked as experimental
-  "-experimental"
+  "-experimental",
+  // Unused imports, private members, local definitions, parameters, and `@nowarn` annotations that suppress nothing.
+  // Not used, for now: `-Wsafe-init` (slower compiles, and no convention needs it), `-Wshadow`, and `-Wvalue-discard`
+  // with `-Wnonunit-statement` (every intentionally discarded result would need a noisy `val _ = …`).
+  "-Wunused:all",
+  // Brace syntax only: indentation syntax and `if … then` are compile errors. See
+  // docs/development/coding-conventions.md#use-brace-syntax.
+  "-no-indent",
+  "-old-syntax",
 )
 
 // When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory

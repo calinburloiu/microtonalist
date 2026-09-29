@@ -104,7 +104,8 @@ object MicrotonalistApp extends StrictLogging {
         logger.info("Preparing to exit...")
         tunerModule.close()
         midiManager.close()
-        Thread.sleep(1_000)
+        // Gives the MIDI devices time to send the messages queued while closing, before the JVM halts.
+        Thread.sleep(1_000) // scalafix:ok DisableSyntax.threadSleep
 
         logger.info("Bye bye!")
       }

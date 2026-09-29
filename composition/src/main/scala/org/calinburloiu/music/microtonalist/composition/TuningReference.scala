@@ -95,5 +95,5 @@ object ConcertPitchTuningReference {
   val typeName: String = "concertPitch"
 }
 
-// TODO Add support for Scala-app-style implementation; also look at Ableton Live 12 (https://www.ableton
+// TODO #341 Add support for Scala-app-style implementation; also look at Ableton Live 12 (https://www.ableton
 //  .com/en/live-manual/12/using-tuning-systems/#the-tuning-section)

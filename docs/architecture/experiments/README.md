@@ -18,6 +18,10 @@ whole module; new studies are added as additional `App`-style entry points.
 ## Dependencies
 
 The module declares one application dependency, `intonation`, using types such as `RatiosScale`, `Scale`, `Interval`,
-`EdoIntonationStandard`, and the `RatioInterval` infix operators. Nothing depends on `experiments`, and it is **not**
-part of the `root` aggregate, so `root` build/test tasks skip it — build or run it explicitly. Its `assembly` main class
-is `SoftChromaticGenusStudy`.
+`EdoIntonationStandard`, and the `RatioInterval` infix operators. Nothing depends on `experiments`.
+
+## Build
+
+`root` aggregates the module like any other, so tasks run on `root` such as `compile`, `test`, `fix` and `lint` cover
+it. It is excluded from coverage measurement (`coverageEnabled := false`) and has no fat JAR: run a study with
+`sbtn experiments/run`, or with `sbtn "experiments/runMain <main class>"` once there are several.

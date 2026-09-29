@@ -12,6 +12,8 @@ in `src/main/scala` and tests are in `src/test/scala`. Use `src/test/resources` 
 Conventionally, the tests for a given production class use the same package and class name is suffixed with `Test`
 (e.g. the test class for `RatioInterval` is `RatioIntervalTest`).
 
+Not enforced.
+
 ## Behavior-driven style
 
 Tests use `scalatest` (ScalaTest 3) with `scalamock` for mocking / stubbing. Prefer the behavior-driven (BDD) style:
@@ -46,6 +48,8 @@ When adding a new test case to a suite:
 * Determine if there is an existing group that is appropriate for the new test and if not create a new group.
 * Add the test in the determined group near a similar test. If there isn't a similar one, add it at the end of the
   group.
+
+`AnyFlatSpec` is reported by scalafix (`DisableSyntax`, `anyFlatSpec`); the rest isn't enforced.
 
 ## Use Given / When / Then comments in tests
 
@@ -82,10 +86,14 @@ Correct:
     }
 ```
 
+Not enforced.
+
 ## Use fixtures to reduce duplication in test cases setup
 
 Simplify test setup (typically the `Given` section) with `trait` or `abstract class` fixtures holding code that repeats
 across many cases — but don't sacrifice readability.
+
+Not enforced.
 
 ## No `if`s around assertions
 
@@ -123,12 +131,17 @@ abstract class Fixture(shouldAttach: Boolean = true) {
 }
 ```
 
+Not enforced.
+
 ## No sleeping in tests
 
 Never use `Thread.sleep`: a sleep is paid on every run of the suite. Synchronise with a `CountDownLatch` or a
 `CompletableFuture` rendezvous instead, arranged so that the failing case is detected at once and only the passing
 case waits. Where the test proves that something *cannot* happen, and so must wait a finite time for it, use a short
 `await` timeout with a named constant rather than a sleep.
+
+Enforced by scalafix (`DisableSyntax`, `threadSleep`), in production code too, where a justified sleep carries
+`// scalafix:ok DisableSyntax.threadSleep` and a comment giving the reason.
 
 ## Shared test utilities
 
@@ -146,3 +159,5 @@ lazy val myModule = (project in file("my-module"))
 events of a logger so that a test can assert on log output that tests otherwise discard.
 
 Test-utility modules have `coverageEnabled := false` so that they do not appear in coverage reports.
+
+Not enforced.

@@ -16,6 +16,7 @@ Before writing code, set up your environment and read the standards:
 - [Test reference](docs/development/test.md) — running the suite.
 - [Coding conventions](docs/development/coding-conventions.md) — general / production Scala conventions.
 - [Test conventions](docs/development/test-conventions.md) — how tests are written (BDD, Given/When/Then, fixtures).
+- [Linting](docs/development/linting.md) — compiler warnings and scalafix rules.
 - [Coverage workflow](docs/development/coverage.md) — coverage thresholds and how they are checked in CI.
 - [Architecture docs](docs/architecture/README.md) — module overview, domain concepts, and per-module deep dives.
 
@@ -51,7 +52,9 @@ cs install scalafmt
 
 To format with the same rules in IntelliJ IDEA, open **Settings → Editor → Code Style → Scala**, set **Formatter** to
 **Scalafmt**, and keep the default configuration file, `.scalafmt.conf`. Optionally, also turn on **Settings → Tools →
-Actions on Save → Reformat code**. `.idea/` isn't committed, so each developer does this once.
+Actions on Save → Reformat code**. `.idea/` isn't committed, so each developer does this once. Don't let IntelliJ IDEA
+optimize the imports: scalafix orders them, in a different layout, when you run `sbtn fix`. So don't run **Code →
+Optimize Imports**, and leave **Optimize imports** off in **Actions on Save** and in the commit dialog.
 
 ## Labels
 
