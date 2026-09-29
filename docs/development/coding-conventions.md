@@ -17,7 +17,7 @@ Each convention says whether a tool enforces it. See [`linting.md`](linting.md).
   the lines of each paragraph and refills them.
 * All public identifiers (classes, methods, fields, etc.) are properly documented via ScalaDocs.
 
-Enforced by scalafmt, except the ScalaDoc rule, which isn't enforced.
+Enforced by scalafmt, except the ScalaDoc rule and the length of `//` comments, which aren't enforced.
 
 ## Use brace syntax
 

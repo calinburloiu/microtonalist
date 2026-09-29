@@ -7,7 +7,9 @@ conventions that these checks enforce are in [`coding-conventions.md`](coding-co
 
 ## Commands
 
-- `sbtn fix` applies the scalafix autofixes, then formats the code with scalafmt.
+- `sbtn fix` applies the scalafix autofixes, then formats the code with scalafmt. scalafix compiles the code first and
+  also runs the `DisableSyntax` checks, so a compile error or a finding such as a bare TODO stops `sbtn fix` before it
+  formats anything. Fix it, or format only: `sbtn "scalafmtAll; scalafmtSbt; experiments/scalafmtAll"`.
 - `sbtn lint` checks the formatting.
 
 Both are command aliases in `build.sbt`. Besides the modules that `root` aggregates, they cover the `experiments`
