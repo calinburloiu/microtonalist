@@ -9,17 +9,16 @@ conventions that these checks enforce are in [`coding-conventions.md`](coding-co
 
 - `sbtn fix` applies the scalafix autofixes, then formats the code with scalafmt. scalafix compiles the code first and
   also runs the `DisableSyntax` checks, so a compile error or a finding such as a bare TODO stops `sbtn fix` before it
-  formats anything. Fix it, or format only: `sbtn "scalafmtAll; scalafmtSbt; experiments/scalafmtAll"`.
+  formats anything. Fix it, or format only: `sbtn "scalafmtAll; scalafmtSbt"`.
 - `sbtn lint` checks the formatting.
 
-Both are command aliases in `build.sbt`. Besides the modules that `root` aggregates, they cover the `experiments`
-module, which `root` doesn't aggregate.
+Both are command aliases in `build.sbt`.
 
 scalafix is incremental: it skips a file whose content it has already processed, even when that run's changes were
 reverted since. To run it on every file, add `--no-cache`:
 
 ```bash
-sbtn "scalafixAll --no-cache; experiments/scalafixAll --no-cache"
+sbtn "scalafixAll --no-cache"
 ```
 
 ## Compiler warnings

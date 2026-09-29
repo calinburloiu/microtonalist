@@ -24,9 +24,6 @@ project is selected: without a project prefix, `test` applies to sbt's current p
 across commands in a long-lived `sbtn`/BSP session (a `project <name>` switch sticks). The `root/` prefix is
 unambiguous.
 
-> **Note:** `experiments` is the one module `root` does not aggregate (see `build.sbt`). It currently has no tests, but
-> any added there would not be picked up by the command above.
-
 Test a single module:
 
 ```bash

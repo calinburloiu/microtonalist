@@ -27,10 +27,10 @@ ThisBuild / semanticdbEnabled := true
 commands ++= Coverage.commands
 
 // Code formatting and linting: `fix` applies the scalafix autofixes, then formats the sources with scalafmt; `lint`
-// checks the formatting without changing anything. `root` doesn't aggregate `experiments`, so both name it explicitly.
-// See docs/development/build.md#formatting and docs/development/linting.md.
-addCommandAlias("fix", "scalafixAll; experiments/scalafixAll; scalafmtAll; scalafmtSbt; experiments/scalafmtAll")
-addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck; experiments/scalafmtCheckAll")
+// checks the formatting without changing anything. See docs/development/build.md#formatting and
+// docs/development/linting.md.
+addCommandAlias("fix", "scalafixAll; scalafmtAll; scalafmtSbt")
+addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck")
 
 // # Projects
 //
@@ -60,6 +60,7 @@ lazy val root = (project in file("."))
     formatModule,
     intonationModule,
     scMidiModule,
+    experimentsModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -271,12 +272,13 @@ lazy val experimentsModule = (project in file("experiments"))
   .dependsOn(
     intonationModule,
   )
+  .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-experiments",
     commonSettings,
-    assemblySettings,
-    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.experiments.SoftChromaticGenusStudy"),
     libraryDependencies ++= Seq(),
+    // Throwaway research studies without tests — exclude from coverage measurement.
+    coverageEnabled := false,
   )
 
 // # Dependencies

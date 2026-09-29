@@ -73,8 +73,7 @@ Check the formatting without changing any file. It fails if a file isn't formatt
 sbtn lint
 ```
 
-Both are command aliases defined in `build.sbt`. Besides the modules that `root` aggregates, they cover the build
-definition and the `experiments` module, which `root` doesn't aggregate.
+Both are command aliases defined in `build.sbt`. Besides the modules, they cover the build definition.
 
 CI's `lint` job runs `sbt lint` on every pull request, in parallel with the tests.
 
