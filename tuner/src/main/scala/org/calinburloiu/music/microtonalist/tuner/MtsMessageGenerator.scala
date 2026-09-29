@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.{PitchBendSensitivity, clampValue}
 import org.calinburloiu.music.scmidi.message.{PitchBendMidiMsg, SysExMidiMsg}
+import org.calinburloiu.music.scmidi.{PitchBendSensitivity, clampValue}
 
 import java.nio.ByteBuffer
 import scala.collection.immutable.ArraySeq

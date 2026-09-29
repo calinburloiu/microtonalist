@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, TimeUnit}

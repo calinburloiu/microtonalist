@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.scmidi.MidiSerialProcessor
-import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
+import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc}
 import org.calinburloiu.music.scmidi.{
   ConcurrentMidiTransmitter, MidiChannelCount, MidiDeviceHandle, MidiDirection,
   MidiManager, MidiReceiver

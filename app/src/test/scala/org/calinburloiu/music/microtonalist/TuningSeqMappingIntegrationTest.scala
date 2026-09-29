@@ -24,8 +24,8 @@ import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.TuningList
 import org.calinburloiu.music.microtonalist.format.FormatModule
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TuningSeqMappingIntegrationTest extends AnyWordSpec with Matchers {
   private val businessync = Businessync(EventBus())

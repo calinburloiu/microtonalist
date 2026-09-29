@@ -189,7 +189,7 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    * @param index The index of the processor to wire. Must be between 0 and size - 1.
    */
   private def wireProcessor(_index: Int): Unit = withWriteLock {
-    require(0 <= _index, s"index should be positive")
+    require(0 <= _index, "index should be positive")
     val index = _index.min(size - 1)
 
     if (index > 0) {
@@ -223,7 +223,7 @@ class MidiSerialProcessor(initialProcessors: Seq[MidiProcessor],
    * @param index The index of the processor to be wired to its predecessor. Must be between 1 and size - 1.
    */
   private def wireProcessorToPrevious(_index: Int): Unit = withWriteLock {
-    require(1 <= _index, s"index should be greater or equal to 1")
+    require(1 <= _index, "index should be greater or equal to 1")
     val index = _index.min(size - 1)
 
     processors(index - 1).transmitter.receivers = Seq(processors(index).receiver)

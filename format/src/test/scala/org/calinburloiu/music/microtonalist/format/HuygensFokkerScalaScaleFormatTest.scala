@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.intonation.*
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets

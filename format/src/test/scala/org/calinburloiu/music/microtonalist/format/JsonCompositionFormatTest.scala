@@ -22,8 +22,8 @@ import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.microtonalist.composition.*
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{BeforeAndAfter, Inside}
 
 import java.net.URI

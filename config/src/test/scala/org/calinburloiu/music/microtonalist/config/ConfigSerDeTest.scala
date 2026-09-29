@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.ConfigFactory
 import org.calinburloiu.music.microtonalist.config.ConfigSerDe.*
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.jdk.CollectionConverters.*
 

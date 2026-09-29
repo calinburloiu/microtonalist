@@ -20,8 +20,8 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalamock.scalatest.AbstractMockFactory
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class DefaultScaleRepoTest extends AnyWordSpec with Matchers with AbstractMockFactory {
   private lazy val scaleRepo: DefaultScaleRepo = {
