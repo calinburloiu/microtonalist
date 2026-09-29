@@ -127,7 +127,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     val maxTuningValue = semitonePitchBendSensitivity.totalCents
     val (lsb, msb) = convertTuningValueToBytes(clampValue(tuningValue, -maxTuningValue, maxTuningValue))
 
-    buffer.put(msb)
+    val _ = buffer.put(msb)
     val _ = buffer.put(lsb)
   }
 }

@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.JsPath
@@ -23,18 +24,20 @@ import play.api.libs.json.JsPath
 import java.net.URI
 import java.net.http.HttpClient
 
-class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers {
+class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers with MockFactory {
 
-  // Sends no request: these cases only use URIs that the loader leaves to another loader.
-  private val loader: JsonPreprocessorHttpRefLoader = JsonPreprocessorHttpRefLoader(HttpClient.newHttpClient())
+  private trait Fixture {
+    // A mock without expectations: a request sent through it fails the test.
+    val loader: JsonPreprocessorHttpRefLoader = JsonPreprocessorHttpRefLoader(mock[HttpClient])
+  }
 
   "load" should {
-    "leave a file URI to another loader" in {
+    "leave a file URI to another loader, without sending a request" in new Fixture {
       // When / Then
       loader.load(URI("file:///Users/john/Music/scale.json"), JsPath) shouldBe None
     }
 
-    "leave a relative URI to another loader" in {
+    "leave a relative URI to another loader, without sending a request" in new Fixture {
       // When / Then
       loader.load(URI("scales/scale.json"), JsPath) shouldBe None
     }

@@ -42,6 +42,25 @@ otherwise:
    ends with the strict check that CI runs, `sbt -Dmicrotonalist.build.strictWarnings=true lint`, which fails on every
    warning but a deprecation.
 
+The user made these on 2026-09-29, reviewing the tooling PR #339:
+
+4. **scalafix owns the import layout.** IntelliJ IDEA's Optimize Imports is no longer run, so `OrganizeImports` no
+   longer matches it: it uses scalafix's recommended `DEFAULT` preset, except `targetDialect = Scala3` and
+   `groupedImports = Merge` (not the default `Explode`). This replaces Task 8's IntelliJ IDEA check and its tuning, the
+   tooling PR's decision 7 (`importSelectorsOrder = Keep`), and the bulk PR body's "IntelliJ IDEA's default layout".
+   The bulk diff changes too: measured on 2026-09-29, 75 files, +96/−91, not Task 11's "about 74 files, +80/−85".
+5. **`linting.md` doesn't restate the configuration.** Its "Compiler warnings" and "scalafix rules" sections are gone:
+   the flags are in `build.sbt` and the rules in `.scalafix.conf`, whose comments carry the reasons. Task 15 adds its
+   "Warnings policy" section after "Unused code" instead, and keeps to what `build.sbt` doesn't show.
+
+Also made on 2026-09-29, in the tooling PR (`68dd36e`):
+
+6. **`root` aggregates `experiments`.** It had been left out by oversight; `root` tasks, the aliases and CI now cover it
+   (it's excluded from coverage and has no fat JAR). Drop every `experiments/…` command, and the "`root` doesn't
+   aggregate `experiments`" comment, from the Global Constraints and Tasks 11–15: `fix` is
+   `scalafixAll; scalafmtAll; scalafmtSbt`, and Task 15's `lint` is
+   `Test/compile; scalafixAll --check; scalafmtCheckAll; scalafmtSbtCheck`.
+
 ## Global Constraints
 
 - `project/plugins.sbt`: `addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.9")`. It loads on sbt 1.10.7
@@ -54,7 +73,8 @@ otherwise:
   - strict (`-Dmicrotonalist.build.strictWarnings=true`): `-Wconf:any:e,cat=deprecation:w`
 - Within one `-Wconf` option the rightmost matching rule wins, so `any:e` comes first. Any change to these strings is
   re-tested. Deprecations are never errors.
-- scalafix rules: `OrganizeImports` (`targetDialect = Scala3`, `removeUnused = true`, `groupedImports = Keep`),
+- scalafix rules: `OrganizeImports` (the `DEFAULT` preset, with `targetDialect = Scala3` and `groupedImports = Merge`;
+  see decision 4),
   `DisableSyntax` (`noReturns = true`, plus the regexes `//\s*TODO(?! #\d+)`, `Thread\.sleep` and `AnyFlatSpec`),
   `NoValInForComprehension`, `RedundantSyntax`. No `RemoveUnused`: scalafix removes unused imports and nothing else.
 - The CLAUDE.md Lint step (finish PR): `sbtn fix`, then `sbtn lint`, then `sbt -Dmicrotonalist.build.strictWarnings=true
@@ -2110,6 +2130,10 @@ In `.github/workflows/scala.yml`, `lint` job, replace its last step (see Task 13
     - name: Check compiler warnings, scalafix rules and formatting
       run: sbt -Dmicrotonalist.build.strictWarnings=true lint
 ```
+
+`lint` now compiles, so the job resolves every library dependency: update the comment on the job's
+`cache-dependency-path`, which says it downloads only sbt, its plugins and scalafmt, and add `build.sbt` and
+`project/*.scala` to that list.
 
 Run: `ruby -ryaml -e 'y = YAML.load_file(".github/workflows/scala.yml"); puts y["jobs"]["lint"]["steps"].last["run"]'`
 Expected: `sbt -Dmicrotonalist.build.strictWarnings=true lint`.

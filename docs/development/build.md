@@ -114,8 +114,8 @@ IntelliJ IDEA, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md#formatting).
 
 Before formatting, `sbtn fix` applies the autofixes of [scalafix](https://scalacenter.github.io/scalafix/): it removes
 unused imports, orders the imports, and removes redundant syntax. The compiler also warns about unused code and
-discarded values. [`linting.md`](linting.md) lists every compiler flag and scalafix rule, and how to suppress a
-finding.
+discarded values. [`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how
+to suppress a finding.
 
 ## Building the fat JAR
 

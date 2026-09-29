@@ -30,6 +30,8 @@ commands ++= Coverage.commands
 // checks the formatting without changing anything. See docs/development/build.md#formatting and
 // docs/development/linting.md.
 addCommandAlias("fix", "scalafixAll; scalafmtAll; scalafmtSbt")
+// TODO #334 Check the scalafix rules too (`scalafixAll --check`) once the bulk autofix PR (#342) has merged: before it,
+//  the unorganized imports would fail the check.
 addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck")
 
 // # Projects
@@ -314,7 +316,8 @@ lazy val compilerOptions = Seq(
   "-language:postfixOps",
   // Used for scalamock: trait Mock is marked as experimental
   "-experimental",
-  // Unused imports, private members, local definitions, parameters, and `@nowarn` annotations that suppress nothing
+  // Unused imports, private members, local definitions, parameters, and `@nowarn` annotations that suppress nothing.
+  // Not used, for now: `-Wsafe-init` (slower compiles, and no convention needs it) and `-Wshadow`.
   "-Wunused:all",
   // Brace syntax only: indentation syntax and `if … then` are compile errors. See
   // docs/development/coding-conventions.md#use-brace-syntax.
@@ -323,7 +326,7 @@ lazy val compilerOptions = Seq(
 )
 
 // Warnings for production code only: ScalaTest's assertions return `Assertion`, so in tests they would fire on nearly
-// every line. See docs/development/linting.md.
+// every line.
 lazy val mainOnlyCompilerOptions = Seq(
   "-Wvalue-discard",
   "-Wnonunit-statement",

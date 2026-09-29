@@ -156,7 +156,8 @@ if (handle.state == State.Closed) {
 }
 ```
 
-Enforced by the compiler (`-Wunused:all`, and for production code `-Wvalue-discard` and `-Wnonunit-statement`).
+Enforced by the compiler (`-Wunused:all`, and for production code `-Wvalue-discard` and `-Wnonunit-statement`), which
+misses a Java method's result discarded mid-block, such as `javaMap.remove(key)`: check those by eye.
 `sbtn fix` removes unused imports with scalafix. Nothing removes other unused code automatically: fix it by hand, and
 when a test value is unused, check first whether the case forgot to check it.
 
