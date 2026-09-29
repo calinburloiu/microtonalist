@@ -9,3 +9,6 @@
 
 # [#333/#335] Reformat the code with scalafmt (#338)
 a53e02ebecf2474c85b22b46139f8cb1f399abd4
+
+# [#333/#334] Apply the scalafix autofixes (#342)
+74942b0a33a0e39614d3b4e430ba302ad26391cb
