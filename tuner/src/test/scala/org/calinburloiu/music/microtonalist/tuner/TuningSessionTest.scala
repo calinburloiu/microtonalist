@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TuningSessionTest extends AnyWordSpec with Matchers with MockFactory {
 

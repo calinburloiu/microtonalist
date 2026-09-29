@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiMsg, NoteOnMidiMsg, PitchBendMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TunerProcessorTest extends AnyWordSpec with Matchers with MockFactory {
 

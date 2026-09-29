@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.scalatest.wordspec.AsyncWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpec
 import play.api.libs.json.{Format, Json}
 
 import java.util.concurrent.locks.{Lock, ReentrantLock}

@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.MidiCc
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TuningChangeTriggersTest extends AnyWordSpec with Matchers {
   val triggers: TuningChangeTriggers[PedalTuningChanger.CcNumber] = TuningChangeTriggers(

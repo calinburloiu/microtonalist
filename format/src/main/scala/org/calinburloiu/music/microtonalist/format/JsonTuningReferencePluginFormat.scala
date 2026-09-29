@@ -22,7 +22,7 @@ import org.calinburloiu.music.microtonalist.composition.{
 }
 import org.calinburloiu.music.microtonalist.format.JsonConstraints.exclusiveMin
 import org.calinburloiu.music.scmidi.{DefaultConcertPitchFreq, MidiNote, PitchClass}
-import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
 

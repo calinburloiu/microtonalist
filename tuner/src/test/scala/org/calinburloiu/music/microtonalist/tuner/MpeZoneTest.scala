@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.PitchBendSensitivity
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.wordspec.AnyWordSpec
 
 class MpeZoneTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 

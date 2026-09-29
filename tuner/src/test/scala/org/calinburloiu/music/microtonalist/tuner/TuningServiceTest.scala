@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TuningServiceTest extends AnyWordSpec with Matchers with MockFactory {
 

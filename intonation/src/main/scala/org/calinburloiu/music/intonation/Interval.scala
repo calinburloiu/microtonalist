@@ -249,7 +249,7 @@ object RealInterval {
 case class RatioInterval(numerator: Int, denominator: Int) extends Interval {
   require(numerator > 0, s"Expecting a positive value for the numerator, but got $numerator")
   require(denominator > 0,
-    s"Expecting a positive value for the denominator, but got " +
+    "Expecting a positive value for the denominator, but got " +
       s"$denominator")
 
   override def realValue: Double = numerator.toDouble / denominator

@@ -19,7 +19,6 @@ package org.calinburloiu.music.microtonalist.composition
 import com.google.common.math.{DoubleMath, IntMath}
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.common.Plugin
-import org.calinburloiu.music.microtonalist.composition.AutoTuningMapper.DefaultShouldMapQuarterTonesLow
 import org.calinburloiu.music.microtonalist.tuner.{DefaultCentsTolerance, Tuning}
 import org.calinburloiu.music.scmidi.PitchClass
 
