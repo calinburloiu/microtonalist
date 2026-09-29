@@ -82,6 +82,11 @@ The compiler can't see a call made through reflection, so it reports a private m
 unused. Guava's `EventBus` calls the `@Subscribe` methods this way. Don't delete such a method: suppress the warning,
 as `TrackManager` does.
 
+The compiler can't see a name used only inside a string that is type-checked at compile time, such as the code passed
+to `scala.compiletime.testing.typeChecks` or ScalaTest's `assertCompiles`, `assertDoesNotCompile` and
+`assertTypeError`. It reports the import unused, and `sbtn fix` removes it: a positive check then fails, and a
+negative one passes for the wrong reason. Name such types fully inside the string, as `MidiMsgTest` does.
+
 ## Suppressing a finding
 
 Fix the code when you can. Otherwise:
