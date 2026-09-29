@@ -120,15 +120,15 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     // Subtracting the min value to make the output value 0 for it
     val tuningValueByte = (nTuningValue - minTuningOutputValue).toByte
 
-    val _ = buffer.put(tuningValueByte)
+    buffer.put(tuningValueByte)
   }
 
   private def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
     val maxTuningValue = semitonePitchBendSensitivity.totalCents
     val (lsb, msb) = convertTuningValueToBytes(clampValue(tuningValue, -maxTuningValue, maxTuningValue))
 
-    val _ = buffer.put(msb)
-    val _ = buffer.put(lsb)
+    buffer.put(msb)
+    buffer.put(lsb)
   }
 }
 

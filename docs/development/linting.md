@@ -2,7 +2,7 @@
 
 How the build checks the code beyond formatting: compiler warning flags and
 [scalafix](https://scalacenter.github.io/scalafix/) rules. Formatting is in [`build.md`](build.md#formatting). The
-flags are `compilerOptions` and `mainOnlyCompilerOptions` in `build.sbt`, and the rules are in `.scalafix.conf`; the
+flags are `compilerOptions` in `build.sbt`, and the rules are in `.scalafix.conf`; the
 comments there say why. The conventions that these checks enforce are in
 [`coding-conventions.md`](coding-conventions.md) and [`test-conventions.md`](test-conventions.md), where each one says
 what enforces it.
@@ -38,11 +38,6 @@ to `scala.compiletime.testing.typeChecks` or ScalaTest's `assertCompiles`, `asse
 `assertTypeError`. It reports the import unused, and `sbtn fix` removes it: a positive check then fails, and a
 negative one passes for the wrong reason. Name such types fully inside the string, as `MidiMsgTest` does.
 
-A value discarded on purpose is assigned to `_`, as [No unused code](coding-conventions.md#no-unused-code) shows. On
-Scala 3.6.3, ascribing `: Unit` to the expression doesn't silence `-Wvalue-discard`, and `-Wnonunit-statement` doesn't
-report the discarded result of a Java method in the middle of a block, such as `javaMap.remove(key)` or
-`buffer.put(byte)`.
-
 ## Suppressing a finding
 
 Fix the code when you can. Otherwise:
@@ -56,8 +51,8 @@ Either way, add a comment giving the reason, and a `// TODO #<issue>` if the sup
 
 ## Adding a rule
 
-1. Add a compiler flag to `compilerOptions` (`mainOnlyCompilerOptions` for production code only), or a rule to
-   `.scalafix.conf` (the built-in ones are listed at <https://scalacenter.github.io/scalafix/docs/rules/overview.html>).
+1. Add a compiler flag to `compilerOptions`, or a rule to `.scalafix.conf` (the built-in ones are listed at
+   <https://scalacenter.github.io/scalafix/docs/rules/overview.html>).
 2. Check it on a scratch file with a violation, then count the violations in the code: compile, or run
    `sbtn "scalafixAll <Rule>"`.
 3. Fix them. An autofix's output across the code goes in a PR of its own, whose squashed commit is then added to

@@ -384,7 +384,7 @@ object JavaMidiManager {
     private def forgettingIfClosed(handle: JavaMidiDeviceHandle)(command: => Seq[MidiEvent]): Seq[MidiEvent] = {
       val events = command
       if (handle.state == State.Closed) {
-        val _ = handles.remove(handle.id)
+        handles.remove(handle.id)
       }
 
       events

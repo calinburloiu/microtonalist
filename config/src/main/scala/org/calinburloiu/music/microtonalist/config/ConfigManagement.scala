@@ -46,7 +46,7 @@ final class MainConfigManager private[microtonalist] (configFile: Option[Path], 
   private val scheduledExecutorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
   private val scheduledTask: Runnable = () => save()
   if (metaConfig.saveIntervalMillis > 0) {
-    val _ = scheduledExecutorService.scheduleAtFixedRate(scheduledTask,
+    scheduledExecutorService.scheduleAtFixedRate(scheduledTask,
       metaConfig.saveIntervalMillis, metaConfig.saveIntervalMillis, TimeUnit.MILLISECONDS)
   }
 

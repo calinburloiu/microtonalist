@@ -54,7 +54,7 @@ private[javamidi] class JavaMidiDeviceReferenceCounter extends Locking {
     if (referenceCount == 0) {
       javaDevice.open()
     }
-    val _ = referenceCounts.put(javaDevice, referenceCount + 1)
+    referenceCounts.put(javaDevice, referenceCount + 1)
   }
 
   /**
@@ -66,10 +66,10 @@ private[javamidi] class JavaMidiDeviceReferenceCounter extends Locking {
     referenceCountOf(javaDevice) match {
       case 0 =>
       case 1 =>
-        val _ = referenceCounts.remove(javaDevice)
+        referenceCounts.remove(javaDevice)
         javaDevice.close()
       case referenceCount =>
-        val _ = referenceCounts.put(javaDevice, referenceCount - 1)
+        referenceCounts.put(javaDevice, referenceCount - 1)
     }
   }
 

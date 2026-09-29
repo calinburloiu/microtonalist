@@ -49,23 +49,21 @@ object MicrotonalistApp extends StrictLogging {
 
   case class AppConfigException(message: String) extends AppException(message, 3)
 
-  def main(args: Array[String]): Unit = {
-    val _ = Try {
-      logger.info(s"Welcome to Microtonalist ${BuildInfo.version}!")
+  def main(args: Array[String]): Unit = Try {
+    logger.info(s"Welcome to Microtonalist ${BuildInfo.version}!")
 
-      args match {
-        case Array(inputUrlString: String) =>
-          run(parseUrlArg(inputUrlString))
-        case Array(inputUrlString: String, configFileName: String) =>
-          run(parseUrlArg(inputUrlString), Some(parsePathArg(configFileName)))
-        case _ => throw AppUsageException
-      }
-    }.recover {
-      case appException: AppException => appException.exitWithMessage()
-      case exception: Exception =>
-        logger.error("Unexpected error", exception)
-        System.exit(1000)
+    args match {
+      case Array(inputUrlString: String) =>
+        run(parseUrlArg(inputUrlString))
+      case Array(inputUrlString: String, configFileName: String) =>
+        run(parseUrlArg(inputUrlString), Some(parsePathArg(configFileName)))
+      case _ => throw AppUsageException
     }
+  }.recover {
+    case appException: AppException => appException.exitWithMessage()
+    case exception: Exception =>
+      logger.error("Unexpected error", exception)
+      System.exit(1000)
   }
 
   private def parseUrlArg(urlString: String): URI = {
