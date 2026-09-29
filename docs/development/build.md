@@ -75,7 +75,8 @@ sbtn lint
 
 Both are command aliases defined in `build.sbt`. Besides the modules, they cover the build definition.
 
-CI's `lint` job runs `sbt lint` on every pull request, in parallel with the tests.
+CI's `lint` job runs `sbt -Dmicrotonalist.build.strictWarnings=true lint` on every pull request, in parallel with the
+tests.
 
 ### Pre-commit hook
 
@@ -113,9 +114,19 @@ IntelliJ IDEA, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md#formatting).
 ## Linting
 
 Before formatting, `sbtn fix` applies the autofixes of [scalafix](https://scalacenter.github.io/scalafix/): it removes
-unused imports, orders the imports, and removes redundant syntax. The compiler also warns about unused code and
-discarded values. [`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how
-to suppress a finding.
+unused imports, orders the imports, and removes redundant syntax. The compiler also warns about unused code.
+[`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how to suppress a
+finding.
+
+`sbtn lint` also compiles every module with warnings as errors, and checks the scalafix rules. By default three warnings
+stay warnings: deprecations; an unused constructor parameter, which a TDD red-phase stub needs; and an unused import,
+which `sbtn fix` removes (`sbtn lint` still fails on it). The build property `microtonalist.build.strictWarnings` makes
+the last two errors too; CI's `lint` job sets it. Run it locally with plain `sbt`, since the `sbtn` server can't take a
+property for one command:
+
+```bash
+sbt -Dmicrotonalist.build.strictWarnings=true lint
+```
 
 ## Building the fat JAR
 

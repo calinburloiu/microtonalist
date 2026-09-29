@@ -27,12 +27,10 @@ ThisBuild / semanticdbEnabled := true
 commands ++= Coverage.commands
 
 // Code formatting and linting: `fix` applies the scalafix autofixes, then formats the sources with scalafmt; `lint`
-// checks the formatting without changing anything. See docs/development/build.md#formatting and
-// docs/development/linting.md.
+// compiles all the code with warnings as errors, then checks the scalafix rules and the formatting without changing
+// anything. See docs/development/build.md#formatting and docs/development/linting.md.
 addCommandAlias("fix", "scalafixAll; scalafmtAll; scalafmtSbt")
-// TODO #334 Check the scalafix rules too (`scalafixAll --check`) once the bulk autofix PR (#342) has merged: before it,
-//  the unorganized imports would fail the check.
-addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck")
+addCommandAlias("lint", "Test/compile; scalafixAll --check; scalafmtCheckAll; scalafmtSbtCheck")
 
 // # Projects
 //

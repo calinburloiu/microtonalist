@@ -35,7 +35,8 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts.
-    - **Lint**. Run `sbtn fix` to format the code, then make sure `sbtn lint` passes.
+    - **Lint**. Run `sbtn fix` to apply the scalafix autofixes and format the code, then make sure `sbtn lint` passes,
+      and last that CI's strict check passes: `sbt -Dmicrotonalist.build.strictWarnings=true lint`.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
   skill).
 - If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
@@ -118,6 +119,28 @@ the floor" rule, the 80% target for new files) and tells you how to call the `sc
 performs the mechanical work (freshness check, rebuild if stale, XML parsing) in-process. The policy lives in the skill
 — loaded on demand when you invoke it — precisely so it does not clutter context up front, since coverage work only
 happens after the implementation is finished.
+
+# Warnings and Lint Rules
+
+Never ignore a compiler warning. Read the warnings of every compile, and deal with each one your change introduced
+before the task ends. Most warnings are compile errors. Three stay warnings in local builds:
+
+- An unused import: `sbtn fix` removes it.
+- A red-phase stub's unused constructor parameter: allowed until green, then use or remove the parameter.
+- A deprecation: don't add a use of a deprecated API.
+
+The Lint step's strict check, which CI runs too, fails on the first two, so only deprecations can remain.
+
+Nothing removes other unused code automatically: fix it by hand. Before deleting an "unused" private method, check
+that nothing calls it through reflection (e.g. Guava's `@Subscribe`); before deleting an unused test value, check
+whether the case forgot to check it. `sbtn fix` compiles before it applies the autofixes, so fix any compile error it
+reports first. scalafix also checks import order, no `return`, TODOs with an issue number, no `Thread.sleep` and no
+`AnyFlatSpec`.
+
+Fix a finding rather than suppress it. When a suppression is justified, use `@nowarn("msg=<message regex>")` on the
+narrowest definition for a compiler warning, or `// scalafix:ok <RuleId>` at the end of the line for a scalafix
+finding, with a comment giving the reason, and a `// TODO #<issue>` if it's temporary. See
+[`docs/development/linting.md`](docs/development/linting.md).
 
 # License Headers
 
