@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.microtonalist.composition.TestTunings.{bEvic, customGlobalFill, eSegah, justCMaj}
 import org.calinburloiu.music.microtonalist.tuner.Tuning
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class DirectTuningReducerTest extends AnyWordSpec with Matchers {
   private val reducer: TuningReducer = DirectTuningReducer

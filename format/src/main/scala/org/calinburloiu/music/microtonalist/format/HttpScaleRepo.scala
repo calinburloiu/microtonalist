@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import com.google.common.net.{MediaType, HttpHeaders as GuavaHttpHeaders}
+import com.google.common.net.{HttpHeaders as GuavaHttpHeaders, MediaType}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
 

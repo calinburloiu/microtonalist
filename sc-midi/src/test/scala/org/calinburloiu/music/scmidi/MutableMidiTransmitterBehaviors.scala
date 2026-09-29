@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 /**
  * Shared behaviours for the single-thread contract of [[MutableMidiTransmitter]], to be run by the test class of each

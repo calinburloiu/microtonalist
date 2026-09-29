@@ -17,9 +17,9 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.MidiConnectionLimit.{Limited, Unlimited}
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.wordspec.AnyWordSpec
 
 class MidiDeviceHandleTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 

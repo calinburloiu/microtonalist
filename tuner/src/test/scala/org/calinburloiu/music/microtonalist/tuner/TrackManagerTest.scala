@@ -21,8 +21,8 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
 

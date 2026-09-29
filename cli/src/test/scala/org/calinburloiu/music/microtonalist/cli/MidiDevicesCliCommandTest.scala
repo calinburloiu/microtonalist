@@ -18,8 +18,8 @@ package org.calinburloiu.music.microtonalist.cli
 
 import org.calinburloiu.music.scmidi.{MidiConnectionLimit, MidiDeviceInfo, MidiDirection, MidiManager}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import java.io.ByteArrayOutputStream
 

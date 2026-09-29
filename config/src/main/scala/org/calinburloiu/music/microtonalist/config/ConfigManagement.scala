@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.config
 
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config as HoconConfig}
+import com.typesafe.config.{Config as HoconConfig, ConfigFactory, ConfigRenderOptions}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.common.PlatformUtils
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking

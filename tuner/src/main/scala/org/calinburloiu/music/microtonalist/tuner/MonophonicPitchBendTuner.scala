@@ -17,8 +17,14 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.scmidi.message.*
-import org.calinburloiu.music.scmidi.{MidiChannelStateTracker, clampValue}
-import org.calinburloiu.music.scmidi.{MidiNote, PitchBendSensitivity, PitchBendSensitivityMessages, RpnMessages}
+import org.calinburloiu.music.scmidi.{
+  MidiChannelStateTracker,
+  MidiNote,
+  PitchBendSensitivity,
+  PitchBendSensitivityMessages,
+  RpnMessages,
+  clampValue
+}
 
 import scala.collection.mutable
 

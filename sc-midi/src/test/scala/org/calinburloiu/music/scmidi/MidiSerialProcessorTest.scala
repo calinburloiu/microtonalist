@@ -19,8 +19,8 @@ package org.calinburloiu.music.scmidi
 import org.calinburloiu.music.scmidi.message.{MidiMsg, NoteOnMidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.BeforeAndAfter
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.collection.mutable
 
