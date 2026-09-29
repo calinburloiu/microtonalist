@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.scmidi.message.{PitchBendMidiMsg, SysExMidiMsg}
 import org.calinburloiu.music.scmidi.{PitchBendSensitivity, clampValue}
+import org.calinburloiu.music.scmidi.message.{PitchBendMidiMsg, SysExMidiMsg}
 
 import java.nio.ByteBuffer
 import scala.collection.immutable.ArraySeq
@@ -120,7 +120,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     // Subtracting the min value to make the output value 0 for it
     val tuningValueByte = (nTuningValue - minTuningOutputValue).toByte
 
-    val _ = buffer.put(tuningValueByte)
+    buffer.put(tuningValueByte)
   }
 
   private def put2ByteTuningValue(buffer: ByteBuffer, tuningValue: Double): Unit = {
@@ -128,7 +128,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
     val (lsb, msb) = convertTuningValueToBytes(clampValue(tuningValue, -maxTuningValue, maxTuningValue))
 
     buffer.put(msb)
-    val _ = buffer.put(lsb)
+    buffer.put(lsb)
   }
 }
 

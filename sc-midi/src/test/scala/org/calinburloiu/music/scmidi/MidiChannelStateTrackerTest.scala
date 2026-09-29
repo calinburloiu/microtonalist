@@ -18,8 +18,8 @@ package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.MidiNote.{C4, E4, G4}
 import org.calinburloiu.music.scmidi.message.*
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class MidiChannelStateTrackerTest extends AnyWordSpec with Matchers {
 

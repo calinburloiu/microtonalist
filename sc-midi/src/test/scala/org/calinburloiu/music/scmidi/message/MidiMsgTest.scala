@@ -21,6 +21,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.collection.immutable.ArraySeq
 import scala.compiletime.testing.typeChecks
 
 class MidiMsgTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {

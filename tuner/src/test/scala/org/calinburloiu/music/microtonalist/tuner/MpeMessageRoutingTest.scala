@@ -18,10 +18,10 @@ package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.music.microtonalist.tuner.MpeRoutingVerdict.*
 import org.calinburloiu.music.scmidi.message.*
-import org.calinburloiu.music.scmidi.{MidiNote, RpnSelector}
+import org.calinburloiu.music.scmidi.{MidiNote, RpnMessages, RpnSelector}
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.wordspec.AnyWordSpec
 
 /**
  * Tests for [[MpeMessageRouting]].

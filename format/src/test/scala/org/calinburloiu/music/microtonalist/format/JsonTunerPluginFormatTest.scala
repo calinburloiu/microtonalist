@@ -107,20 +107,20 @@ class JsonTunerPluginFormatTest extends JsonFormatTestUtils {
     val mtsTunerJson = Json.obj("type" -> typeName) ++ mtsTunerCommonJson
 
     s"$tunerClassName JSON plugin format" should {
-      "deserialize with default value" in {
+      s"deserialize with default value" in {
         assertReads(reads, JsString(typeName), defaultTuner)
         assertReads(reads, Json.obj("type" -> typeName), defaultTuner)
       }
 
-      "deserialize" in {
+      s"deserialize" in {
         assertReads(reads, mtsTunerJson, tuner)
       }
 
-      "fail to deserialize from invalid JSON" in {
+      s"fail to deserialize from invalid JSON" in {
         assertReadsFailureTable(reads, mtsTunerJson, mtsTunerFailureTable)
       }
 
-      "serialize" in {
+      s"serialize" in {
         jsonPluginFormat.writes.writes(tuner) shouldEqual mtsTunerJson
       }
     }

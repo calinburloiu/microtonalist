@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.scalatest.Inside
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
-import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.*
 
 /**

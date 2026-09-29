@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.scmidi
 
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.wordspec.AnyWordSpec
 
 class MidiDeviceInfoTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 

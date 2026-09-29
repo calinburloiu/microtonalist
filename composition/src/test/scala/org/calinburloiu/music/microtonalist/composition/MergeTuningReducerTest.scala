@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.composition
 
 import org.calinburloiu.music.microtonalist.tuner.Tuning
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class MergeTuningReducerTest extends AnyWordSpec with Matchers {
 

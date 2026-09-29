@@ -147,17 +147,9 @@ This is a recommendation, not enforced: the code still has many `new X(...)` cal
 
 ## No unused code
 
-Remove unused imports, private members, local definitions and parameters. In production code, don't discard a
-non-`Unit` value silently either: when discarding it is intended, assign it to `_`.
+Remove unused imports, private members, local definitions and parameters.
 
-```scala
-if (handle.state == State.Closed) {
-  val _ = handles.remove(handle.id)
-}
-```
-
-Enforced by the compiler (`-Wunused:all`, and for production code `-Wvalue-discard` and `-Wnonunit-statement`).
-`sbtn fix` removes unused imports with scalafix. Nothing removes other unused code automatically: fix it by hand, and
+Enforced by the compiler (`-Wunused:all`). `sbtn fix` removes unused imports with scalafix. Nothing removes other unused code automatically: fix it by hand, and
 when a test value is unused, check first whether the case forgot to check it.
 
 ## No `return`

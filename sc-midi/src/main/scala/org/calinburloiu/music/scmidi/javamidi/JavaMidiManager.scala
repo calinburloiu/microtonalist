@@ -218,11 +218,11 @@ class JavaMidiManager private (businessync: Businessync, environment: JavaMidiEn
     // the registries — and make a handle available again or reopen it — after they were closed.
     environmentSubscription.foreach(_.close())
 
-    logger.info("Closing MIDI devices...")
+    logger.info(s"Closing MIDI devices...")
     withLockThenPublish {
       ((), inputEndpoint.closeAll() ++ outputEndpoint.closeAll())
     }
-    logger.info("Finished closing MIDI devices.")
+    logger.info(s"Finished closing MIDI devices.")
   }
 
   override def isDeviceAvailable(deviceId: MidiDeviceId, direction: MidiDirection): Boolean = withLock {
@@ -384,7 +384,7 @@ object JavaMidiManager {
     private def forgettingIfClosed(handle: JavaMidiDeviceHandle)(command: => Seq[MidiEvent]): Seq[MidiEvent] = {
       val events = command
       if (handle.state == State.Closed) {
-        val _ = handles.remove(handle.id)
+        handles.remove(handle.id)
       }
 
       events

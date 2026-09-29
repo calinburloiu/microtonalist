@@ -286,7 +286,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
       val before = state.expression
       val deallocated = state.decrementReferenceCount(noteIdentity, nextTime())
       if (deallocated) {
-        val _ = noteChannels.remove(noteIdentity)
+        noteChannels.remove(noteIdentity)
       }
 
       val pressureWasReset = deallocated && !state.isOccupied && resetPressureOnEmpty &&
@@ -680,7 +680,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
   private def dropNotesFromAffectedInputChannels(state: MpeChannelState, affectedInputChannels: Set[Int]): Unit = {
     val affected = state.noteIdentities.filter(n => affectedInputChannels.contains(n.inputChannel)).toSeq
     if (affected.nonEmpty) {
-      val _ = dropIdentities(state, affected, nextTime())
+      dropIdentities(state, affected, nextTime())
     }
   }
 

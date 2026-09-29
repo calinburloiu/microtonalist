@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{JsObject, JsPath, Json, __}
 
 import java.net.URI

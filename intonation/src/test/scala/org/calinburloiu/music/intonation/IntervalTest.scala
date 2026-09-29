@@ -18,9 +18,9 @@ package org.calinburloiu.music.intonation
 
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.scalactic.{Equality, TolerantNumerics}
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.wordspec.AnyWordSpec
 
 class RealIntervalTest extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
   private val epsilon: Double = 1e-2

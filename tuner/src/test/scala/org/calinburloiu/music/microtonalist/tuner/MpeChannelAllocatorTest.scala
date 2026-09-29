@@ -19,8 +19,8 @@ package org.calinburloiu.music.microtonalist.tuner
 import org.calinburloiu.music.microtonalist.tuner.MpeChannelAllocator.ChannelGroup
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalatest.OptionValues
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 /**
  * Keep tests organized in sections, one `"<section>" should { … }` block each. Each section name starts with the name

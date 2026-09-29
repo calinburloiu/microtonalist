@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.config
 
 import com.typesafe.config.{ConfigFactory, Config as HoconConfig}
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 abstract class SubConfigTest[C <: Configured, SCM <: SubConfigManager[C]] extends AnyWordSpec with Matchers {
 

@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.scmidi.javamidi
 
-import org.calinburloiu.music.scmidi.message.*
 import org.calinburloiu.music.scmidi.{MidiConnectionLimit, MidiDeviceId, MidiDeviceInfo, MidiNote}
+import org.calinburloiu.music.scmidi.message.*
 
 import javax.sound.midi.{MetaMessage, MidiDevice, MidiMessage, ShortMessage, SysexMessage}
 import scala.collection.immutable.ArraySeq

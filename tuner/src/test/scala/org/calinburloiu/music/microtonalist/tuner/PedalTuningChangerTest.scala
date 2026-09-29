@@ -22,8 +22,8 @@ import org.calinburloiu.music.scmidi.message.{
   AllNotesOffMidiMsg, AllSoundOffMidiMsg, CcMidiMsg, NoteOnMidiMsg,
   PolyModeOnMidiMsg
 }
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class PedalTuningChangerTest extends AnyWordSpec with Matchers {
 

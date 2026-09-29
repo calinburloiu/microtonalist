@@ -16,8 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.scalatest.matchers.should.Matchers
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class TuningTest extends AnyWordSpec with Matchers {
   private val mergeTolerance: Double = 0.5e-2

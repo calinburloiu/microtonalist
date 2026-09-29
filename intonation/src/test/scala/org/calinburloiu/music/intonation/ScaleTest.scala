@@ -18,9 +18,10 @@ package org.calinburloiu.music.intonation
 
 import org.calinburloiu.music.intonation.CentsInterval.*
 import org.calinburloiu.music.intonation.RatioInterval.*
+import org.calinburloiu.music.intonation.Scale.*
 import org.scalactic.{Equality, TolerantNumerics}
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class ScaleTest extends AnyWordSpec with Matchers {
   private val epsilon: Double = 1e-1

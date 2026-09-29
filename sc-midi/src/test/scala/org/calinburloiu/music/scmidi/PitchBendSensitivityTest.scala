@@ -17,8 +17,8 @@
 package org.calinburloiu.music.scmidi
 
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiRpn}
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class PitchBendSensitivityTest extends AnyWordSpec with Matchers {
 

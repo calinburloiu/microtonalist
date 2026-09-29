@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class TuningChangeTest extends AnyWordSpec with Matchers {
 

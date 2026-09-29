@@ -21,8 +21,8 @@ import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.BeforeAndAfter
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class ScaleContextConverterTest extends AnyWordSpec, Matchers, BeforeAndAfter {
   private val businessync: Businessync = Businessync(EventBus())

@@ -22,8 +22,8 @@ import org.calinburloiu.music.scmidi.message.{
 }
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiDirection, MidiManager, MidiNote, MidiReceiver, MidiSplitter}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class TrackTest extends AnyWordSpec with Matchers with MockFactory {
 

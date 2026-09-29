@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.common
 
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import java.nio.file.Paths
