@@ -67,7 +67,8 @@ Apply the scalafix autofixes (see [Linting](#linting)), then format everything:
 sbtn fix
 ```
 
-Check the formatting without changing any file. It fails if a file isn't formatted:
+Check the formatting without changing any file; the same command also compiles the code and checks the scalafix rules
+(see [Linting](#linting)). It fails if a file isn't formatted:
 
 ```bash
 sbtn lint
@@ -114,15 +115,15 @@ IntelliJ IDEA, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md#formatting).
 ## Linting
 
 Before formatting, `sbtn fix` applies the autofixes of [scalafix](https://scalacenter.github.io/scalafix/): it removes
-unused imports, orders the imports, and removes redundant syntax. The compiler also warns about unused code.
+unused imports, orders the imports, and removes redundant syntax. The compiler reports unused code.
 [`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how to suppress a
 finding.
 
-`sbtn lint` also compiles every module with warnings as errors, and checks the scalafix rules. By default three warnings
-stay warnings: deprecations; an unused constructor parameter, which a TDD red-phase stub needs; and an unused import,
-which `sbtn fix` removes (`sbtn lint` still fails on it). The build property `microtonalist.build.strictWarnings` makes
-the last two errors too; CI's `lint` job sets it. Run it locally with plain `sbt`, since the `sbtn` server can't take a
-property for one command:
+Every compile treats compiler warnings as errors, except three that stay warnings by default: deprecations; an unused
+constructor parameter, which a TDD red-phase stub needs; and an unused import, which `sbtn fix` removes. `sbtn lint`
+compiles every module and checks the scalafix rules, so it fails on an unused import all the same. The build property
+`microtonalist.build.strictWarnings` makes the last two errors too; CI's `lint` job sets it. Run it locally with plain
+`sbt`, since the `sbtn` server can't take a property for one command:
 
 ```bash
 sbt -Dmicrotonalist.build.strictWarnings=true lint

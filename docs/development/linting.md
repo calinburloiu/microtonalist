@@ -13,7 +13,7 @@ what enforces it.
   also runs the `DisableSyntax` checks, so a compile error or a finding such as a bare TODO stops `sbtn fix` before it
   formats anything. Fix it, or format only: `sbtn "scalafmtAll; scalafmtSbt"`. An unused import is only a warning (see
   [Warnings policy](#warnings-policy)), so `sbtn fix` removes it; any other unused code is a compile error, which you
-  fix.
+  fix, except a red-phase stub's unused constructor parameter, which stays a warning until green.
 - `sbtn lint` compiles the main and test code of every module, then checks the scalafix rules and the formatting,
   without changing anything.
 - `sbt -Dmicrotonalist.build.strictWarnings=true lint` is the same check in strict mode, as CI's `lint` job runs it. It
@@ -87,7 +87,12 @@ Either way, add a comment giving the reason, and a `// TODO #<issue>` if the sup
    <https://scalacenter.github.io/scalafix/docs/rules/overview.html>).
 2. Check it on a scratch file with a violation, then count the violations in the code: compile, or run
    `sbtn "scalafixAll <Rule>"`.
-3. Fix them. An autofix's output across the code goes in a PR of its own, whose squashed commit is then added to
-   `.git-blame-ignore-revs`.
-4. Say in the convention it enforces that it's enforced, and why next to the flag or rule when that isn't
+3. Fix them in the same PR: as soon as the flag or rule is in, each violation fails the compile or `sbtn lint`'s
+   scalafix check. A flag whose findings need more time can stay a warning for now, through a `-Wconf:<filter>:w`
+   appended to `warningsPolicy`, with a `// TODO #<issue>`.
+4. An autofix whose output changes much of the code goes in a PR of its own, so that `git blame` can skip it. Stage it
+   in three PRs: configure the rule in `.scalafix.conf` without listing it in `rules`, so `fix` and `lint` ignore it;
+   then the output of `sbtn "scalafixAll <Rule>"` alone, which runs the rule by name; then list the rule, and add the
+   second PR's squashed commit to `.git-blame-ignore-revs`.
+5. Say in the convention it enforces that it's enforced, and why next to the flag or rule when that isn't
    obvious.

@@ -82,6 +82,8 @@ listing available MIDI devices). See `build.sbt` and [`docs/development/build.md
 Route **all** sbt commands through `sbtn` so they run on the single long-lived BSP-server JVM rather than spawning a
 fresh `sbt` JVM. BSP-server builds write to `<project>/target-bsp/` (not `<project>/target/`), so the two never
 collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and for starting and routing the stack.
+The exception is a command that needs a build property (`-D…`), such as the Lint step's strict check: run it with plain
+`sbt`, because the running server can't take a property for one command.
 
 ## Warm-up
 
