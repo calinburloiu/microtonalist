@@ -145,8 +145,6 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
                                          initialExpressionPitchBendThreshold: Int,
                                          retainedStates: Map[Int, MpeChannelState] = Map.empty) {
 
-  import MpeChannelAllocator.*
-
   /**
    * Data structures with allocation information, keyed by output Member Channel. A channel present in `retainedStates`
    * adopts that state — notes, reference counts, Expression Values, pitch class and group — and every other Member

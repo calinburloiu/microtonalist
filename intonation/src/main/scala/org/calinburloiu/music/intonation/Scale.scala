@@ -41,8 +41,6 @@ class Scale[+I <: Interval](val name: String, val intervals: Seq[I]) {
   require(intervals.nonEmpty, "Expecting a non-empty list of intervals")
   require(areIntervalsSorted, "Expecting intervals to be sorted in ascending or descending order")
 
-  import Scale.*
-
   /**
    * @param index zero-based position of the interval within the scale
    * @return the interval at the given position

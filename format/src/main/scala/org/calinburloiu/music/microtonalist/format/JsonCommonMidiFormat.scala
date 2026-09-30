@@ -31,8 +31,8 @@ object JsonCommonMidiFormat {
 
   //@formatter:off
   val pitchBendSensitivityFormat: Format[PitchBendSensitivity] = (
-    (__ \ "semitoneCount").format[Int](uint7Format) and
-    (__ \ "centCount").formatWithDefault[Int](0)(uint7Format)
+    (__ \ "semitoneCount").format[Int](using uint7Format) and
+    (__ \ "centCount").formatWithDefault[Int](0)(using uint7Format)
   )(PitchBendSensitivity.apply, Tuple.fromProductTyped)
   //@formatter:on
 }

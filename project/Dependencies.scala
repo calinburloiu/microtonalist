@@ -20,20 +20,26 @@ object Dependencies {
   // # Versions
   val coreMidi4jVersion = "1.6"
   val ficusVersion = "1.5.2"
-  val guavaVersion = "33.4.0-jre"
-  val logbackVersion = "1.5.32"
-  val playJsonVersion = "3.0.4"
-  val scalaLoggingVersion = "3.9.5"
-  val scalaMockVersion = "7.5.5"
-  val scalaTestVersion = "3.2.19"
+  val guavaVersion = "33.7.2-jre"
+  val jsr305Version = "3.0.2"
+  val logbackVersion = "1.6.4"
+  val playJsonVersion = "3.0.6"
+  val scalaLoggingVersion = "3.9.6"
+  val scalaMockVersion = "7.6.0"
+  val scalaTestVersion = "3.2.20"
 
   // # Dependency definitions
   val coreMidi4j = "uk.co.xfactory-librarians" % "coremidi4j" % coreMidi4jVersion
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
+  // The `javax.annotation.concurrent` annotations (`@ThreadSafe`, `@NotThreadSafe`). Guava stopped depending on it in
+  // 33.4.3.
+  val jsr305 = "com.google.code.findbugs" % "jsr305" % jsr305Version
   val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
   val playJson = "org.playframework" %% "play-json" % playJsonVersion
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
-  val scalaMock = "org.scalamock" %% "scalamock" % scalaMockVersion
+  // The ScalaTest integration (`org.scalamock.scalatest.MockFactory`), which depends on scalamock itself. Since 7.6.0 it
+  // is no longer part of the scalamock artifact.
+  val scalaMock = "org.scalamock" %% "scalamock-scalatest" % scalaMockVersion
   val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
 }

@@ -119,7 +119,7 @@ trait JsonFormatTestUtils extends AnyWordSpec with Matchers with Inside with Tab
                                  baselineJson: JsObject,
                                  table: TableFor3[JsPath, JsonFailureCheck, String]): Unit = {
     withClue("Precondition: baselineJson deserialization should be successful") {
-      baselineJson.validate[A](reads).isSuccess shouldBe true
+      baselineJson.validate[A](using reads).isSuccess shouldBe true
     }
 
     def updateJson(path: JsPath, value: JsValue): JsValue = {

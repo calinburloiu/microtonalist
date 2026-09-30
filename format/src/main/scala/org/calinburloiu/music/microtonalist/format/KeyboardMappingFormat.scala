@@ -28,7 +28,7 @@ object KeyboardMappingFormat {
   private[format] val InvalidKeyboardMapping: String = "error.tuningMapper.keyboardMapping.invalid"
 
   private val denseKeyboardMappingReads: Reads[KeyboardMapping] = {
-    Reads.seq[Option[Int]](Reads.optionWithNull[Int]).flatMapResult { seq =>
+    Reads.seq[Option[Int]](using Reads.optionWithNull[Int]).flatMapResult { seq =>
       Try {
         KeyboardMapping(seq)
       } match {
@@ -63,7 +63,7 @@ object KeyboardMappingFormat {
     denseKeyboardMappingReads orElse sparseKeyboardMappingReads orElse Reads.failed(InvalidKeyboardMapping)
 
   val writes: Writes[KeyboardMapping] = Writes { (keyboardMapping: KeyboardMapping) =>
-    Writes.seq[Option[Int]](Writes.optionWithNull[Int]).writes(keyboardMapping.indexesInScale)
+    Writes.seq[Option[Int]](using Writes.optionWithNull[Int]).writes(keyboardMapping.indexesInScale)
   }
 
   val format: Format[KeyboardMapping] = Format(reads, writes)
