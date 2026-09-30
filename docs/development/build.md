@@ -67,13 +67,15 @@ Apply the scalafix autofixes (see [Linting](#linting)), then format everything:
 sbtn fix
 ```
 
-Check the formatting without changing any file. It fails if a file isn't formatted:
+Check the formatting without changing any file; the same command also compiles the code, checks its warnings and
+checks the scalafix rules (see [Linting](#linting)). It fails if a file isn't formatted:
 
 ```bash
 sbtn lint
 ```
 
-Both are command aliases defined in `build.sbt`. Besides the modules, they cover the build definition.
+Both are command aliases defined in `build.sbt`. Besides the modules, they cover the build definition. A third alias,
+`fixLint`, runs `fix`, then `lint`.
 
 CI's `lint` job runs `sbt lint` on every pull request, in parallel with the tests.
 
@@ -103,6 +105,21 @@ resolved by hand.
 can't re-stage into. When the hook changes a file in such a commit, it stops the commit instead; review the changes and
 commit again, which then commits the formatted files.
 
+### Pre-push hook
+
+The pre-push hook in [`.githooks/`](../../.githooks/pre-push), which the same `core.hooksPath` setting enables, runs
+`sbtn lint` before a push and stops the push when it fails, so that CI's `lint` job doesn't fail on it. It changes no
+file: fix the code, e.g. with `sbtn fixLint`, commit, and push again. `git push --no-verify` bypasses it.
+
+sbt checks the working tree, so the hook only checks when the working tree is what's pushed: every pushed branch or tag
+points at `HEAD`, and there's no uncommitted change or untracked file. It also needs an sbt server that's already
+running for this project, such as the development stack's: `sbtn` would otherwise start one, which is slow and leaves
+behind a server that stops `bin/microtonalist-dev-stack start`. When a condition isn't met, the hook skips the check
+with a message, and CI still checks.
+
+The server keeps the build definition it loaded when it started. After a change to `build.sbt` or `project/`, restart
+it first, e.g. with `bin/microtonalist-dev-stack restart`; until then, sbt warns that "build source files have changed".
+
 ### Editors
 
 Metals reads `.scalafmt.conf` by itself, so formatting from an editor that uses Metals matches `sbtn fix`. Agents format
@@ -113,9 +130,13 @@ IntelliJ IDEA, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md#formatting).
 ## Linting
 
 Before formatting, `sbtn fix` applies the autofixes of [scalafix](https://scalacenter.github.io/scalafix/): it removes
-unused imports, orders the imports, and removes redundant syntax. The compiler also warns about unused code and
-discarded values. [`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how
-to suppress a finding.
+unused imports, orders the imports, and removes redundant syntax. The compiler reports unused code.
+[`linting.md`](linting.md) says where the compiler flags and scalafix rules are configured, and how to suppress a
+finding.
+
+Every compile treats compiler warnings as errors, except three that stay warnings: deprecations; an unused constructor
+parameter, which a TDD red-phase stub needs; and an unused import, which `sbtn fix` removes. `sbtn lint` fails on the
+last two, so only deprecations can remain.
 
 ## Building the fat JAR
 

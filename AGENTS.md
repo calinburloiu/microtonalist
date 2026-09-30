@@ -21,7 +21,8 @@ Scala 3 and is built by using sbt 1.
   explains how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
-      no logic) to get them to compile, then confirm the tests fail for the right reason. The tests failure reason
+      no logic) to get them to compile. A stub may leave constructor parameters unused; that warning is allowed until
+      green. Everything else must compile. Then confirm the tests fail for the right reason. The tests failure reason
       **shall not** be due to compile errors, iterate until the code compiles.
     - **Green**. Write only enough production code to make it pass, no more.
     - **Refactor**. Once green, refactor the structure and naming freely, keeping the suite green throughout.
@@ -34,7 +35,8 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts.
-    - **Lint**. Run `sbtn fix` to format the code, then make sure `sbtn lint` passes.
+    - **Lint**. Run `sbtn fixLint`, which applies the scalafix autofixes and formats the code (`sbtn fix`), then runs
+      CI's check (`sbtn lint`). Fix what it reports by hand, and repeat until it passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
   skill).
 - If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
@@ -117,6 +119,15 @@ the floor" rule, the 80% target for new files) and tells you how to call the `sc
 performs the mechanical work (freshness check, rebuild if stale, XML parsing) in-process. The policy lives in the skill
 — loaded on demand when you invoke it — precisely so it does not clutter context up front, since coverage work only
 happens after the implementation is finished.
+
+# Warnings and Lint Rules
+
+Never ignore a compiler warning: deal with each one your change introduced. Every warning is a compile error, except a
+deprecation (don't add a use of a deprecated API), an unused import (`sbtn fix` removes it) and a red-phase stub's
+unused constructor parameter (use or remove it once green). `sbtn lint` fails on the last two.
+
+Fix a finding rather than suppress it. Read [`docs/agents/linting.md`](docs/agents/linting.md) before you delete unused
+code or suppress a finding, and when the Lint step fails.
 
 # License Headers
 

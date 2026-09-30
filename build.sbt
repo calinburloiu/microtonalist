@@ -27,12 +27,12 @@ ThisBuild / semanticdbEnabled := true
 commands ++= Coverage.commands
 
 // Code formatting and linting: `fix` applies the scalafix autofixes, then formats the sources with scalafmt; `lint`
-// checks the formatting without changing anything. See docs/development/build.md#formatting and
-// docs/development/linting.md.
+// compiles all the code and fails on a warning other than a deprecation (`warningsCheck`), then checks the scalafix
+// rules and the formatting without changing anything; `fixLint` runs both, as the agents' Lint step does. See
+// docs/development/build.md#formatting and docs/development/linting.md.
 addCommandAlias("fix", "scalafixAll; scalafmtAll; scalafmtSbt")
-// TODO #334 Check the scalafix rules too (`scalafixAll --check`) once the bulk autofix PR (#342) has merged: before it,
-//  the unorganized imports would fail the check.
-addCommandAlias("lint", "scalafmtCheckAll; scalafmtSbtCheck")
+addCommandAlias("lint", "warningsCheck; scalafixAll --check; scalafmtCheckAll; scalafmtSbtCheck")
+addCommandAlias("fixLint", "fix; lint")
 
 // # Projects
 //
@@ -324,6 +324,9 @@ lazy val compilerOptions = Seq(
   // docs/development/coding-conventions.md#use-brace-syntax.
   "-no-indent",
   "-old-syntax",
+  // Every warning is a compile error, except deprecations and two warnings that `lint` fails on instead: an unused
+  // explicit parameter and an unused import. See project/Warnings.scala and docs/development/linting.md.
+  Warnings.policy,
 )
 
 // When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
@@ -346,7 +349,7 @@ lazy val commonSettings = Seq(
   resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
   libraryDependencies ++= commonDependencies,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
-) ++ targetSuffixOverride
+) ++ Warnings.settings ++ targetSuffixOverride
 
 lazy val assemblySettings = Seq(
   assembly / assemblyJarName := name.value + ".jar",

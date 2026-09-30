@@ -37,7 +37,7 @@
 # Enable once per clone with:  git config core.hooksPath .githooks
 # The hook is a convenience: when a step's tool is not installed, that step is
 # skipped with a message and the other step still runs. CI enforces the license
-# headers via `addlicense -check` and the formatting via `sbt lint`.
+# headers via `addlicense -check` and the formatting via its `lint` job.
 #
 
 set -euo pipefail
