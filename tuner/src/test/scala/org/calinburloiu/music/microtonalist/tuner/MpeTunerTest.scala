@@ -23,7 +23,6 @@ import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.matchers.should.Matchers.shouldEqual
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{Inside, OptionValues}
@@ -1628,21 +1627,21 @@ class MpeTunerTest extends AnyWordSpec with Matchers with Inside with OptionValu
 
         forAll(table) { masterChannel =>
           // When
-          val out1 = noteOn(0, C4, 100)
-          val out2 = noteOn(0, E4, 100)
+          val out1 = noteOn(masterChannel, C4, 100)
+          val out2 = noteOn(masterChannel, E4, 100)
           // Then
-          extractNoteOns(out1).map(n => (n.channel, n.midiNote)) should contain((0, C4))
-          extractNoteOns(out2).map(n => (n.channel, n.midiNote)) should contain((0, E4))
+          extractNoteOns(out1).map(n => (n.channel, n.midiNote)) should contain((masterChannel, C4))
+          extractNoteOns(out2).map(n => (n.channel, n.midiNote)) should contain((masterChannel, E4))
 
           // When
-          val offOutput = noteOff(0, C4)
+          val offOutput = noteOff(masterChannel, C4)
           // Then
-          extractNoteOffs(offOutput) should contain(NoteOffMidiMsg(0, C4))
+          extractNoteOffs(offOutput) should contain(NoteOffMidiMsg(masterChannel, C4))
           // E4 should still be tracked as active
           // When
-          val offOutput2 = noteOff(0, E4)
+          val offOutput2 = noteOff(masterChannel, E4)
           // Then
-          extractNoteOffs(offOutput2) should contain(NoteOffMidiMsg(0, E4))
+          extractNoteOffs(offOutput2) should contain(NoteOffMidiMsg(masterChannel, E4))
         }
       }
 
