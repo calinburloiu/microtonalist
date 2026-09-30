@@ -18,7 +18,7 @@ instruments over several protocols:
 
 ## Documentation
 
-- [Development Setup Guide](docs/development/README.md) — prerequisites (JDK 23, Scala 3, sbt 1), building, testing, and
+- [Development Setup Guide](docs/development/README.md) — prerequisites (JDK 25, Scala 3, sbt 1), building, testing, and
   AI-assisted development with Claude Code (Metals MCP, GitHub plugin).
 - [Architecture](docs/architecture/README.md) — module overview, domain concepts, data flow, and per-module deep dives.
 - [Contributing](CONTRIBUTING.md) — GitHub conventions (labels, branches, issues, pull requests) and coding standards.
@@ -26,7 +26,7 @@ instruments over several protocols:
 
 ## Building and running
 
-Microtonalist is built with **sbt 1**, **Scala 3**, and **JDK 23**. Compile all modules with `sbt compile`, run the
+Microtonalist is built with **sbt 1**, **Scala 3**, and **JDK 25**. Compile all modules with `sbt compile`, run the
 tests with `sbt test`, and build the fat JAR with `sbt assembly`. See the
 [Development Setup Guide](docs/development/README.md) for the full reference.
 

@@ -11,7 +11,7 @@ pointers to the development setup and coding standards.
 
 Before writing code, set up your environment and read the standards:
 
-- [Development Setup Guide](docs/development/README.md) — prerequisites (JDK 23, Scala 3, sbt 1), building, and testing.
+- [Development Setup Guide](docs/development/README.md) — prerequisites (JDK 25, Scala 3, sbt 1), building, and testing.
 - [Build reference](docs/development/build.md) — compiling and assembling the fat JAR.
 - [Test reference](docs/development/test.md) — running the suite.
 - [Coding conventions](docs/development/coding-conventions.md) — general / production Scala conventions.

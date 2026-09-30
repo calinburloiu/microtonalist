@@ -346,7 +346,7 @@ lazy val targetSuffixOverride: Seq[Setting[?]] =
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq(
-    "-source", "23", "-target", "23",
+    "-source", "25", "-target", "25",
   ),
   scalacOptions ++= compilerOptions,
   resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
@@ -356,6 +356,9 @@ lazy val commonSettings = Seq(
 
 lazy val assemblySettings = Seq(
   assembly / assemblyJarName := name.value + ".jar",
+  // CoreMIDI4J loads its native library with `System.load`, a restricted method that the JDK warns about, and will
+  // block in a future release, unless native access is enabled (JEP 472).
+  assembly / packageOptions += Package.ManifestAttributes("Enable-Native-Access" -> "ALL-UNNAMED"),
   assembly / assemblyMergeStrategy := {
     case x if Assembly.isConfigFile(x) =>
       MergeStrategy.concat

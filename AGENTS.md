@@ -73,7 +73,7 @@ result or "not found" (`mcp__metals__get-source` may even return an unrelated fi
 
 # Build
 
-Built with **SBT 1, Scala 3, and Java 23**. The repo is split into multiple SBT projects (we call them modules), all in
+Built with **SBT 1, Scala 3, and Java 25**. The repo is split into multiple SBT projects (we call them modules), all in
 the repo root: `root` aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g.
 listing available MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
 
