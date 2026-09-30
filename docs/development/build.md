@@ -11,7 +11,7 @@ issues when multiple builds would write in the same target subdirectory.
 
 ## Project layout
 
-The repository is built using SBT 1, Scala 3, and Java 23. It is split into multiple SBT projects that act as modules,
+The repository is built using SBT 1, Scala 3, and Java 25. It is split into multiple SBT projects that act as modules,
 libraries, or separate executable applications — we simply call each of those SBT projects modules. Each one is located
 in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects. The
 executable application is in the `app` SBT project.

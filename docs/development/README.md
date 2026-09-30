@@ -25,7 +25,7 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 
 ## Prerequisites
 
-* JDK 23
+* JDK 25
 * Scala 3
 * SBT 1
 * Python 3

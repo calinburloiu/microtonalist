@@ -17,7 +17,7 @@ the [v1.6.1 Osmium release notes](https://scalameta.org/metals/blog/2025/07/31/o
 
 ## 1. Prerequisites
 
-- JDK 23 (the same JDK used to build the project — see `CLAUDE.md`).
+- JDK 25 (the same JDK used to build the project — see `CLAUDE.md`).
 - [Coursier](https://get-coursier.io/docs/cli-installation) (`cs`) — used to fetch Metals.
 - SBT 1.x (already used by this project).
 - Claude Code CLI (`claude`) on `PATH`.
