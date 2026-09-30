@@ -27,7 +27,7 @@ object PitchClassFormat extends Format[PitchClass] {
   val InvalidPitchClassError: String = "error.pitchClass.invalid"
 
   override def reads(json: JsValue): JsResult[PitchClass] = json match {
-    case _: JsNumber => JsPath.read[Int](Reads.min(0) keepAnd Reads.max(11))
+    case _: JsNumber => JsPath.read[Int](using Reads.min(0) keepAnd Reads.max(11))
         .map(PitchClass.fromNumber)
         .reads(json)
     case _: JsString => JsPath.read[String]

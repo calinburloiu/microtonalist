@@ -62,18 +62,20 @@ class SoftChromaticGenusStudy {
   }
 }
 
-object SoftChromaticGenusStudy extends App {
-  private val study = new SoftChromaticGenusStudy
+object SoftChromaticGenusStudy {
+  def main(args: Array[String]): Unit = {
+    val study = new SoftChromaticGenusStudy
 
-  import study.*
+    import study.*
 
-  println("== Just Intonation ==")
-  printStruct(maj3SoftHicaz, strictAug2Threshold)
-  printStruct(lim11SoftHicaz, strictAug2Threshold)
-  printStruct(lim11SofterHicaz, pseudoChromaticAug2Threshold)
+    println("== Just Intonation ==")
+    printStruct(maj3SoftHicaz, strictAug2Threshold)
+    printStruct(lim11SoftHicaz, strictAug2Threshold)
+    printStruct(lim11SofterHicaz, pseudoChromaticAug2Threshold)
 
-  println("== EDO ==")
-  printStructForAllEdos(maj3SoftHicaz, strictAug2Threshold, goodEdos)
-  printStructForAllEdos(lim11SoftHicaz, strictAug2Threshold, goodEdos)
-  printStructForAllEdos(lim11SofterHicaz, pseudoChromaticAug2Threshold, goodEdos)
+    println("== EDO ==")
+    printStructForAllEdos(maj3SoftHicaz, strictAug2Threshold, goodEdos)
+    printStructForAllEdos(lim11SoftHicaz, strictAug2Threshold, goodEdos)
+    printStructForAllEdos(lim11SofterHicaz, pseudoChromaticAug2Threshold, goodEdos)
+  }
 }

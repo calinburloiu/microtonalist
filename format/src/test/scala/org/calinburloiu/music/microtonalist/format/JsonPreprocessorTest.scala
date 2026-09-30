@@ -342,7 +342,7 @@ class JsonPreprocessorTest extends AnyWordSpec with Matchers with MockFactory {
         "$ref" -> "https://example.org/foo"
       )
       var i = 0
-      val loaders: RefLoaders = Seq((uri, path) =>
+      val loaders: RefLoaders = Seq((uri, _) =>
         uri.toString match {
           case _ =>
             i += 1

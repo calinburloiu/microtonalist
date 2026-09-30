@@ -56,7 +56,7 @@ case class CompositionRepr(metadata: Option[CompositionMetadata],
 
     def createLocalScaleFormatContext(tuningSpec: TuningSpecRepr): Option[ScaleFormatContext] = tuningSpec.name match {
       case None => defaultScaleFormatContext
-      case Some(name) => Some(ScaleFormatContext(
+      case Some(_) => Some(ScaleFormatContext(
           name = tuningSpec.name,
           intonationStandard = Some(context.intonationStandard))
         )

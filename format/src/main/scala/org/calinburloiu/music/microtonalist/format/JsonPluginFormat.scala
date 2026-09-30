@@ -139,7 +139,7 @@ trait JsonPluginFormat[P] {
       defaultTypeNameValue <- defaultTypeName;
       settings <- (rootGlobalSettings \ familyName \ defaultTypeNameValue).asOpt[JsObject]
     ) yield settings) match {
-      case Some(settings) => settings.validate[P](reads)
+      case Some(settings) => settings.validate[P](using reads)
       case None => JsError(MissingError)
     }
   }
@@ -239,7 +239,7 @@ object JsonPluginFormat {
     //@formatter:off
     (
       (__ \ PropertyNameType).write[String] and
-      __.write[P](writes)
+      __.write[P](using writes)
     ) ({ (plugin: P) => (typeName, plugin) })
     //@formatter:on
   }

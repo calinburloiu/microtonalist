@@ -35,7 +35,7 @@ object JsonMpeTunerPluginFormating {
   private val defaultMemberPbs = MpeZone.DefaultMemberPitchBendSensitivity
 
   private val memberCountFormat: Format[Int] = {
-    val reads = __.read[Int](min(0) keepAnd max(15))
+    val reads = __.read[Int](using min(0) keepAnd max(15))
     Format(reads, Writes.IntWrites)
   }
 
@@ -54,7 +54,7 @@ object JsonMpeTunerPluginFormating {
 
   //@formatter:off
   private val mpeZoneFormat: Format[(Int, PitchBendSensitivity, PitchBendSensitivity)] = (
-    (__ \ "memberCount").format[Int](memberCountFormat) and
+    (__ \ "memberCount").format[Int](using memberCountFormat) and
     (__ \ "masterPitchBendSensitivity").formatWithDefault[PitchBendSensitivity](defaultMasterPbs) and
     (__ \ "memberPitchBendSensitivity").formatWithDefault[PitchBendSensitivity](defaultMemberPbs)
   )(Tuple3.apply, identity)
@@ -66,12 +66,12 @@ object JsonMpeTunerPluginFormating {
         Reads.pure(MpeZones.DefaultZones)
       case Some(_) =>
         val lowerReads = (__ \ "zones" \ "lower").readNullable[(Int, PitchBendSensitivity, PitchBendSensitivity)](
-          mpeZoneFormat).map {
+          using mpeZoneFormat).map {
           case Some((mc, masterPbs, memberPbs)) => MpeZone(MpeZoneType.Lower, mc, masterPbs, memberPbs)
           case None => MpeZone(MpeZoneType.Lower, 15)
         }
         val upperReads = (__ \ "zones" \ "upper").readNullable[(Int, PitchBendSensitivity, PitchBendSensitivity)](
-          mpeZoneFormat).map {
+          using mpeZoneFormat).map {
           case Some((mc, masterPbs, memberPbs)) => MpeZone(MpeZoneType.Upper, mc, masterPbs, memberPbs)
           case None => MpeZone(MpeZoneType.Upper, 0)
         }

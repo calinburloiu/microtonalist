@@ -140,8 +140,8 @@ class JavaMidiManager private (businessync: Businessync, environment: JavaMidiEn
         val reconciliationEvents = inputEndpoint.reconcile(sharedDevices.filter(_.info.isInputDevice)) ++
           outputEndpoint.reconcile(sharedDevices.filter(_.info.isOutputDevice))
         resolutionEvents.toSeq ++ reconciliationEvents
-      }(lock)
-    }(refreshLock)
+      }(using lock)
+    }(using refreshLock)
 
     events.foreach(businessync.publish)
   }

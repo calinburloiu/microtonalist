@@ -374,8 +374,9 @@ so no processor converts on entry or exit.
 ## Dependencies
 
 **Depends on** `businessync` (the bus used to publish `MidiEvent`s) and `common` (the `Locking` mixin used by the
-thread-safe device/transmitter/processor classes), plus the external **CoreMIDI4J** library and the inherited common
-logging/test stack.
+thread-safe device/transmitter/processor classes), plus the external **CoreMIDI4J** library, **JSR-305** for the
+`javax.annotation.concurrent` annotations (`@ThreadSafe`, `@NotThreadSafe`), and the inherited common logging/test
+stack.
 
 **Depended on by** `tuner` (builds `MidiProcessor`-based pipelines and uses the `MidiManager` it is given for device
 I/O), `cli` (lists available devices) and `app` (instantiates `JavaMidiManager` and injects it into `TunerModule`);

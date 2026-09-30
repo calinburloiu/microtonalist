@@ -38,12 +38,12 @@ abstract class JsonTrackIOPluginFormat[P <: TrackIOSupport] extends JsonPluginFo
 
   //@formatter:off
   protected implicit val deviceFormat: Format[DeviceParamsTuple] = (
-    (__ \ "midiDeviceId").format[MidiDeviceId](midiDeviceIdFormat) and
-    (__ \ "channel").formatNullable[Int](channelFormat)
+    (__ \ "midiDeviceId").format[MidiDeviceId](using midiDeviceIdFormat) and
+    (__ \ "channel").formatNullable[Int](using channelFormat)
   )(Tuple2.apply, identity)
   protected implicit val interTrackFormat: Format[InterTrackParamsTuple] = (
     (__ \ "trackId").format[TrackSpec.Id] and
-    (__ \ "channel").formatNullable[Int](channelFormat)
+    (__ \ "channel").formatNullable[Int](using channelFormat)
   )(Tuple2.apply, identity)
   //@formatter:on
 

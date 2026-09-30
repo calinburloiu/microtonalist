@@ -81,12 +81,12 @@ package object format {
   }
 
   lazy val uint7Format: Format[Int] = {
-    val reads = __.read[Int](min(0) keepAnd max(127)) orElse Reads.failed(JsonError_Uint7)
+    val reads = __.read[Int](using min(0) keepAnd max(127)) orElse Reads.failed(JsonError_Uint7)
     Format(reads, Writes.IntWrites)
   }
 
   lazy val uint7PositiveFormat: Format[Int] = {
-    val reads = __.read[Int](min(1) keepAnd max(128)) orElse Reads.failed(JsonError_Uint7Positive)
+    val reads = __.read[Int](using min(1) keepAnd max(128)) orElse Reads.failed(JsonError_Uint7Positive)
     Format(reads, Writes.IntWrites)
   }
 
@@ -97,7 +97,7 @@ package object format {
    * values — [[uint7Format]] covers the full 0-127 range.
    */
   lazy val ccNumberFormat: Format[Int] = {
-    val reads = __.read[Int](min(0) keepAnd max(MidiRequirements.MaxControllerNumber)) orElse
+    val reads = __.read[Int](using min(0) keepAnd max(MidiRequirements.MaxControllerNumber)) orElse
       Reads.failed(JsonError_CcNumber)
     Format(reads, Writes.IntWrites)
   }

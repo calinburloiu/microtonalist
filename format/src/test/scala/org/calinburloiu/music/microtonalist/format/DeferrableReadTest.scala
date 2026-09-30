@@ -159,7 +159,7 @@ class DeferrableReadTest extends AsyncWordSpec with Matchers {
         case _ => fail("expected a failure")
       }
 
-      Future.sequence(futures).map { v =>
+      Future.sequence(futures).map { _ =>
         actualProfile.person.value shouldEqual john
         actualProfile.person.status shouldEqual DeferrableReadStatus.Loaded
 

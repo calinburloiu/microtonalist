@@ -34,7 +34,7 @@ object JsonMtsTunerPluginFormating {
   //@formatter:off
   private val mtsTunerCommonFormat: Format[MtsTunerParamsTuple] = (
     (__ \ "thru").format[Boolean] and
-    (__ \ "altTuningOutput").formatNullable[MidiDeviceId](midiDeviceIdFormat)
+    (__ \ "altTuningOutput").formatNullable[MidiDeviceId](using midiDeviceIdFormat)
   )(Tuple2.apply, identity)
   //@formatter:on
 

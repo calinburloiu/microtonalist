@@ -76,7 +76,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
       intonationStandard = scale.intonationStandard
     )
     val newContext = scaleSelfContext.applyOverride(context)
-    val contextJson = Json.toJson(newContext)(contextWrites).asInstanceOf[JsObject]
+    val contextJson = Json.toJson(newContext)(using contextWrites).asInstanceOf[JsObject]
 
     val intonationStandard = context.flatMap(_.intonationStandard).orElse(scale.intonationStandard)
       .getOrElse(throw new MissingContextScaleFormatException)
@@ -84,7 +84,7 @@ class JsonScaleFormat(jsonPreprocessor: JsonPreprocessor) extends ScaleFormat {
     val intervals = scale.convertToIntonationStandard(intonationStandard).scale.map(_.intervals).getOrElse {
       throw new IncompatibleIntervalsScaleFormatException
     }
-    val pitchesJson = Json.toJson(intervals)(pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
+    val pitchesJson = Json.toJson(intervals)(using pitchesFormatFor(intonationStandard)).asInstanceOf[JsObject]
 
     contextJson ++ pitchesJson
   }
@@ -138,13 +138,13 @@ object JsonScaleFormat {
     val intervalReads: Reads[Interval] = intervalFormat
     val intervalWrites: Writes[Interval] = intervalFormat
 
-    Format(intervalReads orElse (__ \ "interval").read[Interval](intervalReads), intervalWrites)
+    Format(intervalReads orElse (__ \ "interval").read[Interval](using intervalReads), intervalWrites)
   }
 
   private[format] def pitchesFormatFor(intonationStandard: IntonationStandard): Format[Seq[Interval]] = {
     val pitchIntervalFormat: Format[Interval] = pitchIntervalFormatFor(intonationStandard)
     implicit val pitchIntervalSeqFormat: Format[Seq[Interval]] = Format(
-      Reads.seq[Interval](pitchIntervalFormat), Writes.seq[Interval](pitchIntervalFormat)
+      Reads.seq[Interval](using pitchIntervalFormat), Writes.seq[Interval](using pitchIntervalFormat)
     )
     val pitchesPropertyFormat: Format[Seq[Interval]] = (__ \ "pitches").format[Seq[Interval]]
 

@@ -16,7 +16,7 @@
 
 import Dependencies.*
 
-ThisBuild / scalaVersion := "3.6.3"
+ThisBuild / scalaVersion := "3.9.0"
 ThisBuild / version := "1.6.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
@@ -212,7 +212,9 @@ lazy val tunerModule = (project in file("tuner"))
   .settings(
     name := "microtonalist-tuner",
     commonSettings,
-    libraryDependencies ++= Seq(),
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
     coverageSettings(stmt = 80, branch = 80),
   )
 
@@ -262,6 +264,7 @@ lazy val scMidiModule = (project in file("sc-midi"))
     commonSettings,
     libraryDependencies ++= Seq(
       coreMidi4j,
+      jsr305,
     ),
     // * CoreMidi4JEnvironment only delegates to the CoreMIDI4J and MidiSystem statics, which need MIDI hardware; the
     //   JavaMidiEnvironment seam it implements lets JavaMidiManager be tested over a fake instead

@@ -155,7 +155,7 @@ case class AutoTuningMapper(shouldMapQuarterTonesLow: Boolean = DefaultShouldMap
      * @return The min scale pitch index to use for all those pitches.
      */
     def extractScalePitchIndex(pitches: PitchesInfo): Int = {
-      pitches.min((a: (Int, TuningPitch), b: (Int, TuningPitch)) => a._1.compare(b._1))._1
+      pitches.minBy(_._1)._1
     }
 
     val scalePitchIndexesByPitchClass = pitchesInfo

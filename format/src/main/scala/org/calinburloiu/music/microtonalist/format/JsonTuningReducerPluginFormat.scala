@@ -31,7 +31,7 @@ object JsonTuningReducerPluginFormat extends JsonPluginFormat[TuningReducer] {
 
   private val mergeTypeFormat: Format[MergeTuningReducer] = {
     val path = __ \ "equalityTolerance"
-    val reads = path.read[Double](min(-50.0) keepAnd max(50.0)).map { equalityTolerance =>
+    val reads = path.read[Double](using min(-50.0) keepAnd max(50.0)).map { equalityTolerance =>
       MergeTuningReducer(equalityTolerance)
     }
     val writes = Writes[MergeTuningReducer] { mergeTuningReducer =>

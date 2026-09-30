@@ -16,7 +16,7 @@
 #    limitations under the License.
 #
 
-SCALA_VERSION=3.6.3
+SCALA_VERSION=3.9.0
 
 SCRIPT_PATH="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd )"
 JAR="${SCRIPT_PATH}/../cli/target/scala-${SCALA_VERSION}/microtonalist-cli.jar"

@@ -32,7 +32,7 @@ object JsonMonophonicPitchBendTunerPluginFormating {
 
   //@formatter:off
   private val monophonicPitchBendTunerFormat: Format[MonophonicPitchBendTuner] = (
-    (__ \ "outputChannel").format[Int](JsonCommonMidiFormat.channelFormat) and
+    (__ \ "outputChannel").format[Int](using JsonCommonMidiFormat.channelFormat) and
     (__ \ "pitchBendSensitivity").format[PitchBendSensitivity]
   )(MonophonicPitchBendTuner.apply, Tuple.fromProductTyped)
   //@formatter:on
