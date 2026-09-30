@@ -35,8 +35,8 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts.
-    - **Lint**. Run `sbtn fix` to apply the scalafix autofixes and format the code, then make sure `sbtn lint` passes,
-      and last that CI's strict check passes: `sbt -Dmicrotonalist.build.strictWarnings=true lint`.
+    - **Lint**. Run `sbtn fixLint`, which applies the scalafix autofixes and formats the code (`sbtn fix`), then runs
+      CI's check (`sbtn lint`). Fix what it reports by hand, and repeat until it passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
   skill).
 - If the user requested opening a PR, go ahead and open one with the assigned issue (given by the user or previously
@@ -82,8 +82,6 @@ listing available MIDI devices). See `build.sbt` and [`docs/development/build.md
 Route **all** sbt commands through `sbtn` so they run on the single long-lived BSP-server JVM rather than spawning a
 fresh `sbt` JVM. BSP-server builds write to `<project>/target-bsp/` (not `<project>/target/`), so the two never
 collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and for starting and routing the stack.
-The exception is a command that needs a build property (`-D…`), such as the Lint step's strict check: run it with plain
-`sbt`, because the running server can't take a property for one command.
 
 ## Warm-up
 
@@ -124,25 +122,12 @@ happens after the implementation is finished.
 
 # Warnings and Lint Rules
 
-Never ignore a compiler warning. Read the warnings of every compile, and deal with each one your change introduced
-before the task ends. Most warnings are compile errors. Three stay warnings in local builds:
+Never ignore a compiler warning: deal with each one your change introduced. Every warning is a compile error, except a
+deprecation (don't add a use of a deprecated API), an unused import (`sbtn fix` removes it) and a red-phase stub's
+unused constructor parameter (use or remove it once green). `sbtn lint` fails on the last two.
 
-- An unused import: `sbtn fix` removes it.
-- A red-phase stub's unused constructor parameter: allowed until green, then use or remove the parameter.
-- A deprecation: don't add a use of a deprecated API.
-
-The Lint step's strict check, which CI runs too, fails on the first two, so only deprecations can remain.
-
-Nothing removes other unused code automatically: fix it by hand. Before deleting an "unused" private method, check
-that nothing calls it through reflection (e.g. Guava's `@Subscribe`); before deleting an unused test value, check
-whether the case forgot to check it. `sbtn fix` compiles before it applies the autofixes, so fix any compile error it
-reports first. scalafix also checks import order, no `return`, TODOs with an issue number, no `Thread.sleep` and no
-`AnyFlatSpec`.
-
-Fix a finding rather than suppress it. When a suppression is justified, use `@nowarn("msg=<message regex>")` on the
-narrowest definition for a compiler warning, or `// scalafix:ok <RuleId>` at the end of the line for a scalafix
-finding, with a comment giving the reason, and a `// TODO #<issue>` if it's temporary. See
-[`docs/development/linting.md`](docs/development/linting.md).
+Fix a finding rather than suppress it. Read [`docs/agents/linting.md`](docs/agents/linting.md) before you delete unused
+code or suppress a finding, and when the Lint step fails.
 
 # License Headers
 

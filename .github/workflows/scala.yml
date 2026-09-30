@@ -54,7 +54,7 @@ jobs:
           .scalafmt.conf
     - uses: sbt/setup-sbt@v1
     - name: Check compiler warnings, scalafix rules and formatting
-      run: sbt -Dmicrotonalist.build.strictWarnings=true lint
+      run: sbt lint
 
   license-headers:
 

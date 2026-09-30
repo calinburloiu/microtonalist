@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+#
+# pre-push — check the pushed code with `sbtn lint`, so that CI's `lint` job
+# doesn't fail on it. `lint` compiles the code, fails on a warning other than a
+# deprecation, and checks the scalafix rules and the formatting; it changes no
+# file. See docs/development/build.md#pre-push-hook.
+#
+# sbt checks the working tree, so the hook only checks when the working tree is
+# what's pushed: every pushed branch or tag points at HEAD, and there's no
+# uncommitted change or untracked file. It also needs an sbt server that's
+# already running for this project, such as the development stack's: `sbtn`
+# would otherwise start one, which is slow and leaves behind a server that stops
+# `bin/microtonalist-dev-stack start`. When a condition isn't met, the hook skips
+# the check with a message and lets the push through.
+#
+# Enable once per clone with:  git config core.hooksPath .githooks
+# The hook is a convenience: CI's `lint` job enforces the same check. Bypass it
+# with 'git push --no-verify'.
+#
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Lets the push through without checking, saying why ($1).
+skip() {
+  echo "pre-push: $1; skipping 'sbtn lint' (CI's lint job still checks)." >&2
+  exit 0
+}
+
+# Tells whether an sbt server is running for this project. sbt records the
+# socket of its server in project/target/active.json. A socket that no process
+# holds is stale, and sbtn would start a new server rather than connect to it.
+# bin/microtonalist-dev-stack detects a stray server the same way.
+sbt_server_running() {
+  local active_json="project/target/active.json"
+  local sock_path
+  [ -f "$active_json" ] || return 1
+  sock_path="$(grep -oE 'local://[^"]+' "$active_json" | head -1 | sed 's|^local://||' || true)"
+  [ -n "$sock_path" ] && [ -S "$sock_path" ] || return 1
+  command -v lsof >/dev/null 2>&1 && [ -n "$(lsof -t "$sock_path" 2>/dev/null || true)" ]
+}
+
+# Git passes one line per pushed ref on stdin:
+# <local ref> <local sha> <remote ref> <remote sha>. The local sha of a deleted
+# ref is all zeros.
+head_commit="$(git rev-parse -q --verify 'HEAD^{commit}' || true)"
+pushes_commits=false
+other_ref=""
+while read -r local_ref local_sha _; do
+  if [[ $local_sha =~ ^0+$ ]]; then
+    continue
+  fi
+  pushes_commits=true
+  if [ "$(git rev-parse -q --verify "$local_sha^{commit}" || true)" != "$head_commit" ]; then
+    other_ref="$local_ref"
+  fi
+done
+
+if [ "$pushes_commits" = false ]; then
+  exit 0
+fi
+if [ -n "$other_ref" ]; then
+  skip "$other_ref isn't checked out, so the working tree isn't what's pushed"
+fi
+if [ -n "$(git status --porcelain)" ]; then
+  skip "the working tree has uncommitted changes or untracked files, so it isn't what's pushed"
+fi
+if ! command -v sbtn >/dev/null 2>&1; then
+  skip "sbtn not found on PATH"
+fi
+if ! sbt_server_running; then
+  skip "no sbt server is running for this project (start one with bin/microtonalist-dev-stack start)"
+fi
+
+echo "pre-push: running 'sbtn lint'..." >&2
+if ! sbtn lint </dev/null; then
+  echo "pre-push: 'sbtn lint' failed (see above). Fix the code, e.g. with 'sbtn fixLint', commit, and push again; or bypass the hook with 'git push --no-verify'." >&2
+  exit 1
+fi

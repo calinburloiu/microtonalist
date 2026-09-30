@@ -33,9 +33,7 @@ Work through these steps (if `status` reported the stack already running, you ar
 ## After the check
 
 Every subsequent sbt command in the conversation should just use `sbtn …` — trust that the stack is up unless a command
-unexpectedly fails (e.g. with a connect error), in which case re-run the check. A command that needs a build property
-(`-D…`), such as `sbt -Dmicrotonalist.build.strictWarnings=true lint`, runs with plain `sbt` instead: the running
-server can't take a property for one command.
+unexpectedly fails (e.g. with a connect error), in which case re-run the check.
 
 ## Restarting after a `build.sbt` change
 

@@ -20,14 +20,17 @@ Before writing code, set up your environment and read the standards:
 - [Coverage workflow](docs/development/coverage.md) — coverage thresholds and how they are checked in CI.
 - [Architecture docs](docs/architecture/README.md) — module overview, domain concepts, and per-module deep dives.
 
-Source files carry an Apache 2.0 license header that is added automatically. Enable the git hook once per clone so new
-files get a header on commit (CI also enforces it):
+Source files carry an Apache 2.0 license header that is added automatically. Enable the git hooks once per clone: on
+commit, they add the header to new files and format the staged Scala files, and before a push, they run `sbtn lint`
+(CI also enforces all three):
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-See [License headers](docs/development/license-headers.md) for details.
+See [License headers](docs/development/license-headers.md), and the
+[pre-commit](docs/development/build.md#pre-commit-hook) and [pre-push](docs/development/build.md#pre-push-hook) hooks,
+for details.
 
 Bulk, tool-generated changes, such as reformatting the whole codebase, are listed in `.git-blame-ignore-revs`. GitHub's
 blame view skips them automatically; to make local `git blame` skip them too, run once per clone:

@@ -27,10 +27,12 @@ ThisBuild / semanticdbEnabled := true
 commands ++= Coverage.commands
 
 // Code formatting and linting: `fix` applies the scalafix autofixes, then formats the sources with scalafmt; `lint`
-// compiles all the code (`warningsPolicy` says which warnings fail it), then checks the scalafix rules and the
-// formatting without changing anything. See docs/development/build.md#formatting and docs/development/linting.md.
+// compiles all the code and fails on a warning other than a deprecation (`warningsCheck`), then checks the scalafix
+// rules and the formatting without changing anything; `fixLint` runs both, as the agents' Lint step does. See
+// docs/development/build.md#formatting and docs/development/linting.md.
 addCommandAlias("fix", "scalafixAll; scalafmtAll; scalafmtSbt")
-addCommandAlias("lint", "Test/compile; scalafixAll --check; scalafmtCheckAll; scalafmtSbtCheck")
+addCommandAlias("lint", "warningsCheck; scalafixAll --check; scalafmtCheckAll; scalafmtSbtCheck")
+addCommandAlias("fixLint", "fix; lint")
 
 // # Projects
 //
@@ -305,19 +307,6 @@ def coverageSettings(stmt: Double, branch: Double): Seq[Setting[?]] = Seq(
   coverageDataDir := (LocalRootProject / baseDirectory).value / "coverage-reports" / thisProject.value.id,
 )
 
-// When `-Dmicrotonalist.build.strictWarnings=true` is passed to sbt, the warnings that the default mode allows are
-// compile errors too. CI's `lint` job and the Lint step's last check set it. See
-// docs/development/linting.md#warnings-policy.
-lazy val strictWarnings: Boolean = sys.props.get("microtonalist.build.strictWarnings").contains("true")
-
-// Every warning is a compile error, except deprecations and, unless strictWarnings, two more: an unused constructor
-// parameter, the one warning a TDD red-phase stub needs, and an unused import, which `sbtn fix` removes (scalafix only
-// runs on code that compiles). Within one -Wconf option the rightmost matching rule wins (not the leftmost, as scalac's
-// help says), so `any:e` comes first. Re-test any change on a scratch file.
-lazy val warningsPolicy: String =
-  if (strictWarnings) "-Wconf:any:e,cat=deprecation:w"
-  else "-Wconf:any:e,cat=deprecation:w,msg=unused explicit parameter:w,msg=unused import:w"
-
 lazy val compilerOptions = Seq(
   "-deprecation",
   "-feature",
@@ -335,7 +324,9 @@ lazy val compilerOptions = Seq(
   // docs/development/coding-conventions.md#use-brace-syntax.
   "-no-indent",
   "-old-syntax",
-  warningsPolicy,
+  // Every warning is a compile error, except deprecations and two warnings that `lint` fails on instead: an unused
+  // explicit parameter and an unused import. See project/Warnings.scala and docs/development/linting.md.
+  Warnings.policy,
 )
 
 // When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
@@ -358,7 +349,7 @@ lazy val commonSettings = Seq(
   resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
   libraryDependencies ++= commonDependencies,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
-) ++ targetSuffixOverride
+) ++ Warnings.settings ++ targetSuffixOverride
 
 lazy val assemblySettings = Seq(
   assembly / assemblyJarName := name.value + ".jar",

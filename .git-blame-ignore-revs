@@ -5,7 +5,7 @@
 #
 # `:(optional)` (Git 2.52 or later) keeps `git blame` working in checkouts that predate this file; see CONTRIBUTING.md.
 #
-# Each entry is a commit's full SHA on `main`, after its PR was squash-merged.
+# Each entry is a commit's full SHA on `main`. See "Adding a rule" in docs/development/linting.md.
 
 # [#333/#335] Reformat the code with scalafmt (#338)
 a53e02ebecf2474c85b22b46139f8cb1f399abd4
