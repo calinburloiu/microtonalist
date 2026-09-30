@@ -11,9 +11,10 @@ is throwaway, has no tests, and may be added to, rewritten, or deleted freely as
 
 `SoftChromaticGenusStudy` — a study of "soft chromatic" Hicaz-style tetrachords. The class defines a few candidate
 `RatiosScale`s, a list of "good" EDOs, and helpers that print each scale's intervals, its relative intervals, and
-quarter-tone / augmented-second threshold checks; its companion `object` extends `App` and is the executable entry
-point, printing the studies first in just intonation and then converted to each EDO. This single study is currently the
-whole module; new studies are added as additional `App`-style entry points.
+quarter-tone / augmented-second threshold checks; its companion `object` has the `main` method, the executable entry
+point, which prints the studies first in just intonation and then converted to each EDO. This single study is currently
+the whole module; new studies are added as additional entry points, each an `object` with a `main` method (Scala 3.8
+deprecated the `App` trait).
 
 ## Dependencies
 

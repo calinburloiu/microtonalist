@@ -278,7 +278,8 @@ The module **depends on** `sc-midi` (the Scala-idiomatic MIDI API: the `MidiMana
 `MidiProcessor`/`MidiSerialProcessor`, `MidiReceiver`/`ConcurrentMidiTransmitter`, the `MidiMsg` message model,
 `MidiNote`, `PitchClass`, …), `businessync` (the event bus and `BusinessyncEvent`), and `common` (the `Plugin` trait
 and `OpenableSession`). The module imports nothing from `javax.sound.midi` (#281) nor from the `javamidi`
-implementation package (#282).
+implementation package (#282). Its only external dependency of its own is JSR-305, for the `javax.annotation.concurrent`
+annotations (`@ThreadSafe`, `@NotThreadSafe`).
 
 It is **depended on by** `app`, `ui`, `composition`, and `format`, so `tuner` sits below the domain/format/UI layers but
 above `sc-midi`/`businessync`/`common`. In particular `composition` produces the `Seq[Tuning]` consumed here, and
