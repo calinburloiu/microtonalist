@@ -58,10 +58,10 @@ Every compiler warning is a compile error, except three that the `-Wconf` option
 `sbtn lint` fails on the last two, so one left over fails the Lint step and CI. A warning is never noise to ignore:
 each one is either a deprecation or a `lint` failure.
 
-`lint` finds them with `warningsCheck`, a task that doesn't recompile anything: the compiler stores the warnings of each
-source file in Zinc's incremental analysis, which keeps them until that file is recompiled. So `lint` runs on the
-`sbtn` server as it is. Making them errors for `lint` alone would take a stricter `-Wconf`, and changing the compiler
-options recompiles all the code, both to check and to go back.
+`lint` finds them with `warningsCheck`, which compiles only what's out of date, like any compile, and then reads the
+warnings from Zinc's incremental analysis: the compiler stores the warnings of each source file there, and they stay
+until that file is recompiled. So `lint` runs on the `sbtn` server as it is. Making them errors for `lint` alone would
+take a stricter `-Wconf`, and changing the compiler options recompiles all the code, both to check and to go back.
 
 **Phase quirk.** An error in an earlier compiler phase, such as an unused private member, stops compilation before later
 phases report their warnings, such as deprecations. Those appear on the next compile, once the errors are fixed.
@@ -85,7 +85,8 @@ Either way, add a comment giving the reason, and a `// TODO #<issue>` if the sup
    `sbtn "scalafixAll <Rule>"`.
 3. Fix them in the same PR: as soon as the flag or rule is in, each violation fails the compile or `sbtn lint`'s
    scalafix check. A flag whose findings need more time can stay a warning for now, through a `<filter>:w` rule
-   appended to `Warnings.policy` in `project/Warnings.scala`, with a `// TODO #<issue>`.
+   appended to the `rules` of `Warnings.policy` in `project/Warnings.scala`, with a `// TODO #<issue>`. `warningsCheck`
+   only fails on the `lenientWarnings`, so `lint` lets such a warning through until the TODO is done.
 4. An autofix whose output changes much of the code goes in a PR of its own, so that `git blame` can skip it. Squash
    the PR into three commits:
    1. Configure the rule in `.scalafix.conf` without listing it in `rules`, so `fix` and `lint` ignore it.
@@ -93,7 +94,8 @@ Either way, add a comment giving the reason, and a `// TODO #<issue>` if the sup
    3. List the rule, and add the second commit's SHA to `.git-blame-ignore-revs`.
 
    Merge the PR by fast-forwarding `main` to it (`git merge --ff-only`), which keeps `main` linear and the commits'
-   SHAs as they are. GitHub's **Rebase and merge** gives the commits new SHAs, so the one in `.git-blame-ignore-revs`
-   would no longer match.
+   SHAs as they are. GitHub's **Rebase and merge** gives the commits new SHAs, and **Squash and merge** replaces them
+   with one, so the SHA in `.git-blame-ignore-revs` would no longer match, and git ignores a SHA it doesn't know without
+   a word. For the same reason, when you rebase the PR onto a newer `main`, update that SHA in the third commit.
 5. Say in the convention it enforces that it's enforced, and why next to the flag or rule when that isn't
    obvious.

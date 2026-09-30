@@ -11,6 +11,9 @@
   `fa10ce2f3afdc1cbe0cc4d43ee8d9377b8ac21e7`: `lint` finds the leftover warnings in the incremental compiler's analysis
   instead of a strict compile mode, so the `strictWarnings` build property is gone; a `fixLint` alias; a pre-push hook;
   and an agent-facing `docs/agents/linting.md`: sections 1, 4, 5, 6, 7, 8 and appendix A
+- **Revised:** 2026-09-30, on `d2067d0a533475fcf70b27fd3d3e8313e28ccbfb`, with notes where the review of the #334
+  tooling PR (#339) changed the design: `root` aggregates `experiments`, and `-Wvalue-discard` and
+  `-Wnonunit-statement` are dropped: sections 3, 4 and 5
 
 Each sub-issue gets its own implementation plan in this directory.
 
@@ -157,6 +160,7 @@ differently and both pass `scalafmtCheck`. The setting can be tightened later, o
 - `lint`: `scalafmtCheckAll`, `scalafmtSbtCheck`, `experiments/scalafmtCheckAll`.
 
 `root` doesn't aggregate `experiments`, which is why both aliases name it explicitly. #334 extends both aliases.
+Since #339, `root` aggregates `experiments`, and neither alias names it.
 
 ### Pre-commit hook
 
@@ -201,7 +205,7 @@ These are added to `compilerOptions` in `build.sbt`:
 | --- | --- | --- |
 | `-Wunused:all` | main and test | Unused imports, private members, locals, parameters, and `@nowarn` annotations that suppress nothing |
 | `-no-indent`, `-old-syntax` | main and test | Compile *errors* for indentation syntax and `if x then`, enforcing the brace convention |
-| `-Wvalue-discard`, `-Wnonunit-statement` | **main only** | ScalaTest's `shouldBe` returns `Assertion`, so these would fire on nearly every test line. `Test / scalacOptions` inherits `Compile / scalacOptions`, so the build removes them from `Test` explicitly (verified with `show Test/scalacOptions`). |
+| `-Wvalue-discard`, `-Wnonunit-statement` | **main only** | **Dropped in #339:** every intentionally discarded result would need a noisy `val _ = …`. Main only, as planned, since ScalaTest's `shouldBe` returns `Assertion`, so these would fire on nearly every test line. `Test / scalacOptions` inherits `Compile / scalacOptions`, so the build removes them from `Test` explicitly (verified with `show Test/scalacOptions`). |
 
 Not included: `-Wsafe-init` (slower compiles, and no documented convention needs it) and `-Wshadow`. Either can be
 added later.
@@ -331,7 +335,8 @@ The same "Enforced by …" information is added to each entry in the convention 
 - Whatever `-Wvalue-discard` and `-Wnonunit-statement` report, plus every `-Wunused` finding other than an unused
   import. Unused imports are left for the bulk PR. **The plan starts by counting these per module and category. If
   there are too many to fix by hand in one PR, stop and re-scope with the user.** Measured while planning: 24 (14
-  discarded values, 7 unused private members, 3 unused local definitions).
+  discarded values, 7 unused private members, 3 unused local definitions). #339 then dropped the discarded-value flags
+  and reverted their fixes (see [Flags](#flags)).
 - The 2 deprecated `TuningService.tunings` uses stay as they are, since deprecations remain warnings.
 
 **Bulk PR:** only the output of `sbtn fix` (scalafix autofixes, then scalafmt): unused imports removed, imports ordered,
