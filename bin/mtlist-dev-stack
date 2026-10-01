@@ -526,10 +526,7 @@ cmd_start() {
   log "Starting metals-standalone-client (log: $metals_log)..."
   set -m
   # stdin is redirected because a background process group that reads the terminal is stopped by SIGTTIN.
-  # Marks the launch time: a `.mcp.json` left by a previous run is kept, since it makes Metals reuse its
-  # port, but only one written after the launch counts as ready.
-  local mcp_file="$repo_root/.mcp.json" launch_marker="$logs_dir/.metals-launch"
-  touch "$launch_marker"
+  rm -f "$repo_root/.mcp.json"
   metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude \
     </dev/null >"$metals_log" 2>&1 &
   metals_pid=$!
@@ -542,13 +539,11 @@ cmd_start() {
   trap '' PIPE
 
   # Wait for Metals to write .mcp.json, then warm up the build.
+  local mcp_file="$repo_root/.mcp.json"
   log "Waiting for $mcp_file to be written by Metals..."
-  local mcp_ready=0
   for _ in $(seq 1 180); do
-    # Not `-nt`: bash 3.2 on macOS compares whole seconds, so a file written in the launch's second isn't newer.
-    if [[ -f "$mcp_file" && ! "$launch_marker" -nt "$mcp_file" ]]; then
+    if [[ -f "$mcp_file" ]]; then
       log "$mcp_file is ready."
-      mcp_ready=1
       break
     fi
     if ! kill -0 "$metals_pid" 2>/dev/null; then
@@ -558,8 +553,7 @@ cmd_start() {
     sleep 1
   done
 
-  rm -f "$launch_marker"
-  if [[ "$mcp_ready" -eq 1 ]]; then
+  if [[ -f "$mcp_file" ]]; then
     # Metals rewrites `.mcp.json` from scratch on every start (dropping any other
     # entries), so the project's own scoverage-inspector MCP server must be merged
     # back in after Metals writes the file. (Metals seems to reuse its persisted HTTP port
