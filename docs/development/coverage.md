@@ -59,8 +59,10 @@ All three begin with `clean`, so you need not `sbt clean` beforehand.
 The scripts run sbt in a fresh JVM with `-Dmicrotonalist.build.targetSuffix=-scoverage`, which builds into
 `<project>/target-scoverage/`. That keeps the instrumented coverage build from clashing with concurrent builds of the same
 code without instrumentation, such as an IDE's build in `target/` (IntelliJ IDEA is known to cause such issues) or the
-development stack's in `target-bsp/`, which can keep running meanwhile. If you run a coverage command with `sbt`
-directly, pass the same option.
+development stack's in `target-bsp/`, which can keep running meanwhile. They also pass `-Dsbt.server.autostart=false`,
+so that their sbt starts no sbt server: run while the development stack is down, it would take the build's server
+socket, which `sbtn` would then connect to and which would keep the stack from starting. If you run a coverage command
+with `sbt` directly, pass the same options.
 
 **Coverage commands do not work via `sbtn`** — `sbtn` runs them on the development stack's sbt server, which builds into
 `target-bsp/` whatever options `sbtn` gets. This is the one exception to the "prefer `sbtn`" rule in `AGENTS.md`.

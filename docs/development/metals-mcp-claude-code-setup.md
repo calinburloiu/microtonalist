@@ -91,7 +91,7 @@ bin/mtlist-dev-stack start --foreground # attach in this terminal (Ctrl-C to sto
 
 The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
 and the sbt server that the thin client `sbtn` connects to) and `metals-standalone-client` as
-background processes, waits for `.mcp.json` to appear and for sbt's server to start, and then
+background processes, waits for Metals' MCP server and sbt's server to start, and then
 warms up the build by sending `compile` to SBT. The default (background) form detaches the script
 under `nohup`, records its PID at `logs/mtlist-dev-stack.pid`, and returns once the stack is
 ready, so you can continue working in the same terminal; it exits non-zero if the stack shuts
@@ -168,7 +168,9 @@ After Metals has imported the build, a `.mcp.json` will appear at the repo root,
 }
 ```
 
-The port is chosen dynamically and changes between runs — don't hard-code it. Add `.mcp.json`
+Metals picks the port on its first run, then reuses the one recorded in `.mcp.json` (or else in
+`.metals/mcp.json`), so that Claude Code sessions reconnect after a restart; still, don't
+hard-code it. Add `.mcp.json`
 to your local / global gitignore since it's machine- and session-specific.
 
 ## 8. Connect Claude Code

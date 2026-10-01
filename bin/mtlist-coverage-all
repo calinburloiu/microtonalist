@@ -20,7 +20,9 @@
 #
 # Runs sbt's `coverageAll` command (see docs/development/coverage.md) in a fresh sbt JVM that builds into
 # `<project>/target-scoverage/`, so that it doesn't race the development stack's sbt (`target-bsp/`) or an IDE
-# (`target/`) on the same classes. Coverage commands don't work through `sbtn`.
+# (`target/`) on the same classes. Coverage commands don't work through `sbtn`. That sbt starts no sbt server: run
+# while the development stack is down, it would take the build's server socket, which `sbtn` would then connect to
+# and which would keep the stack from starting.
 #
 
 set -euo pipefail
@@ -38,4 +40,4 @@ if [[ $# -gt 0 ]]; then
 fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-exec sbt -Dmicrotonalist.build.targetSuffix=-scoverage coverageAll
+exec sbt -Dmicrotonalist.build.targetSuffix=-scoverage -Dsbt.server.autostart=false coverageAll

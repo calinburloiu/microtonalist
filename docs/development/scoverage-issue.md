@@ -146,10 +146,10 @@ isolation (see [`coverage.md`](coverage.md#running-coverage)):
 bin/mtlist-coverage-all
 ```
 
-…or pass the property yourself when you run `sbt` directly:
+…or pass their options yourself when you run `sbt` directly:
 
 ```bash
-sbt -Dmicrotonalist.build.targetSuffix=-scoverage coverageAll
+sbt -Dmicrotonalist.build.targetSuffix=-scoverage -Dsbt.server.autostart=false coverageAll
 ```
 
 For **non-coverage** sbt commands while the dev stack is up

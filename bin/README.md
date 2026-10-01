@@ -62,15 +62,19 @@ Launches two background processes (managed by this script):
    [issue #186](https://github.com/calinburloiu/microtonalist/issues/186) for
    the failure mode that motivated this isolation.
 2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude` —
-   drives Metals as a headless LSP client and makes Metals write `.mcp.json`
-   at the repo root for Claude Code to pick up. It runs in a process group of
+   drives Metals as a headless LSP client and makes Metals start its MCP
+   server, recorded in `.mcp.json` at the repo root for Claude Code to pick
+   up. It runs in a process group of
    its own, which the Metals server and the BSP client that Metals starts
    join, so that the script can stop that whole process tree.
 
-Once `.mcp.json` is written, the script merges the project's `scoverage-inspector`
-MCP server into it (Metals rewrites the file from scratch on each start, so the
-entry must be re-added every time; this requires `uv`/`uvx` on `PATH` — if it is
-missing, the script warns and skips registration). Once sbt reports that its
+Once Metals reports that its MCP server has started, the script merges the
+project's `scoverage-inspector` MCP server into `.mcp.json` (this requires
+`uv`/`uvx` on `PATH` — if it is missing, the script warns and skips
+registration). Metals writes its entry only into a `.mcp.json` that lacks one,
+keeping the file's other entries. Otherwise it reuses the port recorded there,
+so that a Claude Code session keeps reaching it across a restart: keep
+`.mcp.json` rather than deleting it. Once sbt reports that its
 server has started, the script warms up the build by sending `compile` to the
 running SBT shell (SBT and Metals share the same BSP state, so this also warms
 what Metals' MCP tools later see), and the stack is ready.
@@ -79,9 +83,13 @@ To run further sbt commands against the same server (the recommended pattern,
 to avoid spawning a second sbt JVM that races the BSP server), use the sbt
 thin client `sbtn` from another terminal — for example, `sbtn "tuner/test"`.
 
-The script refuses to launch when it detects that another sbt server is
-already running for this project (typically left behind by a prior `sbtn`
-invocation). It prints the orphan PID and the command to stop it. Pass
+Before it launches, the script stops the processes that a stack killed before
+its shutdown finished left running (see [`stop`](#stop)). It refuses to launch
+when it detects that another sbt server is already running for this project
+(typically left behind by a prior `sbtn` invocation). It prints the orphan PID
+and the command to stop it, and says to stop any other Metals for this project
+(such as an IDE's) first: Metals' BSP client starts a new sbt server when the
+one it uses goes away. Pass
 `--force` (`-f`) to launch anyway — but note that `sbtn` will route to the
 orphan, not to the BSP server we are about to start, so this is rarely what
 you want.
@@ -101,8 +109,8 @@ bin/mtlist-dev-stack start
 ```
 
 The script handles `nohup`, log redirection, PID-file recording, and `disown`
-internally, then waits until the stack is ready: sbt's server has started and
-Metals has written `.mcp.json`. That usually takes seconds, but can take
+internally, then waits until the stack is ready: sbt's server and Metals' MCP
+server have started. That usually takes seconds, but can take
 minutes on a first start that downloads dependencies; the script gives up
 waiting after 10 minutes, leaving the stack starting. It exits with 0 once
 the stack is ready, and non-zero if the stack shuts down meanwhile (for
@@ -143,8 +151,9 @@ exits by itself; then it exits with a non-zero status. Either way, it:
    ([#348](https://github.com/calinburloiu/microtonalist/issues/348)).
 2. Sends `exit` to SBT via the FIFO it uses as SBT's stdin, waits up to 10
    seconds, and stops SBT itself if it hasn't exited.
-3. Removes the FIFO, the PID file, and the `logs/mtlist-dev-stack.ready` file
-   that marks the stack as ready.
+3. Removes the FIFO, the PID file, the `logs/mtlist-dev-stack.ready` file
+   that marks the stack as ready, and the files in which it records the
+   process group of Metals and the PID of sbt (see [`stop`](#stop)).
 4. Warns if an sbt server is still running for this project, with the
    command to stop it.
 
@@ -152,9 +161,15 @@ exits by itself; then it exits with a non-zero status. Either way, it:
 
 Stops a running `start`. Reads the PID from `logs/mtlist-dev-stack.pid`,
 sends SIGTERM, which shuts the stack down as described above, waits up to 60
-seconds, escalates to SIGKILL if needed, then removes the PID file. Like the
-stack, it warns if an sbt server is still running for this project afterwards.
-Idempotent: a missing PID file or a stale PID is a no-op success.
+seconds, escalates to SIGKILL if needed, then removes the PID file.
+
+A stack killed before its shutdown finished, by that SIGKILL or by a
+`kill -9`, leaves its processes running. So `stop` then stops those that the
+stack recorded, Metals' process group (`logs/mtlist-dev-stack.metals-pgid`)
+first, then sbt (`logs/mtlist-dev-stack.sbt-pid`), checking that each is
+still the stack's. Like the stack, it warns if an sbt server is still running
+for this project afterwards. Idempotent: a missing PID file or a stale PID is
+a success.
 
 ```bash
 bin/mtlist-dev-stack stop
@@ -168,15 +183,16 @@ script's `trap … INT` is silently a no-op for backgrounded invocations and
 unaffected and triggers the trap normally.
 
 **Avoid `kill -9` / `kill -KILL`** — it bypasses the trap, leaving SBT,
-`metals-standalone-client`, the FIFO, and a stale `.mcp.json` behind. Only
-use it as a last resort, and then clean up manually. Stop Metals' process
-group first, then the sbt server that owns this build's socket: stopping only
-sbt lets Metals start another one.
+`metals-standalone-client` and the FIFO behind. Only
+use it as a last resort, and then run `stop`, which stops the processes the
+stack left running. To clean up by hand instead, stop Metals' process group
+first, then the sbt server that owns this build's socket: stopping only sbt
+lets Metals start another one.
 
 ```bash
-kill -- -"$(pgrep -f metals-standalone-client)"
+kill -- -"$(cat logs/mtlist-dev-stack.metals-pgid)"
 kill "$(lsof -t "$(grep -oE 'local://[^"]+' project/target/active.json | sed 's|^local://||')")"
-rm -f .mcp.json logs/.sbt-stdin.fifo logs/mtlist-dev-stack.pid logs/mtlist-dev-stack.ready
+rm -f logs/.sbt-stdin.fifo logs/mtlist-dev-stack.{pid,ready,metals-pgid,sbt-pid}
 ```
 
 ### `restart`
@@ -196,7 +212,8 @@ structural change (new modules, changed dependencies, source generators) takes
 effect only once the stack re-imports it. A bare `sbtn reload` re-reads the
 build into the sbt server — enough for `sbtn` to see changed *settings* such as
 coverage thresholds — but does not re-import it into Metals. Restarting relaunches
-Metals, but Metals reuses its persisted HTTP MCP port (`.metals/mcp.json`), so an
+Metals, but Metals reuses the HTTP MCP port recorded in `.mcp.json` (or else in
+`.metals/mcp.json`), so an
 active Claude Code session's Metals MCP keeps working across the restart without a
 `/mcp` reconnect — see
 [`../docs/agents/dev-stack.md`](../docs/agents/dev-stack.md) for the caveats (port
@@ -230,9 +247,12 @@ They run sbt's `coverageModules`, `coverageAll` and `coverageCheck` commands in
 a fresh sbt JVM with `-Dmicrotonalist.build.targetSuffix=-scoverage`, which
 builds into `<project>/target-scoverage/`. So a coverage run doesn't race the
 development stack's sbt (`target-bsp/`) or an IDE (`target/`) on the same
-classes, and the stack can keep running meanwhile. Coverage commands don't work
-through `sbtn`: the stack's sbt server builds into `target-bsp/`, whatever
-options `sbtn` gets.
+classes, and the stack can keep running meanwhile. With
+`-Dsbt.server.autostart=false`, that sbt starts no sbt server: run while the
+stack is down, it would take the build's server socket, which `sbtn` would then
+connect to and which would keep the stack from starting. Coverage commands
+don't work through `sbtn`: the stack's sbt server builds into `target-bsp/`,
+whatever options `sbtn` gets.
 
 ## `mtlist-agents-test-filter`
 

@@ -48,9 +48,9 @@ Metals MCP provides Claude Code with Scala code intelligence through the
 
 4. Verify the connection with `/mcp` -- `metals` and `scoverage-inspector` should appear in the server list.
 
-> **Note:** The `.mcp.json` file is generated dynamically with a random port and is gitignored. It cannot be checked
-> into the repository since it is machine- and session-specific. `bin/mtlist-dev-stack start` merges the
-> project's `scoverage-inspector` server into it after Metals writes the file (see below).
+> **Note:** Metals generates the `.mcp.json` file with a port it picks on its first run and reuses afterwards; the file
+> is gitignored. It cannot be checked into the repository since it is machine-specific. `bin/mtlist-dev-stack start`
+> merges the project's `scoverage-inspector` server into it once Metals' MCP server has started (see below).
 
 ## scoverage-inspector MCP
 
@@ -59,14 +59,14 @@ statement/branch percentages and uncovered source lines — without loading the 
 context. It is an in-process [FastMCP](https://modelcontextprotocol.io/) stdio server living under
 [`.claude/mcp/scoverage_inspector/`](../../.claude/mcp/scoverage_inspector/), backed by a pure, unit-tested
 `scoverage_core.py` module. Each query tool freshness-checks the requested modules and transparently rebuilds stale or
-missing reports via a single batched `sbt` run (isolated under `target-scoverage/`, logged to
+missing reports via a single batched `sbt` run (isolated under `target-scoverage/`, starting no sbt server, logged to
 `logs/mcp/scoverage-inspector/sbt-run.log`).
 
 It is launched via `uvx --from mcp`, which fetches and pins the `mcp` package on demand without adding it to the repo
 toolchain — so **[`uv`](https://docs.astral.sh/uv/) must be installed** (see
-[`README.md`](README.md#prerequisites)). Because Metals rewrites `.mcp.json` from scratch on every start (its port and
-transport are dynamic), `bin/mtlist-dev-stack start` merges the `scoverage-inspector` entry back in right after
-Metals writes the file. If `uv` is missing, the dev-stack prints a warning and skips registration.
+[`README.md`](README.md#prerequisites)). Because `.mcp.json` is gitignored, and Metals creates it afresh when it is
+missing, `bin/mtlist-dev-stack start` merges the `scoverage-inspector` entry into it on every start, once Metals' MCP
+server has started. If `uv` is missing, the dev-stack prints a warning and skips registration.
 
 The same logic is runnable from the command line via `python3 .claude/mcp/scoverage_inspector/cli.py` (subcommands
 `freshness`, `class-summary`, `class-uncovered`, `module-summary`, `run-coverage`) for humans and CI. The Python test

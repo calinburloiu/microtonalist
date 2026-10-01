@@ -36,7 +36,8 @@ FAKE_COMMAND = """#!/bin/bash
 { pwd; printf '%s\\n' "$@"; } > "$FAKE_STATE/$(basename "$0").args"
 """
 
-TARGET_SUFFIX_FLAG = "-Dmicrotonalist.build.targetSuffix=-scoverage"
+# The options of the coverage scripts' sbt: its own target directories, and no sbt server.
+SCOVERAGE_SBT_OPTIONS = ["-Dmicrotonalist.build.targetSuffix=-scoverage", "-Dsbt.server.autostart=false"]
 
 
 class WrapperScriptTest(unittest.TestCase):
@@ -113,7 +114,7 @@ class WrapperScriptTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         cwd, args = self.recorded_call("sbt")
         self.assert_same_path(cwd, self.repo)
-        self.assertEqual(args, [TARGET_SUFFIX_FLAG, "coverageModules tuner intonation"])
+        self.assertEqual(args, [*SCOVERAGE_SBT_OPTIONS, "coverageModules tuner intonation"])
 
     def test_mtlist_coverage_modules_requires_a_module(self):
         # When
@@ -132,7 +133,7 @@ class WrapperScriptTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         cwd, args = self.recorded_call("sbt")
         self.assert_same_path(cwd, self.repo)
-        self.assertEqual(args, [TARGET_SUFFIX_FLAG, "coverageAll"])
+        self.assertEqual(args, [*SCOVERAGE_SBT_OPTIONS, "coverageAll"])
 
     def test_mtlist_coverage_check_runs_the_ci_coverage_check_in_the_scoverage_target(self):
         # When
@@ -142,7 +143,7 @@ class WrapperScriptTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         cwd, args = self.recorded_call("sbt")
         self.assert_same_path(cwd, self.repo)
-        self.assertEqual(args, [TARGET_SUFFIX_FLAG, "coverageCheck"])
+        self.assertEqual(args, [*SCOVERAGE_SBT_OPTIONS, "coverageCheck"])
 
     def test_coverage_scripts_without_modules_reject_arguments(self):
         for name in ["mtlist-coverage-all", "mtlist-coverage-check"]:
