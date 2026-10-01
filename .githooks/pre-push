@@ -26,7 +26,7 @@
 # uncommitted change or untracked file. It also needs an sbt server that's
 # already running for this project, such as the development stack's: `sbtn`
 # would otherwise start one, which is slow and leaves behind a server that stops
-# `bin/microtonalist-dev-stack start`. When a condition isn't met, the hook skips
+# `bin/mtlist-dev-stack start`. When a condition isn't met, the hook skips
 # the check with a message and lets the push through.
 #
 # Enable once per clone with:  git config core.hooksPath .githooks
@@ -48,7 +48,7 @@ skip() {
 # Tells whether an sbt server is running for this project. sbt records the
 # socket of its server in project/target/active.json. A socket that no process
 # holds is stale, and sbtn would start a new server rather than connect to it.
-# bin/microtonalist-dev-stack detects a stray server the same way.
+# bin/mtlist-dev-stack detects a stray server the same way.
 sbt_server_running() {
   local active_json="project/target/active.json"
   local sock_path
@@ -87,7 +87,7 @@ if ! command -v sbtn >/dev/null 2>&1; then
   skip "sbtn not found on PATH"
 fi
 if ! sbt_server_running; then
-  skip "no sbt server is running for this project (start one with bin/microtonalist-dev-stack start)"
+  skip "no sbt server is running for this project (start one with bin/mtlist-dev-stack start)"
 fi
 
 echo "pre-push: running 'sbtn lint'..." >&2

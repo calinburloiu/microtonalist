@@ -52,7 +52,7 @@ Two real-world triggers have been confirmed on this project:
    `target/scala-3.x/classes/` tree. The two compilers race and the
    instrumented TASTy gets clobbered or read mid-write. This is the trigger
    originally misdiagnosed as a pure Scala 3 / sbt-scoverage bug in [#183].
-2. **The Metals BSP server.** When `bin/microtonalist-dev-stack start` is
+2. **The Metals BSP server.** When `bin/mtlist-dev-stack start` is
    running (sbt-as-BSP for Metals MCP) and a CLI `sbt coverageAll` runs
    without target isolation, Metals' own BSP-driven compile races the CLI
    coverage compile on the same `classes/` directory. Hit concretely on
@@ -110,7 +110,7 @@ Treat a coverage-run failure as this issue if **all** of the following hold:
 - `sbt compile` and `sbt test` (no coverage) succeed on the same checkout.
 - Another JVM was touching the same `target/` tree during the run — most
   commonly IntelliJ IDEA with the project open and auto-build enabled, or
-  the Metals BSP server (`bin/microtonalist-dev-stack status` says
+  the Metals BSP server (`bin/mtlist-dev-stack status` says
   *running*) when the coverage command was launched **without** a target
   suffix.
 
@@ -127,7 +127,7 @@ to the same `classes/` directory.
 
 Two isolations are wired in:
 
-- **Metals BSP server — [#186].** `bin/microtonalist-dev-stack start`
+- **Metals BSP server — [#186].** `bin/mtlist-dev-stack start`
   launches the BSP-server sbt with `-Dmicrotonalist.build.targetSuffix=-bsp`,
   so Metals compiles into `<project>/target-bsp/`. CLI `sbt` invocations
   without the property continue to use `<project>/target/`.
@@ -138,25 +138,29 @@ Two isolations are wired in:
   the skill land in `<project>/target-scoverage/` and cannot collide with
   either IntelliJ's `target/` or the BSP server's `target-bsp/`.
 
-If you run `sbt coverageAll` or `sbt coverageModules …` **manually** from a
-terminal (i.e. not through the skill), prefer the same isolation:
+If you run coverage **manually** from a terminal (i.e. not through the
+skill), use the `bin/mtlist-coverage-*` scripts, which apply the same
+isolation (see [`coverage.md`](coverage.md#running-coverage)):
 
 ```bash
-sbt -Dmicrotonalist.build.targetSuffix=-scoverage coverageAll
+bin/mtlist-coverage-all
 ```
 
-…such that IntelliJ's auto-build is **not** simultaneously rebuilding
-the same modules.
+…or pass their options yourself when you run `sbt` directly:
+
+```bash
+sbt -Dmicrotonalist.build.targetSuffix=-scoverage -Dsbt.server.autostart=false coverageAll
+```
 
 For **non-coverage** sbt commands while the dev stack is up
-(`bin/microtonalist-dev-stack status` reports *running*), prefer `sbtn`
+(`bin/mtlist-dev-stack status` reports *running*), prefer `sbtn`
 over `sbt`. `sbtn` routes the command through the existing BSP-server sbt,
 which writes to `<project>/target-bsp/` — so there is still only one
 writer. Spawning a fresh `sbt` JVM instead writes to `<project>/target/`
 in parallel with the BSP server and reintroduces exactly the race this
 doc is about. (Coverage commands are the documented exception — they
-don't work via `sbtn`, so use `sbt -Dmicrotonalist.build.targetSuffix=-scoverage`
-as shown above.)
+don't work via `sbtn`, so use the `bin/mtlist-coverage-*` scripts as shown
+above.)
 
 The `coverageAll` / `coverageModules` / `coverageCheck` commands in
 [`project/Coverage.scala`](../../project/Coverage.scala) also bracket the

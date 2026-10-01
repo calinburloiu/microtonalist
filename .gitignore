@@ -89,5 +89,8 @@ __pycache__/
 
 # Claude Code
 .claude/worktrees/
+# Holds machine-specific state: Metals writes its MCP port, picked on a machine's first run, into it (and into
+# .metals/mcp.json) and reuses it on later starts, and bin/mtlist-dev-stack adds the scoverage-inspector server with
+# absolute paths. Keep the file: once both files are gone, Metals picks a new port under running Claude Code sessions.
 .mcp.json
 

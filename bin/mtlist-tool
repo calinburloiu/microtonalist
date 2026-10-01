@@ -16,9 +16,9 @@
 #    limitations under the License.
 #
 
-SCALA_VERSION=3.9.0
-
 SCRIPT_PATH="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd )"
+# The Scala version is part of the JAR's path; build.sbt reads it from the same file.
+SCALA_VERSION="$(< "${SCRIPT_PATH}/../project/scala-version")"
 JAR="${SCRIPT_PATH}/../cli/target/scala-${SCALA_VERSION}/microtonalist-cli.jar"
 
 java -jar "$JAR" "$@"

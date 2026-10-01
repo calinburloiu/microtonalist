@@ -28,8 +28,9 @@ Responsibilities:
 
 * `freshness` — compare a report's mtime against the newest source/test file.
 * `run_coverage` — run `sbt coverageModules`/`coverageAll` with the
-  `-Dmicrotonalist.build.targetSuffix=-scoverage` isolation flag, capturing output
-  to a log file. No retry, no TASTy classification — `status` is `ok` or `error`.
+  `-Dmicrotonalist.build.targetSuffix=-scoverage` isolation flag and without an
+  sbt server (`-Dsbt.server.autostart=false`), capturing output to a log file.
+  No retry, no TASTy classification — `status` is `ok` or `error`.
 * `class_summary`, `class_uncovered_lines`, `module_summary` — stream the report
   XML with `iterparse` (constant memory) and return structured data.
 """
@@ -48,6 +49,10 @@ from typing import Callable, Iterable
 # ---------------------------------------------------------------------------
 
 TARGET_SUFFIX_FLAG = "-Dmicrotonalist.build.targetSuffix=-scoverage"
+# Keeps the coverage sbt from starting an sbt server: run while the development
+# stack is down, it would take the build's server socket, which `sbtn` would then
+# connect to and which would keep the stack from starting.
+NO_SBT_SERVER_FLAG = "-Dsbt.server.autostart=false"
 LOG_SUBPATH = Path("logs") / "mcp" / "scoverage-inspector"
 LOG_FILE_NAME = "sbt-run.log"
 PREVIOUS_LOG_FILE_NAME = "sbt-run-previous.log"
@@ -243,7 +248,7 @@ def sbt_command(module_ids: list[str], aggregate: bool = False) -> list[str]:
         task = "coverageAll"
     else:
         task = "coverageModules " + " ".join(module_ids)
-    return ["sbt", TARGET_SUFFIX_FLAG, task]
+    return ["sbt", TARGET_SUFFIX_FLAG, NO_SBT_SERVER_FLAG, task]
 
 
 def _default_runner(cmd: list[str], log_file: Path) -> int:

@@ -7,7 +7,7 @@ shared test utilities), see [`test-conventions.md`](test-conventions.md).
 Tests are written with [ScalaTest](https://www.scalatest.org/) 3 and use `scalamock` for mocking / stubbing. Production
 code lives in `src/main/scala` and tests in `src/test/scala` for each module; test data goes in `src/test/resources`.
 
-> **Tip:** When the development stack is running (`bin/microtonalist-dev-stack start`), prefer `sbtn` over `sbt` so the
+> **Tip:** When the development stack is running (`bin/mtlist-dev-stack start`), prefer `sbtn` over `sbt` so the
 > commands execute on the long-lived BSP server instead of spawning a fresh JVM each time. See the
 > [Development Setup](README.md) guide.
 

@@ -43,7 +43,7 @@ module:
   regardless of the module's current threshold. The per-module floor exists to track legacy code
   paying down toward 80%; it is not a license for newly authored code to ship under-tested.
 
-For the manual `sbt coverageAll` / `coverageModules` workflow and CI's `coverageCheck`, see
+For the manual coverage workflow (the `bin/mtlist-coverage-*` scripts) and CI's `coverageCheck`, see
 `docs/development/coverage.md`.
 
 ## Step 1 — Resolve each class to its sbt module ID

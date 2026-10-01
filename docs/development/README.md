@@ -28,6 +28,9 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 * JDK 25
 * Scala 3
 * SBT 1
+* [direnv](https://direnv.net/)
+    - Recommended: puts the project's scripts from [`bin/`](../../bin/README.md) on your `PATH`. See
+      [direnv](#direnv) below.
 * Python 3
     - Optional: for AI-assisted coverage tooling.
 * [`uv`](https://docs.astral.sh/uv/) (provides `uvx`)
@@ -41,6 +44,41 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 * [scalafmt](https://scalameta.org/scalafmt/) command-line tool
     - Optional: for the formatting step of the pre-commit hook. Install with `cs install scalafmt`. See
       [`build.md`](build.md#pre-commit-hook).
+
+## direnv
+
+The project's scripts live in [`bin/`](../../bin/README.md): the development stack (`mtlist-dev-stack`), the coverage
+runs (`mtlist-coverage-*`), and the application launchers (`mtlist`, `mtlist-tool`). The repository's `.envrc` file
+tells [direnv](https://direnv.net/) to put `bin/` on your `PATH` whenever your shell is inside the repository, so you can
+run them by name from any subdirectory. Set it up once:
+
+1. Install direnv, e.g. with `brew install direnv` on macOS, or your Linux distribution's package manager.
+2. Install direnv's hook into your shell, which loads `.envrc` files as you change directories. Add the line for your
+   shell at the end of its startup file, then open a new terminal:
+
+   ```bash
+   # ~/.zshrc
+   eval "$(direnv hook zsh)"
+   ```
+
+   ```bash
+   # ~/.bashrc
+   eval "$(direnv hook bash)"
+   ```
+
+   See [direnv's hook documentation](https://direnv.net/docs/hook.html) for other shells.
+3. Approve the repository's `.envrc` from the repository root. direnv doesn't load an `.envrc` that you haven't
+   approved, and it asks you again whenever the file changes, after reviewing it (`cat .envrc`):
+
+   ```bash
+   direnv allow
+   ```
+
+Check it with `which mtlist-dev-stack`, which should print the path of `bin/mtlist-dev-stack`. Without direnv, run the
+scripts as `bin/<script>` from the repository root, as the documentation does.
+
+> Claude Code's shell commands don't necessarily see the `PATH` that direnv sets, so the agent instructions call the
+> scripts as `bin/<script>`, which works either way.
 
 ## Building
 

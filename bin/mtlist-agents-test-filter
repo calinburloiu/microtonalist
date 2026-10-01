@@ -16,13 +16,13 @@
 #
 
 #
-# agents-test-filter — shrink the output of a full sbt test run.
+# mtlist-agents-test-filter — shrink the output of a full sbt test run.
 #
 # Reads the output of `sbtn "root/testOnly * -- -oNCXEHLOPQRMWS"` on stdin and
 # drops the lines that are pure noise on a green run, while letting every
 # failure and abort signal pass through untouched. Use it as a filter:
 #
-#     sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/agents-test-filter
+#     sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/mtlist-agents-test-filter
 #
 # The `-o…` reporter flags already suppress per-test/per-suite lines; this
 # removes what those flags cannot:
@@ -47,7 +47,7 @@
 # failures, aborts, compile errors) and for a non-zero "aborted" suite count.
 # So a pipeline can gate on the result, e.g.:
 #
-#     sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/agents-test-filter \
+#     sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 | bin/mtlist-agents-test-filter \
 #       && echo "green" || echo "red"
 #
 # (When chained after sbtn in a pipe, this script's own status is what the

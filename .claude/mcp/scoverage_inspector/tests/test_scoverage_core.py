@@ -267,6 +267,13 @@ class RunCoverageTest(unittest.TestCase):
         cmd = core.sbt_command([], aggregate=True)
         self.assertEqual(cmd[-1], "coverageAll")
 
+    def test_sbt_command_starts_no_sbt_server(self):
+        # An sbt server would take the build's server socket, which `sbtn` and the dev stack use.
+        for aggregate in [False, True]:
+            with self.subTest(aggregate=aggregate):
+                cmd = core.sbt_command(["sc-midi"], aggregate=aggregate)
+                self.assertIn("-Dsbt.server.autostart=false", cmd)
+
     def test_ok_status_on_zero_exit(self):
         result = core.run_coverage(["sc-midi"], self.tmp, runner=self._runner(0))
         self.assertEqual(result.status, "ok")

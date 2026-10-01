@@ -14,7 +14,7 @@ the full suite before finishing an issue.
 ## Commands
 
 Always append the ScalaTest reporter flags `-- -oNCXEHLOPQRMWS` to shrink the output. The test commands below are
-transparently routed through a `bin/agents-test-filter` pipe by a committed Claude Code hook that trims a green run's
+transparently routed through a `bin/mtlist-agents-test-filter` pipe by a committed Claude Code hook that trims a green run's
 output noise — see the "Hooks" section of [`../development/claude-code-setup.md`](../development/claude-code-setup.md)
 for details.
 
