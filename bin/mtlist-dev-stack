@@ -324,6 +324,7 @@ cmd_stop() {
 
   if [[ ! -f "$pid_file" ]]; then
     log "No PID file at $pid_file; nothing to stop."
+    warn_about_sbt_server_left_running
     return 0
   fi
 
@@ -333,6 +334,7 @@ cmd_stop() {
   if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
     log "PID file present but process ${pid:-<empty>} is not alive; cleaning up stale file."
     rm -f "$pid_file"
+    warn_about_sbt_server_left_running
     return 0
   fi
 
@@ -341,6 +343,12 @@ cmd_stop() {
 
   if ! wait_for_exit "$pid" "$stop_timeout_s"; then
     log "PID $pid still alive after ${stop_timeout_s}s; sending SIGKILL."
+    # SIGKILL skips the script's traps, so kill its children too: Metals' process group (its PID is the group ID)
+    # and sbt.
+    local child
+    for child in $(pgrep -P "$pid" 2>/dev/null || true); do
+      kill -KILL -- "-$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null || true
+    done
     kill -9 "$pid" 2>/dev/null || true
   fi
 
@@ -517,8 +525,10 @@ cmd_start() {
   # whole group.
   log "Starting metals-standalone-client (log: $metals_log)..."
   set -m
+  # stdin is redirected because a background process group that reads the terminal is stopped by SIGTTIN.
+  rm -f "$repo_root/.mcp.json"
   metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude \
-    >"$metals_log" 2>&1 &
+    </dev/null >"$metals_log" 2>&1 &
   metals_pid=$!
   set +m
   log "metals-standalone-client PID: $metals_pid"
