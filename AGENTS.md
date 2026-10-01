@@ -87,7 +87,7 @@ collide. See [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) for why, and
 
 At the start of every conversation, **once** per session:
 
-1. Detect the running stack with `bin/microtonalist-dev-stack status` (exit 0 if running, 1 if not). If it is not
+1. Detect the running stack with `bin/mtlist-dev-stack status` (exit 0 if running, 1 if not). If it is not
    running, follow [`docs/agents/dev-stack.md`](docs/agents/dev-stack.md) before continuing. Do this before any Metals
    MCP call, because the Metals MCP comes up with the stack.
 2. Check whether the Metals MCP is available (see [Code Intelligence](#code-intelligence)) and, if it is, run a full

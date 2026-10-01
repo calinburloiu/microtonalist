@@ -16,6 +16,9 @@ libraries, or separate executable applications — we simply call each of those 
 in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects. The
 executable application is in the `app` SBT project.
 
+**The Scala version is in `project/scala-version`**, a one-line file that `build.sbt` reads. The launchers in `bin/` read
+it too, because it is part of the paths of the fat JARs they run. Upgrade Scala there, not in `build.sbt`.
+
 **Convention — project ID equals base directory name.** Every project sets `.withId(<base-directory-name>)` in
 `build.sbt`, so its SBT project ID (used in `sbt "<id>/compile"` / `"<id>/test"`, in `thisProject.value.id`, and thus in
 `coverageDataDir`) always equals its directory. IDs may be kebab-case (`sc-midi`, `config`, `common-test-utils`). The
@@ -114,11 +117,11 @@ file: fix the code, e.g. with `sbtn fixLint`, commit, and push again. `git push 
 sbt checks the working tree, so the hook only checks when the working tree is what's pushed: every pushed branch or tag
 points at `HEAD`, and there's no uncommitted change or untracked file. It also needs an sbt server that's already
 running for this project, such as the development stack's: `sbtn` would otherwise start one, which is slow and leaves
-behind a server that stops `bin/microtonalist-dev-stack start`. When a condition isn't met, the hook skips the check
+behind a server that stops `bin/mtlist-dev-stack start`. When a condition isn't met, the hook skips the check
 with a message, and CI still checks.
 
 The server keeps the build definition it loaded when it started. After a change to `build.sbt` or `project/`, restart
-it first, e.g. with `bin/microtonalist-dev-stack restart`; until then, sbt warns that "build source files have changed".
+it first, e.g. with `bin/mtlist-dev-stack restart`; until then, sbt warns that "build source files have changed".
 
 ### Editors
 
@@ -145,5 +148,9 @@ Building the fat JAR for the executable application:
 ```bash
 sbtn assembly
 ```
+
+The `bin/mtlist` and `bin/mtlist-tool` launchers run the fat JARs from `app/target/scala-<version>/` and
+`cli/target/scala-<version>/`, which a plain `sbt assembly` builds; `sbtn assembly` builds them under `target-bsp/`
+instead (see [Build output directories](#build-output-directories)).
 
 It is recommended to compile, build, or test the whole project before committing changes.

@@ -32,6 +32,14 @@ See [License headers](docs/development/license-headers.md), and the
 [pre-commit](docs/development/build.md#pre-commit-hook) and [pre-push](docs/development/build.md#pre-push-hook) hooks,
 for details.
 
+The project's scripts, in [`bin/`](bin/README.md), go on your `PATH` through [direnv](https://direnv.net/). Once you have
+installed direnv and its shell hook (see [direnv](docs/development/README.md#direnv)), approve the repository's `.envrc`
+once per clone, and again whenever it changes:
+
+```bash
+direnv allow
+```
+
 Bulk, tool-generated changes, such as reformatting the whole codebase, are listed in `.git-blame-ignore-revs`. GitHub's
 blame view skips them automatically; to make local `git blame` skip them too, run once per clone:
 

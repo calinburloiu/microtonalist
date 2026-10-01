@@ -23,46 +23,51 @@ needed to reach 80%.
 
 ## Running coverage
 
-The project introduces custom coverage commands. It is recommended to set a suffix for build target subdirectories to
-avoid clashes with concurrent builds that don't include code instrumented for coverage such as a build from an IDE.
-You can do that by adding `-Dmicrotonalist.build.targetSuffix=-scoverage` for example to every sbt CLI command used for
-coverage. There are known issues with IntelliJ IDEA while running scoverage without custom target subdirectories.
+The project introduces custom coverage commands, defined in `project/Coverage.scala`; see its ScalaDoc for the
+workflow's implementation details. Run them through the wrapper scripts in [`bin/`](../../bin/README.md#mtlist-coverage-),
+which also isolate the coverage build (see below).
 
 **Run coverage as the final step of any code-changing task, before committing**, to verify that the module's
 configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
 
-- **Larger or multi-module changes** — run the full project-wide workflow with `sbt coverageAll`. Per-module reports
-  plus an aggregate report are produced. The aggregate combines each module's tests with the tests of dependent
-  modules.
-- **Smaller changes scoped to one or a few modules** — run `sbt "coverageModules <module> [<module> ...]"`, where
-  each `<module>` is an sbt project ID, equal to the module's base directory name (e.g. `intonation`, `tuner`,
-  `config`, `sc-midi`). At least one module must be
-  supplied. Only the listed modules' tests run, so coverage is not inflated by tests from other modules exercising
-  the same code, and all listed modules share a single coverage session.
+- **Larger or multi-module changes** — run the full project-wide workflow with `bin/mtlist-coverage-all` (sbt's
+  `coverageAll`). Per-module reports plus an aggregate report are produced. The aggregate combines each module's tests
+  with the tests of dependent modules.
+- **Smaller changes scoped to one or a few modules** — run `bin/mtlist-coverage-modules <module> [<module> ...]` (sbt's
+  `coverageModules`), where each `<module>` is an sbt project ID, equal to the module's base directory name (e.g.
+  `intonation`, `tuner`, `config`, `sc-midi`). At least one module must be supplied. Only the listed modules' tests run,
+  so coverage is not inflated by tests from other modules exercising the same code, and all listed modules share a
+  single coverage session.
 
-Both commands are defined in `project/Coverage.scala`; see its ScalaDoc for the workflow's implementation details.
-There is also a `coverageCheck` command used by CI.
+```bash
+bin/mtlist-coverage-all
+```
 
-Both `coverageModules` and `coverageAll` begin with `clean`, so you need not `sbt clean` beforehand.
+```bash
+bin/mtlist-coverage-modules intonation
+```
+
+```bash
+bin/mtlist-coverage-modules tuner intonation
+```
+
+There is also `bin/mtlist-coverage-check`, which runs CI's `coverageCheck` command: the same workflow as `coverageAll`,
+with only the XML reports that the threshold checks need.
+
+All three begin with `clean`, so you need not `sbt clean` beforehand.
+
+The scripts run sbt in a fresh JVM with `-Dmicrotonalist.build.targetSuffix=-scoverage`, which builds into
+`<project>/target-scoverage/`. That keeps the instrumented coverage build from clashing with concurrent builds of the same
+code without instrumentation, such as an IDE's build in `target/` (IntelliJ IDEA is known to cause such issues) or the
+development stack's in `target-bsp/`, which can keep running meanwhile. If you run a coverage command with `sbt`
+directly, pass the same option.
+
+**Coverage commands do not work via `sbtn`** — `sbtn` runs them on the development stack's sbt server, which builds into
+`target-bsp/` whatever options `sbtn` gets. This is the one exception to the "prefer `sbtn`" rule in `AGENTS.md`.
 
 If a coverage command fails with TASTy/companion-class errors, `Not found: type X`, or `NoClassDefFoundError` at test
 runtime, see [`docs/development/scoverage-issue.md`](scoverage-issue.md) before assuming it is a code defect — the
 typical response is to retry the command, not to change source code.
-
-**Coverage commands do not work via `sbtn`** — run them through a fresh `sbt` JVM instead. This is the one
-exception to the "prefer `sbtn`" rule in `AGENTS.md`.
-
-```bash
-sbt coverageAll
-```
-
-```bash
-sbt "coverageModules intonation"
-```
-
-```bash
-sbt "coverageModules tuner intonation"
-```
 
 Coverage data and reports live at the repo root under `coverage-reports/<project-id>/scoverage-report/` (configured
 via `coverageDataDir` in `build.sbt`); the aggregate is at `coverage-reports/root/scoverage-report/`. The

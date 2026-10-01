@@ -16,7 +16,9 @@
 
 import Dependencies.*
 
-ThisBuild / scalaVersion := "3.9.0"
+// The Scala version lives in `project/scala-version`, so that the scripts in `bin/` can read it too: it is part of the
+// path of the fat JARs they run.
+ThisBuild / scalaVersion := IO.read((ThisBuild / baseDirectory).value / "project" / "scala-version").trim
 ThisBuild / version := "1.6.0-SNAPSHOT"
 ThisBuild / organization := "org.calinburloiu.music"
 
@@ -334,7 +336,7 @@ lazy val compilerOptions = Seq(
 
 // When `-Dmicrotonalist.build.targetSuffix=<suffix>` is passed to sbt, every project's `target` directory
 // becomes `<project>/target<suffix>` instead of the default `<project>/target`. Used by
-// `bin/microtonalist-dev-stack start` (with suffix `-bsp`) so the sbt server backing Metals
+// `bin/mtlist-dev-stack start` (with suffix `-bsp`) so the sbt server backing Metals
 // writes to a different tree than ad-hoc CLI sbt invocations and the two never collide on the same
 // `classes/` directory. `sbt clean` follows the active `target` setting, so each tree is cleaned
 // independently. See https://github.com/calinburloiu/microtonalist/issues/186.

@@ -32,13 +32,13 @@ Metals MCP provides Claude Code with Scala code intelligence through the
 2. From the repo root, start the development stack (sbt + BSP server + Metals MCP):
 
    ```bash
-   bin/microtonalist-dev-stack start
+   bin/mtlist-dev-stack start
    ```
 
-   This launches SBT and Metals as background processes (the default) and returns immediately. Once ready,
-   it generates a `.mcp.json` file at the repo root (gitignored) that Claude Code picks up automatically.
+   This launches SBT and Metals as background processes (the default) and returns once they are ready. Metals
+   generates a `.mcp.json` file at the repo root (gitignored) that Claude Code picks up automatically.
    Pass `--foreground` to attach to the current terminal instead. See
-   [`bin/README.md`](../../bin/README.md#microtonalist-dev-stack) for details, including `stop` and `status`.
+   [`bin/README.md`](../../bin/README.md#mtlist-dev-stack) for details, including `stop` and `status`.
 
 3. In another terminal, launch Claude Code:
 
@@ -49,7 +49,7 @@ Metals MCP provides Claude Code with Scala code intelligence through the
 4. Verify the connection with `/mcp` -- `metals` and `scoverage-inspector` should appear in the server list.
 
 > **Note:** The `.mcp.json` file is generated dynamically with a random port and is gitignored. It cannot be checked
-> into the repository since it is machine- and session-specific. `bin/microtonalist-dev-stack start` merges the
+> into the repository since it is machine- and session-specific. `bin/mtlist-dev-stack start` merges the
 > project's `scoverage-inspector` server into it after Metals writes the file (see below).
 
 ## scoverage-inspector MCP
@@ -65,7 +65,7 @@ missing reports via a single batched `sbt` run (isolated under `target-scoverage
 It is launched via `uvx --from mcp`, which fetches and pins the `mcp` package on demand without adding it to the repo
 toolchain — so **[`uv`](https://docs.astral.sh/uv/) must be installed** (see
 [`README.md`](README.md#prerequisites)). Because Metals rewrites `.mcp.json` from scratch on every start (its port and
-transport are dynamic), `bin/microtonalist-dev-stack start` merges the `scoverage-inspector` entry back in right after
+transport are dynamic), `bin/mtlist-dev-stack start` merges the `scoverage-inspector` entry back in right after
 Metals writes the file. If `uv` is missing, the dev-stack prints a warning and skips registration.
 
 The same logic is runnable from the command line via `python3 .claude/mcp/scoverage_inspector/cli.py` (subcommands
@@ -122,12 +122,12 @@ shared by everyone who works in the repo. They are committed in:
 ### `sbt-test-filter` — quiet test runs
 
 A full test run prints a lot of noise the ScalaTest reporter flags cannot suppress (sbt's "no tests" lines for empty
-modules, SLF4J warnings, and the per-module green summaries). The [`bin/agents-test-filter`](../../bin/agents-test-filter)
+modules, SLF4J warnings, and the per-module green summaries). The [`bin/mtlist-agents-test-filter`](../../bin/mtlist-agents-test-filter)
 script is a stdin filter that drops exactly those lines while letting every failure and abort signal through, and it
 exits non-zero when the run reports a problem.
 
 The hook wires this in automatically: when the agent runs an sbt/sbtn **test** command, the `PreToolUse` hook rewrites
-the command (via the hook's `updatedInput` field) to append `2>&1 | bin/agents-test-filter` before it executes. So the
+the command (via the hook's `updatedInput` field) to append `2>&1 | bin/mtlist-agents-test-filter` before it executes. So the
 agent sees only the meaningful output, and the pipeline's exit code still reflects pass/fail.
 
 The hook is deliberately conservative — it only rewrites a *plain*, single `sbt`/`sbtn` test invocation that is not

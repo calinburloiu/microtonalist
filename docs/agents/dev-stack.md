@@ -1,10 +1,10 @@
 # Development Stack: starting it and routing `sbtn`
 
-The root `CLAUDE.md` covers detecting whether the development stack is running (`bin/microtonalist-dev-stack status`).
+The root `CLAUDE.md` covers detecting whether the development stack is running (`bin/mtlist-dev-stack status`).
 This file holds what to do **when it is not running** — auto-starting it, confirming `sbtn` routing, falling back to
 `sbt`, and stopping the stack.
 
-Background: the development stack started by `bin/microtonalist-dev-stack start` runs a single long-lived sbt JVM that
+Background: the development stack started by `bin/mtlist-dev-stack start` runs a single long-lived sbt JVM that
 serves two clients at once: Metals (via BSP) and the `sbtn` thin client (via the sbt server protocol). Run all sbt
 commands through `sbtn` so they execute in that one JVM rather than spawning a fresh `sbt` JVM each time — spawning
 duplicates compilation work and runs the second JVM with no awareness of the BSP server's incremental state. The
@@ -16,19 +16,20 @@ load errors in issue #186), but routing through `sbtn` is the primary fix.
 
 Work through these steps (if `status` reported the stack already running, you are done — see "After the check" below):
 
-1. **Auto-start the stack.** Start it in the background (the default):
+1. **Auto-start the stack.** Start it in the background (the default), with a Bash timeout of 10 minutes:
    ```bash
-   bin/microtonalist-dev-stack start
+   bin/mtlist-dev-stack start
    ```
-   Then wait until `.mcp.json` appears at the repo root (timeout ~3 minutes). The script refuses to launch when
-   it detects another sbt server already running for this project (e.g. an orphan left by a prior `sbtn`
-   invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` (`-f`) if
-   you have reason to override.
+   It waits until the stack is ready (sbt's server has started and Metals has written `.mcp.json`), usually for
+   seconds, and exits non-zero, printing the end of its log, if the stack shuts down instead. The script refuses to
+   launch when it detects another sbt server already running for this project (e.g. an orphan left by a prior
+   `sbtn` invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` (`-f`)
+   if you have reason to override.
 2. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
    confirming `logs/sbt.log` grew. If `logs/sbt.log` did not grow, `sbtn` connected to a different sbt server —
    investigate before continuing.
-3. **Fall back to `sbt`** only if step 1 fails to produce `.mcp.json` within the timeout. In that case note in
-   your response why the stack could not be started so the user can investigate.
+3. **Fall back to `sbt`** only if step 1 fails. In that case note in your response why the stack could not be
+   started so the user can investigate.
 
 ## After the check
 
@@ -42,10 +43,13 @@ The long-lived sbt JVM and Metals read the build definition (`build.sbt`,
 the stack so both clients re-import the changed build:
 
 ```bash
-bin/microtonalist-dev-stack restart
+bin/mtlist-dev-stack restart
 ```
 
-`restart` is just `stop` followed by `start` (it forwards the same options, e.g. `--foreground`, `--force`). A bare
+`restart` is just `stop` followed by `start` (it forwards the same options, e.g. `--foreground`, `--force`), so it
+also waits until the new stack is ready, and exits non-zero if it isn't: give it the same 10-minute timeout. If `stop`
+warns that an sbt server is still running for this project, the new stack can't start until that server is stopped:
+follow the instructions it prints. A bare
 `sbtn reload` re-reads the build into the sbt server, which is enough for subsequent `sbtn` commands to see changed
 *settings* (e.g. coverage thresholds — this is why `sbtn reload` suffices for a coverage-threshold edit), but it does
 **not** re-import the build into Metals. Structural changes (new modules, changed dependencies, source generators) need
@@ -83,5 +87,5 @@ After a restart the dev-stack already re-sends a warm-up `compile`; re-run `mcp_
 To stop the background stack:
 
 ```bash
-bin/microtonalist-dev-stack stop
+bin/mtlist-dev-stack stop
 ```

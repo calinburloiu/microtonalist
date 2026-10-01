@@ -19,13 +19,13 @@
 # sbt-test-filter.sh — Claude Code PreToolUse hook for the Bash tool.
 #
 # When the agent runs an sbt/sbtn test command, this hook transparently routes
-# its output through bin/agents-test-filter by rewriting the command (via the
+# its output through bin/mtlist-agents-test-filter by rewriting the command (via the
 # PreToolUse "updatedInput" field) before it executes, so the agent only sees
 # the meaningful lines (failures, aborts, and the counts that matter) and the
 # pipeline's exit code reflects pass/fail.
 #
 # See docs/development/claude-code-setup.md ("Hooks") for the rationale and the
-# bin/agents-test-filter behavior.
+# bin/mtlist-agents-test-filter behavior.
 #
 # Exit codes (PreToolUse contract):
 #   - exit 0 with JSON on stdout  → apply the decision (here: allow + rewrite)
@@ -54,7 +54,7 @@ is_plain_sbt_test() {
   # Must run a test task (covers `test`, `*/test`, and `testOnly`).
   printf '%s' "$cmd" | grep -q 'test' || return 1
   # Skip if it is already routed through the filter.
-  printf '%s' "$cmd" | grep -q 'agents-test-filter' && return 1
+  printf '%s' "$cmd" | grep -q 'mtlist-agents-test-filter' && return 1
   # Skip anything with shell metacharacters (pipes, lists, redirections,
   # backgrounding) — including an existing `2>&1` (the `&`) — so we never break
   # precedence or double up redirections.
@@ -63,13 +63,13 @@ is_plain_sbt_test() {
 }
 
 if is_plain_sbt_test; then
-  new_cmd="$cmd 2>&1 | bin/agents-test-filter"
+  new_cmd="$cmd 2>&1 | bin/mtlist-agents-test-filter"
   jq -n --arg c "$new_cmd" '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "allow",
       updatedInput: { command: $c },
-      additionalContext: "sbt test output was routed through bin/agents-test-filter (see docs/development/claude-code-setup.md). Green-run noise is dropped; failures, aborts, and non-zero counts pass through, and the pipeline exit code reflects pass/fail."
+      additionalContext: "sbt test output was routed through bin/mtlist-agents-test-filter (see docs/development/claude-code-setup.md). Green-run noise is dropped; failures, aborts, and non-zero counts pass through, and the pipeline exit code reflects pass/fail."
     }
   }'
 fi
