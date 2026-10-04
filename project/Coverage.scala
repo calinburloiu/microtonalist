@@ -22,26 +22,21 @@ import scoverage.ScoverageKeys.*
  * `coverageAll`, `coverageModules <module> [<module> ...]`, `coverageCheck`, `coverageClean`, and `coverageThresholds`
  * sbt commands — run the coverage workflow, clean up the reports directory, and inspect per-module thresholds.
  *
- * `coverageAll` runs `clean; coverage`, measures every module that root aggregates, then runs `coverageAggregate`. It
- * measures the modules in a single `coverage` session: it compiles them in parallel, then runs each module's `test`
- * right before its own `coverageReport`, dependencies first (see `measure`). So each module's report counts only its
- * own tests, not those of the modules that depend on it and exercise the same code, while the aggregate report counts
- * every test.
+ * `coverageAll` runs `clean; coverage`, `measure`s every module that root aggregates, then runs `coverageAggregate`.
+ * Each module's report counts only its own tests; the aggregate counts all of them.
  *
- * `coverageModules <module> [<module> ...]` runs the same workflow for the named modules only, without the aggregate.
- * At least one module must be supplied.
- *
- * `docs/development/coverage.md` says how to check by hand that a report counts its module's own tests only.
+ * `coverageModules <module> [<module> ...]` does the same for the named modules only, without the aggregate. At least
+ * one module must be supplied.
  *
  * `coverageClean` deletes the `coverage-reports/` directory at the repo root. The reports directory is configured via
  * `coverageDataDir` in `build.sbt` to live outside `target/` so it survives `sbt clean`. Use `coverageClean` when you
  * want to discard the persisted reports themselves.
  *
  * `coverageCheck` is intended for CI: it runs the same workflow as `coverageAll` but disables HTML and Cobertura report
- * output for speed, keeping only the XML reports. Per-module thresholds are enforced by `coverageReport` (each
- * subproject with `coverageFailOnMinimum`) on the coverage of the module's own tests, and the aggregate threshold by
- * `coverageAggregate` against the root project's settings. The HTML/Cobertura toggles are restored at the end so a
- * local invocation does not leave the session with reduced output enabled.
+ * output for speed. Per-module thresholds are enforced by `coverageReport` (each subproject with
+ * `coverageFailOnMinimum`) and the aggregate threshold by `coverageAggregate` against the root project's settings. The
+ * HTML/Cobertura toggles are restored at the end so a local invocation does not leave the session with reduced output
+ * enabled.
  *
  * `coverageThresholds` prints a table of the minimum statement and branch coverage percentages configured for each
  * module aggregated by root (excluding modules with coverage disabled, e.g. `common-test-utils`). Useful for agents and
@@ -86,30 +81,22 @@ object Coverage {
   }
 
   /**
-   * The commands that measure the coverage of each given module with its own tests only: they compile the modules in
-   * parallel, then run each module's `test` right before its `coverageReport`, every module after the given modules it
-   * depends on.
+   * Commands that compile `modules` in parallel, then run each module's `test` right before its `coverageReport`,
+   * dependencies first.
    *
-   * Instrumented code records its hits in the data directory of the module that owns it, whichever module's tests run
-   * it, so a module's report counts every test that ran before it. A module's tests can only reach its own code and its
-   * dependencies' code, so with dependencies first each report is written before any other given module's test that
-   * could reach the module's code. Running the tests one module at a time loses sbt's parallelism, but they take little
-   * time next to the compilation, which stays parallel.
+   * Code records its hits in its own module's data directory, whichever module's tests run it, so a report counts every
+   * test run before it. Dependencies first, no report counts the tests of the modules that depend on it.
+   * `coverageAggregate` reads the data directories, not the reports, so it still counts every test.
    *
-   * `coverageAggregate` still counts every test, since it reads the hits that the data directories hold once all the
-   * tests have run, not the reports.
-   *
-   * @param modules the sbt project IDs of the modules to measure; one that isn't in the build is kept, for sbt to
-   *   reject
-   * @param state the sbt state, which holds the build's inter-project dependencies
-   * @return the commands to run, in order
+   * @param modules sbt project IDs; an unknown one is left for sbt to reject
+   * @param state the sbt state
+   * @return the commands, in order
    */
   private def measure(modules: Seq[String], state: State): List[String] = {
     val transitiveDependencyCounts: Map[String, Int] = Project.extract(state).get(buildDependencies)
       .classpathTransitive.map { case (ref, dependencies) => ref.project -> dependencies.size }
-    // A module has more transitive dependencies than each of its dependencies: all of theirs, plus the dependency
-    // itself. So sorting by their count puts every module after its dependencies. The ID makes the order of the others
-    // deterministic.
+    // A module has more transitive dependencies than any of its dependencies, so sorting by their count puts
+    // dependencies first. The ID makes the order deterministic.
     val orderedModules = modules.sortBy(module => (transitiveDependencyCounts.getOrElse(module, 0), module)).toList
 
     orderedModules.map(module => s"$module/Test/compile").mkString("all ", " ", "") ::
