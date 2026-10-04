@@ -25,9 +25,10 @@ Work through these steps (if `status` reported the stack already running, you ar
    launch when it detects another sbt server already running for this project (e.g. an orphan left by a prior
    `sbtn` invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` (`-f`)
    if you have reason to override.
-2. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
-   confirming `logs/sbt.log` grew. If `logs/sbt.log` did not grow, `sbtn` connected to a different sbt server —
-   investigate before continuing.
+2. **Confirm `sbtn` routes correctly** by running `sbtn 'show tuner/target'` and confirming that it prints a path
+   ending in `tuner/target-bsp`. Only the stack's sbt builds into `target-bsp/`: if it prints `tuner/target`, `sbtn`
+   connected to a different sbt server (e.g. one it started itself) — investigate before continuing. (`logs/sbt.log`
+   can't tell: sbt stops writing to it once its server has started.)
 3. **Fall back to `sbt`** only if step 1 fails. In that case note in your response why the stack could not be
    started so the user can investigate.
 
@@ -76,8 +77,8 @@ Caveats and fallbacks:
 - The `scoverage-inspector` MCP is a **stdio** server spawned by Claude Code itself (not by the dev-stack), so a
   dev-stack restart does not touch it.
 
-After a restart the dev-stack already re-sends a warm-up `compile`; re-run `mcp__metals__compile-full` (see the root
-`CLAUDE.md` warm-up step) only if you need to be sure the SemanticDB index is fresh.
+The dev-stack compiles nothing itself, so after a restart re-run `mcp__metals__compile-full` (see the root `CLAUDE.md`
+warm-up step) to warm the build up again and make sure the SemanticDB index is fresh.
 
 ## Stopping the stack
 

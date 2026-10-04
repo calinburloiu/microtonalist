@@ -89,17 +89,19 @@ bin/mtlist-dev-stack start              # background (default)
 bin/mtlist-dev-stack start --foreground # attach in this terminal (Ctrl-C to stop)
 ```
 
-The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
-and the sbt server that the thin client `sbtn` connects to) and `metals-standalone-client` as
-background processes, waits for Metals' MCP server and sbt's server to start, and then
-warms up the build by sending `compile` to SBT. The default (background) form detaches the script
+The script starts both SBT, as a server (which simultaneously hosts the BSP server that Metals
+connects to and the sbt server that the thin client `sbtn` connects to), and
+`metals-standalone-client` as background processes, and waits for Metals' MCP server and sbt's
+server to start. It compiles nothing: Claude Code warms the build up with the Metals MCP's
+`compile-full` at the start of a session. The default (background) form detaches the script
 under `nohup`, records its PID at `logs/mtlist-dev-stack.pid`, and returns once the stack is
 ready, so you can continue working in the same terminal; it exits non-zero if the stack shuts
 down instead. The `--foreground` form attaches in the current terminal and blocks until
 interrupted (Ctrl-C) or until one of the processes exits, cleaning up both on shutdown. A
 second `start` while one is already running is refused.
 
-The SBT it launches uses `-Dmicrotonalist.build.targetSuffix=-bsp`, so its compiled outputs live
+The SBT it launches uses `--detach-stdio`, sbt's server-only mode, and
+`-Dmicrotonalist.build.targetSuffix=-bsp`, so its compiled outputs live
 under `<project>/target-bsp/` rather than `<project>/target/`. Any ad-hoc CLI `sbt`
 invocations a developer issues without that property continue to use `<project>/target/`,
 so the two never collide on the same `classes/` tree. See
