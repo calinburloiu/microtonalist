@@ -41,27 +41,19 @@
 #       still starting), 1 if not.
 #
 # `start` launches two background processes (managed by this script):
-#   1. `sbt --detach-stdio`, sbt's server mode, without a shell reading its
-#      stdin. This single sbt JVM serves `sbtn` (the thin client) and BSP
-#      clients, such as Metals' when Metals uses sbt as its build server. It is
-#      launched with `-Dmicrotonalist.build.targetSuffix=-bsp` so every project
-#      writes to `<project>/target-bsp/` instead of `<project>/target/`. This
-#      isolates its outputs from any ad-hoc CLI `sbt` invocation a developer
-#      might issue concurrently — see issue #186. (`sbt -bsp` isn't a server:
-#      it's the BSP client, which starts a server without the stack's options
-#      when none runs.)
+#   1. `sbt --detach-stdio`, a single sbt JVM running as a server, which serves
+#      `sbtn` and Metals. `-Dmicrotonalist.build.targetSuffix=-bsp` makes it
+#      build into `<project>/target-bsp/`, apart from ad-hoc CLI `sbt` runs
+#      (#186).
 #   2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude`,
-#      which drives Metals as a headless LSP client and makes Metals start its
-#      MCP server, recorded in `.mcp.json` at the repo root for Claude Code to
-#      pick up. Metals keeps an existing `.mcp.json` and reuses the port
-#      recorded there, so that Claude Code sessions reconnect to it after a
-#      restart; it writes its entry only into a file that lacks one. It runs
-#      in its own process group, with the Metals server and the BSP client
-#      that Metals starts, so that the script can stop that whole process tree.
+#      which drives Metals headlessly and makes it start its MCP server,
+#      recorded in `.mcp.json` for Claude Code. Metals keeps an existing `.mcp.json` and reuses its port, so that Claude
+#      Code sessions reconnect after a restart. It runs in its own process
+#      group, so that the script can stop Metals' whole process tree.
 #
-# Output of both processes is captured under `logs/` at the repo root; sbt's
-# ends once its server has started. Older logs are discarded on each `start`.
-# The stack is ready once Metals' MCP server and sbt's server have started.
+# Both processes log under `logs/`, recreated on each `start`; sbt stops
+# logging once its server has started. The stack is ready once Metals' MCP
+# server and sbt's server have started.
 #
 # When either process exits, or the script is stopped, it stops Metals' process
 # tree first, then sbt, with SIGTERM. In the reverse order, Metals' BSP client
@@ -239,9 +231,8 @@ cleanup() {
     stop_process_group "$metals_pid"
   fi
 
-  # sbt shuts down on SIGTERM. If a client's task was running, it may leave
-  # project/target/active.json behind, but no process owns the socket recorded
-  # there anymore, so `sbtn` and the next `start` treat it as absent.
+  # An `sbtn` task running at SIGTERM may leave a stale active.json behind.
+  # Nothing owns its socket, so `sbtn` and the next `start` ignore it.
   if [[ -n "$sbt_pid" ]] && kill -0 "$sbt_pid" 2>/dev/null; then
     stop_process "$sbt_pid"
   fi
@@ -548,9 +539,9 @@ cmd_start() {
   # with ad-hoc CLI sbt invocations. See issue #186 and `targetSuffixOverride` in
   # build.sbt.
   #
-  # `--detach-stdio` runs sbt as a server only, as sbt runs the servers it starts
-  # for `sbtn` and BSP clients: it has no shell reading its stdin, and it stops
-  # writing to its stdout and stderr once its server has started (#188).
+  # `--detach-stdio` runs sbt as a server only, with no shell reading stdin
+  # (`sbt -bsp` is a BSP client, not a server). sbt stops logging once its
+  # server has started (#188).
   sbt -Dmicrotonalist.build.targetSuffix=-bsp --detach-stdio </dev/null >"$sbt_log" 2>&1 &
   sbt_pid=$!
   echo "$sbt_pid" >"$sbt_pid_file"
@@ -599,11 +590,8 @@ cmd_start() {
     err "         skipping the scoverage-inspector MCP registration."
   fi
 
-  # Wait until sbt's server, which `sbtn` and Metals connect to, owns the build's
-  # socket. sbt exits when it fails to boot. While another sbt holds the socket,
-  # e.g. the one that Metals runs for `bloopInstall`, it keeps running without a
-  # server instead, and starts one once that sbt is gone. Then its log doesn't
-  # tell, because sbt has stopped writing to it.
+  # Wait until our sbt owns the build's socket. If another sbt holds it, ours
+  # starts its server once that one exits, without logging it.
   log "Waiting for SBT's server to start..."
   until [[ "$(sbt_server_pid)" == "$sbt_pid" ]]; do
     if ! kill -0 "$sbt_pid" 2>/dev/null; then

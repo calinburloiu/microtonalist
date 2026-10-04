@@ -19,20 +19,18 @@
 Each test copies the script into a throwaway repository and puts fake `sbt` and `metals-standalone-client` commands
 first on its `PATH`. The fakes act out what matters to the script:
 
-- `sbt` records its arguments and, after a moment, starts its server: like sbt's, it listens on a socket that it records
-  in `project/target/active.json`, and announces it. Then, like sbt's server started with `--detach-stdio`, it stops
-  using its standard streams and runs until it gets SIGTERM, which it records. `FAKE_SBT_MODE=fail` makes it exit with
-  an error instead, before it announces its server, like sbt does when it can't start one. `FAKE_SBT_MODE=late-server`
-  makes it start its server only after it has stopped using its standard streams, without announcing it, like sbt does
-  when another sbt held the build's socket while it booted.
+- `sbt`, after a moment, listens on a socket recorded in `project/target/active.json` and announces it. Then, like
+  `sbt --detach-stdio`, it detaches its standard streams and runs until SIGTERM. `FAKE_SBT_MODE=fail` makes it exit
+  with an error before announcing its server. `FAKE_SBT_MODE=late-server` makes it start its server only after
+  detaching, without announcing it, like sbt does when another sbt held the socket while it booted.
 - `metals-standalone-client` starts a child standing in for the Metals server and its BSP client. Then, after
   `FAKE_METALS_MCP_DELAY_S` seconds, it starts its MCP server: like Metals, it writes `.mcp.json` unless the file
   exists already, then logs that the server has started. Like the real BSP client, the child starts a stray sbt server
   as soon as the stack's sbt goes away. The child's command line is as long as the real Metals server's, whose
   classpath takes tens of kilobytes.
 
-The fakes record their PIDs, and what else they record, under the state directory, in files named after the PID of
-the stack that started them.
+The fakes record their PIDs (and sbt its arguments and SIGTERM) under the state directory, in files named after the
+PID of the stack that started them.
 """
 
 import json
@@ -57,7 +55,7 @@ SCRIPT_TIMEOUT_S = 60.0
 # How long a slow fake Metals takes to start its MCP server: longer than the fake sbt takes to start its server.
 SLOW_METALS_MCP_DELAY_S = 3.0
 
-# Keeps its PID, and its arguments on its command line, in the server it runs.
+# `exec` keeps the PID and command line in the server.
 FAKE_SBT = """#!/bin/bash
 printf '%s\\n' "$@" > "$FAKE_STATE/sbt-$PPID.args"
 echo $$ > "$FAKE_STATE/sbt-$PPID.pid"

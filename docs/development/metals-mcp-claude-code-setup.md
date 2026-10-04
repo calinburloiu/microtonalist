@@ -89,11 +89,11 @@ bin/mtlist-dev-stack start              # background (default)
 bin/mtlist-dev-stack start --foreground # attach in this terminal (Ctrl-C to stop)
 ```
 
-The script starts both SBT, as a server (which simultaneously hosts the BSP server that Metals
-connects to and the sbt server that the thin client `sbtn` connects to), and
-`metals-standalone-client` as background processes, and waits for Metals' MCP server and sbt's
-server to start. It compiles nothing: Claude Code warms the build up with the Metals MCP's
-`compile-full` at the start of a session. The default (background) form detaches the script
+The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
+and the sbt server that the thin client `sbtn` connects to) and `metals-standalone-client` as
+background processes, and waits for Metals' MCP server and sbt's server to start. It compiles
+nothing; Claude Code warms the build up with the Metals MCP's `compile-full`. The default
+(background) form detaches the script
 under `nohup`, records its PID at `logs/mtlist-dev-stack.pid`, and returns once the stack is
 ready, so you can continue working in the same terminal; it exits non-zero if the stack shuts
 down instead. The `--foreground` form attaches in the current terminal and blocks until
