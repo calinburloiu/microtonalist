@@ -31,13 +31,12 @@ which also isolate the coverage build (see below).
 configured threshold still holds and that any new files meet the 80% target. Pick the scope that matches your change:
 
 - **Larger or multi-module changes** — run the full project-wide workflow with `bin/mtlist-coverage-all` (sbt's
-  `coverageAll`). Per-module reports plus an aggregate report are produced. The aggregate combines each module's tests
-  with the tests of dependent modules.
+  `coverageAll`). Per-module reports plus an aggregate report are produced. Each module's report counts only the
+  module's own tests, while the aggregate combines each module's tests with the tests of dependent modules.
 - **Smaller changes scoped to one or a few modules** — run `bin/mtlist-coverage-modules <module> [<module> ...]` (sbt's
   `coverageModules`), where each `<module>` is an sbt project ID, equal to the module's base directory name (e.g.
-  `intonation`, `tuner`, `config`, `sc-midi`). At least one module must be supplied. Only the listed modules' tests run,
-  so coverage is not inflated by tests from other modules exercising the same code, and all listed modules share a
-  single coverage session.
+  `intonation`, `tuner`, `config`, `sc-midi`). At least one module must be supplied. Only the listed modules are
+  measured, and each module's report again counts only its own tests, whichever other modules are listed.
 
 ```bash
 bin/mtlist-coverage-all
@@ -52,7 +51,20 @@ bin/mtlist-coverage-modules tuner intonation
 ```
 
 There is also `bin/mtlist-coverage-check`, which runs CI's `coverageCheck` command: the same workflow as `coverageAll`,
-with only the XML reports that the threshold checks need.
+with only the XML reports. So CI checks each module's threshold against the coverage of its own tests.
+
+Instrumented code records its hits for the module that owns it, whichever module's tests run it. So the commands
+measure the modules in a single coverage session that compiles them in parallel, then runs each module's tests right
+before its report, dependencies first: each report is written before the tests of the modules that depend on it run.
+To check by hand that a report counts only its module's own tests, compare a module measured alone with the same module
+measured next to a module that depends on it. For example, `format`'s tests exercise code of `common` that `common`'s
+own tests don't, yet `common`'s coverage must be the same in both runs, which print it as each report's "Statement
+coverage" and "Branch coverage":
+
+```bash
+bin/mtlist-coverage-modules common
+bin/mtlist-coverage-modules common format
+```
 
 All three begin with `clean`, so you need not `sbt clean` beforehand.
 
