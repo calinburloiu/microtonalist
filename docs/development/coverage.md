@@ -60,6 +60,10 @@ bin/mtlist-coverage-modules common
 bin/mtlist-coverage-modules common format
 ```
 
+For that, the commands test and report the modules one at a time, dependencies first. They stop at the first module
+whose tests fail or whose coverage is below its threshold, so a failing module hides the results of the modules after
+it, in CI too.
+
 All three begin with `clean`, so you need not `sbt clean` beforehand.
 
 The scripts run sbt in a fresh JVM with `-Dmicrotonalist.build.targetSuffix=-scoverage`, which builds into

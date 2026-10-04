@@ -23,7 +23,8 @@ import scoverage.ScoverageKeys.*
  * sbt commands — run the coverage workflow, clean up the reports directory, and inspect per-module thresholds.
  *
  * `coverageAll` runs `clean; coverage`, `measure`s every module that root aggregates, then runs `coverageAggregate`.
- * Each module's report counts only its own tests; the aggregate counts all of them.
+ * Each module's report counts only its own tests; the aggregate counts all of them. The first module whose tests fail
+ * or whose coverage is below its threshold stops the command, so the modules after it are not tested.
  *
  * `coverageModules <module> [<module> ...]` does the same for the named modules only, without the aggregate. At least
  * one module must be supplied.
