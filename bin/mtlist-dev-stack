@@ -45,9 +45,11 @@
 #      `sbtn` and Metals. `-Dmicrotonalist.build.targetSuffix=-bsp` makes it
 #      build into `<project>/target-bsp/`, apart from ad-hoc CLI `sbt` runs
 #      (#186).
-#   2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude`,
-#      which drives Metals headlessly and makes it start its MCP server,
-#      recorded in `.mcp.json` for Claude Code. Metals keeps an existing `.mcp.json` and reuses its port, so that Claude
+#   2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude
+#      -Dmetals.defaultBspToBuildTool=true`, which drives Metals headlessly
+#      and makes it start its MCP server, recorded in `.mcp.json` for Claude
+#      Code. The second property makes Metals build through sbt, not Bloop.
+#      Metals keeps an existing `.mcp.json` and reuses its port, so that Claude
 #      Code sessions reconnect after a restart. It runs in its own process
 #      group, so that the script can stop Metals' whole process tree.
 #
@@ -550,10 +552,13 @@ cmd_start() {
   # Job control (`set -m`) runs the background job in a process group of its
   # own, which the Metals server and its BSP client join. `cleanup` stops that
   # whole group.
+  #
+  # `-Dmetals.defaultBspToBuildTool=true` makes Metals build through this sbt,
+  # not Bloop.
   log "Starting metals-standalone-client (log: $metals_log)..."
   set -m
   metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude \
-    >"$metals_log" 2>&1 &
+    -Dmetals.defaultBspToBuildTool=true >"$metals_log" 2>&1 &
   metals_pid=$!
   set +m
   echo "$metals_pid" >"$metals_pgid_file"

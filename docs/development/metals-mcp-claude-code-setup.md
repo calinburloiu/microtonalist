@@ -67,12 +67,18 @@ You can pin a specific Metals version through an env var, e.g.
 
 ## 4. Make sure SBT is the BSP server for this workspace
 
-Microtonalist already contains `.bsp/sbt.json`, so SBT is the registered BSP server for the
-workspace and Metals will pick it up automatically. If that file is ever missing, regenerate
-it from the project root with:
+For an sbt build, Metals uses [Bloop](https://scalacenter.github.io/bloop/) by default.
+`bin/mtlist-dev-stack` makes it use SBT's own BSP server instead by passing
+`-Dmetals.defaultBspToBuildTool=true` (Metals reads `metals.<setting>` system properties ahead
+of its client's settings). Metals then stores SBT as the workspace's build server in
+`.metals/metals.mv.db`. The setting is ignored if Metals already has a stored choice or finds
+`.bloop/*.json`; see [Troubleshooting](#11-troubleshooting).
+
+SBT writes `.bsp/sbt.json` (Git-ignored) when it starts. If that file is ever missing,
+regenerate it from the project root with:
 
 ```bash
-sbt bspConfig
+sbtn bspConfig
 ```
 
 Using SBT (instead of Bloop) as the BSP server matters because — as the Metals docs note —
@@ -140,7 +146,8 @@ running for the entire Claude Code session — when you Ctrl-C it, the MCP serve
 
 ```bash
 cd ~/Development/microtonalist
-metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude
+metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude \
+  -Dmetals.defaultBspToBuildTool=true
 ```
 
 What happens behind the scenes:
@@ -148,8 +155,8 @@ What happens behind the scenes:
 1. The client discovers / launches Metals as a subprocess via Coursier.
 2. It performs the LSP `initialize` / `initialized` handshake over stdin/stdout.
 3. It pushes the user settings `startMcpServer: true` and `mcpClient: claude` into Metals.
-4. Metals imports the build through BSP — using SBT, because of `.bsp/sbt.json` — and
-   starts its built-in MCP server on a chosen local port.
+4. Metals imports the build through SBT's BSP server (see step 4) and starts its built-in MCP
+   server on a chosen local port.
 5. Metals writes a `.mcp.json` file at the repo root containing the URL Claude should use.
 6. The standalone client keeps the LSP session alive and health-checks the MCP endpoint.
 
@@ -233,10 +240,15 @@ almost instantly with success or precise diagnostics, which Claude can then act 
   If the standalone client was killed, the URL in `.mcp.json` is stale.
 - **`metals-standalone-client` exits immediately.** Re-run with `--verbose` and check that
   Coursier can reach the network and that the configured `METALS_VERSION` exists.
-- **BSP imports Bloop instead of SBT.** Delete the `.bloop/` directory, ensure `.bsp/sbt.json`
-  exists (`sbt bspConfig` to regenerate), and restart the standalone client.
+- **Metals connects to Bloop instead of SBT.** The last `Connected to Build server` line of
+  `.metals/metals.log` names the build server. Metals sticks to Bloop once it has run
+  `sbt bloopInstall` (e.g. when started by an older stack). To switch, stop the stack, delete
+  `.bloop/`, `project/.bloop/`, `project/project/.bloop/` and
+  `project/project/project/metals.sbt` (which adds `sbt-bloop`), and start the stack again. If
+  Metals still picks Bloop, stop the stack, delete `.metals/metals.mv.db` (Metals recreates it)
+  and start it again.
 - **Compile errors that don't match `sbt compile`.** Almost always means BSP isn't actually
-  talking to SBT. Re-run `sbt bspConfig` and restart the standalone client.
+  talking to SBT. Check which build server Metals uses, as above.
 - **Stale state after large refactors or `build.sbt` edits.** Stop the standalone client,
   stop the warm `sbt` shell, and start both again. Then ask Claude to call `import-build`.
 - **Port already in use.** Kill any leftover Metals JVMs (`jps` / `pkill -f metals`) and

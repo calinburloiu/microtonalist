@@ -27,7 +27,11 @@ Work through these steps (if `status` reported the stack already running, you ar
    if you have reason to override.
 2. **Confirm `sbtn` routes correctly**: `sbtn 'show tuner/target'` must print a path ending in `tuner/target-bsp`. If
    it prints `tuner/target`, `sbtn` reached another sbt server — investigate before continuing.
-3. **Fall back to `sbt`** only if step 1 fails. In that case note in your response why the stack could not be
+3. **Confirm Metals uses that sbt**: the last `Connected to Build server` line of `.metals/metals.log` must name `sbt`,
+   not `Bloop` (it may appear a few seconds after the stack is ready). If it names Bloop, tell the user and point
+   them to the Troubleshooting section of
+   [`metals-mcp-claude-code-setup.md`](../development/metals-mcp-claude-code-setup.md).
+4. **Fall back to `sbt`** only if step 1 fails. In that case note in your response why the stack could not be
    started so the user can investigate.
 
 ## After the check

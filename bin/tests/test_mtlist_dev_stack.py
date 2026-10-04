@@ -29,7 +29,7 @@ first on its `PATH`. The fakes act out what matters to the script:
   as soon as the stack's sbt goes away. The child's command line is as long as the real Metals server's, whose
   classpath takes tens of kilobytes.
 
-The fakes record their PIDs (and sbt its arguments and SIGTERM) under the state directory, in files named after the
+The fakes record their PIDs and arguments (and sbt its SIGTERM) under the state directory, in files named after the
 PID of the stack that started them.
 """
 
@@ -122,6 +122,7 @@ while True:
 """
 
 FAKE_METALS = """#!/bin/bash
+printf '%s\\n' "$@" > "$FAKE_STATE/metals-$PPID.args"
 echo $$ > "$FAKE_STATE/metals-$PPID.pid"
 "$FAKE_BIN/fake-bsp-client" "$PPID" "$(printf '%0100000d' 0)" &
 sleep "${FAKE_METALS_MCP_DELAY_S:-0.2}"
@@ -334,6 +335,15 @@ class DevStackTest(unittest.TestCase):
         sbt_args = self.fake_record("sbt", stack_pid, "args").splitlines()
         self.assertIn("--detach-stdio", sbt_args)
         self.assertIn("-Dmicrotonalist.build.targetSuffix=-bsp", sbt_args)
+
+    def test_start_makes_metals_use_the_sbt_server_as_its_build_server(self):
+        # When
+        stack_pid = self.start_ready_stack()
+
+        # Then: Metals builds through sbt, not Bloop
+        metals_args = self.fake_record("metals", stack_pid, "args").splitlines()
+        metals_jvm_args = metals_args[metals_args.index("--") + 1:]
+        self.assertIn("-Dmetals.defaultBspToBuildTool=true", metals_jvm_args)
 
     def test_running_stack_keeps_no_fifo_for_the_input_of_sbt(self):
         # When

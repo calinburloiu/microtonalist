@@ -63,11 +63,14 @@ Launches two background processes (managed by this script):
    the failure mode that motivated this isolation. `--detach-stdio` runs sbt
    as a server only, with no shell reading its stdin
    ([#188](https://github.com/calinburloiu/microtonalist/issues/188)).
-2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude` —
-   drives Metals as a headless LSP client and makes Metals start its MCP
-   server, recorded in `.mcp.json` at the repo root for Claude Code to pick
-   up. It runs in a process group of its own, which the Metals server and the
-   BSP client that Metals starts join, so that the script can stop that whole
+2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude
+   -Dmetals.defaultBspToBuildTool=true` — drives Metals as a headless LSP
+   client and makes Metals start its MCP server, recorded in `.mcp.json` at
+   the repo root for Claude Code to pick up. The second property makes Metals
+   build through sbt, not Bloop (see
+   [step 4 of the setup guide](../docs/development/metals-mcp-claude-code-setup.md#4-make-sure-sbt-is-the-bsp-server-for-this-workspace)).
+   It runs in a process group of its own, which the Metals server and the BSP
+   client that Metals starts join, so that the script can stop that whole
    process tree.
 
 Once Metals reports that its MCP server has started, the script merges the
