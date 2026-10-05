@@ -24,14 +24,14 @@ import ch.qos.logback.core.pattern.color.{ANSIConstants, ForegroundCompositeConv
  * Logback converter that colors its content by the event's level: red for ERROR, orange for WARN, the terminal's
  * default color for INFO and gray for DEBUG and TRACE.
  *
- * The colors read well on both dark and light terminals: they come from the 256-color palette, which terminal themes
- * don't change, and their medium luminance contrasts with both a dark and a light background.
+ * The colors read well on both dark and light terminals: they are 24-bit colors, which terminal themes don't change,
+ * and their medium luminance contrasts with both a dark and a light background.
  */
 class LevelHighlightingConverter extends ForegroundCompositeConverterBase[ILoggingEvent] {
   override protected def getForegroundColorCode(event: ILoggingEvent): String = event.getLevel.toInt match {
-    case Level.ERROR_INT => "38;5;196" // #FF0000
-    case Level.WARN_INT => "38;5;166" // #D75F00
+    case Level.ERROR_INT => "38;2;224;82;82" // #E05252
+    case Level.WARN_INT => "38;2;184;112;0" // #B87000
     case Level.INFO_INT => ANSIConstants.DEFAULT_FG
-    case _ => "38;5;243" // #767676
+    case _ => "38;2;118;118;118" // #767676
   }
 }
