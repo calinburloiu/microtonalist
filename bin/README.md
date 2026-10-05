@@ -48,10 +48,10 @@ bin/mtlist-dev-stack status   # exit 0 if running, 1 if not
 
 ### `start`
 
-Launches two background processes (managed by this script):
+Launches two background processes (managed by this script), in this order:
 
-1. `sbt -Dmicrotonalist.build.targetSuffix=-bsp` — a single sbt JVM that hosts
-   the BSP server (used by Metals) and the sbt server (used by `sbtn`). Both
+1. `sbt -Dmicrotonalist.build.targetSuffix=-bsp --detach-stdio` — a single
+   sbt JVM running as a server, which serves `sbtn` and Metals. Both
    human developers and Claude Code should issue sbt commands as `sbtn …` so
    they are dispatched into this JVM rather than spawning a second one. The
    `-Dmicrotonalist.build.targetSuffix=-bsp` system property routes every
@@ -60,13 +60,25 @@ Launches two background processes (managed by this script):
    share `classes/` directories with any ad-hoc CLI `sbt` invocations issued
    without that property. See
    [issue #186](https://github.com/calinburloiu/microtonalist/issues/186) for
-   the failure mode that motivated this isolation.
-2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude` —
-   drives Metals as a headless LSP client and makes Metals start its MCP
-   server, recorded in `.mcp.json` at the repo root for Claude Code to pick
-   up. It runs in a process group of
-   its own, which the Metals server and the BSP client that Metals starts
-   join, so that the script can stop that whole process tree.
+   the failure mode that motivated this isolation. `--detach-stdio` runs sbt
+   as a server only, with no shell reading its stdin
+   ([#188](https://github.com/calinburloiu/microtonalist/issues/188)).
+2. `metals-standalone-client --verbose . -- -Dmetals.mcpClient=claude
+   -Dmetals.defaultBspToBuildTool=true` — drives Metals as a headless LSP
+   client and makes Metals start its MCP server, recorded in `.mcp.json` at
+   the repo root for Claude Code to pick up. The second property makes Metals
+   build through sbt, not Bloop (see
+   [step 4 of the setup guide](../docs/development/metals-mcp-claude-code-setup.md#4-make-sure-sbt-is-the-bsp-server-for-this-workspace)).
+   It runs in a process group of its own, which the Metals server and the BSP
+   client that Metals starts join, so that the script can stop that whole
+   process tree.
+
+The script starts Metals only once sbt's server owns the build's socket
+(recorded in `project/target/active.json`) and sbt has written
+`.bsp/sbt.json`, which tells Metals how to connect to it. If another sbt holds
+the socket, that's once the other sbt exits. Without `.bsp/sbt.json`, as in a
+fresh clone, Metals would run an sbt of its own to write it, which competes
+with the stack's sbt while it boots.
 
 Once Metals reports that its MCP server has started, the script merges the
 project's `scoverage-inspector` MCP server into `.mcp.json` (this requires
@@ -74,10 +86,9 @@ project's `scoverage-inspector` MCP server into `.mcp.json` (this requires
 registration). Metals writes its entry only into a `.mcp.json` that lacks one,
 keeping the file's other entries. Otherwise it reuses the port recorded there,
 so that a Claude Code session keeps reaching it across a restart: keep
-`.mcp.json` rather than deleting it. Once sbt reports that its
-server has started, the script warms up the build by sending `compile` to the
-running SBT shell (SBT and Metals share the same BSP state, so this also warms
-what Metals' MCP tools later see), and the stack is ready.
+`.mcp.json` rather than deleting it. The stack is then ready. It compiles
+nothing: Claude Code warms the build up with the Metals MCP's `compile-full`
+(see `AGENTS.md`).
 
 To run further sbt commands against the same server (the recommended pattern,
 to avoid spawning a second sbt JVM that races the BSP server), use the sbt
@@ -92,11 +103,11 @@ and the command to stop it, and says to stop any other Metals for this project
 one it uses goes away. Pass
 `--force` (`-f`) to launch anyway — but note that `sbtn` will route to the
 orphan, not to the BSP server we are about to start, so this is rarely what
-you want.
+you want: the stack isn't ready until the orphan exits.
 
 Output goes to three log files under `logs/` at the repo root:
 
-- `logs/sbt.log`
+- `logs/sbt.log` (sbt's startup only; command output goes to `sbtn`)
 - `logs/metals-standalone-client.log`
 - `logs/mtlist-dev-stack.log` (only when run in the background)
 
@@ -124,7 +135,7 @@ Tail the logs to follow progress:
 ```bash
 tail -f logs/mtlist-dev-stack.log
 tail -f logs/metals-standalone-client.log
-tail -f logs/sbt.log
+tail -f logs/sbt.log  # startup only
 ```
 
 #### Foreground
@@ -136,8 +147,7 @@ bin/mtlist-dev-stack start --foreground
 ```
 
 The script blocks until you stop it. Press **Ctrl-C** to shut it down — the
-trap will stop both background processes and remove the FIFO it uses for
-SBT's stdin.
+trap will stop both background processes.
 
 ### Shutdown
 
@@ -149,11 +159,12 @@ exits by itself; then it exits with a non-zero status. Either way, it:
    client that outlives sbt starts a new sbt server, without the stack's
    options, which then blocks the next `start`
    ([#348](https://github.com/calinburloiu/microtonalist/issues/348)).
-2. Sends `exit` to SBT via the FIFO it uses as SBT's stdin, waits up to 10
-   seconds, and stops SBT itself if it hasn't exited.
-3. Removes the FIFO, the PID file, the `logs/mtlist-dev-stack.ready` file
-   that marks the stack as ready, and the files in which it records the
-   process group of Metals and the PID of sbt (see [`stop`](#stop)).
+2. Sends SIGTERM to sbt, waits up to 10 seconds, and sends SIGKILL if it
+   hasn't exited. If an `sbtn` task was running, a stale
+   `project/target/active.json` may stay behind, which is harmless.
+3. Removes the PID file, the `logs/mtlist-dev-stack.ready` file that marks the
+   stack as ready, and the files in which it records the process group of
+   Metals and the PID of sbt (see [`stop`](#stop)).
 4. Warns if an sbt server is still running for this project, with the
    command to stop it.
 
@@ -182,8 +193,8 @@ script's `trap … INT` is silently a no-op for backgrounded invocations and
 `kill -INT` does nothing. SIGTERM (which `stop` sends by default) is
 unaffected and triggers the trap normally.
 
-**Avoid `kill -9` / `kill -KILL`** — it bypasses the trap, leaving SBT,
-`metals-standalone-client` and the FIFO behind. Only
+**Avoid `kill -9` / `kill -KILL`** — it bypasses the trap, leaving SBT and
+`metals-standalone-client` behind. Only
 use it as a last resort, and then run `stop`, which stops the processes the
 stack left running. To clean up by hand instead, stop Metals' process group
 first, then the sbt server that owns this build's socket: stopping only sbt
@@ -192,7 +203,7 @@ lets Metals start another one.
 ```bash
 kill -- -"$(cat logs/mtlist-dev-stack.metals-pgid)"
 kill "$(lsof -t "$(grep -oE 'local://[^"]+' project/target/active.json | sed 's|^local://||')")"
-rm -f logs/.sbt-stdin.fifo logs/mtlist-dev-stack.{pid,ready,metals-pgid,sbt-pid}
+rm -f logs/mtlist-dev-stack.{pid,ready,metals-pgid,sbt-pid}
 ```
 
 ### `restart`

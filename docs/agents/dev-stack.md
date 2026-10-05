@@ -25,10 +25,13 @@ Work through these steps (if `status` reported the stack already running, you ar
    launch when it detects another sbt server already running for this project (e.g. an orphan left by a prior
    `sbtn` invocation); in that case follow the instructions it prints to stop the orphan, or pass `--force` (`-f`)
    if you have reason to override.
-2. **Confirm `sbtn` routes correctly** by running one sbt command (anything: `sbtn 'show tuner/target'`) and
-   confirming `logs/sbt.log` grew. If `logs/sbt.log` did not grow, `sbtn` connected to a different sbt server —
-   investigate before continuing.
-3. **Fall back to `sbt`** only if step 1 fails. In that case note in your response why the stack could not be
+2. **Confirm `sbtn` routes correctly**: `sbtn 'show tuner/target'` must print a path ending in `tuner/target-bsp`. If
+   it prints `tuner/target`, `sbtn` reached another sbt server — investigate before continuing.
+3. **Confirm Metals uses that sbt**: the last `Connected to Build server` line of `.metals/metals.log` must name `sbt`,
+   not `Bloop` (it may appear a few seconds after the stack is ready). If it names Bloop, tell the user and point
+   them to the Troubleshooting section of
+   [`metals-mcp-claude-code-setup.md`](../development/metals-mcp-claude-code-setup.md).
+4. **Fall back to `sbt`** only if step 1 fails. In that case note in your response why the stack could not be
    started so the user can investigate.
 
 ## After the check
@@ -76,8 +79,8 @@ Caveats and fallbacks:
 - The `scoverage-inspector` MCP is a **stdio** server spawned by Claude Code itself (not by the dev-stack), so a
   dev-stack restart does not touch it.
 
-After a restart the dev-stack already re-sends a warm-up `compile`; re-run `mcp__metals__compile-full` (see the root
-`CLAUDE.md` warm-up step) only if you need to be sure the SemanticDB index is fresh.
+The dev-stack compiles nothing itself, so after a restart re-run `mcp__metals__compile-full` (the root `CLAUDE.md`
+warm-up step).
 
 ## Stopping the stack
 
