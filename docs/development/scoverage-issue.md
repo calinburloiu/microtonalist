@@ -163,9 +163,10 @@ don't work via `sbtn`, so use the `bin/mtlist-coverage-*` scripts as shown
 above.)
 
 The `coverageAll` / `coverageModules` / `coverageCheck` commands in
-[`project/Coverage.scala`](../../project/Coverage.scala) also bracket the
-run with `clean` (`clean; coverage; test; coverageReport[; coverageAggregate]`)
-so a stale non-instrumented cache from a previous build is never carried
+[`project/Coverage.scala`](../../project/Coverage.scala) also start the
+run with `clean` (`clean; coverage`, a compile, then each module's `test`
+and `coverageReport`[, then `coverageAggregate`]) so a stale
+non-instrumented cache from a previous build is never carried
 over. This reduces — but on its own does not eliminate — the race; the
 target-suffix isolation above is what actually fixes it.
 

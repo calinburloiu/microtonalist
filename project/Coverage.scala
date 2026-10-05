@@ -22,22 +22,22 @@ import scoverage.ScoverageKeys.*
  * `coverageAll`, `coverageModules <module> [<module> ...]`, `coverageCheck`, `coverageClean`, and `coverageThresholds`
  * sbt commands — run the coverage workflow, clean up the reports directory, and inspect per-module thresholds.
  *
- * `coverageAll` runs `clean; coverage; test; coverageReport; coverageAggregate` across all modules.
+ * `coverageAll` runs `clean; coverage`, `measure`s every module that root aggregates, then runs `coverageAggregate`.
+ * Each module's report counts only its own tests; the aggregate counts all of them. The first module whose tests fail
+ * or whose coverage is below its threshold stops the command, so the modules after it are not tested.
  *
- * `coverageModules <module> [<module> ...]` runs the same workflow but only the named modules' tests are run, giving
- * accurate per-module coverage that is not inflated by tests from other modules exercising the same code. At least one
- * module must be supplied. All listed modules' tests run inside a single `coverage` session, then each produces its own
- * `coverageReport`.
+ * `coverageModules <module> [<module> ...]` does the same for the named modules only, without the aggregate. At least
+ * one module must be supplied.
  *
  * `coverageClean` deletes the `coverage-reports/` directory at the repo root. The reports directory is configured via
  * `coverageDataDir` in `build.sbt` to live outside `target/` so it survives `sbt clean`. Use `coverageClean` when you
  * want to discard the persisted reports themselves.
  *
  * `coverageCheck` is intended for CI: it runs the same workflow as `coverageAll` but disables HTML and Cobertura report
- * output for speed. XML output is kept on because `coverageAggregate` reads each subproject's XML to combine their
- * coverage data. Per-module thresholds are enforced by `coverageReport` (each subproject with `coverageFailOnMinimum`)
- * and the aggregate threshold by `coverageAggregate` against the root project's settings. The HTML/Cobertura toggles
- * are restored at the end so a local invocation does not leave the session with reduced output enabled.
+ * output for speed. Per-module thresholds are enforced by `coverageReport` (each subproject with
+ * `coverageFailOnMinimum`) and the aggregate threshold by `coverageAggregate` against the root project's settings. The
+ * HTML/Cobertura toggles are restored at the end so a local invocation does not leave the session with reduced output
+ * enabled.
  *
  * `coverageThresholds` prints a table of the minimum statement and branch coverage percentages configured for each
  * module aggregated by root (excluding modules with coverage disabled, e.g. `common-test-utils`). Useful for agents and
@@ -51,8 +51,7 @@ object Coverage {
   private def coverageAll: Command = Command.command("coverageAll") { state =>
     "clean" ::
       "coverage" ::
-      "test" ::
-      "coverageReport" ::
+      measure(aggregatedModules(state), state) :::
       "coverageAggregate" ::
       state
   }
@@ -63,13 +62,10 @@ object Coverage {
         state.globalLogging.full.error("Usage: coverageModules <module> [<module> ...]")
         state.fail
       } else {
-        val testTasks = args.map(m => s"$m/test").toList
-        val reportTasks = args.map(m => s"$m/coverageReport").toList
-        ("clean" ::
+        "clean" ::
           "coverage" ::
-          testTasks :::
-          reportTasks :::
-          Nil) ::: state
+          measure(args, state) :::
+          state
       }
   }
 
@@ -78,12 +74,41 @@ object Coverage {
       "set Global / coverageOutputHTML := false" ::
       "set Global / coverageOutputCobertura := false" ::
       "coverage" ::
-      "test" ::
-      "coverageReport" ::
+      measure(aggregatedModules(state), state) :::
       "coverageAggregate" ::
       "set Global / coverageOutputHTML := true" ::
       "set Global / coverageOutputCobertura := true" ::
       state
+  }
+
+  /**
+   * Commands that compile `modules` in parallel, then run each module's `test` right before its `coverageReport`,
+   * dependencies first.
+   *
+   * Code records its hits in its own module's data directory, whichever module's tests run it, so a report counts every
+   * test run before it. Dependencies first, no report counts the tests of the modules that depend on it.
+   * `coverageAggregate` reads the data directories, not the reports, so it still counts every test.
+   *
+   * @param modules sbt project IDs; an unknown one is left for sbt to reject
+   * @param state the sbt state
+   * @return the commands, in order
+   */
+  private def measure(modules: Seq[String], state: State): List[String] = {
+    val transitiveDependencyCounts: Map[String, Int] = Project.extract(state).get(buildDependencies)
+      .classpathTransitive.map { case (ref, dependencies) => ref.project -> dependencies.size }
+    // A module has more transitive dependencies than any of its dependencies, so sorting by their count puts
+    // dependencies first. The ID makes the order deterministic.
+    val orderedModules = modules.sortBy(module => (transitiveDependencyCounts.getOrElse(module, 0), module)).toList
+
+    orderedModules.map(module => s"$module/Test/compile").mkString("all ", " ", "") ::
+      orderedModules.flatMap(module => List(s"$module/test", s"$module/coverageReport"))
+  }
+
+  /** The IDs of the modules that the build's root project aggregates, directly or transitively. */
+  private def aggregatedModules(state: State): Seq[String] = {
+    val extracted = Project.extract(state)
+    extracted.get(buildDependencies).aggregateTransitive(extracted.get(LocalRootProject / thisProjectRef))
+      .map(_.project)
   }
 
   private def coverageClean: Command = Command.command("coverageClean") { state =>

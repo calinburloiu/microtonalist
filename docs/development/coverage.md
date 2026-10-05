@@ -35,9 +35,7 @@ configured threshold still holds and that any new files meet the 80% target. Pic
   with the tests of dependent modules.
 - **Smaller changes scoped to one or a few modules** — run `bin/mtlist-coverage-modules <module> [<module> ...]` (sbt's
   `coverageModules`), where each `<module>` is an sbt project ID, equal to the module's base directory name (e.g.
-  `intonation`, `tuner`, `config`, `sc-midi`). At least one module must be supplied. Only the listed modules' tests run,
-  so coverage is not inflated by tests from other modules exercising the same code, and all listed modules share a
-  single coverage session.
+  `intonation`, `tuner`, `config`, `sc-midi`). At least one module must be supplied.
 
 ```bash
 bin/mtlist-coverage-all
@@ -52,7 +50,19 @@ bin/mtlist-coverage-modules tuner intonation
 ```
 
 There is also `bin/mtlist-coverage-check`, which runs CI's `coverageCheck` command: the same workflow as `coverageAll`,
-with only the XML reports that the threshold checks need.
+with only the XML reports.
+
+Each module's report counts only the module's own tests, never those of other modules that exercise its code. To check
+it, `common`'s coverage must be the same in both of these runs, although `format`'s tests exercise `common`:
+
+```bash
+bin/mtlist-coverage-modules common
+bin/mtlist-coverage-modules common format
+```
+
+For that, the commands test and report the modules one at a time, dependencies first. They stop at the first module
+whose tests fail or whose coverage is below its threshold, so a failing module hides the results of the modules after
+it, in CI too.
 
 All three begin with `clean`, so you need not `sbt clean` beforehand.
 
