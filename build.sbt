@@ -102,6 +102,8 @@ lazy val appModule = (project in file("app"))
       guava,
       playJson,
     ),
+    // * LevelHighlightingConverter only maps log levels to the console colors of logback.xml
+    coverageExcludedFiles := ".*/org/calinburloiu/music/microtonalist/LevelHighlightingConverter",
     // TODO #180 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 0, branch = 0),
   )
