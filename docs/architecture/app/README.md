@@ -19,6 +19,9 @@ is logged and exits with 1000.
 **`BuildInfo`** is generated at compile time by the `sbt-buildinfo` plugin; `MicrotonalistApp` uses `BuildInfo.version`
 in the startup banner.
 
+**`LevelHighlightingConverter`** colors each console log configured by `logback.xml` by its level, with colors that
+read well on both dark and light terminals.
+
 ## Wiring
 
 `run` is the composition root. It builds the cross-cutting `Businessync` event/threading layer once and threads it

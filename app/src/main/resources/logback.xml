@@ -16,11 +16,16 @@
 
 <configuration>
 
+    <!-- Colors by level, with colors that read well on both dark and light terminals. -->
+    <conversionRule conversionWord="levelHighlight"
+                    class="org.calinburloiu.music.microtonalist.LevelHighlightingConverter"/>
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <!-- The whole log, stack trace included, takes its level's color. -->
+            <pattern>%levelHighlight(%d{HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n%ex)</pattern>
         </encoder>
     </appender>
 
