@@ -48,7 +48,7 @@ bin/mtlist-dev-stack status   # exit 0 if running, 1 if not
 
 ### `start`
 
-Launches two background processes (managed by this script):
+Launches two background processes (managed by this script), in this order:
 
 1. `sbt -Dmicrotonalist.build.targetSuffix=-bsp --detach-stdio` — a single
    sbt JVM running as a server, which serves `sbtn` and Metals. Both
@@ -73,16 +73,22 @@ Launches two background processes (managed by this script):
    client that Metals starts join, so that the script can stop that whole
    process tree.
 
+The script starts Metals only once sbt's server owns the build's socket
+(recorded in `project/target/active.json`) and sbt has written
+`.bsp/sbt.json`, which tells Metals how to connect to it. If another sbt holds
+the socket, that's once the other sbt exits. Without `.bsp/sbt.json`, as in a
+fresh clone, Metals would run an sbt of its own to write it, which competes
+with the stack's sbt while it boots.
+
 Once Metals reports that its MCP server has started, the script merges the
 project's `scoverage-inspector` MCP server into `.mcp.json` (this requires
 `uv`/`uvx` on `PATH` — if it is missing, the script warns and skips
 registration). Metals writes its entry only into a `.mcp.json` that lacks one,
 keeping the file's other entries. Otherwise it reuses the port recorded there,
 so that a Claude Code session keeps reaching it across a restart: keep
-`.mcp.json` rather than deleting it. The stack is ready once sbt's server owns
-the build's socket (recorded in `project/target/active.json`); if another sbt
-holds it, that's once the other sbt exits. The stack compiles nothing: Claude
-Code warms the build up with the Metals MCP's `compile-full` (see `AGENTS.md`).
+`.mcp.json` rather than deleting it. The stack is then ready. It compiles
+nothing: Claude Code warms the build up with the Metals MCP's `compile-full`
+(see `AGENTS.md`).
 
 To run further sbt commands against the same server (the recommended pattern,
 to avoid spawning a second sbt JVM that races the BSP server), use the sbt

@@ -74,8 +74,9 @@ of its client's settings). Metals then stores SBT as the workspace's build serve
 `.metals/metals.mv.db`. The setting is ignored if Metals already has a stored choice or finds
 `.bloop/*.json`; see [Troubleshooting](#11-troubleshooting).
 
-SBT writes `.bsp/sbt.json` (Git-ignored) when it starts. If that file is ever missing,
-regenerate it from the project root with:
+SBT writes `.bsp/sbt.json` (Git-ignored) once its server has started. `bin/mtlist-dev-stack`
+starts Metals only after that: without the file, Metals runs an sbt of its own to write it. If
+that file is ever missing, regenerate it from the project root with:
 
 ```bash
 sbtn bspConfig
@@ -95,9 +96,10 @@ bin/mtlist-dev-stack start              # background (default)
 bin/mtlist-dev-stack start --foreground # attach in this terminal (Ctrl-C to stop)
 ```
 
-The script starts both SBT (which simultaneously hosts the BSP server that Metals connects to
-and the sbt server that the thin client `sbtn` connects to) and `metals-standalone-client` as
-background processes, and waits for Metals' MCP server and sbt's server to start. It compiles
+The script starts SBT (which simultaneously hosts the BSP server that Metals connects to
+and the sbt server that the thin client `sbtn` connects to) in the background and waits for its
+server to start. Then it starts `metals-standalone-client` in the background and waits for
+Metals' MCP server to start. It compiles
 nothing; Claude Code warms the build up with the Metals MCP's `compile-full`. The default
 (background) form detaches the script
 under `nohup`, records its PID at `logs/mtlist-dev-stack.pid`, and returns once the stack is

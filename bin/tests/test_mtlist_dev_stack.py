@@ -19,18 +19,22 @@
 Each test copies the script into a throwaway repository and puts fake `sbt` and `metals-standalone-client` commands
 first on its `PATH`. The fakes act out what matters to the script:
 
-- `sbt`, after a moment, listens on a socket recorded in `project/target/active.json` and announces it. Then, like
-  `sbt --detach-stdio`, it detaches its standard streams and runs until SIGTERM. `FAKE_SBT_MODE=fail` makes it exit
-  with an error before announcing its server. `FAKE_SBT_MODE=late-server` makes it start its server only after
-  detaching, without announcing it, like sbt does when another sbt held the socket while it booted.
-- `metals-standalone-client` starts a child standing in for the Metals server and its BSP client. Then, after
-  `FAKE_METALS_MCP_DELAY_S` seconds, it starts its MCP server: like Metals, it writes `.mcp.json` unless the file
-  exists already, then logs that the server has started. Like the real BSP client, the child starts a stray sbt server
-  as soon as the stack's sbt goes away. The child's command line is as long as the real Metals server's, whose
-  classpath takes tens of kilobytes.
+- `sbt`, after a moment, listens on a socket recorded in `project/target/active.json`, writes `.bsp/sbt.json` and
+  announces its server. Then, like `sbt --detach-stdio`, it detaches its standard streams and runs until SIGTERM.
+  `FAKE_SBT_MODE` changes this:
+  - `fail` makes it exit with an error before announcing its server.
+  - `late-server` makes it start its server only after detaching, without announcing it, like sbt does when another sbt
+    held the socket while it booted.
+  - `slow-bsp-config` makes it write `.bsp/sbt.json` well after `active.json`.
+  - `crash` makes it exit with an error once Metals has started.
+- `metals-standalone-client` records whether `.bsp/sbt.json` exists and starts a child standing in for the Metals
+  server and its BSP client. Then, after `FAKE_METALS_MCP_DELAY_S` seconds, it starts its MCP server: like Metals, it
+  writes `.mcp.json` unless the file exists already, then logs that the server has started. Like the real BSP client,
+  the child starts a stray sbt server as soon as the stack's sbt goes away. The child's command line is as long as the
+  real Metals server's, whose classpath takes tens of kilobytes.
 
-The fakes record their PIDs and arguments (and sbt its SIGTERM) under the state directory, in files named after the
-PID of the stack that started them.
+The fakes record their PIDs and arguments (sbt also its SIGTERM, and Metals whether it found `.bsp/sbt.json`) under
+the state directory, in files named after the PID of the stack that started them.
 """
 
 import json
@@ -69,7 +73,11 @@ stack_pid = sys.argv[1]
 state = os.environ["FAKE_STATE"]
 mode = os.environ.get("FAKE_SBT_MODE", "")
 active_json = os.path.join("project", "target", "active.json")
+bsp_connection_file = os.path.join(".bsp", "sbt.json")
 uri = f"local://{state}/sbt-{stack_pid}.sock"
+# Longer than the script takes between two checks of the server, so that one of them sees the server without
+# `.bsp/sbt.json`.
+SLOW_BSP_CONFIG_DELAY_S = 1.5
 
 
 def on_sigterm(signum, frame):
@@ -92,6 +100,11 @@ def start_server():
     os.makedirs(os.path.dirname(active_json), exist_ok=True)
     with open(active_json, "w") as active_file:
         json.dump({"uri": uri}, active_file)
+    if mode == "slow-bsp-config":
+        time.sleep(SLOW_BSP_CONFIG_DELAY_S)
+    os.makedirs(os.path.dirname(bsp_connection_file), exist_ok=True)
+    with open(bsp_connection_file, "w") as bsp_file:
+        json.dump({"name": "sbt"}, bsp_file)
     return server
 
 
@@ -117,12 +130,17 @@ else:
     server = start_server()
     print("[info] started sbt server", flush=True)
     detach_stdio()
+if mode == "crash":
+    while not os.path.exists(f"{state}/metals-{stack_pid}.pid"):
+        time.sleep(0.05)
+    sys.exit(1)
 while True:
     time.sleep(60)
 """
 
 FAKE_METALS = """#!/bin/bash
 printf '%s\\n' "$@" > "$FAKE_STATE/metals-$PPID.args"
+if [ -f .bsp/sbt.json ]; then echo found; else echo missing; fi > "$FAKE_STATE/metals-$PPID.bsp-config"
 echo $$ > "$FAKE_STATE/metals-$PPID.pid"
 "$FAKE_BIN/fake-bsp-client" "$PPID" "$(printf '%0100000d' 0)" &
 sleep "${FAKE_METALS_MCP_DELAY_S:-0.2}"
@@ -224,7 +242,7 @@ class DevStackTest(unittest.TestCase):
 
     def fake_record(self, role: str, stack_pid: int, kind: str) -> str:
         """Returns what the fake process with the given role ("sbt", "metals", "bsp", "stray") of a stack recorded in
-        the file with the given extension ("pid", "args", "signal"), once it has."""
+        the file with the given extension ("pid", "args", "signal", "bsp-config"), once it has."""
         path = self.state / f"{role}-{stack_pid}.{kind}"
         deadline = time.monotonic() + EVENTUALLY_TIMEOUT_S
         while not path.exists() or not path.read_text().strip():
@@ -283,7 +301,7 @@ class DevStackTest(unittest.TestCase):
 
     def test_foreground_stack_stops_metals_when_sbt_exits_by_itself(self):
         # Given
-        stack = self.start_foreground(sbt_mode="fail")
+        stack = self.start_foreground(sbt_mode="crash")
 
         # When
         output, _ = stack.communicate(timeout=SCRIPT_TIMEOUT_S)
@@ -295,6 +313,23 @@ class DevStackTest(unittest.TestCase):
         self.assert_exits(self.fake_pid("bsp", stack.pid), "Metals' BSP client")
         self.assert_exits(self.fake_pid("stray", stack.pid), "the sbt server started by Metals' BSP client")
         self.assertFalse((self.repo / "logs" / "mtlist-dev-stack.pid").exists())
+
+    def test_foreground_stack_starts_and_stops_its_processes_with_its_output_closed(self):
+        # Given: e.g. `start --foreground | head`, or a `| tee` that Ctrl-C kills too
+        stack = self.start_foreground(sbt_mode="")
+        stack.stdout.close()
+        self.wait_until_ready()
+        pids = [(self.fake_pid("metals", stack.pid), "metals-standalone-client"),
+                (self.fake_pid("bsp", stack.pid), "Metals' BSP client"),
+                (self.fake_pid("sbt", stack.pid), "sbt")]
+
+        # When
+        stack.terminate()
+        stack.wait(timeout=SCRIPT_TIMEOUT_S)
+
+        # Then
+        for pid, what in pids:
+            self.assert_exits(pid, what)
 
     def test_foreground_stack_warns_about_an_sbt_server_left_running_when_stopped(self):
         # Given
@@ -326,6 +361,24 @@ class DevStackTest(unittest.TestCase):
         self.wait_until_ready()
         stack.terminate()
         stack.communicate(timeout=SCRIPT_TIMEOUT_S)
+
+    def test_start_launches_metals_only_once_sbt_has_written_its_bsp_connection_file(self):
+        # Given: no `.bsp/sbt.json`, as in a fresh clone, for which Metals would run an sbt of its own
+
+        # When
+        result = self.run_script("start", sbt_mode="slow-bsp-config")
+
+        # Then
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.fake_record("metals", self.stack_pid(), "bsp-config"), "found")
+
+    def test_start_fails_when_sbt_exits_while_metals_starts(self):
+        # When
+        result = self.run_script("start", sbt_mode="crash", metals_mcp_delay_s=str(SLOW_METALS_MCP_DELAY_S))
+
+        # Then
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotEqual(self.run_script("status").returncode, 0)
 
     def test_start_runs_sbt_as_a_server_that_builds_into_target_bsp(self):
         # When
