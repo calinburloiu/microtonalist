@@ -84,9 +84,11 @@ flowchart LR
 
 ## Threading
 
-The sessions, `TrackManager`, the tuners, the tuning changers and their processors are `@NotThreadSafe` and run on the
-business thread (see [`businessync`](../businessync/README.md)); other threads go through the services. The exception
-is `TrackManager`'s `MidiEvent` handler, which runs on the thread publishing the event.
+The sessions and `TrackManager` are `@NotThreadSafe` and run on the business thread (see
+[`businessync`](../businessync/README.md)); other threads go through the services. `TrackManager`'s `MidiEvent` handler
+is the exception: it runs on the thread publishing the event. The tuners, the tuning changers and their processors are
+`@NotThreadSafe` too, but MIDI messages run through them on the input device's callback thread, while `tune` and
+`reset` come from the business thread; #121 will give each track a thread of its own.
 
 ## Subject to change
 

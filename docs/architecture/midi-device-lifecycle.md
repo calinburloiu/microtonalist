@@ -76,8 +76,8 @@ Nothing checks either today: `Track.close()` detaches from both devices before i
 a released handle whose device is still available stays live, and a later track for that device gets the same handle;
 a closed track left attached would keep playing next to its replacement.
 
-For the same reason, the courtesy 12-EDO messages belong to the close, not to the detach: an output that another track
-still holds open must keep its tuning.
+The courtesy 12-EDO messages belong to the close, not to the detach: an output that another track still holds open
+must keep its tuning. Today `TunerProcessor.onDetach` sends them on every detach, which #305 fixes.
 
 ## Subject to change (#305)
 
