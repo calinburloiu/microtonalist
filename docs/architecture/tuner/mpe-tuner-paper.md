@@ -1,3 +1,5 @@
+<!-- arch-doc-size: exempt (paper) -->
+
 # MPE Tuner: A MIDI Polyphonic Expression Approach to Microtonal Intonation
 
 Călin-Andrei Burloiu, 2026
