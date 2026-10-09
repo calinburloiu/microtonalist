@@ -34,7 +34,8 @@ Scala 3 and is built by using sbt 1.
       until the target coverage is met. See [Coverage](#coverage) section for details.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
-      guides etc.) and agent artifacts.
+      guides etc.) and agent artifacts, following the documentation conventions. When the change affects a document
+      under `docs/architecture/`, invoke the `architecture-docs` skill.
     - **Lint**. Run `sbtn fixLint`, which applies the scalafix autofixes and formats the code (`sbtn fix`), then runs
       CI's check (`sbtn lint`). Fix what it reports by hand, and repeat until it passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
@@ -154,7 +155,7 @@ The architecture docs are organized as follows:
     * @docs/architecture/domain-concepts.md
     * @docs/architecture/data-flow.md
 - **Per-module deep dives (`docs/architecture/$MODULE/README.md`)** — one document per module (an architecture document
-  covering responsibility, key types, dependencies, and module-specific concerns). Each module's `$MODULE/CLAUDE.md`
+  covering responsibility, key types, flows, and module-specific concerns). Each module's `$MODULE/CLAUDE.md`
   `@import`s its document, so when you work inside a module that detail loads automatically. To read another module's
   architecture without editing in it, open its `docs/architecture/$MODULE/README.md` directly.
 - **Per-topic documents** — some directories carry focused topic docs alongside the module README, e.g.
@@ -181,8 +182,10 @@ All files from that directory must be dated and linked to a git commit SHA, such
 
 # Coding Conventions
 
-Follow these conventions whenever you write code. They are imported here so they are always in context:
+Follow these conventions whenever you write code or documentation. They are imported here so they are always in
+context:
 
 - Production / general Scala conventions: @docs/development/coding-conventions.md
 - Test conventions (directory layout, naming, BDD style, Given/When/Then, fixtures, shared test utilities):
   @docs/development/test-conventions.md
+- Documentation conventions (ScalaDoc, comments, Markdown docs, agent docs): @docs/development/doc-conventions.md
