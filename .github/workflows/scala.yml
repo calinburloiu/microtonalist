@@ -75,3 +75,14 @@ jobs:
           '*.html' '*.xml' '*.js' '*.css' '*.sbt' '*.properties' \
           | xargs "$(go env GOPATH)/bin/addlicense" -check -ignore '**/tests/resources/**' \
               -f .license-header.tmpl -c "Calin-Andrei Burloiu"
+
+  docs:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Test the architecture doc size check
+      run: python3 -m unittest discover -s .claude/skills/architecture-docs/scripts/tests -p "test_*.py"
+    - name: Check the size of the architecture docs
+      run: python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py --github

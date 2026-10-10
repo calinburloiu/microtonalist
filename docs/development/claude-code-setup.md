@@ -184,6 +184,17 @@ and `Start v<next>-SNAPSHOT` directly on `main` and tags the release, locally, a
 commits and the tag. Once you approve those too, the script pushes them and publishes the GitHub Release, marked
 Latest. The script refuses to release unless `main` is clean, in sync with `origin`, and green in CI.
 
+### `architecture-docs` skill
+
+[`.claude/skills/architecture-docs/SKILL.md`](../../.claude/skills/architecture-docs/SKILL.md) tells Claude what an
+architecture doc under `docs/architecture/` holds, how to draw its flows in Mermaid, and how to keep it within its
+budget of 1000 words, splitting it when needed. Its bundled script checks the budget, and has a `unittest` suite; CI's `docs` job runs both:
+
+```bash
+python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py
+python3 -m unittest discover -s .claude/skills/architecture-docs/scripts/tests -p "test_*.py"
+```
+
 ## Authorizing MCP Servers and Plugins
 
 On first launch in a workspace, Claude Code may prompt you to authorize the Metals MCP server. You can save this choice

@@ -1,3 +1,5 @@
+<!-- arch-doc-size: exempt (paper) -->
+
 # MIDI Polyphonic Expression (MPE)
 
 **V. 1.0 – March 12, 2018 © 2017 MIDI Manufacturers Association**
