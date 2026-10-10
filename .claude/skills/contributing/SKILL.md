@@ -123,7 +123,8 @@ When creating a new pull request (`microtonalist-gh pr` does all of this):
   links only one, so add the others by editing the PR.
 - **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
 - **Draft state:** Always open new PRs as **draft**.
-- **Assignee:** Assign the PR to the current user (`@me`).
+- **Assignee:** Assign the PR to the current user (`@me`). Make sure its associated issue(s) are also assigned to the
+  same user.
 - **Project:** Assign the **microtonalist** GitHub project.
 - **Label:** Use the same label as the linked issue (the branch prefix).
 - **Milestone:** Use the same milestone as the linked issue, if one is set.
