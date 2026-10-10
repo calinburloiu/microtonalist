@@ -180,6 +180,9 @@ Only load or update files from `issues/` directory when explicitly asked to by t
 
 All files from that directory must be dated and linked to a git commit SHA, such that the agent knows if the information inside them is state.
 
+Only load files from `docs/agent-evals/` when explicitly asked to by the user. They are archived reports of experiments
+on the agent setup, each tied to the commit it measured.
+
 # Coding Conventions
 
 Follow these conventions whenever you write code or documentation. They are imported here so they are always in
