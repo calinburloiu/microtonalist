@@ -24,7 +24,7 @@
 #   - label inferred from the current branch prefix (or given with --label),
 #   - the microtonalist GitHub project (Projects v2) assignment,
 #   - the milestone (given, or inherited from a linked issue),
-#   - draft PRs assigned to the current user (@me),
+#   - draft PRs, and the issue they link, assigned to the current user (@me),
 #   - the `[#<issue>]` / `[#<parent>/#<child>]` PR title prefix, and
 #   - the `Resolves #<issue>` body line.
 #
@@ -177,7 +177,7 @@ Usage:
 
 Subcommands:
   issue   Create an issue, apply its label, and add it to the project.
-  pr      Push the branch and open a draft PR, assigned to you (@me).
+  pr      Push the branch and open a draft PR; assign it and its issue to you.
 
 Run "$PROG <subcommand> --help" for details.
 EOF
@@ -239,7 +239,8 @@ Options:
 Every PR is opened as a draft, assigned to you (@me), and added to the
 "$PROJECT_OWNER" GitHub project ($PROJECT_NUMBER). It may not be opened from the
 default branch ($DEFAULT_BRANCH). A linked issue adds a "[#<issue>]" /
-"[#<parent>/#<child>]" title prefix and a "Resolves #<issue>" body line.
+"[#<parent>/#<child>]" title prefix and a "Resolves #<issue>" body line, and is
+assigned to you too; a parent issue is left as it is.
 
 Examples:
   $PROG pr 220 "Replace scoverage-inspector subagent with an MCP server"
@@ -403,6 +404,14 @@ cmd_pr() {
   local pr_args=(pr create --draft --title "$title" --body "$body" --label "$label" --assignee @me)
   [[ -n "$milestone" ]] && pr_args+=(--milestone "$milestone")
 
+  # The linked issue gets the PR's assignee; a parent issue is left as it is.
+  local assignee_display="@me"
+  local assign_issue_cmd=""
+  if [[ -n "$child" ]]; then
+    assignee_display="@me, also on issue #$child"
+    assign_issue_cmd="$(quote_gh_cmd issue edit "$child" --add-assignee @me)"
+  fi
+
   if [[ -n "$dry_run" ]]; then
     local prefix_display="<none>"
     [[ -n "$issue_prefix" ]] && prefix_display="[$issue_prefix]"
@@ -414,14 +423,15 @@ cmd_pr() {
   prefix     : $prefix_display
   label      : $label
   milestone  : ${milestone:-<none>}
-  assignee   : @me
+  assignee   : $assignee_display
   title      : $title
   body       : ${body:-<empty>}
 
 Would run:
   git push -u $REMOTE HEAD
   $(quote_gh_cmd "${pr_args[@]}")
-  $(quote_gh_cmd project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url PR_URL)
+  $(quote_gh_cmd project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url PR_URL)${assign_issue_cmd:+
+  $assign_issue_cmd}
 EOF
     return 0
   fi
@@ -431,6 +441,9 @@ EOF
   local url
   url="$(gh "${pr_args[@]}")"
   gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --url "$url" >/dev/null
+  if [[ -n "$child" ]]; then
+    gh issue edit "$child" --add-assignee @me >/dev/null
+  fi
   printf '%s\n' "$url"
 }
 

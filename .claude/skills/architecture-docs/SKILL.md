@@ -17,12 +17,12 @@ details. The documentation conventions (`docs/development/doc-conventions.md`) a
 | ------- | ---- |
 | Responsibility, key types, flows, threading, open work | the architecture doc |
 | A type's methods, parameters, edge cases and mechanics | its ScalaDoc |
-| `private` and `protected` members | the code |
+| `private` and `protected` members | the code, save in rare cases |
 | Which modules depend on which | `build.sbt` and `docs/architecture/module-overview.md` |
 | How the code got here | git, the PRs and the release notes |
 
-Mention a dependency only where it matters to the picture. A `private[module]` type gets one line when it is a main
-stage of an internal flow.
+Mention a dependency only where it matters to the picture. Avoid documenting `private` and `protected` members; name
+one only when the picture needs it, e.g. a `private[module]` type that is a main stage of an internal flow.
 
 ## Shape
 
@@ -61,7 +61,7 @@ To compact a doc, in this order: rephrase; remove what ScalaDoc owns; split.
 
 Split a doc that is over budget and covers several capabilities. Move one capability to
 `docs/architecture/<module>/<topic>.md`, which has the same budget. The module README keeps one sentence summarising it
-and a link to it, and is the only doc linking to it. `docs/architecture/README.md` lists, under *Other architecture
+and a link to it. `docs/architecture/README.md` lists, under *Other architecture
 material*, only docs that span modules, and the papers.
 
 ## Maintenance checklist

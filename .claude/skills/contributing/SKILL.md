@@ -120,11 +120,10 @@ When creating a new pull request (`microtonalist-gh pr` does all of this):
 - **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`);
   for a sub-issue use `[#<parent>/#<child>]` (see Sub-issues). A PR resolving several issues that are not parent and
   child puts each in its own brackets, e.g. `[#315][#320]`, with a `Resolves #<n>` line for each; the `pr` script
-  links only one, so add the others by editing the PR.
+  links and assigns only one, so add the others by editing the PR and assign them by hand.
 - **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
 - **Draft state:** Always open new PRs as **draft**.
-- **Assignee:** Assign the PR to the current user (`@me`). Make sure its associated issue(s) are also assigned to the
-  same user.
+- **Assignee:** Assign the PR, and the issue(s) it resolves, to the current user (`@me`).
 - **Project:** Assign the **microtonalist** GitHub project.
 - **Label:** Use the same label as the linked issue (the branch prefix).
 - **Milestone:** Use the same milestone as the linked issue, if one is set.

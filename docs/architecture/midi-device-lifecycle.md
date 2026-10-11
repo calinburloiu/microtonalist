@@ -76,10 +76,10 @@ isn't its effect:
 - **Becoming unavailable doesn't detach.** The handle reports *closed*, then *unavailable*, while every receiver stays
   attached, ready for the device to come back.
 
-So a track attached to a `Closed` handle, or a device released while a track is still attached to it, is a wiring bug.
-Nothing checks either today: `Track.close()` detaches from both devices before it releases them. It must detach because
-a released handle whose device is still available stays live, and a later track for that device gets the same handle; a
-closed track left attached would keep playing next to its replacement.
+So a track still attached to a handle it requested to close is a wiring bug. Nothing checks it today: `Track.close()`
+detaches from both devices before it requests to close them. It must detach because the handle of a device still
+available stays live after the request, and a later track for that device gets the same handle; a closed track left
+attached would keep playing next to its replacement.
 
 The courtesy 12-EDO messages belong to the close, not to the detach: an output that another track still holds open
 must keep its tuning. Today `TunerProcessor.onDetach` sends them on every detach, which #305 fixes.
@@ -91,7 +91,7 @@ must keep its tuning. Today `TunerProcessor.onDetach` sends them on every detach
 - Attaching and detaching will make the open and close requests, instead of `Track`.
 - An input detached or becoming unavailable will be released: All Notes Off to every output, then a reset of the
   `Tuner` and the `TuningChanger`.
-- An output attached while open will be reset. One detached and thereby closed will also get the courtesy 12-EDO
-  messages; one that another track keeps open gets neither.
+- An output attached while open will get a reset. An output detached and thereby closed will get both a reset and the
+  courtesy 12-EDO messages, while one that another track keeps open will get neither.
 - `Tuner.reset` will restate the current configuration, and the courtesy 12-EDO messages will come from a read-only
   method instead of `tune(Tuning.Standard)`.

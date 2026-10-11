@@ -55,8 +55,8 @@ flowchart LR
 ```
 
 Either processor is optional. The output device's receiver is attached when the track is built, so the tuner's reset
-reaches it at once; `TrackManager` attaches the downstream tracks afterwards. A device spec's channel is meant to filter
-the input or remap the output, but no track applies it yet.
+reaches it at once; `TrackManager` attaches the downstream tracks afterwards. The channel of an input or output spec is
+meant to filter the input or remap the output, but no track applies it yet (#97).
 
 ## Tuning-change flow
 
@@ -85,11 +85,12 @@ flowchart LR
 ## Threading
 
 The sessions and `TrackManager` are `@NotThreadSafe` and run on the business thread (see
-[`businessync`](../businessync/README.md)); other threads go through the services. `TrackManager`'s `MidiEvent` handler
-is the exception: it runs on the thread publishing the event. The tuners, the tuning changers and their processors are
-`@NotThreadSafe` too, but MIDI messages run through them on the input device's callback thread, while `tune` and
-`reset` come from the business thread, and `reset` also from the thread publishing a `MidiEvent`; #121 will give each
-track a thread of its own.
+[`businessync`](../businessync/README.md)); other threads go through the services. The tuners, the tuning changers and
+their processors are `@NotThreadSafe` too: MIDI messages run through them on the input device's callback thread, and
+`tune` and `reset` come from the business thread; #121 will give each track a thread of its own.
+
+Today, wrongly, `TrackManager` handles a `MidiEvent`, and so resets the tracks a device change concerns, on the thread
+publishing the event; #90 will move it to the business thread.
 
 ## Subject to change
 

@@ -1,7 +1,8 @@
 # `MpeTuner` internals
 
 `MpeTuner` tunes polyphonic input by giving each note an MPE Member Channel, whose Pitch Bend carries the tuning offset
-of the note's pitch class plus the note's own Expression Pitch Bend. Its design, including where it departs from the
+of the channel's pitch class plus the aggregate Expression Pitch Bend of the channel's notes. A note received on a Master
+Channel in MPE Input Mode is forwarded as is instead. Its design, including where it departs from the
 MPE Specification, is in the [MPE Tuner paper](mpe-tuner-paper.md). The specification itself is downloadable, with a
 free registration, from [the MIDI Association](https://midi.org/mpe-midi-polyphonic-expression).
 

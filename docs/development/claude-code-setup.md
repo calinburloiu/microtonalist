@@ -164,7 +164,11 @@ request. It documents the label set (`feature`, `bugfix`, `refactoring`, `doc`, 
 `<label>/<kebab-case-description>` branch-naming format, the `[#<issue>] <description>` PR title format, the
 draft-by-default rule, and the requirement to add new issues and PRs to the **microtonalist** GitHub project (Projects
 v2). Because the GitHub MCP plugin cannot manage Projects v2, the skill tells Claude to fall back to the `gh` CLI for
-that one step.
+that one step. Its bundled `microtonalist-gh` script applies these conventions in one call, and has a `unittest` suite:
+
+```bash
+python3 -m unittest discover -s .claude/skills/contributing/scripts/tests -p "test_*.py"
+```
 
 ### `scoverage-inspector` skill
 
