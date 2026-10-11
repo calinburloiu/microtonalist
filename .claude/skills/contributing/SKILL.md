@@ -33,8 +33,8 @@ defeats the point. Everything you need to call it is below.
 - `pr` pushes the branch and opens a **draft** PR assigned to you (`@me`). The optional
   leading `<issue-spec>` (`33`, or `32/33` for a sub-issue) links an issue: it derives the
   `[#<issue>]` / `[#<parent>/#<child>]` title prefix and the `Resolves #<issue>` body line,
-  and inherits the issue's milestone. With no `<issue-spec>` the PR links no issue. The PR is
-  always added to the project.
+  inherits the issue's milestone, and assigns the issue to you. With no `<issue-spec>` the PR
+  links no issue. The PR is always added to the project.
 - `--dry-run` prints the resolved label/milestone/title/body and the exact `gh` commands
   without any side effects — use it to verify before creating. Run `… --help`, `… issue
   --help`, or `… pr --help` for the full usage.
