@@ -1,3 +1,5 @@
+<!-- TODO #360 This doc is not compliant with the new doc conventions. -->
+
 # `composition` module architecture
 
 The `composition` module (directory `composition/`, package `org.calinburloiu.music.microtonalist.composition`) is the

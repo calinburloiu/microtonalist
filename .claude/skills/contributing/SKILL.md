@@ -33,8 +33,8 @@ defeats the point. Everything you need to call it is below.
 - `pr` pushes the branch and opens a **draft** PR assigned to you (`@me`). The optional
   leading `<issue-spec>` (`33`, or `32/33` for a sub-issue) links an issue: it derives the
   `[#<issue>]` / `[#<parent>/#<child>]` title prefix and the `Resolves #<issue>` body line,
-  and inherits the issue's milestone. With no `<issue-spec>` the PR links no issue. The PR is
-  always added to the project.
+  inherits the issue's milestone, and assigns the issue to you. With no `<issue-spec>` the PR
+  links no issue. The PR is always added to the project.
 - `--dry-run` prints the resolved label/milestone/title/body and the exact `gh` commands
   without any side effects — use it to verify before creating. Run `… --help`, `… issue
   --help`, or `… pr --help` for the full usage.
@@ -120,10 +120,10 @@ When creating a new pull request (`microtonalist-gh pr` does all of this):
 - **Title format:** `[#<issue_number>] <Short description>` (e.g. `[#151] Add ScProgramChangeMidiMessage`);
   for a sub-issue use `[#<parent>/#<child>]` (see Sub-issues). A PR resolving several issues that are not parent and
   child puts each in its own brackets, e.g. `[#315][#320]`, with a `Resolves #<n>` line for each; the `pr` script
-  links only one, so add the others by editing the PR.
+  links and assigns only one, so add the others by editing the PR and assign them by hand.
 - **Body:** Include `Resolves #<issue_number>` to auto-close the linked issue on merge.
 - **Draft state:** Always open new PRs as **draft**.
-- **Assignee:** Assign the PR to the current user (`@me`).
+- **Assignee:** Assign the PR, and the issue(s) it resolves, to the current user (`@me`).
 - **Project:** Assign the **microtonalist** GitHub project.
 - **Label:** Use the same label as the linked issue (the branch prefix).
 - **Milestone:** Use the same milestone as the linked issue, if one is set.

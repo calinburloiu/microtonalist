@@ -1,3 +1,5 @@
+<!-- TODO #360 This doc is not compliant with the new doc conventions. -->
+
 # `experiments` module architecture
 
 ## Responsibility

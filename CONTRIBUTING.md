@@ -16,6 +16,7 @@ Before writing code, set up your environment and read the standards:
 - [Test reference](docs/development/test.md) — running the suite.
 - [Coding conventions](docs/development/coding-conventions.md) — general / production Scala conventions.
 - [Test conventions](docs/development/test-conventions.md) — how tests are written (BDD, Given/When/Then, fixtures).
+- [Documentation conventions](docs/development/doc-conventions.md) — ScalaDoc, comments and Markdown docs.
 - [Linting](docs/development/linting.md) — compiler warnings and scalafix rules.
 - [Coverage workflow](docs/development/coverage.md) — coverage thresholds and how they are checked in CI.
 - [Architecture docs](docs/architecture/README.md) — module overview, domain concepts, and per-module deep dives.

@@ -164,7 +164,11 @@ request. It documents the label set (`feature`, `bugfix`, `refactoring`, `doc`, 
 `<label>/<kebab-case-description>` branch-naming format, the `[#<issue>] <description>` PR title format, the
 draft-by-default rule, and the requirement to add new issues and PRs to the **microtonalist** GitHub project (Projects
 v2). Because the GitHub MCP plugin cannot manage Projects v2, the skill tells Claude to fall back to the `gh` CLI for
-that one step.
+that one step. Its bundled `microtonalist-gh` script applies these conventions in one call, and has a `unittest` suite:
+
+```bash
+python3 -m unittest discover -s .claude/skills/contributing/scripts/tests -p "test_*.py"
+```
 
 ### `scoverage-inspector` skill
 
@@ -183,6 +187,17 @@ release notes from the commits, issues and PR descriptions since the previous re
 and `Start v<next>-SNAPSHOT` directly on `main` and tags the release, locally, and Claude stops for you to inspect the
 commits and the tag. Once you approve those too, the script pushes them and publishes the GitHub Release, marked
 Latest. The script refuses to release unless `main` is clean, in sync with `origin`, and green in CI.
+
+### `architecture-docs` skill
+
+[`.claude/skills/architecture-docs/SKILL.md`](../../.claude/skills/architecture-docs/SKILL.md) tells Claude what an
+architecture doc under `docs/architecture/` holds, how to draw its flows in Mermaid, and how to keep it within its
+budget of 1000 words, splitting it when needed. Its bundled script checks the budget, and has a `unittest` suite; CI's `docs` job runs both:
+
+```bash
+python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py
+python3 -m unittest discover -s .claude/skills/architecture-docs/scripts/tests -p "test_*.py"
+```
 
 ## Authorizing MCP Servers and Plugins
 
