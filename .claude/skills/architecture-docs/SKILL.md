@@ -40,6 +40,9 @@ Draw flows in Mermaid, which GitHub renders: `flowchart` for pipelines, `sequenc
 hand-offs, `stateDiagram-v2` for lifecycles. Keep a diagram to a few nodes, and let it replace prose rather than
 repeat it. Quote a label that holds punctuation: `a["Track.tune, for every track"]`.
 
+Draw an ASCII diagram instead when its layout carries meaning that Mermaid would lose, such as states placed on two
+axes, like `MidiDeviceHandle.State` in `docs/architecture/midi-device-lifecycle.md`.
+
 ## Size budget
 
 The budget is 1000 words, about two pages. Check it with the bundled script, from the repository root:
@@ -79,7 +82,8 @@ A paper, or a note on an external specification, is exempt from the budget. Mark
 <!-- arch-doc-size: exempt (paper) -->
 ```
 
-No other doc takes the marker.
+The parenthesis explains why the doc is exempt, e.g. `(paper)`; the script ignores what it holds. No other doc takes
+the marker.
 
 ## Common mistakes
 

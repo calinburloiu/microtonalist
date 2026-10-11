@@ -159,7 +159,7 @@ The architecture docs are organized as follows:
   `@import`s its document, so when you work inside a module that detail loads automatically. To read another module's
   architecture without editing in it, open its `docs/architecture/$MODULE/README.md` directly.
 - **Per-topic documents** — some directories carry focused topic docs alongside the module README, e.g.
-  [`docs/architecture/tuner/mpe-spec.md`](docs/architecture/tuner/mpe-spec.md) for MPE tuning.
+  [`docs/architecture/tuner/mpe-tuner.md`](docs/architecture/tuner/mpe-tuner.md) for the MPE Tuner.
 - **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, with a table
   mapping each module to its directory and document.
 
@@ -191,4 +191,5 @@ context:
 - Production / general Scala conventions: @docs/development/coding-conventions.md
 - Test conventions (directory layout, naming, BDD style, Given/When/Then, fixtures, shared test utilities):
   @docs/development/test-conventions.md
-- Documentation conventions (ScalaDoc, comments, Markdown docs, agent docs): @docs/development/doc-conventions.md
+- Documentation conventions (ScalaDoc, comments, architecture, development and agent docs):
+  @docs/development/doc-conventions.md

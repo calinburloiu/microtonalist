@@ -29,18 +29,23 @@ reference-counted, so the device closes only with its last reference and releasi
 the others. Requesting a device that isn't available doesn't fail: the handle waits for it. Events:
 `MidiDeviceOpenedEvent` / `MidiDeviceClosedEvent`, or their `…FailedTo…` counterparts.
 
-The two pairs are the axes of `MidiDeviceHandle.State`, and the device is usable only in `Open`:
+The two pairs are the axes of `MidiDeviceHandle.State`: the device is unavailable on the left and available on the
+right, requested open at the top and not at the bottom. It is usable only in `Open`:
 
-```mermaid
-stateDiagram-v2
-  Closed --> Available: become available
-  Available --> Closed: become unavailable
-  WaitingToOpen --> Open: become available
-  Open --> WaitingToOpen: become unavailable
-  Closed --> WaitingToOpen: open
-  WaitingToOpen --> Closed: close
-  Available --> Open: open
-  Open --> Available: close
+```text
+┌─────────────┐   become available   ┌─────────────┐
+│             ├──────────────────────►             │
+│WaitingToOpen│                      │    Open     │
+│             ◄──────────────────────┤             │
+└───▲─────┬───┘  become unavailable  └───▲─────┬───┘
+    │     │                              │     │
+open│     │close                     open│     │close
+    │     │                              │     │
+┌───┴─────▼───┐   become available   ┌───┴─────▼───┐
+│             ├──────────────────────►             │
+│   Closed    │                      │  Available  │
+│             ◄──────────────────────┤             │
+└─────────────┘  become unavailable  └─────────────┘
 ```
 
 A failed transition sets to false the property it concerns, as the `State` ScalaDoc details.

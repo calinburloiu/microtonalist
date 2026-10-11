@@ -38,8 +38,10 @@ enum MpeInputMode {
 
 /**
  * Tuner that applies microtonal tunings to polyphonic MIDI streams with MIDI Polyphonic Expression (MPE): each note
- * gets a Member Channel whose Pitch Bend carries the tuning offset of its pitch class, and a tuning change updates the
- * Pitch Bend of every occupied Member Channel.
+ * gets a Member Channel whose Pitch Bend is the sum of two components. The Tuning Pitch Bend carries the tuning offset
+ * of the channel's pitch class and follows only the tuning, so a tuning change updates it on every occupied Member
+ * Channel. The Expression Pitch Bend carries the performer's bends of the channel's notes; it is absent in Non-MPE
+ * Input Mode, where the input's Pitch Bend goes to the Master Channel instead.
  *
  * It follows the MPE Configuration Messages and Pitch Bend Sensitivity RPNs it receives. Its internal flow is outlined
  * in `docs/architecture/tuner/mpe-tuner.md`, and its design in `docs/architecture/tuner/mpe-tuner-paper.md`, which the

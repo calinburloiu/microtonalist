@@ -2,8 +2,8 @@
 
 `MpeTuner` tunes polyphonic input by giving each note an MPE Member Channel, whose Pitch Bend carries the tuning offset
 of the note's pitch class plus the note's own Expression Pitch Bend. Its design, including where it departs from the
-MPE Specification, is in the [MPE Tuner paper](mpe-tuner-paper.md); [`mpe-spec.md`](mpe-spec.md) holds notes on the
-specification.
+MPE Specification, is in the [MPE Tuner paper](mpe-tuner-paper.md). The specification itself is downloadable, with a
+free registration, from [the MIDI Association](https://midi.org/mpe-midi-polyphonic-expression).
 
 ## Message flow
 
@@ -42,8 +42,8 @@ Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `format` refe
 
 | Trigger | Allocators | Sent to the receiver |
 | ------- | ---------- | -------------------- |
-| MPE Configuration Message | Rebuilt by `MpeChannelAllocator.retaining`, keeping the Member Channels the change left untouched | Note Offs on the channels entering or leaving MPE control, each Zone's MCM where it changed and its Pitch Bend Sensitivity, then the retuned Pitch Bends |
-| Member Pitch Bend Sensitivity | Kept, with a new High Expression Pitch Bend threshold that may drop diverging notes | The sensitivity, the dropped notes' Note Offs, then the retuned Pitch Bends |
+| MPE Configuration Message (MCM) | Rebuilt by `MpeChannelAllocator.retaining`, keeping the Member Channels the change left untouched | Note Offs on the channels entering or leaving MPE control, each Zone's MCM where it changed and its Pitch Bend Sensitivity, then the retuned Pitch Bends |
+| Member Pitch Bend Sensitivity (PBS) | Kept, with a new High Expression Pitch Bend threshold that may drop diverging notes | The sensitivity, the dropped notes' Note Offs, then the retuned Pitch Bends |
 | `reset()` | Recreated empty | Note Offs, the controls it sent back to their defaults, the initial Zones' configuration, then the current tuning |
 
-An MPE Configuration Message also switches the tuner to MPE Input Mode.
+An MCM also switches the tuner to MPE Input Mode.

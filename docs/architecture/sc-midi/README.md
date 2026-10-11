@@ -28,14 +28,13 @@ default MIDI device provider.
   of live handles for each, which it reconciles with the devices found on every refresh. Its handles share a
   `JavaMidiDeviceReferenceCounter`, since Java Sound's `MidiDevice.close()` closes a device however many times it was
   opened.
-- **`JavaMidiEnvironment`** — the seam between the manager and the platform, faked in tests; `CoreMidi4JEnvironment`
-  is the production implementation.
 
 ### Messages
 
 - **`MidiMsg`** — the sealed base of the message model: Channel Voice, Channel Mode, system, System Exclusive and
-  Standard MIDI File meta messages, all under `Midi1Msg`, next to `Midi2Msg`, which has no messages yet.
-- **`UnsupportedMidiMsg`** — the lossless escape hatch for a message without a type of its own.
+  Standard MIDI File meta messages, all under `Midi1Msg` for MIDI 1.0, next to `Midi2Msg` for MIDI 2.0, which has no
+  messages yet.
+  - **`UnsupportedMidiMsg`** — the lossless escape hatch for a MIDI 1.0 message without a type of its own.
 - **`JavaMidiConverters`** — `asScala` and `asJava` between `MidiMsg` and Java Sound's `MidiMessage`. Only `Midi1Msg`
   has `asJava`, Java Sound speaking MIDI 1.0 only.
 

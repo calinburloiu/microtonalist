@@ -25,7 +25,7 @@ Pitch Bend Sensitivity; the tuner clamps any other tuning, with a warning, rathe
 
 | Protocol | Tuner | How it tunes | Polyphony |
 | -------- | ----- | ------------ | --------- |
-| MTS Octave (1-byte/2-byte, real/non-real-time) | `MtsOctave*Tuner` | An MTS SysEx retunes the instrument's pitch table in advance; notes pass through. | Polyphonic |
+| MTS (MIDI Tuning Standard) Octave, 1-byte/2-byte, real/non-real-time | `MtsOctave*Tuner` | An MTS SysEx retunes the instrument's pitch table in advance; notes pass through. | Polyphonic |
 | Monophonic Pitch Bend | `MonophonicPitchBendTuner` | Pitch Bend, all input folded onto one output channel. | Monophonic |
 | MPE | `MpeTuner` | Pitch Bend per note, on the MPE Member Channel it allocates to the note. | Polyphonic |
 
@@ -37,7 +37,7 @@ next or by index) or ineffective. `PedalTuningChanger` triggers on a pedal-like 
 
 **Processors.** `TuningChangeProcessor` asks its tuning changers in order, the first effective decision winning, and
 calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`: it sends the tuner's reset to every receiver
-attached to its transmitter and restores 12-EDO on every receiver detached from it.
+attached to its transmitter and, as a courtesy, restores 12-EDO on every receiver detached from it.
 
 **Tracks.** A `Track` is one instrument pipeline built from a `TrackSpec`, whose `TrackInputSpec` and
 `TrackOutputSpec` each name a device or another track. `TrackManager` builds and replaces the tracks, wires the links

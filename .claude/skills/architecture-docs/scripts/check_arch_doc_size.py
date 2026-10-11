@@ -16,6 +16,7 @@
 """Checks the size of the architecture docs against their word budget. Run it with --help for its usage."""
 
 import argparse
+import re
 import sys
 from enum import Enum
 from pathlib import Path
@@ -24,7 +25,9 @@ from typing import List, NamedTuple, Optional, TextIO
 BUDGET_WORDS = 1000
 OK_MAX_WORDS = 1200
 WARNING_MAX_WORDS = 1500
-EXEMPTION_MARKER = "<!-- arch-doc-size: exempt (paper) -->"
+EXEMPTION_MARKER = "<!-- arch-doc-size: exempt (<reason>) -->"
+# The reason in parentheses only explains the exemption, so any reason, or none, matches.
+EXEMPTION_PATTERN = re.compile(r"<!-- arch-doc-size: exempt(?: \(.*\))? -->")
 MARKER_MAX_LINE = 10
 ARCHITECTURE_DIR = Path("docs") / "architecture"
 # This file is <root>/.claude/skills/architecture-docs/scripts/check_arch_doc_size.py.
@@ -59,7 +62,7 @@ def count_words(text: str) -> int:
 
 
 def is_exempt(text: str) -> bool:
-    return any(EXEMPTION_MARKER in line for line in text.splitlines()[:MARKER_MAX_LINE])
+    return any(EXEMPTION_PATTERN.search(line) for line in text.splitlines()[:MARKER_MAX_LINE])
 
 
 def classify(words: int) -> Status:
@@ -124,7 +127,7 @@ def parse_args(argv: Optional[List[str]]) -> argparse.Namespace:
             f"Checks the word count of architecture docs against their budget of {BUDGET_WORDS} words:\n"
             f"OK up to {OK_MAX_WORDS} words, WARNING up to {WARNING_MAX_WORDS} (compacting recommended),\n"
             f"ERROR above (compacting required). A doc with {EXEMPTION_MARKER}\n"
-            f"in its first {MARKER_MAX_LINE} lines is SKIPPED."),
+            f"in its first {MARKER_MAX_LINE} lines is SKIPPED, whatever its reason, which is optional."),
         epilog="Exit status: 0 when no doc is in ERROR, 1 when one is, 2 on a usage error.")
     parser.add_argument("--github", action="store_true",
                         help="also print GitHub Actions annotations for the warnings and errors")

@@ -107,6 +107,19 @@ class CheckFileTest(RepoTestCase):
         path = self.write("doc.md", "# Paper\n\n  " + MARKER + "  \n" + words(2000))
         self.assertIs(size.check_file(path).status, size.Status.SKIPPED)
 
+    def test_skips_a_doc_whose_marker_gives_any_reason(self):
+        marker = "<!-- arch-doc-size: exempt (notes on the MIDI 1.0 (2014) spec) -->"
+        path = self.write("doc.md", marker + "\n" + words(2000))
+        self.assertIs(size.check_file(path).status, size.Status.SKIPPED)
+
+    def test_skips_a_doc_whose_marker_gives_no_reason(self):
+        path = self.write("doc.md", "<!-- arch-doc-size: exempt -->\n" + words(2000))
+        self.assertIs(size.check_file(path).status, size.Status.SKIPPED)
+
+    def test_checks_a_doc_whose_marker_gives_its_reason_without_parentheses(self):
+        path = self.write("doc.md", "<!-- arch-doc-size: exempt paper -->\n" + words(2000))
+        self.assertIs(size.check_file(path).status, size.Status.ERROR)
+
     def test_reports_the_word_count(self):
         path = self.write("doc.md", words(1234))
         self.assertEqual(size.check_file(path), size.Result(path, size.Status.WARNING, 1234))
@@ -270,7 +283,7 @@ class CliTest(unittest.TestCase):
         result = self.run_script("--help")
         self.assertEqual(result.returncode, 0)
         self.assertIn("--github", result.stdout)
-        self.assertIn("arch-doc-size: exempt (paper)", result.stdout)
+        self.assertIn("<!-- arch-doc-size: exempt (<reason>) -->", result.stdout)
 
     def test_reads_utf8_docs_whatever_the_locale(self):
         # Given
