@@ -76,10 +76,10 @@ isn't its effect:
 - **Becoming unavailable doesn't detach.** The handle reports *closed*, then *unavailable*, while every receiver stays
   attached, ready for the device to come back.
 
-So a track attached to a `Closed` handle, or a device closed while a track is still attached to it, is a wiring bug.
+So a track attached to a `Closed` handle, or a device released while a track is still attached to it, is a wiring bug.
 Nothing checks either today: `Track.close()` detaches from both devices before it releases them. It must detach because
-a released handle whose device is still available stays live, and a later track for that device gets the same handle;
-a closed track left attached would keep playing next to its replacement.
+a released handle whose device is still available stays live, and a later track for that device gets the same handle; a
+closed track left attached would keep playing next to its replacement.
 
 The courtesy 12-EDO messages belong to the close, not to the detach: an output that another track still holds open
 must keep its tuning. Today `TunerProcessor.onDetach` sends them on every detach, which #305 fixes.
