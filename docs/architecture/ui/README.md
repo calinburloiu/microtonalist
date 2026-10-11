@@ -1,3 +1,5 @@
+<!-- TODO #360 This doc is not compliant with the new doc conventions. -->
+
 # `ui` module architecture
 
 > **Temporary implementation.** The current GUI is built with **Java Swing**. Architecture-milestone issue
