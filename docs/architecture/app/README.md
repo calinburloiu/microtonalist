@@ -56,5 +56,5 @@ app → config → common
   `*Module` classes/traits and possibly dependency injection.
 - **GUI migration (issue #99, Swing → JavaFX).** The GUI-construction step will change when the GUI migrates; the GUI
   internals are documented in the `ui` module doc.
-- **Track opening (issue #87).** Opening tracks inside `run` is a temporary placement and is expected to move into a
+- **Track opening (issue #100).** Opening tracks inside `run` is a temporary placement and is expected to move into a
   dedicated composition-opening workflow.

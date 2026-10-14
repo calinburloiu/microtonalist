@@ -89,7 +89,7 @@ object MicrotonalistApp extends StrictLogging {
     val tunerModule = TunerModule(businessync, formatModule.defaultTrackRepo, midiManager)
     val trackService = tunerModule.trackService
     composition.tracksUrl.foreach { uri =>
-      // TODO #87 This will be moved as part of a composition opening workflow
+      // TODO #100 This will be moved as part of a composition opening workflow
       Await.result(trackService.open(uri), 10 seconds)
     }
     tunerModule.tuningSession.tunings = tuningList.tunings
