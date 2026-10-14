@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.Composition
-import org.calinburloiu.music.microtonalist.tuner.{TrackRepo, TrackSpecs}
+import org.calinburloiu.music.microtonalist.tuner.{RigRepo, RigSpec}
 
 /**
  * Utilities used for testing the I/O formats.
@@ -30,8 +30,8 @@ object FormatTestUtils {
     compositionRepo.read(CommonTestUtils.uriOfResource(resourcePathString))
   }
 
-  def readTracksFromResources(resourcePathString: String, trackRepo: TrackRepo): TrackSpecs = {
-    trackRepo.readTracks(CommonTestUtils.uriOfResource(resourcePathString))
+  def readTracksFromResources(resourcePathString: String, rigRepo: RigRepo): RigSpec = {
+    rigRepo.readRig(CommonTestUtils.uriOfResource(resourcePathString))
   }
 
   def readScaleFromResources(resourcePathString: String,

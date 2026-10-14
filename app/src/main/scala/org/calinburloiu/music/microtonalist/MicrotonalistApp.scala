@@ -86,11 +86,11 @@ object MicrotonalistApp extends StrictLogging {
     val tuningList = TuningList.fromComposition(composition)
 
     val midiManager = JavaMidiManager(businessync)
-    val tunerModule = TunerModule(businessync, formatModule.defaultTrackRepo, midiManager)
-    val trackService = tunerModule.trackService
+    val tunerModule = TunerModule(businessync, formatModule.defaultRigRepo, midiManager)
+    val rigService = tunerModule.rigService
     composition.tracksUrl.foreach { uri =>
       // TODO #100 This will be moved as part of a composition opening workflow
-      Await.result(trackService.open(uri), 10 seconds)
+      Await.result(rigService.open(uri), 10 seconds)
     }
     tunerModule.tuningSession.tunings = tuningList.tunings
 

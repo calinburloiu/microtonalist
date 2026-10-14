@@ -21,7 +21,7 @@ The compiler reports unused imports, private members, local definitions and para
 removed automatically; handle the rest by hand:
 
 - Delete dead code, except a private method that only reflection calls, such as a Guava `@Subscribe` method: suppress
-  its warning instead, as `TrackManager` does.
+  its warning instead, as `RigManager` does.
 - For an unused test value, first check whether the case forgot to check it; if so, add the check.
 - A type used only inside a string that is type-checked at compile time (`typeChecks`, `assertCompiles`,
   `assertDoesNotCompile`, `assertTypeError`) leaves its import unused, and `sbtn fix` removes it. Name the type fully

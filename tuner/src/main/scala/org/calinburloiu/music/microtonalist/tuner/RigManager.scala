@@ -31,17 +31,17 @@ import scala.collection.immutable.VectorMap
 // TODO #121 Logic to update tracks.
 
 /**
- * Manages a collection of MIDI tracks and updates them based on external events: it re-tunes every track when the
- * tuning changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks whose
- * input device becomes unavailable.
+ * Manages the MIDI tracks of the rig and updates them based on external events: it re-tunes every track when the tuning
+ * changes, resets the tuner of the tracks whose output device opens, and releases the output of the tracks whose input
+ * device becomes unavailable.
  */
 @NotThreadSafe
-class TrackManager(private val midiManager: MidiManager,
-                   private val tuningService: TuningService,
-                   private val executorService: ExecutorService = TrackManager.createExecutorService())
+class RigManager(private val midiManager: MidiManager,
+                 private val tuningService: TuningService,
+                 private val executorService: ExecutorService = RigManager.createExecutorService())
   extends AutoCloseable with StrictLogging {
 
-  import TrackManager.*
+  import RigManager.*
 
   private var tracksById: VectorMap[TrackSpec.Id, Track] = VectorMap()
 
@@ -54,18 +54,18 @@ class TrackManager(private val midiManager: MidiManager,
   /**
    * Replaces all existing tracks with new ones based on the provided track specifications and configures them.
    *
-   * @param trackSpecs The specifications of the tracks to be created.
+   * @param rigSpec The specifications of the tracks to be created.
    */
-  def replaceAllTracks(trackSpecs: TrackSpecs): Unit = {
+  def replaceAllTracks(rigSpec: RigSpec): Unit = {
     closeTracks()
 
     // Forget the closed tracks before building the new ones, whose devices may publish events while they open
     tracks = Seq.empty
 
-    tracks = trackSpecs.tracks
+    tracks = rigSpec.tracks
       .filter { spec =>
         if (spec.muted) {
-          logger.info(s"Track \"${trackSpecs.nameOf(spec.id).getOrElse("")}\" with id=${spec.id} is muted. Skipping.")
+          logger.info(s"Track \"${rigSpec.nameOf(spec.id).getOrElse("")}\" with id=${spec.id} is muted. Skipping.")
         }
 
         !spec.muted
@@ -105,7 +105,7 @@ class TrackManager(private val midiManager: MidiManager,
   }
 
   /**
-   * Closes all managed resources associated with the TrackManager.
+   * Closes all managed resources associated with the RigManager.
    *
    * This method ensures that the MIDI devices of all tracks are properly closed.
    */
@@ -147,7 +147,7 @@ class TrackManager(private val midiManager: MidiManager,
    * @param event The MIDI event published by the [[MidiManager]].
    */
   // TODO #90 Remove @Subscribe after implementing businessync. Guava calls this handler on the thread that publishes
-  //  the event, which is CoreMIDI4J's notification thread for a device change, while TrackManager is meant to be used
+  //  the event, which is CoreMIDI4J's notification thread for a device change, while RigManager is meant to be used
   //  on the business thread only. It reads the tracks on that thread, so a device that opens while replaceAllTracks
   //  builds the tracks on another thread can miss its tuner reset. Worse, resetTuner() and releaseInput() also mutate
   //  Tuner and TuningChanger state from that thread, racing the tuner.process of the input callback thread and the
@@ -173,7 +173,7 @@ class TrackManager(private val midiManager: MidiManager,
   }
 }
 
-object TrackManager extends LazyLogging {
+object RigManager extends LazyLogging {
 
   /**
    * Matches the [[MidiEvent]]s that tell an input device is gone, whatever came of making it unavailable: a

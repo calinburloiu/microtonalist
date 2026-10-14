@@ -27,15 +27,15 @@ import java.net.URI
 
 class JsonTrackFormatTest extends AnyWordSpec with Matchers {
   private val trackFormat: TrackFormat = new JsonTrackFormat(NoJsonPreprocessor)
-  private val trackRepo: TrackRepo = {
-    val fileTrackRepo = new FileTrackRepo(trackFormat)
+  private val rigRepo: RigRepo = {
+    val fileRigRepo = new FileRigRepo(trackFormat)
 
-    new DefaultTrackRepo(Some(fileTrackRepo), None, None)
+    new DefaultRigRepo(Some(fileRigRepo), None, None)
   }
 
   "JsonTrackFormat" should {
     "read a basic tracks file" in {
-      val tracks = readTracksFromResources("format/tracks/basic.mtlist.tracks", trackRepo)
+      val tracks = readTracksFromResources("format/tracks/basic.mtlist.tracks", rigRepo)
 
       tracks.size shouldEqual 5
 
@@ -131,28 +131,28 @@ class JsonTrackFormatTest extends AnyWordSpec with Matchers {
       )
     }
 
-    "fail to read a file that does not exist" in assertThrows[TracksNotFoundException] {
-      trackRepo.readTracks(new URI("file:///does/not/exist.mtlist.tracks"))
+    "fail to read a file that does not exist" in assertThrows[RigNotFoundException] {
+      rigRepo.readRig(new URI("file:///does/not/exist.mtlist.tracks"))
     }
 
     "fail to read a file that is not a JSON" in assertThrows[JsonParseException] {
-      readTracksFromResources("format/scales/chromatic.scl", trackRepo)
+      readTracksFromResources("format/scales/chromatic.scl", rigRepo)
     }
 
     "fail to read a JSON file with another format" in assertThrows[InvalidTrackFormatException] {
-      readTracksFromResources("format/scales/minor-just.jscl", trackRepo)
+      readTracksFromResources("format/scales/minor-just.jscl", rigRepo)
     }
 
     "fail to read a file that misses a mandatory property" in assertThrows[InvalidTrackFormatException] {
-      readTracksFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", trackRepo)
+      readTracksFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
     }
 
     "fail to read a file that has an invalid property value" in assertThrows[InvalidTrackFormatException] {
-      readTracksFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", trackRepo)
+      readTracksFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
     }
 
-    "fail to read a file from an unsupported scheme" in assertThrows[BadTracksRequestException] {
-      trackRepo.readTracks(new URI("xyz://example.com/file.mtlist.tracks"))
+    "fail to read a file from an unsupported scheme" in assertThrows[BadRigRequestException] {
+      rigRepo.readRig(new URI("xyz://example.com/file.mtlist.tracks"))
     }
   }
 }

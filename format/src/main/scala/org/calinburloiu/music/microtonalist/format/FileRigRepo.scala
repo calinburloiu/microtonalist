@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.{TrackRepo, TrackSpecs, TracksNotFoundException}
+import org.calinburloiu.music.microtonalist.tuner.{RigNotFoundException, RigRepo, RigSpec}
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI
@@ -32,19 +32,19 @@ import scala.util.{Failure, Success}
  * @param trackFormat Format object used for reading and writing track specifications.
  * @param synchronousAwaitTimeout Time duration to wait for a result in synchronous operations.
  */
-class FileTrackRepo(trackFormat: TrackFormat,
-                    synchronousAwaitTimeout: FiniteDuration = 1 minute) extends TrackRepo with StrictLogging {
+class FileRigRepo(trackFormat: TrackFormat,
+                  synchronousAwaitTimeout: FiniteDuration = 1 minute) extends RigRepo with StrictLogging {
 
-  override def readTracks(uri: URI): TrackSpecs = Await.result(readTracksAsync(uri), synchronousAwaitTimeout)
+  override def readRig(uri: URI): RigSpec = Await.result(readRigAsync(uri), synchronousAwaitTimeout)
 
-  override def readTracksAsync(uri: URI): Future[TrackSpecs] = {
+  override def readRigAsync(uri: URI): Future[RigSpec] = {
     val path = filePathOf(uri)
 
     logger.info(s"Reading tracks from \"$path\"...")
     Future {
       new FileInputStream(path.toFile)
     }.recover {
-      case e: FileNotFoundException => throw new TracksNotFoundException(uri, e)
+      case e: FileNotFoundException => throw new RigNotFoundException(uri, e)
     }.flatMap { inputStream =>
       trackFormat.readTracksAsync(inputStream, Some(uri))
     }.andThen {
@@ -53,7 +53,7 @@ class FileTrackRepo(trackFormat: TrackFormat,
     }
   }
 
-  override def writeTracks(trackSpecs: TrackSpecs, uri: URI): Unit = ???
+  override def writeRig(rigSpec: RigSpec, uri: URI): Unit = ???
 
-  override def writeTracksAsync(trackSpecs: TrackSpecs, uri: URI): Future[Unit] = ???
+  override def writeRigAsync(rigSpec: RigSpec, uri: URI): Future[Unit] = ???
 }

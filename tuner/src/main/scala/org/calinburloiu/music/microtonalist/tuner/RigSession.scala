@@ -26,63 +26,63 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
- * Manages a sequence of tracks by providing loading/unloading (I/O) and editing operations.
+ * Manages the rig, a sequence of tracks, by providing loading/unloading (I/O) and editing operations.
  *
  * This class should only be accessed from the business thread.
  *
- * @param trackManager Manages the MIDI configuration and handling of tracks.
+ * @param rigManager Manages the MIDI configuration and handling of tracks.
  * @param businessync An instance of `Businessync` responsible for handling event publication.
  */
 @NotThreadSafe
-class TrackSession(trackManager: TrackManager,
-                   trackRepo: TrackRepo,
-                   businessync: Businessync) extends OpenableSession, LazyLogging {
+class RigSession(rigManager: RigManager,
+                 rigRepo: RigRepo,
+                 businessync: Businessync) extends OpenableSession, LazyLogging {
   private var _uri: Option[URI] = None
-  private var _tracks: TrackSpecs = TrackSpecs.Empty
+  private var _tracks: RigSpec = RigSpec.Empty
 
   /**
    * Opens a session with the tracks loaded from the given URI.
    *
-   * Marks the session as opened and publishes the [[TracksOpenedEvent]] containing the resource information.
+   * Marks the session as opened and publishes the [[RigOpenedEvent]] containing the resource information.
    *
    * @param uri The URI where the tracks are loaded from.
    * @throws java.io.IOException if the tracks could not be loaded from the given URI.
    */
   override def open(uri: URI): Future[Unit] = {
-    trackRepo.readTracksAsync(uri).map { tracksRead =>
+    rigRepo.readRigAsync(uri).map { tracksRead =>
       tracks = tracksRead
       _uri = Some(uri)
 
-      businessync.publish(TracksOpenedEvent(uri, tracks))
+      businessync.publish(RigOpenedEvent(uri, tracks))
     }
   }
 
   /**
-   * Closes the current track session and clears the list of tracks.
+   * Closes the current rig session and clears the list of tracks.
    *
-   * Publishes a [[TracksClosedEvent]] containing the URI of the session that was previously active, if any. Note that
-   * the operation is idempotent, if the session was already closed, no URI will be passed to the event.
+   * Publishes a [[RigClosedEvent]] containing the URI of the session that was previously active, if any. Note that the
+   * operation is idempotent, if the session was already closed, no URI will be passed to the event.
    */
   override def close(): Unit = {
     val uriBefore = _uri
     _uri = None
 
-    tracks = TrackSpecs.Empty
+    tracks = RigSpec.Empty
 
-    businessync.publish(TracksClosedEvent(uriBefore))
+    businessync.publish(RigClosedEvent(uriBefore))
   }
 
   /**
-   * Checks whether the current track session is open.
+   * Checks whether the current rig session is open.
    *
    * @return True if the session is open, false otherwise.
    */
   override def isOpen: Boolean = _uri.isDefined
 
   /**
-   * Retrieves the URI associated with the current track session, if any.
+   * Retrieves the URI associated with the current rig session, if any.
    *
-   * @return An optional URI representing the resource of the track session.
+   * @return An optional URI representing the resource of the rig session.
    */
   override def uri: Option[URI] = _uri
 
@@ -91,22 +91,22 @@ class TrackSession(trackManager: TrackManager,
    *
    * @return The track specifications.
    */
-  def tracks: TrackSpecs = _tracks
+  def tracks: RigSpec = _tracks
 
   /**
    * Updates the current track specifications and performs their MIDI configuration.
    *
-   * Publishes a [[TracksReplacedEvent]] with track specifications.
+   * Publishes a [[RigReplacedEvent]] with track specifications.
    *
    * @param newTracks The new track specifications to be assigned.
    */
-  def tracks_=(newTracks: TrackSpecs): Unit = {
+  def tracks_=(newTracks: RigSpec): Unit = {
     if (!_tracks.eq(newTracks)) {
       _tracks = newTracks
 
-      trackManager.replaceAllTracks(newTracks)
+      rigManager.replaceAllTracks(newTracks)
 
-      businessync.publish(TracksReplacedEvent(newTracks))
+      businessync.publish(RigReplacedEvent(newTracks))
     }
   }
 

@@ -65,7 +65,7 @@ class Track(val spec: TrackSpec,
   private val pipeline: MidiSerialProcessor = MidiSerialProcessor(
     Seq(tuningChangeProcessor, tunerProcessor).flatten, outputDeviceHandle.map(_.receiver).toSeq)
 
-  // TODO #298 A track whose output is another track has no output receivers until TrackManager wires the link, and
+  // TODO #298 A track whose output is another track has no output receivers until RigManager wires the link, and
   //  a processor with none drops messages without processing them. Everything arriving between this subscription
   //  and that wiring is therefore lost to the tuner and the channel state tracker.
   inputDeviceHandle.foreach(_.transmitter.addReceiver(receiver))

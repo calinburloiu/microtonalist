@@ -44,21 +44,21 @@ class JsonTrackFormat(jsonPreprocessor: JsonPreprocessor,
     }
   }
 
-  override def readTracks(inputStream: InputStream, baseUri: Option[URI]): TrackSpecs = {
+  override def readTracks(inputStream: InputStream, baseUri: Option[URI]): RigSpec = {
     Await.result(readTracksAsync(inputStream, baseUri), synchronousAwaitTimeout)
   }
 
-  def readTracks(json: JsValue, baseUri: Option[URI]): TrackSpecs = {
+  def readTracks(json: JsValue, baseUri: Option[URI]): RigSpec = {
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    import JsonTrackFormat.trackSpecsFormat
-    preprocessedJson.validate[TrackSpecs] match {
-      case JsSuccess(trackSpecs, _) => trackSpecs
+    import JsonTrackFormat.rigSpecFormat
+    preprocessedJson.validate[RigSpec] match {
+      case JsSuccess(rigSpec, _) => rigSpec
       case error: JsError => throw new InvalidTrackFormatException(JsError.toJson(error).toString)
     }
   }
 
-  override def readTracksAsync(inputStream: InputStream, baseUri: Option[URI]): Future[TrackSpecs] = Future {
+  override def readTracksAsync(inputStream: InputStream, baseUri: Option[URI]): Future[RigSpec] = Future {
     val json = Json.parse(inputStream)
 
     readTracks(json, baseUri)
@@ -69,17 +69,17 @@ class JsonTrackFormat(jsonPreprocessor: JsonPreprocessor,
     Json.toJson(trackSpec)
   }
 
-  override def writeTracks(trackSpecs: TrackSpecs, outputStream: OutputStream): Unit = {
-    Await.result(writeTracksAsync(trackSpecs, outputStream), synchronousAwaitTimeout)
+  override def writeTracks(rigSpec: RigSpec, outputStream: OutputStream): Unit = {
+    Await.result(writeTracksAsync(rigSpec, outputStream), synchronousAwaitTimeout)
   }
 
-  def writeTracksAsJsValue(trackSpecs: TrackSpecs): JsValue = {
-    import JsonTrackFormat.trackSpecsFormat
-    Json.toJson(trackSpecs)
+  def writeTracksAsJsValue(rigSpec: RigSpec): JsValue = {
+    import JsonTrackFormat.rigSpecFormat
+    Json.toJson(rigSpec)
   }
 
-  override def writeTracksAsync(trackSpecs: TrackSpecs, outputStream: OutputStream): Future[Unit] = Future {
-    val json = writeTracksAsJsValue(trackSpecs)
+  override def writeTracksAsync(rigSpec: RigSpec, outputStream: OutputStream): Future[Unit] = Future {
+    val json = writeTracksAsJsValue(rigSpec)
     val writer = new PrintWriter(outputStream)
 
     writer.write(json.toString)
@@ -93,5 +93,5 @@ private object JsonTrackFormat {
   private implicit val trackOutputSpecFormat: Format[TrackOutputSpec] = JsonTrackOutputSpecPluginFormat.format
 
   private implicit val trackSpecFormat: Format[TrackSpec] = Json.using[Json.WithDefaultValues].format[TrackSpec]
-  private implicit val trackSpecsFormat: Format[TrackSpecs] = Json.format[TrackSpecs]
+  private implicit val rigSpecFormat: Format[RigSpec] = Json.format[RigSpec]
 }

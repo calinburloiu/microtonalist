@@ -30,18 +30,18 @@ import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.{Failure, Success}
 
 /**
- * A concrete implementation of the [[TrackRepo]] trait that retrieves and persists track specifications via HTTP.
+ * A concrete implementation of the [[RigRepo]] trait that retrieves and persists track specifications via HTTP.
  *
  * @param httpClient The HTTP client used for sending HTTP requests.
  * @param trackFormat Format object used to read and write track specifications.
  * @param synchronousAwaitTimeout The maximum duration to wait for asynchronous operations to complete when used
  *   synchronously.
  */
-class HttpTrackRepo(httpClient: HttpClient,
-                    trackFormat: TrackFormat,
-                    synchronousAwaitTimeout: FiniteDuration = 1 minute) extends TrackRepo with StrictLogging {
+class HttpRigRepo(httpClient: HttpClient,
+                  trackFormat: TrackFormat,
+                  synchronousAwaitTimeout: FiniteDuration = 1 minute) extends RigRepo with StrictLogging {
 
-  override def readTracks(uri: URI): TrackSpecs = {
+  override def readRig(uri: URI): RigSpec = {
     checkRequirements(uri)
 
     logger.info(s"Reading tracks from $uri via HTTP...")
@@ -53,7 +53,7 @@ class HttpTrackRepo(httpClient: HttpClient,
     result
   }
 
-  override def readTracksAsync(uri: URI): Future[TrackSpecs] = {
+  override def readRigAsync(uri: URI): Future[RigSpec] = {
     checkRequirements(uri)
 
     logger.info(s"Reading tracks from $uri via HTTP...")
@@ -70,9 +70,9 @@ class HttpTrackRepo(httpClient: HttpClient,
       }
   }
 
-  override def writeTracks(trackSpecs: TrackSpecs, uri: URI): Unit = ???
+  override def writeRig(rigSpec: RigSpec, uri: URI): Unit = ???
 
-  override def writeTracksAsync(trackSpecs: TrackSpecs, uri: URI): Future[Unit] = ???
+  override def writeRigAsync(rigSpec: RigSpec, uri: URI): Future[Unit] = ???
 
   private def checkRequirements(uri: URI): Unit = require(
     uri.isAbsolute && UriScheme.HttpSet.contains(uri.getScheme),
@@ -83,12 +83,12 @@ class HttpTrackRepo(httpClient: HttpClient,
     .GET()
     .build()
 
-  private def handleReadResponse(uri: URI, response: HttpResponse[InputStream]): Future[TrackSpecs] = {
+  private def handleReadResponse(uri: URI, response: HttpResponse[InputStream]): Future[RigSpec] = {
     response.statusCode() match {
       case 200 => trackFormat.readTracksAsync(response.body(), Some(uri))
-      case 404 => throw new TracksNotFoundException(uri)
+      case 404 => throw new RigNotFoundException(uri)
       case status if status >= 400 && status < 500 =>
-        throw new BadTracksRequestException(uri,
+        throw new BadRigRequestException(uri,
           Some(s"HTTP request to $uri returned status code $status"))
       case status if status >= 500 && status < 600 =>
         throw new TracksReadFailureException(uri,

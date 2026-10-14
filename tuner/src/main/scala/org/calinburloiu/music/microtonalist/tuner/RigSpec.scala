@@ -50,12 +50,13 @@ object TrackSpec {
 }
 
 /**
- * Object encapsulating a list of [[TrackSpec]] instances that allows querying a basic list update operations. The items
- * are unique by their ID, and they are accessible in `O(1)` either by their 0-based index or by their ID.
+ * Specification of a rig, the setup of tracks: a list of [[TrackSpec]] instances that allows querying a basic list
+ * update operations. The items are unique by their ID, and they are accessible in `O(1)` either by their 0-based index
+ * or by their ID.
  *
  * @param tracks The sequence of track items.
  */
-case class TrackSpecs(tracks: Seq[TrackSpec]) {
+case class RigSpec(tracks: Seq[TrackSpec]) {
 
   private val trackIndexById: Map[TrackSpec.Id, Int] = tracks.zipWithIndex.map {
     case (track, index) => track.id -> index
@@ -160,16 +161,16 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
   def ids: Seq[TrackSpec.Id] = tracks.map(_.id)
 
   /**
-   * Adds the specified track to the TrackSpecs collection before the track specified by `beforeId`. If `beforeId` is
-   * not provided, or it doesn't exist, the track will be added to the end of the collection. If a track with the same
-   * ID already exists in the collection, no changes are made.
+   * Adds the specified track to the RigSpec collection before the track specified by `beforeId`. If `beforeId` is not
+   * provided, or it doesn't exist, the track will be added to the end of the collection. If a track with the same ID
+   * already exists in the collection, no changes are made.
    *
    * @param track The `TrackSpec` to be added.
    * @param beforeId The optional ID of the track before which the specified track should be added. If `None` or
    *   non-existent, the track is added at the end of the collection.
-   * @return A new `TrackSpecs` object, or the same instance if nothing changed.
+   * @return A new `RigSpec` object, or the same instance if nothing changed.
    */
-  def addBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): TrackSpecs = {
+  def addBefore(track: TrackSpec, beforeId: Option[TrackSpec.Id]): RigSpec = {
     if (trackIndexById.contains(track.id)) {
       // Do nothing if a track with the same ID already exists
       this
@@ -183,9 +184,9 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
    * Updates the `TrackSpec` in the collection if a track with the same ID already exists.
    *
    * @param track The `TrackSpec` to update in the collection. Its `id` is used to find a matching track.
-   * @return A new `TrackSpecs` object with the updated track, or the same instance if no matching track is found.
+   * @return A new `RigSpec` object with the updated track, or the same instance if no matching track is found.
    */
-  def update(track: TrackSpec): TrackSpecs = trackIndexById.get(track.id) match {
+  def update(track: TrackSpec): RigSpec = trackIndexById.get(track.id) match {
     case None => this
     case Some(index) => _update(index, track)
   }
@@ -195,17 +196,17 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
    *
    * @param index The 0-based index of the track to be updated. Must be within the bounds of the collection.
    * @param track The new `TrackSpec` object to replace the existing track at the specified index.
-   * @return A new `TrackSpecs` object with the updated track at the specified index.
+   * @return A new `RigSpec` object with the updated track at the specified index.
    * @throws IllegalArgumentException if the provided index is out of bounds.
    */
-  def update(index: Int, track: TrackSpec): TrackSpecs = {
+  def update(index: Int, track: TrackSpec): RigSpec = {
     require(index >= 0 && index < tracks.size, s"Index $index is out of bounds!")
     require(contains(track.id), s"Track with ID ${track.id} does not exist in the collection!")
 
     _update(index, track)
   }
 
-  private def _update(index: Int, track: TrackSpec): TrackSpecs = copy(tracks = tracks.updated(index, track))
+  private def _update(index: Int, track: TrackSpec): RigSpec = copy(tracks = tracks.updated(index, track))
 
   /**
    * Moves a track with the specified ID to a position before another track identified by `beforeId`. If the `idToMove`
@@ -215,10 +216,10 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
    * @param idToMove The unique identifier of the track to be moved.
    * @param beforeId An optional unique identifier of the track before which the `idToMove` track should be positioned.
    *   If `None` or non-existent, the track is moved to the end of the collection.
-   * @return A new `TrackSpecs` object with the track moved to the desired position, or the same instance if the
-   *   `idToMove` is not found.
+   * @return A new `RigSpec` object with the track moved to the desired position, or the same instance if the `idToMove`
+   *   is not found.
    */
-  def moveBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): TrackSpecs = get(idToMove) match {
+  def moveBefore(idToMove: TrackSpec.Id, beforeId: Option[TrackSpec.Id]): RigSpec = get(idToMove) match {
     case None => this
     case Some(track) => remove(idToMove).addBefore(track, beforeId)
   }
@@ -228,14 +229,14 @@ case class TrackSpecs(tracks: Seq[TrackSpec]) {
    * the collection remains unchanged and is returned as is.
    *
    * @param id The unique identifier of the `TrackSpec` to be removed.
-   * @return A new `TrackSpecs` object without the specified track, or the same instance if the track does not exist.
+   * @return A new `RigSpec` object without the specified track, or the same instance if the track does not exist.
    */
-  def remove(id: TrackSpec.Id): TrackSpecs = trackIndexById.get(id) match {
+  def remove(id: TrackSpec.Id): RigSpec = trackIndexById.get(id) match {
     case None => this
     case Some(index) => copy(tracks = tracks.patch(index, Seq.empty, 1))
   }
 }
 
-object TrackSpecs {
-  val Empty: TrackSpecs = TrackSpecs(Seq.empty)
+object RigSpec {
+  val Empty: RigSpec = RigSpec(Seq.empty)
 }

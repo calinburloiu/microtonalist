@@ -16,18 +16,20 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner.TrackSpecs
+import org.calinburloiu.music.microtonalist.tuner.RigSpec
 
 import java.io.{InputStream, OutputStream}
 import java.net.URI
 import scala.concurrent.Future
+
+// TODO #365 Rename after the rig, with the extension and the JSON schemas of the tracks file.
 
 /**
  * Trait to be extended by implementations that perform (de)serialization of tracks files.
  *
  * Tracks files define specifications for tracks that configure MIDI instruments to play with microtones.
  *
- * @see [[TrackSpecs]], which defines the specification of tracks.
+ * @see [[RigSpec]], which defines the specification of tracks.
  */
 trait TrackFormat {
 
@@ -38,7 +40,7 @@ trait TrackFormat {
    * @param baseUri Optional base URI used for resolving relative references in the tracks data.
    * @return The track specifications parsed from the input stream.
    */
-  def readTracks(inputStream: InputStream, baseUri: Option[URI] = None): TrackSpecs
+  def readTracks(inputStream: InputStream, baseUri: Option[URI] = None): RigSpec
 
   /**
    * Reads track specifications asynchronously from the provided input stream and optional base URI.
@@ -47,24 +49,24 @@ trait TrackFormat {
    * @param baseUri Optional base URI used for resolving relative references in the tracks data.
    * @return A future containing the track specifications parsed from the input stream.
    */
-  def readTracksAsync(inputStream: InputStream, baseUri: Option[URI] = None): Future[TrackSpecs]
+  def readTracksAsync(inputStream: InputStream, baseUri: Option[URI] = None): Future[RigSpec]
 
   /**
    * Writes the given track specifications to the provided output stream.
    *
-   * @param trackSpecs Track specifications to be written.
+   * @param rigSpec Track specifications to be written.
    * @param outputStream Output stream to which the track specifications will be written.
    */
-  def writeTracks(trackSpecs: TrackSpecs, outputStream: OutputStream): Unit
+  def writeTracks(rigSpec: RigSpec, outputStream: OutputStream): Unit
 
   /**
    * Writes the given track specifications asynchronously to the provided output stream.
    *
-   * @param trackSpecs Track specifications to be written.
+   * @param rigSpec Track specifications to be written.
    * @param outputStream Output stream to which the track specifications will be written.
    * @return A future indicating the completion of the write operation.
    */
-  def writeTracksAsync(trackSpecs: TrackSpecs, outputStream: OutputStream): Future[Unit]
+  def writeTracksAsync(rigSpec: RigSpec, outputStream: OutputStream): Future[Unit]
 }
 
 /**

@@ -25,27 +25,27 @@ import java.net.URI
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
-class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
+class RigSessionTest extends AnyWordSpec with Matchers with MockFactory {
 
   private val uri = new URI("http://example.com/composition.mtlist.tracks")
 
-  private val sampleTracks = TrackSpecs(Seq(
+  private val sampleTracks = RigSpec(Seq(
     makeTrack("Piano"), makeTrack("Synth"), makeTrack("Bass"), makeTrack("Percussion", withTrackNo = false)))
 
-  abstract class Fixture(tracks: TrackSpecs = TrackSpecs.Empty) {
-    val trackManagerMock: TrackManager = mock[TrackManager]
-    val trackRepo: TrackRepo = stub[TrackRepo]
+  abstract class Fixture(tracks: RigSpec = RigSpec.Empty) {
+    val rigManagerMock: RigManager = mock[RigManager]
+    val rigRepo: RigRepo = stub[RigRepo]
     val businessyncMock: Businessync = mock[Businessync]
 
-    val trackSession = new TrackSession(trackManagerMock, trackRepo, businessyncMock)
+    val rigSession = new RigSession(rigManagerMock, rigRepo, businessyncMock)
 
-    trackRepo.readTracksAsync.when(uri).returns(Future.successful(sampleTracks))
+    rigRepo.readRigAsync.when(uri).returns(Future.successful(sampleTracks))
 
     if (tracks.nonEmpty) {
-      trackManagerMock.replaceAllTracks.expects(sampleTracks)
-      businessyncMock.publish.expects(TracksReplacedEvent(sampleTracks))
+      rigManagerMock.replaceAllTracks.expects(sampleTracks)
+      businessyncMock.publish.expects(RigReplacedEvent(sampleTracks))
 
-      trackSession.tracks = tracks
+      rigSession.tracks = tracks
     }
   }
 
@@ -56,122 +56,122 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
 
   "constructor" should {
     "initialize uri and tracks as empty" in new Fixture {
-      trackSession.uri shouldBe empty
-      trackSession.tracks.isEmpty shouldBe true
-      trackSession.tracks.nonEmpty shouldBe false
-      trackSession.isOpen shouldBe false
+      rigSession.uri shouldBe empty
+      rigSession.tracks.isEmpty shouldBe true
+      rigSession.tracks.nonEmpty shouldBe false
+      rigSession.isOpen shouldBe false
     }
   }
 
   "open" should {
     "load tracks from the given URI" in new Fixture {
       // Expect
-      trackManagerMock.replaceAllTracks.expects(sampleTracks)
-      businessyncMock.publish.expects(TracksReplacedEvent(sampleTracks))
-      businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
+      rigManagerMock.replaceAllTracks.expects(sampleTracks)
+      businessyncMock.publish.expects(RigReplacedEvent(sampleTracks))
+      businessyncMock.publish.expects(argAssert { (event: RigOpenedEvent) =>
         event.uri shouldBe uri
         event.tracks shouldBe sampleTracks
       })
 
       // When
-      Await.result(trackSession.open(uri), 500 milliseconds)
+      Await.result(rigSession.open(uri), 500 milliseconds)
 
       // Then
-      trackSession.uri should contain(uri)
-      trackRepo.readTracksAsync.verify(uri).once()
+      rigSession.uri should contain(uri)
+      rigRepo.readRigAsync.verify(uri).once()
 
-      trackSession.isOpen shouldBe true
+      rigSession.isOpen shouldBe true
     }
   }
 
   "close" should {
     "unload tracks and clear the state" in new Fixture {
       // Expect
-      trackManagerMock.replaceAllTracks.expects(sampleTracks)
-      businessyncMock.publish.expects(TracksReplacedEvent(sampleTracks))
-      businessyncMock.publish.expects(argAssert { (event: TracksOpenedEvent) =>
+      rigManagerMock.replaceAllTracks.expects(sampleTracks)
+      businessyncMock.publish.expects(RigReplacedEvent(sampleTracks))
+      businessyncMock.publish.expects(argAssert { (event: RigOpenedEvent) =>
         event.uri shouldBe uri
         event.tracks shouldBe sampleTracks
       })
 
-      Await.result(trackSession.open(uri), 500 milliseconds)
+      Await.result(rigSession.open(uri), 500 milliseconds)
 
       // Expect
-      trackManagerMock.replaceAllTracks.expects(TrackSpecs.Empty)
-      businessyncMock.publish.expects(TracksReplacedEvent(TrackSpecs.Empty))
-      businessyncMock.publish.expects(TracksClosedEvent(Some(uri)))
+      rigManagerMock.replaceAllTracks.expects(RigSpec.Empty)
+      businessyncMock.publish.expects(RigReplacedEvent(RigSpec.Empty))
+      businessyncMock.publish.expects(RigClosedEvent(Some(uri)))
 
       // When
-      trackSession.close()
+      rigSession.close()
 
       // Then
-      trackSession.uri shouldBe empty
-      trackSession.tracks.tracks shouldBe empty
-      trackSession.isOpen shouldBe false
+      rigSession.uri shouldBe empty
+      rigSession.tracks.tracks shouldBe empty
+      rigSession.isOpen shouldBe false
 
       // Expect
-      businessyncMock.publish.expects(TracksClosedEvent(None))
+      businessyncMock.publish.expects(RigClosedEvent(None))
 
       // When
-      trackSession.close()
+      rigSession.close()
     }
   }
 
   "tracks setter" should {
     "replace all tracks" in new Fixture(sampleTracks) {
       // Expectations for the mocks and the tracks are set in the Fixture
-      trackSession.tracks shouldEqual sampleTracks
+      rigSession.tracks shouldEqual sampleTracks
 
-      trackSession.tracks("Piano") shouldEqual sampleTracks.tracks.head
-      trackSession.tracks(1) shouldEqual sampleTracks.tracks(1)
+      rigSession.tracks("Piano") shouldEqual sampleTracks.tracks.head
+      rigSession.tracks(1) shouldEqual sampleTracks.tracks(1)
     }
   }
 
   "indexOf" should {
     "return the index of the track with the given ID" in new Fixture(sampleTracks) {
-      trackSession.indexOf("Piano") shouldEqual 0
-      trackSession.indexOf("Synth") shouldEqual 1
-      trackSession.indexOf("Bass") shouldEqual 2
+      rigSession.indexOf("Piano") shouldEqual 0
+      rigSession.indexOf("Synth") shouldEqual 1
+      rigSession.indexOf("Bass") shouldEqual 2
 
-      trackSession.indexOf("Non-existent track") shouldEqual -1
+      rigSession.indexOf("Non-existent track") shouldEqual -1
     }
   }
 
   "nameOf" should {
     "return the name of the track with the given ID" in new Fixture(sampleTracks) {
-      trackSession.nameOf("Piano") should contain("#1 Piano")
-      trackSession.nameOf("Percussion") should contain("Percussion")
+      rigSession.nameOf("Piano") should contain("#1 Piano")
+      rigSession.nameOf("Percussion") should contain("Percussion")
 
-      trackSession.nameOf("Non-existent track") shouldBe empty
+      rigSession.nameOf("Non-existent track") shouldBe empty
     }
   }
 
   "contains" should {
     "return true if the track with the given ID exists" in new Fixture(sampleTracks) {
-      trackSession.contains("Piano") shouldBe true
-      trackSession.contains("Percussion") shouldBe true
+      rigSession.contains("Piano") shouldBe true
+      rigSession.contains("Percussion") shouldBe true
 
-      trackSession.contains("Non-existent track") shouldBe false
+      rigSession.contains("Non-existent track") shouldBe false
     }
   }
 
   "trackCount" should {
     "return the number of tracks" in new Fixture(sampleTracks) {
-      trackSession.trackCount shouldEqual 4
+      rigSession.trackCount shouldEqual 4
     }
   }
 
   "getTrack" should {
     "return the track with the given ID" in new Fixture(sampleTracks) {
-      trackSession.getTrack("Piano") should contain(sampleTracks.tracks.head)
-      trackSession.getTrack("Percussion") should contain(sampleTracks.tracks(3))
+      rigSession.getTrack("Piano") should contain(sampleTracks.tracks.head)
+      rigSession.getTrack("Percussion") should contain(sampleTracks.tracks(3))
 
-      trackSession.getTrack("Non-existent track") shouldBe empty
+      rigSession.getTrack("Non-existent track") shouldBe empty
     }
 
     "return the track with the given index" in new Fixture(sampleTracks) {
-      trackSession.getTrack(0) should contain(sampleTracks.tracks.head)
-      trackSession.getTrack(3) should contain(sampleTracks.tracks(3))
+      rigSession.getTrack(0) should contain(sampleTracks.tracks.head)
+      rigSession.getTrack(3) should contain(sampleTracks.tracks(3))
     }
   }
 
@@ -190,24 +190,24 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       businessyncMock.publish.expects(TrackAddedEvent(flute2Track, None))
 
       // When
-      trackSession.addTrackBefore(stringsTrack, "Piano")
-      trackSession.addTrackBefore(leadTrack, Some("Bass"))
-      trackSession.addTrackBefore(fluteTrack, None)
-      trackSession.addTrack(flute2Track)
+      rigSession.addTrackBefore(stringsTrack, "Piano")
+      rigSession.addTrackBefore(leadTrack, Some("Bass"))
+      rigSession.addTrackBefore(fluteTrack, None)
+      rigSession.addTrack(flute2Track)
 
       // Then
-      trackSession.tracks.ids shouldEqual Seq(
+      rigSession.tracks.ids shouldEqual Seq(
         "Strings", "Piano", "Synth", "Lead", "Bass", "Percussion", "Flute", "Flute 2")
     }
 
     "not add if the ID already exists" in new Fixture(sampleTracks) {
       // Given
-      val count: Int = trackSession.trackCount
+      val count: Int = rigSession.trackCount
       val newBassTrack: TrackSpec = makeTrack("Bass")
       // When
-      trackSession.addTrack(newBassTrack)
+      rigSession.addTrack(newBassTrack)
       // Then
-      trackSession.trackCount shouldEqual count
+      rigSession.trackCount shouldEqual count
     }
 
     "add at the end if beforeId does not exist" in new Fixture(sampleTracks) {
@@ -216,23 +216,23 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       // Expect
       businessyncMock.publish.expects(TrackAddedEvent(stringsTrack, None))
       // When
-      trackSession.addTrackBefore(stringsTrack, "Non-existent track")
+      rigSession.addTrackBefore(stringsTrack, "Non-existent track")
       // Then
-      trackSession.getTrack(trackSession.trackCount - 1) should contain(stringsTrack)
+      rigSession.getTrack(rigSession.trackCount - 1) should contain(stringsTrack)
     }
   }
 
   "updateTrack" should {
     "update the track with the given ID" in new Fixture(sampleTracks) {
       // Given
-      val nameBeforeUpdate: String = trackSession.getTrack("Piano").get.name
+      val nameBeforeUpdate: String = rigSession.getTrack("Piano").get.name
       val newPianoTrack: TrackSpec = makeTrack("Piano", withTrackNo = false)
       // Expect
       businessyncMock.publish.expects(TrackUpdatedEvent(newPianoTrack))
       // When
-      trackSession.updateTrack(newPianoTrack)
+      rigSession.updateTrack(newPianoTrack)
       // Then
-      trackSession.getTrack("Piano").get.name should not equal nameBeforeUpdate
+      rigSession.getTrack("Piano").get.name should not equal nameBeforeUpdate
     }
 
     "do nothing if track ID does not exist" in new Fixture(sampleTracks) {
@@ -241,9 +241,9 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       // Expect
       businessyncMock.publish.expects(*).never()
       // When
-      trackSession.updateTrack(newTrack)
+      rigSession.updateTrack(newTrack)
       // Then
-      trackSession.contains("Non-existent track") shouldBe false
+      rigSession.contains("Non-existent track") shouldBe false
     }
 
     "not publish event if a track with the same reference already exists" in new Fixture(sampleTracks) {
@@ -252,7 +252,7 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       // Expect
       businessyncMock.publish.expects(*).never()
       // When
-      trackSession.updateTrack(track)
+      rigSession.updateTrack(track)
     }
   }
 
@@ -261,26 +261,26 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       // Expect
       businessyncMock.publish.expects(TrackMovedEvent("Bass", Some("Piano")))
       // When
-      trackSession.moveTrackBefore("Bass", "Piano")
+      rigSession.moveTrackBefore("Bass", "Piano")
       // Then
-      trackSession.tracks.ids shouldEqual Seq("Bass", "Piano", "Synth", "Percussion")
+      rigSession.tracks.ids shouldEqual Seq("Bass", "Piano", "Synth", "Percussion")
     }
 
     "do nothing if the ID of the track to move does not exist" in new Fixture(sampleTracks) {
       // Expect
       businessyncMock.publish.expects(*).never()
       // When
-      trackSession.moveTrackBefore("Non-existent track", "Bass")
-      trackSession.moveTrackToEnd("Non-existent track")
+      rigSession.moveTrackBefore("Non-existent track", "Bass")
+      rigSession.moveTrackToEnd("Non-existent track")
     }
 
     "move the track to the end if before ID does not exist" in new Fixture(sampleTracks) {
       // Expect
       businessyncMock.publish.expects(TrackMovedEvent("Bass", None))
       // When
-      trackSession.moveTrackBefore("Bass", "Non-existent track")
+      rigSession.moveTrackBefore("Bass", "Non-existent track")
       // Then
-      trackSession.tracks.ids shouldEqual Seq("Piano", "Synth", "Percussion", "Bass")
+      rigSession.tracks.ids shouldEqual Seq("Piano", "Synth", "Percussion", "Bass")
     }
   }
 
@@ -289,9 +289,9 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       // Expect
       businessyncMock.publish.expects(TrackMovedEvent("Bass", None))
       // When
-      trackSession.moveTrackToEnd("Bass")
+      rigSession.moveTrackToEnd("Bass")
       // Then
-      trackSession.tracks.ids shouldEqual Seq("Piano", "Synth", "Percussion", "Bass")
+      rigSession.tracks.ids shouldEqual Seq("Piano", "Synth", "Percussion", "Bass")
     }
   }
 
@@ -300,16 +300,16 @@ class TrackSessionTest extends AnyWordSpec with Matchers with MockFactory {
       // Expect
       businessyncMock.publish.expects(TrackRemovedEvent("Synth"))
       // When
-      trackSession.removeTrack("Synth")
+      rigSession.removeTrack("Synth")
       // Then
-      trackSession.getTrack("Synth") shouldBe empty
+      rigSession.getTrack("Synth") shouldBe empty
     }
 
     "do nothing if the ID does not exist" in new Fixture(sampleTracks) {
       // Expect
       businessyncMock.publish.expects(*).never()
       // When
-      trackSession.removeTrack("Non-existent track")
+      rigSession.removeTrack("Non-existent track")
     }
   }
 }

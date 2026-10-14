@@ -24,7 +24,7 @@ import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
+class RigManagerTest extends AnyWordSpec with Matchers with Stubs {
 
   private val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
 
@@ -54,7 +54,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
   private def mtsTuningMessage(tuning: Tuning): MidiMsg = MtsMessageGenerator.Octave1ByteNonRealTime.generate(tuning)
 
   /**
-   * A [[TrackManager]] registered on a real bus, over a stubbed [[MidiManager]] that opens every device as a
+   * A [[RigManager]] registered on a real bus, over a stubbed [[MidiManager]] that opens every device as a
    * [[FakeMidiDeviceHandle]] whose receiver records what the device gets. Its two tracks are built, and the messages
    * that building them sent are forgotten: "piano" plays the keyboard on the piano, and "synth" plays the controller on
    * the synth.
@@ -81,16 +81,16 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
     }
     midiManager.closeDevice.returns(_ => ())
 
-    val trackSpecs: TrackSpecs = TrackSpecs(Seq(
+    val rigSpec: RigSpec = RigSpec(Seq(
       TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(pianoTuner),
         output = Some(DeviceTrackOutputSpec(pianoId, None))),
       TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(controllerId, None)), tuner = Some(resetTuner()),
         output = Some(DeviceTrackOutputSpec(synthId, None)))
     ))
 
-    val trackManager: TrackManager = TrackManager(midiManager, TuningService(tuningSession, businessync))
-    businessync.register(trackManager)
-    trackManager.replaceAllTracks(trackSpecs)
+    val rigManager: RigManager = RigManager(midiManager, TuningService(tuningSession, businessync))
+    businessync.register(rigManager)
+    rigManager.replaceAllTracks(rigSpec)
     deviceReceivers.values.foreach(_.clear())
   }
 
@@ -106,7 +106,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
 
     "reset the tuner of every track whose output device got opened, when two tracks share it" in new Fixture {
       // Given
-      trackManager.replaceAllTracks(TrackSpecs(Seq(
+      rigManager.replaceAllTracks(RigSpec(Seq(
         TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(resetTuner()),
           output = Some(DeviceTrackOutputSpec(pianoId, None))),
         TrackSpec("controller", "Controller", input = Some(DeviceTrackInputSpec(controllerId, None)),
@@ -188,7 +188,7 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
 
     "release the output of every track whose input device became unavailable, when two tracks share it" in new Fixture {
       // Given
-      trackManager.replaceAllTracks(TrackSpecs(Seq(
+      rigManager.replaceAllTracks(RigSpec(Seq(
         TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(resetTuner()),
           output = Some(DeviceTrackOutputSpec(pianoId, None))),
         TrackSpec("synth", "Synth", input = Some(DeviceTrackInputSpec(keyboardId, None)), tuner = Some(resetTuner()),
@@ -265,12 +265,12 @@ class TrackManagerTest extends AnyWordSpec with Matchers with Stubs {
       // receiver, so this one stays attached and records what a tuner reset reaching the closed track would send —
       // which the device receiver, detached by then, could not show.
       val closedTrackOutput: RecordingMidiReceiver = RecordingMidiReceiver()
-      trackManager.tracks.head.transmitter.addReceiver(closedTrackOutput)
+      rigManager.tracks.head.transmitter.addReceiver(closedTrackOutput)
       closedTrackOutput.clear()
       onOpenOutput = deviceId => businessync.publish(MidiDeviceOpenedEvent(deviceId, MidiDirection.Output))
 
       // When
-      trackManager.replaceAllTracks(trackSpecs)
+      rigManager.replaceAllTracks(rigSpec)
 
       // Then
       closedTrackOutput.messages shouldBe empty

@@ -23,7 +23,7 @@ import javax.annotation.concurrent.ThreadSafe
 import scala.concurrent.Future
 
 /**
- * Service that exposes track management capabilities to the application layer.
+ * Service that exposes the management of the rig to the application layer.
  *
  * The service makes sure that all operations are executed on the business thread.
  *
@@ -31,11 +31,11 @@ import scala.concurrent.Future
  * @param businessync Provides thread communication capabilities.
  */
 @ThreadSafe
-class TrackService(session: TrackSession,
-                   businessync: Businessync) {
+class RigService(session: RigSession,
+                 businessync: Businessync) {
 
   /**
-   * Opens a new track session by loading the track list from the given URI.
+   * Opens a new rig session by loading the track list from the given URI.
    *
    * @param uri the URI from which tracks are read.
    */
@@ -48,7 +48,7 @@ class TrackService(session: TrackSession,
    *
    * @param tracks The new track specifications to replace the current tracks.
    */
-  def replaceAllTracks(tracks: TrackSpecs): Unit = businessync.run { () =>
+  def replaceAllTracks(tracks: RigSpec): Unit = businessync.run { () =>
     session.tracks = tracks
   }
 }

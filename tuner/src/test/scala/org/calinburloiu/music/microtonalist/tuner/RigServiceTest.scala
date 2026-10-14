@@ -24,25 +24,25 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.net.URI
 
-class TrackServiceTest extends AnyWordSpec with Matchers with MockFactory {
+class RigServiceTest extends AnyWordSpec with Matchers with MockFactory {
 
   trait Fixture {
-    val sessionStub: TrackSession = stub[TrackSession]
+    val sessionStub: RigSession = stub[RigSession]
     val businessync: Businessync = Businessync(EventBus())
 
-    val trackService = new TrackService(sessionStub, businessync)
+    val rigService = new RigService(sessionStub, businessync)
 
     protected def makeTrackSpec(name: String): TrackSpec =
       TrackSpec(name + "-id", name, None, Seq.empty, None, None)
   }
 
   "open" should {
-    "call open in TrackSession with the given URI" in new Fixture {
+    "call open in RigSession with the given URI" in new Fixture {
       // Given
       val uri = new URI("http://example.com/composition.mtlist.tracks")
 
       // When
-      trackService.open(uri)
+      rigService.open(uri)
 
       // Then
       sessionStub.open.verify(uri).once()
@@ -50,15 +50,15 @@ class TrackServiceTest extends AnyWordSpec with Matchers with MockFactory {
   }
 
   "replaceAllTracks" should {
-    "update tracks in the trackSession with the provided TrackSpecs" in new Fixture {
+    "update tracks in the rigSession with the provided RigSpec" in new Fixture {
       // Given
-      val trackSpecs: TrackSpecs = TrackSpecs(Seq(makeTrackSpec("track1"), makeTrackSpec("track2")))
+      val rigSpec: RigSpec = RigSpec(Seq(makeTrackSpec("track1"), makeTrackSpec("track2")))
 
       // When
-      trackService.replaceAllTracks(trackSpecs)
+      rigService.replaceAllTracks(rigSpec)
 
       // Then
-      sessionStub.tracks_=.verify(trackSpecs).once()
+      sessionStub.tracks_=.verify(rigSpec).once()
     }
   }
 }

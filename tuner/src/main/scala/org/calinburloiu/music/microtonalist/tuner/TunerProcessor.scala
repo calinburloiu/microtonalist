@@ -79,7 +79,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
 
     // TODO #121 tuner.reset() mutates state shared by every receiver of this processor, not just the ones newly
     //  attached here. Harmless today because a multi-receiver TunerProcessor is only ever torn down and rebuilt as
-    //  a whole (TrackManager.replaceAllTracks); revisit once a track can be rewired incrementally while running.
+    //  a whole (RigManager.replaceAllTracks); revisit once a track can be rewired incrementally while running.
     val resetMessages = tuner.reset()
     sendTo(receivers, resetMessages, -1)
 
