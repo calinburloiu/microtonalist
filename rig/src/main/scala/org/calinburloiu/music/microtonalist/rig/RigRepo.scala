@@ -81,7 +81,7 @@ class BadRigRequestException(uri: URI, message: Option[String] = None, cause: Th
   extends RigRepoException(message.getOrElse(s"Bad request for tracks with $uri!"), cause)
 
 /**
- * Exception thrown if the composition could not be read from the given source URI.
+ * Exception thrown if the rig could not be read from the given source URI.
  */
-class TracksReadFailureException(val uri: URI, message: String, cause: Throwable = null)
+class RigReadFailureException(val uri: URI, message: String, cause: Throwable = null)
   extends RigRepoException(message, cause)

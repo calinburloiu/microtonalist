@@ -91,9 +91,9 @@ class HttpRigRepo(httpClient: HttpClient,
         throw new BadRigRequestException(uri,
           Some(s"HTTP request to $uri returned status code $status"))
       case status if status >= 500 && status < 600 =>
-        throw new TracksReadFailureException(uri,
+        throw new RigReadFailureException(uri,
           s"HTTP request to $uri returned status code $status")
-      case status => throw new TracksReadFailureException(uri,
+      case status => throw new RigReadFailureException(uri,
           s"Unexpected HTTP response status code $status for $uri")
     }
   }
