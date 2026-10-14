@@ -35,6 +35,7 @@ By build convention each module's SBT project ID equals its base directory name 
 | `businessync` | `businessync` | [businessync/README.md](businessync/README.md) |
 | `composition` | `composition` | [composition/README.md](composition/README.md) |
 | `tuner` | `tuner` | [tuner/README.md](tuner/README.md) |
+| `rig` | `rig` | [rig/README.md](rig/README.md) |
 | `format` | `format` | [format/README.md](format/README.md) |
 | `intonation` | `intonation` | [intonation/README.md](intonation/README.md) |
 | `sc-midi` | `sc-midi` | [sc-midi/README.md](sc-midi/README.md) |

@@ -32,8 +32,8 @@ All types live in package `org.calinburloiu.businessync`.
   need cross-thread communication. It wraps event publish/subscribe and (eventually) thread dispatch.
 - **`BusinessyncEvent`** — the abstract base class for every event posted through the bus, providing a `name` defaulting
   to the runtime simple class name. Domain events extend it as sealed `case class`/`case object` hierarchies (e.g.
-  `MidiEvent`, `TuningEvent`, `TrackEvent`). Because Guava's `EventBus` dispatches by runtime type and walks supertypes,
-  **subscribing to a base class catches all of its subclasses** — e.g. `TrackManager` subscribes to `TuningEvent` and
+  `MidiEvent`, `TuningEvent`, `RigEvent`). Because Guava's `EventBus` dispatches by runtime type and walks supertypes,
+  **subscribing to a base class catches all of its subclasses** — e.g. `RigManager` subscribes to `TuningEvent` and
   receives every concrete subtype.
 - **`BusinessyncUiHandler`** — a small `case class` (`run` lambda + `isUiThread` predicate) intended to make UI-thread
   submission *pluggable*: a GUI toolkit supplies the lambda that schedules work onto its event thread. It is defined but
@@ -72,7 +72,7 @@ Other threads in the wider system (documented on the wiki, not owned here): **Tr
 threads** (CoreMidi4J), and **worker threads** (the `Future` execution context).
 
 **Current reality.** No dedicated Business or UI thread is started yet, so the threading *contracts* are expressed at
-call sites (e.g. `TuningService.changeTuning` wraps its body in `businessync.run`, `TrackService.open` uses
+call sites (e.g. `TuningService.changeTuning` wraps its body in `businessync.run`, `RigService.open` uses
 `businessync.callAsync`) but are not yet *enforced* by `Businessync`. Call sites are written against the target API so
 that, once the real dispatcher exists, behavior tightens without touching callers.
 
@@ -96,8 +96,8 @@ design; treat it as planned and subject to change. The headline elements:
 `businessync` has **no application `dependsOn`** — it is a leaf in the dependency graph, alongside `intonation` and
 `common`. Its only third-party dependency is Guava (`EventBus`), plus the inherited common logging stack.
 
-Modules that depend on it: `sc-midi` (publishes `MidiEvent`s), `tuner` (publishes/subscribes to `TuningEvent`/
-`TrackEvent`), `app` (constructs the instance and wires it in), `cli` (constructs one for `MidiManager`), and
-transitively `format` (publishes `ScaleLossyConversionEvent`) and `ui` (subscribes to `TuningIndexUpdatedEvent`). The
-instance is created once in `MicrotonalistApp.run` and injected everywhere, so a single bus/threading context is shared
-across the running app.
+Modules that depend on it: `sc-midi` (publishes `MidiEvent`s), `tuner` (publishes `TuningEvent`), `rig`
+(publishes `RigEvent`, subscribes to `TuningEvent` and `MidiEvent`), `app` (constructs the instance and wires it in),
+`cli` (constructs one for `MidiManager`), and transitively `format` (publishes `ScaleLossyConversionEvent`) and `ui`
+(subscribes to `TuningIndexUpdatedEvent`). The instance is created once in `MicrotonalistApp.run` and injected
+everywhere, so a single bus/threading context is shared across the running app.

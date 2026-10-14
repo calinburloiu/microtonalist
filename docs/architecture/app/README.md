@@ -25,18 +25,18 @@ in the startup banner.
 
 `run` is the composition root. It builds the cross-cutting `Businessync` event/threading layer once and threads it
 through every module, then wires the modules in dependency order: load the HOCON config, load the user's `.mtlist`
-composition and resolve it into a `TuningList`, start the tuner runtime and open its tracks, and finally open the Swing
-GUI.
+composition and resolve it into a `TuningList`, start the tuner and rig runtimes and open the rig's tracks, and finally
+open the Swing GUI.
 
 `app` also **owns the MIDI manager's lifecycle** (#282): it picks the Java Sound implementation by constructing
-`JavaMidiManager(businessync)` and injects it into `TunerModule` as a `MidiManager`, so `tuner` uses a manager it
-neither builds nor closes. A JVM shutdown hook closes the tuner runtime and then the MIDI manager for clean teardown.
+`JavaMidiManager(businessync)` and injects it into `RigModule` as a `MidiManager`, so `rig` uses a manager it
+neither builds nor closes. A JVM shutdown hook closes the rig runtime and then the MIDI manager for clean teardown.
 
 Each lower module exposes its public surface through a small wiring seam that `app` instantiates rather than reaching
 into the module's internals; the details of each seam belong to that module's own architecture doc. Today these seams
-are hand-rolled `lazy val` service containers (e.g. `FormatModule`, `TunerModule`), not a DI framework — the plan is to
-give every module a dedicated `*Module` class (issue #100). Treat the current manual wiring as the present state, not a
-long-term contract.
+are hand-rolled `lazy val` service containers (e.g. `FormatModule`, `TunerModule`, `RigModule`), not a DI framework —
+the plan is to give every module a dedicated `*Module` class (issue #100). Treat the current manual wiring as the
+present state, not a long-term contract.
 
 ## Dependencies
 
@@ -45,8 +45,9 @@ other application module. It is the assembly target whose fat JAR main class is 
 
 ```
 app → ui → tuner → sc-midi → businessync
+app → rig → tuner
 app → composition → { intonation, tuner }
-app → format → { common, composition, tuner }
+app → format → { common, composition, rig, tuner }
 app → config → common
 ```
 

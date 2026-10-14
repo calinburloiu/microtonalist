@@ -34,9 +34,14 @@ implementations of each Plugin family).
   limits, which it clamps any other tuning to; implementations cover the supported tuning protocols (MTS Octave, MPE,
   monophonic Pitch Bend)
 - `TuningChanger` (trait, Plugin) — decides when to change tuning by inspecting MIDI messages
-- `Track` — one instrument pipeline: input device → `TuningChangeProcessor` → `TunerProcessor` → output device
 - `TuningSession` / `TuningService` — holds current tuning index and exposes thread-safe API for changing it
-- `TrackManager` — lifecycle manager for tracks; reacts to MIDI device events
+
+**Rig (`rig` module, `org.calinburloiu.music.microtonalist.rig`):**
+
+- *Rig* — the setup of tracks a performer plays, specified by a `RigSpec`, an ordered list of `TrackSpec`s
+- `Track` — one instrument pipeline: input device → `TuningChangeProcessor` → `TunerProcessor` → output device
+- `RigManager` — lifecycle manager for the tracks of the rig; reacts to tuning and MIDI device events
+- `RigSession` / `RigService` — loads the rig through a `RigRepo` and exposes a thread-safe API for editing it
 
 **Plugin pattern:** `Tuner`, `TuningMapper`, `TuningReducer`, `TuningReference`, and `TuningChanger` all extend
 `Plugin` (from `common`). Each plugin has a `familyName` and `typeName` used for JSON (de)serialization via Play JSON.

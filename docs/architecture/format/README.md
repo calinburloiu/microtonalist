@@ -36,7 +36,7 @@ Three families follow the pattern, one per persistable object:
 | `.mtlist`         | `Composition`  | `JsonCompositionFormat`         | Microtonalist JSON |
 | `.jscl` / `.json` | `Scale`        | `JsonScaleFormat`               | Microtonalist JSON scale |
 | `.scl`            | `Scale`        | `HuygensFokkerScalaScaleFormat` | Huygens-Fokker [Scala](https://www.huygens-fokker.org/scala/) text (read-only) |
-| `.mtlist.tracks`  | `TrackSpecs`   | `JsonTrackFormat`               | Microtonalist JSON tracks file |
+| `.mtlist.tracks`  | `RigSpec`      | `JsonTrackFormat`               | Microtonalist JSON tracks file |
 
 Each has a `Default*Repo` that dispatches by URI scheme to source-specific `File*Repo` / `Http*Repo` / `Library*Repo`
 variants. Two wrinkles are worth knowing:
@@ -47,8 +47,8 @@ variants. Two wrinkles are worth knowing:
   and/or converting intervals to the composition's intonation standard) and publishes a `ScaleLossyConversionEvent` via
   `Businessync` when the conversion loses precision. `ScaleFormatRegistry` picks the right `ScaleFormat` for an external
   scale by media type, falling back to file extension.
-- `TrackRepo` is the one repository trait that **lives in the `tuner` module** (because `Track`/`TrackSpecs` are tuner
-  domain types); only its formats and concrete repos live here.
+- `RigRepo` is the one repository trait that **lives in the `rig` module** (because `RigSpec` is a rig domain
+  type); only its formats and concrete repos live here.
 
 ## URI-scheme dispatch
 
@@ -113,7 +113,7 @@ reason the format/repo APIs are async-first.
 
 `FormatModule` is the module's composition root. Construct it with a `Businessync`, the library base URL, and an
 optional synchronous-await timeout; it then exposes lazily-initialised, fully-wired repos and formats. Consumers should
-depend on `FormatModule` and read its `defaultCompositionRepo` / `defaultScaleRepo` / `defaultTrackRepo` rather than
+depend on `FormatModule` and read its `defaultCompositionRepo` / `defaultScaleRepo` / `defaultRigRepo` rather than
 constructing individual components. `MicrotonalistApp` does exactly this at startup.
 
 Smaller building-block JSON formats (`JsonIntervalFormat`, `KeyboardMappingFormat`, `MidiNoteFormat`,
@@ -122,11 +122,11 @@ internals rather than its public surface.
 
 ## Dependencies
 
-**Depends on** `composition` (the `Composition` model and its plugins this module (de)serializes), `tuner`
-(`TrackSpecs`, the `TrackRepo` trait, and the tuner/tuning-changer plugin families), `common` (the `Plugin` type,
-`Locking`, and shared utilities), and — transitively — `intonation` (`Scale`/`Interval`/`IntonationStandard`) and
-`businessync` (`ScaleContextConverter` publishes `ScaleLossyConversionEvent`). Third-party: Play JSON, Guava, and
-`java.net.http.HttpClient`.
+**Depends on** `composition` (the `Composition` model and its plugins this module (de)serializes), `rig` (`RigSpec`,
+the `RigRepo` trait and the track I/O plugin families), `tuner` (the tuner and tuning-changer plugin families), `common`
+(the `Plugin` type, `Locking`, and shared utilities), and — transitively — `intonation`
+(`Scale`/`Interval`/`IntonationStandard`) and `businessync` (`ScaleContextConverter` publishes
+`ScaleLossyConversionEvent`). Third-party: Play JSON, Guava, and `java.net.http.HttpClient`.
 
 **Depended on by** `app` only — `MicrotonalistApp` constructs a `FormatModule` and uses its default repos to load the
 composition and tracks at startup. `format` sits in the I/O layer between the domain modules and the application entry
@@ -138,3 +138,6 @@ Signalled directly by the code: **writing is largely unimplemented.** Many `writ
 composition/scale/track repos and on `HuygensFokkerScalaScaleFormat` are `???` stubs. The read paths and the JSON
 _writers_ exposed by `JsonScaleFormat`/`JsonTrackFormat` are implemented; the repo-level persistence plumbing is not yet
 wired up. Treat write APIs as unstable.
+
+The tracks file, its `TrackFormat` / `JsonTrackFormat` / `JsonTrackIOPluginFormat` types and its `.mtlist.tracks`
+extension will be renamed after the rig they store (#365).
