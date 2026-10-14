@@ -61,6 +61,7 @@ lazy val root = (project in file("."))
     uiModule,
     compositionModule,
     tunerModule,
+    rigModule,
     formatModule,
     intonationModule,
     scMidiModule,
@@ -215,6 +216,25 @@ lazy val tunerModule = (project in file("tuner"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-tuner",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val rigModule = (project in file("rig"))
+  .withId("rig")
+  .dependsOn(
+    businessyncModule,
+    commonModule,
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-rig",
     commonSettings,
     libraryDependencies ++= Seq(
       jsr305,
