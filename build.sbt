@@ -86,6 +86,7 @@ lazy val appModule = (project in file("app"))
     compositionModule,
     intonationModule,
     formatModule,
+    rigModule,
     scMidiModule,
     tunerModule,
     uiModule,
@@ -248,6 +249,7 @@ lazy val formatModule = (project in file("format"))
     commonModule,
     commonTestUtilsModule % Test,
     compositionModule,
+    rigModule,
     tunerModule,
   )
   .disablePlugins(AssemblyPlugin)

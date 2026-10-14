@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.businessync.Businessync

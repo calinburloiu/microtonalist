@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
+import org.calinburloiu.music.microtonalist.tuner.{NoTuningChange, Tuning, TuningChanger, TuningService}
 import org.calinburloiu.music.scmidi.message.{
   AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg,
   PitchBendMidiMsg

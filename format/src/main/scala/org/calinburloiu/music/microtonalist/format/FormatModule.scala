@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.tuner.RigRepo
+import org.calinburloiu.music.microtonalist.rig.RigRepo
 
 import java.net.URI
 import java.net.http.HttpClient

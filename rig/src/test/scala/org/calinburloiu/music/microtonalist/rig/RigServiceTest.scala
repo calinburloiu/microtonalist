@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync

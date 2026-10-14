@@ -14,9 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.tuner.{Tuner, Tuning}
 import org.calinburloiu.music.scmidi.message.MidiMsg
 import org.calinburloiu.music.scmidi.{MidiProcessor, MidiReceiver}
 
@@ -26,12 +27,13 @@ import javax.annotation.concurrent.NotThreadSafe
  * A MIDI processor that integrates with a Tuner to manage MIDI messages and tuning operations.
  *
  * This class extends [[MidiProcessor]] and facilitates the application of tunings to the output and to MIDI messages
- * sent through it. It encapsulates the logic for interacting with the provided [[Tuner]] instance to perform tuning and
- * processing operations, while ensuring proper attach and detach handling through the lifecycle events of the
- * processor.
+ * sent through it. It encapsulates the logic for interacting with the provided
+ * [[org.calinburloiu.music.microtonalist.tuner.Tuner]] instance to perform tuning and processing operations, while
+ * ensuring proper attach and detach handling through the lifecycle events of the processor.
  *
  * The primary responsibilities of this class include:
- *   - Forwarding MIDI messages to the [[Tuner]] for processing and sending the resultant messages to the receivers.
+ *   - Forwarding MIDI messages to the [[org.calinburloiu.music.microtonalist.tuner.Tuner]] for processing and sending
+ *     the resultant messages to the receivers.
  *   - Applying the tuning when requested and sending the corresponding MIDI tuning messages, if any.
  *   - Properly resetting the tuner and sending the messages that configure the output to each receiver that attaches.
  *   - Resetting the tuner on request and sending the messages that reconfigure the output to every receiver.
@@ -43,7 +45,8 @@ import javax.annotation.concurrent.NotThreadSafe
  * This processor assumes non-thread-safe behavior and must be used on a [[Track]] thread which ensures external
  * synchronization.
  *
- * @param tuner The [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
+ * @param tuner The [[org.calinburloiu.music.microtonalist.tuner.Tuner]] plugin used to handle tuning operations and
+ *   modify MIDI messages.
  */
 @NotThreadSafe
 class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
@@ -51,7 +54,7 @@ class TunerProcessor(tuner: Tuner) extends MidiProcessor with StrictLogging {
   /**
    * Tunes the output instrument using the specified tuning. The method generates the corresponding MIDI messages, if
    * any, for the given tuning and sends them to every receiver of the transmitter. The tuner clamps a tuning it cannot
-   * tune exactly, see [[Tuner.canTune]].
+   * tune exactly, see [[org.calinburloiu.music.microtonalist.tuner.Tuner.canTune]].
    *
    * @param tuning The instance that contains the tuning information, including the offset in cents for each of the 12
    *   pitch classes.

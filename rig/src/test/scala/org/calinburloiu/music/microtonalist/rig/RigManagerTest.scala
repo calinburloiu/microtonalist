@@ -14,10 +14,13 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.microtonalist.tuner.{
+  MtsMessageGenerator, MtsOctave1ByteNonRealTimeTuner, Tuner, Tuning, TuningService, TuningSession
+}
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc, MidiMsg}
 import org.scalamock.stubs.{Stub, Stubs}

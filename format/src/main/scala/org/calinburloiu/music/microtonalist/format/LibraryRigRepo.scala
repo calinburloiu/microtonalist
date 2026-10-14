@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner.{RigRepo, RigSpec}
+import org.calinburloiu.music.microtonalist.rig.{RigRepo, RigSpec}
 
 import java.net.URI
 import scala.concurrent.Future

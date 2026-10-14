@@ -14,9 +14,10 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import com.typesafe.scalalogging.StrictLogging
+import org.calinburloiu.music.microtonalist.tuner.{Tuning, TuningService}
 import org.calinburloiu.music.scmidi.message.{AllNotesOffMidiMsg, CcMidiMsg, MidiCc}
 import org.calinburloiu.music.scmidi.{
   ConcurrentMidiTransmitter,
@@ -41,8 +42,8 @@ import javax.annotation.concurrent.ThreadSafe
  * @param spec The declarative description this track is built from: its id, input, output, tuner and tuning changers.
  * @param midiManager Used to open the input and output MIDI devices named by the spec, and to release them when the
  *   track is closed.
- * @param tuningService Notified by the [[TuningChangeProcessor]] when a [[TuningChanger]] decides an effective tuning
- *   change.
+ * @param tuningService Notified by the [[TuningChangeProcessor]] when a
+ *   [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]] decides an effective tuning change.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,

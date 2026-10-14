@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import org.calinburloiu.music.scmidi.MidiReceiver
 import org.calinburloiu.music.scmidi.message.MidiMsg

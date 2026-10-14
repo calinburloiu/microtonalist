@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.format
 import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.Composition
-import org.calinburloiu.music.microtonalist.tuner.{RigRepo, RigSpec}
+import org.calinburloiu.music.microtonalist.rig.{RigRepo, RigSpec}
 
 /**
  * Utilities used for testing the I/O formats.

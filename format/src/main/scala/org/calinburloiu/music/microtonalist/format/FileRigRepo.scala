@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.{RigNotFoundException, RigRepo, RigSpec}
+import org.calinburloiu.music.microtonalist.rig.{RigNotFoundException, RigRepo, RigSpec}
 
 import java.io.{FileInputStream, FileNotFoundException}
 import java.net.URI

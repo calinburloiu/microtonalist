@@ -17,36 +17,17 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.scmidi.MidiManager
 
 /**
- * Composition root of the `tuner` module: lazily wires the sessions, the services and the [[RigManager]] around the
- * [[MidiManager]] it is given.
+ * Composition root of the `tuner` module: lazily wires the tuning session and its service.
  *
- * @param businessync The event bus and business thread the sessions and services run on.
- * @param rigRepo Where [[RigSession]] loads tracks from.
- * @param midiManager Opens the MIDI devices of the tracks. The caller owns it and closes it after this module; it is
- *   not closed by [[close]].
+ * @param businessync The event bus and business thread the session and the service run on.
  */
-class TunerModule(businessync: Businessync,
-                  rigRepo: RigRepo,
-                  midiManager: MidiManager) extends AutoCloseable {
+class TunerModule(businessync: Businessync) {
 
   /** Thread-safe facade over [[tuningSession]] for the application and UI layers. */
   lazy val tuningService: TuningService = new TuningService(tuningSession, businessync)
 
   /** Holds the sequence of tunings and the current tuning index; may only be touched on the business thread. */
   lazy val tuningSession: TuningSession = new TuningSession(businessync)
-
-  /** Thread-safe facade over this module's [[RigSession]] for the application and UI layers. */
-  lazy val rigService: RigService = new RigService(rigSession, businessync)
-
-  private lazy val rigManager = new RigManager(midiManager, tuningService)
-  businessync.register(rigManager)
-
-  private lazy val rigSession = new RigSession(rigManager, rigRepo, businessync)
-
-  override def close(): Unit = {
-    rigManager.close()
-  }
 }

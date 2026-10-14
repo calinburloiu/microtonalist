@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.music.microtonalist.tuner.*
+import org.calinburloiu.music.microtonalist.rig.*
 
 import java.io.InputStream
 import java.net.URI

@@ -14,10 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
 import com.google.common.eventbus.Subscribe
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
+import org.calinburloiu.music.microtonalist.tuner.{Tuning, TuningEvent, TuningService}
 import org.calinburloiu.music.scmidi.{
   MidiDeviceFailedToBecomeUnavailableEvent, MidiDeviceId, MidiDeviceOpenedEvent,
   MidiDeviceUnavailableEvent, MidiDirection, MidiEvent, MidiManager
@@ -191,8 +192,8 @@ object RigManager extends LazyLogging {
     }
   }
 
-  private[tuner] val TrackThreadsNamePrefix: String = "Track-"
-  private[tuner] val TrackThreadsGroup: ThreadGroup = new ThreadGroup("Track")
+  private[rig] val TrackThreadsNamePrefix: String = "Track-"
+  private[rig] val TrackThreadsGroup: ThreadGroup = new ThreadGroup("Track")
   private val TrackThreadsPriority: Int = Thread.NORM_PRIORITY + 2
 
   // TODO #90 Not yet used in any way. It should probably be removed after migrating to Pekko actors, but we may

@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner.RigSpec
+import org.calinburloiu.music.microtonalist.rig.RigSpec
 
 import java.io.{InputStream, OutputStream}
 import java.net.URI

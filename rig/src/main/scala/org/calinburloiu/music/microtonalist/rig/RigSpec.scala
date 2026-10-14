@@ -14,7 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
+
+import org.calinburloiu.music.microtonalist.tuner.{Tuner, TuningChanger}
 
 /**
  * Specification of a track used for performing a MIDI instrument with microtones used for specifying its MIDI and
@@ -24,10 +26,12 @@ package org.calinburloiu.music.microtonalist.tuner
  * @param name User defined name of a track. Character `"#"` will be substituted with the 1-based track index. If the
  *   user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
  * @param input Plugin used to configure the track input.
- * @param tuningChangers A sequence of [[TuningChanger]] plugins that decide whether the tuning should be changed or
- *   not. The decision is of the first one that returns an effective [[TuningChange]], so the decision is taken by an OR
- *   operator. Note that if none decides to trigger a change, no change will be performed.
- * @param tuner An option for a [[Tuner]] plugin used to handle tuning operations and modify MIDI messages.
+ * @param tuningChangers A sequence of [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]] plugins that decide
+ *   whether the tuning should be changed or not. The decision is of the first one that returns an effective
+ *   [[org.calinburloiu.music.microtonalist.tuner.TuningChange]], so the decision is taken by an OR operator. Note that
+ *   if none decides to trigger a change, no change will be performed.
+ * @param tuner An option for a [[org.calinburloiu.music.microtonalist.tuner.Tuner]] plugin used to handle tuning
+ *   operations and modify MIDI messages.
  * @param output Plugin used to configure the track output.
  * @param muted Tells whether the plugin is muted or not.
  */

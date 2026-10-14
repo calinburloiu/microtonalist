@@ -23,6 +23,7 @@ import org.calinburloiu.music.microtonalist.common.parseUrlOrPath
 import org.calinburloiu.music.microtonalist.composition.TuningList
 import org.calinburloiu.music.microtonalist.config.*
 import org.calinburloiu.music.microtonalist.format.FormatModule
+import org.calinburloiu.music.microtonalist.rig.RigModule
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.microtonalist.ui.TuningListFrame
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiManager
@@ -86,8 +87,9 @@ object MicrotonalistApp extends StrictLogging {
     val tuningList = TuningList.fromComposition(composition)
 
     val midiManager = JavaMidiManager(businessync)
-    val tunerModule = TunerModule(businessync, formatModule.defaultRigRepo, midiManager)
-    val rigService = tunerModule.rigService
+    val tunerModule = TunerModule(businessync)
+    val rigModule = RigModule(businessync, formatModule.defaultRigRepo, midiManager, tunerModule.tuningService)
+    val rigService = rigModule.rigService
     composition.tracksUrl.foreach { uri =>
       // TODO #100 This will be moved as part of a composition opening workflow
       Await.result(rigService.open(uri), 10 seconds)
@@ -102,7 +104,7 @@ object MicrotonalistApp extends StrictLogging {
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
         logger.info("Preparing to exit...")
-        tunerModule.close()
+        rigModule.close()
         midiManager.close()
         // Gives the MIDI devices time to send the messages queued while closing, before the JVM halts.
         Thread.sleep(1_000) // scalafix:ok DisableSyntax.threadSleep

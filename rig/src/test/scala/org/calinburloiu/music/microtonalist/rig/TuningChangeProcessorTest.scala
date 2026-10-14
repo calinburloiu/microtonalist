@@ -14,8 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.rig
 
+import org.calinburloiu.music.microtonalist.tuner.{
+  IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, TuningChanger, TuningService
+}
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}
 import org.scalamock.scalatest.MockFactory
