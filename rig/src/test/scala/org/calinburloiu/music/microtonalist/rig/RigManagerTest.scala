@@ -56,14 +56,7 @@ class RigManagerTest extends AnyWordSpec with Matchers with Stubs {
   /** The message an [[MtsOctave1ByteNonRealTimeTuner]] sends to tune its output to `tuning`. */
   private def mtsTuningMessage(tuning: Tuning): MidiMsg = MtsMessageGenerator.Octave1ByteNonRealTime.generate(tuning)
 
-  /**
-   * A [[RigManager]] registered on a real bus, over a stubbed [[MidiManager]] that opens every device as a
-   * [[FakeMidiDeviceHandle]] whose receiver records what the device gets. Its two tracks are built, and the messages
-   * that building them sent are forgotten: "piano" plays the keyboard on the piano, and "synth" plays the controller on
-   * the synth.
-   *
-   * @param pianoTuner The tuner of the "piano" track.
-   */
+  /** A [[RigManager]] on a real bus, with its tracks built and their devices' recorded messages cleared. */
   private abstract class Fixture(pianoTuner: Tuner = resetTuner()) {
     val businessync: Businessync = Businessync(EventBus())
     val tuningSession: TuningSession = TuningSession(businessync)
