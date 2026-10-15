@@ -24,7 +24,7 @@ import scala.concurrent.Future
  * Implementations are responsible for abstracting reading and writing from a particular data source like file, Web or
  * cloud service.
  *
- * @see [[RigFormat]] for details about rig files.
+ * @see `RigFormat`, in `format`, for details about tracks files.
  * @see [[RigSpec]] for details about track specifications.
  */
 trait RigRepo {
@@ -75,7 +75,7 @@ class RigNotFoundException(uri: URI, cause: Throwable = null)
   extends RigRepoException(s"Track with $uri was not found!", cause)
 
 /**
- * Exception thrown if the composition request was invalid for the given URI.
+ * Exception thrown if the request for the tracks file at the given URI was invalid.
  */
 class BadRigRequestException(uri: URI, message: Option[String] = None, cause: Throwable = null)
   extends RigRepoException(message.getOrElse(s"Bad request for tracks with $uri!"), cause)

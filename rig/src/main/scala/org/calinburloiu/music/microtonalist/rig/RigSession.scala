@@ -46,14 +46,18 @@ class RigSession(rigManager: RigManager,
    * Marks the session as opened and publishes the [[RigOpenedEvent]] containing the resource information.
    *
    * @param uri The URI where the tracks are loaded from.
+   * @return A future that completes once the session took the tracks read, on the business thread.
    * @throws java.io.IOException if the tracks could not be loaded from the given URI.
    */
   override def open(uri: URI): Future[Unit] = {
-    rigRepo.readRigAsync(uri).map { tracksRead =>
-      tracks = tracksRead
-      _uri = Some(uri)
+    rigRepo.readRigAsync(uri).flatMap { tracksRead =>
+      // The repo completes the read on a worker thread, while the session's state belongs to the business thread
+      businessync.call { () =>
+        tracks = tracksRead
+        _uri = Some(uri)
 
-      businessync.publish(RigOpenedEvent(uri, tracks))
+        businessync.publish(RigOpenedEvent(uri, tracks))
+      }
     }
   }
 

@@ -23,7 +23,8 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.net.URI
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, Promise}
+import scala.util.Try
 
 class RigSessionTest extends AnyWordSpec with Matchers with MockFactory {
 
@@ -40,6 +41,12 @@ class RigSessionTest extends AnyWordSpec with Matchers with MockFactory {
     val rigSession = new RigSession(rigManagerMock, rigRepo, businessyncMock)
 
     rigRepo.readRigAsync.when(uri).returns(Future.successful(sampleTracks))
+
+    /** Expects the session to hand work to the business thread with `call`, which runs it at once. */
+    def expectBusinessThreadCall(): Unit =
+      (businessyncMock.call[Unit](_: () => Unit)).expects(*).onCall { (work: () => Unit) =>
+        Future.fromTry(Try(work()))
+      }
 
     if (tracks.nonEmpty) {
       rigManagerMock.replaceAllTracks.expects(sampleTracks)
@@ -66,6 +73,7 @@ class RigSessionTest extends AnyWordSpec with Matchers with MockFactory {
   "open" should {
     "load tracks from the given URI" in new Fixture {
       // Expect
+      expectBusinessThreadCall()
       rigManagerMock.replaceAllTracks.expects(sampleTracks)
       businessyncMock.publish.expects(RigReplacedEvent(sampleTracks))
       businessyncMock.publish.expects(argAssert { (event: RigOpenedEvent) =>
@@ -82,11 +90,42 @@ class RigSessionTest extends AnyWordSpec with Matchers with MockFactory {
 
       rigSession.isOpen shouldBe true
     }
+
+    "set the tracks it read on the business thread, completing only after that" in new Fixture {
+      // Given
+      val businessThreadWork: Promise[() => Unit] = Promise()
+      (businessyncMock.call[Unit](_: () => Unit)).expects(*).onCall { (work: () => Unit) =>
+        val done = Promise[Unit]()
+        businessThreadWork.success(() => done.complete(Try(work())))
+        done.future
+      }
+
+      // When
+      val opened: Future[Unit] = rigSession.open(uri)
+      val runOnBusinessThread: () => Unit = Await.result(businessThreadWork.future, 500 milliseconds)
+
+      // Then
+      rigSession.isOpen shouldBe false
+      opened.isCompleted shouldBe false
+
+      // Expect
+      rigManagerMock.replaceAllTracks.expects(sampleTracks)
+      businessyncMock.publish.expects(RigReplacedEvent(sampleTracks))
+      businessyncMock.publish.expects(RigOpenedEvent(uri, sampleTracks))
+
+      // When
+      runOnBusinessThread()
+
+      // Then
+      Await.result(opened, 500 milliseconds)
+      rigSession.uri should contain(uri)
+    }
   }
 
   "close" should {
     "unload tracks and clear the state" in new Fixture {
       // Expect
+      expectBusinessThreadCall()
       rigManagerMock.replaceAllTracks.expects(sampleTracks)
       businessyncMock.publish.expects(RigReplacedEvent(sampleTracks))
       businessyncMock.publish.expects(argAssert { (event: RigOpenedEvent) =>

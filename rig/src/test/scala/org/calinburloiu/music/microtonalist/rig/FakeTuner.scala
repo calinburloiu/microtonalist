@@ -25,8 +25,8 @@ import scala.collection.mutable
  * A [[org.calinburloiu.music.microtonalist.tuner.Tuner]] test double that returns canned messages and records the
  * messages it is asked to process. It can apply any tuning. It is not thread-safe.
  *
- * It is a trimmed copy of the `tuner` tests' `FakeTuner`, which `rig`'s tests can't reach: a test-utils module would
- * form a dependency cycle with `tuner`.
+ * The `tuner` tests have a `FakeTuner` of their own, which `rig`'s tests can't reach: a test-utils module would form a
+ * dependency cycle with `tuner`.
  *
  * @param resetMessages What its [[onReset]] returns, which a reset follows with the messages of the current tuning.
  * @param tuningMessages What its [[onTune]] returns for each of these tunings; it returns nothing for any other.

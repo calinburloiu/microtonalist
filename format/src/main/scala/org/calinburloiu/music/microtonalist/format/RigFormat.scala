@@ -25,9 +25,9 @@ import scala.concurrent.Future
 // TODO #365 Rename the extension and the JSON schemas of the tracks file after the rig.
 
 /**
- * Trait to be extended by implementations that perform (de)serialization of rig files.
+ * Trait to be extended by implementations that perform (de)serialization of tracks files, which store rigs.
  *
- * A rig file specifies the tracks that configure MIDI instruments to play with microtones.
+ * A tracks file specifies the tracks that configure MIDI instruments to play with microtones.
  *
  * @see [[RigSpec]], which defines the specification of a rig.
  */
@@ -70,6 +70,6 @@ trait RigFormat {
 }
 
 /**
- * Exception thrown while reading an invalid rig file from an input stream.
+ * Exception thrown while reading an invalid tracks file from an input stream.
  */
 class InvalidRigFormatException(message: String, cause: Throwable = null) extends RuntimeException(message, cause)

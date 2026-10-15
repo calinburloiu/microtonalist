@@ -135,9 +135,8 @@ point.
 ## Future / planned changes
 
 Signalled directly by the code: **writing is largely unimplemented.** Many `write`/`writeAsync` methods on the
-composition/scale/track repos and on `HuygensFokkerScalaScaleFormat` are `???` stubs. The read paths and the JSON
+composition/scale/rig repos and on `HuygensFokkerScalaScaleFormat` are `???` stubs. The read paths and the JSON
 _writers_ exposed by `JsonScaleFormat`/`JsonRigFormat` are implemented; the repo-level persistence plumbing is not yet
 wired up. Treat write APIs as unstable.
 
-The rig file still has the JSON schema and the `.mtlist.tracks` extension of a tracks file; they will be renamed after
-the rig (#365).
+The tracks file keeps its JSON schema and `.mtlist.tracks` extension until they are renamed after the rig (#365).

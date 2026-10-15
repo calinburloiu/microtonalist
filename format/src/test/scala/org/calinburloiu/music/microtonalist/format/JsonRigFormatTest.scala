@@ -149,7 +149,7 @@ class JsonRigFormatTest extends AnyWordSpec with Matchers {
     }
 
     "fail to read a file that has an invalid property value" in assertThrows[InvalidRigFormatException] {
-      readRigFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
+      readRigFromResources("format/tracks/invalid-prop-value.mtlist.tracks", rigRepo)
     }
 
     "fail to read a file from an unsupported scheme" in assertThrows[BadRigRequestException] {

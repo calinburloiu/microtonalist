@@ -21,8 +21,8 @@ import org.calinburloiu.music.microtonalist.tuner.TuningService
 import org.calinburloiu.music.scmidi.MidiManager
 
 /**
- * Composition root of the `rig` module: lazily wires the rig session, its service and the [[RigManager]] around the
- * [[org.calinburloiu.music.scmidi.MidiManager]] it is given.
+ * Composition root of the `rig` module: wires the rig session, its service and the [[RigManager]] around the
+ * [[org.calinburloiu.music.scmidi.MidiManager]] it is given, building the session and the service lazily.
  *
  * Building it registers the [[RigManager]] on the bus, so that the tracks follow the tuning events of the session
  * behind `tuningService`.

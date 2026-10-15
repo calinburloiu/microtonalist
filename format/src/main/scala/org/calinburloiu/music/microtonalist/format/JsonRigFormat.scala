@@ -27,7 +27,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
 
 /**
- * A rig file format implementation used for serialization/deserialization in JSON format.
+ * A tracks file format implementation used for serialization/deserialization in JSON format.
  *
  * @param jsonPreprocessor A preprocessor instance that can replace JSON references.
  * @param synchronousAwaitTimeout Duration used as the timeout for synchronous operations.
