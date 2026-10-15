@@ -99,16 +99,14 @@ Not enforced.
 ## Test a module class with an integration test
 
 Test a module class (e.g. `RigModule`) with an integration test, `<Module>ModuleIntegrationTest`, in its own module, so
-it counts toward that module's coverage. Drive it through its public services, with real collaborators from its own and
-upstream modules. Fake only the external I/O, such as the MIDI devices.
+it counts toward that module's coverage. Drive it through its public API, with real collaborators from its own and
+upstream modules. Fake only the external I/O, such as the MIDI devices, but read files from test resources
+(`CommonTestUtils.uriOfResource`) through the real repository, as `TuningSeqMappingIntegrationTest` does. Stub the
+repository only when its implementation lives in a module that this one doesn't depend on; for example,
+`RigModuleIntegrationTest` stubs `RigRepo`, because `rig` doesn't depend on `format`.
 
 Following the testing pyramid, cover only the main flows, especially those that unit tests can't reach, such as a change
 crossing modules over the bus. Leave edge cases to the unit tests of the classes involved.
-
-Read files from test resources (`CommonTestUtils.uriOfResource`) through the real repository, as
-`TuningSeqMappingIntegrationTest` does. Stub the repository only when its implementation lives in a module that this
-one doesn't depend on; for example, `RigModuleIntegrationTest` stubs `RigRepo`, because `rig` doesn't depend on
-`format`.
 
 Not enforced.
 
