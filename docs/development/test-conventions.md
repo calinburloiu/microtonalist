@@ -10,7 +10,8 @@ Tests and production code follow the default Scala and SBT directory structure. 
 in `src/main/scala` and tests are in `src/test/scala`. Use `src/test/resources` for test data if necessary.
 
 Conventionally, the tests for a given production class use the same package and class name is suffixed with `Test`
-(e.g. the test class for `RatioInterval` is `RatioIntervalTest`).
+(e.g. the test class for `RatioInterval` is `RatioIntervalTest`). An integration test is suffixed with
+`IntegrationTest` instead (e.g. `RigModuleIntegrationTest`).
 
 Not enforced.
 
@@ -92,6 +93,22 @@ Not enforced.
 
 Simplify test setup (typically the `Given` section) with `trait` or `abstract class` fixtures holding code that repeats
 across many cases — but don't sacrifice readability.
+
+Not enforced.
+
+## Test a module class with an integration test
+
+Test a module class (e.g. `RigModule`) with an integration test, `<Module>ModuleIntegrationTest`, in its own module, so
+it counts toward that module's coverage. Drive it through its public services, with real collaborators from its own and
+upstream modules. Fake only the external I/O, such as the MIDI devices.
+
+Following the testing pyramid, cover only the main flows, especially those that unit tests can't reach, such as a change
+crossing modules over the bus. Leave edge cases to the unit tests of the classes involved.
+
+Read files from test resources (`CommonTestUtils.uriOfResource`) through the real repository, as
+`TuningSeqMappingIntegrationTest` does. Stub the repository only when its implementation lives in a module that this
+one doesn't depend on; for example, `RigModuleIntegrationTest` stubs `RigRepo`, because `rig` doesn't depend on
+`format`.
 
 Not enforced.
 
