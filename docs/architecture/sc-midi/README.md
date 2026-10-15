@@ -6,7 +6,7 @@
 processors; and device handling that publishes its events on the [Businessync](../businessync/README.md) bus. It knows
 nothing about scales, tunings or the GUI.
 
-Java Sound is confined to the `javamidi` package, by convention rather than by the build. `tuner` and `cli` see only the
+Java Sound is confined to the `javamidi` package, by convention rather than by the build. `rig` and `cli` see only the
 `MidiManager` / `MidiDeviceHandle` traits and the `MidiMsg` model, and the composition roots instantiate
 `JavaMidiManager`. Within `javamidi`, messages cross to and from Java Sound in one place, `JavaMidiDeviceHandle`;
 everything upstream of it carries `MidiMsg`. On macOS, devices come from CoreMIDI4J, which replaces Java Sound's
@@ -45,7 +45,7 @@ default MIDI device provider.
   `MutableMidiTransmitter` and the thread-safe `ConcurrentMidiTransmitter`.
 - **`MidiSplitter`** — fans each message out to the receivers of a transmitter.
 - **`MidiProcessor`** — filters, rewrites or synthesises messages. Its transmitter calls `onAttach` / `onDetach` with
-  the receivers a change adds or removes, then `onReceiversChanged`; `tuner` builds its processors on these hooks.
+  the receivers a change adds or removes, then `onReceiversChanged`; `rig` builds its processors on these hooks.
 - **`MidiSerialProcessor`** — chains processors end to end, rewiring the chain on every change.
 
 ### Helpers

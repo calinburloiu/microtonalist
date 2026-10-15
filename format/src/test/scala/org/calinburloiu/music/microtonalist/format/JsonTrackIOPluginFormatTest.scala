@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils.{AllowedTypes, JsonFailureCheck, JsonStringType}
-import org.calinburloiu.music.microtonalist.tuner.*
+import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.scmidi.MidiDeviceId
 import play.api.libs.json.*
 

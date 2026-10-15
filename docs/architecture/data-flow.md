@@ -7,14 +7,14 @@ JSON composition file
   → DefaultCompositionRepo (format module)
   → Composition
   → TuningList.fromComposition()   (applies TuningMapper, TuningReducer, fill)
-  → TuningSession.tunings
+  → TuningSession.tunings          (tuner module)
   → TuningIndexUpdatedEvent (via Businessync)
-  → TrackManager → Track.tune()
+  → RigManager → Track.tune()      (rig module)
   → TunerProcessor → Tuner
   → MTS/MPE MIDI messages
   → MIDI output device
 ```
 
 > **More detail:** the threading model behind this flow is documented in [`businessync/`](businessync/README.md);
-> serialization in [`format/`](format/README.md); the startup wiring that builds this pipeline in
-> [`app/`](app/README.md).
+> the rig in [`rig/`](rig/README.md); serialization in [`format/`](format/README.md); the startup wiring that builds
+> this pipeline in [`app/`](app/README.md).

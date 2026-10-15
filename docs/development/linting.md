@@ -37,7 +37,7 @@ is unused, check first whether the case forgot to check it: then add the check.
 
 The compiler can't see a call made through reflection, so it reports a private method that only reflection calls as
 unused. Guava's `EventBus` calls the `@Subscribe` methods this way. Don't delete such a method: suppress the warning,
-as `TrackManager` does.
+as `RigManager` does.
 
 The compiler can't see a name used only inside a string that is type-checked at compile time, such as the code passed
 to `scala.compiletime.testing.typeChecks` or ScalaTest's `assertCompiles`, `assertDoesNotCompile` and

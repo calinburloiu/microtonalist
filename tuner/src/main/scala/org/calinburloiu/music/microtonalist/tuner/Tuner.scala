@@ -25,18 +25,18 @@ import org.calinburloiu.music.scmidi.message.{MidiCc, MidiMsg}
 import javax.annotation.concurrent.NotThreadSafe
 
 /**
- * [[Track]] plugin responsible for tuning an output instrument based on a specific protocol.
+ * `Track` plugin responsible for tuning an output instrument based on a specific protocol.
  *
  * The interface only provides the means to generate MIDI messages, sending them is outside the scope of this trait.
  *
  * The flow is as follows:
  *
- *   - When the tuner starts to be used with a [[Track]], the [[reset]] method must first be called to configure the
+ *   - When the tuner starts to be used with a `Track`, the [[reset]] method must first be called to configure the
  *     output device to be used with this tuner configuration. For example, a [[Tuner]] based on pitch bend might want
  *     to set the right pitch bend sensitivity.
  *   - Whenever the current tuning changes, [[tune]] must be called with that tuning. The tuner clamps a tuning beyond
  *     its limits to them, which [[canTune]] tells in advance, and logs a warning.
- *   - All MIDI messages that pass through the [[Track]] must go through the [[process]] method which will output the
+ *   - All MIDI messages that pass through the `Track` must go through the [[process]] method which will output the
  *     right MIDI messages according to the tuner's functionality and configuration.
  *   - If necessary, [[reset]] may be called any time to clear the tuner's state and reconfigure it, while keeping its
  *     current [[tuning]]. For example, it may be called if the MIDI configuration of the output device was externally
@@ -47,7 +47,7 @@ import javax.annotation.concurrent.NotThreadSafe
  * Implementations provide [[canTune]], [[onReset]] and [[onTune]], which the final [[reset]] and [[tune]] delegate to,
  * so that every tuner keeps its current tuning and restates it on reset.
  *
- * @see [[TunerProcessor]] a class that uses a [[Tuner]] instance and adds the necessary I/O operations to be able to
+ * @see `TunerProcessor` a class that uses a [[Tuner]] instance and adds the necessary I/O operations to be able to
  *   actually tune a device.
  */
 @NotThreadSafe
@@ -187,7 +187,7 @@ trait Tuner extends Plugin with StrictLogging {
    * An implementation that sends only what changed from `previousTuning` must send the whole tuning when it is `None`:
    * [[reset]] restates the tuning to an output device whose tuning is unknown, for example because it was turned off
    * and on again. `Some` previous tuning is not exactly what the output devices hold either: it is the [[tuning]] as
-   * passed to [[tune]], which the tuner may have clamped to limits that changed since, and [[TunerProcessor]] tunes the
+   * passed to [[tune]], which the tuner may have clamped to limits that changed since, and `TunerProcessor` tunes the
    * tuner to 12-EDO when it detaches one of its receivers, while the others keep the previous tuning, until #305
    * changes that.
    *
@@ -200,7 +200,7 @@ trait Tuner extends Plugin with StrictLogging {
   protected def onTune(tuning: Tuning, previousTuning: Option[Tuning]): Seq[MidiMsg]
 
   /**
-   * Method called with every MIDI message of a [[Track]] that uses this tuner. Its purpose is to do any processing
+   * Method called with every MIDI message of a `Track` that uses this tuner. Its purpose is to do any processing
    * required to those incoming MIDI messages and generates the right sequence of output MIDI messages to achieve the
    * tuner's goal.
    *

@@ -6,7 +6,8 @@ The project uses a layered module structure; dependency direction flows from `ap
 app
 ├── ui            (GUI, depends on tuner)
 ├── composition   (domain model, depends on intonation + tuner)
-├── format        (JSON/file I/O, depends on composition + tuner)
+├── format        (JSON/file I/O, depends on composition + rig + tuner)
+├── rig           (setup of per-instrument MIDI tracks, depends on tuner)
 ├── tuner         (MIDI tuning, depends on sc-midi + businessync)
 ├── sc-midi       (Scala-idiomatic MIDI API; Java Sound confined to its javamidi package, depends on businessync)
 ├── intonation    (interval math, no application deps)
@@ -32,6 +33,7 @@ Each module's SBT project ID (equal to its base directory name by build conventi
 | `composition` | `org.calinburloiu.music.microtonalist.composition` |
 | `config` | `org.calinburloiu.music.microtonalist.config` |
 | `tuner` | `org.calinburloiu.music.microtonalist.tuner` |
+| `rig` | `org.calinburloiu.music.microtonalist.rig` |
 | `format` | `org.calinburloiu.music.microtonalist.format` |
 | `businessync` | `org.calinburloiu.businessync` |
 | `intonation` | `org.calinburloiu.music.intonation` |

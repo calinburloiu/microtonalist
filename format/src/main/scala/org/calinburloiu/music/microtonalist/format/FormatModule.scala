@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.tuner.TrackRepo
+import org.calinburloiu.music.microtonalist.rig.RigRepo
 
 import java.net.URI
 import java.net.http.HttpClient
@@ -62,12 +62,12 @@ class FormatModule(businessync: Businessync,
   lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(Some(fileCompositionRepo),
     Some(httpCompositionRepo))
 
-  lazy val trackFormat: TrackFormat = new JsonTrackFormat(jsonPreprocessor, synchronousAwaitTimeout)
+  lazy val rigFormat: RigFormat = new JsonRigFormat(jsonPreprocessor, synchronousAwaitTimeout)
 
-  lazy val fileTrackRepo: FileTrackRepo = new FileTrackRepo(trackFormat, synchronousAwaitTimeout)
-  lazy val httpTrackRepo: HttpTrackRepo = new HttpTrackRepo(httpClient, trackFormat, synchronousAwaitTimeout)
-  lazy val libraryTrackRepo: LibraryTrackRepo = new LibraryTrackRepo(libraryBaseUrl, fileTrackRepo, httpTrackRepo)
+  lazy val fileRigRepo: FileRigRepo = new FileRigRepo(rigFormat, synchronousAwaitTimeout)
+  lazy val httpRigRepo: HttpRigRepo = new HttpRigRepo(httpClient, rigFormat, synchronousAwaitTimeout)
+  lazy val libraryRigRepo: LibraryRigRepo = new LibraryRigRepo(libraryBaseUrl, fileRigRepo, httpRigRepo)
 
-  lazy val defaultTrackRepo: TrackRepo = new DefaultTrackRepo(
-    Some(fileTrackRepo), Some(httpTrackRepo), Some(libraryTrackRepo))
+  lazy val defaultRigRepo: RigRepo = new DefaultRigRepo(
+    Some(fileRigRepo), Some(httpRigRepo), Some(libraryRigRepo))
 }
