@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import com.fasterxml.jackson.core.JsonParseException
-import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readTracksFromResources
+import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readRigFromResources
 import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.microtonalist.tuner.*
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
@@ -26,17 +26,17 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.net.URI
 
-class JsonTrackFormatTest extends AnyWordSpec with Matchers {
-  private val trackFormat: TrackFormat = new JsonTrackFormat(NoJsonPreprocessor)
+class JsonRigFormatTest extends AnyWordSpec with Matchers {
+  private val rigFormat: RigFormat = new JsonRigFormat(NoJsonPreprocessor)
   private val rigRepo: RigRepo = {
-    val fileRigRepo = new FileRigRepo(trackFormat)
+    val fileRigRepo = new FileRigRepo(rigFormat)
 
     new DefaultRigRepo(Some(fileRigRepo), None, None)
   }
 
-  "JsonTrackFormat" should {
+  "JsonRigFormat" should {
     "read a basic tracks file" in {
-      val tracks = readTracksFromResources("format/tracks/basic.mtlist.tracks", rigRepo)
+      val tracks = readRigFromResources("format/tracks/basic.mtlist.tracks", rigRepo)
 
       tracks.size shouldEqual 5
 
@@ -137,19 +137,19 @@ class JsonTrackFormatTest extends AnyWordSpec with Matchers {
     }
 
     "fail to read a file that is not a JSON" in assertThrows[JsonParseException] {
-      readTracksFromResources("format/scales/chromatic.scl", rigRepo)
+      readRigFromResources("format/scales/chromatic.scl", rigRepo)
     }
 
-    "fail to read a JSON file with another format" in assertThrows[InvalidTrackFormatException] {
-      readTracksFromResources("format/scales/minor-just.jscl", rigRepo)
+    "fail to read a JSON file with another format" in assertThrows[InvalidRigFormatException] {
+      readRigFromResources("format/scales/minor-just.jscl", rigRepo)
     }
 
-    "fail to read a file that misses a mandatory property" in assertThrows[InvalidTrackFormatException] {
-      readTracksFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
+    "fail to read a file that misses a mandatory property" in assertThrows[InvalidRigFormatException] {
+      readRigFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
     }
 
-    "fail to read a file that has an invalid property value" in assertThrows[InvalidTrackFormatException] {
-      readTracksFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
+    "fail to read a file that has an invalid property value" in assertThrows[InvalidRigFormatException] {
+      readRigFromResources("format/tracks/missing-mandatory-prop.mtlist.tracks", rigRepo)
     }
 
     "fail to read a file from an unsupported scheme" in assertThrows[BadRigRequestException] {

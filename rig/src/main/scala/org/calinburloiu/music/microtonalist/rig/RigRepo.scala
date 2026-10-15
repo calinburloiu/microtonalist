@@ -24,7 +24,7 @@ import scala.concurrent.Future
  * Implementations are responsible for abstracting reading and writing from a particular data source like file, Web or
  * cloud service.
  *
- * @see [[TrackFormat]] for details about tracks files.
+ * @see [[RigFormat]] for details about rig files.
  * @see [[RigSpec]] for details about track specifications.
  */
 trait RigRepo {

@@ -4,8 +4,7 @@
 
 `tuner` is the low-level MIDI tuning engine. It turns a `Tuning` into the MIDI messages an output instrument needs to
 play microtonally, detects tuning-change triggers in the MIDI messages, and holds the runtime tuning state behind a
-thread-safe service. The rig, the setup of per-instrument tracks that run MIDI through this engine, lives in
-[`rig`](../rig/README.md).
+thread-safe service.
 
 It doesn't decide which tunings exist: `composition` builds them and hands over a `Seq[Tuning]`.
 

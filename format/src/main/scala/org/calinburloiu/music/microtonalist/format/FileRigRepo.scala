@@ -29,10 +29,10 @@ import scala.util.{Failure, Success}
 /**
  * Repository implementation that retrieves and persists track specifications by using the file system.
  *
- * @param trackFormat Format object used for reading and writing track specifications.
+ * @param rigFormat Format object used for reading and writing rig specifications.
  * @param synchronousAwaitTimeout Time duration to wait for a result in synchronous operations.
  */
-class FileRigRepo(trackFormat: TrackFormat,
+class FileRigRepo(rigFormat: RigFormat,
                   synchronousAwaitTimeout: FiniteDuration = 1 minute) extends RigRepo with StrictLogging {
 
   override def readRig(uri: URI): RigSpec = Await.result(readRigAsync(uri), synchronousAwaitTimeout)
@@ -46,7 +46,7 @@ class FileRigRepo(trackFormat: TrackFormat,
     }.recover {
       case e: FileNotFoundException => throw new RigNotFoundException(uri, e)
     }.flatMap { inputStream =>
-      trackFormat.readTracksAsync(inputStream, Some(uri))
+      rigFormat.readRigAsync(inputStream, Some(uri))
     }.andThen {
       case Success(_) => logger.info(s"Successfully read tracks from \"$path\".")
       case Failure(exception) => logger.error(s"Failed to read tracks from \"$path\"!", exception)

@@ -30,7 +30,7 @@ object FormatTestUtils {
     compositionRepo.read(CommonTestUtils.uriOfResource(resourcePathString))
   }
 
-  def readTracksFromResources(resourcePathString: String, rigRepo: RigRepo): RigSpec = {
+  def readRigFromResources(resourcePathString: String, rigRepo: RigRepo): RigSpec = {
     rigRepo.readRig(CommonTestUtils.uriOfResource(resourcePathString))
   }
 

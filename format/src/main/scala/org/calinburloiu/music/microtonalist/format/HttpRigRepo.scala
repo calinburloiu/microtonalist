@@ -33,12 +33,12 @@ import scala.util.{Failure, Success}
  * A concrete implementation of the [[RigRepo]] trait that retrieves and persists track specifications via HTTP.
  *
  * @param httpClient The HTTP client used for sending HTTP requests.
- * @param trackFormat Format object used to read and write track specifications.
+ * @param rigFormat Format object used to read and write rig specifications.
  * @param synchronousAwaitTimeout The maximum duration to wait for asynchronous operations to complete when used
  *   synchronously.
  */
 class HttpRigRepo(httpClient: HttpClient,
-                  trackFormat: TrackFormat,
+                  rigFormat: RigFormat,
                   synchronousAwaitTimeout: FiniteDuration = 1 minute) extends RigRepo with StrictLogging {
 
   override def readRig(uri: URI): RigSpec = {
@@ -85,7 +85,7 @@ class HttpRigRepo(httpClient: HttpClient,
 
   private def handleReadResponse(uri: URI, response: HttpResponse[InputStream]): Future[RigSpec] = {
     response.statusCode() match {
-      case 200 => trackFormat.readTracksAsync(response.body(), Some(uri))
+      case 200 => rigFormat.readRigAsync(response.body(), Some(uri))
       case 404 => throw new RigNotFoundException(uri)
       case status if status >= 400 && status < 500 =>
         throw new BadRigRequestException(uri,

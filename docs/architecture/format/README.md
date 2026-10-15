@@ -36,7 +36,7 @@ Three families follow the pattern, one per persistable object:
 | `.mtlist`         | `Composition`  | `JsonCompositionFormat`         | Microtonalist JSON |
 | `.jscl` / `.json` | `Scale`        | `JsonScaleFormat`               | Microtonalist JSON scale |
 | `.scl`            | `Scale`        | `HuygensFokkerScalaScaleFormat` | Huygens-Fokker [Scala](https://www.huygens-fokker.org/scala/) text (read-only) |
-| `.mtlist.tracks`  | `RigSpec`      | `JsonTrackFormat`               | Microtonalist JSON tracks file |
+| `.mtlist.tracks`  | `RigSpec`      | `JsonRigFormat`                 | Microtonalist JSON tracks file |
 
 Each has a `Default*Repo` that dispatches by URI scheme to source-specific `File*Repo` / `Http*Repo` / `Library*Repo`
 variants. Two wrinkles are worth knowing:
@@ -136,8 +136,8 @@ point.
 
 Signalled directly by the code: **writing is largely unimplemented.** Many `write`/`writeAsync` methods on the
 composition/scale/track repos and on `HuygensFokkerScalaScaleFormat` are `???` stubs. The read paths and the JSON
-_writers_ exposed by `JsonScaleFormat`/`JsonTrackFormat` are implemented; the repo-level persistence plumbing is not yet
+_writers_ exposed by `JsonScaleFormat`/`JsonRigFormat` are implemented; the repo-level persistence plumbing is not yet
 wired up. Treat write APIs as unstable.
 
-The tracks file, its `TrackFormat` / `JsonTrackFormat` / `JsonTrackIOPluginFormat` types and its `.mtlist.tracks`
-extension will be renamed after the rig they store (#365).
+The rig file still has the JSON schema and the `.mtlist.tracks` extension of a tracks file; they will be renamed after
+the rig (#365).
