@@ -5,7 +5,7 @@
 The `composition` module (directory `composition/`, package `org.calinburloiu.music.microtonalist.composition`) is the
 domain model that connects the two central abstractions of Microtonalist: high-level musical **scales** and the
 low-level **tunings** a keyboard/synthesizer is actually configured with. A user composes with a sequence of scales;
-this module turns that sequence into the concrete `Tuning`s the `tuner` module sends to instruments.
+this module turns that sequence into the concrete `Tuning`s that `tuner` and `rig` send to instruments.
 
 > **Note:** this module is the subject of the planned refactor tracked by
 > [issue #87 "Refactor composition module"](https://github.com/calinburloiu/microtonalist/issues/87) (Architecture
@@ -22,8 +22,8 @@ this module turns that sequence into the concrete `Tuning`s the `tuner` module s
 - Resolve a `Composition` into a final `TuningList` through `TuningList.fromComposition`.
 
 The module is pure domain logic: it knows nothing about file formats (that is `format`), MIDI transport, or the GUI. It
-manipulates intervals and produces `Tuning` values; deciding when/how those reach an instrument is the `tuner` module's
-job.
+manipulates intervals and produces `Tuning` values; deciding when/how those reach an instrument is the job of `tuner`
+and `rig`.
 
 ## Key types
 

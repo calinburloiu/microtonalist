@@ -11,8 +11,9 @@
 
 The `ui` module is the desktop graphical user interface of Microtonalist — a thin presentation layer on top of `tuner`.
 It lets the user see the sequence of tunings derived from the loaded composition and switch the active tuning, while the
-actual tuning logic and MIDI output live in `tuner`. It owns no domain state: it reads tuning state from the business
-layer and forwards user intent (tuning changes) back to it. Today it is intentionally small — a single Swing window.
+actual tuning logic lives in `tuner` and the MIDI output in `rig`. It owns no domain state: it reads tuning state from
+the business layer and forwards user intent (tuning changes) back to it. Today it is intentionally small — a single
+Swing window.
 
 Package: `org.calinburloiu.music.microtonalist.ui`.
 

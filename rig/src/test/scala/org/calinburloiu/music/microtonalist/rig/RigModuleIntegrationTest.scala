@@ -18,8 +18,10 @@ package org.calinburloiu.music.microtonalist.rig
 
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.tuner.{TunerModule, Tuning}
-import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, PitchBendMidiMsg}
+import org.calinburloiu.music.microtonalist.tuner.{
+  MtsMessageGenerator, MtsOctave1ByteNonRealTimeTuner, TunerModule, Tuning
+}
+import org.calinburloiu.music.scmidi.message.MidiMsg
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiDirection, MidiManager}
 import org.scalamock.stubs.{Stub, Stubs}
 import org.scalatest.matchers.should.Matchers
@@ -39,18 +41,14 @@ class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
   private val keyboardId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - Seaboard", "ROLI")
   private val pianoId: MidiDeviceId = MidiDeviceId("CoreMIDI4J - FP-90", "Roland")
 
-  private val initMessage: MidiMsg = CcMidiMsg(0, MidiCc.DataEntryMsb, 2)
-
-  /** What the fake tuner sends when it is tuned to 12-EDO. */
-  private val standardTuningMessage: MidiMsg = PitchBendMidiMsg(1, -100)
-
-  /** What the fake tuner sends when it is tuned to Just C Major. */
-  private val justCMajTuningMessage: MidiMsg = PitchBendMidiMsg(1, 100)
+  /** The message an [[MtsOctave1ByteNonRealTimeTuner]] sends to tune its output to `tuning`. */
+  private def mtsTuningMessage(tuning: Tuning): MidiMsg = MtsMessageGenerator.Octave1ByteNonRealTime.generate(tuning)
 
   /**
    * A [[RigModule]] on a real bus, given the tuning service of a [[TunerModule]] on the same bus. Its stubbed
    * [[MidiManager]] opens every device as a [[FakeMidiDeviceHandle]] whose receiver records what the device gets, and
-   * its stubbed [[RigRepo]] reads a rig of one track, "piano", which plays the keyboard on the piano.
+   * its stubbed [[RigRepo]] reads a rig of one track, "piano", which plays the keyboard on the piano through an
+   * [[MtsOctave1ByteNonRealTimeTuner]].
    */
   private trait Fixture {
     val businessync: Businessync = Businessync(EventBus())
@@ -65,9 +63,7 @@ class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
 
     val rigSpec: RigSpec = RigSpec(Seq(
       TrackSpec("piano", "Piano", input = Some(DeviceTrackInputSpec(keyboardId, None)),
-        tuner = Some(FakeTuner(resetMessages = Seq(initMessage),
-          tuningMessages = Map(
-            Tuning.Standard -> Seq(standardTuningMessage), TestTunings.justCMaj -> Seq(justCMajTuningMessage)))),
+        tuner = Some(MtsOctave1ByteNonRealTimeTuner()),
         output = Some(DeviceTrackOutputSpec(pianoId, None)))
     ))
     val rigRepo: Stub[RigRepo] = stub[RigRepo]
@@ -89,7 +85,7 @@ class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
       rigRepo.readRigAsync.calls shouldEqual List(tracksUri)
       midiManager.openDevice.calls should contain theSameElementsAs Seq(
         (keyboardId, MidiDirection.Input), (pianoId, MidiDirection.Output))
-      pianoMessages shouldEqual Seq(initMessage, standardTuningMessage)
+      pianoMessages shouldEqual Seq(mtsTuningMessage(Tuning.Standard))
     }
 
     "retune its tracks when the tunings of the tuning session change" in new Fixture {
@@ -101,7 +97,7 @@ class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
       tunerModule.tuningSession.tunings = Seq(TestTunings.justCMaj, TestTunings.justCRast)
 
       // Then
-      pianoMessages shouldEqual Seq(justCMajTuningMessage)
+      pianoMessages shouldEqual Seq(mtsTuningMessage(TestTunings.justCMaj))
     }
 
     "close its tracks, switching their outputs back to 12-EDO and releasing their devices, when closed" in
@@ -114,7 +110,7 @@ class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
         rigModule.close()
 
         // Then
-        pianoMessages shouldEqual Seq(standardTuningMessage)
+        pianoMessages shouldEqual Seq(mtsTuningMessage(Tuning.Standard))
         midiManager.closeDevice.calls should contain theSameElementsAs Seq(
           (keyboardId, MidiDirection.Input), (pianoId, MidiDirection.Output))
       }
