@@ -29,7 +29,7 @@ import java.net.URI
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future}
 
-class RigModuleTest extends AnyWordSpec with Matchers with Stubs {
+class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
 
   /** How long a test waits for the tracks to open; the repo reads them at once. */
   private val OpenTimeout: FiniteDuration = 1.second
