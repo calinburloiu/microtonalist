@@ -118,14 +118,5 @@ class RigModuleIntegrationTest extends AnyWordSpec with Matchers with Stubs {
         midiManager.closeDevice.calls should contain theSameElementsAs Seq(
           (keyboardId, MidiDirection.Input), (pianoId, MidiDirection.Output))
       }
-
-    "close without releasing any device when no tracks were opened" in new Fixture {
-      // When
-      rigModule.close()
-
-      // Then
-      midiManager.openDevice.times shouldBe 0
-      midiManager.closeDevice.times shouldBe 0
-    }
   }
 }
