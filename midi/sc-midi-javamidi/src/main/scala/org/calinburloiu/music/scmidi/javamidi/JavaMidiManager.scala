@@ -17,7 +17,6 @@
 package org.calinburloiu.music.scmidi.javamidi
 
 import com.typesafe.scalalogging.StrictLogging
-import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.concurrency.Locking
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.MidiDeviceHandle.State
@@ -60,18 +59,19 @@ import scala.collection.mutable
  *
  * Resolving the devices happens inside the refresh lock but before the manager lock is taken, so that a call into Java
  * Sound, which can block, neither holds off the readers nor runs while holding the lock that the environment callbacks
- * need. The [[MidiEvent]]s of an operation are published in order once the locks are released, because the bus delivers
- * them synchronously to subscribers that may use the manager or send MIDI. Sending MIDI takes no lock.
+ * need. The [[MidiEvent]]s of an operation are published in order once the locks are released, because the publisher
+ * may deliver them synchronously to subscribers that use the manager or send MIDI. Sending MIDI takes no lock.
  *
  * Build one through [[JavaMidiManager.apply]], which starts it once it is constructed; the constructor itself neither
  * publishes nor subscribes.
  *
- * @param businessync Used for publishing [[MidiEvent]]s.
+ * @param eventPublisher Receives the [[MidiEvent]]s, on the thread that made the change and outside the locks of the
+ *   manager.
  * @param environment The Java Sound environment to scan and subscribe to; the production default is
  *   [[CoreMidi4JEnvironment]], a fake is what a test passes.
  */
 @ThreadSafe
-class JavaMidiManager private (businessync: Businessync, environment: JavaMidiEnvironment)
+class JavaMidiManager private (eventPublisher: MidiEventPublisher, environment: JavaMidiEnvironment)
   extends MidiManager, Locking, StrictLogging {
 
   import JavaMidiManager.*
@@ -143,7 +143,7 @@ class JavaMidiManager private (businessync: Businessync, environment: JavaMidiEn
       }(using lock)
     }(using refreshLock)
 
-    events.foreach(businessync.publish)
+    events.foreach(eventPublisher.publish)
   }
 
   /**
@@ -203,13 +203,13 @@ class JavaMidiManager private (businessync: Businessync, environment: JavaMidiEn
 
   /**
    * Runs `operation` under the lock of the manager and then, once the lock is released, publishes in order the events
-   * it returned, so that a subscriber, which the bus calls on this thread, never runs inside the lock.
+   * it returned, so that a subscriber, which the publisher may call on this thread, never runs inside the lock.
    *
    * @return the result of the operation.
    */
   private def withLockThenPublish[R](operation: => (R, Seq[MidiEvent])): R = {
     val (result, events) = withLock { operation }
-    events.foreach(businessync.publish)
+    events.foreach(eventPublisher.publish)
     result
   }
 
@@ -275,13 +275,14 @@ object JavaMidiManager {
   /**
    * Creates a manager, scans the MIDI environment and subscribes to its changes.
    *
-   * @param businessync Used for publishing [[MidiEvent]]s.
+   * @param eventPublisher Receives the [[MidiEvent]]s, on the thread that made the change and outside the locks of the
+   *   manager.
    * @param environment The Java Sound environment to scan and subscribe to.
    * @return the manager, fully constructed and watching the environment.
    */
-  def apply(businessync: Businessync,
+  def apply(eventPublisher: MidiEventPublisher,
             environment: JavaMidiEnvironment = CoreMidi4JEnvironment): JavaMidiManager = {
-    val manager = new JavaMidiManager(businessync, environment)
+    val manager = new JavaMidiManager(eventPublisher, environment)
     manager.start()
     manager
   }

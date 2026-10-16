@@ -86,7 +86,7 @@ object MicrotonalistApp extends StrictLogging {
     val composition = formatModule.defaultCompositionRepo.read(inputUrl)
     val tuningList = TuningList.fromComposition(composition)
 
-    val midiManager = JavaMidiManager(businessync)
+    val midiManager = JavaMidiManager(event => businessync.publish(event))
     val tunerModule = TunerModule(businessync)
     val rigModule = RigModule(businessync, formatModule.defaultRigRepo, midiManager, tunerModule.tuningService)
     val rigService = rigModule.rigService
