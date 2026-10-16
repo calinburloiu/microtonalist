@@ -3,9 +3,9 @@
 ## Responsibility
 
 `rig` runs the *rig*: the setup of tracks a performer plays. A *track* is a per-instrument pipeline that routes MIDI
-from an input to an output while detecting tuning-change triggers and applying the current tuning, with the tuning
-engine of [`tuner`](../../../tuner/tuner/docs/ARCHITECTURE.md). The module holds the runtime state of the rig, behind a
-thread-safe service.
+from an input to an output while its tuning changers detect tuning-change triggers and the tuning engine of
+[`tuner`](../../../tuner/tuner/docs/ARCHITECTURE.md) applies the current tuning. The module holds the runtime state of
+the rig, behind a thread-safe service.
 
 It doesn't read or write the tracks files that store rigs: the `RigRepo` trait lives here, its implementations in
 `format`.

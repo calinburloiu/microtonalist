@@ -31,7 +31,7 @@ Pitch Bend Sensitivity; the tuner clamps any other tuning, with a warning, rathe
 
 **Session and service.** `TuningSession` holds the tunings and the current index, and publishes a `TuningEvent` on
 every change, which the rig and the UI follow. It runs on the business thread, behind the thread-safe
-`TuningService`, whose `changeTuning` applies a `TuningChange`. `TunerModule` wires the two.
+`TuningService`, whose `changeTuning` applies an effective `TuningChange`. `TunerModule` wires the two.
 
 ## Threading
 

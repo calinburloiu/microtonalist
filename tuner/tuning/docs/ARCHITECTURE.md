@@ -4,8 +4,8 @@
 
 `tuning` holds the values that the tuning engine shares with its clients: the `Tuning` that `composition` builds and a
 tuner applies, and the `TuningChange` that a tuning changer decides and `TuningService` carries out. It has no MIDI
-protocol, thread or plugin of its own, so that `composition` and `ui` use these values without depending on the engine
-of [`tuner`](../../tuner/docs/ARCHITECTURE.md), whose package it shares.
+protocol, thread or plugin of its own, so that `composition` uses these values without depending on the engine of
+[`tuner`](../../tuner/docs/ARCHITECTURE.md), whose package it shares.
 
 ## Key types
 

@@ -4,7 +4,7 @@ The project uses a layered module structure; dependency direction flows from `ap
 
 ```
 app
-├── ui                   (GUI, depends on tuner + tuning)
+├── ui                   (GUI, depends on tuner)
 ├── composition          (domain model, depends on intonation + tuning)
 ├── format               (JSON/file I/O, depends on composition + rig + tuner + tuning-changer-pedal)
 ├── rig                  (setup of per-instrument MIDI tracks, depends on tuner + tuning-changer)
