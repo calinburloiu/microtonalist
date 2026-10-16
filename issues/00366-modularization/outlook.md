@@ -5,7 +5,7 @@
 - **Issue:** none. #366 leaves this out of its scope, and no issue tracks it.
 - **Status:** draft, kept for reference. The JavaFX UI code (#99) may change it.
 
-The ideas that [`proposal.md`](proposal.md) leaves out, building on its modules. Packages abbreviate
+The ideas that the [design](2026-10-16-design.md) leaves out, building on its modules. Packages abbreviate
 `org.calinburloiu.music.microtonalist` as `…`.
 
 ## Feature module groups
@@ -28,7 +28,7 @@ Each tuner and tuning changer becomes a feature: up to three modules in a folder
 
 `app` owns the list of plugins, and the `format` aggregator module goes away:
 
-- Each plugin family's format becomes an instance built from the `TypeSpec`s that `app` registers. The proposal's
+- Each plugin family's format becomes an instance built from the `TypeSpec`s that `app` registers. The design's
   `JsonRigFormat` already takes the family formats as constructor parameters, and the plugin formats already expose
   their specs (`JsonMpeTunerPluginFormating.spec`, `JsonMtsTunerPluginFormating.specs`).
 - `ui` gets each feature's view and view model the same way.
@@ -38,7 +38,7 @@ Adding a tuner or tuning changer then touches only its feature folder and `app`'
 
 ## Folder layout
 
-The proposal's `tuner/` grouping folder gets a folder per feature, and `ui/` gets `ui-core`. Feature folders aren't
+The design's `tuner/` grouping folder gets a folder per feature, and `ui/` gets `ui-core`. Feature folders aren't
 modules, so their names are short:
 
 ```
