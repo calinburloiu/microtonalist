@@ -4,20 +4,21 @@ The project uses a layered module structure; dependency direction flows from `ap
 
 ```
 app
-├── ui            (GUI, depends on tuner)
-├── composition   (domain model, depends on intonation + tuner)
-├── format        (JSON/file I/O, depends on composition + rig + tuner)
-├── rig           (setup of per-instrument MIDI tracks, depends on tuner)
-├── tuner         (MIDI tuning, depends on sc-midi + businessync)
-├── sc-midi       (Scala-idiomatic MIDI API; Java Sound confined to its javamidi package, depends on businessync)
-├── intonation    (interval math, no application deps)
-├── businessync   (event bus + threading, no application deps)
-├── common        (shared utilities)
-└── config        (HOCON config, depends on common)
+├── ui               (GUI, depends on tuner)
+├── composition      (domain model, depends on intonation + tuner)
+├── format           (JSON/file I/O, depends on composition + rig + tuner)
+├── rig              (setup of per-instrument MIDI tracks, depends on tuner)
+├── tuner            (MIDI tuning, depends on sc-midi + businessync)
+├── sc-midi-javamidi (Java Sound implementation of sc-midi, with CoreMIDI4J, depends on sc-midi + businessync)
+├── sc-midi          (Scala-idiomatic MIDI API, depends on businessync)
+├── intonation       (interval math, no application deps)
+├── businessync      (event bus + threading, no application deps)
+├── common           (shared utilities)
+└── config           (HOCON config, depends on common)
 ```
 
-`cli` is a separate executable (a utility tool, e.g. listing MIDI devices) that depends only on `sc-midi`;
-`experiments` is a separate executable for ad-hoc research studies that depends on `intonation`.
+`cli` is a separate executable (a utility tool, e.g. listing MIDI devices) that depends only on `sc-midi` and
+`sc-midi-javamidi`; `experiments` is a separate executable for ad-hoc research studies that depends on `intonation`.
 
 ## Packages
 
@@ -39,4 +40,5 @@ build convention; see [`../development/build.md`](../development/build.md)), dir
 | `businessync` | `base/businessync` | `org.calinburloiu.businessync` |
 | `intonation` | `theory/intonation` | `org.calinburloiu.music.intonation` |
 | `sc-midi` | `midi/sc-midi` | `org.calinburloiu.music.scmidi` |
+| `sc-midi-javamidi` | `midi/sc-midi-javamidi` | `org.calinburloiu.music.scmidi.javamidi` |
 | `experiments` | `app/experiments` | `org.calinburloiu.music.microtonalist.experiments` |

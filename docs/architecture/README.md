@@ -41,6 +41,7 @@ of its own folder (`build.sbt` sets `.withId(<dir>)`).
 | `format` | [format/format/docs/ARCHITECTURE.md](../../format/format/docs/ARCHITECTURE.md) |
 | `intonation` | [theory/intonation/docs/ARCHITECTURE.md](../../theory/intonation/docs/ARCHITECTURE.md) |
 | `sc-midi` | [midi/sc-midi/docs/ARCHITECTURE.md](../../midi/sc-midi/docs/ARCHITECTURE.md) |
+| `sc-midi-javamidi` | [midi/sc-midi-javamidi/docs/ARCHITECTURE.md](../../midi/sc-midi-javamidi/docs/ARCHITECTURE.md) |
 | `experiments` | [app/experiments/docs/ARCHITECTURE.md](../../app/experiments/docs/ARCHITECTURE.md) |
 
 ## Other architecture material

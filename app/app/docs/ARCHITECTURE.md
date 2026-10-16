@@ -28,9 +28,10 @@ through every module, then wires the modules in dependency order: load the HOCON
 composition and resolve it into a `TuningList`, start the tuner and rig runtimes and open the rig's tracks, and finally
 open the Swing GUI.
 
-`app` also **owns the MIDI manager's lifecycle** (#282): it picks the Java Sound implementation by constructing
-`JavaMidiManager(businessync)` and injects it into `RigModule` as a `MidiManager`, so `rig` uses a manager it
-neither builds nor closes. A JVM shutdown hook closes the rig runtime and then the MIDI manager for clean teardown.
+`app` also **owns the MIDI manager's lifecycle** (#282): it picks the Java Sound implementation, from
+`sc-midi-javamidi`, by constructing `JavaMidiManager(businessync)` and injects it into `RigModule` as a `MidiManager`,
+so `rig` uses a manager it neither builds nor closes. A JVM shutdown hook closes the rig runtime and then the MIDI
+manager for clean teardown.
 
 Each lower module exposes its public surface through a small wiring seam that `app` instantiates rather than reaching
 into the module's internals; the details of each seam belong to that module's own architecture doc. Today these seams
@@ -45,6 +46,7 @@ other application module. It is the assembly target whose fat JAR main class is 
 
 ```
 app → ui → tuner → sc-midi → businessync
+app → sc-midi-javamidi → sc-midi
 app → rig → tuner
 app → composition → { intonation, tuner }
 app → format → { common, composition, rig, tuner }

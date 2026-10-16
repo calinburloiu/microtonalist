@@ -31,7 +31,7 @@ import scala.collection.immutable.ArraySeq
  * events) is a [[Midi1Msg]] and every MIDI 2.0 message is a [[Midi2Msg]]. Pipeline signatures take `MidiMsg` so that
  * they accept both families.
  *
- * Use [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] to convert between [[Midi1Msg]] and
+ * Use `JavaMidiConverters`, in the `sc-midi-javamidi` module, to convert between [[Midi1Msg]] and
  * [[javax.sound.midi.MidiMessage]].
  */
 sealed trait MidiMsg
@@ -841,8 +841,8 @@ object SequencerSpecificMetaMidiMsg {
 /**
  * Wraps the raw bytes of a [[javax.sound.midi.MidiMessage]] that has no dedicated Scala-idiomatic counterpart.
  *
- * [[org.calinburloiu.music.scmidi.javamidi.JavaMidiConverters]] can reconstruct the original Java message (a
- * `ShortMessage`, `SysexMessage`, or `MetaMessage`, detected from the status byte) via `asJava`.
+ * `JavaMidiConverters`, in the `sc-midi-javamidi` module, can reconstruct the original Java message (a `ShortMessage`,
+ * `SysexMessage`, or `MetaMessage`, detected from the status byte) via `asJava`.
  *
  * @param data The full byte sequence of the original Java `MidiMessage` (as returned by `MidiMessage.getMessage`).
  */
