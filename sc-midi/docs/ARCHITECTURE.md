@@ -3,8 +3,8 @@
 ## Responsibility
 
 `sc-midi` is a Scala-idiomatic MIDI API: an immutable, typed message model; composable receivers, transmitters and
-processors; and device handling that publishes its events on the [Businessync](../businessync/README.md) bus. It knows
-nothing about scales, tunings or the GUI.
+processors; and device handling that publishes its events on the
+[Businessync](../../businessync/docs/ARCHITECTURE.md) bus. It knows nothing about scales, tunings or the GUI.
 
 Java Sound is confined to the `javamidi` package, by convention rather than by the build. `rig` and `cli` see only the
 `MidiManager` / `MidiDeviceHandle` traits and the `MidiMsg` model, and the composition roots instantiate
@@ -76,7 +76,7 @@ flowchart LR
    closes with its last reference.
 
 A device's states, the events reporting them and how they relate to the wiring are described in
-[`midi-device-lifecycle.md`](../midi-device-lifecycle.md).
+[`midi-device-lifecycle.md`](../../docs/architecture/midi-device-lifecycle.md).
 
 ## Threading
 

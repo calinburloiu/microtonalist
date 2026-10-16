@@ -1,3 +1,3 @@
 # `app` module
 
-@../docs/architecture/app/README.md
+@docs/ARCHITECTURE.md

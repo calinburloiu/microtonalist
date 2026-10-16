@@ -1,3 +1,3 @@
 # `tuner` module
 
-@../docs/architecture/tuner/README.md
+@docs/ARCHITECTURE.md

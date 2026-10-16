@@ -1,3 +1,3 @@
-# `appConfig` module
+# `config` module
 
-@../docs/architecture/config/README.md
+@docs/ARCHITECTURE.md

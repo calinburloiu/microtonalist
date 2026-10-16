@@ -1,3 +1,3 @@
-# `scMidi` module
+# `sc-midi` module
 
-@../docs/architecture/sc-midi/README.md
+@docs/ARCHITECTURE.md

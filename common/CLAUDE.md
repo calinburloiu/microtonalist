@@ -1,3 +1,3 @@
 # `common` module
 
-@../docs/architecture/common/README.md
+@docs/ARCHITECTURE.md

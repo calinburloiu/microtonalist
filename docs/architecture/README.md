@@ -1,8 +1,8 @@
 # Architecture
 
-This directory documents the architecture of Microtonalist. It is consumed by both humans and coding agents. Each
-module (an SBT project, see `build.sbt`) gets its own subdirectory here, and each module's `CLAUDE.md` `@import`s its
-architecture document so the relevant context loads on demand when an agent works in that module.
+This directory documents what spans modules and indexes the architecture doc of each module,
+`<module>/docs/ARCHITECTURE.md`; see the [`architecture-docs` skill](../../.claude/skills/architecture-docs/SKILL.md)
+for where each kind of doc lives.
 
 Start with the cross-cutting overview below, then follow the module index into whichever module(s) a task touches. The
 three overview documents are the single source of truth for the basics; coding agents get them always-loaded because
@@ -23,26 +23,27 @@ Those notes are forward-looking; the surrounding text describes the code as it i
 
 ## Module index
 
-By build convention each module's SBT project ID equals its base directory name (`build.sbt` sets `.withId(<dir>)`).
+By build convention each module's SBT project ID equals its base directory name (`build.sbt` sets `.withId(<dir>)`), so
+a module's doc is at `<id>/docs/ARCHITECTURE.md`.
 
-| Module | Directory | Architecture doc |
-| ------ | --------- | ---------------- |
-| `app` | `app` | [app/README.md](app/README.md) |
-| `config` | `config` | [config/README.md](config/README.md) |
-| `cli` | `cli` | [cli/README.md](cli/README.md) |
-| `ui` | `ui` | [ui/README.md](ui/README.md) |
-| `common` | `common` | [common/README.md](common/README.md) |
-| `businessync` | `businessync` | [businessync/README.md](businessync/README.md) |
-| `composition` | `composition` | [composition/README.md](composition/README.md) |
-| `tuner` | `tuner` | [tuner/README.md](tuner/README.md) |
-| `rig` | `rig` | [rig/README.md](rig/README.md) |
-| `format` | `format` | [format/README.md](format/README.md) |
-| `intonation` | `intonation` | [intonation/README.md](intonation/README.md) |
-| `sc-midi` | `sc-midi` | [sc-midi/README.md](sc-midi/README.md) |
-| `experiments` | `experiments` | [experiments/README.md](experiments/README.md) |
+| Module | Architecture doc |
+| ------ | ---------------- |
+| `app` | [app/docs/ARCHITECTURE.md](../../app/docs/ARCHITECTURE.md) |
+| `config` | [config/docs/ARCHITECTURE.md](../../config/docs/ARCHITECTURE.md) |
+| `cli` | [cli/docs/ARCHITECTURE.md](../../cli/docs/ARCHITECTURE.md) |
+| `ui` | [ui/docs/ARCHITECTURE.md](../../ui/docs/ARCHITECTURE.md) |
+| `common` | [common/docs/ARCHITECTURE.md](../../common/docs/ARCHITECTURE.md) |
+| `businessync` | [businessync/docs/ARCHITECTURE.md](../../businessync/docs/ARCHITECTURE.md) |
+| `composition` | [composition/docs/ARCHITECTURE.md](../../composition/docs/ARCHITECTURE.md) |
+| `tuner` | [tuner/docs/ARCHITECTURE.md](../../tuner/docs/ARCHITECTURE.md) |
+| `rig` | [rig/docs/ARCHITECTURE.md](../../rig/docs/ARCHITECTURE.md) |
+| `format` | [format/docs/ARCHITECTURE.md](../../format/docs/ARCHITECTURE.md) |
+| `intonation` | [intonation/docs/ARCHITECTURE.md](../../intonation/docs/ARCHITECTURE.md) |
+| `sc-midi` | [sc-midi/docs/ARCHITECTURE.md](../../sc-midi/docs/ARCHITECTURE.md) |
+| `experiments` | [experiments/docs/ARCHITECTURE.md](../../experiments/docs/ARCHITECTURE.md) |
 
 ## Other architecture material
 
 - [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *available*/*unavailable*, *open*/*closed* and
   *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
-- [`tuner/mpe-tuner-paper.md`](tuner/mpe-tuner-paper.md) — MPE tuner design paper.
+- [`tuner/docs/mpe-tuner-paper.md`](../../tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.
