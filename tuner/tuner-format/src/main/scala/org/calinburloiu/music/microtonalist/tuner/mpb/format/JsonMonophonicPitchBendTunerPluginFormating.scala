@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.tuner.mpb.format
 
+import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.TypeSpec
 import org.calinburloiu.music.microtonalist.tuner.mpb.MonophonicPitchBendTuner
 import org.calinburloiu.music.scmidi.PitchBendSensitivity
@@ -40,7 +41,7 @@ object JsonMonophonicPitchBendTunerPluginFormating {
   /**
    * JSON format specification for [[MonophonicPitchBendTuner]].
    *
-   * @see [[JsonTunerPluginFormat]] where it is used.
+   * @see [[org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat]] where it is used.
    */
   val spec: TypeSpec[MonophonicPitchBendTuner] = TypeSpec.withSettings[MonophonicPitchBendTuner](
     typeName = MonophonicPitchBendTuner.TypeName,

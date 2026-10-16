@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.microtonalist.tuner.changer.format.JsonTuningChangerPluginFormat
+import org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat
 import com.fasterxml.jackson.core.JsonParseException
 import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readRigFromResources
 import org.calinburloiu.music.microtonalist.rig.*

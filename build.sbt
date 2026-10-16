@@ -65,9 +65,11 @@ lazy val root = (project in file("."))
     tunerMpeModule,
     tunerMtsModule,
     tunerMpbModule,
+    tunerFormatModule,
     tuningModule,
     tuningChangerModule,
     tuningChangerPedalModule,
+    tuningChangerFormatModule,
     rigModule,
     formatModule,
     formatCoreModule,
@@ -307,6 +309,27 @@ lazy val tunerMpbModule = (project in file("tuner/tuner-mpb"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
+lazy val tunerFormatModule = (project in file("tuner/tuner-format"))
+  .withId("tuner-format")
+  .dependsOn(
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tunerMpbModule,
+    tunerMpeModule,
+    tunerMtsModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val tuningModule = (project in file("tuner/tuning"))
   .withId("tuning")
   .dependsOn(
@@ -354,6 +377,25 @@ lazy val tuningChangerPedalModule = (project in file("tuner/tuning-changer-pedal
     coverageSettings(stmt = 80, branch = 80),
   )
 
+lazy val tuningChangerFormatModule = (project in file("tuner/tuning-changer-format"))
+  .withId("tuning-changer-format")
+  .dependsOn(
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    scMidiModule,
+    tuningChangerModule,
+    tuningChangerPedalModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning-changer-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val rigModule = (project in file("rig/rig"))
   .withId("rig")
   .dependsOn(
@@ -388,11 +430,13 @@ lazy val formatModule = (project in file("format/format"))
     formatTestUtilsModule % Test,
     intonationFormatModule,
     rigModule,
+    tunerFormatModule,
     tunerModule,
     tunerMpbModule,
     tunerMpeModule,
     tunerMtsModule,
     tuningModule,
+    tuningChangerFormatModule,
     tuningChangerModule,
     tuningChangerPedalModule,
   )

@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.tuner.mts.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec}
 import org.calinburloiu.music.microtonalist.tuner.mts.*
@@ -60,7 +60,7 @@ object JsonMtsTunerPluginFormating {
   /**
    * JSON format specifications for all [[MtsTuner]] plugins.
    *
-   * @see [[JsonTunerPluginFormat]] where it is used.
+   * @see [[org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat]] where it is used.
    */
   val specs: Seq[TypeSpec[? <: MtsTuner]] = Seq(
     makeMtsTunerTypeSpec[MtsOctave1ByteNonRealTimeTuner](

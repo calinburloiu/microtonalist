@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.tuner.format
 
+import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.calinburloiu.music.microtonalist.tuner.Tuner
 import org.calinburloiu.music.microtonalist.tuner.mpb.MonophonicPitchBendTuner
 import org.calinburloiu.music.microtonalist.tuner.mpe.{MpeInputMode, MpeTuner, MpeZone, MpeZoneType, MpeZones}

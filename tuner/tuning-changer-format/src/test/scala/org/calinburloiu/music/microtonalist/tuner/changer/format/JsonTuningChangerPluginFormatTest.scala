@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.tuner.changer.format
 
+import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}

@@ -14,12 +14,13 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.tuner.changer.pedal.format
 
-import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.TypeSpec
+import org.calinburloiu.music.microtonalist.format.ccNumberFormat
+import org.calinburloiu.music.microtonalist.tuner.changer.TuningChangeTriggers
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}
 import org.calinburloiu.music.scmidi.message.MidiCc
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*
@@ -27,9 +28,10 @@ import play.api.libs.json.Reads.{max, min}
 
 import scala.util.Try
 
-object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
-
-  override val familyName: String = TuningChanger.FamilyName
+/**
+ * JSON format utilities for [[org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger]].
+ */
+object JsonPedalTuningChangerPluginFormating {
 
   // # index triggers
   private val tuningIndexKeyReads: String => JsResult[Int] = { str =>
@@ -59,19 +61,22 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
   )(PedalTuningChanger.apply, Tuple.fromProductTyped)
   //@formatter:on
 
-  override val specs: TypeSpecs[TuningChanger] = Seq(
-    TypeSpec.withSettings[PedalTuningChanger](
-      typeName = PedalTuningChanger.TypeName,
-      format = pedalTuningChangerFormat,
-      javaClass = classOf[PedalTuningChanger],
-      defaultSettings = Json.obj(
-        "triggers" -> Json.obj(
-          "previous" -> MidiCc.SoftPedal,
-          "next" -> MidiCc.SostenutoPedal
-        ),
-        "threshold" -> 0,
-        "triggersThru" -> false
-      )
+  /**
+   * JSON format specification for [[org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger]].
+   *
+   * @see [[org.calinburloiu.music.microtonalist.tuner.changer.format.JsonTuningChangerPluginFormat]] where it is used.
+   */
+  val spec: TypeSpec[PedalTuningChanger] = TypeSpec.withSettings[PedalTuningChanger](
+    typeName = PedalTuningChanger.TypeName,
+    format = pedalTuningChangerFormat,
+    javaClass = classOf[PedalTuningChanger],
+    defaultSettings = Json.obj(
+      "triggers" -> Json.obj(
+        "previous" -> MidiCc.SoftPedal,
+        "next" -> MidiCc.SostenutoPedal
+      ),
+      "threshold" -> 0,
+      "triggersThru" -> false
     )
   )
 }

@@ -14,8 +14,12 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.tuner.format
 
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
+import org.calinburloiu.music.microtonalist.tuner.mpb.format.JsonMonophonicPitchBendTunerPluginFormating
+import org.calinburloiu.music.microtonalist.tuner.mpe.format.JsonMpeTunerPluginFormating
+import org.calinburloiu.music.microtonalist.tuner.mts.format.JsonMtsTunerPluginFormating
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.Tuner
 
