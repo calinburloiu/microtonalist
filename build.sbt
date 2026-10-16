@@ -61,6 +61,9 @@ lazy val root = (project in file("."))
     uiModule,
     compositionModule,
     tunerModule,
+    tunerMpeModule,
+    tunerMtsModule,
+    tunerMpbModule,
     tuningModule,
     tuningChangerModule,
     tuningChangerPedalModule,
@@ -233,6 +236,50 @@ lazy val tunerModule = (project in file("tuner/tuner"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
+lazy val tunerMpeModule = (project in file("tuner/tuner-mpe"))
+  .withId("tuner-mpe")
+  .dependsOn(
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-mpe",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerMtsModule = (project in file("tuner/tuner-mts"))
+  .withId("tuner-mts")
+  .dependsOn(
+    scMidiModule,
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-mts",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerMpbModule = (project in file("tuner/tuner-mpb"))
+  .withId("tuner-mpb")
+  .dependsOn(
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-mpb",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val tuningModule = (project in file("tuner/tuning"))
   .withId("tuning")
   .dependsOn(
@@ -288,6 +335,7 @@ lazy val rigModule = (project in file("rig/rig"))
     commonTestUtilsModule % Test,
     scMidiModule,
     tunerModule,
+    tunerMtsModule % Test,
     tuningModule,
     tuningChangerModule,
     tuningChangerPedalModule % Test,
@@ -310,6 +358,9 @@ lazy val formatModule = (project in file("format/format"))
     compositionModule,
     rigModule,
     tunerModule,
+    tunerMpbModule,
+    tunerMpeModule,
+    tunerMtsModule,
     tuningModule,
     tuningChangerModule,
     tuningChangerPedalModule,

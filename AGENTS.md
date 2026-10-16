@@ -165,7 +165,8 @@ The architecture docs are organized as follows:
   `$GROUP/$MODULE/docs/ARCHITECTURE.md` directly. The module's `README.md` only links to it, for human readers
   browsing the module on GitHub.
 - **Per-topic documents** — some modules carry focused topic docs next to their architecture document, in
-  `$GROUP/$MODULE/docs/`, e.g. [`tuner/tuner/docs/mpe-tuner.md`](tuner/tuner/docs/mpe-tuner.md) for the MPE Tuner.
+  `$GROUP/$MODULE/docs/`, e.g. [`tuner/tuner-mpe/docs/mpe-tuner.md`](tuner/tuner-mpe/docs/mpe-tuner.md) for the MPE
+  Tuner.
 - **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, with a table
   linking each module's document.
 

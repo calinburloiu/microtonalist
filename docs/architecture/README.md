@@ -50,4 +50,4 @@ of its own folder (`build.sbt` sets `.withId(<dir>)`), so a module's doc is at `
 
 - [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *available*/*unavailable*, *open*/*closed* and
   *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
-- [`tuner/tuner/docs/mpe-tuner-paper.md`](../../tuner/tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.
+- [`tuner/tuner-mpe/docs/mpe-tuner-paper.md`](../../tuner/tuner-mpe/docs/mpe-tuner-paper.md) — MPE tuner design paper.

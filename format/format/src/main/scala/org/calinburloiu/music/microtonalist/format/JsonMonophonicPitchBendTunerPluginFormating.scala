@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.TypeSpec
-import org.calinburloiu.music.microtonalist.tuner.MonophonicPitchBendTuner
+import org.calinburloiu.music.microtonalist.tuner.mpb.MonophonicPitchBendTuner
 import org.calinburloiu.music.scmidi.PitchBendSensitivity
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.{Format, Json, __}

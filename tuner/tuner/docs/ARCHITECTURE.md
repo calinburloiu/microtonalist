@@ -27,7 +27,7 @@ Pitch Bend Sensitivity; the tuner clamps any other tuning, with a warning, rathe
 | MPE | `MpeTuner` | Pitch Bend per note, on the MPE Member Channel it allocates to the note. | Polyphonic |
 
 `MpeTuner` routes each message by its channel's role in the MPE Zones and allocates notes to Member Channels; see
-[`mpe-tuner.md`](mpe-tuner.md).
+[`mpe-tuner.md`](../../tuner-mpe/docs/mpe-tuner.md).
 
 **Session and service.** `TuningSession` holds the tunings and the current index, and publishes a `TuningEvent` on
 every change, which the rig and the UI follow. It runs on the business thread, behind the thread-safe
