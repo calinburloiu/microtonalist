@@ -43,7 +43,7 @@ and more). For the module structure, dependency graph, and the root package of e
 messages, see the [architecture docs](docs/architecture/README.md).
 
 The application is configured via a [HOCON](https://github.com/lightbend/config/blob/master/HOCON.md) file (on macOS at
-`~/.microtonalist/microtonalist.conf`); see the [`appConfig` module architecture](config/docs/ARCHITECTURE.md)
+`~/.microtonalist/microtonalist.conf`); see the [`config` module architecture](app/config/docs/ARCHITECTURE.md)
 for details.
 
 ## License

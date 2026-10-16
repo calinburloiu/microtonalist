@@ -48,7 +48,7 @@ The frame talks only to these `tuner`-module types — the stable contract for t
 
 ## UI ↔ business threading boundary
 
-The intended model (see the [`businessync` doc](../../businessync/docs/ARCHITECTURE.md) and the [Threading
+The intended model (see the [`businessync` doc](../../../base/businessync/docs/ARCHITECTURE.md) and the [Threading
 Model](https://github.com/calinburloiu/microtonalist/wiki/Threading-Model) wiki) separates a **business thread** (all
 domain/MIDI logic) from a **UI thread** (all widget updates): the UI should mutate domain state only through services
 that hop to the business thread, apply widget updates via `runOnUi`, and receive events via `subscribeOnUi`.

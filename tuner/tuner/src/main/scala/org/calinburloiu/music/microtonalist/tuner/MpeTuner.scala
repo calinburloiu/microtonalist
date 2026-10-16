@@ -45,8 +45,8 @@ enum MpeInputMode {
  * MPE Input Mode is forwarded as is.
  *
  * It follows the MPE Configuration Messages and Pitch Bend Sensitivity RPNs it receives. Its internal flow is outlined
- * in `tuner/docs/mpe-tuner.md`, and its design in `tuner/docs/mpe-tuner-paper.md`, which the comments in this file cite
- * by section name.
+ * in `tuner/tuner/docs/mpe-tuner.md`, and its design in `tuner/tuner/docs/mpe-tuner-paper.md`, which the comments in
+ * this file cite by section name.
  *
  * @param initialZones The initial [[MpeZones]] configuration for the Lower and Upper Zones.
  * @param initialInputMode Initial [[MpeInputMode]]. The tuner switches to MPE mode automatically upon receiving an MPE

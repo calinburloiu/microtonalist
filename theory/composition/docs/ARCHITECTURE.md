@@ -2,8 +2,8 @@
 
 # `composition` module architecture
 
-The `composition` module (directory `composition/`, package `org.calinburloiu.music.microtonalist.composition`) is the
-domain model that connects the two central abstractions of Microtonalist: high-level musical **scales** and the
+The `composition` module (directory `theory/composition/`, package `org.calinburloiu.music.microtonalist.composition`)
+is the domain model that connects the two central abstractions of Microtonalist: high-level musical **scales** and the
 low-level **tunings** a keyboard/synthesizer is actually configured with. A user composes with a sequence of scales;
 this module turns that sequence into the concrete `Tuning`s that `tuner` and `rig` send to instruments.
 

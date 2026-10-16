@@ -12,20 +12,23 @@ issues when multiple builds would write in the same target subdirectory.
 ## Project layout
 
 The repository is built using SBT 1, Scala 3, and Java 25. It is split into multiple SBT projects that act as modules,
-libraries, or separate executable applications — we simply call each of those SBT projects modules. Each one is located
-in the repository root. Check `build.sbt` for details. The `root` SBT project aggregates all the other projects. The
+libraries, or separate executable applications — we simply call each of those SBT projects modules. Each one lives in
+`<group>/<id>/`, in a grouping folder at the repository root that holds the modules of one area and nothing else: no
+`src/`, `README.md`, `CLAUDE.md` or `docs/` of its own. The *Packages* table of
+[`module-overview.md`](../architecture/module-overview.md) gives each module's directory. Check `build.sbt` for
+details. The `root` SBT project, the only one at the repository root, aggregates all the other projects. The
 executable application is in the `app` SBT project.
 
 **The Scala version is in `project/scala-version`**, a one-line file that `build.sbt` reads. The launchers in `bin/` read
 it too, because it is part of the paths of the fat JARs they run. Upgrade Scala there, not in `build.sbt`.
 
-**Convention — project ID equals base directory name.** Every project sets `.withId(<base-directory-name>)` in
-`build.sbt`, so its SBT project ID (used in `sbt "<id>/compile"` / `"<id>/test"`, in `thisProject.value.id`, and thus in
-`coverageDataDir`) always equals its directory. IDs may be kebab-case (`sc-midi`, `config`, `common-test-utils`). The
-`build.sbt` `lazy val` name follows the `<camelCase-dir-name>Module` convention (e.g. `scMidiModule` for ID `sc-midi`);
-it is only used for `.dependsOn`/`.aggregate`. Keep `.withId` and the directory in lockstep when adding or renaming a
-module — tooling such as the `scoverage-inspector` MCP relies on the ID being the source directory. See the CONVENTION
-comment in `build.sbt`.
+**Convention — project ID equals the name of its folder.** Every project sets `.withId(<folder-name>)` in
+`build.sbt`, so its SBT project ID (used in `sbt "<id>/compile"` / `"<id>/test"`, in `thisProject.value.id`, and thus
+in `coverageDataDir`) always equals the name of its own folder, the leaf of `<group>/<id>/`. IDs may be kebab-case
+(`sc-midi`, `config`, `common-test-utils`). The `build.sbt` `lazy val` name follows the `<camelCaseId>Module`
+convention (e.g. `scMidiModule` for ID `sc-midi`); it is only used for `.dependsOn`/`.aggregate`. Keep `.withId` and
+the folder name in lockstep when adding or renaming a module — tooling such as the `scoverage-inspector` MCP relies on
+the ID naming the source directory, `<group>/<id>/src/`. See the CONVENTION comment in `build.sbt`.
 
 ## Build output directories
 

@@ -4,7 +4,7 @@
 
 `rig` runs the *rig*: the setup of tracks a performer plays. A *track* is a per-instrument pipeline that routes MIDI
 from an input to an output while detecting tuning-change triggers and applying the current tuning, with the tuning
-engine of [`tuner`](../../tuner/docs/ARCHITECTURE.md). The module holds the runtime state of the rig, behind a
+engine of [`tuner`](../../../tuner/tuner/docs/ARCHITECTURE.md). The module holds the runtime state of the rig, behind a
 thread-safe service.
 
 It doesn't read or write the tracks files that store rigs: the `RigRepo` trait lives here, its implementations in
@@ -65,10 +65,10 @@ flowchart LR
 ## Threading
 
 `RigSession` and `RigManager` are `@NotThreadSafe` and run on the business thread (see
-[`businessync`](../../businessync/docs/ARCHITECTURE.md)); other threads go through `RigService`. The processors, and
-the tuners and tuning changers they hold, are `@NotThreadSafe` too: MIDI messages run through them on the input
-device's callback thread, and `tune` and `reset` come from the business thread; #121 will give each track a thread of
-its own.
+[`businessync`](../../../base/businessync/docs/ARCHITECTURE.md)); other threads go through `RigService`. The
+processors, and the tuners and tuning changers they hold, are `@NotThreadSafe` too: MIDI messages run through them on
+the input device's callback thread, and `tune` and `reset` come from the business thread; #121 will give each track a
+thread of its own.
 
 Today, wrongly, `RigManager` handles a `MidiEvent`, and so resets the tracks a device change concerns, on the thread
 publishing the event; #90 will move it to the business thread.
@@ -81,5 +81,5 @@ publishing the event; #90 will move it to the business thread.
 - A track fed by another track loses the messages that arrive before the link is wired (#298).
 - The courtesy 12-EDO messages make 12-EDO the tuner's current tuning, and attaching and detaching will drive the
   device requests (#305; see
-  [`midi-device-lifecycle.md`](../../docs/architecture/midi-device-lifecycle.md#subject-to-change-305)).
+  [`midi-device-lifecycle.md`](../../../docs/architecture/midi-device-lifecycle.md#subject-to-change-305)).
 - A track fed by another track isn't released or reset when the feeding track's input device goes away (#316).

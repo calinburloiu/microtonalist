@@ -1,9 +1,9 @@
 # Architecture
 
 This directory documents the architecture of Microtonalist that spans modules. Each module (an SBT project, see
-`build.sbt`) documents its own architecture in `<module>/docs/ARCHITECTURE.md`. Next to it, the module's `README.md`
-links to it for human readers, and the module's `CLAUDE.md` `@import`s it so the relevant context loads on demand when
-an agent works in that module. All of them are consumed by both humans and coding agents.
+`build.sbt`) documents its own architecture in `<group>/<module>/docs/ARCHITECTURE.md`. Next to it, the module's
+`README.md` links to it for human readers, and the module's `CLAUDE.md` `@import`s it so the relevant context loads on
+demand when an agent works in that module. All of them are consumed by both humans and coding agents.
 
 Start with the cross-cutting overview below, then follow the module index into whichever module(s) a task touches. The
 three overview documents are the single source of truth for the basics; coding agents get them always-loaded because
@@ -24,26 +24,27 @@ Those notes are forward-looking; the surrounding text describes the code as it i
 
 ## Module index
 
-By build convention each module's SBT project ID equals its base directory name (`build.sbt` sets `.withId(<dir>)`).
+Each module lives in a grouping folder, `<group>/<module>/`, and by build convention its SBT project ID equals the name
+of its own folder (`build.sbt` sets `.withId(<dir>)`).
 
 | Module | Architecture doc |
 | ------ | ---------------- |
-| `app` | [app/docs/ARCHITECTURE.md](../../app/docs/ARCHITECTURE.md) |
-| `config` | [config/docs/ARCHITECTURE.md](../../config/docs/ARCHITECTURE.md) |
-| `cli` | [cli/docs/ARCHITECTURE.md](../../cli/docs/ARCHITECTURE.md) |
-| `ui` | [ui/docs/ARCHITECTURE.md](../../ui/docs/ARCHITECTURE.md) |
-| `common` | [common/docs/ARCHITECTURE.md](../../common/docs/ARCHITECTURE.md) |
-| `businessync` | [businessync/docs/ARCHITECTURE.md](../../businessync/docs/ARCHITECTURE.md) |
-| `composition` | [composition/docs/ARCHITECTURE.md](../../composition/docs/ARCHITECTURE.md) |
-| `tuner` | [tuner/docs/ARCHITECTURE.md](../../tuner/docs/ARCHITECTURE.md) |
-| `rig` | [rig/docs/ARCHITECTURE.md](../../rig/docs/ARCHITECTURE.md) |
-| `format` | [format/docs/ARCHITECTURE.md](../../format/docs/ARCHITECTURE.md) |
-| `intonation` | [intonation/docs/ARCHITECTURE.md](../../intonation/docs/ARCHITECTURE.md) |
-| `sc-midi` | [sc-midi/docs/ARCHITECTURE.md](../../sc-midi/docs/ARCHITECTURE.md) |
-| `experiments` | [experiments/docs/ARCHITECTURE.md](../../experiments/docs/ARCHITECTURE.md) |
+| `app` | [app/app/docs/ARCHITECTURE.md](../../app/app/docs/ARCHITECTURE.md) |
+| `config` | [app/config/docs/ARCHITECTURE.md](../../app/config/docs/ARCHITECTURE.md) |
+| `cli` | [app/cli/docs/ARCHITECTURE.md](../../app/cli/docs/ARCHITECTURE.md) |
+| `ui` | [ui/ui/docs/ARCHITECTURE.md](../../ui/ui/docs/ARCHITECTURE.md) |
+| `common` | [base/common/docs/ARCHITECTURE.md](../../base/common/docs/ARCHITECTURE.md) |
+| `businessync` | [base/businessync/docs/ARCHITECTURE.md](../../base/businessync/docs/ARCHITECTURE.md) |
+| `composition` | [theory/composition/docs/ARCHITECTURE.md](../../theory/composition/docs/ARCHITECTURE.md) |
+| `tuner` | [tuner/tuner/docs/ARCHITECTURE.md](../../tuner/tuner/docs/ARCHITECTURE.md) |
+| `rig` | [rig/rig/docs/ARCHITECTURE.md](../../rig/rig/docs/ARCHITECTURE.md) |
+| `format` | [format/format/docs/ARCHITECTURE.md](../../format/format/docs/ARCHITECTURE.md) |
+| `intonation` | [theory/intonation/docs/ARCHITECTURE.md](../../theory/intonation/docs/ARCHITECTURE.md) |
+| `sc-midi` | [midi/sc-midi/docs/ARCHITECTURE.md](../../midi/sc-midi/docs/ARCHITECTURE.md) |
+| `experiments` | [app/experiments/docs/ARCHITECTURE.md](../../app/experiments/docs/ARCHITECTURE.md) |
 
 ## Other architecture material
 
 - [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *available*/*unavailable*, *open*/*closed* and
   *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
-- [`tuner/docs/mpe-tuner-paper.md`](../../tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.
+- [`tuner/tuner/docs/mpe-tuner-paper.md`](../../tuner/tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.

@@ -16,8 +16,8 @@ details. The documentation conventions (`docs/development/doc-conventions.md`) a
 
 | Doc | Path |
 | --- | ---- |
-| A module's architecture | `<module>/docs/ARCHITECTURE.md` |
-| A topic or paper of one module | `<module>/docs/<topic>.md` |
+| A module's architecture | `<group>/<module>/docs/ARCHITECTURE.md` |
+| A topic or paper of one module | `<group>/<module>/docs/<topic>.md` |
 | A doc that spans modules | `docs/architecture/<topic>.md` |
 | The index | `docs/architecture/README.md` |
 
@@ -73,9 +73,10 @@ To compact a doc, in this order: rephrase; remove what ScalaDoc owns; split.
 
 ## Splitting
 
-Split a doc that is over budget and covers several capabilities. Move one capability to `<module>/docs/<topic>.md`,
-which has the same budget. The module's `ARCHITECTURE.md` keeps one sentence summarising it and a link to it.
-`docs/architecture/README.md` lists, under *Other architecture material*, only docs that span modules, and the papers.
+Split a doc that is over budget and covers several capabilities. Move one capability to
+`<group>/<module>/docs/<topic>.md`, which has the same budget. The module's `ARCHITECTURE.md` keeps one sentence
+summarising it and a link to it. `docs/architecture/README.md` lists, under *Other architecture material*, only docs
+that span modules, and the papers.
 
 ## Maintenance checklist
 

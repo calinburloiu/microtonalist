@@ -17,8 +17,8 @@ Scala 3 and is built by using sbt 1.
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
 - Before writing code, create a task to explore the architecture: read the always-loaded overviews imported in the
   [Architecture](#architecture) section plus the architecture documents strictly relevant to the prompt — typically the
-  `$MODULE/docs/ARCHITECTURE.md` of each module you will touch and its immediate collaborators. That section explains
-  how the architecture documents are organized.
+  `$GROUP/$MODULE/docs/ARCHITECTURE.md` of each module you will touch and its immediate collaborators. That section
+  explains how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile. A stub may leave constructor parameters unused; that warning is allowed until
@@ -35,7 +35,8 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts, following the documentation conventions. When the change affects an
-      architecture document, under `docs/architecture/` or `$MODULE/docs/`, invoke the `architecture-docs` skill.
+      architecture document, under `docs/architecture/` or `$GROUP/$MODULE/docs/`, invoke the `architecture-docs`
+      skill.
     - **Lint**. Run `sbtn fixLint`, which applies the scalafix autofixes and formats the code (`sbtn fix`), then runs
       CI's check (`sbtn lint`). Fix what it reports by hand, and repeat until it passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
@@ -74,9 +75,11 @@ result or "not found" (`mcp__metals__get-source` may even return an unrelated fi
 
 # Build
 
-Built with **SBT 1, Scala 3, and Java 25**. The repo is split into multiple SBT projects (we call them modules), all in
-the repo root: `root` aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g.
-listing available MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
+Built with **SBT 1, Scala 3, and Java 25**. The repo is split into multiple SBT projects (we call them modules), each in
+`$GROUP/$MODULE/`: a grouping folder holds the modules of one area and nothing else, and the *Packages* table of
+[`module-overview.md`](docs/architecture/module-overview.md) gives each module's directory. `root`, at the repo root,
+aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g. listing available MIDI
+devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
@@ -155,13 +158,14 @@ The architecture docs are organized as follows:
     * @docs/architecture/module-overview.md
     * @docs/architecture/domain-concepts.md
     * @docs/architecture/data-flow.md
-- **Per-module deep dives (`$MODULE/docs/ARCHITECTURE.md`)** — one document per module (an architecture document
-  covering responsibility, key types, flows, and module-specific concerns). Each module's `$MODULE/CLAUDE.md`
-  `@import`s its document, so when you work inside a module that detail loads automatically. To read another module's
-  architecture without editing in it, open its `$MODULE/docs/ARCHITECTURE.md` directly. The module's `README.md` only
-  links to it, for human readers browsing the module on GitHub.
+- **Per-module deep dives (`$GROUP/$MODULE/docs/ARCHITECTURE.md`)** — one document per module (an architecture
+  document covering responsibility, key types, flows, and module-specific concerns). Each module's
+  `$GROUP/$MODULE/CLAUDE.md` `@import`s its document, so when you work inside a module that detail loads
+  automatically. To read another module's architecture without editing in it, open its
+  `$GROUP/$MODULE/docs/ARCHITECTURE.md` directly. The module's `README.md` only links to it, for human readers
+  browsing the module on GitHub.
 - **Per-topic documents** — some modules carry focused topic docs next to their architecture document, in
-  `$MODULE/docs/`, e.g. [`tuner/docs/mpe-tuner.md`](tuner/docs/mpe-tuner.md) for the MPE Tuner.
+  `$GROUP/$MODULE/docs/`, e.g. [`tuner/tuner/docs/mpe-tuner.md`](tuner/tuner/docs/mpe-tuner.md) for the MPE Tuner.
 - **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, with a table
   linking each module's document.
 
