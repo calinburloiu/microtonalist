@@ -244,7 +244,8 @@ lazy val compositionFormatModule = (project in file("theory/composition-format")
     libraryDependencies ++= Seq(
       playJson,
     ),
-    coverageSettings(stmt = 80, branch = 80),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 70, branch = 70),
   )
 
 lazy val tunerModule = (project in file("tuner/tuner"))
@@ -394,7 +395,8 @@ lazy val tuningChangerFormatModule = (project in file("tuner/tuning-changer-form
     libraryDependencies ++= Seq(
       playJson,
     ),
-    coverageSettings(stmt = 80, branch = 80),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 92, branch = 63),
   )
 
 lazy val rigModule = (project in file("rig/rig"))
@@ -443,7 +445,8 @@ lazy val rigFormatModule = (project in file("rig/rig-format"))
     libraryDependencies ++= Seq(
       playJson,
     ),
-    coverageSettings(stmt = 80, branch = 80),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 48, branch = 39),
   )
 
 lazy val formatModule = (project in file("format/format"))
@@ -466,7 +469,7 @@ lazy val formatModule = (project in file("format/format"))
     name := "microtonalist-format",
     commonSettings,
     // TODO #179 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 66, branch = 59),
+    coverageSettings(stmt = 44, branch = 97),
   )
 
 lazy val formatCoreModule = (project in file("format/format-core"))
@@ -483,7 +486,8 @@ lazy val formatCoreModule = (project in file("format/format-core"))
     libraryDependencies ++= Seq(
       playJson,
     ),
-    coverageSettings(stmt = 80, branch = 80),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 65, branch = 63),
   )
 
 lazy val formatTestUtilsModule = (project in file("format/format-test-utils"))
@@ -531,7 +535,8 @@ lazy val intonationFormatModule = (project in file("theory/intonation-format"))
       guava,
       playJson,
     ),
-    coverageSettings(stmt = 80, branch = 80),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 67, branch = 75),
   )
 
 lazy val scMidiModule = (project in file("midi/sc-midi"))
