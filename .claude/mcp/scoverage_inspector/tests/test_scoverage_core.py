@@ -142,6 +142,20 @@ class FreshnessTest(unittest.TestCase):
         # Then its report is stale
         self.assertEqual(core.freshness(self.tmp, "tuner"), core.Freshness.STALE)
 
+    def test_fresh_when_only_another_modules_source_changed(self):
+        # Given a fresh sc-midi report and another module, in another grouping folder
+        src = self.tmp / "app" / "config" / "src" / "main" / "scala"
+        src.mkdir(parents=True)
+        source_file = src / "Bar.scala"
+        source_file.write_text("object Bar")
+        report = _write_report(self.tmp, "sc-midi")
+        _age_tree(self.src, 1000)
+        _set_mtime(report, 2000)
+        # When only the other module's source changes
+        _set_mtime(source_file, 3000)
+        # Then the sc-midi report is still fresh
+        self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.FRESH)
+
     def test_aggregate_covers_the_modules_of_every_grouping_folder(self):
         # Given a fresh root report and a second module, in another grouping folder
         src = self.tmp / "app" / "config" / "src" / "main" / "scala"
