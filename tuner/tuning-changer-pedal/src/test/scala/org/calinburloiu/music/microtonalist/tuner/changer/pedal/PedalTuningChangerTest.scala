@@ -18,7 +18,9 @@ package org.calinburloiu.music.microtonalist.tuner.changer.pedal
 
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}
-import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange}
+import org.calinburloiu.music.microtonalist.tuner.{
+  IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange
+}
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.{
   AllNotesOffMidiMsg, AllSoundOffMidiMsg, CcMidiMsg, NoteOnMidiMsg,

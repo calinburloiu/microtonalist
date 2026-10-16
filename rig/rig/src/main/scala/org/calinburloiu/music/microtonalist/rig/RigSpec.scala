@@ -27,8 +27,8 @@ import org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger
  * @param name User defined name of a track. Character `"#"` will be substituted with the 1-based track index. If the
  *   user wants to keep the `"#"` as it is, they can escape it as `"\\#"`.
  * @param input Plugin used to configure the track input.
- * @param tuningChangers A sequence of [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] plugins that decide
- *   whether the tuning should be changed or not. The decision is of the first one that returns an effective
+ * @param tuningChangers A sequence of [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] plugins that
+ *   decide whether the tuning should be changed or not. The decision is of the first one that returns an effective
  *   [[org.calinburloiu.music.microtonalist.tuner.TuningChange]], so the decision is taken by an OR operator. Note that
  *   if none decides to trigger a change, no change will be performed.
  * @param tuner An option for a [[org.calinburloiu.music.microtonalist.tuner.Tuner]] plugin used to handle tuning

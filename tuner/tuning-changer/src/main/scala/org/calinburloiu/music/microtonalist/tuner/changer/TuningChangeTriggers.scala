@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner.changer
 
-import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange}
+import org.calinburloiu.music.microtonalist.tuner.{
+  IndexTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange
+}
 
 /**
  * Represents a configuration to define triggers for [[TuningChange]]s.

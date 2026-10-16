@@ -16,7 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.tuner.changer
 
-import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange}
+import org.calinburloiu.music.microtonalist.tuner.{
+  IndexTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange
+}
 import org.calinburloiu.music.scmidi.message.MidiCc
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

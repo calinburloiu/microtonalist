@@ -17,8 +17,7 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 /**
- * An object describing an operation that controls to which [[Tuning]] from the tuning sequence should the `Tuner`
- * tune.
+ * An object describing an operation that controls to which [[Tuning]] from the tuning sequence should the `Tuner` tune.
  *
  * @see `TuningChanger`, in the `tuning-changer` module, which returns such an object as a decision based on the input
  *   MIDI received.
