@@ -3,8 +3,8 @@
 ## Responsibility
 
 `sc-midi` is a Scala-idiomatic MIDI API: an immutable, typed message model; composable receivers, transmitters and
-processors; and the traits of device handling, whose events go on the
-[Businessync](../../../base/businessync/docs/ARCHITECTURE.md) bus. It knows nothing about scales, tunings or the GUI.
+processors; and the traits of device handling, whose events a manager publishes through a `MidiEventPublisher` that the
+composition root gives it. It depends on no event bus, and knows nothing about scales, tunings or the GUI.
 
 It doesn't use Java Sound: the [`sc-midi-javamidi`](../../sc-midi-javamidi/docs/ARCHITECTURE.md) module implements its
 device traits over it. Only the composition roots, `app` and `cli`, depend on that module; the rest of the
@@ -21,6 +21,8 @@ application, `rig` included, sees only the `MidiManager` / `MidiDeviceHandle` tr
   Only its manager changes its `State`.
 - **`MidiEvent`** — the events a manager publishes: a device becoming available or unavailable, opened or closed, each
   with a failure counterpart, and `MidiEnvironmentChangedEvent`.
+- **`MidiEventPublisher`** — where a manager publishes its `MidiEvent`s, synchronously on the thread that made the
+  change; `app`'s forwards them to the Businessync bus.
 
 ### Messages
 
