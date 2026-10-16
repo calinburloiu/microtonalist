@@ -29,11 +29,14 @@ class Businessync(eventBus: EventBus) {
    * Publishes an event to its subscribers and delivers it on either the Business or the UI Thread based on which method
    * subscribers used for subscribing, [[subscribe]] or [[subscribeOnUi]], respectively.
    *
+   * The event may be of any type: the subscribers are matched by its runtime class and its supertypes, as Guava's
+   * `EventBus.post` does.
+   *
    * TODO #90 Details
    *
    * @param event
    */
-  def publish(event: BusinessyncEvent): Unit = eventBus.post(event)
+  def publish(event: AnyRef): Unit = eventBus.post(event)
 
   /**
    * If called from the Business Thread, delivers an event to its Business Thread subscribers immediately. Otherwise,

@@ -17,7 +17,7 @@
 package org.calinburloiu.music.scmidi.javamidi
 
 import ch.qos.logback.classic.Level
-import org.calinburloiu.businessync.{Businessync, BusinessyncEvent}
+import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.calinburloiu.music.scmidi.*
@@ -80,7 +80,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
   private trait Fixture {
     /** What the bus does with each published event, besides recording it; a test may replace it. */
-    var onPublish: BusinessyncEvent => Unit = _ => ()
+    var onPublish: AnyRef => Unit = _ => ()
 
     val businessync: Stub[Businessync] = stub[Businessync]
     businessync.publish.returns(event => onPublish(event))
