@@ -69,6 +69,8 @@ lazy val root = (project in file("."))
     tuningChangerPedalModule,
     rigModule,
     formatModule,
+    formatCoreModule,
+    formatTestUtilsModule,
     intonationModule,
     scMidiModule,
     scMidiJavamidiModule,
@@ -356,6 +358,8 @@ lazy val formatModule = (project in file("format/format"))
     commonModule,
     commonTestUtilsModule % Test,
     compositionModule,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
     rigModule,
     tunerModule,
     tunerMpbModule,
@@ -374,6 +378,37 @@ lazy val formatModule = (project in file("format/format"))
     ),
     // TODO #179 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 66, branch = 59),
+  )
+
+lazy val formatCoreModule = (project in file("format/format-core"))
+  .withId("format-core")
+  .dependsOn(
+    commonModule,
+    formatTestUtilsModule % Test,
+    scMidiModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format-core",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val formatTestUtilsModule = (project in file("format/format-test-utils"))
+  .withId("format-test-utils")
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format-test-utils",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+      scalaTest,
+    ),
+    // Test infrastructure — exclude from coverage measurement.
+    coverageEnabled := false,
   )
 
 lazy val intonationModule = (project in file("theory/intonation"))
