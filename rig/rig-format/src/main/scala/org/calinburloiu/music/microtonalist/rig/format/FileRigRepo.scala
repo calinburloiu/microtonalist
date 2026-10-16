@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
+import org.calinburloiu.music.microtonalist.format.filePathOf
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.rig.{RigNotFoundException, RigRepo, RigSpec}
 

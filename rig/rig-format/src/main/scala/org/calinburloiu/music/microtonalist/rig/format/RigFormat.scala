@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
 import org.calinburloiu.music.microtonalist.rig.RigSpec
 

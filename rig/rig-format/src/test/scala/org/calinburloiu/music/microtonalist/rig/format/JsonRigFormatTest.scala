@@ -14,12 +14,13 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
+import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
 import org.calinburloiu.music.microtonalist.tuner.changer.format.JsonTuningChangerPluginFormat
 import org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat
 import com.fasterxml.jackson.core.JsonParseException
-import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readRigFromResources
+import org.calinburloiu.music.microtonalist.rig.format.FormatTestUtils.readRigFromResources
 import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.microtonalist.tuner.mpb.MonophonicPitchBendTuner
 import org.calinburloiu.music.microtonalist.tuner.mts.MtsOctave1ByteNonRealTimeTuner

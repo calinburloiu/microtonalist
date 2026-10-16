@@ -16,6 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.microtonalist.rig.format.{
+  DefaultRigRepo, FileRigRepo, HttpRigRepo, JsonRigFormat, LibraryRigRepo, RigFormat
+}
 import org.calinburloiu.music.microtonalist.tuner.changer.format.JsonTuningChangerPluginFormat
 import org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat
 import org.calinburloiu.music.microtonalist.composition.format.{

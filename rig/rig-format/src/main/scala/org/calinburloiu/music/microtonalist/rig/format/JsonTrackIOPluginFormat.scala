@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{PropertyNameType, TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.scmidi.MidiDeviceId
@@ -23,8 +24,8 @@ import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 
 /**
- * Abstract class extending [[JsonPluginFormat]] to handle JSON serialization and deserialization for plugins related to
- * MIDI track input/output.
+ * Abstract class extending [[org.calinburloiu.music.microtonalist.format.JsonPluginFormat]] to handle JSON
+ * serialization and deserialization for plugins related to MIDI track input/output.
  *
  * This class provides utility methods to create `TypeSpec` definitions for devices and inter-track configurations,
  * facilitating (de)serialization of associated plugin data.

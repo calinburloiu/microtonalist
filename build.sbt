@@ -71,6 +71,7 @@ lazy val root = (project in file("."))
     tuningChangerPedalModule,
     tuningChangerFormatModule,
     rigModule,
+    rigFormatModule,
     formatModule,
     formatCoreModule,
     formatTestUtilsModule,
@@ -419,34 +420,51 @@ lazy val rigModule = (project in file("rig/rig"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
+lazy val rigFormatModule = (project in file("rig/rig-format"))
+  .withId("rig-format")
+  .dependsOn(
+    commonTestUtilsModule % Test,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    rigModule,
+    scMidiModule,
+    tunerFormatModule % Test,
+    tunerModule,
+    tunerMpbModule % Test,
+    tunerMtsModule % Test,
+    tuningChangerFormatModule % Test,
+    tuningChangerModule,
+    tuningChangerPedalModule % Test,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-rig-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val formatModule = (project in file("format/format"))
   .withId("format")
   .dependsOn(
-    commonModule,
+    businessyncModule,
     commonTestUtilsModule % Test,
     compositionFormatModule,
-    compositionModule,
     formatCoreModule,
-    formatTestUtilsModule % Test,
     intonationFormatModule,
+    rigFormatModule,
     rigModule,
     tunerFormatModule,
-    tunerModule,
-    tunerMpbModule,
-    tunerMpeModule,
-    tunerMtsModule,
-    tuningModule,
+    tunerMtsModule % Test,
     tuningChangerFormatModule,
-    tuningChangerModule,
-    tuningChangerPedalModule,
+    tuningChangerPedalModule % Test,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-format",
     commonSettings,
-    libraryDependencies ++= Seq(
-      playJson,
-    ),
     // TODO #179 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 66, branch = 59),
   )

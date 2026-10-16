@@ -14,13 +14,13 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.rig.{RigRepo, RigSpec}
 
 /**
- * Utilities used for testing the I/O formats.
+ * Utilities used for testing the rig formats.
  */
 object FormatTestUtils {
 

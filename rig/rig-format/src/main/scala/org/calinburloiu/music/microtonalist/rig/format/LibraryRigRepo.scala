@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
+import org.calinburloiu.music.microtonalist.format.{DefaultRepoSelector, RepoSelector, resolveLibraryUrl}
 import org.calinburloiu.music.microtonalist.rig.{RigRepo, RigSpec}
 
 import java.net.URI

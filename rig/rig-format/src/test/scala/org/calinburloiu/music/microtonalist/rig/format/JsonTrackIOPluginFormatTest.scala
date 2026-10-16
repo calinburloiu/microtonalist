@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.rig.format
 
+import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils.{AllowedTypes, JsonFailureCheck, JsonStringType}
 import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.scmidi.MidiDeviceId
