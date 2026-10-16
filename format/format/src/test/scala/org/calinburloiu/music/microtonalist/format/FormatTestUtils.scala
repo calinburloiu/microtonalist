@@ -17,17 +17,12 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
-import org.calinburloiu.music.microtonalist.composition.Composition
 import org.calinburloiu.music.microtonalist.rig.{RigRepo, RigSpec}
 
 /**
  * Utilities used for testing the I/O formats.
  */
 object FormatTestUtils {
-
-  def readCompositionFromResources(resourcePathString: String, compositionRepo: CompositionRepo): Composition = {
-    compositionRepo.read(CommonTestUtils.uriOfResource(resourcePathString))
-  }
 
   def readRigFromResources(resourcePathString: String, rigRepo: RigRepo): RigSpec = {
     rigRepo.readRig(CommonTestUtils.uriOfResource(resourcePathString))

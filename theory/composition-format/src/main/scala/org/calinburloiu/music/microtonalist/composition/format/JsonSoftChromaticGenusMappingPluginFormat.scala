@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.composition.format
 
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.composition.SoftChromaticGenusMapping
 
 object JsonSoftChromaticGenusMappingPluginFormat extends JsonPluginFormat[SoftChromaticGenusMapping] {

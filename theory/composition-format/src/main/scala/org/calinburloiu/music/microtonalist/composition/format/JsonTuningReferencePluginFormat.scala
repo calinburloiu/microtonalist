@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.composition.format
 
+import org.calinburloiu.music.microtonalist.format.{JsonPluginFormat, MidiNoteFormat, PitchClassFormat}
 import org.calinburloiu.music.intonation.format.JsonIntervalFormat
 import org.calinburloiu.music.intonation.{Interval, IntonationStandard}
 import org.calinburloiu.music.microtonalist.composition.{

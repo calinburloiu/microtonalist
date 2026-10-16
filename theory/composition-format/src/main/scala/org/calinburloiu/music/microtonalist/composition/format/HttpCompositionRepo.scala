@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.composition.format
 
+import org.calinburloiu.music.microtonalist.format.UriScheme
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.Composition
 

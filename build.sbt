@@ -60,6 +60,7 @@ lazy val root = (project in file("."))
     commonTestUtilsModule,
     uiModule,
     compositionModule,
+    compositionFormatModule,
     tunerModule,
     tunerMpeModule,
     tunerMtsModule,
@@ -220,6 +221,29 @@ lazy val compositionModule = (project in file("theory/composition"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
+lazy val compositionFormatModule = (project in file("theory/composition-format"))
+  .withId("composition-format")
+  .dependsOn(
+    businessyncModule % Test,
+    commonTestUtilsModule % Test,
+    compositionModule,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    intonationFormatModule,
+    intonationModule,
+    scMidiModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-composition-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val tunerModule = (project in file("tuner/tuner"))
   .withId("tuner")
   .dependsOn(
@@ -358,6 +382,7 @@ lazy val formatModule = (project in file("format/format"))
   .dependsOn(
     commonModule,
     commonTestUtilsModule % Test,
+    compositionFormatModule,
     compositionModule,
     formatCoreModule,
     formatTestUtilsModule % Test,

@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.composition.format
 
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.composition.{DirectTuningReducer, MergeTuningReducer, TuningReducer}
 import org.calinburloiu.music.microtonalist.tuner.DefaultCentsTolerance
 import play.api.libs.functional.syntax.toApplicativeOps

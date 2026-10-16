@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.microtonalist.composition.format
 
+import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
 import org.calinburloiu.music.intonation.format.{
   DefaultScaleRepo, FileScaleRepo, HuygensFokkerScalaScaleFormat, IncompatibleIntervalsScaleFormatException,
   JsonScaleFormat, ScaleContextConverter, ScaleFormatContext, ScaleFormatRegistry, ScaleNotFoundException
