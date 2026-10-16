@@ -38,22 +38,22 @@ addCommandAlias("fixLint", "fix; lint")
 
 // # Projects
 //
-// CONVENTION: every project sets `.withId(<base-directory-name>)` so the sbt project ID always equals the
-// project's base directory name — even where the `lazy val` name already matches (it is added redundantly on
-// purpose, to make the rule uniform and self-documenting). This consistency is relied upon by tooling that
-// maps a source directory to its sbt module ID without parsing this file — notably the `scoverage-inspector`
-// MCP server (`.claude/mcp/scoverage_inspector/`), whose reports live at `coverage-reports/<id>/` while sources
-// live at `<dir>/src/`. The `lazy val` name follows the convention `<camelCase-dir-name>Module` (e.g.
-// `scMidiModule` for the `sc-midi` directory). The ID — used in `sbt "<id>/test"`, in `thisProject.value.id`,
-// and thus in `coverageDataDir` — must equal the directory. The sole special case is `root` (base dir ".",
-// ID "root"), which keeps its plain `root` val name. When adding a module, set its `.withId` to its directory
-// name and keep the two in lockstep.
+// CONVENTION: every module lives at `<group>/<id>/`, in a grouping folder that holds the modules of one area and
+// nothing else (see docs/architecture/module-overview.md), and sets `.withId(<id>)`, so its sbt project ID always
+// equals the name of its own folder — even where the `lazy val` name already matches (it is added redundantly on
+// purpose, to make the rule uniform and self-documenting). This consistency is relied upon by tooling that maps a
+// source directory to its sbt module ID without parsing this file — notably the `scoverage-inspector` MCP server
+// (`.claude/mcp/scoverage_inspector/`), whose reports live at `coverage-reports/<id>/` while sources live at
+// `<group>/<id>/src/`. The `lazy val` name follows the convention `<camelCaseId>Module` (e.g. `scMidiModule` for
+// `midi/sc-midi`). The ID — used in `sbt "<id>/test"`, in `thisProject.value.id`, and thus in `coverageDataDir` — must
+// equal the folder's name. The sole special case is `root` (base dir ".", ID "root"), which keeps its plain `root` val
+// name. When adding a module, put it in its area's grouping folder and set its `.withId` to its folder's name.
 
 lazy val root = (project in file("."))
   .withId("root")
   .aggregate(
     appModule,
-    appConfigModule,
+    configModule,
     businessyncModule,
     cliModule,
     commonModule,
@@ -76,10 +76,10 @@ lazy val root = (project in file("."))
     coverageSettings(stmt = 73, branch = 68),
   )
 
-lazy val appModule = (project in file("app"))
+lazy val appModule = (project in file("app/app"))
   .withId("app")
   .dependsOn(
-    appConfigModule,
+    configModule,
     businessyncModule,
     commonModule,
     commonTestUtilsModule % Test,
@@ -110,7 +110,7 @@ lazy val appModule = (project in file("app"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val appConfigModule = (project in file("config"))
+lazy val configModule = (project in file("app/config"))
   .withId("config")
   .dependsOn(
     commonModule
@@ -126,7 +126,7 @@ lazy val appConfigModule = (project in file("config"))
     coverageSettings(stmt = 59, branch = 39),
   )
 
-lazy val cliModule = (project in file("cli"))
+lazy val cliModule = (project in file("app/cli"))
   .withId("cli")
   .dependsOn(
     scMidiModule,
@@ -140,7 +140,7 @@ lazy val cliModule = (project in file("cli"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val uiModule = (project in file("ui"))
+lazy val uiModule = (project in file("ui/ui"))
   .withId("ui")
   .dependsOn(
     tunerModule,
@@ -153,7 +153,7 @@ lazy val uiModule = (project in file("ui"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val commonModule = (project in file("common"))
+lazy val commonModule = (project in file("base/common"))
   .withId("common")
   .dependsOn(
     commonTestUtilsModule % Test,
@@ -169,7 +169,7 @@ lazy val commonModule = (project in file("common"))
     coverageSettings(stmt = 50, branch = 22),
   )
 
-lazy val commonTestUtilsModule = (project in file("common-test-utils"))
+lazy val commonTestUtilsModule = (project in file("base/common-test-utils"))
   .withId("common-test-utils")
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -179,7 +179,7 @@ lazy val commonTestUtilsModule = (project in file("common-test-utils"))
     coverageEnabled := false,
   )
 
-lazy val businessyncModule = (project in file("businessync"))
+lazy val businessyncModule = (project in file("base/businessync"))
   .withId("businessync")
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -192,7 +192,7 @@ lazy val businessyncModule = (project in file("businessync"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
-lazy val compositionModule = (project in file("composition"))
+lazy val compositionModule = (project in file("theory/composition"))
   .withId("composition")
   .dependsOn(
     intonationModule,
@@ -206,7 +206,7 @@ lazy val compositionModule = (project in file("composition"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val tunerModule = (project in file("tuner"))
+lazy val tunerModule = (project in file("tuner/tuner"))
   .withId("tuner")
   .dependsOn(
     businessyncModule,
@@ -224,7 +224,7 @@ lazy val tunerModule = (project in file("tuner"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val rigModule = (project in file("rig"))
+lazy val rigModule = (project in file("rig/rig"))
   .withId("rig")
   .dependsOn(
     businessyncModule,
@@ -243,7 +243,7 @@ lazy val rigModule = (project in file("rig"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val formatModule = (project in file("format"))
+lazy val formatModule = (project in file("format/format"))
   .withId("format")
   .dependsOn(
     commonModule,
@@ -263,7 +263,7 @@ lazy val formatModule = (project in file("format"))
     coverageSettings(stmt = 66, branch = 59),
   )
 
-lazy val intonationModule = (project in file("intonation"))
+lazy val intonationModule = (project in file("theory/intonation"))
   .withId("intonation")
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -277,7 +277,7 @@ lazy val intonationModule = (project in file("intonation"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val scMidiModule = (project in file("sc-midi"))
+lazy val scMidiModule = (project in file("midi/sc-midi"))
   .withId("sc-midi")
   .dependsOn(
     businessyncModule,
@@ -298,7 +298,7 @@ lazy val scMidiModule = (project in file("sc-midi"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val experimentsModule = (project in file("experiments"))
+lazy val experimentsModule = (project in file("app/experiments"))
   .withId("experiments")
   .dependsOn(
     intonationModule,
