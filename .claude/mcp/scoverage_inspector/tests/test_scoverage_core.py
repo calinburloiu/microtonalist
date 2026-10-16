@@ -53,15 +53,15 @@ def _age_tree(directory: Path, mtime: float) -> None:
 
 
 class ModuleDirsTest(unittest.TestCase):
-    def test_lists_only_dirs_with_a_src_subdir(self):
-        # Given a repo root with two module dirs (each with src/) and one without
+    def test_lists_only_dirs_with_a_src_subdir_in_a_grouping_folder(self):
+        # Given a repo root with two module dirs in grouping folders (each with src/) and one without
         tmp = Path(tempfile.mkdtemp())
         try:
-            (tmp / "sc-midi" / "src").mkdir(parents=True)
-            (tmp / "config" / "src").mkdir(parents=True)
-            (tmp / "coverage-reports").mkdir()  # not a module — no src/
-            # Then only the module dirs are returned, sorted
-            self.assertEqual(core._module_dirs(tmp), ["config", "sc-midi"])
+            (tmp / "midi" / "sc-midi" / "src").mkdir(parents=True)
+            (tmp / "app" / "config" / "src").mkdir(parents=True)
+            (tmp / "coverage-reports" / "sc-midi").mkdir(parents=True)  # not a module — no src/
+            # Then only the module dirs are returned, relative to the root and sorted
+            self.assertEqual(core._module_dirs(tmp), ["app/config", "midi/sc-midi"])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -81,10 +81,11 @@ class SafeIntTest(unittest.TestCase):
 
 class FreshnessTest(unittest.TestCase):
     def setUp(self):
-        # The module ID equals its base directory name by build convention, so the
-        # report dir, source dir, and queried module ID are all "sc-midi".
+        # The module ID equals the name of its directory, in a grouping folder, by build
+        # convention, so the report dir and queried module ID are "sc-midi" and the source
+        # dir is "midi/sc-midi".
         self.tmp = Path(tempfile.mkdtemp())
-        self.src = self.tmp / "sc-midi" / "src" / "main" / "scala"
+        self.src = self.tmp / "midi" / "sc-midi" / "src" / "main" / "scala"
         self.src.mkdir(parents=True)
         self.source_file = self.src / "Foo.scala"
         self.source_file.write_text("object Foo")
@@ -119,14 +120,43 @@ class FreshnessTest(unittest.TestCase):
         # Then the parent directory's bumped mtime makes the report stale
         self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.STALE)
 
-    def test_uses_module_id_as_source_directory(self):
-        # The report lives at coverage-reports/sc-midi while sources live at sc-midi/src;
-        # freshness must resolve the source dir from the module ID alone (no build.sbt).
+    def test_finds_the_source_directory_from_the_module_id(self):
+        # The report lives at coverage-reports/sc-midi while sources live at midi/sc-midi/src;
+        # freshness must find the source dir from the module ID alone (no build.sbt).
         report = _write_report(self.tmp, "sc-midi")
         _age_tree(self.src, 1000)
         _set_mtime(report, 1500)
         _set_mtime(self.source_file, 2000)
         self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.STALE)
+
+    def test_stale_for_a_module_named_after_its_grouping_folder(self):
+        # Given the tuner module at tuner/tuner, with a source newer than its report
+        src = self.tmp / "tuner" / "tuner" / "src" / "main" / "scala"
+        src.mkdir(parents=True)
+        source_file = src / "Tuner.scala"
+        source_file.write_text("trait Tuner")
+        report = _write_report(self.tmp, "tuner")
+        _age_tree(src, 1000)
+        _set_mtime(report, 1500)
+        _set_mtime(source_file, 2000)
+        # Then its report is stale
+        self.assertEqual(core.freshness(self.tmp, "tuner"), core.Freshness.STALE)
+
+    def test_aggregate_covers_the_modules_of_every_grouping_folder(self):
+        # Given a fresh root report and a second module, in another grouping folder
+        src = self.tmp / "app" / "config" / "src" / "main" / "scala"
+        src.mkdir(parents=True)
+        source_file = src / "Bar.scala"
+        source_file.write_text("object Bar")
+        report = _write_report(self.tmp, "root")
+        _age_tree(self.tmp / "midi", 1000)
+        _age_tree(src, 1000)
+        _set_mtime(report, 2000)
+        self.assertEqual(core.freshness(self.tmp, "root", aggregate=True), core.Freshness.FRESH)
+        # When the second module's source changes
+        _set_mtime(source_file, 3000)
+        # Then the root report is stale
+        self.assertEqual(core.freshness(self.tmp, "root", aggregate=True), core.Freshness.STALE)
 
     def test_aggregate_uses_root_report_and_all_sources(self):
         report = _write_report(self.tmp, "root")
@@ -209,7 +239,7 @@ class ModuleSummaryTest(unittest.TestCase):
 
     def test_aggregate_filters_to_module_directory(self):
         _write_report(self.tmp, "root")
-        # sc-midi sources live under sc-midi/ -> only Foo matches
+        # sc-midi sources live under midi/sc-midi/ -> only Foo matches
         summary = core.module_summary(self.tmp, "sc-midi", aggregate=True)
         self.assertEqual([c.fqn for c in summary.classes], ["org.example.Foo"])
         self.assertAlmostEqual(summary.stmt_pct, 80.0)

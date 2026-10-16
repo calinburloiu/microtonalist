@@ -7,21 +7,21 @@
                     <methods>
                         <method name="org.example/Foo/bar" statement-count="3" statements-invoked="3" statement-rate="100.00" branch-rate="100.00">
                             <statements>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="bar" line="10" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="bar" line="11" branch="false" invocation-count="2" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="bar" line="12" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="bar" line="10" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="bar" line="11" branch="false" invocation-count="2" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="bar" line="12" branch="false" invocation-count="1" ignored="false"></statement>
                             </statements>
                         </method>
                         <method name="org.example/Foo/baz" statement-count="7" statements-invoked="5" statement-rate="60.00" branch-rate="40.00">
                             <statements>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="20" branch="false" invocation-count="3" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="21" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="22" branch="true" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="23" branch="false" invocation-count="2" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="24" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="25" branch="false" invocation-count="0" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="26" branch="true" invocation-count="0" ignored="false"></statement>
-                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="27" branch="false" invocation-count="0" ignored="true"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="20" branch="false" invocation-count="3" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="21" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="22" branch="true" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="23" branch="false" invocation-count="2" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="24" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="25" branch="false" invocation-count="0" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="26" branch="true" invocation-count="0" ignored="false"></statement>
+                                <statement package="org.example" class="Foo" full-class-name="org.example.Foo" source="/repo/midi/sc-midi/src/main/scala/org/example/Foo.scala" method="baz" line="27" branch="false" invocation-count="0" ignored="true"></statement>
                             </statements>
                         </method>
                     </methods>
@@ -30,16 +30,16 @@
                     <methods>
                         <method name="org.example/Bar/qux" statement-count="10" statements-invoked="7" statement-rate="70.00" branch-rate="50.00">
                             <statements>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="5" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="6" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="7" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="8" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="9" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="10" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="11" branch="false" invocation-count="1" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="12" branch="false" invocation-count="0" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="13" branch="false" invocation-count="0" ignored="false"></statement>
-                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/config/src/main/scala/org/example/Bar.scala" method="qux" line="14" branch="false" invocation-count="0" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="5" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="6" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="7" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="8" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="9" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="10" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="11" branch="false" invocation-count="1" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="12" branch="false" invocation-count="0" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="13" branch="false" invocation-count="0" ignored="false"></statement>
+                                <statement package="org.example" class="Bar" full-class-name="org.example.Bar" source="/repo/app/config/src/main/scala/org/example/Bar.scala" method="qux" line="14" branch="false" invocation-count="0" ignored="false"></statement>
                             </statements>
                         </method>
                     </methods>

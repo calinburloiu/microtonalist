@@ -64,12 +64,12 @@ for the **declaration** — not Metals.
 
    The `class|object|trait|enum X\b` form can't match a same-named variable, so this is precise;
    `\b` keeps `Scale` from matching `ScaleFormat`.
-2. By build convention the **sbt module ID is the first path segment** of the match (the base
-   directory name; `build.sbt` enforces this with `.withId(<dir>)`). IDs may be kebab-case
-   (`sc-midi`, `common-test-utils`, `config`). Example:
+2. By build convention the **sbt module ID is the path segment before `src/`** in the match (the
+   module's folder, inside a grouping folder; `build.sbt` enforces this with `.withId(<dir>)`). IDs
+   may be kebab-case (`sc-midi`, `common-test-utils`, `config`). Example:
    `org.calinburloiu.music.microtonalist.config.MainConfigManager` is declared in
-   `config/src/main/scala/org/calinburloiu/music/microtonalist/config/ConfigManagement.scala` — note
-   the file is **not** named `MainConfigManager.scala` — so the module is `config`.
+   `app/config/src/main/scala/org/calinburloiu/music/microtonalist/config/ConfigManagement.scala` —
+   note the file is **not** named `MainConfigManager.scala` — so the module is `config`.
 
 Deduplicate the resulting set of `(module, fqn)` pairs.
 
